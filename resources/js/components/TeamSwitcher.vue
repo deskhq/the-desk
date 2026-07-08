@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { router, usePage } from '@inertiajs/vue3';
+import { usePage } from '@inertiajs/vue3';
 import { Check, ChevronsUpDown, Plus, Users } from '@lucide/vue';
 import { computed, onMounted, onUnmounted, ref } from 'vue';
 import CreateTeamModal from '@/components/CreateTeamModal.vue';
@@ -12,8 +12,7 @@ import {
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { switchMethod } from '@/routes/teams';
-import type { Team } from '@/types';
+import { useTeamSwitch } from '@/composables/useTeamSwitch';
 
 const props = withDefaults(
     defineProps<{
@@ -48,32 +47,7 @@ const checkIconClass = computed(() =>
 );
 const plusIconClass = computed(() => (props.inHeader ? 'size-4' : 'h-4 w-4'));
 
-const switchTeam = (team: Team) => {
-    const previousTeamSlug = currentTeam.value?.slug;
-
-    router.visit(switchMethod(team.slug), {
-        onFinish: () => {
-            if (!previousTeamSlug || typeof window === 'undefined') {
-                router.reload();
-
-                return;
-            }
-
-            const currentUrl = `${window.location.pathname}${window.location.search}${window.location.hash}`;
-            const segment = `/${previousTeamSlug}`;
-
-            if (currentUrl.includes(segment)) {
-                router.visit(currentUrl.replace(segment, `/${team.slug}`), {
-                    replace: true,
-                });
-
-                return;
-            }
-
-            router.reload();
-        },
-    });
-};
+const { switchTeam } = useTeamSwitch();
 
 onMounted(() => {
     mediaQuery = window.matchMedia('(max-width: 767px)');
