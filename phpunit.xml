@@ -12,22 +12,9 @@
             <directory>tests/Feature</directory>
         </testsuite>
     </testsuites>
-    <!--
-        Coverage is gated at 100% (see the `test` composer script). The source
-        set is scoped to feature code as it lands so the gate stays green while
-        the pre-existing scaffold is backfilled separately. Extend this list as
-        each new feature is built. Currently: Channels foundation (#13).
-    -->
     <source>
         <include>
-            <directory>app/Actions/Channels</directory>
-            <directory>app/Http/Controllers/Channels</directory>
-            <file>app/Data/ChannelData.php</file>
-            <file>app/Enums/ChannelVisibility.php</file>
-            <file>app/Models/Channel.php</file>
-            <file>app/Models/ChannelMember.php</file>
-            <file>app/Observers/MembershipObserver.php</file>
-            <file>app/Policies/ChannelPolicy.php</file>
+            <directory>app</directory>
         </include>
     </source>
     <php>

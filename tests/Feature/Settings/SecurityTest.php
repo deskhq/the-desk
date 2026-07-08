@@ -60,6 +60,19 @@ test('security page renders without two factor when feature is disabled', functi
         );
 });
 
+test('security page renders with password rules', function () {
+    $user = User::factory()->create();
+
+    $this->actingAs($user)
+        ->withSession(['auth.password_confirmed_at' => time()])
+        ->get(route('security.edit'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('settings/Security')
+            ->has('passwordRules'),
+        );
+});
+
 test('password can be updated', function () {
     $user = User::factory()->create();
 
