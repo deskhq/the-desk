@@ -10,7 +10,11 @@ import {
     watch,
 } from 'vue';
 import { toast } from 'vue-sonner';
-import { store as storeMessage } from '@/actions/App/Http/Controllers/Channels/MessageController';
+import {
+    destroy as destroyMessage,
+    store as storeMessage,
+    update as updateMessage,
+} from '@/actions/App/Http/Controllers/Channels/MessageController';
 import MessageComposer from '@/components/MessageComposer.vue';
 import MessageList from '@/components/MessageList.vue';
 import { Separator } from '@/components/ui/separator';
@@ -30,6 +34,11 @@ const currentUser = computed(() => ({
     name: page.props.auth.user.name,
 }));
 
+// A team Admin+ may delete anyone's message in the channel (moderation).
+const canModerate = computed(() =>
+    ['admin', 'owner'].includes(page.props.currentTeam?.role ?? ''),
+);
+
 // Distance (px) from the bottom within which the view stays pinned to newest,
 // so an incoming message never yanks a user who is reading older history.
 const NEAR_BOTTOM_THRESHOLD = 120;
@@ -41,6 +50,11 @@ const pending = ref<Message[]>([]);
 
 // Messages received live over the channel's private broadcast channel.
 const live = ref<Message[]>([]);
+
+// Edits and deletions applied on top of whichever copy of a message is rendered,
+// keyed by client uuid. Sourced from our own optimistic mutations and from the
+// MessageUpdated / MessageDeleted echoes, so every client converges in place.
+const patches = ref<Map<string, Message>>(new Map());
 
 const scrollContainer = ref<HTMLElement | null>(null);
 
@@ -67,6 +81,13 @@ const displayMessages = computed<Message[]>(() => {
     for (const message of pending.value) {
         if (!byUuid.has(message.clientUuid)) {
             byUuid.set(message.clientUuid, message);
+        }
+    }
+
+    // Overlay edits/deletions on the rendered copy, keeping its original slot.
+    for (const [uuid, patch] of patches.value) {
+        if (byUuid.has(uuid)) {
+            byUuid.set(uuid, patch);
         }
     }
 
@@ -138,11 +159,21 @@ function channelName(id: string): string {
     return `channel.${id}`;
 }
 
+function applyPatch(message: Message): void {
+    patches.value.set(message.clientUuid, message);
+}
+
 function subscribe(id: string): void {
     echo()
         .private(channelName(id))
         .listen('MessageSent', (message: Message) => {
             appendLive(message);
+        })
+        .listen('MessageUpdated', (message: Message) => {
+            applyPatch(message);
+        })
+        .listen('MessageDeleted', (message: Message) => {
+            applyPatch(message);
         });
 }
 
@@ -165,6 +196,7 @@ watch(
 
         live.value = [];
         pending.value = [];
+        patches.value = new Map();
         subscribe(newId);
     },
 );
@@ -183,6 +215,7 @@ function send(body: string): void {
         user: currentUser.value,
         createdAt: new Date().toISOString(),
         editedAt: null,
+        isDeleted: false,
     });
 
     nextTick(scrollToBottom);
@@ -199,6 +232,59 @@ function send(body: string): void {
                     (message) => message.clientUuid !== clientUuid,
                 );
                 toast.error('Your message failed to send. Please try again.');
+            },
+        },
+    );
+}
+
+function editMessage(message: Message, body: string): void {
+    const previous = patches.value.get(message.clientUuid);
+
+    // Optimistically show the edit; the broadcast echo later confirms it.
+    applyPatch({ ...message, body, editedAt: new Date().toISOString() });
+
+    router.patch(
+        updateMessage({
+            team: props.team.slug,
+            channel: props.channel.slug,
+            message: message.id,
+        }).url,
+        { body },
+        {
+            preserveScroll: true,
+            onError: () => {
+                if (previous) {
+                    patches.value.set(message.clientUuid, previous);
+                } else {
+                    patches.value.delete(message.clientUuid);
+                }
+                toast.error('Your edit failed to save. Please try again.');
+            },
+        },
+    );
+}
+
+function deleteMessage(message: Message): void {
+    const previous = patches.value.get(message.clientUuid);
+
+    // Optimistically show the tombstone; the broadcast echo later confirms it.
+    applyPatch({ ...message, body: '', isDeleted: true });
+
+    router.delete(
+        destroyMessage({
+            team: props.team.slug,
+            channel: props.channel.slug,
+            message: message.id,
+        }).url,
+        {
+            preserveScroll: true,
+            onError: () => {
+                if (previous) {
+                    patches.value.set(message.clientUuid, previous);
+                } else {
+                    patches.value.delete(message.clientUuid);
+                }
+                toast.error('Failed to delete the message. Please try again.');
             },
         },
     );
@@ -237,6 +323,10 @@ function send(body: string): void {
                 <MessageList
                     :messages="displayMessages"
                     :pending-uuids="pendingUuids"
+                    :current-user-id="currentUser.id"
+                    :can-moderate="canModerate"
+                    @edit="editMessage"
+                    @delete="deleteMessage"
                 />
             </InfiniteScroll>
 

@@ -1,5 +1,16 @@
 <script setup lang="ts">
-import { computed } from 'vue';
+import { Pencil, Trash2 } from '@lucide/vue';
+import { computed, nextTick, ref } from 'vue';
+import { Button } from '@/components/ui/button';
+import {
+    Dialog,
+    DialogClose,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog';
 import { useInitials } from '@/composables/useInitials';
 import { renderMessageBody } from '@/lib/messageBody';
 import type { Message, MessageAuthor } from '@/types';
@@ -7,6 +18,13 @@ import type { Message, MessageAuthor } from '@/types';
 const props = defineProps<{
     messages: Message[];
     pendingUuids?: string[];
+    currentUserId: string;
+    canModerate?: boolean;
+}>();
+
+const emit = defineEmits<{
+    edit: [message: Message, body: string];
+    delete: [message: Message];
 }>();
 
 const { getInitials } = useInitials();
@@ -115,6 +133,76 @@ const pending = computed(() => new Set(props.pendingUuids ?? []));
 function isPending(message: Message): boolean {
     return pending.value.has(message.clientUuid);
 }
+
+function isOwn(message: Message): boolean {
+    return message.user.id === props.currentUserId;
+}
+
+function canEdit(message: Message): boolean {
+    return !message.isDeleted && !isPending(message) && isOwn(message);
+}
+
+function canDelete(message: Message): boolean {
+    return (
+        !message.isDeleted &&
+        !isPending(message) &&
+        (isOwn(message) || Boolean(props.canModerate))
+    );
+}
+
+// The message currently being edited inline, and its working draft.
+const editingId = ref<string | null>(null);
+const editDraft = ref('');
+const editField = ref<HTMLTextAreaElement | null>(null);
+
+// A plain template ref inside v-for collects into an array; a function ref keeps
+// the single visible editor element (only one row edits at a time).
+function setEditField(el: unknown): void {
+    editField.value = (el as HTMLTextAreaElement | null) ?? null;
+}
+
+function startEdit(message: Message): void {
+    editingId.value = message.id;
+    editDraft.value = message.body;
+    nextTick(() => editField.value?.focus());
+}
+
+function cancelEdit(): void {
+    editingId.value = null;
+    editDraft.value = '';
+}
+
+function saveEdit(message: Message): void {
+    const body = editDraft.value.trim();
+
+    // An empty or unchanged draft is a no-op; the server would reject the former.
+    if (body !== '' && body !== message.body) {
+        emit('edit', message, body);
+    }
+
+    cancelEdit();
+}
+
+// The message queued for deletion; a non-null value drives the confirm dialog.
+const pendingDelete = ref<Message | null>(null);
+
+function requestDelete(message: Message): void {
+    pendingDelete.value = message;
+}
+
+function setDeleteOpen(open: boolean): void {
+    if (!open) {
+        pendingDelete.value = null;
+    }
+}
+
+function confirmDelete(): void {
+    if (pendingDelete.value) {
+        emit('delete', pendingDelete.value);
+    }
+
+    pendingDelete.value = null;
+}
 </script>
 
 <template>
@@ -152,19 +240,125 @@ function isPending(message: Message): boolean {
                             formatTime(item.leadCreatedAt)
                         }}</span>
                     </div>
-                    <p
+                    <div
                         v-for="(message, index) in item.messages"
                         :key="message.id"
-                        :data-test="'message-body'"
-                        class="text-[14.5px] leading-[1.55] break-words whitespace-pre-wrap text-foreground/90"
-                        :class="[
-                            index === 0 ? 'mt-0.5' : 'mt-1.5',
-                            isPending(message) ? 'opacity-60' : '',
-                        ]"
-                        v-html="renderMessageBody(message.body)"
-                    ></p>
+                        class="group/message relative -mx-2 rounded-md px-2 hover:bg-muted/40"
+                        :class="index === 0 ? 'mt-0.5' : 'mt-1.5'"
+                    >
+                        <p
+                            v-if="message.isDeleted"
+                            :data-test="'message-tombstone'"
+                            class="py-0.5 text-[13.5px] text-muted-foreground/70 italic"
+                        >
+                            This message was deleted
+                        </p>
+
+                        <div v-else-if="editingId === message.id" class="py-0.5">
+                            <textarea
+                                :ref="setEditField"
+                                v-model="editDraft"
+                                rows="1"
+                                class="w-full resize-none rounded-md border border-input bg-background px-2.5 py-1.5 text-[14.5px] leading-[1.55] text-foreground outline-none focus:border-ring focus:ring-1 focus:ring-ring"
+                                @keydown.enter.exact.prevent="saveEdit(message)"
+                                @keydown.esc.prevent="cancelEdit"
+                            ></textarea>
+                            <div
+                                class="mt-1 flex items-center gap-2 text-[11.5px] text-muted-foreground"
+                            >
+                                <button
+                                    type="button"
+                                    class="rounded bg-primary px-2 py-1 font-medium text-primary-foreground hover:bg-primary/90"
+                                    @click="saveEdit(message)"
+                                >
+                                    Save
+                                </button>
+                                <button
+                                    type="button"
+                                    class="rounded border border-border px-2 py-1 font-medium text-foreground hover:bg-muted"
+                                    @click="cancelEdit"
+                                >
+                                    Cancel
+                                </button>
+                                <span>Enter to save · Esc to cancel</span>
+                            </div>
+                        </div>
+
+                        <p
+                            v-else
+                            :data-test="'message-body'"
+                            class="py-0.5 text-[14.5px] leading-[1.55] break-words whitespace-pre-wrap text-foreground/90"
+                            :class="isPending(message) ? 'opacity-60' : ''"
+                        >
+                            <span v-html="renderMessageBody(message.body)"></span>
+                            <span
+                                v-if="message.editedAt"
+                                :data-test="'message-edited'"
+                                class="ml-1 align-baseline text-[11px] text-muted-foreground/70 select-none"
+                                >(edited)</span
+                            >
+                        </p>
+
+                        <div
+                            v-if="
+                                editingId !== message.id &&
+                                (canEdit(message) || canDelete(message))
+                            "
+                            class="absolute -top-3 right-2 hidden items-center gap-0.5 rounded-md border border-border bg-background p-0.5 shadow-sm group-hover/message:flex"
+                        >
+                            <button
+                                v-if="canEdit(message)"
+                                type="button"
+                                :data-test="'message-edit'"
+                                aria-label="Edit message"
+                                class="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
+                                @click="startEdit(message)"
+                            >
+                                <Pencil class="size-3.5" />
+                            </button>
+                            <button
+                                v-if="canDelete(message)"
+                                type="button"
+                                :data-test="'message-delete'"
+                                aria-label="Delete message"
+                                class="rounded p-1 text-muted-foreground hover:bg-muted hover:text-destructive"
+                                @click="requestDelete(message)"
+                            >
+                                <Trash2 class="size-3.5" />
+                            </button>
+                        </div>
+                    </div>
                 </div>
             </div>
         </template>
+
+        <Dialog
+            :open="pendingDelete !== null"
+            @update:open="setDeleteOpen"
+        >
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>Delete message</DialogTitle>
+                    <DialogDescription>
+                        Are you sure you want to delete this message? This can't
+                        be undone.
+                    </DialogDescription>
+                </DialogHeader>
+
+                <DialogFooter class="gap-2">
+                    <DialogClose as-child>
+                        <Button variant="secondary"> Cancel </Button>
+                    </DialogClose>
+
+                    <Button
+                        data-test="delete-message-confirm"
+                        variant="destructive"
+                        @click="confirmDelete"
+                    >
+                        Delete
+                    </Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
     </div>
 </template>

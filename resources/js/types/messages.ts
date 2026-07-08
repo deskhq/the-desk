@@ -10,6 +10,7 @@ export type Message = {
     user: MessageAuthor;
     createdAt: string;
     editedAt: string | null;
+    isDeleted: boolean;
 };
 
 /**
