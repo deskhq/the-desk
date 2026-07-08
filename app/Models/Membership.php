@@ -3,15 +3,18 @@
 namespace App\Models;
 
 use App\Enums\TeamRole;
+use App\Observers\MembershipObserver;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Attributes\ObservedBy;
+use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\Pivot;
 use Illuminate\Support\Carbon;
 
 /**
- * @property int $id
- * @property int $team_id
- * @property int $user_id
+ * @property string $id
+ * @property string $team_id
+ * @property string $user_id
  * @property TeamRole $role
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
@@ -19,8 +22,11 @@ use Illuminate\Support\Carbon;
  * @property-read User $user
  */
 #[Fillable(['team_id', 'user_id', 'role'])]
+#[ObservedBy(MembershipObserver::class)]
 class Membership extends Pivot
 {
+    use HasUuids;
+
     /**
      * The table associated with the model.
      *
@@ -33,7 +39,7 @@ class Membership extends Pivot
      *
      * @var bool
      */
-    public $incrementing = true;
+    public $incrementing = false;
 
     /**
      * Get the team that the membership belongs to.

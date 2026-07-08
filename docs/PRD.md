@@ -33,6 +33,14 @@ Laravel Reverb (WebSockets), Laravel Scout + Meilisearch, spatie/laravel-data
   convention.
 - **Authorization** via Policies / `Gate` (`ChannelPolicy`, `MessagePolicy`).
 - **Enums** in `app/Enums`.
+- **UUID primary keys everywhere** — every model (existing scaffold `User`,
+  `Team`, `Membership`, `TeamInvitation` **and** new MVP `Channel`,
+  `ChannelMember`, `Message`, `Mention`) uses a UUID primary key via the
+  `HasUuids` trait. Every `id` column is `uuid` with a DB-level
+  `gen_random_uuid()` default (so seeders using `WithoutModelEvents` and pivot
+  `attach()` inserts still get a key); every FK is `foreignUuid`. No bigint
+  auto-increment keys. Route keys stay as they were (`Team` → slug,
+  `TeamInvitation` → code).
 
 ### Existing foundation (do not rebuild)
 
@@ -68,13 +76,13 @@ Team (workspace)
 **channels**
 | col | type | notes |
 |---|---|---|
-| id | bigint pk | |
-| team_id | fk → teams | cascade delete |
+| id | uuid pk | |
+| team_id | fk → teams (uuid) | cascade delete |
 | name | string | display, `#` stripped |
 | slug | string | slugified name |
 | visibility | string | `public` \| `private` |
 | topic | string nullable | shown in channel header |
-| created_by | fk → users | |
+| created_by | fk → users (uuid) nullable | null on creator deletion |
 | archived_at | timestamp nullable | archive = read-only, hidden |
 | timestamps | | |
 
@@ -83,10 +91,10 @@ Unique index `(team_id, slug)`.
 **channel_members**
 | col | type | notes |
 |---|---|---|
-| id | bigint pk | |
-| channel_id | fk → channels | cascade delete |
-| user_id | fk → users | cascade delete |
-| last_read_message_id | fk → messages nullable | drives unread/mention counts |
+| id | uuid pk | |
+| channel_id | fk → channels (uuid) | cascade delete |
+| user_id | fk → users (bigint) | cascade delete |
+| last_read_message_id | fk → messages (uuid) nullable | drives unread/mention counts |
 | timestamps | | |
 
 Unique index `(channel_id, user_id)`.
