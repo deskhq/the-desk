@@ -1,6 +1,15 @@
 <script setup lang="ts">
 import { Head, InfiniteScroll, router, usePage } from '@inertiajs/vue3';
-import { computed, ref, watch } from 'vue';
+import { echo } from '@laravel/echo-vue';
+import {
+    computed,
+    nextTick,
+    onBeforeUnmount,
+    onMounted,
+    ref,
+    watch,
+} from 'vue';
+import { toast } from 'vue-sonner';
 import { store as storeMessage } from '@/actions/App/Http/Controllers/Channels/MessageController';
 import MessageComposer from '@/components/MessageComposer.vue';
 import MessageList from '@/components/MessageList.vue';
@@ -21,27 +30,49 @@ const currentUser = computed(() => ({
     name: page.props.auth.user.name,
 }));
 
-// Optimistically-rendered messages awaiting their server echo. Keyed by the
-// client uuid the server persists, so the reload after a successful post
-// replaces them with the canonical row.
+// Distance (px) from the bottom within which the view stays pinned to newest,
+// so an incoming message never yanks a user who is reading older history.
+const NEAR_BOTTOM_THRESHOLD = 120;
+
+// Optimistically-rendered messages awaiting confirmation, keyed by the client
+// uuid the server persists. Confirmation arrives either as the reloaded server
+// page or as the realtime echo of our own broadcast.
 const pending = ref<Message[]>([]);
+
+// Messages received live over the channel's private broadcast channel.
+const live = ref<Message[]>([]);
+
+const scrollContainer = ref<HTMLElement | null>(null);
 
 // `Inertia::scroll` delivers messages newest-first; reverse for display.
 const serverMessages = computed<Message[]>(() =>
     [...(props.messages?.data ?? [])].reverse(),
 );
 
+// Merge every source, deduping by client uuid (server wins, then live, then the
+// optimistic copy) and ordering chronologically.
 const displayMessages = computed<Message[]>(() => {
-    const serverUuids = new Set(
-        serverMessages.value.map((message) => message.clientUuid),
-    );
+    const byUuid = new Map<string, Message>();
 
-    return [
-        ...serverMessages.value,
-        ...pending.value.filter(
-            (message) => !serverUuids.has(message.clientUuid),
-        ),
-    ];
+    for (const message of serverMessages.value) {
+        byUuid.set(message.clientUuid, message);
+    }
+
+    for (const message of live.value) {
+        if (!byUuid.has(message.clientUuid)) {
+            byUuid.set(message.clientUuid, message);
+        }
+    }
+
+    for (const message of pending.value) {
+        if (!byUuid.has(message.clientUuid)) {
+            byUuid.set(message.clientUuid, message);
+        }
+    }
+
+    return [...byUuid.values()].sort((a, b) =>
+        a.createdAt < b.createdAt ? -1 : a.createdAt > b.createdAt ? 1 : 0,
+    );
 });
 
 const pendingUuids = computed(() =>
@@ -50,12 +81,96 @@ const pendingUuids = computed(() =>
 
 const hasMessages = computed(() => displayMessages.value.length > 0);
 
-// Drop optimistic messages once the server confirms them.
-watch(serverMessages, (messages) => {
-    const serverUuids = new Set(messages.map((message) => message.clientUuid));
+// Drop optimistic messages once the server page or a live echo confirms them.
+const confirmedUuids = computed(
+    () =>
+        new Set([
+            ...serverMessages.value.map((message) => message.clientUuid),
+            ...live.value.map((message) => message.clientUuid),
+        ]),
+);
+
+watch(confirmedUuids, (uuids) => {
     pending.value = pending.value.filter(
-        (message) => !serverUuids.has(message.clientUuid),
+        (message) => !uuids.has(message.clientUuid),
     );
+});
+
+function isNearBottom(): boolean {
+    const el = scrollContainer.value;
+
+    if (!el) {
+        return true;
+    }
+
+    return (
+        el.scrollHeight - el.scrollTop - el.clientHeight <=
+        NEAR_BOTTOM_THRESHOLD
+    );
+}
+
+function scrollToBottom(): void {
+    const el = scrollContainer.value;
+
+    if (el) {
+        el.scrollTop = el.scrollHeight;
+    }
+}
+
+function appendLive(message: Message): void {
+    const known =
+        live.value.some((m) => m.clientUuid === message.clientUuid) ||
+        serverMessages.value.some((m) => m.clientUuid === message.clientUuid);
+
+    if (known) {
+        return;
+    }
+
+    const pinned = isNearBottom();
+    live.value.push(message);
+
+    if (pinned) {
+        nextTick(scrollToBottom);
+    }
+}
+
+function channelName(id: string): string {
+    return `channel.${id}`;
+}
+
+function subscribe(id: string): void {
+    echo()
+        .private(channelName(id))
+        .listen('MessageSent', (message: Message) => {
+            appendLive(message);
+        });
+}
+
+function unsubscribe(id: string): void {
+    echo().leave(channelName(id));
+}
+
+onMounted(() => {
+    subscribe(props.channel.id);
+});
+
+// Inertia may reuse this page component when navigating between channels; move
+// the subscription and reset per-channel state when the channel changes.
+watch(
+    () => props.channel.id,
+    (newId, oldId) => {
+        if (oldId) {
+            unsubscribe(oldId);
+        }
+
+        live.value = [];
+        pending.value = [];
+        subscribe(newId);
+    },
+);
+
+onBeforeUnmount(() => {
+    unsubscribe(props.channel.id);
 });
 
 function send(body: string): void {
@@ -70,6 +185,8 @@ function send(body: string): void {
         editedAt: null,
     });
 
+    nextTick(scrollToBottom);
+
     router.post(
         storeMessage({ team: props.team.slug, channel: props.channel.slug })
             .url,
@@ -77,10 +194,11 @@ function send(body: string): void {
         {
             preserveScroll: true,
             onError: () => {
-                // The optimistic row failed to persist; roll it back.
+                // The optimistic row failed to persist; roll it back and notify.
                 pending.value = pending.value.filter(
                     (message) => message.clientUuid !== clientUuid,
                 );
+                toast.error('Your message failed to send. Please try again.');
             },
         },
     );
@@ -109,7 +227,7 @@ function send(body: string): void {
     </header>
 
     <div class="flex min-h-0 flex-1 flex-col">
-        <div class="min-h-0 flex-1 overflow-y-auto">
+        <div ref="scrollContainer" class="min-h-0 flex-1 overflow-y-auto">
             <InfiniteScroll
                 v-if="hasMessages"
                 data="messages"
