@@ -3,7 +3,9 @@
 use App\Actions\Teams\CreateTeam;
 use App\Data\MessageData;
 use App\Enums\TeamRole;
+use App\Events\MessageDeleted;
 use App\Events\MessageSent;
+use App\Events\MessageUpdated;
 use App\Models\Channel;
 use App\Models\Message;
 use App\Models\User;
@@ -88,6 +90,53 @@ test('a resent message with the same client uuid broadcasts only once', function
     ]);
 
     Event::assertDispatchedTimes(MessageSent::class, 1);
+});
+
+test('editing a message broadcasts MessageUpdated on the channel private channel with the MessageData payload', function () {
+    Event::fake([MessageUpdated::class]);
+
+    [$owner, $team, $general] = broadcastTeamWithGeneral();
+    $message = Message::factory()->for($general)->for($owner)->create(['body' => 'original']);
+
+    $this->actingAs($owner)->patch(route('channels.messages.update', [
+        'team' => $team->slug,
+        'channel' => $general->slug,
+        'message' => $message->id,
+    ]), ['body' => 'edited body']);
+
+    $updated = Message::where('id', $message->id)->with('user')->firstOrFail();
+
+    Event::assertDispatched(MessageUpdated::class, function (MessageUpdated $event) use ($general, $updated) {
+        $target = $event->broadcastOn()[0];
+
+        expect($target)->toBeInstanceOf(PrivateChannel::class)
+            ->and($target->name)->toBe('private-channel.'.$general->id);
+
+        return $event->broadcastWith() === MessageData::fromMessage($updated)->toArray();
+    });
+});
+
+test('deleting a message broadcasts MessageDeleted as a tombstone with a blanked body', function () {
+    Event::fake([MessageDeleted::class]);
+
+    [$owner, $team, $general] = broadcastTeamWithGeneral();
+    $message = Message::factory()->for($general)->for($owner)->create(['body' => 'secret']);
+
+    $this->actingAs($owner)->delete(route('channels.messages.destroy', [
+        'team' => $team->slug,
+        'channel' => $general->slug,
+        'message' => $message->id,
+    ]));
+
+    Event::assertDispatched(MessageDeleted::class, function (MessageDeleted $event) use ($general) {
+        $target = $event->broadcastOn()[0];
+        $payload = $event->broadcastWith();
+
+        expect($target)->toBeInstanceOf(PrivateChannel::class)
+            ->and($target->name)->toBe('private-channel.'.$general->id);
+
+        return $payload['isDeleted'] === true && $payload['body'] === '';
+    });
 });
 
 test('a channel member is authorized to subscribe to the channel', function () {

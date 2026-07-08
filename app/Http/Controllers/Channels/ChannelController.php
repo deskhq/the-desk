@@ -65,7 +65,10 @@ class ChannelController extends Controller
             'channel' => ChannelData::fromChannel($channel),
             // Newest 50 first; the InfiniteScroll composer runs in reverse mode, so
             // scrolling up appends older pages and the client reverses for display.
+            // Deleted rows are kept (withTrashed) so the client can render a
+            // "message deleted" tombstone in place; MessageData blanks their body.
             'messages' => Inertia::scroll(fn () => $channel->messages()
+                ->withTrashed()
                 ->with('user')
                 ->orderByDesc('id')
                 ->cursorPaginate(50)

@@ -22,6 +22,12 @@ Route::middleware(['auth', 'verified', EnsureTeamMembership::class])->group(func
     Route::post('t/{team}/c/{channel}/messages', [MessageController::class, 'store'])
         ->scopeBindings()
         ->name('channels.messages.store');
+    Route::patch('t/{team}/c/{channel}/messages/{message}', [MessageController::class, 'update'])
+        ->scopeBindings()
+        ->name('channels.messages.update');
+    Route::delete('t/{team}/c/{channel}/messages/{message}', [MessageController::class, 'destroy'])
+        ->scopeBindings()
+        ->name('channels.messages.destroy');
     Route::post('t/{team}/c/{channel}/members', [ChannelMemberController::class, 'store'])
         ->scopeBindings()
         ->name('channels.members.store');
