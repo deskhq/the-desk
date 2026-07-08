@@ -206,3 +206,13 @@ Vue components must have a single root element.
 - IMPORTANT: Activate `inertia-vue-development` when working with Inertia Vue client-side patterns.
 
 </laravel-boost-guidelines>
+
+# Project Conventions
+
+<!-- Custom project guidance below is preserved across `boost:update` runs. -->
+
+## Code Coverage
+
+- **100% code coverage is required — this is non-negotiable.** The test suite is gated at `--min=100` (see the `test` script in `composer.json`), so any line left uncovered fails the build.
+- **Always check coverage before pushing.** Run the full gate — which also runs Pint and PHPStan — with `./vendor/bin/sail composer test` (this executes `lint:check`, `types:check`, and `php artisan test --coverage --min=100`). Do not push or open/update a PR until it reports `Total: 100.0 %`.
+- If new code drops coverage, add or update tests until it is back at 100%. When a line reads as uncovered even though a test exercises it (e.g. the `: null` branch of a multi-line ternary is a known PCOV line-attribution quirk), collapse it onto a single line rather than leaving the gate red.

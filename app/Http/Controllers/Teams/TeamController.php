@@ -126,9 +126,7 @@ class TeamController extends Controller
 
         $user = $request->user();
 
-        $fallbackTeam = $user->isCurrentTeam($team)
-            ? $user->fallbackTeam($team)
-            : null;
+        $fallbackTeam = $user->isCurrentTeam($team) ? $user->fallbackTeam($team) : null;
 
         $team->memberships()
             ->where('user_id', $user->id)
@@ -149,9 +147,7 @@ class TeamController extends Controller
     public function destroy(DeleteTeamRequest $request, Team $team): RedirectResponse
     {
         $user = $request->user();
-        $fallbackTeam = $user->isCurrentTeam($team)
-            ? $user->fallbackTeam($team)
-            : null;
+        $fallbackTeam = $user->isCurrentTeam($team) ? $user->fallbackTeam($team) : null;
 
         DB::transaction(function () use ($user, $team) {
             User::where('current_team_id', $team->id)

@@ -178,3 +178,13 @@ test('membership cannot be managed on a public channel', function () {
     expect($owner->can('addMember', $public))->toBeFalse()
         ->and($owner->can('removeMember', $public))->toBeFalse();
 });
+
+test('a non-team-member cannot manage a private channel membership', function () {
+    $owner = User::factory()->create();
+    $outsider = User::factory()->create();
+    $team = app(CreateTeam::class)->handle($owner, 'Acme');
+    $private = Channel::factory()->for($team)->private()->create();
+
+    expect($outsider->can('addMember', $private))->toBeFalse()
+        ->and($outsider->can('removeMember', $private))->toBeFalse();
+});
