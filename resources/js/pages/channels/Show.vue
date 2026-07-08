@@ -1,14 +1,16 @@
 <script setup lang="ts">
 import { Head, Link } from '@inertiajs/vue3';
-import { show } from '@/actions/App/Http/Controllers/Channels/ChannelController';
 import {
-    Avatar,
-    AvatarFallback,
-} from '@/components/ui/avatar';
+    browse,
+    show,
+} from '@/actions/App/Http/Controllers/Channels/ChannelController';
+import CreateChannelModal from '@/components/CreateChannelModal.vue';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import {
     Sidebar,
     SidebarContent,
     SidebarGroup,
+    SidebarGroupAction,
     SidebarGroupLabel,
     SidebarGroupContent,
     SidebarHeader,
@@ -52,7 +54,9 @@ const props = defineProps<{
             <SidebarHeader>
                 <div class="flex items-center gap-2">
                     <Avatar>
-                        <AvatarFallback>{{ props.team.name.charAt(0) }}</AvatarFallback>
+                        <AvatarFallback>{{
+                            props.team.name.charAt(0)
+                        }}</AvatarFallback>
                     </Avatar>
                     <span>{{ props.team.name }}</span>
                 </div>
@@ -60,12 +64,43 @@ const props = defineProps<{
             <SidebarContent>
                 <SidebarGroup>
                     <SidebarGroupLabel>Channels</SidebarGroupLabel>
+                    <CreateChannelModal :team-slug="props.team.slug">
+                        <SidebarGroupAction
+                            title="Create channel"
+                            data-test="create-channel-trigger"
+                        >
+                            <span aria-hidden="true">+</span>
+                        </SidebarGroupAction>
+                    </CreateChannelModal>
                     <SidebarGroupContent>
                         <SidebarMenu>
-                            <SidebarMenuItem v-for="c in props.channels" :key="c.id">
-                                <SidebarMenuButton as-child :is-active="c.id === props.channel.id">
-                                    <Link :href="show({ team: props.team.slug, channel: c.slug }).url">
+                            <SidebarMenuItem
+                                v-for="c in props.channels"
+                                :key="c.id"
+                            >
+                                <SidebarMenuButton
+                                    as-child
+                                    :is-active="c.id === props.channel.id"
+                                >
+                                    <Link
+                                        :href="
+                                            show({
+                                                team: props.team.slug,
+                                                channel: c.slug,
+                                            }).url
+                                        "
+                                    >
                                         <span># {{ c.name }}</span>
+                                    </Link>
+                                </SidebarMenuButton>
+                            </SidebarMenuItem>
+                            <SidebarMenuItem>
+                                <SidebarMenuButton as-child>
+                                    <Link
+                                        :href="browse(props.team.slug).url"
+                                        data-test="browse-channels"
+                                    >
+                                        <span>Browse channels</span>
                                     </Link>
                                 </SidebarMenuButton>
                             </SidebarMenuItem>
@@ -79,7 +114,9 @@ const props = defineProps<{
             <header class="flex h-12 items-center gap-2 px-4">
                 <SidebarTrigger />
                 <h1># {{ props.channel.name }}</h1>
-                <span v-if="props.channel.topic">{{ props.channel.topic }}</span>
+                <span v-if="props.channel.topic">{{
+                    props.channel.topic
+                }}</span>
             </header>
             <main class="p-4">
                 <!-- Messages arrive in a later issue. -->

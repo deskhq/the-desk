@@ -96,3 +96,62 @@ test('a private channel is only viewable by its members', function () {
     expect($owner->can('view', $private))->toBeTrue()
         ->and($member->can('view', $private))->toBeFalse();
 });
+
+test('any team member can create a channel but an outsider cannot', function () {
+    $owner = User::factory()->create();
+    $member = User::factory()->create();
+    $outsider = User::factory()->create();
+    $team = app(CreateTeam::class)->handle($owner, 'Acme');
+    $team->memberships()->create(['user_id' => $member->id, 'role' => TeamRole::Member]);
+
+    expect($member->can('create', [Channel::class, $team]))->toBeTrue()
+        ->and($outsider->can('create', [Channel::class, $team]))->toBeFalse();
+});
+
+test('a public channel is joinable by a team member but a private one is not', function () {
+    $owner = User::factory()->create();
+    $team = app(CreateTeam::class)->handle($owner, 'Acme');
+    $public = Channel::factory()->for($team)->create();
+    $private = Channel::factory()->for($team)->private()->create();
+
+    expect($owner->can('join', $public))->toBeTrue()
+        ->and($owner->can('join', $private))->toBeFalse();
+});
+
+test('an archived public channel is not joinable', function () {
+    $owner = User::factory()->create();
+    $team = app(CreateTeam::class)->handle($owner, 'Acme');
+    $archived = Channel::factory()->for($team)->archived()->create();
+
+    expect($owner->can('join', $archived))->toBeFalse();
+});
+
+test('a private channel member or admin may manage its membership', function () {
+    $owner = User::factory()->create();
+    $channelMember = User::factory()->create();
+    $admin = User::factory()->create();
+    $plainMember = User::factory()->create();
+    $team = app(CreateTeam::class)->handle($owner, 'Acme');
+    $team->memberships()->create(['user_id' => $channelMember->id, 'role' => TeamRole::Member]);
+    $team->memberships()->create(['user_id' => $admin->id, 'role' => TeamRole::Admin]);
+    $team->memberships()->create(['user_id' => $plainMember->id, 'role' => TeamRole::Member]);
+
+    $private = Channel::factory()->for($team)->private()->create();
+    $private->channelMembers()->create(['user_id' => $channelMember->id]);
+
+    expect($channelMember->can('addMember', $private))->toBeTrue()
+        ->and($admin->can('addMember', $private))->toBeTrue()
+        ->and($plainMember->can('addMember', $private))->toBeFalse()
+        ->and($channelMember->can('removeMember', $private))->toBeTrue()
+        ->and($plainMember->can('removeMember', $private))->toBeFalse();
+});
+
+test('membership cannot be managed on a public channel', function () {
+    $owner = User::factory()->create();
+    $team = app(CreateTeam::class)->handle($owner, 'Acme');
+    $public = Channel::factory()->for($team)->create();
+    $public->channelMembers()->create(['user_id' => $owner->id]);
+
+    expect($owner->can('addMember', $public))->toBeFalse()
+        ->and($owner->can('removeMember', $public))->toBeFalse();
+});
