@@ -5,6 +5,11 @@ import AuthLayout from '@/layouts/AuthLayout.vue';
 import ChannelLayout from '@/layouts/channels/Layout.vue';
 import SettingsLayout from '@/layouts/settings/Layout.vue';
 import { initializeFlashToast } from '@/lib/flashToast';
+import { configureEcho } from '@laravel/echo-vue';
+
+configureEcho({
+    broadcaster: 'reverb',
+});
 
 const appName = import.meta.env.VITE_APP_NAME || 'Laravel';
 
