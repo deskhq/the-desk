@@ -22,7 +22,33 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        php-version: ['8.3', '8.4', '8.5']
+        # Symfony 8 (Laravel 13) requires PHP >= 8.4, so 8.3 cannot install the locked deps.
+        php-version: ['8.4', '8.5']
+
+    # The schema relies on Postgres-only defaults (gen_random_uuid()), so tests
+    # run against Postgres to match the local Sail environment.
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_DB: testing
+          POSTGRES_USER: laravel
+          POSTGRES_PASSWORD: password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd=pg_isready
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+
+    env:
+      DB_CONNECTION: pgsql
+      DB_HOST: 127.0.0.1
+      DB_PORT: 5432
+      DB_DATABASE: testing
+      DB_USERNAME: laravel
+      DB_PASSWORD: password
 
     steps:
       - name: Checkout code
