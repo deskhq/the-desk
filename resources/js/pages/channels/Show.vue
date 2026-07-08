@@ -17,8 +17,13 @@ import {
 } from '@/actions/App/Http/Controllers/Channels/MessageController';
 import MessageComposer from '@/components/MessageComposer.vue';
 import MessageList from '@/components/MessageList.vue';
+import TypingIndicator from '@/components/TypingIndicator.vue';
 import { Separator } from '@/components/ui/separator';
 import { SidebarTrigger } from '@/components/ui/sidebar';
+import {
+    useTypingIndicator,
+    type TypingUser,
+} from '@/composables/useTypingIndicator';
 import type { Channel, Mention, Message, MessagePage } from '@/types';
 
 const props = defineProps<{
@@ -34,6 +39,18 @@ const currentUser = computed(() => ({
     id: String(page.props.auth.user.id),
     name: page.props.auth.user.name,
 }));
+
+// Peers currently composing on this channel, driven by `typing` client
+// whispers over the same private channel as the message events.
+const typing = useTypingIndicator((user: TypingUser) => {
+    echo().private(channelName(props.channel.id)).whisper('typing', user);
+});
+
+const typingNames = typing.typingNames;
+
+function onTyping(): void {
+    typing.signalTyping(currentUser.value);
+}
 
 // You can't @mention yourself; drop the current user from the composer list.
 const mentionableMembers = computed(() =>
@@ -173,6 +190,8 @@ function subscribe(id: string): void {
     echo()
         .private(channelName(id))
         .listen('MessageSent', (message: Message) => {
+            // Their message landed; stop showing them as typing.
+            typing.forget(message.user.id);
             appendLive(message);
         })
         .listen('MessageUpdated', (message: Message) => {
@@ -180,6 +199,9 @@ function subscribe(id: string): void {
         })
         .listen('MessageDeleted', (message: Message) => {
             applyPatch(message);
+        })
+        .listenForWhisper('typing', (user: TypingUser) => {
+            typing.receiveTyping(user);
         });
 }
 
@@ -203,6 +225,7 @@ watch(
         live.value = [];
         pending.value = [];
         patches.value = new Map();
+        typing.reset();
         subscribe(newId);
     },
 );
@@ -356,10 +379,13 @@ function deleteMessage(message: Message): void {
             </div>
         </div>
 
+        <TypingIndicator :names="typingNames" class="mx-5 shrink-0" />
+
         <MessageComposer
             :channel-name="props.channel.name"
             :members="mentionableMembers"
             @send="send"
+            @typing="onTyping"
         />
     </div>
 </template>

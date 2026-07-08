@@ -12,6 +12,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
     send: [body: string, mentions: Mention[]];
+    typing: [];
 }>();
 
 const { getInitials } = useInitials();
@@ -240,7 +241,7 @@ function onKeydown(event: KeyboardEvent): void {
                     :placeholder="`Message #${props.channelName}`"
                     data-test="message-composer-input"
                     class="max-h-[200px] w-full resize-none bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground/70"
-                    @input="resize(), refreshSuggestions()"
+                    @input="resize(), refreshSuggestions(), emit('typing')"
                     @click="refreshSuggestions"
                     @keydown="onKeydown"
                 ></textarea>
