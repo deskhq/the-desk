@@ -6,4 +6,5 @@ export type Channel = {
     topic: string | null;
     isGeneral: boolean;
     isArchived: boolean;
+    hasUnread?: boolean;
 };
