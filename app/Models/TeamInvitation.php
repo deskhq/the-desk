@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Enums\TeamRole;
 use Database\Factories\TeamInvitationFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -12,12 +13,12 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Str;
 
 /**
- * @property int $id
+ * @property string $id
  * @property string $code
- * @property int $team_id
+ * @property string $team_id
  * @property string $email
  * @property TeamRole $role
- * @property int $invited_by
+ * @property string $invited_by
  * @property Carbon|null $expires_at
  * @property Carbon|null $accepted_at
  * @property Carbon|null $created_at
@@ -29,7 +30,7 @@ use Illuminate\Support\Str;
 class TeamInvitation extends Model
 {
     /** @use HasFactory<TeamInvitationFactory> */
-    use HasFactory;
+    use HasFactory, HasUuids;
 
     /**
      * Bootstrap the model and its traits.
