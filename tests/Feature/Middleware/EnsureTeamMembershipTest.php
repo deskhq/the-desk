@@ -88,7 +88,7 @@ test('visiting a team route switches the current team', function () {
     expect($user->isCurrentTeam($current))->toBeTrue();
 
     $this->actingAs($user)
-        ->get(route('dashboard', ['current_team' => $other->slug]))
+        ->get(gatedTeamUrl($other->slug))
         ->assertOk();
 
     expect($user->refresh()->current_team_id)->toBe($other->id);

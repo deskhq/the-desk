@@ -1,5 +1,6 @@
 import type { Auth } from '@/types/auth';
-import type { Team } from '@/types/teams';
+import type { Channel } from '@/types/channels';
+import type { DashboardInvitation, Team } from '@/types/teams';
 
 // Extend ImportMeta interface for Vite...
 declare module 'vite/client' {
@@ -22,6 +23,8 @@ declare module '@inertiajs/core' {
             sidebarOpen: boolean;
             currentTeam: Team | null;
             teams: Team[];
+            channels?: Channel[];
+            pendingInvitations?: DashboardInvitation[];
             [key: string]: unknown;
         };
     }

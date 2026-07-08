@@ -8,13 +8,16 @@ use Illuminate\Support\Facades\URL;
 
 trait RedirectsToCurrentTeam
 {
-    protected function redirectPathForCurrentTeam(Request $request, string $redirect): string
+    /**
+     * Resolve the path to the current team's channels workspace (#general).
+     */
+    protected function redirectPathForCurrentTeam(Request $request): string
     {
         $team = $this->currentTeam($request);
 
         URL::defaults(['current_team' => $team->slug]);
 
-        return "/{$team->slug}{$redirect}";
+        return route('channels.index', ['team' => $team->slug], absolute: false);
     }
 
     protected function currentTeam(Request $request): Team

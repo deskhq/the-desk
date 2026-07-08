@@ -21,8 +21,8 @@ test('browsing lists joinable public channels only', function () {
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
             ->component('channels/Browse')
-            ->has('channels', 1)
-            ->where('channels.0.slug', 'marketing')
+            ->has('joinableChannels', 1)
+            ->where('joinableChannels.0.slug', 'marketing')
         );
 });
 
@@ -35,7 +35,7 @@ test('browsing does not leak channels from other teams', function () {
     $this->actingAs($user)
         ->get(route('channels.browse', ['team' => $team->slug]))
         ->assertOk()
-        ->assertInertia(fn (Assert $page) => $page->has('channels', 0));
+        ->assertInertia(fn (Assert $page) => $page->has('joinableChannels', 0));
 });
 
 test('a team member can join a public channel', function () {

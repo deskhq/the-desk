@@ -5,16 +5,8 @@ import {
     join,
 } from '@/actions/App/Http/Controllers/Channels/ChannelController';
 import { Button } from '@/components/ui/button';
-
-interface ChannelData {
-    id: string;
-    name: string;
-    slug: string;
-    visibility: string;
-    topic: string | null;
-    isGeneral: boolean;
-    isArchived: boolean;
-}
+import { SidebarTrigger } from '@/components/ui/sidebar';
+import type { Channel } from '@/types';
 
 interface TeamData {
     id: string;
@@ -24,27 +16,28 @@ interface TeamData {
 
 const props = defineProps<{
     team: TeamData;
-    channels: ChannelData[];
+    joinableChannels: Channel[];
 }>();
 </script>
 
 <template>
     <Head title="Browse channels" />
 
-    <!-- Functional, unstyled browse view; visual polish deferred to #2. -->
-    <div class="p-4">
-        <header class="mb-4 flex items-center justify-between">
-            <h1 class="text-lg font-semibold">Browse channels</h1>
-            <Link :href="index(props.team.slug).url">Back</Link>
-        </header>
+    <!-- Content pane for the persistent channel workspace shell; visual polish deferred to #2. -->
+    <header class="flex h-12 items-center gap-2 px-4">
+        <SidebarTrigger />
+        <h1 class="text-lg font-semibold">Browse channels</h1>
+        <Link :href="index(props.team.slug).url" class="ml-auto">Back</Link>
+    </header>
 
-        <p v-if="props.channels.length === 0">
+    <main class="p-4">
+        <p v-if="props.joinableChannels.length === 0">
             There are no public channels left to join.
         </p>
 
         <ul v-else class="space-y-2">
             <li
-                v-for="channel in props.channels"
+                v-for="channel in props.joinableChannels"
                 :key="channel.id"
                 class="flex items-center justify-between gap-4"
             >
@@ -66,5 +59,5 @@ const props = defineProps<{
                 </Form>
             </li>
         </ul>
-    </div>
+    </main>
 </template>

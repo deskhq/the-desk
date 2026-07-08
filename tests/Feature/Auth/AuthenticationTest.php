@@ -35,7 +35,7 @@ test('login screen includes team invitation context', function () {
     );
 });
 
-test('users can authenticate using the login screen', function () {
+test('users can authenticate using the login screen and land in the workspace', function () {
     $user = User::factory()->create();
 
     $response = $this->post(route('login.store'), [
@@ -44,7 +44,7 @@ test('users can authenticate using the login screen', function () {
     ]);
 
     $this->assertAuthenticated();
-    $response->assertRedirect(route('dashboard'));
+    $response->assertRedirect(route('channels.index', ['team' => $user->currentTeam->slug]));
 });
 
 test('users with two factor enabled are redirected to two factor challenge', function () {

@@ -20,7 +20,7 @@ class ChannelMemberController extends Controller
      */
     public function store(AddChannelMemberRequest $request, Team $team, Channel $channel, JoinChannel $joinChannel): RedirectResponse
     {
-        $user = User::findOrFail($request->validated('user_id'));
+        $user = User::findOrFail((string) $request->validated('user_id'));
 
         $joinChannel->handle($channel, $user);
 
@@ -34,7 +34,7 @@ class ChannelMemberController extends Controller
      */
     public function destroy(RemoveChannelMemberRequest $request, Team $team, Channel $channel, RemoveChannelMember $removeChannelMember): RedirectResponse
     {
-        $user = User::findOrFail($request->validated('user_id'));
+        $user = User::findOrFail((string) $request->validated('user_id'));
 
         $removeChannelMember->handle($channel, $user);
 

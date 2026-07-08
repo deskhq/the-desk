@@ -48,16 +48,11 @@ class ChannelController extends Controller
     }
 
     /**
-     * Show a channel with the current user's channel sidebar.
+     * Show a channel. The channel sidebar is fed by the globally-shared `channels` prop.
      */
-    public function show(Request $request, Team $team, Channel $channel): Response
+    public function show(Team $team, Channel $channel): Response
     {
         Gate::authorize('view', $channel);
-
-        $channels = $request->user()->channels()
-            ->where('channels.team_id', $team->id)
-            ->orderBy('name')
-            ->get();
 
         return Inertia::render('channels/Show', [
             'team' => [
@@ -66,7 +61,6 @@ class ChannelController extends Controller
                 'slug' => $team->slug,
             ],
             'channel' => ChannelData::fromChannel($channel),
-            'channels' => ChannelData::collect($channels),
         ]);
     }
 
@@ -88,7 +82,7 @@ class ChannelController extends Controller
                 'name' => $team->name,
                 'slug' => $team->slug,
             ],
-            'channels' => ChannelData::collect($channels),
+            'joinableChannels' => ChannelData::collect($channels),
         ]);
     }
 

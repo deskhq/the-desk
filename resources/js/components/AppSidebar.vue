@@ -2,6 +2,7 @@
 import { Link, usePage } from '@inertiajs/vue3';
 import { BookOpen, FolderGit2, LayoutGrid } from '@lucide/vue';
 import { computed } from 'vue';
+import { index as channelsWorkspace } from '@/actions/App/Http/Controllers/Channels/ChannelController';
 import AppLogo from '@/components/AppLogo.vue';
 import NavFooter from '@/components/NavFooter.vue';
 import NavMain from '@/components/NavMain.vue';
@@ -16,19 +17,20 @@ import {
     SidebarMenuButton,
     SidebarMenuItem,
 } from '@/components/ui/sidebar';
-import { dashboard } from '@/routes';
 import type { NavItem } from '@/types';
 
 const page = usePage();
 
-const dashboardUrl = computed(() =>
-    page.props.currentTeam ? dashboard(page.props.currentTeam.slug).url : '/',
+const workspaceUrl = computed(() =>
+    page.props.currentTeam
+        ? channelsWorkspace(page.props.currentTeam.slug).url
+        : '/',
 );
 
 const mainNavItems = computed<NavItem[]>(() => [
     {
-        title: 'Dashboard',
-        href: dashboardUrl.value,
+        title: 'Channels',
+        href: workspaceUrl.value,
         icon: LayoutGrid,
     },
 ]);
@@ -53,7 +55,7 @@ const footerNavItems: NavItem[] = [
             <SidebarMenu>
                 <SidebarMenuItem>
                     <SidebarMenuButton size="lg" as-child>
-                        <Link :href="dashboardUrl">
+                        <Link :href="workspaceUrl">
                             <AppLogo />
                         </Link>
                     </SidebarMenuButton>
