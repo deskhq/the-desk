@@ -16,6 +16,7 @@ use App\Http\Requests\Channels\CreateChannelRequest;
 use App\Models\Channel;
 use App\Models\Message;
 use App\Models\Team;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -29,6 +30,20 @@ class ChannelController extends Controller
      * jumped-to message shows following context and is not pinned to the bottom.
      */
     private const int JUMP_CONTEXT = 15;
+
+    /**
+     * How many messages the initial timeline window loads. Mirrors the page size
+     * of {@see Builder::cursorPaginate()} below and
+     * feeds the read-boundary window math.
+     */
+    private const int MESSAGE_PAGE_SIZE = 50;
+
+    /**
+     * How many already-read messages to keep loaded above the "New messages"
+     * boundary when a channel opens deep enough into unread history that the
+     * boundary would otherwise fall outside the initial window.
+     */
+    private const int UNREAD_CONTEXT = 10;
 
     /**
      * Redirect a bare team URL to the team's #general channel.
@@ -77,11 +92,13 @@ class ChannelController extends Controller
         // id. If it belongs to this channel, cap the initial window a few messages
         // above the target so it loads with context on both sides; the client
         // scrolls to and highlights it, and older history still pages in above via
-        // InfiniteScroll.
+        // InfiniteScroll. Absent a jump, anchor the window around the read pointer
+        // so a channel with more unread than a page holds still loads the
+        // "New messages" boundary rather than freezing it at the oldest loaded row.
         $jumpToMessageId = $this->resolveJumpTarget($request, $channel);
-        $windowCeilingId = $jumpToMessageId === null
-            ? null
-            : $this->jumpWindowCeiling($channel, $jumpToMessageId);
+        $windowCeilingId = $jumpToMessageId !== null
+            ? $this->jumpWindowCeiling($channel, $jumpToMessageId)
+            : $this->unreadWindowCeiling($channel, $membership?->last_read_message_id);
 
         return Inertia::render('channels/Show', [
             'team' => [
@@ -118,15 +135,13 @@ class ChannelController extends Controller
             // scrolling up appends older pages and the client reverses for display.
             // Deleted rows are kept (withTrashed) so the client can render a
             // "message deleted" tombstone in place; MessageData blanks their body.
-            'messages' => Inertia::scroll(fn () => $channel->messages()
-                ->withTrashed()
+            'messages' => Inertia::scroll(fn () => $this->mainTimeline(
+                $channel->messages()->withTrashed()->getQuery()
+            )
                 ->with(['user', 'mentionedUsers', 'replyTo.user', 'replyTo.mentionedUsers', 'threadParticipants'])
-                // Thread replies live in the thread view, not the main timeline —
-                // except a reply explicitly "also sent to channel".
-                ->where(fn ($query) => $query->whereNull('thread_root_id')->orWhere('sent_to_channel', true))
-                ->when($windowCeilingId, fn ($query) => $query->where('id', '<=', $windowCeilingId))
+                ->when($windowCeilingId, fn (Builder $query) => $query->where('id', '<=', $windowCeilingId))
                 ->orderByDesc('id')
-                ->cursorPaginate(50)
+                ->cursorPaginate(self::MESSAGE_PAGE_SIZE)
                 ->through(fn (Message $message) => MessageData::fromMessage($message))),
         ]);
     }
@@ -208,6 +223,67 @@ class ChannelController extends Controller
             ->orderBy('id')
             ->offset(self::JUMP_CONTEXT - 1)
             ->value('id');
+    }
+
+    /**
+     * Resolve the id that caps the initial window so the "New messages" boundary
+     * loads, or null to keep the default "open at newest" window.
+     *
+     * The boundary sits at the first message newer than the viewer's read
+     * pointer. When few enough messages sit at or after it to fit inside the
+     * newest page, the boundary already loads and no window is needed. A busier
+     * channel is anchored: the window is capped UNREAD_CONTEXT read messages
+     * above the boundary so it opens with the "New messages" line near the top
+     * and unread history below, while older history still pages in above via
+     * InfiniteScroll.
+     *
+     * A never-read channel (null pointer) has no last-read boundary to anchor,
+     * so it keeps the default "open at newest" window rather than landing the
+     * viewer on the oldest message of a long backlog.
+     */
+    private function unreadWindowCeiling(Channel $channel, ?string $lastReadMessageId): ?string
+    {
+        if ($lastReadMessageId === null) {
+            return null;
+        }
+
+        $firstUnreadId = $this->mainTimeline($channel->messages()->withTrashed()->getQuery())
+            ->where('id', '>', $lastReadMessageId)
+            ->orderBy('id')
+            ->value('id');
+
+        if ($firstUnreadId === null) {
+            return null;
+        }
+
+        // The boundary already loads when the messages at or after it fit in the
+        // newest page, so keep opening at newest for read/lightly-unread channels.
+        $atOrAfterBoundary = $this->mainTimeline($channel->messages()->withTrashed()->getQuery())
+            ->where('id', '>=', $firstUnreadId)
+            ->count();
+
+        if ($atOrAfterBoundary <= self::MESSAGE_PAGE_SIZE) {
+            return null;
+        }
+
+        return $this->mainTimeline($channel->messages()->withTrashed()->getQuery())
+            ->where('id', '>', $firstUnreadId)
+            ->orderBy('id')
+            ->offset(self::MESSAGE_PAGE_SIZE - self::UNREAD_CONTEXT - 1)
+            ->value('id');
+    }
+
+    /**
+     * Constrain a message query to the main channel timeline: top-level messages
+     * plus thread replies explicitly "also sent to channel". Thread replies
+     * otherwise live only in the thread view.
+     *
+     * @param  Builder<Message>  $query
+     * @return Builder<Message>
+     */
+    private function mainTimeline(Builder $query): Builder
+    {
+        return $query->where(fn (Builder $inner) => $inner->whereNull('thread_root_id')->orWhere('sent_to_channel', true));
     }
 
     /**

@@ -129,3 +129,98 @@ test('the read pointer is null on a channel the viewer has never read', function
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page->where('lastReadMessageId', null));
 });
+
+test('opening a channel with more unread than a page windows the initial page around the read boundary', function () {
+    $user = User::factory()->create();
+    $team = app(CreateTeam::class)->handle($user, 'Acme');
+    $general = Channel::where('team_id', $team->id)->where('slug', 'general')->firstOrFail();
+
+    // Authorship is irrelevant to the id-based window; only the read pointer is.
+    $messages = collect(range(1, 100))->map(
+        fn (int $i) => Message::factory()->for($general)->for($user)->create(['body' => "message {$i}"])
+    );
+
+    // Read through message 30, so messages 31..100 (70 unread) exceed one page.
+    $user->channels()->updateExistingPivot($general->id, ['last_read_message_id' => $messages[29]->id]);
+
+    $this->actingAs($user)
+        ->get(route('channels.show', ['team' => $team->slug, 'channel' => $general->slug]))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            // The window is capped 39 messages past the boundary (message 71) and
+            // holds the newest 50 rows at or below that cap — messages 22..71 —
+            // so the boundary (message 31) is loaded while the newest history
+            // (up to message 100) pages in below via InfiniteScroll.
+            ->has('messages.data', 50)
+            ->where('messages.data.0.body', 'message 71')
+            ->where('messages.data.49.body', 'message 22')
+        );
+});
+
+test('opening a channel with unread within a page keeps the default newest window', function () {
+    $user = User::factory()->create();
+    $team = app(CreateTeam::class)->handle($user, 'Acme');
+    $general = Channel::where('team_id', $team->id)->where('slug', 'general')->firstOrFail();
+
+    $messages = collect(range(1, 60))->map(
+        fn (int $i) => Message::factory()->for($general)->for($user)->create(['body' => "message {$i}"])
+    );
+
+    // Read through message 20, so messages 21..60 (40 unread) fit within one page.
+    $user->channels()->updateExistingPivot($general->id, ['last_read_message_id' => $messages[19]->id]);
+
+    $this->actingAs($user)
+        ->get(route('channels.show', ['team' => $team->slug, 'channel' => $general->slug]))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            // No window: the boundary already sits in the newest page, so the view
+            // opens at newest (messages 11..60) with the boundary (message 21) loaded.
+            ->has('messages.data', 50)
+            ->where('messages.data.0.body', 'message 60')
+            ->where('messages.data.49.body', 'message 11')
+        );
+});
+
+test('a never-read channel with a long backlog still opens at newest', function () {
+    $user = User::factory()->create();
+    $team = app(CreateTeam::class)->handle($user, 'Acme');
+    $general = Channel::where('team_id', $team->id)->where('slug', 'general')->firstOrFail();
+
+    // Auto-joined with a null read pointer: there is no last-read boundary to
+    // anchor, so #76 deliberately leaves the default newest window in place
+    // rather than dropping the viewer at the oldest message.
+    collect(range(1, 60))->each(
+        fn (int $i) => Message::factory()->for($general)->for($user)->create(['body' => "message {$i}"])
+    );
+
+    $this->actingAs($user)
+        ->get(route('channels.show', ['team' => $team->slug, 'channel' => $general->slug]))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->has('messages.data', 50)
+            ->where('messages.data.0.body', 'message 60')
+            ->where('messages.data.49.body', 'message 11')
+        );
+});
+
+test('a fully-read channel opens at newest without a window', function () {
+    $user = User::factory()->create();
+    $team = app(CreateTeam::class)->handle($user, 'Acme');
+    $general = Channel::where('team_id', $team->id)->where('slug', 'general')->firstOrFail();
+
+    $messages = collect(range(1, 60))->map(
+        fn (int $i) => Message::factory()->for($general)->for($user)->create(['body' => "message {$i}"])
+    );
+
+    // Read pointer at the newest message: nothing is unread, so no window applies.
+    $user->channels()->updateExistingPivot($general->id, ['last_read_message_id' => $messages[59]->id]);
+
+    $this->actingAs($user)
+        ->get(route('channels.show', ['team' => $team->slug, 'channel' => $general->slug]))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->has('messages.data', 50)
+            ->where('messages.data.0.body', 'message 60')
+            ->where('messages.data.49.body', 'message 11')
+        );
+});

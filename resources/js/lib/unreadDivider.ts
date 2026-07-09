@@ -11,24 +11,22 @@ import type { Message } from '@/types';
  * marker above something you just posted — so an entirely-own unread tail yields
  * null.
  *
- * Message ids are monotonic auto-increment values delivered as numeric strings,
- * so the comparison is numeric. A non-numeric id (an optimistic send still keyed
- * by its client uuid) is never treated as unread: those are always the reader's
- * own, and the boundary is fixed at channel open rather than moved by later
- * traffic.
+ * Message ids are time-ordered UUIDs, so they sort chronologically under a plain
+ * lexicographic string comparison — no numeric coercion (a UUID is `NaN` as a
+ * number). An optimistic send still keyed by its random client uuid is always
+ * the reader's own message, so the author check below drops it regardless of
+ * where its random id happens to sort; the boundary is fixed at channel open
+ * rather than moved by later traffic.
  */
 export function unreadDividerMessageId(
     messages: Pick<Message, 'id' | 'user'>[],
     lastReadMessageId: string | null,
     currentUserId: string,
 ): string | null {
-    const readPointer =
-        lastReadMessageId === null ? -Infinity : Number(lastReadMessageId);
-
     for (const message of messages) {
-        const id = Number(message.id);
-
-        if (!Number.isFinite(id) || id <= readPointer) {
+        // A null pointer means the channel has never been read, so nothing is
+        // yet read and the first peer message wins.
+        if (lastReadMessageId !== null && message.id <= lastReadMessageId) {
             continue;
         }
 
