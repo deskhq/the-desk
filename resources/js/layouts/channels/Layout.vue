@@ -1,11 +1,12 @@
 <script setup lang="ts">
 import { Link, router, usePage } from '@inertiajs/vue3';
-import { Plus, Search } from '@lucide/vue';
+import { MessageSquareText, Plus, Search } from '@lucide/vue';
 import { computed, onMounted } from 'vue';
 import {
     browse,
     show,
 } from '@/actions/App/Http/Controllers/Channels/ChannelController';
+import { index as searchMessages } from '@/actions/App/Http/Controllers/Channels/SearchController';
 import CreateChannelModal from '@/components/CreateChannelModal.vue';
 import CreateTeamModal from '@/components/CreateTeamModal.vue';
 import NavUser from '@/components/NavUser.vue';
@@ -225,6 +226,27 @@ onMounted(() => {
                                         <SidebarMenuButton
                                             as-child
                                             class="mt-1.5 h-[30px] gap-1.5 rounded-md px-2 text-[13px] text-muted-foreground hover:bg-sidebar-accent/60"
+                                        >
+                                            <Link
+                                                v-if="currentTeam"
+                                                :href="
+                                                    searchMessages(
+                                                        currentTeam.slug,
+                                                    ).url
+                                                "
+                                                data-test="search-messages"
+                                            >
+                                                <MessageSquareText
+                                                    class="size-[13px]"
+                                                />
+                                                <span>Search messages</span>
+                                            </Link>
+                                        </SidebarMenuButton>
+                                    </SidebarMenuItem>
+                                    <SidebarMenuItem>
+                                        <SidebarMenuButton
+                                            as-child
+                                            class="h-[30px] gap-1.5 rounded-md px-2 text-[13px] text-muted-foreground hover:bg-sidebar-accent/60"
                                         >
                                             <Link
                                                 v-if="currentTeam"

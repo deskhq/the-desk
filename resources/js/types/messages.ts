@@ -32,3 +32,14 @@ export type MessagePage = {
     next_cursor: string | null;
     prev_cursor: string | null;
 };
+
+/**
+ * A single message-search match. Mirrors the `MessageSearchResultData` DTO:
+ * the matched message plus the channel it belongs to, for rendering the result
+ * row and building its jump-to-message link.
+ */
+export type MessageSearchResult = {
+    message: Message;
+    channelName: string;
+    channelSlug: string;
+};
