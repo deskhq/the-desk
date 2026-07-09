@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\Channel;
+use App\Models\Team;
 use App\Models\User;
 use Illuminate\Support\Facades\Broadcast;
 
@@ -14,4 +15,22 @@ Broadcast::channel('channel.{channelId}', function (User $user, string $channelI
 
     return $channel !== null
         && $channel->members()->whereKey($user->id)->exists();
+});
+
+/**
+ * Track which team members are currently online.
+ *
+ * Only members of the team may join, and the identity returned here becomes
+ * their entry in the presence roster that drives the online dots on avatars.
+ *
+ * @return array{id: string, name: string}|null
+ */
+Broadcast::channel('team.{teamId}', function (User $user, string $teamId): ?array {
+    $team = Team::find($teamId);
+
+    if ($team === null || ! $team->members()->whereKey($user->id)->exists()) {
+        return null;
+    }
+
+    return ['id' => $user->id, 'name' => $user->name];
 });
