@@ -1,6 +1,13 @@
 <script setup lang="ts">
-import { CornerUpLeft, MessageSquareText, Pencil, Trash2 } from '@lucide/vue';
+import {
+    CornerUpLeft,
+    Forward,
+    MessageSquareText,
+    Pencil,
+    Trash2,
+} from '@lucide/vue';
 import { computed, nextTick, ref } from 'vue';
+import MessageForward from '@/components/MessageForward.vue';
 import MessageQuote from '@/components/MessageQuote.vue';
 import { Button } from '@/components/ui/button';
 import {
@@ -37,6 +44,7 @@ const emit = defineEmits<{
     edit: [message: Message, body: string];
     delete: [message: Message];
     reply: [message: Message];
+    forward: [message: Message];
     openThread: [messageId: string];
     jump: [messageId: string];
 }>();
@@ -211,6 +219,12 @@ function canDelete(message: Message): boolean {
 // thread the composer answers the root, so it's suppressed.
 function canReply(message: Message): boolean {
     return !props.inThread && !message.isDeleted && !isPending(message);
+}
+
+// Any live message can be forwarded to another channel — including from inside a
+// thread panel. A pending or deleted row has no stable target to forward yet.
+function canForward(message: Message): boolean {
+    return !message.isDeleted && !isPending(message);
 }
 
 // The hover "reply in thread" action shows on live root messages in the main
@@ -421,7 +435,7 @@ function confirmDelete(): void {
                         </div>
 
                         <p
-                            v-else
+                            v-else-if="message.body !== ''"
                             :data-test="'message-body'"
                             class="py-0.5 text-[14.5px] leading-[1.55] break-words whitespace-pre-wrap text-foreground/90"
                             :class="isPending(message) ? 'opacity-60' : ''"
@@ -441,6 +455,20 @@ function confirmDelete(): void {
                                 >(edited)</span
                             >
                         </p>
+
+                        <MessageForward
+                            v-if="
+                                message.forwardedFrom &&
+                                !message.isDeleted &&
+                                editingId !== message.id
+                            "
+                            data-test="forwarded-message"
+                            :author-name="message.forwardedFrom.authorName"
+                            :channel-name="message.forwardedFrom.channelName"
+                            :body="message.forwardedFrom.body"
+                            :is-deleted="message.forwardedFrom.isDeleted"
+                            :mentions="message.forwardedFrom.mentions"
+                        />
 
                         <button
                             v-if="showThreadSummary(message)"
@@ -499,6 +527,7 @@ function confirmDelete(): void {
                                 editingId !== message.id &&
                                 (canReply(message) ||
                                     canStartThread(message) ||
+                                    canForward(message) ||
                                     canEdit(message) ||
                                     canDelete(message))
                             "
@@ -523,6 +552,16 @@ function confirmDelete(): void {
                                 @click="emit('reply', message)"
                             >
                                 <CornerUpLeft class="size-3.5" />
+                            </button>
+                            <button
+                                v-if="canForward(message)"
+                                type="button"
+                                :data-test="'message-forward'"
+                                aria-label="Forward message"
+                                class="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
+                                @click="emit('forward', message)"
+                            >
+                                <Forward class="size-3.5" />
                             </button>
                             <button
                                 v-if="canEdit(message)"

@@ -7,6 +7,7 @@ use App\Http\Controllers\Channels\ChannelPlacementController;
 use App\Http\Controllers\Channels\ChannelPreferenceController;
 use App\Http\Controllers\Channels\ChannelSectionController;
 use App\Http\Controllers\Channels\ChannelStarController;
+use App\Http\Controllers\Channels\ForwardMessageController;
 use App\Http\Controllers\Channels\MessageController;
 use App\Http\Controllers\Channels\SearchController;
 use App\Http\Controllers\Channels\ThreadsController;
@@ -65,6 +66,9 @@ Route::middleware(['auth', 'verified', EnsureTeamMembership::class])->group(func
     Route::delete('t/{team}/c/{channel}/messages/{message}', [MessageController::class, 'destroy'])
         ->scopeBindings()
         ->name('channels.messages.destroy');
+    Route::post('t/{team}/c/{channel}/messages/{message}/forward', [ForwardMessageController::class, 'store'])
+        ->scopeBindings()
+        ->name('channels.messages.forward');
     Route::post('t/{team}/c/{channel}/members', [ChannelMemberController::class, 'store'])
         ->scopeBindings()
         ->name('channels.members.store');

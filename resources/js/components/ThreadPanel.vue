@@ -29,6 +29,7 @@ const emit = defineEmits<{
     send: [body: string, mentions: Mention[], sendToChannel?: boolean];
     edit: [message: Message, body: string];
     delete: [message: Message];
+    forward: [message: Message];
     typing: [];
     jump: [messageId: string];
 }>();
@@ -150,6 +151,7 @@ watch(
                     in-thread
                     @edit="(message, body) => emit('edit', message, body)"
                     @delete="(message) => emit('delete', message)"
+                    @forward="(message) => emit('forward', message)"
                     @jump="(id) => emit('jump', id)"
                 />
             </InfiniteScroll>

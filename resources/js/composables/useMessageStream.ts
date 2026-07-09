@@ -1,6 +1,6 @@
 import { computed, ref, watch } from 'vue';
 import type { ComputedRef, Ref } from 'vue';
-import type { Mention, Message } from '@/types';
+import type { Mention, Message, MessageForward } from '@/types';
 
 /**
  * The reactive merge engine behind a message list.
@@ -191,6 +191,7 @@ export function optimisticMessage(params: {
     author: Mention;
     mentions: Mention[];
     replyTo?: Message | null;
+    forwardedFrom?: MessageForward | null;
     threadRootId?: string | null;
     sentToChannel?: boolean;
 }): Message {
@@ -214,6 +215,7 @@ export function optimisticMessage(params: {
                   mentions: target.mentions,
               }
             : null,
+        forwardedFrom: params.forwardedFrom ?? null,
         threadRootId: params.threadRootId ?? null,
         sentToChannel: params.sentToChannel ?? false,
         threadReplyCount: 0,

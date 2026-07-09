@@ -24,6 +24,7 @@ use Laravel\Scout\Searchable;
  * @property string $user_id
  * @property string $client_uuid
  * @property string|null $reply_to_id
+ * @property string|null $forwarded_from_id
  * @property string|null $thread_root_id
  * @property bool $sent_to_channel
  * @property int $reply_count
@@ -36,11 +37,12 @@ use Laravel\Scout\Searchable;
  * @property-read Channel $channel
  * @property-read User $user
  * @property-read Message|null $replyTo
+ * @property-read Message|null $forwardedFrom
  * @property-read Collection<int, Message> $threadReplies
  * @property-read Collection<int, User> $threadParticipants
  * @property-read Collection<int, User> $mentionedUsers
  */
-#[Fillable(['channel_id', 'user_id', 'client_uuid', 'reply_to_id', 'thread_root_id', 'sent_to_channel', 'body', 'edited_at'])]
+#[Fillable(['channel_id', 'user_id', 'client_uuid', 'reply_to_id', 'forwarded_from_id', 'thread_root_id', 'sent_to_channel', 'body', 'edited_at'])]
 class Message extends Model
 {
     /** @use HasFactory<MessageFactory> */
@@ -90,6 +92,21 @@ class Message extends Model
     public function replyTo(): BelongsTo
     {
         return $this->belongsTo(Message::class, 'reply_to_id')->withTrashed();
+    }
+
+    /**
+     * Get the source message this one forwards into its channel, if any.
+     *
+     * The source lives in another channel, so its `channel` relation carries the
+     * attribution ("Forwarded from #name"). A soft-deleted source is still
+     * resolved (withTrashed) so the client can render a "message deleted" stub in
+     * the forwarded quote rather than dropping it.
+     *
+     * @return BelongsTo<Message, $this>
+     */
+    public function forwardedFrom(): BelongsTo
+    {
+        return $this->belongsTo(Message::class, 'forwarded_from_id')->withTrashed();
     }
 
     /**

@@ -49,6 +49,16 @@ class MessageFactory extends Factory
     }
 
     /**
+     * Indicate that the message forwards another message into its channel.
+     */
+    public function forwardedFrom(Message $source): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'forwarded_from_id' => $source->id,
+        ]);
+    }
+
+    /**
      * Indicate that the message is a reply in another message's thread.
      *
      * The reply inherits the root's channel so it stays consistent with the

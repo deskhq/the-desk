@@ -25,6 +25,22 @@ export type MessageReply = {
     mentions: Mention[];
 };
 
+/**
+ * A compact quote of a forwarded source message. Mirrors the
+ * `MessageForwardData` DTO: like `MessageReply` but also names the source
+ * channel so the forward can render its "Forwarded from #name" attribution.
+ * Flat (never nested), with the body and mentions blanked when the source has
+ * been deleted.
+ */
+export type MessageForward = {
+    id: string;
+    body: string;
+    authorName: string;
+    channelName: string;
+    isDeleted: boolean;
+    mentions: Mention[];
+};
+
 export type Message = {
     id: string;
     clientUuid: string;
@@ -35,6 +51,11 @@ export type Message = {
     isDeleted: boolean;
     mentions: Mention[];
     replyTo: MessageReply | null;
+    /**
+     * A compact quote of the message this one forwards into the channel, or null
+     * for a normal message. Mirrors the `MessageData` DTO's `forwardedFrom`.
+     */
+    forwardedFrom: MessageForward | null;
     /**
      * Threading fields (mirror the `MessageData` DTO). `threadRootId` is set on a
      * thread reply and names its root; null on a root/normal message. The

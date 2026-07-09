@@ -24,6 +24,7 @@ class MessageData extends Data
         public bool $isDeleted,
         public array $mentions,
         public ?MessageReplyData $replyTo,
+        public ?MessageForwardData $forwardedFrom,
         public ?string $threadRootId,
         public bool $sentToChannel,
         public int $threadReplyCount,
@@ -44,6 +45,9 @@ class MessageData extends Data
      * and `mentionedUsers`) when the message quotes a parent; a deleted parent
      * still resolves so the quote can render a stub. A tombstone carries no
      * quote of its own — a deleted message shows only its own placeholder.
+     *
+     * The `forwardedFrom` relation follows the same rules (eager-loaded with its
+     * `user`, `channel`, and `mentionedUsers`) for a forwarded message.
      *
      * Thread aggregates (`threadReplyCount`, `threadLastReplyAt`,
      * `threadParticipants`) are structural, so they survive a soft delete — a
@@ -74,6 +78,9 @@ class MessageData extends Data
             mentions: $isDeleted ? [] : $message->mentionedUsers->map(fn (User $user) => MentionData::fromUser($user))->all(),
             replyTo: ! $isDeleted && $message->replyTo !== null
                 ? MessageReplyData::fromMessage($message->replyTo)
+                : null,
+            forwardedFrom: ! $isDeleted && $message->forwardedFrom !== null
+                ? MessageForwardData::fromMessage($message->forwardedFrom)
                 : null,
             threadRootId: $message->thread_root_id,
             sentToChannel: $message->sent_to_channel,

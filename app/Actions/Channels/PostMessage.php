@@ -22,12 +22,14 @@ class PostMessage
      * path side-effect free.
      *
      * When `$replyToId` is set the message renders as an inline quote of that
-     * parent. When `$threadRootId` is set the message is a thread reply: it stays
-     * out of the main timeline unless `$sentToChannel` is true, and it bumps the
-     * root's denormalized reply count / last-reply time. The request layer has
-     * already checked both references point at live messages in this channel.
+     * parent. When `$forwardedFromId` is set the message forwards that (possibly
+     * cross-channel) source, rendered with its attribution and quote; the body is
+     * an optional note. When `$threadRootId` is set the message is a thread reply:
+     * it stays out of the main timeline unless `$sentToChannel` is true, and it
+     * bumps the root's denormalized reply count / last-reply time. The request
+     * layer has already checked every reference points at a live, permitted message.
      */
-    public function handle(Channel $channel, User $author, string $body, string $clientUuid, ?string $replyToId = null, ?string $threadRootId = null, bool $sentToChannel = false): Message
+    public function handle(Channel $channel, User $author, string $body, string $clientUuid, ?string $replyToId = null, ?string $forwardedFromId = null, ?string $threadRootId = null, bool $sentToChannel = false): Message
     {
         $message = $channel->messages()->firstOrCreate(
             ['client_uuid' => $clientUuid],
@@ -35,6 +37,7 @@ class PostMessage
                 'user_id' => $author->id,
                 'body' => $body,
                 'reply_to_id' => $replyToId,
+                'forwarded_from_id' => $forwardedFromId,
                 'thread_root_id' => $threadRootId,
                 'sent_to_channel' => $threadRootId !== null && $sentToChannel,
             ],
@@ -43,7 +46,7 @@ class PostMessage
         if ($message->wasRecentlyCreated) {
             $this->syncMentions->handle($channel, $message);
             $message->setRelation('user', $author);
-            $message->load(['mentionedUsers', 'replyTo.user', 'replyTo.mentionedUsers']);
+            $message->load(['mentionedUsers', 'replyTo.user', 'replyTo.mentionedUsers', 'forwardedFrom.user', 'forwardedFrom.channel', 'forwardedFrom.mentionedUsers']);
             MessageSent::dispatch($channel, MessageData::fromMessage($message));
 
             if ($threadRootId !== null) {

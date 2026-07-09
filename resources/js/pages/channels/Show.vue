@@ -29,11 +29,13 @@ import {
 import { update as saveChannelDraft } from '@/actions/App/Http/Controllers/Channels/ChannelDraftController';
 import { update as updateChannelPreferences } from '@/actions/App/Http/Controllers/Channels/ChannelPreferenceController';
 import { update as updateChannelStar } from '@/actions/App/Http/Controllers/Channels/ChannelStarController';
+import { store as forwardMessageAction } from '@/actions/App/Http/Controllers/Channels/ForwardMessageController';
 import {
     destroy as destroyMessage,
     store as storeMessage,
     update as updateMessage,
 } from '@/actions/App/Http/Controllers/Channels/MessageController';
+import ForwardMessageDialog from '@/components/ForwardMessageDialog.vue';
 import MessageComposer from '@/components/MessageComposer.vue';
 import MessageList from '@/components/MessageList.vue';
 import ThreadPanel from '@/components/ThreadPanel.vue';
@@ -532,6 +534,89 @@ function startReply(message: Message): void {
 
 function cancelReply(): void {
     replyTarget.value = null;
+}
+
+// The message being forwarded and whether the forward dialog is open. The dialog
+// picks a target channel (from the sidebar list — the channels the viewer can
+// post to) and an optional note.
+const forwardTarget = ref<Message | null>(null);
+const forwardDialogOpen = ref(false);
+
+const forwardableChannels = computed<Channel[]>(
+    () => page.props.channels ?? [],
+);
+
+function openForward(message: Message): void {
+    forwardTarget.value = message;
+    forwardDialogOpen.value = true;
+}
+
+// Forward the selected message into `channel` with an optional note. The source
+// always lives in the current channel (the action originates from its timeline
+// or thread), so a forward back into it renders optimistically and dedups
+// against the broadcast echo; a forward elsewhere just confirms with a toast.
+function forwardMessage({
+    channel,
+    note,
+}: {
+    channel: Channel;
+    note: string;
+}): void {
+    const source = forwardTarget.value;
+
+    if (!source) {
+        return;
+    }
+
+    const clientUuid = crypto.randomUUID();
+    const toCurrentChannel = channel.id === props.channel.id;
+
+    if (toCurrentChannel) {
+        appendPendingMain(
+            optimisticMessage({
+                clientUuid,
+                body: note,
+                author: currentUser.value,
+                mentions: [],
+                forwardedFrom: {
+                    id: source.id,
+                    body: source.body,
+                    authorName: source.user.name,
+                    channelName: props.channel.name,
+                    isDeleted: source.isDeleted,
+                    mentions: source.mentions,
+                },
+            }),
+        );
+    }
+
+    router.post(
+        forwardMessageAction({
+            team: props.team.slug,
+            channel: props.channel.slug,
+            message: source.id,
+        }).url,
+        { body: note, client_uuid: clientUuid, target_channel_id: channel.id },
+        {
+            preserveScroll: true,
+            preserveState: true,
+            only: ['channels'],
+            onSuccess: () => {
+                if (!toCurrentChannel) {
+                    toast.success(`Message forwarded to #${channel.name}.`);
+                }
+            },
+            onError: () => {
+                if (toCurrentChannel) {
+                    mainStream.removePending(clientUuid);
+                }
+
+                toast.error('Failed to forward the message. Please try again.');
+            },
+        },
+    );
+
+    forwardTarget.value = null;
 }
 
 // The member's unsent composer text is persisted per channel so it survives
@@ -1098,6 +1183,7 @@ function archive(): void {
                             @edit="editMessage"
                             @delete="deleteMessage"
                             @reply="startReply"
+                            @forward="openForward"
                             @open-thread="openThread"
                             @jump="jumpToMessage"
                         />
@@ -1180,11 +1266,19 @@ function archive(): void {
                 @send="sendThreadReply"
                 @edit="editMessage"
                 @delete="deleteMessage"
+                @forward="openForward"
                 @typing="onTyping"
                 @jump="jumpToMessage"
             />
         </Transition>
     </div>
+
+    <ForwardMessageDialog
+        v-model:open="forwardDialogOpen"
+        :message="forwardTarget"
+        :channels="forwardableChannels"
+        @submit="forwardMessage"
+    />
 
     <Dialog v-model:open="confirmingArchive">
         <DialogContent>
