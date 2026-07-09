@@ -13,6 +13,17 @@ export type Mention = {
 };
 
 /**
+ * A channel member's read position, powering the "Seen by" affordance. Mirrors
+ * the `ChannelReaderData` DTO: the member and the id of the last message they
+ * have read (null when they have never read the channel). The channel page seeds
+ * these from a prop and keeps them current from the `MessageRead` broadcast.
+ */
+export type ChannelReader = {
+    user: MessageAuthor;
+    lastReadMessageId: string | null;
+};
+
+/**
  * A compact quote of the parent message an inline reply answers. Mirrors the
  * `MessageReplyData` DTO: flat (never nested) so a quote can't recurse, with
  * the body and mentions blanked when the parent has been deleted.

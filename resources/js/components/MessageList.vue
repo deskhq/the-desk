@@ -21,7 +21,8 @@ import {
 } from '@/components/ui/dialog';
 import { useInitials } from '@/composables/useInitials';
 import { renderMessageBody } from '@/lib/messageBody';
-import type { Mention, Message, MessageAuthor } from '@/types';
+import { readersForMessage } from '@/lib/readReceipts';
+import type { ChannelReader, Mention, Message, MessageAuthor } from '@/types';
 
 const props = defineProps<{
     messages: Message[];
@@ -38,6 +39,9 @@ const props = defineProps<{
     inThread?: boolean;
     // The root of the currently-open thread, highlighted in the main timeline.
     activeThreadRootId?: string | null;
+    // Read positions of channel members who share read receipts, driving the
+    // "Seen by" affordance under the newest message. Omitted inside a thread.
+    readers?: ChannelReader[];
 }>();
 
 const emit = defineEmits<{
@@ -59,6 +63,57 @@ function threadAvatars(message: Message): Mention[] {
 function extraThreadParticipants(message: Message): number {
     return Math.max(0, message.threadParticipants.length - MAX_THREAD_AVATARS);
 }
+
+// How many reader avatars to preview on the "Seen by" row before collapsing the
+// rest into a "+N" overflow chip.
+const MAX_SEEN_AVATARS = 3;
+
+// The members who have read up to the newest message, driving the "Seen by" row.
+// Empty inside a thread panel and on an empty timeline.
+const seenByReaders = computed<MessageAuthor[]>(() => {
+    if (props.inThread || props.messages.length === 0) {
+        return [];
+    }
+
+    const lastMessageId = props.messages[props.messages.length - 1].id;
+
+    return readersForMessage(
+        props.readers ?? [],
+        lastMessageId,
+        props.currentUserId,
+    );
+});
+
+const seenByAvatars = computed(() =>
+    seenByReaders.value.slice(0, MAX_SEEN_AVATARS),
+);
+
+const extraSeenBy = computed(() =>
+    Math.max(0, seenByReaders.value.length - MAX_SEEN_AVATARS),
+);
+
+// A full, human-readable roster ("Seen by Alice, Bob and 3 others") used as the
+// row's accessible label and hover title, so the compact avatars still name who.
+const seenByLabel = computed(() => {
+    const names = seenByReaders.value.map((reader) => reader.name);
+
+    if (names.length === 0) {
+        return '';
+    }
+
+    if (names.length === 1) {
+        return `Seen by ${names[0]}`;
+    }
+
+    if (names.length <= MAX_SEEN_AVATARS) {
+        return `Seen by ${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`;
+    }
+
+    const shown = names.slice(0, MAX_SEEN_AVATARS).join(', ');
+    const others = names.length - MAX_SEEN_AVATARS;
+
+    return `Seen by ${shown} and ${others} ${others === 1 ? 'other' : 'others'}`;
+});
 
 const { getInitials } = useInitials();
 
@@ -588,6 +643,35 @@ function confirmDelete(): void {
                 </div>
             </div>
         </template>
+
+        <div
+            v-if="seenByReaders.length > 0"
+            data-test="seen-by"
+            class="mt-1.5 flex items-center justify-end gap-1.5 pr-1"
+            :title="seenByLabel"
+        >
+            <span class="text-[11px] font-medium text-muted-foreground">
+                Seen by
+            </span>
+            <span class="flex -space-x-1">
+                <span
+                    v-for="reader in seenByAvatars"
+                    :key="reader.id"
+                    class="flex size-4 items-center justify-center rounded-[5px] bg-primary/10 text-[8px] font-semibold text-primary ring-2 ring-background select-none"
+                    aria-hidden="true"
+                >
+                    {{ getInitials(reader.name) }}
+                </span>
+                <span
+                    v-if="extraSeenBy > 0"
+                    class="flex size-4 items-center justify-center rounded-[5px] bg-muted text-[8px] font-semibold text-muted-foreground ring-2 ring-background select-none"
+                    aria-hidden="true"
+                >
+                    +{{ extraSeenBy }}
+                </span>
+            </span>
+            <span class="sr-only">{{ seenByLabel }}</span>
+        </div>
 
         <Dialog :open="pendingDelete !== null" @update:open="setDeleteOpen">
             <DialogContent>

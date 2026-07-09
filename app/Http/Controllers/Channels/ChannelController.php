@@ -8,6 +8,7 @@ use App\Actions\Channels\JoinChannel;
 use App\Actions\Channels\MarkChannelRead;
 use App\Actions\Channels\MarkThreadRead;
 use App\Data\ChannelData;
+use App\Data\ChannelReaderData;
 use App\Data\MessageData;
 use App\Data\UserData;
 use App\Enums\ChannelVisibility;
@@ -147,6 +148,16 @@ class ChannelController extends Controller
             // Team members feed the composer's @mention autocomplete; mentions are
             // scoped to the team, never limited to the current channel's members.
             'members' => UserData::collect($team->members()->orderBy('name')->get()),
+            // Read pointers of the channel's other members who share read receipts,
+            // seeding the "Seen by" affordance at open; later advances arrive via the
+            // MessageRead broadcast. The viewer and opted-out members are excluded.
+            'channelReaders' => ChannelReaderData::collect(
+                $channel->channelMembers()
+                    ->where('user_id', '!=', $request->user()->id)
+                    ->whereRelation('user', 'share_read_receipts', true)
+                    ->with('user')
+                    ->get()
+            ),
             // Newest 50 first; the InfiniteScroll composer runs in reverse mode, so
             // scrolling up appends older pages and the client reverses for display.
             // Deleted rows are kept (withTrashed) so the client can render a

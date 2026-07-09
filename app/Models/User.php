@@ -29,6 +29,7 @@ use Illuminate\Support\Carbon;
  * @property string|null $remember_token
  * @property string|null $current_team_id
  * @property ChimeSound $chime_sound
+ * @property bool $share_read_receipts
  * @property array<int, string>|null $collapsed_channel_sections
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
@@ -39,7 +40,7 @@ use Illuminate\Support\Carbon;
  * @property-read Collection<int, Channel> $channels
  * @property-read Collection<int, ChannelSection> $channelSections
  */
-#[Fillable(['name', 'email', 'password', 'current_team_id', 'chime_sound', 'collapsed_channel_sections'])]
+#[Fillable(['name', 'email', 'password', 'current_team_id', 'chime_sound', 'share_read_receipts', 'collapsed_channel_sections'])]
 #[Hidden(['password', 'two_factor_secret', 'two_factor_recovery_codes', 'remember_token'])]
 class User extends Authenticatable
 {
@@ -57,6 +58,7 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
             'chime_sound' => ChimeSound::class,
+            'share_read_receipts' => 'boolean',
             'collapsed_channel_sections' => 'array',
         ];
     }
