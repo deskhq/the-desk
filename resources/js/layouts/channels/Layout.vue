@@ -158,7 +158,8 @@ onMounted(() => {
                                                 channel.slug ===
                                                 activeChannelSlug
                                             "
-                                            class="h-[30px] gap-1.5 rounded-md px-2 text-[13.5px] text-sidebar-foreground/80 hover:bg-sidebar-accent/60 hover:text-sidebar-foreground data-[active=true]:relative data-[active=true]:bg-sidebar-accent data-[active=true]:pl-3.5 data-[active=true]:font-medium data-[active=true]:text-sidebar-accent-foreground"
+                                            :data-muted="channel.muted"
+                                            class="h-[30px] gap-1.5 rounded-md px-2 text-[13.5px] text-sidebar-foreground/80 hover:bg-sidebar-accent/60 hover:text-sidebar-foreground data-[active=true]:relative data-[active=true]:bg-sidebar-accent data-[active=true]:pl-3.5 data-[active=true]:font-medium data-[active=true]:text-sidebar-accent-foreground data-[muted=true]:opacity-55 data-[muted=true]:hover:opacity-100"
                                         >
                                             <Link
                                                 v-if="currentTeam"

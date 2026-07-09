@@ -27,6 +27,8 @@ use Illuminate\Support\Carbon;
  * @property Carbon|null $updated_at
  * @property-read int|null $unread_count
  * @property-read int|null $mention_count
+ * @property-read bool|null $muted
+ * @property-read string|null $notification_level
  * @property-read Team $team
  * @property-read User $creator
  * @property-read Collection<int, ChannelMember> $channelMembers
@@ -108,7 +110,7 @@ class Channel extends Model
     public function members(): BelongsToMany
     {
         return $this->belongsToMany(User::class, 'channel_members')
-            ->withPivot(['last_read_message_id'])
+            ->withPivot(['last_read_message_id', 'muted', 'notification_level'])
             ->withTimestamps();
     }
 

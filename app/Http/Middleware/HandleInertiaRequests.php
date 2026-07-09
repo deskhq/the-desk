@@ -75,6 +75,7 @@ class HandleInertiaRequests extends Middleware
             ->where('channels.team_id', $team->id)
             ->whereNull('channels.archived_at')
             ->select('channels.*')
+            ->addSelect(['channel_members.muted', 'channel_members.notification_level'])
             ->selectSub($this->unreadMessages($user), 'unread_count')
             ->selectSub($this->unreadMessages($user)->whereHas('mentionedUsers', fn ($query) => $query->whereKey($user->id)), 'mention_count')
             ->orderBy('name')

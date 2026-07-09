@@ -1,7 +1,14 @@
 <script setup lang="ts">
 import { Head, InfiniteScroll, router, usePage } from '@inertiajs/vue3';
 import { echo } from '@laravel/echo-vue';
-import { Archive, EllipsisVertical } from '@lucide/vue';
+import {
+    Archive,
+    AtSign,
+    BellMinus,
+    BellOff,
+    EllipsisVertical,
+} from '@lucide/vue';
+import type { AcceptableValue } from 'reka-ui';
 import {
     computed,
     nextTick,
@@ -15,6 +22,7 @@ import {
     archive as archiveChannel,
     read as markChannelRead,
 } from '@/actions/App/Http/Controllers/Channels/ChannelController';
+import { update as updateChannelPreferences } from '@/actions/App/Http/Controllers/Channels/ChannelPreferenceController';
 import {
     destroy as destroyMessage,
     store as storeMessage,
@@ -35,8 +43,13 @@ import {
 } from '@/components/ui/dialog';
 import {
     DropdownMenu,
+    DropdownMenuCheckboxItem,
     DropdownMenuContent,
     DropdownMenuItem,
+    DropdownMenuLabel,
+    DropdownMenuRadioGroup,
+    DropdownMenuRadioItem,
+    DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Separator } from '@/components/ui/separator';
@@ -44,7 +57,14 @@ import { SidebarTrigger } from '@/components/ui/sidebar';
 import { useTeamPresence } from '@/composables/useTeamPresence';
 import { useTypingIndicator } from '@/composables/useTypingIndicator';
 import type { TypingUser } from '@/composables/useTypingIndicator';
-import type { Channel, Mention, Message, MessagePage } from '@/types';
+import type {
+    Channel,
+    Mention,
+    Message,
+    MessagePage,
+    NotificationLevel,
+    NotificationLevelOption,
+} from '@/types';
 
 const props = defineProps<{
     team: { id: string; name: string; slug: string };
@@ -52,6 +72,8 @@ const props = defineProps<{
     messages: MessagePage;
     members: Mention[];
     canArchive: boolean;
+    canManagePreferences: boolean;
+    notificationLevels: NotificationLevelOption[];
 }>();
 
 const page = usePage();
@@ -282,6 +304,8 @@ watch(
         pending.value = [];
         patches.value = new Map();
         typing.reset();
+        notificationLevel.value = props.channel.notificationLevel;
+        muted.value = props.channel.muted;
         subscribe(newId);
         markRead();
     },
@@ -384,6 +408,70 @@ function deleteMessage(message: Message): void {
     );
 }
 
+// The member's own notification preferences for this channel, seeded from the
+// server and reseeded on every channel switch. Changes are saved optimistically
+// (the sidebar reloads to reflect the new badge/dimming state) and rolled back
+// if the request fails.
+const notificationLevel = ref<NotificationLevel>(
+    props.channel.notificationLevel,
+);
+const muted = ref<boolean>(props.channel.muted);
+
+function savePreferences(rollback: () => void): void {
+    router.patch(
+        updateChannelPreferences({
+            team: props.team.slug,
+            channel: props.channel.slug,
+        }).url,
+        { muted: muted.value, notification_level: notificationLevel.value },
+        {
+            preserveScroll: true,
+            preserveState: true,
+            only: ['channels'],
+            onError: () => {
+                rollback();
+                toast.error(
+                    'Failed to update notification preferences. Please try again.',
+                );
+            },
+        },
+    );
+}
+
+function onNotificationLevelChange(value: AcceptableValue): void {
+    const previous = notificationLevel.value;
+    notificationLevel.value = value as NotificationLevel;
+    savePreferences(() => {
+        notificationLevel.value = previous;
+    });
+}
+
+function onMuteChange(value: boolean): void {
+    const previous = muted.value;
+    muted.value = value;
+    savePreferences(() => {
+        muted.value = previous;
+    });
+}
+
+// A compact header cue for the member's non-default notification state (muted or
+// a quieted level); the "all" default shows nothing to keep the header clean.
+const notificationStatus = computed(() => {
+    if (muted.value) {
+        return { icon: BellOff, label: 'Muted' };
+    }
+
+    if (notificationLevel.value === 'nothing') {
+        return { icon: BellMinus, label: 'Notifications off' };
+    }
+
+    if (notificationLevel.value === 'mentions') {
+        return { icon: AtSign, label: 'Mentions only' };
+    }
+
+    return null;
+});
+
 // Drives the archive confirmation dialog opened from the channel header menu.
 const confirmingArchive = ref(false);
 
@@ -416,6 +504,16 @@ function archive(): void {
             <span class="mr-0.5 font-medium text-muted-foreground/70">#</span
             >{{ props.channel.name }}
         </h1>
+        <span
+            v-if="notificationStatus"
+            data-test="notification-status"
+            :data-status="muted ? 'muted' : notificationLevel"
+            class="inline-flex items-center text-muted-foreground"
+            :title="notificationStatus.label"
+            :aria-label="notificationStatus.label"
+        >
+            <component :is="notificationStatus.icon" class="size-3.5" />
+        </span>
         <template v-if="props.channel.topic">
             <Separator orientation="vertical" class="h-4" />
             <p class="min-w-0 truncate text-[13px] text-muted-foreground">
@@ -431,7 +529,7 @@ function archive(): void {
             Archived
         </span>
 
-        <DropdownMenu v-if="props.canArchive">
+        <DropdownMenu v-if="props.canManagePreferences || props.canArchive">
             <DropdownMenuTrigger as-child>
                 <button
                     type="button"
@@ -442,15 +540,47 @@ function archive(): void {
                     <EllipsisVertical class="size-4" />
                 </button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-                <DropdownMenuItem
-                    data-test="archive-channel"
-                    class="text-destructive focus:text-destructive"
-                    @select="confirmingArchive = true"
-                >
-                    <Archive class="size-4" />
-                    Archive channel
-                </DropdownMenuItem>
+            <DropdownMenuContent align="end" class="w-56">
+                <template v-if="props.canManagePreferences">
+                    <DropdownMenuLabel
+                        class="text-[11px] font-semibold tracking-[0.06em] text-muted-foreground uppercase"
+                    >
+                        Notifications
+                    </DropdownMenuLabel>
+                    <DropdownMenuRadioGroup
+                        :model-value="notificationLevel"
+                        @update:model-value="onNotificationLevelChange"
+                    >
+                        <DropdownMenuRadioItem
+                            v-for="level in props.notificationLevels"
+                            :key="level.value"
+                            :value="level.value"
+                            :data-test="`notification-level-${level.value}`"
+                        >
+                            {{ level.label }}
+                        </DropdownMenuRadioItem>
+                    </DropdownMenuRadioGroup>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuCheckboxItem
+                        :model-value="muted"
+                        data-test="mute-channel"
+                        @update:model-value="onMuteChange"
+                        @select="(event: Event) => event.preventDefault()"
+                    >
+                        Mute channel
+                    </DropdownMenuCheckboxItem>
+                </template>
+                <template v-if="props.canArchive">
+                    <DropdownMenuSeparator v-if="props.canManagePreferences" />
+                    <DropdownMenuItem
+                        data-test="archive-channel"
+                        class="text-destructive focus:text-destructive"
+                        @select="confirmingArchive = true"
+                    >
+                        <Archive class="size-4" />
+                        Archive channel
+                    </DropdownMenuItem>
+                </template>
             </DropdownMenuContent>
         </DropdownMenu>
     </header>

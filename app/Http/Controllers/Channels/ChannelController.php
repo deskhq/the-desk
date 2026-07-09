@@ -10,6 +10,7 @@ use App\Data\ChannelData;
 use App\Data\MessageData;
 use App\Data\UserData;
 use App\Enums\ChannelVisibility;
+use App\Enums\NotificationLevel;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Channels\CreateChannelRequest;
 use App\Models\Channel;
@@ -55,9 +56,16 @@ class ChannelController extends Controller
     /**
      * Show a channel. The channel sidebar is fed by the globally-shared `channels` prop.
      */
-    public function show(Team $team, Channel $channel): Response
+    public function show(Request $request, Team $team, Channel $channel): Response
     {
         Gate::authorize('view', $channel);
+
+        // Surface the current user's own notification preferences on the channel
+        // so the header settings menu opens on the persisted state. A non-member
+        // viewing a public channel has no pivot row, so the DTO defaults apply.
+        $membership = $channel->channelMembers()->where('user_id', $request->user()->id)->first();
+        $channel->setAttribute('muted', $membership->muted ?? false);
+        $channel->setAttribute('notification_level', $membership?->notification_level->value ?? NotificationLevel::All->value);
 
         return Inertia::render('channels/Show', [
             'team' => [
@@ -69,6 +77,11 @@ class ChannelController extends Controller
             // Drives the header's archive control; authoritative so the button
             // only appears for a creator or Admin+ on a non-#general channel.
             'canArchive' => Gate::allows('archive', $channel),
+            // Gates the notification settings menu; only a member of the channel
+            // has preferences to manage.
+            'canManagePreferences' => Gate::allows('updatePreference', $channel),
+            // Selectable notification levels for the settings menu.
+            'notificationLevels' => NotificationLevel::options(),
             // Team members feed the composer's @mention autocomplete; mentions are
             // scoped to the team, never limited to the current channel's members.
             'members' => UserData::collect($team->members()->orderBy('name')->get()),

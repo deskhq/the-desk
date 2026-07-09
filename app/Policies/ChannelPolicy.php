@@ -34,6 +34,19 @@ class ChannelPolicy
     }
 
     /**
+     * Determine whether the user can update their own notification preferences.
+     *
+     * Preferences live on the membership pivot, so only a member of the channel
+     * (within the team) has any to manage. Each member only ever touches their
+     * own row.
+     */
+    public function updatePreference(User $user, Channel $channel): bool
+    {
+        return $user->belongsToTeam($channel->team)
+            && $channel->members()->whereKey($user->id)->exists();
+    }
+
+    /**
      * Determine whether the user can post a message to the channel.
      *
      * Only members of a non-archived channel may post.

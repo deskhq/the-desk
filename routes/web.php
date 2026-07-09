@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Channels\ChannelController;
 use App\Http\Controllers\Channels\ChannelMemberController;
+use App\Http\Controllers\Channels\ChannelPreferenceController;
 use App\Http\Controllers\Channels\MessageController;
 use App\Http\Controllers\Teams\TeamInvitationController;
 use App\Http\Middleware\EnsureTeamMembership;
@@ -22,6 +23,9 @@ Route::middleware(['auth', 'verified', EnsureTeamMembership::class])->group(func
     Route::post('t/{team}/c/{channel}/read', [ChannelController::class, 'read'])
         ->scopeBindings()
         ->name('channels.read');
+    Route::patch('t/{team}/c/{channel}/preferences', [ChannelPreferenceController::class, 'update'])
+        ->scopeBindings()
+        ->name('channels.preferences.update');
     Route::post('t/{team}/c/{channel}/archive', [ChannelController::class, 'archive'])
         ->scopeBindings()
         ->name('channels.archive');
