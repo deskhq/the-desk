@@ -343,6 +343,7 @@ watch(
         live.value = [];
         pending.value = [];
         patches.value = new Map();
+        replyTarget.value = null;
         typing.reset();
         notificationLevel.value = props.channel.notificationLevel;
         muted.value = props.channel.muted;
@@ -364,8 +365,20 @@ onBeforeUnmount(() => {
     }
 });
 
+// The message the composer is currently quoting, or null for a normal send.
+const replyTarget = ref<Message | null>(null);
+
+function startReply(message: Message): void {
+    replyTarget.value = message;
+}
+
+function cancelReply(): void {
+    replyTarget.value = null;
+}
+
 function send(body: string, mentions: Mention[]): void {
     const clientUuid = crypto.randomUUID();
+    const target = replyTarget.value;
 
     pending.value.push({
         id: clientUuid,
@@ -376,14 +389,27 @@ function send(body: string, mentions: Mention[]): void {
         editedAt: null,
         isDeleted: false,
         mentions,
+        // Mirror the parent as a compact quote so the optimistic row renders the
+        // reference immediately; the server echo replaces it with the canonical
+        // copy keyed on the same client uuid.
+        replyTo: target
+            ? {
+                  id: target.id,
+                  body: target.body,
+                  authorName: target.user.name,
+                  isDeleted: target.isDeleted,
+                  mentions: target.mentions,
+              }
+            : null,
     });
 
+    cancelReply();
     nextTick(scrollToBottom);
 
     router.post(
         storeMessage({ team: props.team.slug, channel: props.channel.slug })
             .url,
-        { body, client_uuid: clientUuid },
+        { body, client_uuid: clientUuid, reply_to_id: target?.id ?? null },
         {
             preserveScroll: true,
             onError: () => {
@@ -646,6 +672,8 @@ function archive(): void {
                     :highlight-message-id="highlightedMessageId"
                     @edit="editMessage"
                     @delete="deleteMessage"
+                    @reply="startReply"
+                    @jump="jumpToMessage"
                 />
             </InfiniteScroll>
 
@@ -683,8 +711,10 @@ function archive(): void {
             <MessageComposer
                 :channel-name="props.channel.name"
                 :members="mentionableMembers"
+                :reply-target="replyTarget"
                 @send="send"
                 @typing="onTyping"
+                @cancel-reply="cancelReply"
             />
         </template>
     </div>

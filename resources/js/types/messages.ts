@@ -12,6 +12,19 @@ export type Mention = {
     name: string;
 };
 
+/**
+ * A compact quote of the parent message an inline reply answers. Mirrors the
+ * `MessageReplyData` DTO: flat (never nested) so a quote can't recurse, with
+ * the body and mentions blanked when the parent has been deleted.
+ */
+export type MessageReply = {
+    id: string;
+    body: string;
+    authorName: string;
+    isDeleted: boolean;
+    mentions: Mention[];
+};
+
 export type Message = {
     id: string;
     clientUuid: string;
@@ -21,6 +34,7 @@ export type Message = {
     editedAt: string | null;
     isDeleted: boolean;
     mentions: Mention[];
+    replyTo: MessageReply | null;
 };
 
 /**

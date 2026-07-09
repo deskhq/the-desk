@@ -22,6 +22,7 @@ class MessageData extends Data
         public ?string $editedAt,
         public bool $isDeleted,
         public array $mentions,
+        public ?MessageReplyData $replyTo,
     ) {}
 
     /**
@@ -30,6 +31,11 @@ class MessageData extends Data
      * The message's `user` and `mentionedUsers` relations should be eager-loaded
      * to avoid N+1 queries. A soft-deleted message renders as a tombstone: its
      * body and mentions are never sent to the client, only the `isDeleted` flag.
+     *
+     * The `replyTo` relation is expected to be eager-loaded (with its own `user`
+     * and `mentionedUsers`) when the message quotes a parent; a deleted parent
+     * still resolves so the quote can render a stub. A tombstone carries no
+     * quote of its own — a deleted message shows only its own placeholder.
      */
     public static function fromMessage(Message $message): self
     {
@@ -44,6 +50,9 @@ class MessageData extends Data
             editedAt: $message->edited_at?->toIso8601String(),
             isDeleted: $isDeleted,
             mentions: $isDeleted ? [] : $message->mentionedUsers->map(fn (User $user) => MentionData::fromUser($user))->all(),
+            replyTo: ! $isDeleted && $message->replyTo !== null
+                ? MessageReplyData::fromMessage($message->replyTo)
+                : null,
         );
     }
 }

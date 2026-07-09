@@ -44,6 +44,6 @@ class SearchMessages
             ->whereIn('channel_id', $channelIds)
             ->take(self::RESULT_LIMIT)
             ->get()
-            ->load(['user', 'channel', 'mentionedUsers']);
+            ->load(['user', 'channel', 'mentionedUsers', 'replyTo.user', 'replyTo.mentionedUsers']);
     }
 }

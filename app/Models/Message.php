@@ -19,6 +19,7 @@ use Laravel\Scout\Searchable;
  * @property string $channel_id
  * @property string $user_id
  * @property string $client_uuid
+ * @property string|null $reply_to_id
  * @property string $body
  * @property Carbon|null $edited_at
  * @property Carbon|null $deleted_at
@@ -26,9 +27,10 @@ use Laravel\Scout\Searchable;
  * @property Carbon|null $updated_at
  * @property-read Channel $channel
  * @property-read User $user
+ * @property-read Message|null $replyTo
  * @property-read Collection<int, User> $mentionedUsers
  */
-#[Fillable(['channel_id', 'user_id', 'client_uuid', 'body', 'edited_at'])]
+#[Fillable(['channel_id', 'user_id', 'client_uuid', 'reply_to_id', 'body', 'edited_at'])]
 class Message extends Model
 {
     /** @use HasFactory<MessageFactory> */
@@ -52,6 +54,19 @@ class Message extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    /**
+     * Get the parent message this one quotes inline, if any.
+     *
+     * A soft-deleted parent is still resolved (withTrashed) so the client can
+     * render a "message deleted" stub in the quote rather than dropping it.
+     *
+     * @return BelongsTo<Message, $this>
+     */
+    public function replyTo(): BelongsTo
+    {
+        return $this->belongsTo(Message::class, 'reply_to_id')->withTrashed();
     }
 
     /**

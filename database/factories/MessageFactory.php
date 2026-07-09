@@ -37,4 +37,14 @@ class MessageFactory extends Factory
             'edited_at' => now(),
         ]);
     }
+
+    /**
+     * Indicate that the message quotes another message inline.
+     */
+    public function replyTo(Message $parent): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'reply_to_id' => $parent->id,
+        ]);
+    }
 }

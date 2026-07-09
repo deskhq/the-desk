@@ -110,7 +110,7 @@ class ChannelController extends Controller
             // "message deleted" tombstone in place; MessageData blanks their body.
             'messages' => Inertia::scroll(fn () => $channel->messages()
                 ->withTrashed()
-                ->with(['user', 'mentionedUsers'])
+                ->with(['user', 'mentionedUsers', 'replyTo.user', 'replyTo.mentionedUsers'])
                 ->when($windowCeilingId, fn ($query) => $query->where('id', '<=', $windowCeilingId))
                 ->orderByDesc('id')
                 ->cursorPaginate(50)

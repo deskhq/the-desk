@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { Pencil, Trash2 } from '@lucide/vue';
+import { CornerUpLeft, Pencil, Trash2 } from '@lucide/vue';
 import { computed, nextTick, ref } from 'vue';
+import MessageQuote from '@/components/MessageQuote.vue';
 import { Button } from '@/components/ui/button';
 import {
     Dialog,
@@ -27,6 +28,8 @@ const props = defineProps<{
 const emit = defineEmits<{
     edit: [message: Message, body: string];
     delete: [message: Message];
+    reply: [message: Message];
+    jump: [messageId: string];
 }>();
 
 const { getInitials } = useInitials();
@@ -159,6 +162,12 @@ function canDelete(message: Message): boolean {
     );
 }
 
+// Anyone can reply to any live message; a pending or deleted row has no stable
+// target to quote yet.
+function canReply(message: Message): boolean {
+    return !message.isDeleted && !isPending(message);
+}
+
 // The message currently being edited inline, and its working draft.
 const editingId = ref<string | null>(null);
 const editDraft = ref('');
@@ -276,6 +285,24 @@ function confirmDelete(): void {
                                 : '',
                         ]"
                     >
+                        <button
+                            v-if="
+                                message.replyTo &&
+                                !message.isDeleted &&
+                                editingId !== message.id
+                            "
+                            type="button"
+                            data-test="message-quote"
+                            class="mt-0.5 flex max-w-full items-center rounded pr-1 text-left hover:opacity-80"
+                            @click="emit('jump', message.replyTo.id)"
+                        >
+                            <MessageQuote
+                                :author-name="message.replyTo.authorName"
+                                :body="message.replyTo.body"
+                                :is-deleted="message.replyTo.isDeleted"
+                            />
+                        </button>
+
                         <p
                             v-if="message.isDeleted"
                             :data-test="'message-tombstone'"
@@ -342,10 +369,22 @@ function confirmDelete(): void {
                         <div
                             v-if="
                                 editingId !== message.id &&
-                                (canEdit(message) || canDelete(message))
+                                (canReply(message) ||
+                                    canEdit(message) ||
+                                    canDelete(message))
                             "
                             class="absolute -top-3 right-2 hidden items-center gap-0.5 rounded-md border border-border bg-background p-0.5 shadow-sm group-hover/message:flex"
                         >
+                            <button
+                                v-if="canReply(message)"
+                                type="button"
+                                :data-test="'message-reply'"
+                                aria-label="Reply to message"
+                                class="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
+                                @click="emit('reply', message)"
+                            >
+                                <CornerUpLeft class="size-3.5" />
+                            </button>
                             <button
                                 v-if="canEdit(message)"
                                 type="button"

@@ -6,6 +6,7 @@ use App\Models\Channel;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Validation\Rule;
 
 class PostMessageRequest extends FormRequest
 {
@@ -37,6 +38,16 @@ class PostMessageRequest extends FormRequest
         return [
             'body' => ['required', 'string', 'max:8000'],
             'client_uuid' => ['required', 'uuid'],
+            // An inline reply must quote a live (non-deleted) message that
+            // belongs to this same channel; a cross-channel or deleted target
+            // is rejected rather than silently dropped.
+            'reply_to_id' => [
+                'nullable',
+                'uuid',
+                Rule::exists('messages', 'id')
+                    ->where('channel_id', $this->channel()->id)
+                    ->whereNull('deleted_at'),
+            ],
         ];
     }
 

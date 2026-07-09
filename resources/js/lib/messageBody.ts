@@ -58,3 +58,16 @@ export function renderMessageBody(
 
     return linked.replace(/\n/g, '<br>');
 }
+
+/**
+ * Flatten a raw message body to a single line of plain text for a compact quote
+ * preview: mention tokens collapse to their `@Name` text and runs of whitespace
+ * (including newlines) become single spaces. Returned as plain text, never HTML,
+ * so it is safe to render inside an interactive quote without markup injection.
+ */
+export function messageBodyPreview(body: string): string {
+    return body
+        .replace(MENTION_PATTERN, (_match, name: string) => `@${name}`)
+        .replace(/\s+/g, ' ')
+        .trim();
+}

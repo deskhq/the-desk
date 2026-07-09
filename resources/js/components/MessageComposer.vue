@@ -1,24 +1,38 @@
 <script setup lang="ts">
-import { ArrowUp, Plus } from '@lucide/vue';
-import { computed, nextTick, ref } from 'vue';
+import { ArrowUp, Plus, X } from '@lucide/vue';
+import { computed, nextTick, ref, watch } from 'vue';
+import MessageQuote from '@/components/MessageQuote.vue';
 import { Button } from '@/components/ui/button';
 import { useInitials } from '@/composables/useInitials';
-import type { Mention } from '@/types';
+import type { Mention, Message } from '@/types';
 
 const props = defineProps<{
     channelName: string;
     members: Mention[];
+    replyTarget?: Message | null;
 }>();
 
 const emit = defineEmits<{
     send: [body: string, mentions: Mention[]];
     typing: [];
+    cancelReply: [];
 }>();
 
 const { getInitials } = useInitials();
 
 const body = ref('');
 const textarea = ref<HTMLTextAreaElement | null>(null);
+
+// Focus the composer whenever a reply is started so the user can type straight
+// away without reaching for the mouse.
+watch(
+    () => props.replyTarget,
+    (target) => {
+        if (target) {
+            nextTick(() => textarea.value?.focus());
+        }
+    },
+);
 
 // Well-formed mention token: `@[Display Name](user-id)`. The parser on the
 // server resolves the id; here it lets us collect the mentions being sent and
@@ -192,6 +206,14 @@ function onKeydown(event: KeyboardEvent): void {
         }
     }
 
+    // With the mention menu closed, Escape dismisses the active reply context.
+    if (event.key === 'Escape' && props.replyTarget) {
+        event.preventDefault();
+        emit('cancelReply');
+
+        return;
+    }
+
     if (event.key === 'Enter' && !event.shiftKey) {
         event.preventDefault();
         submit();
@@ -232,7 +254,31 @@ function onKeydown(event: KeyboardEvent): void {
             </ul>
 
             <div
+                v-if="props.replyTarget"
+                data-test="reply-preview"
+                class="flex items-center gap-2 rounded-t-xl border border-b-0 border-input bg-muted/40 px-3 py-1.5"
+            >
+                <span class="min-w-0 flex-1">
+                    <MessageQuote
+                        :author-name="props.replyTarget.user.name"
+                        :body="props.replyTarget.body"
+                        :is-deleted="props.replyTarget.isDeleted"
+                    />
+                </span>
+                <button
+                    type="button"
+                    data-test="reply-preview-dismiss"
+                    aria-label="Cancel reply"
+                    class="shrink-0 rounded p-0.5 text-muted-foreground hover:bg-muted hover:text-foreground"
+                    @click="emit('cancelReply')"
+                >
+                    <X class="size-3.5" />
+                </button>
+            </div>
+
+            <div
                 class="rounded-xl border border-input bg-background p-3 pb-2 focus-within:border-ring focus-within:ring-[3px] focus-within:ring-ring/20"
+                :class="props.replyTarget ? 'rounded-t-none' : ''"
             >
                 <textarea
                     ref="textarea"
