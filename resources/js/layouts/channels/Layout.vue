@@ -33,10 +33,14 @@ import {
     TooltipContent,
     TooltipTrigger,
 } from '@/components/ui/tooltip';
+import { useChimeNotifications } from '@/composables/useChimeNotifications';
 import { useInitials } from '@/composables/useInitials';
 import { useTeamSwitch } from '@/composables/useTeamSwitch';
 
 const page = usePage();
+
+// Chime for qualifying messages across every channel while the workspace is open.
+useChimeNotifications();
 
 const currentTeam = computed(() => page.props.currentTeam);
 const teams = computed(() => page.props.teams ?? []);

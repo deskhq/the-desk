@@ -4,6 +4,7 @@ namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 use App\Concerns\HasTeams;
+use App\Enums\ChimeSound;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
@@ -26,6 +27,7 @@ use Illuminate\Support\Carbon;
  * @property Carbon|null $two_factor_confirmed_at
  * @property string|null $remember_token
  * @property string|null $current_team_id
+ * @property ChimeSound $chime_sound
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  * @property-read Team|null $currentTeam
@@ -34,7 +36,7 @@ use Illuminate\Support\Carbon;
  * @property-read Collection<int, Team> $teams
  * @property-read Collection<int, Channel> $channels
  */
-#[Fillable(['name', 'email', 'password', 'current_team_id'])]
+#[Fillable(['name', 'email', 'password', 'current_team_id', 'chime_sound'])]
 #[Hidden(['password', 'two_factor_secret', 'two_factor_recovery_codes', 'remember_token'])]
 class User extends Authenticatable
 {
@@ -51,6 +53,7 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'chime_sound' => ChimeSound::class,
         ];
     }
 

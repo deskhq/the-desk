@@ -2,6 +2,7 @@
 
 namespace Database\Factories;
 
+use App\Enums\ChimeSound;
 use App\Enums\TeamRole;
 use App\Models\Team;
 use App\Models\User;
@@ -35,6 +36,7 @@ class UserFactory extends Factory
             'two_factor_secret' => null,
             'two_factor_recovery_codes' => null,
             'two_factor_confirmed_at' => null,
+            'chime_sound' => ChimeSound::Ping->value,
         ];
     }
 

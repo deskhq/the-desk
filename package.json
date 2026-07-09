@@ -10,7 +10,8 @@
         "format:check": "prettier --check resources/",
         "lint": "eslint . --fix",
         "lint:check": "eslint .",
-        "types:check": "vue-tsc --noEmit"
+        "types:check": "vue-tsc --noEmit",
+        "test:js": "vitest run"
     },
     "devDependencies": {
         "@eslint/js": "^9.19.0",
@@ -35,6 +36,7 @@
         "typescript": "^5.2.2",
         "typescript-eslint": "^8.23.0",
         "vite": "^8.0.0",
+        "vitest": "^4.0.0",
         "vue-tsc": "^2.2.4"
     },
     "dependencies": {
