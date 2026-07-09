@@ -15,6 +15,7 @@ This application is a Laravel application and its main Laravel ecosystems packag
 - laravel/framework (LARAVEL) - v13
 - laravel/prompts (PROMPTS) - v0
 - laravel/reverb (REVERB) - v1
+- laravel/scout (SCOUT) - v11
 - laravel/wayfinder (WAYFINDER) - v0
 - larastan/larastan (LARASTAN) - v3
 - laravel/boost (BOOST) - v2
@@ -27,8 +28,10 @@ This application is a Laravel application and its main Laravel ecosystems packag
 - @inertiajs/vue3 (INERTIA_VUE) - v3
 - tailwindcss (TAILWINDCSS) - v4
 - vue (VUE) - v3
+- @laravel/echo-vue (ECHO_VUE) - v2
 - @laravel/vite-plugin-wayfinder (WAYFINDER_VITE) - v0
 - eslint (ESLINT) - v9
+- laravel-echo (ECHO) - v2
 - prettier (PRETTIER) - v3
 
 ## Skills Activation

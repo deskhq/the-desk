@@ -74,6 +74,7 @@ const props = defineProps<{
     canArchive: boolean;
     canManagePreferences: boolean;
     notificationLevels: NotificationLevelOption[];
+    jumpToMessageId?: string | null;
 }>();
 
 const page = usePage();
@@ -208,6 +209,30 @@ function scrollToBottom(): void {
     }
 }
 
+// The message to briefly highlight after a search jump. The server windows the
+// initial page so the target is loaded; we scroll it into view and clear the
+// highlight after a short beat.
+const highlightedMessageId = ref<string | null>(null);
+let highlightTimer: ReturnType<typeof setTimeout> | null = null;
+
+function jumpToMessage(id: string): void {
+    nextTick(() => {
+        document
+            .getElementById(`message-${id}`)
+            ?.scrollIntoView({ block: 'center' });
+
+        highlightedMessageId.value = id;
+
+        if (highlightTimer) {
+            clearTimeout(highlightTimer);
+        }
+
+        highlightTimer = setTimeout(() => {
+            highlightedMessageId.value = null;
+        }, 2000);
+    });
+}
+
 function appendLive(message: Message): void {
     const known =
         live.value.some((m) => m.clientUuid === message.clientUuid) ||
@@ -289,7 +314,22 @@ onMounted(() => {
     subscribe(props.channel.id);
     markRead();
     window.addEventListener('focus', markRead);
+
+    if (props.jumpToMessageId) {
+        jumpToMessage(props.jumpToMessageId);
+    }
 });
+
+// A jump to another result in the same already-open channel reuses this
+// component, so the channel-id watch won't fire; react to the target changing.
+watch(
+    () => props.jumpToMessageId,
+    (id) => {
+        if (id) {
+            jumpToMessage(id);
+        }
+    },
+);
 
 // Inertia may reuse this page component when navigating between channels; move
 // the subscription and reset per-channel state when the channel changes.
@@ -317,6 +357,10 @@ onBeforeUnmount(() => {
 
     if (markReadTimer) {
         clearTimeout(markReadTimer);
+    }
+
+    if (highlightTimer) {
+        clearTimeout(highlightTimer);
     }
 });
 
@@ -599,6 +643,7 @@ function archive(): void {
                     :current-user-id="currentUser.id"
                     :can-moderate="canModerate"
                     :online-ids="onlineIds"
+                    :highlight-message-id="highlightedMessageId"
                     @edit="editMessage"
                     @delete="deleteMessage"
                 />

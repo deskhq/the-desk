@@ -15,8 +15,10 @@
         "laravel/fortify": "^1.37.2",
         "laravel/framework": "^13.17",
         "laravel/reverb": "^1.0",
+        "laravel/scout": "^11.3",
         "laravel/tinker": "^3.0",
         "laravel/wayfinder": "^0.1.14",
+        "meilisearch/meilisearch-php": "^1.16",
         "spatie/laravel-data": "^4.23",
         "spatie/laravel-typescript-transformer": "^3.3"
     },

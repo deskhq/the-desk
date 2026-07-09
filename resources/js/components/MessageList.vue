@@ -21,6 +21,7 @@ const props = defineProps<{
     currentUserId: string;
     canModerate?: boolean;
     onlineIds?: Set<string>;
+    highlightMessageId?: string | null;
 }>();
 
 const emit = defineEmits<{
@@ -265,9 +266,15 @@ function confirmDelete(): void {
                     </div>
                     <div
                         v-for="(message, index) in item.messages"
+                        :id="`message-${message.id}`"
                         :key="message.id"
-                        class="group/message relative -mx-2 rounded-md px-2 hover:bg-muted/40"
-                        :class="index === 0 ? 'mt-0.5' : 'mt-1.5'"
+                        class="group/message relative -mx-2 rounded-md px-2 transition-colors duration-1000 hover:bg-muted/40"
+                        :class="[
+                            index === 0 ? 'mt-0.5' : 'mt-1.5',
+                            message.id === props.highlightMessageId
+                                ? 'bg-primary/10'
+                                : '',
+                        ]"
                     >
                         <p
                             v-if="message.isDeleted"

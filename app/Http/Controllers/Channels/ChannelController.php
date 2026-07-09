@@ -25,6 +25,12 @@ use Inertia\Response;
 class ChannelController extends Controller
 {
     /**
+     * How many messages newer than a jump target to keep loaded below it, so a
+     * jumped-to message shows following context and is not pinned to the bottom.
+     */
+    private const int JUMP_CONTEXT = 15;
+
+    /**
      * Redirect a bare team URL to the team's #general channel.
      */
     public function index(Team $team): RedirectResponse
@@ -67,6 +73,16 @@ class ChannelController extends Controller
         $channel->setAttribute('muted', $membership->muted ?? false);
         $channel->setAttribute('notification_level', $membership?->notification_level->value ?? NotificationLevel::All->value);
 
+        // When arriving from a search result the URL carries the target message
+        // id. If it belongs to this channel, cap the initial window a few messages
+        // above the target so it loads with context on both sides; the client
+        // scrolls to and highlights it, and older history still pages in above via
+        // InfiniteScroll.
+        $jumpToMessageId = $this->resolveJumpTarget($request, $channel);
+        $windowCeilingId = $jumpToMessageId === null
+            ? null
+            : $this->jumpWindowCeiling($channel, $jumpToMessageId);
+
         return Inertia::render('channels/Show', [
             'team' => [
                 'id' => $team->id,
@@ -82,6 +98,9 @@ class ChannelController extends Controller
             'canManagePreferences' => Gate::allows('updatePreference', $channel),
             // Selectable notification levels for the settings menu.
             'notificationLevels' => NotificationLevel::options(),
+            // The message the client should scroll to and highlight on load, or
+            // null for a normal channel visit.
+            'jumpToMessageId' => $jumpToMessageId,
             // Team members feed the composer's @mention autocomplete; mentions are
             // scoped to the team, never limited to the current channel's members.
             'members' => UserData::collect($team->members()->orderBy('name')->get()),
@@ -92,10 +111,49 @@ class ChannelController extends Controller
             'messages' => Inertia::scroll(fn () => $channel->messages()
                 ->withTrashed()
                 ->with(['user', 'mentionedUsers'])
+                ->when($windowCeilingId, fn ($query) => $query->where('id', '<=', $windowCeilingId))
                 ->orderByDesc('id')
                 ->cursorPaginate(50)
                 ->through(fn (Message $message) => MessageData::fromMessage($message))),
         ]);
+    }
+
+    /**
+     * Resolve the `?message=` jump target to an id belonging to this channel.
+     *
+     * Returns the message id when it identifies a message in the channel
+     * (soft-deleted rows included), or null when the parameter is absent or
+     * points at a message from another channel.
+     */
+    private function resolveJumpTarget(Request $request, Channel $channel): ?string
+    {
+        $messageId = $request->query('message');
+
+        if (! is_string($messageId) || $messageId === '') {
+            return null;
+        }
+
+        return $channel->messages()->withTrashed()->whereKey($messageId)->exists()
+            ? $messageId
+            : null;
+    }
+
+    /**
+     * Resolve the id that caps the initial message window for a jump.
+     *
+     * Returns the id of the message JUMP_CONTEXT positions newer than the target
+     * so it loads with following context below it rather than pinned to the very
+     * bottom of the view. Returns null when fewer than that many newer messages
+     * exist — the target is then already near the newest, so no cap is needed.
+     */
+    private function jumpWindowCeiling(Channel $channel, string $targetId): ?string
+    {
+        return $channel->messages()
+            ->withTrashed()
+            ->where('id', '>', $targetId)
+            ->orderBy('id')
+            ->offset(self::JUMP_CONTEXT - 1)
+            ->value('id');
     }
 
     /**

@@ -12,6 +12,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Carbon;
+use Laravel\Scout\Searchable;
 
 /**
  * @property string $id
@@ -31,7 +32,7 @@ use Illuminate\Support\Carbon;
 class Message extends Model
 {
     /** @use HasFactory<MessageFactory> */
-    use HasFactory, HasUuids, SoftDeletes;
+    use HasFactory, HasUuids, Searchable, SoftDeletes;
 
     /**
      * Get the channel the message was posted to.
@@ -77,5 +78,33 @@ class Message extends Model
         return [
             'edited_at' => 'datetime',
         ];
+    }
+
+    /**
+     * Get the indexed representation of the message.
+     *
+     * `team_id` is derived from the channel because messages carry no native
+     * team column; the channel relation is eager-loaded when indexing in bulk.
+     *
+     * @return array<string, mixed>
+     */
+    public function toSearchableArray(): array
+    {
+        return [
+            'id' => $this->id,
+            'body' => $this->body,
+            'channel_id' => $this->channel_id,
+            'user_id' => $this->user_id,
+            'team_id' => $this->channel->team_id,
+            'created_at' => $this->created_at?->getTimestamp(),
+        ];
+    }
+
+    /**
+     * Keep soft-deleted messages out of the search index.
+     */
+    public function shouldBeSearchable(): bool
+    {
+        return ! $this->trashed();
     }
 }
