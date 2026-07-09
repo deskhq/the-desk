@@ -20,6 +20,7 @@ const props = defineProps<{
     pendingUuids?: string[];
     currentUserId: string;
     canModerate?: boolean;
+    onlineIds?: Set<string>;
 }>();
 
 const emit = defineEmits<{
@@ -28,6 +29,13 @@ const emit = defineEmits<{
 }>();
 
 const { getInitials } = useInitials();
+
+/**
+ * Whether a message author is currently present on the team presence roster.
+ */
+function isOnline(authorId: string): boolean {
+    return props.onlineIds?.has(authorId) ?? false;
+}
 
 // Consecutive messages from the same author within this window are grouped
 // under a single avatar + header line.
@@ -224,11 +232,26 @@ function confirmDelete(): void {
             </div>
 
             <div v-else class="mt-[18px] flex gap-3 first:mt-1">
-                <div
-                    class="flex size-9 shrink-0 items-center justify-center rounded-[10px] bg-primary/10 text-[12px] font-semibold text-primary select-none"
-                    aria-hidden="true"
-                >
-                    {{ getInitials(item.author.name) }}
+                <div class="relative size-9 shrink-0">
+                    <div
+                        class="flex size-9 items-center justify-center rounded-[10px] bg-primary/10 text-[12px] font-semibold text-primary select-none"
+                        aria-hidden="true"
+                    >
+                        {{ getInitials(item.author.name) }}
+                    </div>
+                    <span
+                        data-test="presence-dot"
+                        :data-online="isOnline(item.author.id)"
+                        :aria-label="
+                            isOnline(item.author.id) ? 'Online' : 'Offline'
+                        "
+                        class="absolute -right-0.5 -bottom-0.5 size-2.5 rounded-full ring-2 ring-background"
+                        :class="
+                            isOnline(item.author.id)
+                                ? 'bg-emerald-500'
+                                : 'bg-transparent ring-muted-foreground/40 ring-inset'
+                        "
+                    />
                 </div>
                 <div class="min-w-0 flex-1">
                     <div class="flex items-baseline gap-2">
@@ -254,7 +277,10 @@ function confirmDelete(): void {
                             This message was deleted
                         </p>
 
-                        <div v-else-if="editingId === message.id" class="py-0.5">
+                        <div
+                            v-else-if="editingId === message.id"
+                            class="py-0.5"
+                        >
                             <textarea
                                 :ref="setEditField"
                                 v-model="editDraft"
@@ -339,10 +365,7 @@ function confirmDelete(): void {
             </div>
         </template>
 
-        <Dialog
-            :open="pendingDelete !== null"
-            @update:open="setDeleteOpen"
-        >
+        <Dialog :open="pendingDelete !== null" @update:open="setDeleteOpen">
             <DialogContent>
                 <DialogHeader>
                     <DialogTitle>Delete message</DialogTitle>

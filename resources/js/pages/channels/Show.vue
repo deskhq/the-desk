@@ -38,6 +38,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Separator } from '@/components/ui/separator';
 import { SidebarTrigger } from '@/components/ui/sidebar';
+import { useTeamPresence } from '@/composables/useTeamPresence';
 import { useTypingIndicator } from '@/composables/useTypingIndicator';
 import type { TypingUser } from '@/composables/useTypingIndicator';
 import type { Channel, Mention, Message, MessagePage } from '@/types';
@@ -64,6 +65,10 @@ const typing = useTypingIndicator((user: TypingUser) => {
 });
 
 const typingNames = typing.typingNames;
+
+// Live roster of team members currently online, driving the presence dots on
+// message avatars. Follows the team across channel switches.
+const { onlineIds } = useTeamPresence(() => props.team.id);
 
 function onTyping(): void {
     typing.signalTyping(currentUser.value);
@@ -423,6 +428,7 @@ function archive(): void {
                     :pending-uuids="pendingUuids"
                     :current-user-id="currentUser.id"
                     :can-moderate="canModerate"
+                    :online-ids="onlineIds"
                     @edit="editMessage"
                     @delete="deleteMessage"
                 />

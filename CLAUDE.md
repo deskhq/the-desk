@@ -221,6 +221,7 @@ Vue components must have a single root element.
 ## Reporting Bugs Found While Doing Something Else
 
 - **When you discover a bug, broken tooling, or other pre-existing defect while implementing an unrelated feature, do not fix it inline.** Keep the current change focused on its own scope.
-- Instead, open a GitHub issue with `gh issue create` describing the problem: what's broken, how it surfaced (reference the PR/feature you were working on), why it matters, and clear acceptance criteria for the fix. Apply a fitting label (e.g. `tech-debt`).
+- **Before filing anything, check for an existing issue** covering the same defect: run `gh issue list --state open --search "<keywords>"` (and search closed issues too). If one already exists, reference it in your PR instead of opening a duplicate.
+- If none exists, open a GitHub issue with `gh issue create` describing the problem: what's broken, how it surfaced (reference the PR/feature you were working on), why it matters, and clear acceptance criteria for the fix. Apply a fitting label (e.g. `tech-debt`).
 - Mention the new issue in the PR of the feature you're working on so the discovery is traceable, then continue with the original task.
 - Only fix the defect inline if it directly blocks the feature you're implementing; otherwise defer it to the issue.
