@@ -9,6 +9,7 @@ export type User = {
     created_at: string;
     updated_at: string;
     chime_sound: ChimeSound;
+    share_read_receipts: boolean;
     [key: string]: unknown;
 };
 

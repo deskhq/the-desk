@@ -37,6 +37,7 @@ class UserFactory extends Factory
             'two_factor_recovery_codes' => null,
             'two_factor_confirmed_at' => null,
             'chime_sound' => ChimeSound::Ping->value,
+            'share_read_receipts' => true,
         ];
     }
 
@@ -65,6 +66,16 @@ class UserFactory extends Factory
     {
         return $this->state(fn (array $attributes) => [
             'email_verified_at' => null,
+        ]);
+    }
+
+    /**
+     * Indicate that the user has opted out of sharing read receipts.
+     */
+    public function withoutReadReceipts(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'share_read_receipts' => false,
         ]);
     }
 

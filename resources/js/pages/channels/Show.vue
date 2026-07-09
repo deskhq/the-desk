@@ -74,8 +74,10 @@ import { shouldFlagThreadUnread } from '@/lib/shouldFlagThreadUnread';
 import { unreadDividerMessageId } from '@/lib/unreadDivider';
 import type {
     Channel,
+    ChannelReader,
     Mention,
     Message,
+    MessageAuthor,
     MessagePage,
     NotificationLevel,
     NotificationLevelOption,
@@ -94,6 +96,9 @@ const props = defineProps<{
     // The viewer's read pointer at load time, used to place the "New messages"
     // divider; null when the channel has never been read.
     lastReadMessageId?: string | null;
+    // Read positions of the channel's other members who share read receipts,
+    // seeding the "Seen by" affordance; later advances arrive via MessageRead.
+    channelReaders: ChannelReader[];
     // The open thread's root, loaded on demand keyed by `?thread=`.
     thread?: Thread | null;
     // The open thread's replies, a reverse-infinite-scroll page that grows as
@@ -119,6 +124,19 @@ const typingNames = typing.typingNames;
 // Live roster of team members currently online, driving the presence dots on
 // message avatars. Follows the team across channel switches.
 const { onlineIds } = useTeamPresence(() => props.team.id);
+
+// Read positions of the channel's other members who share read receipts, keyed
+// by user id. Seeded from the server prop and kept current from the MessageRead
+// broadcast, driving the "Seen by" affordance under the newest message.
+const readers = ref(new Map<string, ChannelReader>());
+
+function seedReaders(): void {
+    readers.value = new Map(
+        props.channelReaders.map((reader) => [reader.user.id, reader]),
+    );
+}
+
+const channelReadersList = computed(() => Array.from(readers.value.values()));
 
 function onTyping(): void {
     typing.signalTyping(currentUser.value);
@@ -398,6 +416,23 @@ function subscribe(id: string): void {
         .listen('MessageDeleted', (message: Message) => {
             applyPatch(message);
         })
+        .listen(
+            'MessageRead',
+            (event: { reader: MessageAuthor; lastReadMessageId: string }) => {
+                // Our own advance echoes back on the shared private channel; the
+                // "Seen by" row never shows the viewer, so drop it here.
+                if (event.reader.id === currentUser.value.id) {
+                    return;
+                }
+
+                const next = new Map(readers.value);
+                next.set(event.reader.id, {
+                    user: event.reader,
+                    lastReadMessageId: event.lastReadMessageId,
+                });
+                readers.value = next;
+            },
+        )
         .listenForWhisper('typing', (user: TypingUser) => {
             typing.receiveTyping(user);
         });
@@ -436,6 +471,7 @@ function markRead(): void {
 
 onMounted(() => {
     subscribe(props.channel.id);
+    seedReaders();
     computeUnreadDivider();
     markRead();
     window.addEventListener('focus', markRead);
@@ -498,6 +534,7 @@ watch(
         muted.value = props.channel.muted;
         starred.value = props.channel.starred;
         subscribe(newId);
+        seedReaders();
         computeUnreadDivider();
         markRead();
     },
@@ -1177,6 +1214,7 @@ function archive(): void {
                             :current-user-id="currentUser.id"
                             :can-moderate="canModerate"
                             :online-ids="onlineIds"
+                            :readers="channelReadersList"
                             :highlight-message-id="highlightedMessageId"
                             :unread-divider-id="unreadDividerId"
                             :active-thread-root-id="activeThreadRootId"

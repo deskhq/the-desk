@@ -12,7 +12,9 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
+import { Switch } from '@/components/ui/switch';
 import { useChimes } from '@/composables/useChimes';
+import { useReadReceipts } from '@/composables/useReadReceipts';
 import { edit } from '@/routes/notifications';
 import type { ChimeSound, ChimeSoundOption } from '@/types';
 
@@ -43,6 +45,8 @@ function onSelect(value: unknown): void {
     selected.value = value as ChimeSound;
     updateChimeSound(selected.value);
 }
+
+const { shareReadReceipts, updateShareReadReceipts } = useReadReceipts();
 </script>
 
 <template>
@@ -93,6 +97,25 @@ function onSelect(value: unknown): void {
                 Chimes never play for your own messages, for muted channels, or
                 for the channel you're actively viewing. Choose
                 <span class="font-medium">Off</span> to silence them entirely.
+            </p>
+        </div>
+
+        <div class="grid max-w-md gap-2">
+            <div class="flex items-center justify-between gap-4">
+                <Label for="share-read-receipts">Share read receipts</Label>
+
+                <Switch
+                    id="share-read-receipts"
+                    data-test="share-read-receipts"
+                    :model-value="shareReadReceipts"
+                    @update:model-value="updateShareReadReceipts"
+                />
+            </div>
+
+            <p class="text-sm text-muted-foreground">
+                When on, channel members can see when you've read their
+                messages. Turn this off to keep your read position private —
+                you'll still see when others have read yours.
             </p>
         </div>
     </div>
