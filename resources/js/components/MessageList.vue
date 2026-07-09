@@ -329,7 +329,7 @@ function confirmDelete(): void {
             </div>
 
             <div v-else class="mt-[18px] flex gap-3 first:mt-1">
-                <div class="relative size-9 shrink-0">
+                <div class="relative mt-0.5 size-9 shrink-0">
                     <div
                         class="flex size-9 items-center justify-center rounded-[10px] bg-primary/10 text-[12px] font-semibold text-primary select-none"
                         aria-hidden="true"
@@ -342,11 +342,11 @@ function confirmDelete(): void {
                         :aria-label="
                             isOnline(item.author.id) ? 'Online' : 'Offline'
                         "
-                        class="absolute -right-0.5 -bottom-0.5 size-2.5 rounded-full ring-2 ring-background"
+                        class="absolute right-0.5 bottom-0.5 size-2.5 rounded-full ring-2 ring-background"
                         :class="
                             isOnline(item.author.id)
                                 ? 'bg-emerald-500'
-                                : 'bg-transparent ring-muted-foreground/40 ring-inset'
+                                : 'bg-muted-foreground/60'
                         "
                     />
                 </div>
