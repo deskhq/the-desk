@@ -20,12 +20,15 @@ use Illuminate\Support\Carbon;
  * @property NotificationLevel $notification_level
  * @property string|null $draft
  * @property bool $starred
+ * @property string|null $section_id
+ * @property int $position
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  * @property-read Channel $channel
  * @property-read User $user
+ * @property-read ChannelSection|null $section
  */
-#[Fillable(['channel_id', 'user_id', 'last_read_message_id', 'muted', 'notification_level', 'draft', 'starred'])]
+#[Fillable(['channel_id', 'user_id', 'last_read_message_id', 'muted', 'notification_level', 'draft', 'starred', 'section_id', 'position'])]
 class ChannelMember extends Model
 {
     /** @use HasFactory<ChannelMemberFactory> */
@@ -42,6 +45,7 @@ class ChannelMember extends Model
             'muted' => 'boolean',
             'notification_level' => NotificationLevel::class,
             'starred' => 'boolean',
+            'position' => 'integer',
         ];
     }
 
@@ -53,6 +57,16 @@ class ChannelMember extends Model
     public function channel(): BelongsTo
     {
         return $this->belongsTo(Channel::class);
+    }
+
+    /**
+     * Get the custom section the membership is filed under, if any.
+     *
+     * @return BelongsTo<ChannelSection, $this>
+     */
+    public function section(): BelongsTo
+    {
+        return $this->belongsTo(ChannelSection::class, 'section_id');
     }
 
     /**

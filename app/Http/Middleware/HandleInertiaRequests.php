@@ -3,6 +3,7 @@
 namespace App\Http\Middleware;
 
 use App\Data\ChannelData;
+use App\Data\ChannelSectionData;
 use App\Models\Message;
 use App\Models\Team;
 use App\Models\TeamInvitation;
@@ -54,6 +55,7 @@ class HandleInertiaRequests extends Middleware
             'currentTeam' => fn () => $user?->currentTeam ? $user->toUserTeam($user->currentTeam) : null,
             'teams' => fn () => $user?->toUserTeams(includeCurrent: true) ?? [],
             'channels' => fn () => $this->channelsForSidebar($request, $user),
+            'channelSections' => fn () => $this->channelSectionsForSidebar($request, $user),
             'collapsedChannelSections' => fn () => $user->collapsed_channel_sections ?? [],
             'hasUnreadThreads' => fn () => $this->hasUnreadThreads($request, $user),
             'pendingInvitations' => Inertia::optional(fn () => $user ? $this->pendingInvitationsFor($user) : []),
@@ -77,7 +79,7 @@ class HandleInertiaRequests extends Middleware
             ->where('channels.team_id', $team->id)
             ->whereNull('channels.archived_at')
             ->select('channels.*')
-            ->addSelect(['channel_members.muted', 'channel_members.notification_level', 'channel_members.starred'])
+            ->addSelect(['channel_members.muted', 'channel_members.notification_level', 'channel_members.starred', 'channel_members.section_id', 'channel_members.position'])
             // Only the presence of a draft drives the sidebar cue; the draft text
             // itself is shipped solely to the open channel, so keep it out of the
             // sidebar payload and expose a 1/0 flag instead (an integer, not a
@@ -89,10 +91,39 @@ class HandleInertiaRequests extends Middleware
             ->selectSub($this->unreadMessages($user)
                 ->where(fn (Builder $query) => $query->whereNull('messages.thread_root_id')->orWhere('messages.sent_to_channel', true)), 'unread_count')
             ->selectSub($this->unreadMessages($user)->whereHas('mentionedUsers', fn ($query) => $query->whereKey($user->id)), 'mention_count')
-            ->orderBy('name')
+            // Manual order within each sidebar group first, then alphabetical as a
+            // stable tiebreak for channels the user has never reordered.
+            ->orderBy('channel_members.position')
+            ->orderBy('channels.name')
             ->get();
 
         return ChannelData::collect($channels, 'array');
+    }
+
+    /**
+     * The current user's custom sidebar sections for the team in the URL.
+     *
+     * Ordered by the user's manual section order, so the sidebar can render the
+     * custom groups between "Starred" and the default "Channels" list. Empty off
+     * the channel workspace, where the sidebar is absent.
+     *
+     * @return array<int, ChannelSectionData>
+     */
+    protected function channelSectionsForSidebar(Request $request, ?User $user): array
+    {
+        $team = $request->route('team');
+
+        if (! $user || ! $team instanceof Team || ! $request->routeIs('channels.*')) {
+            return [];
+        }
+
+        $sections = $user->channelSections()
+            ->where('team_id', $team->id)
+            ->orderBy('position')
+            ->orderBy('created_at')
+            ->get();
+
+        return ChannelSectionData::collect($sections, 'array');
     }
 
     /**

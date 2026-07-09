@@ -12,6 +12,7 @@ use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Carbon;
@@ -36,6 +37,7 @@ use Illuminate\Support\Carbon;
  * @property-read Collection<int, Membership> $teamMemberships
  * @property-read Collection<int, Team> $teams
  * @property-read Collection<int, Channel> $channels
+ * @property-read Collection<int, ChannelSection> $channelSections
  */
 #[Fillable(['name', 'email', 'password', 'current_team_id', 'chime_sound', 'collapsed_channel_sections'])]
 #[Hidden(['password', 'two_factor_secret', 'two_factor_recovery_codes', 'remember_token'])]
@@ -67,7 +69,17 @@ class User extends Authenticatable
     public function channels(): BelongsToMany
     {
         return $this->belongsToMany(Channel::class, 'channel_members')
-            ->withPivot(['last_read_message_id', 'muted', 'notification_level', 'draft', 'starred'])
+            ->withPivot(['last_read_message_id', 'muted', 'notification_level', 'draft', 'starred', 'section_id', 'position'])
             ->withTimestamps();
+    }
+
+    /**
+     * Get the user's custom sidebar sections across all their teams.
+     *
+     * @return HasMany<ChannelSection, $this>
+     */
+    public function channelSections(): HasMany
+    {
+        return $this->hasMany(ChannelSection::class);
     }
 }

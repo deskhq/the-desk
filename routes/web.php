@@ -3,7 +3,9 @@
 use App\Http\Controllers\Channels\ChannelController;
 use App\Http\Controllers\Channels\ChannelDraftController;
 use App\Http\Controllers\Channels\ChannelMemberController;
+use App\Http\Controllers\Channels\ChannelPlacementController;
 use App\Http\Controllers\Channels\ChannelPreferenceController;
+use App\Http\Controllers\Channels\ChannelSectionController;
 use App\Http\Controllers\Channels\ChannelStarController;
 use App\Http\Controllers\Channels\MessageController;
 use App\Http\Controllers\Channels\SearchController;
@@ -44,6 +46,13 @@ Route::middleware(['auth', 'verified', EnsureTeamMembership::class])->group(func
     Route::patch('t/{team}/c/{channel}/star', [ChannelStarController::class, 'update'])
         ->scopeBindings()
         ->name('channels.star.update');
+    Route::patch('t/{team}/c/{channel}/placement', [ChannelPlacementController::class, 'update'])
+        ->scopeBindings()
+        ->name('channels.placement.update');
+    Route::post('t/{team}/sidebar/sections', [ChannelSectionController::class, 'store'])->name('channels.sections.store');
+    Route::patch('t/{team}/sidebar/sections/reorder', [ChannelSectionController::class, 'reorder'])->name('channels.sections.reorder');
+    Route::patch('t/{team}/sidebar/sections/{section}', [ChannelSectionController::class, 'update'])->name('channels.sections.update');
+    Route::delete('t/{team}/sidebar/sections/{section}', [ChannelSectionController::class, 'destroy'])->name('channels.sections.destroy');
     Route::post('t/{team}/c/{channel}/archive', [ChannelController::class, 'archive'])
         ->scopeBindings()
         ->name('channels.archive');
