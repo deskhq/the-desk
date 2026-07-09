@@ -217,3 +217,10 @@ Vue components must have a single root element.
 - **100% code coverage is required — this is non-negotiable.** The test suite is gated at `--min=100` (see the `test` script in `composer.json`), so any line left uncovered fails the build.
 - **Always check coverage before pushing.** Run the full gate — which also runs Pint and PHPStan — with `./vendor/bin/sail composer test` (this executes `lint:check`, `types:check`, and `php artisan test --coverage --min=100`). Do not push or open/update a PR until it reports `Total: 100.0 %`.
 - If new code drops coverage, add or update tests until it is back at 100%. When a line reads as uncovered even though a test exercises it (e.g. the `: null` branch of a multi-line ternary is a known PCOV line-attribution quirk), collapse it onto a single line rather than leaving the gate red.
+
+## Reporting Bugs Found While Doing Something Else
+
+- **When you discover a bug, broken tooling, or other pre-existing defect while implementing an unrelated feature, do not fix it inline.** Keep the current change focused on its own scope.
+- Instead, open a GitHub issue with `gh issue create` describing the problem: what's broken, how it surfaced (reference the PR/feature you were working on), why it matters, and clear acceptance criteria for the fix. Apply a fitting label (e.g. `tech-debt`).
+- Mention the new issue in the PR of the feature you're working on so the discovery is traceable, then continue with the original task.
+- Only fix the defect inline if it directly blocks the feature you're implementing; otherwise defer it to the issue.
