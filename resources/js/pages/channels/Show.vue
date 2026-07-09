@@ -23,6 +23,7 @@ import {
     archive as archiveChannel,
     read as markChannelRead,
     readThread as markThreadReadAction,
+    show as showChannel,
 } from '@/actions/App/Http/Controllers/Channels/ChannelController';
 import { update as updateChannelPreferences } from '@/actions/App/Http/Controllers/Channels/ChannelPreferenceController';
 import {
@@ -88,8 +89,11 @@ const props = defineProps<{
     // The viewer's read pointer at load time, used to place the "New messages"
     // divider; null when the channel has never been read.
     lastReadMessageId?: string | null;
-    // The open thread, loaded on demand as an optional prop keyed by `?thread=`.
+    // The open thread's root, loaded on demand keyed by `?thread=`.
     thread?: Thread | null;
+    // The open thread's replies, a reverse-infinite-scroll page that grows as
+    // older replies load. Empty when no thread is open.
+    threadReplies: MessagePage;
 }>();
 
 const page = usePage();
@@ -144,16 +148,22 @@ const pendingUuids = mainStream.pendingUuids;
 
 const hasMessages = computed(() => displayMessages.value.length > 0);
 
-// The open thread (root + replies), loaded on demand and kept client-side so a
-// later full-page visit that omits the optional prop can't drop it. The thread
-// panel runs its own stream instance over the root + its replies.
+// The open thread's root, kept client-side so a partial reload that omits the
+// optional `thread` prop can't drop it. The panel runs its own stream instance
+// over the root plus its paginated replies.
 const activeThreadRootId = ref<string | null>(null);
 const threadData = ref<Thread | null>(null);
 const threadLoading = ref(false);
 
+// The reply page arrives newest-first (older replies page in on scroll-up); the
+// root is the thread's oldest message, so it leads the reversed list. The stream
+// then re-sorts by timestamp, keeping the root pinned to the top.
 const threadServerMessages = computed<Message[]>(() =>
     threadData.value
-        ? [threadData.value.root, ...threadData.value.replies]
+        ? [
+              threadData.value.root,
+              ...[...(props.threadReplies?.data ?? [])].reverse(),
+          ]
         : [],
 );
 
@@ -472,7 +482,7 @@ watch(
         }
 
         mainStream.reset();
-        closeThread();
+        resetThreadPanel();
         replyTarget.value = null;
         typing.reset();
         notificationLevel.value = props.channel.notificationLevel;
@@ -666,9 +676,19 @@ function deleteMessage(message: Message): void {
     );
 }
 
-// Open the thread rooted at a message. The root's replies load as the optional
-// `thread` prop (a partial reload keyed by `?thread=`), shown as a skeleton
-// until they arrive.
+// Reset the panel's client state without navigating. Used when switching
+// channels, where the URL has already moved off any open thread.
+function resetThreadPanel(): void {
+    activeThreadRootId.value = null;
+    threadData.value = null;
+    threadLoading.value = false;
+    threadStream.reset();
+}
+
+// Open the thread rooted at a message by putting `?thread=<root>` in the URL, so
+// the root (`thread`) and the first page of replies (`threadReplies`) load and
+// the reply InfiniteScroll's paging requests carry the root. `reset` clears any
+// previous thread's merged replies; a skeleton shows until the root arrives.
 function openThread(rootId: string): void {
     if (activeThreadRootId.value === rootId) {
         return;
@@ -683,21 +703,45 @@ function openThread(rootId: string): void {
     // once the replies load (and again on focus / as new replies stream in).
     mainStream.patchThreadState(rootId, { threadUnread: false });
 
-    router.reload({
-        only: ['thread'],
-        data: { thread: rootId },
-        onFinish: () => {
-            threadLoading.value = false;
-            markThreadRead();
+    router.get(
+        showChannel(
+            { team: props.team.slug, channel: props.channel.slug },
+            { query: { thread: rootId } },
+        ).url,
+        {},
+        {
+            only: ['thread', 'threadReplies'],
+            reset: ['threadReplies'],
+            preserveState: true,
+            preserveScroll: true,
+            replace: true,
+            onFinish: () => {
+                threadLoading.value = false;
+                markThreadRead();
+            },
         },
-    });
+    );
 }
 
+// Close the thread: drop `?thread=` from the URL and reset the panel.
 function closeThread(): void {
-    activeThreadRootId.value = null;
-    threadData.value = null;
-    threadLoading.value = false;
-    threadStream.reset();
+    if (activeThreadRootId.value === null) {
+        return;
+    }
+
+    resetThreadPanel();
+
+    router.get(
+        showChannel({ team: props.team.slug, channel: props.channel.slug }).url,
+        {},
+        {
+            only: ['thread', 'threadReplies'],
+            reset: ['threadReplies'],
+            preserveState: true,
+            preserveScroll: true,
+            replace: true,
+        },
+    );
 }
 
 // The member's own notification preferences for this channel, seeded from the
@@ -1003,6 +1047,7 @@ function archive(): void {
         >
             <ThreadPanel
                 v-if="activeThreadRootId"
+                :root-id="activeThreadRootId"
                 :channel-name="props.channel.name"
                 :messages="threadMessages"
                 :pending-uuids="threadPendingUuids"

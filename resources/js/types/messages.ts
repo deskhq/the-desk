@@ -61,12 +61,12 @@ export type Message = {
 };
 
 /**
- * An open thread: its root message plus every reply (oldest first, tombstones
- * included). Mirrors the `thread` prop the channel page loads on demand.
+ * An open thread's root message. Mirrors the `thread` prop the channel page
+ * loads on demand from `?thread=`; the replies ride a separate, paginated
+ * `threadReplies` scroll prop (a `MessagePage`).
  */
 export type Thread = {
     root: Message;
-    replies: Message[];
 };
 
 /**

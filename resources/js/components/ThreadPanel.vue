@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { InfiniteScroll } from '@inertiajs/vue3';
 import { X } from '@lucide/vue';
 import { computed, nextTick, ref, watch } from 'vue';
 import MessageComposer from '@/components/MessageComposer.vue';
@@ -7,6 +8,9 @@ import { Skeleton } from '@/components/ui/skeleton';
 import type { Mention, Message } from '@/types';
 
 const props = defineProps<{
+    // The open thread's root id, used to key the reply scroll so switching
+    // threads mounts a fresh, bottom-anchored list.
+    rootId: string;
     channelName: string;
     // The root followed by its replies (oldest first), merged and deduped by the
     // parent's thread stream; empty while the thread is still loading.
@@ -29,9 +33,14 @@ const emit = defineEmits<{
     jump: [messageId: string];
 }>();
 
-// The first message is the root; everything after it is a reply.
-const hasRoot = computed(() => props.messages.length > 0);
-const replyCount = computed(() => Math.max(0, props.messages.length - 1));
+// The root is the thread's only top-level message; everything else is a reply.
+const root = computed(() =>
+    props.messages.find((message) => message.threadRootId === null),
+);
+const hasRoot = computed(() => root.value !== undefined);
+// The header shows the thread's total reply count (denormalized on the root),
+// not just the replies currently paged into view.
+const replyCount = computed(() => root.value?.threadReplyCount ?? 0);
 const showSkeleton = computed(() => props.loading || !hasRoot.value);
 
 // Distance (px) from the bottom within which the panel stays pinned to newest,
@@ -122,23 +131,33 @@ watch(
                 </div>
             </div>
 
-            <MessageList
+            <!-- Older replies page in on scroll-up; keyed by root so switching
+                 threads mounts a fresh, bottom-anchored list. `preserve-url`
+                 keeps the cursor out of the URL, matching the main timeline. -->
+            <InfiniteScroll
                 v-else
-                :messages="props.messages"
-                :pending-uuids="props.pendingUuids"
-                :current-user-id="props.currentUserId"
-                :can-moderate="props.canModerate"
-                :online-ids="props.onlineIds"
-                in-thread
-                @edit="(message, body) => emit('edit', message, body)"
-                @delete="(message) => emit('delete', message)"
-                @jump="(id) => emit('jump', id)"
-            />
+                :key="props.rootId"
+                data="threadReplies"
+                reverse
+                preserve-url
+            >
+                <MessageList
+                    :messages="props.messages"
+                    :pending-uuids="props.pendingUuids"
+                    :current-user-id="props.currentUserId"
+                    :can-moderate="props.canModerate"
+                    :online-ids="props.onlineIds"
+                    in-thread
+                    @edit="(message, body) => emit('edit', message, body)"
+                    @delete="(message) => emit('delete', message)"
+                    @jump="(id) => emit('jump', id)"
+                />
+            </InfiniteScroll>
         </div>
 
         <MessageComposer
             v-if="hasRoot && !props.readOnly"
-            :key="props.messages[0]?.id"
+            :key="root?.id"
             :channel-name="props.channelName"
             :members="props.members"
             placeholder="Reply…"

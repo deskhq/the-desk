@@ -153,30 +153,49 @@ test('the main timeline hides thread-only replies but keeps sent-to-channel repl
         );
 });
 
-test('the thread prop returns the root and its replies oldest-first, tombstones included', function () {
+test('the thread prop returns the root and paginated replies newest-first, tombstones included', function () {
     [$owner, $team, $general] = threadTeamWithGeneral();
     $root = Message::factory()->for($general)->for($owner)->create(['body' => 'root']);
     Message::factory()->for($owner)->inThread($root)->create(['body' => 'first reply']);
     $second = Message::factory()->for($owner)->inThread($root)->create(['body' => 'second reply']);
     $second->delete();
 
+    // Replies ride a separate paginated `threadReplies` scroll prop, newest
+    // first (the client reverses for display); the root stays on `thread`.
     $this->actingAs($owner)
         ->get(route('channels.show', ['team' => $team->slug, 'channel' => $general->slug, 'thread' => $root->id]))
         ->assertInertia(fn (Assert $page) => $page
             ->where('thread.root.id', $root->id)
-            ->has('thread.replies', 2)
-            ->where('thread.replies.0.body', 'first reply')
-            ->where('thread.replies.1.isDeleted', true)
-            ->where('thread.replies.1.body', '')
+            ->has('threadReplies.data', 2)
+            ->where('threadReplies.data.0.isDeleted', true)
+            ->where('threadReplies.data.0.body', '')
+            ->where('threadReplies.data.1.body', 'first reply')
         );
 });
 
-test('the thread prop is null for a normal visit', function () {
+test('the thread prop is null and replies are empty for a normal visit', function () {
     [$owner, $team, $general] = threadTeamWithGeneral();
 
     $this->actingAs($owner)
         ->get(route('channels.show', ['team' => $team->slug, 'channel' => $general->slug]))
-        ->assertInertia(fn (Assert $page) => $page->where('thread', null));
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('thread', null)
+            ->has('threadReplies.data', 0));
+});
+
+test('a long thread caps the first page of replies and offers more', function () {
+    [$owner, $team, $general] = threadTeamWithGeneral();
+    $root = Message::factory()->for($general)->for($owner)->create();
+    Message::factory()->count(51)->for($owner)->inThread($root)->create();
+
+    // The first page holds the newest 50 of 51 replies; the 51st (oldest) pages
+    // in on scroll, so the cursor to fetch it is present.
+    $this->actingAs($owner)
+        ->get(route('channels.show', ['team' => $team->slug, 'channel' => $general->slug, 'thread' => $root->id]))
+        ->assertInertia(fn (Assert $page) => $page
+            ->has('threadReplies.data', 50)
+            ->where('threadReplies.next_cursor', fn (?string $cursor) => $cursor !== null)
+            ->etc());
 });
 
 test('the thread prop is null when the param is blank or points elsewhere', function () {

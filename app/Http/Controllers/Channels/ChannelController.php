@@ -17,6 +17,7 @@ use App\Http\Requests\Channels\CreateChannelRequest;
 use App\Models\Channel;
 use App\Models\Message;
 use App\Models\Team;
+use Illuminate\Contracts\Pagination\CursorPaginator;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -38,6 +39,12 @@ class ChannelController extends Controller
      * feeds the read-boundary window math.
      */
     private const int MESSAGE_PAGE_SIZE = 50;
+
+    /**
+     * How many replies a thread page loads. The panel pages older replies in on
+     * scroll-up, mirroring the main timeline.
+     */
+    private const int THREAD_PAGE_SIZE = 50;
 
     /**
      * How many already-read messages to keep loaded above the "New messages"
@@ -124,11 +131,16 @@ class ChannelController extends Controller
             // "New messages" divider so it lands at the last-read boundary on
             // open; null when the channel has never been read.
             'lastReadMessageId' => $membership?->last_read_message_id !== null ? (string) $membership->last_read_message_id : null,
-            // The open thread (root + its replies), resolved from the `?thread=`
-            // query param, or null for a normal visit. The client opens a thread
-            // with a partial reload of just this prop; on a full visit the closure
-            // returns null cheaply when no thread is requested.
+            // The open thread's root message, resolved from the `?thread=` query
+            // param, or null for a normal visit. The client opens a thread by
+            // visiting `?thread=<root>`, which also drives the paginated replies
+            // below; the closure returns null cheaply when no thread is requested.
             'thread' => fn () => $this->threadPayload($request, $channel),
+            // The open thread's replies, oldest last, paginated so a very long
+            // thread doesn't ship in one payload. Its own cursor name keeps it
+            // independent of the main timeline's, and the client's reverse
+            // InfiniteScroll pages older replies in above as it scrolls up.
+            'threadReplies' => Inertia::scroll(fn () => $this->threadRepliesPage($request, $channel)),
             // Team members feed the composer's @mention autocomplete; mentions are
             // scoped to the team, never limited to the current channel's members.
             'members' => UserData::collect($team->members()->orderBy('name')->get()),
@@ -147,16 +159,58 @@ class ChannelController extends Controller
     }
 
     /**
-     * Resolve the open thread from the `?thread=` query param.
+     * Resolve the open thread's root from the `?thread=` query param.
      *
-     * Returns the root message plus its replies (oldest first, tombstones
-     * included) when the param names a live root in this channel, or null when
-     * it is absent or points elsewhere. The eager-load set mirrors the main
-     * timeline so replies render quotes and thread affordances identically.
+     * Returns the root message (annotated with the viewer's thread read-state)
+     * when the param names a live root in this channel, or null when it is absent
+     * or points elsewhere. The replies are delivered separately and paginated by
+     * {@see self::threadRepliesPage()}.
      *
-     * @return array{root: MessageData, replies: array<int, MessageData>}|null
+     * @return array{root: MessageData}|null
      */
     private function threadPayload(Request $request, Channel $channel): ?array
+    {
+        $root = $this->resolveThreadRoot($request, $channel);
+
+        if ($root === null) {
+            return null;
+        }
+
+        return ['root' => MessageData::fromMessage($root)];
+    }
+
+    /**
+     * The open thread's replies as a cursor-paginated page for infinite scroll.
+     *
+     * Ordered newest first (the client reverses for display and pages older
+     * replies in on scroll-up), tombstones included so deletions render in place.
+     * Its own cursor name keeps the pagination independent of the main timeline's.
+     * Falls back to an empty page when no live root is named, so the scroll prop
+     * always has a well-formed shape even on a normal channel visit.
+     *
+     * @return CursorPaginator<int, MessageData>
+     */
+    private function threadRepliesPage(Request $request, Channel $channel): CursorPaginator
+    {
+        $root = $this->resolveThreadRoot($request, $channel);
+
+        $query = $root !== null
+            ? $root->threadReplies()->withTrashed()->with(['user', 'mentionedUsers', 'replyTo.user', 'replyTo.mentionedUsers'])
+            : Message::query()->whereRaw('1 = 0');
+
+        return $query
+            ->orderByDesc('id')
+            ->cursorPaginate(self::THREAD_PAGE_SIZE, ['*'], 'thread_cursor')
+            ->through(fn (Message $message) => MessageData::fromMessage($message));
+    }
+
+    /**
+     * Resolve the live root message named by the `?thread=` query param, or null.
+     *
+     * The eager-load set mirrors the main timeline so the root renders its quote
+     * and thread affordances identically.
+     */
+    private function resolveThreadRoot(Request $request, Channel $channel): ?Message
     {
         $rootId = $request->query('thread');
 
@@ -164,28 +218,11 @@ class ChannelController extends Controller
             return null;
         }
 
-        $root = $channel->messages()
+        return $channel->messages()
             ->whereNull('thread_root_id')
             ->withThreadReadState($request->user())
             ->with(['user', 'mentionedUsers', 'replyTo.user', 'replyTo.mentionedUsers', 'threadParticipants'])
             ->find($rootId);
-
-        if ($root === null) {
-            return null;
-        }
-
-        $replies = $root->threadReplies()
-            ->withTrashed()
-            ->with(['user', 'mentionedUsers', 'replyTo.user', 'replyTo.mentionedUsers'])
-            ->orderBy('id')
-            ->get()
-            ->map(fn (Message $message) => MessageData::fromMessage($message))
-            ->all();
-
-        return [
-            'root' => MessageData::fromMessage($root),
-            'replies' => $replies,
-        ];
     }
 
     /**
