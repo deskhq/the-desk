@@ -17,4 +17,9 @@ export type Channel = {
     notificationLevel: NotificationLevel;
     unreadCount: number;
     mentionCount: number;
+    // Whether the viewer has unsent composer text saved for this channel; drives
+    // the sidebar's draft cue. The full `draft` text is only present on the open
+    // channel, so the composer can restore it.
+    hasDraft: boolean;
+    draft: string | null;
 };

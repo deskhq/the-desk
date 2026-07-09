@@ -22,6 +22,8 @@ class ChannelData extends Data
         public string $notificationLevel = NotificationLevel::All->value,
         public int $unreadCount = 0,
         public int $mentionCount = 0,
+        public bool $hasDraft = false,
+        public ?string $draft = null,
     ) {}
 
     /**
@@ -36,6 +38,11 @@ class ChannelData extends Data
      * a muted channel or the "nothing" level shows no badge at all, and the
      * "mentions" level keeps only the mention badge (a direct @mention still
      * alerts while ordinary unread traffic is silenced).
+     *
+     * The draft is the viewer's own pending composer text. The open channel
+     * (`Show`) carries the full `draft` so the composer restores it; the sidebar
+     * ships only the `has_draft` boolean, so `draft` stays null there and only
+     * the presence cue is exposed.
      */
     public static function fromChannel(Channel $channel): self
     {
@@ -45,6 +52,12 @@ class ChannelData extends Data
 
         $unreadCount = (int) ($channel->getAttribute('unread_count') ?? 0);
         $mentionCount = (int) ($channel->getAttribute('mention_count') ?? 0);
+
+        $draftText = $channel->getAttribute('draft');
+        $draft = is_string($draftText) && trim($draftText) !== '' ? $draftText : null;
+
+        $hasDraftAttribute = $channel->getAttribute('has_draft');
+        $hasDraft = $hasDraftAttribute !== null ? (bool) $hasDraftAttribute : $draft !== null;
 
         return new self(
             id: $channel->id,
@@ -58,6 +71,8 @@ class ChannelData extends Data
             notificationLevel: $level->value,
             unreadCount: ! $muted && $level->alertsOnUnread() ? $unreadCount : 0,
             mentionCount: ! $muted && $level->alertsOnMention() ? $mentionCount : 0,
+            hasDraft: $hasDraft,
+            draft: $draft,
         );
     }
 }

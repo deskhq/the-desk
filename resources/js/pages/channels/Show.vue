@@ -25,6 +25,7 @@ import {
     readThread as markThreadReadAction,
     show as showChannel,
 } from '@/actions/App/Http/Controllers/Channels/ChannelController';
+import { update as saveChannelDraft } from '@/actions/App/Http/Controllers/Channels/ChannelDraftController';
 import { update as updateChannelPreferences } from '@/actions/App/Http/Controllers/Channels/ChannelPreferenceController';
 import {
     destroy as destroyMessage,
@@ -477,6 +478,10 @@ watch(
 watch(
     () => props.channel.id,
     (newId, oldId) => {
+        // Persist the outgoing channel's draft before switching; `pendingDraft`
+        // still carries the old channel's slug, so it writes to the right place.
+        flushDraft();
+
         if (oldId) {
             unsubscribe(oldId);
         }
@@ -494,6 +499,9 @@ watch(
 );
 
 onBeforeUnmount(() => {
+    // Leaving the workspace (or a full navigation away) still persists a
+    // just-typed draft that the debounce hasn't written yet.
+    flushDraft();
     unsubscribe(props.channel.id);
     unreadObserver?.disconnect();
     window.removeEventListener('focus', markRead);
@@ -523,7 +531,63 @@ function cancelReply(): void {
     replyTarget.value = null;
 }
 
+// The member's unsent composer text is persisted per channel so it survives
+// navigation, reloads and other devices. Saves are debounced — a burst of
+// keystrokes collapses to one request — and reload only the shared `channels`
+// prop so the sidebar's draft cue updates without disturbing the timeline. A
+// send clears the draft server-side, so only manual edits flow through here.
+const DRAFT_DEBOUNCE_MS = 700;
+
+let draftTimer: ReturnType<typeof setTimeout> | null = null;
+
+// The latest pending draft, tagged with the slug of the channel it belongs to,
+// so a flush triggered by switching channels still writes to the channel that
+// was actually being edited rather than the one just navigated to.
+let pendingDraft: { slug: string; body: string } | null = null;
+
+function persistDraft(slug: string, body: string): void {
+    router.patch(
+        saveChannelDraft({ team: props.team.slug, channel: slug }).url,
+        { body },
+        { preserveScroll: true, preserveState: true, only: ['channels'] },
+    );
+}
+
+// Write any pending draft immediately, cancelling the debounce. Called before
+// leaving the channel so a just-typed draft is never lost to an unfired timer.
+function flushDraft(): void {
+    if (draftTimer) {
+        clearTimeout(draftTimer);
+        draftTimer = null;
+    }
+
+    if (pendingDraft) {
+        persistDraft(pendingDraft.slug, pendingDraft.body);
+        pendingDraft = null;
+    }
+}
+
+// Debounce a draft save for the current channel; an empty body clears it.
+function onDraftChange(body: string): void {
+    pendingDraft = { slug: props.channel.slug, body };
+
+    if (draftTimer) {
+        clearTimeout(draftTimer);
+    }
+
+    draftTimer = setTimeout(flushDraft, DRAFT_DEBOUNCE_MS);
+}
+
 function send(body: string, mentions: Mention[]): void {
+    // Sending clears the draft server-side, so drop any debounced save still in
+    // flight; otherwise it would re-persist the just-sent text after the clear.
+    if (draftTimer) {
+        clearTimeout(draftTimer);
+        draftTimer = null;
+    }
+
+    pendingDraft = null;
+
     const clientUuid = crypto.randomUUID();
     const target = replyTarget.value;
 
@@ -1026,12 +1090,15 @@ function archive(): void {
                     />
 
                     <MessageComposer
+                        :key="props.channel.id"
                         :channel-name="props.channel.name"
                         :members="mentionableMembers"
                         :reply-target="replyTarget"
+                        :initial-body="props.channel.draft ?? ''"
                         @send="send"
                         @typing="onTyping"
                         @cancel-reply="cancelReply"
+                        @draft-change="onDraftChange"
                     />
                 </template>
             </div>

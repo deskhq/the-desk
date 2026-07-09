@@ -26,6 +26,7 @@ class ChannelMemberFactory extends Factory
             'last_read_message_id' => null,
             'muted' => false,
             'notification_level' => NotificationLevel::All,
+            'draft' => null,
         ];
     }
 
@@ -35,6 +36,14 @@ class ChannelMemberFactory extends Factory
     public function muted(): static
     {
         return $this->state(fn (array $attributes): array => ['muted' => true]);
+    }
+
+    /**
+     * Indicate the membership has a pending composer draft.
+     */
+    public function draft(string $draft): static
+    {
+        return $this->state(fn (array $attributes): array => ['draft' => $draft]);
     }
 
     /**

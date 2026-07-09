@@ -65,7 +65,7 @@ class User extends Authenticatable
     public function channels(): BelongsToMany
     {
         return $this->belongsToMany(Channel::class, 'channel_members')
-            ->withPivot(['last_read_message_id', 'muted', 'notification_level'])
+            ->withPivot(['last_read_message_id', 'muted', 'notification_level', 'draft'])
             ->withTimestamps();
     }
 }

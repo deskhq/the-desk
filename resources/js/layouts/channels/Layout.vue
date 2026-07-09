@@ -1,6 +1,12 @@
 <script setup lang="ts">
 import { Link, router, usePage } from '@inertiajs/vue3';
-import { MessageSquareText, MessagesSquare, Plus, Search } from '@lucide/vue';
+import {
+    MessageSquareText,
+    MessagesSquare,
+    Pencil,
+    Plus,
+    Search,
+} from '@lucide/vue';
 import { computed, onMounted, ref } from 'vue';
 import {
     browse,
@@ -262,7 +268,8 @@ onMounted(() => {
                                                     >{{ channel.name }}</span
                                                 >
                                                 <!-- A numeric badge for unread @mentions takes priority; -->
-                                                <!-- otherwise a plain dot marks the channel as unread. -->
+                                                <!-- then a "draft" cue for a pending unsent message on -->
+                                                <!-- another channel; otherwise a plain unread dot. -->
                                                 <span
                                                     v-if="
                                                         channel.mentionCount > 0
@@ -274,6 +281,19 @@ onMounted(() => {
                                                         channel.mentionCount
                                                     }}</span
                                                 >
+                                                <span
+                                                    v-else-if="
+                                                        channel.hasDraft &&
+                                                        channel.slug !==
+                                                            activeChannelSlug
+                                                    "
+                                                    data-test="draft-indicator"
+                                                    class="ml-auto inline-flex items-center gap-1 text-[10px] font-semibold tracking-[0.04em] text-amber-500 uppercase"
+                                                    aria-label="Draft saved"
+                                                >
+                                                    <Pencil class="size-3" />
+                                                    Draft
+                                                </span>
                                                 <span
                                                     v-else-if="
                                                         channel.unreadCount > 0

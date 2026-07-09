@@ -77,6 +77,11 @@ class HandleInertiaRequests extends Middleware
             ->whereNull('channels.archived_at')
             ->select('channels.*')
             ->addSelect(['channel_members.muted', 'channel_members.notification_level'])
+            // Only the presence of a draft drives the sidebar cue; the draft text
+            // itself is shipped solely to the open channel, so keep it out of the
+            // sidebar payload and expose a 1/0 flag instead (an integer, not a
+            // driver-specific boolean, so the DTO's cast reads it reliably).
+            ->selectRaw("case when channel_members.draft is not null and channel_members.draft != '' then 1 else 0 end as has_draft")
             // Thread-only replies stay out of the plain unread badge (they live
             // in the thread view), but a mention anywhere — including inside a
             // thread — still badges the channel.

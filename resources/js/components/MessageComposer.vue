@@ -13,18 +13,42 @@ const props = defineProps<{
     placeholder?: string;
     allowSendToChannel?: boolean;
     autofocus?: boolean;
+    // Text to seed the composer with on mount, e.g. a persisted draft. Restored
+    // verbatim (mention tokens included) so it round-trips faithfully.
+    initialBody?: string;
 }>();
 
 const emit = defineEmits<{
     send: [body: string, mentions: Mention[], sendToChannel?: boolean];
     typing: [];
     cancelReply: [];
+    // The composer body changed (typed, restored-then-edited, or cleared on
+    // send). The parent decides whether to persist it as a draft.
+    draftChange: [body: string];
 }>();
 
 const { getInitials } = useInitials();
 
-const body = ref('');
+const body = ref(props.initialBody ?? '');
 const textarea = ref<HTMLTextAreaElement | null>(null);
+
+// When true, the next body change is a programmatic clear-on-send, not a user
+// edit, so it must not emit a draft change: sending already clears the draft
+// server-side, and re-emitting would fire a redundant save.
+let clearingAfterSend = false;
+
+// Surface every body change so the parent can persist (or clear) the draft.
+// Seeding `body` above happens before this watch is registered, so restoring a
+// draft doesn't echo back as a change.
+watch(body, (value) => {
+    if (clearingAfterSend) {
+        clearingAfterSend = false;
+
+        return;
+    }
+
+    emit('draftChange', value);
+});
 
 // In a thread composer, whether the reply is also surfaced in the main timeline.
 const sendToChannel = ref(false);
@@ -34,11 +58,16 @@ const composerPlaceholder = computed(
 );
 
 // Focus on mount when asked (e.g. the thread composer when a thread opens) so
-// the user can type straight away without clicking into the field.
+// the user can type straight away without clicking into the field. A restored
+// draft also needs a resize so a multi-line draft opens fully expanded.
 onMounted(() => {
-    if (props.autofocus) {
-        nextTick(() => textarea.value?.focus());
-    }
+    nextTick(() => {
+        resize();
+
+        if (props.autofocus) {
+            textarea.value?.focus();
+        }
+    });
 });
 
 // Focus the composer whenever a reply is started so the user can type straight
@@ -188,6 +217,7 @@ function submit(): void {
     }
 
     emit('send', trimmed, collectMentions(trimmed), sendToChannel.value);
+    clearingAfterSend = true;
     body.value = '';
     sendToChannel.value = false;
     menuOpen.value = false;

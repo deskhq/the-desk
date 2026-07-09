@@ -18,12 +18,13 @@ use Illuminate\Support\Carbon;
  * @property string|null $last_read_message_id
  * @property bool $muted
  * @property NotificationLevel $notification_level
+ * @property string|null $draft
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  * @property-read Channel $channel
  * @property-read User $user
  */
-#[Fillable(['channel_id', 'user_id', 'last_read_message_id', 'muted', 'notification_level'])]
+#[Fillable(['channel_id', 'user_id', 'last_read_message_id', 'muted', 'notification_level', 'draft'])]
 class ChannelMember extends Model
 {
     /** @use HasFactory<ChannelMemberFactory> */

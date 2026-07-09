@@ -47,6 +47,19 @@ class ChannelPolicy
     }
 
     /**
+     * Determine whether the user can save their own composer draft for the channel.
+     *
+     * Drafts live on the membership pivot, so only a member of the channel
+     * (within the team) has one to save. Each member only ever touches their
+     * own row.
+     */
+    public function saveDraft(User $user, Channel $channel): bool
+    {
+        return $user->belongsToTeam($channel->team)
+            && $channel->members()->whereKey($user->id)->exists();
+    }
+
+    /**
      * Determine whether the user can post a message to the channel.
      *
      * Only members of a non-archived channel may post.

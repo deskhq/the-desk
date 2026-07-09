@@ -48,6 +48,10 @@ class PostMessage
 
             if ($threadRootId !== null) {
                 $this->bumpThreadRoot($channel, $threadRootId);
+            } else {
+                // A message sent from the main composer clears its channel draft;
+                // a thread reply leaves the channel draft alone (it isn't its text).
+                $author->channels()->updateExistingPivot($channel->id, ['draft' => null]);
             }
         }
 

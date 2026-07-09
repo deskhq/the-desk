@@ -95,6 +95,9 @@ class ChannelController extends Controller
         $membership = $channel->channelMembers()->where('user_id', $request->user()->id)->first();
         $channel->setAttribute('muted', $membership->muted ?? false);
         $channel->setAttribute('notification_level', $membership?->notification_level->value ?? NotificationLevel::All->value);
+        // Surface the member's saved draft so the composer restores it on open; a
+        // non-member has no pivot row, so the composer opens empty.
+        $channel->setAttribute('draft', $membership?->draft);
 
         // When arriving from a search result the URL carries the target message
         // id. If it belongs to this channel, cap the initial window a few messages
