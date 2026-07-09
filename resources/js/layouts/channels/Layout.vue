@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { Link, router, usePage } from '@inertiajs/vue3';
 import { MessageSquareText, MessagesSquare, Plus, Search } from '@lucide/vue';
-import { computed, onMounted } from 'vue';
+import { computed, onMounted, onUnmounted, ref } from 'vue';
 import {
     browse,
     show,
@@ -12,6 +12,7 @@ import CreateChannelModal from '@/components/CreateChannelModal.vue';
 import CreateTeamModal from '@/components/CreateTeamModal.vue';
 import NavUser from '@/components/NavUser.vue';
 import PendingInvitationsModal from '@/components/PendingInvitationsModal.vue';
+import QuickSwitcher from '@/components/QuickSwitcher.vue';
 import TeamSwitcher from '@/components/TeamSwitcher.vue';
 import { Separator } from '@/components/ui/separator';
 import {
@@ -60,9 +61,24 @@ const hasUnreadThreads = computed(() => page.props.hasUnreadThreads ?? false);
 const { getInitials } = useInitials();
 const { switchTeam } = useTeamSwitch();
 
+// Cmd/Ctrl+K toggles the quick switcher from anywhere in the workspace.
+const quickSwitcherOpen = ref(false);
+
+function handleQuickSwitcherShortcut(event: KeyboardEvent): void {
+    if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
+        event.preventDefault();
+        quickSwitcherOpen.value = !quickSwitcherOpen.value;
+    }
+}
+
 onMounted(() => {
     // Lazily pull the (optional) shared invitations so the post-login prompt appears.
     router.reload({ only: ['pendingInvitations'] });
+    window.addEventListener('keydown', handleQuickSwitcherShortcut);
+});
+
+onUnmounted(() => {
+    window.removeEventListener('keydown', handleQuickSwitcherShortcut);
 });
 </script>
 
@@ -139,6 +155,21 @@ onMounted(() => {
                     </SidebarHeader>
 
                     <SidebarContent>
+                        <div class="px-2 pt-2">
+                            <button
+                                type="button"
+                                data-test="quick-switcher-trigger"
+                                class="flex w-full items-center gap-2 rounded-md border border-sidebar-border bg-sidebar-accent/40 px-2.5 py-1.5 text-[13px] text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground"
+                                @click="quickSwitcherOpen = true"
+                            >
+                                <Search class="size-[15px] shrink-0" />
+                                <span>Jump to…</span>
+                                <kbd
+                                    class="ml-auto rounded border border-sidebar-border bg-sidebar px-1.5 py-0.5 font-mono text-[10px] tracking-wide text-muted-foreground"
+                                    >⌘K</kbd
+                                >
+                            </button>
+                        </div>
                         <SidebarGroup>
                             <SidebarGroupLabel
                                 class="h-7 px-2 text-[11px] font-semibold tracking-[0.06em] text-muted-foreground uppercase"
@@ -317,6 +348,13 @@ onMounted(() => {
         <PendingInvitationsModal
             v-if="pendingInvitations.length > 0"
             :invitations="pendingInvitations"
+        />
+
+        <QuickSwitcher
+            v-if="currentTeam"
+            v-model:open="quickSwitcherOpen"
+            :channels="channels"
+            :team-slug="currentTeam.slug"
         />
     </SidebarProvider>
 </template>

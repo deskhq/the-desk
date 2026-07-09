@@ -17,6 +17,7 @@ Route::middleware(['auth', 'verified', EnsureTeamMembership::class])->group(func
     Route::post('t/{team}/channels', [ChannelController::class, 'store'])->name('channels.store');
     Route::get('t/{team}/channels/browse', [ChannelController::class, 'browse'])->name('channels.browse');
     Route::get('t/{team}/search', [SearchController::class, 'index'])->name('search');
+    Route::get('t/{team}/search/suggest', [SearchController::class, 'suggest'])->name('search.suggest');
     Route::get('t/{team}/threads', [ThreadsController::class, 'index'])->name('channels.threads.index');
     Route::get('t/{team}/c/{channel}', [ChannelController::class, 'show'])
         ->scopeBindings()

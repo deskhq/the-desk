@@ -27,7 +27,7 @@ class SearchMessages
      *
      * @return Collection<int, Message>
      */
-    public function handle(User $user, Team $team, string $query): Collection
+    public function handle(User $user, Team $team, string $query, int $limit = self::RESULT_LIMIT): Collection
     {
         $query = trim($query);
 
@@ -42,7 +42,7 @@ class SearchMessages
 
         return Message::search($query)
             ->whereIn('channel_id', $channelIds)
-            ->take(self::RESULT_LIMIT)
+            ->take($limit)
             ->get()
             ->load(['user', 'channel', 'mentionedUsers', 'replyTo.user', 'replyTo.mentionedUsers']);
     }

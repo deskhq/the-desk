@@ -43,6 +43,14 @@ function performSearch(User $user, Team $team, string $query): TestResponse
     return test()->actingAs($user)->get(route('search', ['team' => $team->slug, 'q' => $query]));
 }
 
+/**
+ * Hit the quick-switcher JSON suggest endpoint for a team as the given user.
+ */
+function performSuggest(User $user, Team $team, string $query): TestResponse
+{
+    return test()->actingAs($user)->getJson(route('search.suggest', ['team' => $team->slug, 'q' => $query]));
+}
+
 test('a member searches messages in their channels', function () {
     [$owner, $team, $general] = searchTeamWithGeneral();
     $member = searchMember($team, $general, 'Ada Lovelace');
@@ -206,6 +214,69 @@ test('a message param from another channel is ignored', function () {
         ->where('jumpToMessageId', null)
         ->has('messages.data', 1)
     );
+});
+
+test('the suggest endpoint returns matching messages as JSON', function () {
+    [$owner, $team, $general] = searchTeamWithGeneral();
+    $member = searchMember($team, $general, 'Ada Lovelace');
+    Message::factory()->for($general)->for($member)->create(['body' => 'the quokka danced at dawn']);
+    Message::factory()->for($general)->for($owner)->create(['body' => 'totally unrelated chatter']);
+
+    performSuggest($member, $team, 'quokka')
+        ->assertOk()
+        ->assertJsonCount(1, 'results')
+        ->assertJsonPath('results.0.message.body', 'the quokka danced at dawn')
+        ->assertJsonPath('results.0.message.user.name', 'Ada Lovelace')
+        ->assertJsonPath('results.0.channelName', $general->name)
+        ->assertJsonPath('results.0.channelSlug', $general->slug);
+});
+
+test('the suggest endpoint caps results at the preview limit', function () {
+    [$owner, $team, $general] = searchTeamWithGeneral();
+    $member = searchMember($team, $general);
+    collect(range(1, 8))->each(
+        fn (int $i) => Message::factory()->for($general)->for($owner)->create(['body' => "zephyr note {$i}"])
+    );
+
+    performSuggest($member, $team, 'zephyr')
+        ->assertOk()
+        ->assertJsonCount(5, 'results');
+});
+
+test('the suggest endpoint is ACL-filtered to the user channels', function () {
+    [$owner, $team, $general] = searchTeamWithGeneral();
+    $member = searchMember($team, $general);
+    $private = Channel::factory()->for($team)->private()->create(['created_by' => $owner->id]);
+    Message::factory()->for($private)->for($owner)->create(['body' => 'secret zephyr plans']);
+
+    performSuggest($member, $team, 'zephyr')
+        ->assertOk()
+        ->assertJsonCount(0, 'results');
+});
+
+test('an empty suggest query returns no results without touching the engine', function () {
+    [$owner, $team, $general] = searchTeamWithGeneral();
+    $member = searchMember($team, $general);
+    Message::factory()->for($general)->for($owner)->create(['body' => 'zephyr']);
+
+    performSuggest($member, $team, '')
+        ->assertOk()
+        ->assertJsonCount(0, 'results');
+});
+
+test('a non-member of the team cannot use suggest', function () {
+    [, $team] = searchTeamWithGeneral();
+    $outsider = User::factory()->create();
+
+    performSuggest($outsider, $team, 'zephyr')->assertForbidden();
+});
+
+test('the suggest query cannot exceed 255 characters', function () {
+    [, $team, $general] = searchTeamWithGeneral();
+    $member = searchMember($team, $general);
+
+    performSuggest($member, $team, str_repeat('a', 256))
+        ->assertJsonValidationErrorFor('q');
 });
 
 test('soft-deleted messages report that they should not be searchable', function () {
