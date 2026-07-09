@@ -30,6 +30,7 @@ import {
 } from '@/actions/App/Http/Controllers/Channels/MessageController';
 import MessageComposer from '@/components/MessageComposer.vue';
 import MessageList from '@/components/MessageList.vue';
+import ThreadPanel from '@/components/ThreadPanel.vue';
 import TypingIndicator from '@/components/TypingIndicator.vue';
 import { Button } from '@/components/ui/button';
 import {
@@ -54,6 +55,10 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Separator } from '@/components/ui/separator';
 import { SidebarTrigger } from '@/components/ui/sidebar';
+import {
+    useMessageStream,
+    optimisticMessage,
+} from '@/composables/useMessageStream';
 import { useTeamPresence } from '@/composables/useTeamPresence';
 import { useTypingIndicator } from '@/composables/useTypingIndicator';
 import type { TypingUser } from '@/composables/useTypingIndicator';
@@ -64,6 +69,7 @@ import type {
     MessagePage,
     NotificationLevel,
     NotificationLevelOption,
+    Thread,
 } from '@/types';
 
 const props = defineProps<{
@@ -75,6 +81,8 @@ const props = defineProps<{
     canManagePreferences: boolean;
     notificationLevels: NotificationLevelOption[];
     jumpToMessageId?: string | null;
+    // The open thread, loaded on demand as an optional prop keyed by `?thread=`.
+    thread?: Thread | null;
 }>();
 
 const page = usePage();
@@ -114,19 +122,6 @@ const canModerate = computed(() =>
 // so an incoming message never yanks a user who is reading older history.
 const NEAR_BOTTOM_THRESHOLD = 120;
 
-// Optimistically-rendered messages awaiting confirmation, keyed by the client
-// uuid the server persists. Confirmation arrives either as the reloaded server
-// page or as the realtime echo of our own broadcast.
-const pending = ref<Message[]>([]);
-
-// Messages received live over the channel's private broadcast channel.
-const live = ref<Message[]>([]);
-
-// Edits and deletions applied on top of whichever copy of a message is rendered,
-// keyed by client uuid. Sourced from our own optimistic mutations and from the
-// MessageUpdated / MessageDeleted echoes, so every client converges in place.
-const patches = ref<Map<string, Message>>(new Map());
-
 const scrollContainer = ref<HTMLElement | null>(null);
 
 // `Inertia::scroll` delivers messages newest-first; reverse for display.
@@ -134,59 +129,30 @@ const serverMessages = computed<Message[]>(() =>
     [...(props.messages?.data ?? [])].reverse(),
 );
 
-// Merge every source, deduping by client uuid (server wins, then live, then the
-// optimistic copy) and ordering chronologically.
-const displayMessages = computed<Message[]>(() => {
-    const byUuid = new Map<string, Message>();
-
-    for (const message of serverMessages.value) {
-        byUuid.set(message.clientUuid, message);
-    }
-
-    for (const message of live.value) {
-        if (!byUuid.has(message.clientUuid)) {
-            byUuid.set(message.clientUuid, message);
-        }
-    }
-
-    for (const message of pending.value) {
-        if (!byUuid.has(message.clientUuid)) {
-            byUuid.set(message.clientUuid, message);
-        }
-    }
-
-    // Overlay edits/deletions on the rendered copy, keeping its original slot.
-    for (const [uuid, patch] of patches.value) {
-        if (byUuid.has(uuid)) {
-            byUuid.set(uuid, patch);
-        }
-    }
-
-    return [...byUuid.values()].sort((a, b) =>
-        a.createdAt < b.createdAt ? -1 : a.createdAt > b.createdAt ? 1 : 0,
-    );
-});
-
-const pendingUuids = computed(() =>
-    pending.value.map((message) => message.clientUuid),
-);
+// The main channel timeline: optimistic sends + live echoes + edit/delete
+// patches, all merged over the server page and deduped by client uuid.
+const mainStream = useMessageStream(serverMessages);
+const displayMessages = mainStream.displayMessages;
+const pendingUuids = mainStream.pendingUuids;
 
 const hasMessages = computed(() => displayMessages.value.length > 0);
 
-// Drop optimistic messages once the server page or a live echo confirms them.
-const confirmedUuids = computed(
-    () =>
-        new Set([
-            ...serverMessages.value.map((message) => message.clientUuid),
-            ...live.value.map((message) => message.clientUuid),
-        ]),
+// The open thread (root + replies), loaded on demand and kept client-side so a
+// later full-page visit that omits the optional prop can't drop it. The thread
+// panel runs its own stream instance over the root + its replies.
+const activeThreadRootId = ref<string | null>(null);
+const threadData = ref<Thread | null>(null);
+const threadLoading = ref(false);
+
+const threadServerMessages = computed<Message[]>(() =>
+    threadData.value
+        ? [threadData.value.root, ...threadData.value.replies]
+        : [],
 );
 
-watch(confirmedUuids, (uuids) => {
-    pending.value = pending.value.filter(
-        (message) => !uuids.has(message.clientUuid),
-    );
-});
+const threadStream = useMessageStream(threadServerMessages);
+const threadMessages = threadStream.displayMessages;
+const threadPendingUuids = threadStream.pendingUuids;
 
 function isNearBottom(): boolean {
     const el = scrollContainer.value;
@@ -233,20 +199,30 @@ function jumpToMessage(id: string): void {
     });
 }
 
-function appendLive(message: Message): void {
-    const known =
-        live.value.some((m) => m.clientUuid === message.clientUuid) ||
-        serverMessages.value.some((m) => m.clientUuid === message.clientUuid);
+// Append a message to the main timeline, keeping the view pinned to newest only
+// when the reader was already near the bottom.
+function appendLiveMain(message: Message): void {
+    const pinned = isNearBottom();
 
-    if (known) {
-        return;
+    if (mainStream.appendLive(message) && pinned) {
+        nextTick(scrollToBottom);
+    }
+}
+
+// Route a broadcast message to the timeline it belongs to. A thread reply stays
+// out of the main timeline unless it was explicitly "also sent to channel"; the
+// open thread only appends replies belonging to its root. The two are not
+// exclusive — a sent-to-channel reply in the open thread lands in both.
+function routeIncoming(message: Message): void {
+    if (message.threadRootId === null || message.sentToChannel) {
+        appendLiveMain(message);
     }
 
-    const pinned = isNearBottom();
-    live.value.push(message);
-
-    if (pinned) {
-        nextTick(scrollToBottom);
+    if (
+        message.threadRootId !== null &&
+        message.threadRootId === activeThreadRootId.value
+    ) {
+        threadStream.appendLive(message);
     }
 }
 
@@ -254,8 +230,12 @@ function channelName(id: string): string {
     return `channel.${id}`;
 }
 
+// An edit or deletion may touch either timeline (or both, for a sent-to-channel
+// reply); patch both streams, since a patch is ignored where the message isn't
+// rendered.
 function applyPatch(message: Message): void {
-    patches.value.set(message.clientUuid, message);
+    mainStream.applyPatch(message);
+    threadStream.applyPatch(message);
 }
 
 function subscribe(id: string): void {
@@ -264,7 +244,7 @@ function subscribe(id: string): void {
         .listen('MessageSent', (message: Message) => {
             // Their message landed; stop showing them as typing.
             typing.forget(message.user.id);
-            appendLive(message);
+            routeIncoming(message);
             // Keep the open, focused channel read as new messages arrive.
             markRead();
         })
@@ -318,7 +298,27 @@ onMounted(() => {
     if (props.jumpToMessageId) {
         jumpToMessage(props.jumpToMessageId);
     }
+
+    // Reopen a deep-linked thread: the `thread` prop is already resolved from
+    // the `?thread=` param on the initial load, so adopt it directly.
+    if (props.thread) {
+        activeThreadRootId.value = props.thread.root.id;
+        threadData.value = props.thread;
+    }
 });
+
+// The thread prop only arrives on a partial reload that requests it; copy it
+// into client state (guarded to the thread we're actually opening) so a later
+// full visit that omits the optional prop can't blank the open panel.
+watch(
+    () => props.thread,
+    (thread) => {
+        if (thread && thread.root.id === activeThreadRootId.value) {
+            threadData.value = thread;
+            threadLoading.value = false;
+        }
+    },
+);
 
 // A jump to another result in the same already-open channel reuses this
 // component, so the channel-id watch won't fire; react to the target changing.
@@ -340,9 +340,8 @@ watch(
             unsubscribe(oldId);
         }
 
-        live.value = [];
-        pending.value = [];
-        patches.value = new Map();
+        mainStream.reset();
+        closeThread();
         replyTarget.value = null;
         typing.reset();
         notificationLevel.value = props.channel.notificationLevel;
@@ -380,28 +379,17 @@ function send(body: string, mentions: Mention[]): void {
     const clientUuid = crypto.randomUUID();
     const target = replyTarget.value;
 
-    pending.value.push({
-        id: clientUuid,
-        clientUuid,
-        body,
-        user: currentUser.value,
-        createdAt: new Date().toISOString(),
-        editedAt: null,
-        isDeleted: false,
-        mentions,
-        // Mirror the parent as a compact quote so the optimistic row renders the
-        // reference immediately; the server echo replaces it with the canonical
-        // copy keyed on the same client uuid.
-        replyTo: target
-            ? {
-                  id: target.id,
-                  body: target.body,
-                  authorName: target.user.name,
-                  isDeleted: target.isDeleted,
-                  mentions: target.mentions,
-              }
-            : null,
-    });
+    // The optimistic row mirrors the parent quote so the reference renders
+    // immediately; the server echo replaces it, keyed on the same client uuid.
+    mainStream.addPending(
+        optimisticMessage({
+            clientUuid,
+            body,
+            author: currentUser.value,
+            mentions,
+            replyTo: target,
+        }),
+    );
 
     cancelReply();
     nextTick(scrollToBottom);
@@ -414,17 +402,79 @@ function send(body: string, mentions: Mention[]): void {
             preserveScroll: true,
             onError: () => {
                 // The optimistic row failed to persist; roll it back and notify.
-                pending.value = pending.value.filter(
-                    (message) => message.clientUuid !== clientUuid,
-                );
+                mainStream.removePending(clientUuid);
                 toast.error('Your message failed to send. Please try again.');
             },
         },
     );
 }
 
+// Post a reply into the open thread. It renders optimistically in the panel and,
+// when "also send to channel" is checked, in the main timeline too.
+function sendThreadReply(
+    body: string,
+    mentions: Mention[],
+    sendToChannel?: boolean,
+): void {
+    const rootId = activeThreadRootId.value;
+
+    if (!rootId) {
+        return;
+    }
+
+    const clientUuid = crypto.randomUUID();
+    const optimistic = optimisticMessage({
+        clientUuid,
+        body,
+        author: currentUser.value,
+        mentions,
+        threadRootId: rootId,
+        sentToChannel: sendToChannel ?? false,
+    });
+
+    threadStream.addPending(optimistic);
+
+    if (sendToChannel) {
+        appendPendingMain(optimistic);
+    }
+
+    router.post(
+        storeMessage({ team: props.team.slug, channel: props.channel.slug })
+            .url,
+        {
+            body,
+            client_uuid: clientUuid,
+            thread_root_id: rootId,
+            sent_to_channel: sendToChannel ?? false,
+        },
+        {
+            preserveScroll: true,
+            onError: () => {
+                threadStream.removePending(clientUuid);
+
+                if (sendToChannel) {
+                    mainStream.removePending(clientUuid);
+                }
+
+                toast.error('Your reply failed to send. Please try again.');
+            },
+        },
+    );
+}
+
+// Add an optimistic row to the main timeline, keeping the pinned-to-bottom rule.
+function appendPendingMain(message: Message): void {
+    const pinned = isNearBottom();
+    mainStream.addPending(message);
+
+    if (pinned) {
+        nextTick(scrollToBottom);
+    }
+}
+
 function editMessage(message: Message, body: string): void {
-    const previous = patches.value.get(message.clientUuid);
+    const previousMain = mainStream.getPatch(message.clientUuid);
+    const previousThread = threadStream.getPatch(message.clientUuid);
 
     // Optimistically show the edit; the broadcast echo later confirms it.
     applyPatch({ ...message, body, editedAt: new Date().toISOString() });
@@ -439,12 +489,8 @@ function editMessage(message: Message, body: string): void {
         {
             preserveScroll: true,
             onError: () => {
-                if (previous) {
-                    patches.value.set(message.clientUuid, previous);
-                } else {
-                    patches.value.delete(message.clientUuid);
-                }
-
+                mainStream.restorePatch(message.clientUuid, previousMain);
+                threadStream.restorePatch(message.clientUuid, previousThread);
                 toast.error('Your edit failed to save. Please try again.');
             },
         },
@@ -452,7 +498,8 @@ function editMessage(message: Message, body: string): void {
 }
 
 function deleteMessage(message: Message): void {
-    const previous = patches.value.get(message.clientUuid);
+    const previousMain = mainStream.getPatch(message.clientUuid);
+    const previousThread = threadStream.getPatch(message.clientUuid);
 
     // Optimistically show the tombstone; the broadcast echo later confirms it.
     applyPatch({ ...message, body: '', isDeleted: true });
@@ -466,16 +513,41 @@ function deleteMessage(message: Message): void {
         {
             preserveScroll: true,
             onError: () => {
-                if (previous) {
-                    patches.value.set(message.clientUuid, previous);
-                } else {
-                    patches.value.delete(message.clientUuid);
-                }
-
+                mainStream.restorePatch(message.clientUuid, previousMain);
+                threadStream.restorePatch(message.clientUuid, previousThread);
                 toast.error('Failed to delete the message. Please try again.');
             },
         },
     );
+}
+
+// Open the thread rooted at a message. The root's replies load as the optional
+// `thread` prop (a partial reload keyed by `?thread=`), shown as a skeleton
+// until they arrive.
+function openThread(rootId: string): void {
+    if (activeThreadRootId.value === rootId) {
+        return;
+    }
+
+    activeThreadRootId.value = rootId;
+    threadStream.reset();
+    threadData.value = null;
+    threadLoading.value = true;
+
+    router.reload({
+        only: ['thread'],
+        data: { thread: rootId },
+        onFinish: () => {
+            threadLoading.value = false;
+        },
+    });
+}
+
+function closeThread(): void {
+    activeThreadRootId.value = null;
+    threadData.value = null;
+    threadLoading.value = false;
+    threadStream.reset();
 }
 
 // The member's own notification preferences for this channel, seeded from the
@@ -564,159 +636,212 @@ function archive(): void {
 <template>
     <Head :title="`#${props.channel.name}`" />
 
-    <header
-        class="flex h-12 shrink-0 items-center gap-2.5 border-b border-border px-5"
-    >
-        <SidebarTrigger
-            class="-ml-1.5 size-8 text-muted-foreground md:hidden"
-        />
-        <h1 class="text-[15px] font-semibold text-foreground">
-            <span class="mr-0.5 font-medium text-muted-foreground/70">#</span
-            >{{ props.channel.name }}
-        </h1>
-        <span
-            v-if="notificationStatus"
-            data-test="notification-status"
-            :data-status="muted ? 'muted' : notificationLevel"
-            class="inline-flex items-center text-muted-foreground"
-            :title="notificationStatus.label"
-            :aria-label="notificationStatus.label"
-        >
-            <component :is="notificationStatus.icon" class="size-3.5" />
-        </span>
-        <template v-if="props.channel.topic">
-            <Separator orientation="vertical" class="h-4" />
-            <p class="min-w-0 truncate text-[13px] text-muted-foreground">
-                {{ props.channel.topic }}
-            </p>
-        </template>
-
-        <span
-            v-if="props.channel.isArchived"
-            class="ml-1 inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground"
-        >
-            <Archive class="size-3" />
-            Archived
-        </span>
-
-        <DropdownMenu v-if="props.canManagePreferences || props.canArchive">
-            <DropdownMenuTrigger as-child>
-                <button
-                    type="button"
-                    aria-label="Channel options"
-                    data-test="channel-options"
-                    class="ml-auto rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
-                >
-                    <EllipsisVertical class="size-4" />
-                </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" class="w-56">
-                <template v-if="props.canManagePreferences">
-                    <DropdownMenuLabel
-                        class="text-[11px] font-semibold tracking-[0.06em] text-muted-foreground uppercase"
-                    >
-                        Notifications
-                    </DropdownMenuLabel>
-                    <DropdownMenuRadioGroup
-                        :model-value="notificationLevel"
-                        @update:model-value="onNotificationLevelChange"
-                    >
-                        <DropdownMenuRadioItem
-                            v-for="level in props.notificationLevels"
-                            :key="level.value"
-                            :value="level.value"
-                            :data-test="`notification-level-${level.value}`"
-                        >
-                            {{ level.label }}
-                        </DropdownMenuRadioItem>
-                    </DropdownMenuRadioGroup>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuCheckboxItem
-                        :model-value="muted"
-                        data-test="mute-channel"
-                        @update:model-value="onMuteChange"
-                        @select="(event: Event) => event.preventDefault()"
-                    >
-                        Mute channel
-                    </DropdownMenuCheckboxItem>
-                </template>
-                <template v-if="props.canArchive">
-                    <DropdownMenuSeparator v-if="props.canManagePreferences" />
-                    <DropdownMenuItem
-                        data-test="archive-channel"
-                        class="text-destructive focus:text-destructive"
-                        @select="confirmingArchive = true"
-                    >
-                        <Archive class="size-4" />
-                        Archive channel
-                    </DropdownMenuItem>
-                </template>
-            </DropdownMenuContent>
-        </DropdownMenu>
-    </header>
-
-    <div class="flex min-h-0 flex-1 flex-col">
-        <div ref="scrollContainer" class="min-h-0 flex-1 overflow-y-auto">
-            <InfiniteScroll
-                v-if="hasMessages"
-                data="messages"
-                reverse
-                preserve-url
+    <div class="flex min-h-0 flex-1 overflow-hidden">
+        <div class="flex min-w-0 flex-1 flex-col">
+            <header
+                class="flex h-12 shrink-0 items-center gap-2.5 border-b border-border px-5"
             >
-                <MessageList
-                    :messages="displayMessages"
-                    :pending-uuids="pendingUuids"
-                    :current-user-id="currentUser.id"
-                    :can-moderate="canModerate"
-                    :online-ids="onlineIds"
-                    :highlight-message-id="highlightedMessageId"
-                    @edit="editMessage"
-                    @delete="deleteMessage"
-                    @reply="startReply"
-                    @jump="jumpToMessage"
+                <SidebarTrigger
+                    class="-ml-1.5 size-8 text-muted-foreground md:hidden"
                 />
-            </InfiniteScroll>
-
-            <div
-                v-else
-                class="flex h-full flex-col items-center justify-center gap-1"
-            >
-                <div
-                    class="flex size-14 items-center justify-center rounded-2xl border border-border bg-muted text-2xl font-semibold text-muted-foreground"
-                    aria-hidden="true"
+                <h1 class="text-[15px] font-semibold text-foreground">
+                    <span class="mr-0.5 font-medium text-muted-foreground/70"
+                        >#</span
+                    >{{ props.channel.name }}
+                </h1>
+                <span
+                    v-if="notificationStatus"
+                    data-test="notification-status"
+                    :data-status="muted ? 'muted' : notificationLevel"
+                    class="inline-flex items-center text-muted-foreground"
+                    :title="notificationStatus.label"
+                    :aria-label="notificationStatus.label"
                 >
-                    #
+                    <component :is="notificationStatus.icon" class="size-3.5" />
+                </span>
+                <template v-if="props.channel.topic">
+                    <Separator orientation="vertical" class="h-4" />
+                    <p
+                        class="min-w-0 truncate text-[13px] text-muted-foreground"
+                    >
+                        {{ props.channel.topic }}
+                    </p>
+                </template>
+
+                <span
+                    v-if="props.channel.isArchived"
+                    class="ml-1 inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground"
+                >
+                    <Archive class="size-3" />
+                    Archived
+                </span>
+
+                <DropdownMenu
+                    v-if="props.canManagePreferences || props.canArchive"
+                >
+                    <DropdownMenuTrigger as-child>
+                        <button
+                            type="button"
+                            aria-label="Channel options"
+                            data-test="channel-options"
+                            class="ml-auto rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
+                        >
+                            <EllipsisVertical class="size-4" />
+                        </button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" class="w-56">
+                        <template v-if="props.canManagePreferences">
+                            <DropdownMenuLabel
+                                class="text-[11px] font-semibold tracking-[0.06em] text-muted-foreground uppercase"
+                            >
+                                Notifications
+                            </DropdownMenuLabel>
+                            <DropdownMenuRadioGroup
+                                :model-value="notificationLevel"
+                                @update:model-value="onNotificationLevelChange"
+                            >
+                                <DropdownMenuRadioItem
+                                    v-for="level in props.notificationLevels"
+                                    :key="level.value"
+                                    :value="level.value"
+                                    :data-test="`notification-level-${level.value}`"
+                                >
+                                    {{ level.label }}
+                                </DropdownMenuRadioItem>
+                            </DropdownMenuRadioGroup>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuCheckboxItem
+                                :model-value="muted"
+                                data-test="mute-channel"
+                                @update:model-value="onMuteChange"
+                                @select="
+                                    (event: Event) => event.preventDefault()
+                                "
+                            >
+                                Mute channel
+                            </DropdownMenuCheckboxItem>
+                        </template>
+                        <template v-if="props.canArchive">
+                            <DropdownMenuSeparator
+                                v-if="props.canManagePreferences"
+                            />
+                            <DropdownMenuItem
+                                data-test="archive-channel"
+                                class="text-destructive focus:text-destructive"
+                                @select="confirmingArchive = true"
+                            >
+                                <Archive class="size-4" />
+                                Archive channel
+                            </DropdownMenuItem>
+                        </template>
+                    </DropdownMenuContent>
+                </DropdownMenu>
+            </header>
+
+            <div class="flex min-h-0 flex-1 flex-col">
+                <div
+                    ref="scrollContainer"
+                    class="min-h-0 flex-1 overflow-y-auto"
+                >
+                    <InfiniteScroll
+                        v-if="hasMessages"
+                        data="messages"
+                        reverse
+                        preserve-url
+                    >
+                        <MessageList
+                            :messages="displayMessages"
+                            :pending-uuids="pendingUuids"
+                            :current-user-id="currentUser.id"
+                            :can-moderate="canModerate"
+                            :online-ids="onlineIds"
+                            :highlight-message-id="highlightedMessageId"
+                            :active-thread-root-id="activeThreadRootId"
+                            @edit="editMessage"
+                            @delete="deleteMessage"
+                            @reply="startReply"
+                            @open-thread="openThread"
+                            @jump="jumpToMessage"
+                        />
+                    </InfiniteScroll>
+
+                    <div
+                        v-else
+                        class="flex h-full flex-col items-center justify-center gap-1"
+                    >
+                        <div
+                            class="flex size-14 items-center justify-center rounded-2xl border border-border bg-muted text-2xl font-semibold text-muted-foreground"
+                            aria-hidden="true"
+                        >
+                            #
+                        </div>
+                        <p
+                            class="mt-2.5 text-[15px] font-semibold text-foreground"
+                        >
+                            No messages yet
+                        </p>
+                        <p class="text-[13.5px] text-muted-foreground">
+                            Be the first to say something in #{{
+                                props.channel.name
+                            }}.
+                        </p>
+                    </div>
                 </div>
-                <p class="mt-2.5 text-[15px] font-semibold text-foreground">
-                    No messages yet
-                </p>
-                <p class="text-[13.5px] text-muted-foreground">
-                    Be the first to say something in #{{ props.channel.name }}.
-                </p>
+
+                <div
+                    v-if="props.channel.isArchived"
+                    data-test="archived-notice"
+                    class="m-5 shrink-0 rounded-lg border border-border bg-muted/40 px-4 py-3 text-center text-[13px] text-muted-foreground"
+                >
+                    This channel is archived. It's read-only, but its history is
+                    preserved.
+                </div>
+
+                <template v-else>
+                    <TypingIndicator
+                        :names="typingNames"
+                        class="mx-5 shrink-0"
+                    />
+
+                    <MessageComposer
+                        :channel-name="props.channel.name"
+                        :members="mentionableMembers"
+                        :reply-target="replyTarget"
+                        @send="send"
+                        @typing="onTyping"
+                        @cancel-reply="cancelReply"
+                    />
+                </template>
             </div>
         </div>
 
-        <div
-            v-if="props.channel.isArchived"
-            data-test="archived-notice"
-            class="m-5 shrink-0 rounded-lg border border-border bg-muted/40 px-4 py-3 text-center text-[13px] text-muted-foreground"
+        <Transition
+            enter-active-class="transition-transform duration-200 ease-out"
+            enter-from-class="translate-x-full"
+            enter-to-class="translate-x-0"
+            leave-active-class="transition-transform duration-150 ease-in"
+            leave-from-class="translate-x-0"
+            leave-to-class="translate-x-full"
         >
-            This channel is archived. It's read-only, but its history is
-            preserved.
-        </div>
-
-        <template v-else>
-            <TypingIndicator :names="typingNames" class="mx-5 shrink-0" />
-
-            <MessageComposer
+            <ThreadPanel
+                v-if="activeThreadRootId"
                 :channel-name="props.channel.name"
+                :messages="threadMessages"
+                :pending-uuids="threadPendingUuids"
                 :members="mentionableMembers"
-                :reply-target="replyTarget"
-                @send="send"
+                :current-user-id="currentUser.id"
+                :can-moderate="canModerate"
+                :online-ids="onlineIds"
+                :loading="threadLoading"
+                :read-only="props.channel.isArchived"
+                @close="closeThread"
+                @send="sendThreadReply"
+                @edit="editMessage"
+                @delete="deleteMessage"
                 @typing="onTyping"
-                @cancel-reply="cancelReply"
+                @jump="jumpToMessage"
             />
-        </template>
+        </Transition>
     </div>
 
     <Dialog v-model:open="confirmingArchive">

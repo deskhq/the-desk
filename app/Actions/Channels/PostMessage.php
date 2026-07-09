@@ -4,6 +4,7 @@ namespace App\Actions\Channels;
 
 use App\Data\MessageData;
 use App\Events\MessageSent;
+use App\Events\MessageUpdated;
 use App\Models\Channel;
 use App\Models\Message;
 use App\Models\User;
@@ -21,14 +22,22 @@ class PostMessage
      * path side-effect free.
      *
      * When `$replyToId` is set the message renders as an inline quote of that
-     * parent; the request layer has already checked it points at a live message
-     * in the same channel.
+     * parent. When `$threadRootId` is set the message is a thread reply: it stays
+     * out of the main timeline unless `$sentToChannel` is true, and it bumps the
+     * root's denormalized reply count / last-reply time. The request layer has
+     * already checked both references point at live messages in this channel.
      */
-    public function handle(Channel $channel, User $author, string $body, string $clientUuid, ?string $replyToId = null): Message
+    public function handle(Channel $channel, User $author, string $body, string $clientUuid, ?string $replyToId = null, ?string $threadRootId = null, bool $sentToChannel = false): Message
     {
         $message = $channel->messages()->firstOrCreate(
             ['client_uuid' => $clientUuid],
-            ['user_id' => $author->id, 'body' => $body, 'reply_to_id' => $replyToId],
+            [
+                'user_id' => $author->id,
+                'body' => $body,
+                'reply_to_id' => $replyToId,
+                'thread_root_id' => $threadRootId,
+                'sent_to_channel' => $threadRootId !== null && $sentToChannel,
+            ],
         );
 
         if ($message->wasRecentlyCreated) {
@@ -36,8 +45,25 @@ class PostMessage
             $message->setRelation('user', $author);
             $message->load(['mentionedUsers', 'replyTo.user', 'replyTo.mentionedUsers']);
             MessageSent::dispatch($channel, MessageData::fromMessage($message));
+
+            if ($threadRootId !== null) {
+                $this->bumpThreadRoot($channel, $threadRootId);
+            }
         }
 
         return $message;
+    }
+
+    /**
+     * Advance the root's reply aggregates and broadcast the fresh count so open
+     * timelines patch the root's "N replies" affordance live.
+     */
+    private function bumpThreadRoot(Channel $channel, string $threadRootId): void
+    {
+        $root = $channel->messages()->withTrashed()->findOrFail($threadRootId);
+        $root->forceFill(['reply_count' => $root->reply_count + 1, 'last_reply_at' => now()])->save();
+
+        $root->load(['user', 'mentionedUsers', 'replyTo.user', 'replyTo.mentionedUsers', 'threadParticipants']);
+        MessageUpdated::dispatch($channel, MessageData::fromMessage($root));
     }
 }

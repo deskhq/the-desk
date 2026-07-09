@@ -25,6 +25,7 @@ class PostMessageRequest extends FormRequest
     {
         $this->merge([
             'body' => trim((string) $this->input('body')),
+            'sent_to_channel' => $this->boolean('sent_to_channel'),
         ]);
     }
 
@@ -48,6 +49,20 @@ class PostMessageRequest extends FormRequest
                     ->where('channel_id', $this->channel()->id)
                     ->whereNull('deleted_at'),
             ],
+            // A thread reply must target a live root message in this same
+            // channel. Requiring the target's own thread_root_id to be null keeps
+            // threads one level deep — you reply to a root, never to a reply.
+            'thread_root_id' => [
+                'nullable',
+                'uuid',
+                Rule::exists('messages', 'id')
+                    ->where('channel_id', $this->channel()->id)
+                    ->whereNull('deleted_at')
+                    ->whereNull('thread_root_id'),
+            ],
+            // Only meaningful alongside thread_root_id; surfaces the reply in the
+            // main timeline in addition to the thread.
+            'sent_to_channel' => ['boolean'],
         ];
     }
 

@@ -35,6 +35,27 @@ export type Message = {
     isDeleted: boolean;
     mentions: Mention[];
     replyTo: MessageReply | null;
+    /**
+     * Threading fields (mirror the `MessageData` DTO). `threadRootId` is set on a
+     * thread reply and names its root; null on a root/normal message. The
+     * `thread*` aggregates are populated on a root so the timeline can render its
+     * "N replies" affordance, and survive a soft delete. `sentToChannel` marks a
+     * reply that was also surfaced in the main timeline.
+     */
+    threadRootId: string | null;
+    sentToChannel: boolean;
+    threadReplyCount: number;
+    threadLastReplyAt: string | null;
+    threadParticipants: Mention[];
+};
+
+/**
+ * An open thread: its root message plus every reply (oldest first, tombstones
+ * included). Mirrors the `thread` prop the channel page loads on demand.
+ */
+export type Thread = {
+    root: Message;
+    replies: Message[];
 };
 
 /**
