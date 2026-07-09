@@ -13,8 +13,12 @@ class VerifyEmailResponse implements VerifyEmailResponseContract
 
     public function toResponse($request): Response
     {
-        return $request->wantsJson()
-            ? new JsonResponse('', 204)
-            : redirect()->intended($this->redirectPathForCurrentTeam($request).'?verified=1');
+        if ($request->wantsJson()) {
+            return new JsonResponse('', 204);
+        }
+
+        $this->forgetUnreachableIntendedUrl($request);
+
+        return redirect()->intended($this->redirectPathForCurrentTeam($request).'?verified=1');
     }
 }

@@ -13,8 +13,12 @@ class RegisterResponse implements RegisterResponseContract
 
     public function toResponse($request): Response
     {
-        return $request->wantsJson()
-            ? new JsonResponse(['two_factor' => false], 201)
-            : redirect()->intended($this->redirectPathForCurrentTeam($request));
+        if ($request->wantsJson()) {
+            return new JsonResponse(['two_factor' => false], 201);
+        }
+
+        $this->forgetUnreachableIntendedUrl($request);
+
+        return redirect()->intended($this->redirectPathForCurrentTeam($request));
     }
 }
