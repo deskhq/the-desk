@@ -212,6 +212,12 @@ Vue components must have a single root element.
 
 <!-- Custom project guidance below is preserved across `boost:update` runs. -->
 
+## Frontend Tooling (run through Sail)
+
+- **Always run Node/npm tooling through Sail** — `./vendor/bin/sail npm run <script>`, never bare `npm` on the host. `node_modules` is installed inside the Linux container, so its native bindings (`@unrs/resolver-*`, `@rolldown/binding-*`) are Linux-only. Running `npm run build`, `lint`, etc. directly on macOS fails with `Cannot find native binding` (the npm optional-dependencies bug); Sail runs them in the matching Linux environment where the bindings exist.
+- `vue-tsc` (`npm run types:check`) doesn't use those native bindings, so it can run on the host, but prefer Sail for consistency.
+- The frontend quality gate is `./vendor/bin/sail npm run lint:check`, `format:check`, `types:check`, and `build` — all four must pass before pushing. Use `sail npm run lint` / `format` (the write variants) to auto-fix violations.
+
 ## Code Coverage
 
 - **100% code coverage is required — this is non-negotiable.** The test suite is gated at `--min=100` (see the `test` script in `composer.json`), so any line left uncovered fails the build.

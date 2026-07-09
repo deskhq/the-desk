@@ -83,6 +83,9 @@ jobs:
       - name: Build Assets
         run: npm run build
 
+      - name: Check Frontend Types
+        run: npm run types:check
+
       - name: Run Type Analysis
         run: composer types:check
 
