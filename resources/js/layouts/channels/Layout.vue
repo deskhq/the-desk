@@ -40,6 +40,7 @@ import { adjacentSlug } from '@/composables/keyboardShortcuts';
 import { useChimeNotifications } from '@/composables/useChimeNotifications';
 import { useInitials } from '@/composables/useInitials';
 import { useKeyboardShortcuts } from '@/composables/useKeyboardShortcuts';
+import { useKeyboardShortcutsModal } from '@/composables/useKeyboardShortcutsModal';
 import { useSidebarBadges } from '@/composables/useSidebarBadges';
 import { useTeamSwitch } from '@/composables/useTeamSwitch';
 
@@ -65,7 +66,8 @@ const { getInitials } = useInitials();
 const { switchTeam } = useTeamSwitch();
 
 const quickSwitcherOpen = ref(false);
-const shortcutsOpen = ref(false);
+const { isOpen: shortcutsOpen, toggle: toggleShortcuts } =
+    useKeyboardShortcutsModal();
 
 /**
  * Jump `delta` channels along the sidebar list from the active one, wrapping at
@@ -92,7 +94,7 @@ useKeyboardShortcuts({
         (quickSwitcherOpen.value = !quickSwitcherOpen.value),
     'previous-channel': () => moveChannel(-1),
     'next-channel': () => moveChannel(1),
-    'show-shortcuts': () => (shortcutsOpen.value = !shortcutsOpen.value),
+    'show-shortcuts': () => toggleShortcuts(),
 });
 
 onMounted(() => {
