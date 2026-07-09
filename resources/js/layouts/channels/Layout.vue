@@ -1,12 +1,13 @@
 <script setup lang="ts">
 import { Link, router, usePage } from '@inertiajs/vue3';
-import { MessageSquareText, Plus, Search } from '@lucide/vue';
+import { MessageSquareText, MessagesSquare, Plus, Search } from '@lucide/vue';
 import { computed, onMounted } from 'vue';
 import {
     browse,
     show,
 } from '@/actions/App/Http/Controllers/Channels/ChannelController';
 import { index as searchMessages } from '@/actions/App/Http/Controllers/Channels/SearchController';
+import { index as threadsInbox } from '@/actions/App/Http/Controllers/Channels/ThreadsController';
 import CreateChannelModal from '@/components/CreateChannelModal.vue';
 import CreateTeamModal from '@/components/CreateTeamModal.vue';
 import NavUser from '@/components/NavUser.vue';
@@ -54,6 +55,7 @@ const activeChannelSlug = computed(
     () => (page.props.channel as { slug?: string } | undefined)?.slug ?? null,
 );
 const pendingInvitations = computed(() => page.props.pendingInvitations ?? []);
+const hasUnreadThreads = computed(() => page.props.hasUnreadThreads ?? false);
 
 const { getInitials } = useInitials();
 const { switchTeam } = useTeamSwitch();
@@ -235,6 +237,33 @@ onMounted(() => {
                                         <SidebarMenuButton
                                             as-child
                                             class="mt-1.5 h-[30px] gap-1.5 rounded-md px-2 text-[13px] text-muted-foreground hover:bg-sidebar-accent/60"
+                                        >
+                                            <Link
+                                                v-if="currentTeam"
+                                                :href="
+                                                    threadsInbox(
+                                                        currentTeam.slug,
+                                                    ).url
+                                                "
+                                                data-test="threads-inbox"
+                                            >
+                                                <MessagesSquare
+                                                    class="size-[13px]"
+                                                />
+                                                <span>Threads</span>
+                                                <span
+                                                    v-if="hasUnreadThreads"
+                                                    data-test="threads-unread-dot"
+                                                    aria-hidden="true"
+                                                    class="ml-auto size-1.5 rounded-full bg-primary"
+                                                />
+                                            </Link>
+                                        </SidebarMenuButton>
+                                    </SidebarMenuItem>
+                                    <SidebarMenuItem>
+                                        <SidebarMenuButton
+                                            as-child
+                                            class="h-[30px] gap-1.5 rounded-md px-2 text-[13px] text-muted-foreground hover:bg-sidebar-accent/60"
                                         >
                                             <Link
                                                 v-if="currentTeam"

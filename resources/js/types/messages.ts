@@ -89,3 +89,25 @@ export type MessageSearchResult = {
     channelName: string;
     channelSlug: string;
 };
+
+/**
+ * A row in the Threads inbox. Mirrors the `ThreadInboxItemData` DTO: a followed
+ * thread's root message (carrying its reply count, participants, and per-viewer
+ * `threadUnread` state) plus the channel it lives in, for rendering the row and
+ * its jump-to-thread link.
+ */
+export type ThreadInboxItem = {
+    root: Message;
+    channelName: string;
+    channelSlug: string;
+};
+
+/**
+ * The paginated shape delivered by `Inertia::scroll()` for the Threads inbox.
+ * `data` arrives newest-activity first; older threads page in on scroll.
+ */
+export type ThreadInboxPage = {
+    data: ThreadInboxItem[];
+    next_cursor: string | null;
+    prev_cursor: string | null;
+};

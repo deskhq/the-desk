@@ -5,6 +5,7 @@ use App\Http\Controllers\Channels\ChannelMemberController;
 use App\Http\Controllers\Channels\ChannelPreferenceController;
 use App\Http\Controllers\Channels\MessageController;
 use App\Http\Controllers\Channels\SearchController;
+use App\Http\Controllers\Channels\ThreadsController;
 use App\Http\Controllers\Teams\TeamInvitationController;
 use App\Http\Middleware\EnsureTeamMembership;
 use Illuminate\Support\Facades\Route;
@@ -16,6 +17,7 @@ Route::middleware(['auth', 'verified', EnsureTeamMembership::class])->group(func
     Route::post('t/{team}/channels', [ChannelController::class, 'store'])->name('channels.store');
     Route::get('t/{team}/channels/browse', [ChannelController::class, 'browse'])->name('channels.browse');
     Route::get('t/{team}/search', [SearchController::class, 'index'])->name('search');
+    Route::get('t/{team}/threads', [ThreadsController::class, 'index'])->name('channels.threads.index');
     Route::get('t/{team}/c/{channel}', [ChannelController::class, 'show'])
         ->scopeBindings()
         ->name('channels.show');

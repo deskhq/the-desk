@@ -17,7 +17,6 @@ use App\Http\Requests\Channels\CreateChannelRequest;
 use App\Models\Channel;
 use App\Models\Message;
 use App\Models\Team;
-use App\Models\User;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -90,13 +89,6 @@ class ChannelController extends Controller
         $channel->setAttribute('muted', $membership->muted ?? false);
         $channel->setAttribute('notification_level', $membership?->notification_level->value ?? NotificationLevel::All->value);
 
-        // Thread-unread dots follow the same suppression as the sidebar's unread
-        // badge: a muted channel or a level below "all" silences them. `thread_*`
-        // annotations still compute follow state so the client can derive live
-        // dots, but the unread flag is forced off when dots are suppressed.
-        $showThreadDots = ! ($membership->muted ?? false)
-            && ($membership->notification_level ?? NotificationLevel::All)->alertsOnUnread();
-
         // When arriving from a search result the URL carries the target message
         // id. If it belongs to this channel, cap the initial window a few messages
         // above the target so it loads with context on both sides; the client
@@ -136,7 +128,7 @@ class ChannelController extends Controller
             // query param, or null for a normal visit. The client opens a thread
             // with a partial reload of just this prop; on a full visit the closure
             // returns null cheaply when no thread is requested.
-            'thread' => fn () => $this->threadPayload($request, $channel, $showThreadDots),
+            'thread' => fn () => $this->threadPayload($request, $channel),
             // Team members feed the composer's @mention autocomplete; mentions are
             // scoped to the team, never limited to the current channel's members.
             'members' => UserData::collect($team->members()->orderBy('name')->get()),
@@ -144,11 +136,8 @@ class ChannelController extends Controller
             // scrolling up appends older pages and the client reverses for display.
             // Deleted rows are kept (withTrashed) so the client can render a
             // "message deleted" tombstone in place; MessageData blanks their body.
-            'messages' => Inertia::scroll(fn () => $this->withThreadReadState(
-                $this->mainTimeline($channel->messages()->withTrashed()->getQuery()),
-                $request->user(),
-                $showThreadDots,
-            )
+            'messages' => Inertia::scroll(fn () => $this->mainTimeline($channel->messages()->withTrashed()->getQuery())
+                ->withThreadReadState($request->user())
                 ->with(['user', 'mentionedUsers', 'replyTo.user', 'replyTo.mentionedUsers', 'threadParticipants'])
                 ->when($windowCeilingId, fn (Builder $query) => $query->where('id', '<=', $windowCeilingId))
                 ->orderByDesc('id')
@@ -167,7 +156,7 @@ class ChannelController extends Controller
      *
      * @return array{root: MessageData, replies: array<int, MessageData>}|null
      */
-    private function threadPayload(Request $request, Channel $channel, bool $showThreadDots): ?array
+    private function threadPayload(Request $request, Channel $channel): ?array
     {
         $rootId = $request->query('thread');
 
@@ -175,11 +164,9 @@ class ChannelController extends Controller
             return null;
         }
 
-        $root = $this->withThreadReadState(
-            $channel->messages()->whereNull('thread_root_id')->getQuery(),
-            $request->user(),
-            $showThreadDots,
-        )
+        $root = $channel->messages()
+            ->whereNull('thread_root_id')
+            ->withThreadReadState($request->user())
             ->with(['user', 'mentionedUsers', 'replyTo.user', 'replyTo.mentionedUsers', 'threadParticipants'])
             ->find($rootId);
 
@@ -298,61 +285,6 @@ class ChannelController extends Controller
     private function mainTimeline(Builder $query): Builder
     {
         return $query->where(fn (Builder $inner) => $inner->whereNull('thread_root_id')->orWhere('sent_to_channel', true));
-    }
-
-    /**
-     * Annotate each row with the viewer's per-thread follow and unread state.
-     *
-     * `thread_followed` mirrors the Slack-style auto-follow rule: the user
-     * follows a thread when they authored its root, replied in it, or were
-     *
-     * @mentioned anywhere in it. `thread_has_unread` is whether a followed
-     * thread holds a live reply by someone else that lands after the viewer's
-     * `thread_reads` pointer (a null pointer means the thread was never opened,
-     * so every reply counts). Both are correlated on the outer `messages.id`
-     * treated as a root, so a single query fills the page without an N+1.
-     *
-     * `MessageData` combines the two into the client's `threadUnread` flag. When
-     * dots are suppressed (muted channel / quieted level) the unread column is a
-     * constant zero so no dot ever shows, while follow state stays accurate.
-     *
-     * @param  Builder<Message>  $query
-     * @return Builder<Message>
-     */
-    private function withThreadReadState(Builder $query, User $user, bool $showUnread): Builder
-    {
-        $query->addSelect('messages.*')->selectRaw(
-            '(exists (
-                select 1 from messages tm
-                where (tm.id = messages.id or tm.thread_root_id = messages.id)
-                  and (
-                      tm.user_id = ?
-                      or exists (
-                          select 1 from mentions mn
-                          where mn.message_id = tm.id and mn.mentioned_user_id = ?
-                      )
-                  )
-            ))::int as thread_followed',
-            [$user->id, $user->id],
-        );
-
-        if ($showUnread) {
-            $query->selectRaw(
-                '(exists (
-                    select 1 from messages r
-                    left join thread_reads tr on tr.thread_root_id = messages.id and tr.user_id = ?
-                    where r.thread_root_id = messages.id
-                      and r.deleted_at is null
-                      and r.user_id <> ?
-                      and (tr.last_read_reply_id is null or r.id > tr.last_read_reply_id)
-                ))::int as thread_has_unread',
-                [$user->id, $user->id],
-            );
-        } else {
-            $query->selectRaw('0 as thread_has_unread');
-        }
-
-        return $query;
     }
 
     /**
