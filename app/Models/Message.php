@@ -2,8 +2,11 @@
 
 namespace App\Models;
 
+use App\Data\MessageData;
+use App\Enums\NotificationLevel;
 use Database\Factories\MessageFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -128,6 +131,81 @@ class Message extends Model
     {
         return $this->belongsToMany(User::class, 'mentions', 'message_id', 'mentioned_user_id')
             ->withTimestamps();
+    }
+
+    /**
+     * Correlated SQL (on the outer `messages.id` treated as a root) telling
+     * whether a user follows the thread: they authored the root, replied in it,
+     * or were @mentioned anywhere in it — the Slack-style auto-follow rule.
+     * Binds the user id twice.
+     */
+    private const THREAD_FOLLOWED_SQL = '(exists (
+        select 1 from messages tm
+        where (tm.id = messages.id or tm.thread_root_id = messages.id)
+          and (
+              tm.user_id = ?
+              or exists (select 1 from mentions mn where mn.message_id = tm.id and mn.mentioned_user_id = ?)
+          )
+    ))';
+
+    /**
+     * Correlated SQL telling whether the thread holds an unread reply for a user:
+     * a live reply by someone else after their `thread_reads` pointer (a null
+     * pointer means the thread was never opened, so every reply counts). Suppressed
+     * to false when the user has muted or quieted (level below "all") the root's
+     * channel, mirroring the sidebar's unread-badge suppression so a cross-channel
+     * query gets per-channel muting for free. Binds the user id three times, then
+     * the "all" notification level.
+     */
+    private const THREAD_HAS_UNREAD_SQL = '(exists (
+        select 1 from messages r
+        left join thread_reads tr on tr.thread_root_id = messages.id and tr.user_id = ?
+        where r.thread_root_id = messages.id
+          and r.deleted_at is null
+          and r.user_id <> ?
+          and (tr.last_read_reply_id is null or r.id > tr.last_read_reply_id)
+    ) and not exists (
+        select 1 from channel_members cm
+        where cm.channel_id = messages.channel_id and cm.user_id = ?
+          and (cm.muted = true or cm.notification_level <> ?)
+    ))';
+
+    /**
+     * Annotate root messages with the viewer's per-thread follow and unread state
+     * (`thread_followed` / `thread_has_unread`), which {@see MessageData}
+     * reads. Correlated per outer row, so one query fills a page without an N+1.
+     *
+     * @param  Builder<Message>  $query
+     */
+    public function scopeWithThreadReadState(Builder $query, User $user): void
+    {
+        $query->addSelect('messages.*')
+            ->selectRaw(self::THREAD_FOLLOWED_SQL.'::int as thread_followed', [$user->id, $user->id])
+            ->selectRaw(self::THREAD_HAS_UNREAD_SQL.'::int as thread_has_unread', [$user->id, $user->id, $user->id, NotificationLevel::All->value]);
+    }
+
+    /**
+     * Constrain a root query to the threads a user follows (authored the root,
+     * replied, or was @mentioned in the root or a reply). Reuses the same
+     * {@see self::THREAD_FOLLOWED_SQL} the select annotation uses, so the inbox
+     * filter and the `thread_followed` column can never disagree.
+     *
+     * @param  Builder<Message>  $query
+     */
+    public function scopeFollowedBy(Builder $query, User $user): void
+    {
+        $query->whereRaw(self::THREAD_FOLLOWED_SQL, [$user->id, $user->id]);
+    }
+
+    /**
+     * Constrain a root query to threads that hold an unread reply for the user,
+     * with the same mute/level suppression as {@see self::THREAD_HAS_UNREAD_SQL}.
+     *
+     * @param  Builder<Message>  $query
+     */
+    public function scopeWhereThreadUnreadFor(Builder $query, User $user): void
+    {
+        $query->whereRaw(self::THREAD_HAS_UNREAD_SQL, [$user->id, $user->id, $user->id, NotificationLevel::All->value]);
     }
 
     /**

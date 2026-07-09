@@ -55,8 +55,9 @@ export function useSidebarBadges(): void {
 
         refreshTimer = setTimeout(() => {
             // reload defaults to preserving scroll and page state; it re-evaluates
-            // only the shared `channels` prop to recompute every badge count.
-            router.reload({ only: ['channels'] });
+            // the shared `channels` prop to recompute every badge count, plus the
+            // aggregate `hasUnreadThreads` flag behind the sidebar's Threads dot.
+            router.reload({ only: ['channels', 'hasUnreadThreads'] });
         }, REFRESH_DEBOUNCE_MS);
     }
 

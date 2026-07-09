@@ -54,6 +54,7 @@ class HandleInertiaRequests extends Middleware
             'currentTeam' => fn () => $user?->currentTeam ? $user->toUserTeam($user->currentTeam) : null,
             'teams' => fn () => $user?->toUserTeams(includeCurrent: true) ?? [],
             'channels' => fn () => $this->channelsForSidebar($request, $user),
+            'hasUnreadThreads' => fn () => $this->hasUnreadThreads($request, $user),
             'pendingInvitations' => Inertia::optional(fn () => $user ? $this->pendingInvitationsFor($user) : []),
         ];
     }
@@ -86,6 +87,35 @@ class HandleInertiaRequests extends Middleware
             ->get();
 
         return ChannelData::collect($channels, 'array');
+    }
+
+    /**
+     * Whether the user has any unread followed thread in the team, driving the
+     * sidebar's "Threads" unread dot.
+     *
+     * Scoped to the user's channels in the team (the same ACL as the inbox), and
+     * muted per channel, so it agrees with the dots the inbox and channel views
+     * show. Returns false off the channel workspace, where the sidebar is absent.
+     */
+    protected function hasUnreadThreads(Request $request, ?User $user): bool
+    {
+        $team = $request->route('team');
+
+        if (! $user || ! $team instanceof Team || ! $request->routeIs('channels.*')) {
+            return false;
+        }
+
+        $channelIds = $user->channels()
+            ->where('channels.team_id', $team->id)
+            ->pluck('channels.id');
+
+        return Message::query()
+            ->whereIn('channel_id', $channelIds)
+            ->whereNull('thread_root_id')
+            ->where('reply_count', '>', 0)
+            ->followedBy($user)
+            ->whereThreadUnreadFor($user)
+            ->exists();
     }
 
     /**
