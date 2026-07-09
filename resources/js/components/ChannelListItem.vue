@@ -1,17 +1,43 @@
 <script setup lang="ts">
 import { Link, router } from '@inertiajs/vue3';
-import { Pencil, Star } from '@lucide/vue';
+import { GripVertical, MoreVertical, Pencil, Star } from '@lucide/vue';
+import { ref } from 'vue';
 import { toast } from 'vue-sonner';
 import { show } from '@/actions/App/Http/Controllers/Channels/ChannelController';
 import { update as updateChannelStar } from '@/actions/App/Http/Controllers/Channels/ChannelStarController';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuLabel,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { SidebarMenuButton, SidebarMenuItem } from '@/components/ui/sidebar';
-import type { Channel } from '@/types/channels';
+import type { Channel, ChannelSection } from '@/types/channels';
 
 const props = defineProps<{
     channel: Channel;
     teamSlug: string;
     activeChannelSlug: string | null;
+    /** The user's custom sections, offered as move targets in the kebab menu. */
+    sections?: ChannelSection[];
+    /** The section this row currently renders in (null for the default group). */
+    currentSectionId?: string | null;
 }>();
+
+/**
+ * Ask the parent to file this channel under a different section (null moves it
+ * back to the default "Channels" group). The parent owns the placement request
+ * because it knows the target group's full order.
+ */
+const emit = defineEmits<{
+    move: [sectionId: string | null];
+}>();
+
+// Keep the hover controls visible while the move menu is open, so a click on a
+// menu item doesn't dismiss the row's actions mid-interaction.
+const menuOpen = ref(false);
 
 /**
  * Star or unstar the channel, reloading only the shared `channels` prop so the
@@ -37,7 +63,7 @@ function toggleStar(): void {
 </script>
 
 <template>
-    <SidebarMenuItem>
+    <SidebarMenuItem class="group/row relative">
         <SidebarMenuButton
             as-child
             :is-active="channel.slug === activeChannelSlug"
@@ -127,5 +153,59 @@ function toggleStar(): void {
                 :class="channel.starred ? 'fill-current' : ''"
             />
         </button>
+        <!-- Hover controls on the right: a drag handle (the SortableJS handle for
+             reordering rows) and a kebab menu to file the channel under a custom
+             section. Revealed on hover or focus, and pinned open while the menu
+             is; a solid background masks any unread badge underneath. -->
+        <div
+            class="absolute top-1/2 right-1 z-10 flex -translate-y-1/2 items-center gap-0.5 rounded-md bg-sidebar pl-1 opacity-0 transition group-hover/row:opacity-100 group-data-[active=true]/row:bg-sidebar-accent focus-within:opacity-100"
+            :class="menuOpen ? 'opacity-100' : ''"
+        >
+            <button
+                type="button"
+                :data-test="`channel-drag-handle-${channel.slug}`"
+                :aria-label="`Reorder ${channel.name}`"
+                title="Drag to reorder"
+                class="channel-drag-handle flex size-5 cursor-grab items-center justify-center rounded text-muted-foreground/60 transition hover:text-sidebar-foreground active:cursor-grabbing"
+            >
+                <GripVertical class="size-3.5" />
+            </button>
+            <DropdownMenu
+                v-if="(sections?.length ?? 0) > 0"
+                v-model:open="menuOpen"
+            >
+                <DropdownMenuTrigger as-child>
+                    <button
+                        type="button"
+                        :data-test="`channel-menu-${channel.slug}`"
+                        :aria-label="`Channel options for ${channel.name}`"
+                        title="More options"
+                        class="flex size-5 items-center justify-center rounded text-muted-foreground/60 transition hover:text-sidebar-foreground data-[state=open]:text-sidebar-foreground"
+                    >
+                        <MoreVertical class="size-3.5" />
+                    </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" class="w-52">
+                    <DropdownMenuLabel>Move to</DropdownMenuLabel>
+                    <DropdownMenuItem
+                        v-for="section in sections"
+                        :key="section.id"
+                        :disabled="section.id === (currentSectionId ?? null)"
+                        :data-test="`move-to-${section.id}`"
+                        @select="emit('move', section.id)"
+                    >
+                        <span class="truncate">{{ section.name }}</span>
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                        :disabled="(currentSectionId ?? null) === null"
+                        data-test="move-to-default"
+                        @select="emit('move', null)"
+                    >
+                        Channels
+                    </DropdownMenuItem>
+                </DropdownMenuContent>
+            </DropdownMenu>
+        </div>
     </SidebarMenuItem>
 </template>

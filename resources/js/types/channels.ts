@@ -25,4 +25,19 @@ export type Channel = {
     // Whether the viewer has starred (favorited) this channel, pinning it to the
     // sidebar's "Starred" section.
     starred: boolean;
+    // The custom section the viewer has filed this channel under, or null for the
+    // default "Channels" group. Starred channels render in "Starred" regardless.
+    sectionId: string | null;
+    // The channel's manual order within whichever sidebar group it renders in;
+    // ties fall back to the alphabetical order the server applies.
+    position: number;
+};
+
+// A user-created sidebar section, rendered between "Starred" and the default
+// "Channels" group. Mirrors `App\Data\ChannelSectionData`.
+export type ChannelSection = {
+    id: string;
+    name: string;
+    position: number;
+    collapsed: boolean;
 };

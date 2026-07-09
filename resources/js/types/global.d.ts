@@ -1,5 +1,5 @@
 import type { Auth } from '@/types/auth';
-import type { Channel } from '@/types/channels';
+import type { Channel, ChannelSection } from '@/types/channels';
 import type { DashboardInvitation, Team } from '@/types/teams';
 
 // Extend ImportMeta interface for Vite...
@@ -24,6 +24,7 @@ declare module '@inertiajs/core' {
             currentTeam: Team | null;
             teams: Team[];
             channels?: Channel[];
+            channelSections?: ChannelSection[];
             collapsedChannelSections?: string[];
             hasUnreadThreads?: boolean;
             pendingInvitations?: DashboardInvitation[];

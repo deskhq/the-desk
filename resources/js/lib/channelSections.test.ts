@@ -3,7 +3,7 @@ import {
     partitionChannels,
     toggleCollapsedSection,
 } from '@/lib/channelSections';
-import type { Channel } from '@/types/channels';
+import type { Channel, ChannelSection } from '@/types/channels';
 
 /**
  * A minimal channel with only the fields the section helpers read; `starred`
@@ -25,6 +25,19 @@ function channel(overrides: Partial<Channel> = {}): Channel {
         hasDraft: false,
         draft: null,
         starred: false,
+        sectionId: null,
+        position: 0,
+        ...overrides,
+    };
+}
+
+/** A minimal custom section. */
+function section(overrides: Partial<ChannelSection> = {}): ChannelSection {
+    return {
+        id: overrides.id ?? 'section',
+        name: overrides.name ?? 'Section',
+        position: 0,
+        collapsed: false,
         ...overrides,
     };
 }
@@ -54,17 +67,73 @@ describe('partitionChannels', () => {
     });
 
     it('returns empty groups for an empty list', () => {
-        expect(partitionChannels([])).toEqual({ starred: [], others: [] });
+        expect(partitionChannels([])).toEqual({
+            starred: [],
+            custom: [],
+            others: [],
+        });
     });
 
-    it('puts everything in others when nothing is starred', () => {
-        const { starred, others } = partitionChannels([
+    it('puts everything in others when nothing is starred or assigned', () => {
+        const { starred, custom, others } = partitionChannels([
             channel({ slug: 'a' }),
             channel({ slug: 'b' }),
         ]);
 
         expect(starred).toEqual([]);
+        expect(custom).toEqual([]);
         expect(others.map((c) => c.slug)).toEqual(['a', 'b']);
+    });
+
+    it('files assigned channels under their custom section', () => {
+        const projects = section({ id: 's1', name: 'Projects' });
+        const clients = section({ id: 's2', name: 'Clients', position: 1 });
+
+        const { custom, others } = partitionChannels(
+            [
+                channel({ slug: 'api', sectionId: 's1' }),
+                channel({ slug: 'random' }),
+                channel({ slug: 'acme', sectionId: 's2' }),
+            ],
+            [projects, clients],
+        );
+
+        expect(custom.map((g) => g.section.name)).toEqual([
+            'Projects',
+            'Clients',
+        ]);
+        expect(custom[0].channels.map((c) => c.slug)).toEqual(['api']);
+        expect(custom[1].channels.map((c) => c.slug)).toEqual(['acme']);
+        expect(others.map((c) => c.slug)).toEqual(['random']);
+    });
+
+    it('keeps starred channels in Starred even when assigned to a section', () => {
+        const projects = section({ id: 's1', name: 'Projects' });
+
+        const { starred, custom } = partitionChannels(
+            [channel({ slug: 'api', sectionId: 's1', starred: true })],
+            [projects],
+        );
+
+        expect(starred.map((c) => c.slug)).toEqual(['api']);
+        expect(custom[0].channels).toEqual([]);
+    });
+
+    it('falls back to others when the assigned section no longer exists', () => {
+        const { custom, others } = partitionChannels(
+            [channel({ slug: 'orphan', sectionId: 'gone' })],
+            [section({ id: 's1' })],
+        );
+
+        expect(custom[0].channels).toEqual([]);
+        expect(others.map((c) => c.slug)).toEqual(['orphan']);
+    });
+
+    it('renders an empty custom section with no channels', () => {
+        const { custom } = partitionChannels([], [section({ id: 's1' })]);
+
+        expect(custom).toHaveLength(1);
+        expect(custom[0].channels).toEqual([]);
     });
 });
 

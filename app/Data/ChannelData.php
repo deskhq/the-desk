@@ -25,6 +25,8 @@ class ChannelData extends Data
         public bool $hasDraft = false,
         public ?string $draft = null,
         public bool $starred = false,
+        public ?string $sectionId = null,
+        public int $position = 0,
     ) {}
 
     /**
@@ -47,6 +49,10 @@ class ChannelData extends Data
      *
      * `starred` is the viewer's own favorite flag, driving whether the channel is
      * pinned to the sidebar's "Starred" section.
+     *
+     * `sectionId` is the custom section the viewer has filed the channel under
+     * (null for the default "Channels" group), and `position` is its manual order
+     * within whichever group it renders in.
      */
     public static function fromChannel(Channel $channel): self
     {
@@ -65,6 +71,11 @@ class ChannelData extends Data
 
         $starred = (bool) ($channel->getAttribute('starred') ?? false);
 
+        $sectionId = $channel->getAttribute('section_id');
+        $sectionId = is_string($sectionId) ? $sectionId : null;
+
+        $position = (int) ($channel->getAttribute('position') ?? 0);
+
         return new self(
             id: $channel->id,
             name: $channel->name,
@@ -80,6 +91,8 @@ class ChannelData extends Data
             hasDraft: $hasDraft,
             draft: $draft,
             starred: $starred,
+            sectionId: $sectionId,
+            position: $position,
         );
     }
 }
