@@ -335,6 +335,14 @@ function onKeydown(event: KeyboardEvent): void {
                     rows="1"
                     :placeholder="composerPlaceholder"
                     data-test="message-composer-input"
+                    autocomplete="off"
+                    autocorrect="off"
+                    autocapitalize="sentences"
+                    spellcheck="true"
+                    data-1p-ignore
+                    data-lpignore="true"
+                    data-bwignore
+                    data-form-type="other"
                     class="max-h-[200px] w-full resize-none bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground/70"
                     @input="(resize(), refreshSuggestions(), emit('typing'))"
                     @click="refreshSuggestions"
