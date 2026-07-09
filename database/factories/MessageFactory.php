@@ -47,4 +47,28 @@ class MessageFactory extends Factory
             'reply_to_id' => $parent->id,
         ]);
     }
+
+    /**
+     * Indicate that the message is a reply in another message's thread.
+     *
+     * The reply inherits the root's channel so it stays consistent with the
+     * one-channel-per-thread rule the request layer enforces.
+     */
+    public function inThread(Message $root): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'thread_root_id' => $root->id,
+            'channel_id' => $root->channel_id,
+        ]);
+    }
+
+    /**
+     * Indicate that the thread reply is also surfaced in the main timeline.
+     */
+    public function sentToChannel(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'sent_to_channel' => true,
+        ]);
+    }
 }

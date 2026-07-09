@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Carbon;
 use Laravel\Scout\Searchable;
@@ -20,6 +21,10 @@ use Laravel\Scout\Searchable;
  * @property string $user_id
  * @property string $client_uuid
  * @property string|null $reply_to_id
+ * @property string|null $thread_root_id
+ * @property bool $sent_to_channel
+ * @property int $reply_count
+ * @property Carbon|null $last_reply_at
  * @property string $body
  * @property Carbon|null $edited_at
  * @property Carbon|null $deleted_at
@@ -28,13 +33,28 @@ use Laravel\Scout\Searchable;
  * @property-read Channel $channel
  * @property-read User $user
  * @property-read Message|null $replyTo
+ * @property-read Collection<int, Message> $threadReplies
+ * @property-read Collection<int, User> $threadParticipants
  * @property-read Collection<int, User> $mentionedUsers
  */
-#[Fillable(['channel_id', 'user_id', 'client_uuid', 'reply_to_id', 'body', 'edited_at'])]
+#[Fillable(['channel_id', 'user_id', 'client_uuid', 'reply_to_id', 'thread_root_id', 'sent_to_channel', 'body', 'edited_at'])]
 class Message extends Model
 {
     /** @use HasFactory<MessageFactory> */
     use HasFactory, HasUuids, Searchable, SoftDeletes;
+
+    /**
+     * The model's default attribute values.
+     *
+     * Mirrors the database defaults so a freshly created message carries its
+     * thread aggregates in memory (before any refresh) for the broadcast DTO.
+     *
+     * @var array<string, mixed>
+     */
+    protected $attributes = [
+        'sent_to_channel' => false,
+        'reply_count' => 0,
+    ];
 
     /**
      * Get the channel the message was posted to.
@@ -70,6 +90,33 @@ class Message extends Model
     }
 
     /**
+     * Get the replies posted into this message's thread.
+     *
+     * Only meaningful on a root message. Soft-deleted replies are excluded by
+     * the default scope; callers that render tombstones opt in with withTrashed.
+     *
+     * @return HasMany<Message, $this>
+     */
+    public function threadReplies(): HasMany
+    {
+        return $this->hasMany(Message::class, 'thread_root_id');
+    }
+
+    /**
+     * Get the distinct authors who have replied in this message's thread.
+     *
+     * Uses the `messages` table itself as the pivot (thread_root_id -> user_id),
+     * so a root's participant avatars can be eager-loaded without an N+1.
+     *
+     * @return BelongsToMany<User, $this>
+     */
+    public function threadParticipants(): BelongsToMany
+    {
+        return $this->belongsToMany(User::class, 'messages', 'thread_root_id', 'user_id')
+            ->distinct();
+    }
+
+    /**
      * Get the team members mentioned in this message.
      *
      * Backed by the `mentions` join table; the parser keeps these rows in sync
@@ -92,6 +139,9 @@ class Message extends Model
     {
         return [
             'edited_at' => 'datetime',
+            'last_reply_at' => 'datetime',
+            'sent_to_channel' => 'bool',
+            'reply_count' => 'int',
         ];
     }
 

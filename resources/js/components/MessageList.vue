@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { CornerUpLeft, Pencil, Trash2 } from '@lucide/vue';
+import { CornerUpLeft, MessageSquareText, Pencil, Trash2 } from '@lucide/vue';
 import { computed, nextTick, ref } from 'vue';
 import MessageQuote from '@/components/MessageQuote.vue';
 import { Button } from '@/components/ui/button';
@@ -14,7 +14,7 @@ import {
 } from '@/components/ui/dialog';
 import { useInitials } from '@/composables/useInitials';
 import { renderMessageBody } from '@/lib/messageBody';
-import type { Message, MessageAuthor } from '@/types';
+import type { Mention, Message, MessageAuthor } from '@/types';
 
 const props = defineProps<{
     messages: Message[];
@@ -23,14 +23,31 @@ const props = defineProps<{
     canModerate?: boolean;
     onlineIds?: Set<string>;
     highlightMessageId?: string | null;
+    // Rendered inside a thread panel: hides the per-message thread affordances
+    // (you're already in the thread), so the panel only shows the conversation.
+    inThread?: boolean;
+    // The root of the currently-open thread, highlighted in the main timeline.
+    activeThreadRootId?: string | null;
 }>();
 
 const emit = defineEmits<{
     edit: [message: Message, body: string];
     delete: [message: Message];
     reply: [message: Message];
+    openThread: [messageId: string];
     jump: [messageId: string];
 }>();
+
+// How many participant avatars to preview on a root's "N replies" affordance.
+const MAX_THREAD_AVATARS = 3;
+
+function threadAvatars(message: Message): Mention[] {
+    return message.threadParticipants.slice(0, MAX_THREAD_AVATARS);
+}
+
+function extraThreadParticipants(message: Message): number {
+    return Math.max(0, message.threadParticipants.length - MAX_THREAD_AVATARS);
+}
 
 const { getInitials } = useInitials();
 
@@ -163,9 +180,24 @@ function canDelete(message: Message): boolean {
 }
 
 // Anyone can reply to any live message; a pending or deleted row has no stable
-// target to quote yet.
+// target to quote yet. Inline quoting is a main-timeline affordance — inside a
+// thread the composer answers the root, so it's suppressed.
 function canReply(message: Message): boolean {
-    return !message.isDeleted && !isPending(message);
+    return !props.inThread && !message.isDeleted && !isPending(message);
+}
+
+// The hover "reply in thread" action shows on live root messages in the main
+// timeline (never on replies inside a panel, nor on messages already in a thread).
+function canStartThread(message: Message): boolean {
+    return (
+        !props.inThread && canReply(message) && message.threadRootId === null
+    );
+}
+
+// The "N replies" affordance shows on any root that has replies, even a deleted
+// one — the thread outlives its root as a tombstone.
+function showThreadSummary(message: Message): boolean {
+    return !props.inThread && message.threadReplyCount > 0;
 }
 
 // The message currently being edited inline, and its working draft.
@@ -283,6 +315,9 @@ function confirmDelete(): void {
                             message.id === props.highlightMessageId
                                 ? 'bg-primary/10'
                                 : '',
+                            message.id === props.activeThreadRootId
+                                ? 'bg-primary/5'
+                                : '',
                         ]"
                     >
                         <button
@@ -366,15 +401,72 @@ function confirmDelete(): void {
                             >
                         </p>
 
+                        <button
+                            v-if="showThreadSummary(message)"
+                            type="button"
+                            data-test="thread-summary"
+                            :aria-label="`View thread, ${message.threadReplyCount} ${message.threadReplyCount === 1 ? 'reply' : 'replies'}`"
+                            class="mt-1 flex items-center gap-2 rounded-md py-0.5 pr-2 text-left"
+                            @click="emit('openThread', message.id)"
+                        >
+                            <span class="flex -space-x-1">
+                                <span
+                                    v-for="participant in threadAvatars(
+                                        message,
+                                    )"
+                                    :key="participant.id"
+                                    class="flex size-5 items-center justify-center rounded-[6px] bg-primary/10 text-[9px] font-semibold text-primary ring-2 ring-background select-none"
+                                    aria-hidden="true"
+                                >
+                                    {{ getInitials(participant.name) }}
+                                </span>
+                                <span
+                                    v-if="extraThreadParticipants(message) > 0"
+                                    class="flex size-5 items-center justify-center rounded-[6px] bg-muted text-[9px] font-semibold text-muted-foreground ring-2 ring-background select-none"
+                                    aria-hidden="true"
+                                >
+                                    +{{ extraThreadParticipants(message) }}
+                                </span>
+                            </span>
+                            <span
+                                class="text-[12.5px] font-semibold text-primary hover:underline"
+                            >
+                                {{ message.threadReplyCount }}
+                                {{
+                                    message.threadReplyCount === 1
+                                        ? 'reply'
+                                        : 'replies'
+                                }}
+                            </span>
+                            <span
+                                v-if="message.threadLastReplyAt"
+                                class="text-[11.5px] text-muted-foreground"
+                            >
+                                Last reply
+                                {{ formatTime(message.threadLastReplyAt) }}
+                            </span>
+                        </button>
+
                         <div
                             v-if="
                                 editingId !== message.id &&
                                 (canReply(message) ||
+                                    canStartThread(message) ||
                                     canEdit(message) ||
                                     canDelete(message))
                             "
                             class="absolute -top-3 right-2 hidden items-center gap-0.5 rounded-md border border-border bg-background p-0.5 shadow-sm group-hover/message:flex"
                         >
+                            <button
+                                v-if="canStartThread(message)"
+                                type="button"
+                                data-test="message-thread"
+                                aria-label="Reply in thread"
+                                class="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
+                                @click="emit('openThread', message.id)"
+                            >
+                                <MessageSquareText class="size-3.5" />
+                            </button>
                             <button
                                 v-if="canReply(message)"
                                 type="button"

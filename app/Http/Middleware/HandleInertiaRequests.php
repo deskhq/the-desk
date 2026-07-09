@@ -76,7 +76,11 @@ class HandleInertiaRequests extends Middleware
             ->whereNull('channels.archived_at')
             ->select('channels.*')
             ->addSelect(['channel_members.muted', 'channel_members.notification_level'])
-            ->selectSub($this->unreadMessages($user), 'unread_count')
+            // Thread-only replies stay out of the plain unread badge (they live
+            // in the thread view), but a mention anywhere — including inside a
+            // thread — still badges the channel.
+            ->selectSub($this->unreadMessages($user)
+                ->where(fn (Builder $query) => $query->whereNull('messages.thread_root_id')->orWhere('messages.sent_to_channel', true)), 'unread_count')
             ->selectSub($this->unreadMessages($user)->whereHas('mentionedUsers', fn ($query) => $query->whereKey($user->id)), 'mention_count')
             ->orderBy('name')
             ->get();

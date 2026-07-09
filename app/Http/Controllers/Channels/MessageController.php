@@ -27,6 +27,8 @@ class MessageController extends Controller
             body: $request->validated('body'),
             clientUuid: $request->validated('client_uuid'),
             replyToId: $request->validated('reply_to_id'),
+            threadRootId: $request->validated('thread_root_id'),
+            sentToChannel: $request->boolean('sent_to_channel'),
         );
 
         return to_route('channels.show', ['team' => $team->slug, 'channel' => $channel->slug]);

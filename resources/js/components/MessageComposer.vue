@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ArrowUp, Plus, X } from '@lucide/vue';
-import { computed, nextTick, ref, watch } from 'vue';
+import { computed, nextTick, onMounted, ref, watch } from 'vue';
 import MessageQuote from '@/components/MessageQuote.vue';
 import { Button } from '@/components/ui/button';
 import { useInitials } from '@/composables/useInitials';
@@ -10,10 +10,13 @@ const props = defineProps<{
     channelName: string;
     members: Mention[];
     replyTarget?: Message | null;
+    placeholder?: string;
+    allowSendToChannel?: boolean;
+    autofocus?: boolean;
 }>();
 
 const emit = defineEmits<{
-    send: [body: string, mentions: Mention[]];
+    send: [body: string, mentions: Mention[], sendToChannel?: boolean];
     typing: [];
     cancelReply: [];
 }>();
@@ -22,6 +25,21 @@ const { getInitials } = useInitials();
 
 const body = ref('');
 const textarea = ref<HTMLTextAreaElement | null>(null);
+
+// In a thread composer, whether the reply is also surfaced in the main timeline.
+const sendToChannel = ref(false);
+
+const composerPlaceholder = computed(
+    () => props.placeholder ?? `Message #${props.channelName}`,
+);
+
+// Focus on mount when asked (e.g. the thread composer when a thread opens) so
+// the user can type straight away without clicking into the field.
+onMounted(() => {
+    if (props.autofocus) {
+        nextTick(() => textarea.value?.focus());
+    }
+});
 
 // Focus the composer whenever a reply is started so the user can type straight
 // away without reaching for the mouse.
@@ -169,8 +187,9 @@ function submit(): void {
         return;
     }
 
-    emit('send', trimmed, collectMentions(trimmed));
+    emit('send', trimmed, collectMentions(trimmed), sendToChannel.value);
     body.value = '';
+    sendToChannel.value = false;
     menuOpen.value = false;
     nextTick(resize);
 }
@@ -284,7 +303,7 @@ function onKeydown(event: KeyboardEvent): void {
                     ref="textarea"
                     v-model="body"
                     rows="1"
-                    :placeholder="`Message #${props.channelName}`"
+                    :placeholder="composerPlaceholder"
                     data-test="message-composer-input"
                     class="max-h-[200px] w-full resize-none bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground/70"
                     @input="(resize(), refreshSuggestions(), emit('typing'))"
@@ -292,15 +311,29 @@ function onKeydown(event: KeyboardEvent): void {
                     @keydown="onKeydown"
                 ></textarea>
                 <div class="mt-2.5 flex items-center justify-between">
-                    <Button
-                        variant="outline"
-                        size="icon"
-                        disabled
-                        class="size-[26px] rounded-[7px] text-muted-foreground"
-                        aria-label="Add attachment"
-                    >
-                        <Plus class="size-3.5" />
-                    </Button>
+                    <div class="flex items-center gap-2">
+                        <Button
+                            variant="outline"
+                            size="icon"
+                            disabled
+                            class="size-[26px] rounded-[7px] text-muted-foreground"
+                            aria-label="Add attachment"
+                        >
+                            <Plus class="size-3.5" />
+                        </Button>
+                        <label
+                            v-if="props.allowSendToChannel"
+                            class="flex cursor-pointer items-center gap-1.5 text-[12px] text-muted-foreground select-none"
+                        >
+                            <input
+                                v-model="sendToChannel"
+                                type="checkbox"
+                                data-test="send-to-channel"
+                                class="size-3.5 rounded border-input accent-primary"
+                            />
+                            Also send to #{{ props.channelName }}
+                        </label>
+                    </div>
                     <Button
                         size="icon"
                         :disabled="body.trim() === ''"

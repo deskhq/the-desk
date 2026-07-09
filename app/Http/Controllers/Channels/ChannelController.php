@@ -101,6 +101,11 @@ class ChannelController extends Controller
             // The message the client should scroll to and highlight on load, or
             // null for a normal channel visit.
             'jumpToMessageId' => $jumpToMessageId,
+            // The open thread (root + its replies), resolved from the `?thread=`
+            // query param, or null for a normal visit. The client opens a thread
+            // with a partial reload of just this prop; on a full visit the closure
+            // returns null cheaply when no thread is requested.
+            'thread' => fn () => $this->threadPayload($request, $channel),
             // Team members feed the composer's @mention autocomplete; mentions are
             // scoped to the team, never limited to the current channel's members.
             'members' => UserData::collect($team->members()->orderBy('name')->get()),
@@ -110,12 +115,56 @@ class ChannelController extends Controller
             // "message deleted" tombstone in place; MessageData blanks their body.
             'messages' => Inertia::scroll(fn () => $channel->messages()
                 ->withTrashed()
-                ->with(['user', 'mentionedUsers', 'replyTo.user', 'replyTo.mentionedUsers'])
+                ->with(['user', 'mentionedUsers', 'replyTo.user', 'replyTo.mentionedUsers', 'threadParticipants'])
+                // Thread replies live in the thread view, not the main timeline —
+                // except a reply explicitly "also sent to channel".
+                ->where(fn ($query) => $query->whereNull('thread_root_id')->orWhere('sent_to_channel', true))
                 ->when($windowCeilingId, fn ($query) => $query->where('id', '<=', $windowCeilingId))
                 ->orderByDesc('id')
                 ->cursorPaginate(50)
                 ->through(fn (Message $message) => MessageData::fromMessage($message))),
         ]);
+    }
+
+    /**
+     * Resolve the open thread from the `?thread=` query param.
+     *
+     * Returns the root message plus its replies (oldest first, tombstones
+     * included) when the param names a live root in this channel, or null when
+     * it is absent or points elsewhere. The eager-load set mirrors the main
+     * timeline so replies render quotes and thread affordances identically.
+     *
+     * @return array{root: MessageData, replies: array<int, MessageData>}|null
+     */
+    private function threadPayload(Request $request, Channel $channel): ?array
+    {
+        $rootId = $request->query('thread');
+
+        if (! is_string($rootId) || $rootId === '') {
+            return null;
+        }
+
+        $root = $channel->messages()
+            ->whereNull('thread_root_id')
+            ->with(['user', 'mentionedUsers', 'replyTo.user', 'replyTo.mentionedUsers', 'threadParticipants'])
+            ->find($rootId);
+
+        if ($root === null) {
+            return null;
+        }
+
+        $replies = $root->threadReplies()
+            ->withTrashed()
+            ->with(['user', 'mentionedUsers', 'replyTo.user', 'replyTo.mentionedUsers'])
+            ->orderBy('id')
+            ->get()
+            ->map(fn (Message $message) => MessageData::fromMessage($message))
+            ->all();
+
+        return [
+            'root' => MessageData::fromMessage($root),
+            'replies' => $replies,
+        ];
     }
 
     /**
