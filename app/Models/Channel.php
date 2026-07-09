@@ -25,6 +25,8 @@ use Illuminate\Support\Carbon;
  * @property Carbon|null $archived_at
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
+ * @property-read int|null $unread_count
+ * @property-read int|null $mention_count
  * @property-read Team $team
  * @property-read User $creator
  * @property-read Collection<int, ChannelMember> $channelMembers

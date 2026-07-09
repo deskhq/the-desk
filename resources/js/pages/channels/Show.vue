@@ -11,7 +11,10 @@ import {
     watch,
 } from 'vue';
 import { toast } from 'vue-sonner';
-import { archive as archiveChannel } from '@/actions/App/Http/Controllers/Channels/ChannelController';
+import {
+    archive as archiveChannel,
+    read as markChannelRead,
+} from '@/actions/App/Http/Controllers/Channels/ChannelController';
 import {
     destroy as destroyMessage,
     store as storeMessage,
@@ -215,6 +218,8 @@ function subscribe(id: string): void {
             // Their message landed; stop showing them as typing.
             typing.forget(message.user.id);
             appendLive(message);
+            // Keep the open, focused channel read as new messages arrive.
+            markRead();
         })
         .listen('MessageUpdated', (message: Message) => {
             applyPatch(message);
@@ -231,8 +236,37 @@ function unsubscribe(id: string): void {
     echo().leave(channelName(id));
 }
 
+// Advance the read pointer for the open channel so its sidebar badge clears.
+// Debounced and gated on tab focus: a channel is only "read" while the user is
+// actually looking at it, and a burst of arriving messages collapses to one
+// request. The redirect refreshes just the shared `channels` prop.
+let markReadTimer: ReturnType<typeof setTimeout> | null = null;
+
+function markRead(): void {
+    if (!document.hasFocus()) {
+        return;
+    }
+
+    if (markReadTimer) {
+        clearTimeout(markReadTimer);
+    }
+
+    markReadTimer = setTimeout(() => {
+        router.post(
+            markChannelRead({
+                team: props.team.slug,
+                channel: props.channel.slug,
+            }).url,
+            {},
+            { preserveScroll: true, preserveState: true, only: ['channels'] },
+        );
+    }, 400);
+}
+
 onMounted(() => {
     subscribe(props.channel.id);
+    markRead();
+    window.addEventListener('focus', markRead);
 });
 
 // Inertia may reuse this page component when navigating between channels; move
@@ -249,11 +283,17 @@ watch(
         patches.value = new Map();
         typing.reset();
         subscribe(newId);
+        markRead();
     },
 );
 
 onBeforeUnmount(() => {
     unsubscribe(props.channel.id);
+    window.removeEventListener('focus', markRead);
+
+    if (markReadTimer) {
+        clearTimeout(markReadTimer);
+    }
 });
 
 function send(body: string, mentions: Mention[]): void {
