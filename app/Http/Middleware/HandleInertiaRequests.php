@@ -3,9 +3,11 @@
 namespace App\Http\Middleware;
 
 use App\Data\ChannelData;
+use App\Models\Message;
 use App\Models\Team;
 use App\Models\TeamInvitation;
 use App\Models\User;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Middleware;
@@ -72,10 +74,35 @@ class HandleInertiaRequests extends Middleware
         $channels = $user->channels()
             ->where('channels.team_id', $team->id)
             ->whereNull('channels.archived_at')
+            ->select('channels.*')
+            ->selectSub($this->unreadMessages($user), 'unread_count')
+            ->selectSub($this->unreadMessages($user)->whereHas('mentionedUsers', fn ($query) => $query->whereKey($user->id)), 'mention_count')
             ->orderBy('name')
             ->get();
 
         return ChannelData::collect($channels, 'array');
+    }
+
+    /**
+     * A correlated sub-query counting a channel's messages the user has not yet read.
+     *
+     * "Unread" is every non-deleted message authored by someone else that lands
+     * after the user's `last_read_message_id` (a null pointer means the channel
+     * was never opened, so everything counts). It is correlated against the outer
+     * sidebar query's `channels` and `channel_members` rows, so a single query
+     * fills every channel's badge without an N+1.
+     *
+     * @return Builder<Message>
+     */
+    protected function unreadMessages(User $user): Builder
+    {
+        return Message::query()
+            ->selectRaw('count(*)')
+            ->whereColumn('messages.channel_id', 'channels.id')
+            ->where('messages.user_id', '!=', $user->id)
+            ->where(fn (Builder $query) => $query
+                ->whereNull('channel_members.last_read_message_id')
+                ->orWhereColumn('messages.id', '>', 'channel_members.last_read_message_id'));
     }
 
     /**

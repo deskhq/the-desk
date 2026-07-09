@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Channels;
 use App\Actions\Channels\ArchiveChannel;
 use App\Actions\Channels\CreateChannel;
 use App\Actions\Channels\JoinChannel;
+use App\Actions\Channels\MarkChannelRead;
 use App\Data\ChannelData;
 use App\Data\MessageData;
 use App\Data\UserData;
@@ -118,6 +119,21 @@ class ChannelController extends Controller
         Inertia::flash('toast', ['type' => 'success', 'message' => __('Joined #:channel.', ['channel' => $channel->name])]);
 
         return to_route('channels.show', ['team' => $team->slug, 'channel' => $channel->slug]);
+    }
+
+    /**
+     * Mark the channel read for the current user, clearing its sidebar badges.
+     *
+     * Called by the open channel view (debounced, on focus), so it redirects
+     * back and lets Inertia recompute the shared `channels` prop.
+     */
+    public function read(Request $request, Team $team, Channel $channel, MarkChannelRead $markChannelRead): RedirectResponse
+    {
+        Gate::authorize('view', $channel);
+
+        $markChannelRead->handle($channel, $request->user());
+
+        return back();
     }
 
     /**

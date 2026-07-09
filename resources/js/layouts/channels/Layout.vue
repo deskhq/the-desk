@@ -190,14 +190,30 @@ onMounted(() => {
                                                 <span
                                                     class="truncate"
                                                     :class="
-                                                        channel.hasUnread
+                                                        channel.unreadCount > 0
                                                             ? 'font-semibold text-sidebar-foreground'
                                                             : ''
                                                     "
                                                     >{{ channel.name }}</span
                                                 >
+                                                <!-- A numeric badge for unread @mentions takes priority; -->
+                                                <!-- otherwise a plain dot marks the channel as unread. -->
                                                 <span
-                                                    v-if="channel.hasUnread"
+                                                    v-if="
+                                                        channel.mentionCount > 0
+                                                    "
+                                                    data-test="mention-badge"
+                                                    class="ml-auto flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-primary px-1 text-[11px] font-semibold text-primary-foreground tabular-nums"
+                                                    :aria-label="`${channel.mentionCount} unread mentions`"
+                                                    >{{
+                                                        channel.mentionCount
+                                                    }}</span
+                                                >
+                                                <span
+                                                    v-else-if="
+                                                        channel.unreadCount > 0
+                                                    "
+                                                    data-test="unread-dot"
                                                     aria-hidden="true"
                                                     class="ml-auto size-1.5 rounded-full bg-primary"
                                                 />
