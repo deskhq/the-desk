@@ -7,6 +7,7 @@ import {
     Trash2,
 } from '@lucide/vue';
 import { computed, nextTick, ref } from 'vue';
+import LinkPreview from '@/components/LinkPreview.vue';
 import MessageForward from '@/components/MessageForward.vue';
 import MessageQuote from '@/components/MessageQuote.vue';
 import { Button } from '@/components/ui/button';
@@ -19,10 +20,22 @@ import {
     DialogHeader,
     DialogTitle,
 } from '@/components/ui/dialog';
+import {
+    HoverCard,
+    HoverCardContent,
+    HoverCardTrigger,
+} from '@/components/ui/hover-card';
 import { useInitials } from '@/composables/useInitials';
-import { renderMessageBody } from '@/lib/messageBody';
+import { tokenizeMessageBody } from '@/lib/messageBody';
+import type { MessageBodySegment } from '@/lib/messageBody';
 import { readersForMessage } from '@/lib/readReceipts';
-import type { ChannelReader, Mention, Message, MessageAuthor } from '@/types';
+import type {
+    ChannelReader,
+    Mention,
+    Message,
+    MessageAuthor,
+    MessagePreview,
+} from '@/types';
 
 const props = defineProps<{
     messages: Message[];
@@ -122,6 +135,26 @@ const { getInitials } = useInitials();
  */
 function isOnline(authorId: string): boolean {
     return props.onlineIds?.has(authorId) ?? false;
+}
+
+/**
+ * Split a message body into HTML and link segments so the timeline can wrap each
+ * URL in its own element (and, when the link has been unfurled, a hover card).
+ */
+function bodySegments(message: Message): MessageBodySegment[] {
+    return tokenizeMessageBody(message.body, message.mentions);
+}
+
+/**
+ * The unfurled preview for a URL in a message, or undefined when the link has no
+ * preview row yet. Pending rows resolve too, so the hover card can show a
+ * skeleton until the queued unfurl broadcasts the resolved metadata.
+ */
+function previewFor(
+    message: Message,
+    href: string,
+): MessagePreview | undefined {
+    return message.linkPreviews.find((preview) => preview.url === href);
 }
 
 // Consecutive messages from the same author within this window are grouped
@@ -353,7 +386,7 @@ function confirmDelete(): void {
 
 <template>
     <div class="px-5 pt-4 pb-2">
-        <template v-for="item in renderItems" :key="item.key">
+        <div v-for="item in renderItems" :key="item.key" class="contents">
             <div
                 v-if="item.type === 'divider' && item.variant === 'unread'"
                 id="unread-divider"
@@ -383,7 +416,7 @@ function confirmDelete(): void {
                 </span>
             </div>
 
-            <div v-else class="mt-[18px] flex gap-3 first:mt-1">
+            <div v-else class="mt-[18px] flex items-start gap-3">
                 <div class="relative mt-0.5 size-9 shrink-0">
                     <div
                         class="flex size-9 items-center justify-center rounded-[10px] bg-primary/10 text-[12px] font-semibold text-primary select-none"
@@ -495,14 +528,57 @@ function confirmDelete(): void {
                             class="py-0.5 text-[14.5px] leading-[1.55] break-words whitespace-pre-wrap text-foreground/90"
                             :class="isPending(message) ? 'opacity-60' : ''"
                         >
-                            <span
-                                v-html="
-                                    renderMessageBody(
-                                        message.body,
-                                        message.mentions,
-                                    )
-                                "
-                            ></span>
+                            <template
+                                v-for="(segment, index) in bodySegments(
+                                    message,
+                                )"
+                                :key="index"
+                            >
+                                <span
+                                    v-if="segment.kind === 'html'"
+                                    v-html="segment.html"
+                                ></span>
+                                <HoverCard
+                                    v-else-if="
+                                        previewFor(message, segment.href)
+                                    "
+                                    :open-delay="200"
+                                    :close-delay="100"
+                                >
+                                    <HoverCardTrigger as-child>
+                                        <a
+                                            :href="segment.href"
+                                            target="_blank"
+                                            rel="noopener noreferrer nofollow"
+                                            data-test="message-link"
+                                            class="text-primary underline underline-offset-2 hover:no-underline"
+                                            >{{ segment.href }}</a
+                                        >
+                                    </HoverCardTrigger>
+                                    <HoverCardContent
+                                        data-test="link-preview-card"
+                                        class="w-80 overflow-hidden p-0"
+                                    >
+                                        <LinkPreview
+                                            :preview="
+                                                previewFor(
+                                                    message,
+                                                    segment.href,
+                                                )!
+                                            "
+                                        />
+                                    </HoverCardContent>
+                                </HoverCard>
+                                <a
+                                    v-else
+                                    :href="segment.href"
+                                    target="_blank"
+                                    rel="noopener noreferrer nofollow"
+                                    data-test="message-link"
+                                    class="text-primary underline underline-offset-2 hover:no-underline"
+                                    >{{ segment.href }}</a
+                                >
+                            </template>
                             <span
                                 v-if="message.editedAt"
                                 :data-test="'message-edited'"
@@ -642,7 +718,7 @@ function confirmDelete(): void {
                     </div>
                 </div>
             </div>
-        </template>
+        </div>
 
         <div
             v-if="seenByReaders.length > 0"

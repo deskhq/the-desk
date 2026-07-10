@@ -151,6 +151,20 @@ class Message extends Model
     }
 
     /**
+     * Get the link previews extracted from this message's body.
+     *
+     * Kept in sync with the URLs in the body on every post and edit; each row
+     * holds the unfurled Open Graph metadata (or a pending/failed status while
+     * the queued job resolves it).
+     *
+     * @return HasMany<MessageLinkPreview, $this>
+     */
+    public function linkPreviews(): HasMany
+    {
+        return $this->hasMany(MessageLinkPreview::class)->orderBy('position');
+    }
+
+    /**
      * Correlated SQL (on the outer `messages.id` treated as a root) telling
      * whether a user follows the thread: they authored the root, replied in it,
      * or were @mentioned anywhere in it — the Slack-style auto-follow rule.

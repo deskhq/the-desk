@@ -9,7 +9,10 @@ use App\Models\Message;
 
 class EditMessage
 {
-    public function __construct(private SyncMentions $syncMentions) {}
+    public function __construct(
+        private SyncMentions $syncMentions,
+        private SyncLinkPreviews $syncLinkPreviews,
+    ) {}
 
     /**
      * Edit a message's body on behalf of its author.
@@ -26,9 +29,10 @@ class EditMessage
         ]);
 
         $this->syncMentions->handle($channel, $message);
+        $this->syncLinkPreviews->handle($message);
 
         $message->loadMissing('user');
-        $message->load('mentionedUsers');
+        $message->load(['mentionedUsers', 'linkPreviews']);
         MessageUpdated::dispatch($channel, MessageData::fromMessage($message));
 
         return $message;

@@ -206,6 +206,9 @@ export function optimisticMessage(params: {
         editedAt: null,
         isDeleted: false,
         mentions: params.mentions,
+        // Previews resolve server-side; the echo replaces this optimistic copy
+        // with one carrying any pending skeletons.
+        linkPreviews: [],
         replyTo: target
             ? {
                   id: target.id,

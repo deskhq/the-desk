@@ -52,6 +52,22 @@ export type MessageForward = {
     mentions: Mention[];
 };
 
+/**
+ * An unfurled link preview attached to a message. Mirrors the `LinkPreviewData`
+ * DTO: `pending` while the queued job fetches Open Graph metadata (the card
+ * renders as a skeleton) and `ready` once it resolves; failed previews are
+ * dropped server-side so they never reach the client. The metadata fields are
+ * null until the preview is ready (and stay null for any tag the page omits).
+ */
+export type MessagePreview = {
+    url: string;
+    status: 'pending' | 'ready' | 'failed';
+    title: string | null;
+    description: string | null;
+    imageUrl: string | null;
+    siteName: string | null;
+};
+
 export type Message = {
     id: string;
     clientUuid: string;
@@ -61,6 +77,13 @@ export type Message = {
     editedAt: string | null;
     isDeleted: boolean;
     mentions: Mention[];
+    /**
+     * Open Graph preview cards for the URLs in the body (mirrors the
+     * `MessageData` DTO's `linkPreviews`), in order of appearance. Empty when the
+     * message has no links; a `pending` entry renders as a skeleton until the
+     * queued unfurl broadcasts the resolved card in place.
+     */
+    linkPreviews: MessagePreview[];
     replyTo: MessageReply | null;
     /**
      * A compact quote of the message this one forwards into the channel, or null

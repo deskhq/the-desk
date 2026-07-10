@@ -2,7 +2,9 @@
 
 namespace App\Data;
 
+use App\Enums\LinkPreviewStatus;
 use App\Models\Message;
+use App\Models\MessageLinkPreview;
 use App\Models\User;
 use Spatie\LaravelData\Data;
 use Spatie\TypeScriptTransformer\Attributes\TypeScript;
@@ -12,6 +14,7 @@ class MessageData extends Data
 {
     /**
      * @param  array<int, MentionData>  $mentions
+     * @param  array<int, LinkPreviewData>  $linkPreviews
      * @param  array<int, MentionData>  $threadParticipants
      */
     public function __construct(
@@ -23,6 +26,7 @@ class MessageData extends Data
         public ?string $editedAt,
         public bool $isDeleted,
         public array $mentions,
+        public array $linkPreviews,
         public ?MessageReplyData $replyTo,
         public ?MessageForwardData $forwardedFrom,
         public ?string $threadRootId,
@@ -76,6 +80,11 @@ class MessageData extends Data
             editedAt: $message->edited_at?->toIso8601String(),
             isDeleted: $isDeleted,
             mentions: $isDeleted ? [] : $message->mentionedUsers->map(fn (User $user) => MentionData::fromUser($user))->all(),
+            linkPreviews: $isDeleted ? [] : $message->linkPreviews
+                ->reject(fn (MessageLinkPreview $preview) => $preview->status === LinkPreviewStatus::Failed)
+                ->map(fn (MessageLinkPreview $preview) => LinkPreviewData::fromModel($preview))
+                ->values()
+                ->all(),
             replyTo: ! $isDeleted && $message->replyTo !== null
                 ? MessageReplyData::fromMessage($message->replyTo)
                 : null,
