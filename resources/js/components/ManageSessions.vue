@@ -21,9 +21,10 @@ import {
 import { Label } from '@/components/ui/label';
 import { useTimezone } from '@/composables/useTimezone';
 import { formatDateTime } from '@/lib/datetime';
+import type { ActiveSession } from '@/types';
 
 type Props = {
-    sessions: App.Data.SessionData[];
+    sessions: ActiveSession[];
 };
 
 const props = defineProps<Props>();
