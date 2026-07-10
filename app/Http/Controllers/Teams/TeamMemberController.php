@@ -2,9 +2,11 @@
 
 namespace App\Http\Controllers\Teams;
 
+use App\Actions\Teams\TransferTeamOwnership;
 use App\Data\UserProfileData;
 use App\Enums\TeamRole;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Teams\TransferTeamOwnershipRequest;
 use App\Http\Requests\Teams\UpdateTeamMemberRequest;
 use App\Models\Membership;
 use App\Models\Team;
@@ -80,6 +82,28 @@ class TeamMemberController extends Controller
             ->update(['role' => $newRole]);
 
         Inertia::flash('toast', ['type' => 'success', 'message' => __('Member role updated.')]);
+
+        return to_route('teams.edit', ['team' => $team->slug]);
+    }
+
+    /**
+     * Transfer ownership of the team to the specified member.
+     *
+     * Only the current owner may initiate this, and the target must already be a
+     * member of the team. The outgoing owner is demoted to Admin and the new
+     * owner holds the sole Owner pivot row (see {@see TransferTeamOwnership}).
+     */
+    public function transferOwnership(TransferTeamOwnershipRequest $request, Team $team, User $user, TransferTeamOwnership $transferOwnership): RedirectResponse
+    {
+        Gate::authorize('transferOwnership', $team);
+
+        abort_if($request->user()->is($user), 403, __('You cannot transfer ownership to yourself.'));
+
+        abort_unless($user->belongsToTeam($team), 404);
+
+        $transferOwnership->handle($team, $request->user(), $user);
+
+        Inertia::flash('toast', ['type' => 'success', 'message' => __('Team ownership transferred.')]);
 
         return to_route('teams.edit', ['team' => $team->slug]);
     }
