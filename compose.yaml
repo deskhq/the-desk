@@ -61,6 +61,22 @@ services:
             - pgsql
             - redis
             - reverb
+    cron:
+        image: 'sail-8.5/app'
+        extra_hosts:
+            - 'host.docker.internal:host-gateway'
+        command: [ 'php', 'artisan', 'schedule:work' ]
+        environment:
+            WWWUSER: '${WWWUSER}'
+            LARAVEL_SAIL: 1
+        volumes:
+            - '.:/var/www/html'
+        networks:
+            - sail
+        depends_on:
+            - pgsql
+            - redis
+            - reverb
     pgsql:
         image: 'postgres:18-alpine'
         ports:
