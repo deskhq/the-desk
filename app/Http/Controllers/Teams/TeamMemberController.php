@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Teams;
 
 use App\Actions\Teams\TransferTeamOwnership;
 use App\Data\UserProfileData;
+use App\Enums\AuditAction;
 use App\Enums\TeamRole;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Teams\TransferTeamOwnershipRequest;
@@ -11,6 +12,7 @@ use App\Http\Requests\Teams\UpdateTeamMemberRequest;
 use App\Models\Membership;
 use App\Models\Team;
 use App\Models\User;
+use App\Support\AuditRecorder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -70,16 +72,27 @@ class TeamMemberController extends Controller
     /**
      * Update the specified team member's role.
      */
-    public function update(UpdateTeamMemberRequest $request, Team $team, User $user): RedirectResponse
+    public function update(UpdateTeamMemberRequest $request, Team $team, User $user, AuditRecorder $recorder): RedirectResponse
     {
         Gate::authorize('updateMember', $team);
 
         $newRole = TeamRole::from($request->validated('role'));
 
-        $team->memberships()
+        $membership = $team->memberships()
             ->where('user_id', $user->id)
-            ->firstOrFail()
-            ->update(['role' => $newRole]);
+            ->firstOrFail();
+
+        $oldRole = $membership->role;
+
+        $membership->update(['role' => $newRole]);
+
+        if ($newRole !== $oldRole) {
+            $recorder->record($team, $request->user(), AuditAction::MemberRoleChanged, $user, [
+                'member_name' => $user->name,
+                'old_role' => $oldRole->label(),
+                'new_role' => $newRole->label(),
+            ]);
+        }
 
         Inertia::flash('toast', ['type' => 'success', 'message' => __('Member role updated.')]);
 
@@ -93,7 +106,7 @@ class TeamMemberController extends Controller
      * member of the team. The outgoing owner is demoted to Admin and the new
      * owner holds the sole Owner pivot row (see {@see TransferTeamOwnership}).
      */
-    public function transferOwnership(TransferTeamOwnershipRequest $request, Team $team, User $user, TransferTeamOwnership $transferOwnership): RedirectResponse
+    public function transferOwnership(TransferTeamOwnershipRequest $request, Team $team, User $user, TransferTeamOwnership $transferOwnership, AuditRecorder $recorder): RedirectResponse
     {
         Gate::authorize('transferOwnership', $team);
 
@@ -103,6 +116,10 @@ class TeamMemberController extends Controller
 
         $transferOwnership->handle($team, $request->user(), $user);
 
+        $recorder->record($team, $request->user(), AuditAction::OwnershipTransferred, $user, [
+            'new_owner_name' => $user->name,
+        ]);
+
         Inertia::flash('toast', ['type' => 'success', 'message' => __('Team ownership transferred.')]);
 
         return to_route('teams.edit', ['team' => $team->slug]);
@@ -111,7 +128,7 @@ class TeamMemberController extends Controller
     /**
      * Remove the specified team member.
      */
-    public function destroy(Team $team, User $user): RedirectResponse
+    public function destroy(Request $request, Team $team, User $user, AuditRecorder $recorder): RedirectResponse
     {
         Gate::authorize('removeMember', $team);
 
@@ -124,6 +141,10 @@ class TeamMemberController extends Controller
         if ($user->isCurrentTeam($team)) {
             $user->switchTeam($user->personalTeam());
         }
+
+        $recorder->record($team, $request->user(), AuditAction::MemberRemoved, $user, [
+            'member_name' => $user->name,
+        ]);
 
         Inertia::flash('toast', ['type' => 'success', 'message' => __('Member removed.')]);
 

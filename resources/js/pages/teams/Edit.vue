@@ -28,6 +28,7 @@ import {
 } from '@/components/ui/tooltip';
 import { useInitials } from '@/composables/useInitials';
 import { edit, index, update } from '@/routes/teams';
+import { index as auditIndex } from '@/routes/teams/audit';
 import {
     show as showMember,
     update as updateMember,
@@ -344,6 +345,18 @@ const confirmTransferOwnership = (member: TeamMember) => {
                     </TooltipProvider>
                 </div>
             </div>
+        </div>
+
+        <!-- Audit Log -->
+        <div v-if="permissions.canViewAudit" class="space-y-6">
+            <Heading
+                variant="small"
+                title="Audit log"
+                description="Review moderation and admin actions in this workspace"
+            />
+            <Button as-child variant="outline" data-test="view-audit-log-link">
+                <Link :href="auditIndex(team.slug)">View audit log</Link>
+            </Button>
         </div>
 
         <!-- Danger Zone -->

@@ -3,6 +3,7 @@
 namespace App\Policies;
 
 use App\Enums\TeamPermission;
+use App\Enums\TeamRole;
 use App\Models\Team;
 use App\Models\User;
 
@@ -107,5 +108,17 @@ class TeamPolicy
     public function delete(User $user, Team $team): bool
     {
         return ! $team->is_personal && $user->hasTeamPermission($team, TeamPermission::DeleteTeam);
+    }
+
+    /**
+     * Determine whether the user can view the team's audit log.
+     *
+     * The log surfaces moderation and admin actions, so it is scoped to admins
+     * and the owner of a real (non-personal) workspace.
+     */
+    public function viewAudit(User $user, Team $team): bool
+    {
+        return ! $team->is_personal
+            && ($user->teamRole($team)?->isAtLeast(TeamRole::Admin) ?? false);
     }
 }

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Teams;
 
 use App\Actions\Teams\CreateTeam;
+use App\Enums\AuditAction;
 use App\Enums\TeamRole;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Teams\DeleteTeamRequest;
@@ -10,6 +11,7 @@ use App\Http\Requests\Teams\SaveTeamRequest;
 use App\Models\Membership;
 use App\Models\Team;
 use App\Models\User;
+use App\Support\AuditRecorder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -88,17 +90,27 @@ class TeamController extends Controller
     /**
      * Update the specified team.
      */
-    public function update(SaveTeamRequest $request, Team $team): RedirectResponse
+    public function update(SaveTeamRequest $request, Team $team, AuditRecorder $recorder): RedirectResponse
     {
         Gate::authorize('update', $team);
 
-        $team = DB::transaction(function () use ($request, $team) {
+        $oldName = $team->name;
+        $newName = $request->validated('name');
+
+        $team = DB::transaction(function () use ($newName, $team) {
             $team = Team::whereKey($team->id)->lockForUpdate()->firstOrFail();
 
-            $team->update(['name' => $request->validated('name')]);
+            $team->update(['name' => $newName]);
 
             return $team;
         });
+
+        if ($newName !== $oldName) {
+            $recorder->record($team, $request->user(), AuditAction::TeamRenamed, $team, [
+                'old_name' => $oldName,
+                'new_name' => $newName,
+            ]);
+        }
 
         Inertia::flash('toast', ['type' => 'success', 'message' => __('Team updated.')]);
 
