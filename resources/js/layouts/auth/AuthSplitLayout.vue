@@ -13,34 +13,64 @@ defineProps<{
 </script>
 
 <template>
-    <div
-        class="relative grid h-dvh flex-col items-center justify-center px-8 sm:px-0 lg:max-w-none lg:grid-cols-2 lg:px-0"
-    >
+    <div class="grid min-h-svh lg:grid-cols-2">
+        <!--
+          Brand panel — a warm ink surface with brass accents. `bg-primary` is
+          ink in light; in dark `--primary` flips light, so fall back to the
+          raised `card` shade to keep the panel dark-warm against the darker
+          canvas in both modes.
+        -->
         <div
-            class="relative hidden h-full flex-col bg-muted p-10 text-white lg:flex dark:border-r"
+            class="relative hidden flex-col justify-between overflow-hidden border-border bg-primary p-10 text-primary-foreground lg:flex lg:border-r dark:bg-card dark:text-card-foreground"
         >
-            <div class="absolute inset-0 bg-zinc-900" />
             <Link
                 :href="home()"
-                class="relative z-20 flex items-center text-lg font-medium"
+                class="relative z-10 flex items-center gap-2.5 font-serif text-lg font-semibold"
             >
-                <AppLogoIcon class="mr-2 size-8 fill-current text-white" />
+                <AppLogoIcon class="size-7 fill-current text-brass" />
                 {{ name }}
             </Link>
+
+            <blockquote class="relative z-10">
+                <p
+                    class="max-w-sm font-serif text-2xl leading-snug text-primary-foreground/90 italic dark:text-card-foreground/90"
+                >
+                    Where your team&rsquo;s conversations come together.
+                </p>
+            </blockquote>
         </div>
-        <div class="lg:p-8">
-            <div
-                class="mx-auto flex w-full flex-col justify-center space-y-6 sm:w-[350px]"
-            >
-                <div class="flex flex-col space-y-2 text-center">
-                    <h1 class="text-xl font-medium tracking-tight" v-if="title">
+
+        <!-- Form column, on the warm canvas. -->
+        <div
+            class="flex flex-col items-center justify-center bg-background p-6 md:p-10"
+        >
+            <div class="w-full max-w-sm">
+                <Link
+                    :href="home()"
+                    class="mb-8 flex items-center justify-center lg:hidden"
+                >
+                    <AppLogoIcon class="size-9 fill-current text-foreground" />
+                    <span class="sr-only">{{ name }}</span>
+                </Link>
+
+                <div
+                    v-if="title || description"
+                    class="flex flex-col gap-2 text-center"
+                >
+                    <h1
+                        v-if="title"
+                        class="font-serif text-2xl font-semibold tracking-tight"
+                    >
                         {{ title }}
                     </h1>
-                    <p class="text-sm text-muted-foreground" v-if="description">
+                    <p v-if="description" class="text-sm text-muted-foreground">
                         {{ description }}
                     </p>
                 </div>
-                <slot />
+
+                <div class="mt-8">
+                    <slot />
+                </div>
             </div>
         </div>
     </div>

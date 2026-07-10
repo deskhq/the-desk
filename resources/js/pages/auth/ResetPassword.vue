@@ -78,7 +78,7 @@ const inputEmail = ref(props.email);
 
             <Button
                 type="submit"
-                class="mt-4 w-full"
+                class="mt-4 w-full rounded-full"
                 :disabled="processing"
                 data-test="reset-password-button"
             >
