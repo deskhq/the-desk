@@ -64,6 +64,25 @@ test('the sole owner of a shared team cannot delete their account', function () 
     expect(Team::find($team->id))->not->toBeNull();
 });
 
+test('a blocked sole owner can transfer ownership then delete their account', function () {
+    $user = User::factory()->create();
+    $member = User::factory()->create();
+    $team = attachToSharedTeam($user, TeamRole::Owner);
+    attachToSharedTeam($member, TeamRole::Member, $team);
+
+    $this->actingAs($user)
+        ->post(route('teams.members.transfer-ownership', [$team, $member]), ['password' => 'password'])
+        ->assertSessionHasNoErrors();
+
+    $this->actingAs($user)
+        ->delete(route('profile.destroy'), ['password' => 'password'])
+        ->assertSessionHasNoErrors()
+        ->assertRedirect('/');
+
+    expect($user->fresh())->toBeNull();
+    expect($team->fresh()->owner()->is($member))->toBeTrue();
+});
+
 test('a co-owned shared team does not block deletion', function () {
     $user = User::factory()->create();
     $coOwner = User::factory()->create();

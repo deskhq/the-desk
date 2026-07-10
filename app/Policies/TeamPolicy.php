@@ -91,6 +91,17 @@ class TeamPolicy
     }
 
     /**
+     * Determine whether the user can transfer ownership of the team.
+     *
+     * Ownership is strictly the sole owner's to give away, so this is not a
+     * delegable {@see TeamPermission}: only the current owner may initiate it.
+     */
+    public function transferOwnership(User $user, Team $team): bool
+    {
+        return ! $team->is_personal && $user->ownsTeam($team);
+    }
+
+    /**
      * Determine whether the user can delete the model.
      */
     public function delete(User $user, Team $team): bool
