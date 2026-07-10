@@ -175,6 +175,7 @@ trait HasTeams
             canRemoveMember: $role?->hasPermission(TeamPermission::RemoveMember) ?? false,
             canCreateInvitation: $role?->hasPermission(TeamPermission::CreateInvitation) ?? false,
             canCancelInvitation: $role?->hasPermission(TeamPermission::CancelInvitation) ?? false,
+            canTransferOwnership: ! $team->is_personal && $role === TeamRole::Owner,
         );
     }
 

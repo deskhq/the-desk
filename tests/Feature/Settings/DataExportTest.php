@@ -1,0 +1,190 @@
+<?php
+
+use App\Data\DataExportData;
+use App\Enums\DataExportStatus;
+use App\Jobs\ExportUserData;
+use App\Mail\DataExportReady;
+use App\Models\Channel;
+use App\Models\DataExport;
+use App\Models\Message;
+use App\Models\SecurityEvent;
+use App\Models\User;
+use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Queue;
+use Illuminate\Support\Facades\Storage;
+use Inertia\Testing\AssertableInertia as Assert;
+
+test('requesting an export queues the job and records a pending export', function () {
+    Queue::fake();
+
+    $user = User::factory()->create();
+
+    $this->actingAs($user)
+        ->from(route('profile.edit'))
+        ->post(route('data-export.store'))
+        ->assertSessionHasNoErrors()
+        ->assertRedirect(route('profile.edit'));
+
+    Queue::assertPushed(ExportUserData::class);
+
+    $export = $user->dataExports()->first();
+
+    expect($export)->not->toBeNull();
+    expect($export->status)->toBe(DataExportStatus::Pending);
+});
+
+test('the export job builds a downloadable archive and emails the user', function () {
+    Storage::fake('local');
+    Mail::fake();
+
+    $user = User::factory()->create();
+    $channel = Channel::factory()->create();
+    Message::factory()->create([
+        'channel_id' => $channel->id,
+        'user_id' => $user->id,
+        'body' => 'Hello from the archive',
+    ]);
+    SecurityEvent::factory()->for($user)->create();
+
+    $export = DataExport::factory()->for($user)->create();
+
+    (new ExportUserData($export->id))->handle();
+
+    $export->refresh();
+
+    expect($export->status)->toBe(DataExportStatus::Ready);
+    expect($export->path)->not->toBeNull();
+    expect($export->expires_at)->not->toBeNull();
+    Storage::disk('local')->assertExists($export->path);
+
+    $zip = new ZipArchive;
+    $zip->open(Storage::disk('local')->path($export->path));
+    $profile = json_decode((string) $zip->getFromName('profile.json'), true);
+    $messages = json_decode((string) $zip->getFromName('messages.json'), true);
+    $zip->close();
+
+    expect($profile['email'])->toBe($user->email);
+    expect($messages)->toHaveCount(1);
+    expect($messages[0]['body'])->toBe('Hello from the archive');
+
+    Mail::assertSent(DataExportReady::class, fn (DataExportReady $mail): bool => $mail->hasTo($user->email));
+});
+
+test('the job bails quietly when the export no longer exists', function () {
+    Mail::fake();
+
+    $export = DataExport::factory()->create();
+    $id = $export->id;
+    $export->delete();
+
+    (new ExportUserData($id))->handle();
+
+    Mail::assertNothingSent();
+});
+
+test('the failed hook marks the export failed', function () {
+    $export = DataExport::factory()->create();
+
+    (new ExportUserData($export->id))->failed(new RuntimeException('boom'));
+
+    expect($export->refresh()->status)->toBe(DataExportStatus::Failed);
+});
+
+test('the owner can download a ready export', function () {
+    Storage::fake('local');
+
+    $user = User::factory()->create();
+    $export = DataExport::factory()->for($user)->ready()->create();
+    Storage::disk('local')->put($export->path, 'zip-bytes');
+
+    $this->actingAs($user)
+        ->get(route('data-export.download', $export))
+        ->assertOk()
+        ->assertDownload('data-export.zip');
+});
+
+test('another user cannot download an export', function () {
+    Storage::fake('local');
+
+    $export = DataExport::factory()->ready()->create();
+    Storage::disk('local')->put($export->path, 'zip-bytes');
+
+    $this->actingAs(User::factory()->create())
+        ->get(route('data-export.download', $export))
+        ->assertForbidden();
+});
+
+test('a pending export cannot be downloaded', function () {
+    $user = User::factory()->create();
+    $export = DataExport::factory()->for($user)->create();
+
+    $this->actingAs($user)
+        ->get(route('data-export.download', $export))
+        ->assertNotFound();
+});
+
+test('an expired export cannot be downloaded', function () {
+    Storage::fake('local');
+
+    $user = User::factory()->create();
+    $export = DataExport::factory()->for($user)->expired()->create();
+    Storage::disk('local')->put($export->path, 'zip-bytes');
+
+    $this->actingAs($user)
+        ->get(route('data-export.download', $export))
+        ->assertNotFound();
+});
+
+test('the profile page carries the latest export', function () {
+    $user = User::factory()->create();
+    DataExport::factory()->for($user)->ready()->create();
+
+    $this->actingAs($user)
+        ->get(route('profile.edit'))
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('settings/Profile')
+            ->where('dataExport.status', 'ready')
+            ->where('dataExport.isReady', true));
+});
+
+test('the profile page carries a null export when none has been requested', function () {
+    $user = User::factory()->create();
+
+    $this->actingAs($user)
+        ->get(route('profile.edit'))
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('settings/Profile')
+            ->where('dataExport', null));
+});
+
+test('the DTO maps a ready export', function () {
+    $export = DataExport::factory()->ready()->create();
+
+    $data = DataExportData::fromExport($export);
+
+    expect($data->status)->toBe('ready');
+    expect($data->statusLabel)->toBe('Ready to download');
+    expect($data->isReady)->toBeTrue();
+    expect($data->expiresAt)->not->toBeNull();
+    expect($data->requestedAt)->not->toBeNull();
+});
+
+test('the DTO maps a pending export', function () {
+    $export = DataExport::factory()->create();
+
+    $data = DataExportData::fromExport($export);
+
+    expect($data->status)->toBe('pending');
+    expect($data->statusLabel)->toBe('Preparing');
+    expect($data->isReady)->toBeFalse();
+    expect($data->expiresAt)->toBeNull();
+});
+
+test('the ready-export mail renders the download link', function () {
+    $export = DataExport::factory()->ready()->create();
+
+    $mail = new DataExportReady($export);
+
+    $mail->assertHasSubject('Your data export is ready');
+    $mail->assertSeeInHtml('Download your data');
+});

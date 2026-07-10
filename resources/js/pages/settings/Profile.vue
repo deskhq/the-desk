@@ -3,6 +3,7 @@ import { Form, Head, usePage } from '@inertiajs/vue3';
 import { Link } from '@inertiajs/vue3';
 import { computed } from 'vue';
 import ProfileController from '@/actions/App/Http/Controllers/Settings/ProfileController';
+import DataPrivacy from '@/components/DataPrivacy.vue';
 import DeleteUser from '@/components/DeleteUser.vue';
 import Heading from '@/components/Heading.vue';
 import InputError from '@/components/InputError.vue';
@@ -19,6 +20,13 @@ import {
 import { useTimezone } from '@/composables/useTimezone';
 import { edit } from '@/routes/profile';
 import { send } from '@/routes/verification';
+import type { DataExport } from '@/types';
+
+type Props = {
+    dataExport: DataExport | null;
+};
+
+defineProps<Props>();
 
 defineOptions({
     layout: {
@@ -194,6 +202,8 @@ function onTimezoneSelect(value: unknown): void {
             </p>
         </div>
     </div>
+
+    <DataPrivacy :data-export="dataExport" />
 
     <DeleteUser />
 </template>

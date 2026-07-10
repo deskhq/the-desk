@@ -5,6 +5,7 @@ namespace App\Models;
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 use App\Concerns\HasTeams;
 use App\Enums\ChimeSound;
+use App\Enums\TeamRole;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
@@ -16,6 +17,8 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
 
 /**
  * @property string $id
@@ -34,6 +37,7 @@ use Illuminate\Support\Carbon;
  * @property string|null $current_team_id
  * @property ChimeSound $chime_sound
  * @property bool $share_read_receipts
+ * @property bool $is_tombstone
  * @property array<int, string>|null $collapsed_channel_sections
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
@@ -43,8 +47,9 @@ use Illuminate\Support\Carbon;
  * @property-read Collection<int, Team> $teams
  * @property-read Collection<int, Channel> $channels
  * @property-read Collection<int, ChannelSection> $channelSections
+ * @property-read Collection<int, DataExport> $dataExports
  */
-#[Fillable(['name', 'email', 'pronouns', 'title', 'phone', 'timezone', 'password', 'current_team_id', 'chime_sound', 'share_read_receipts', 'collapsed_channel_sections'])]
+#[Fillable(['name', 'email', 'pronouns', 'title', 'phone', 'timezone', 'password', 'current_team_id', 'chime_sound', 'share_read_receipts', 'collapsed_channel_sections', 'is_tombstone'])]
 #[Hidden(['password', 'two_factor_secret', 'two_factor_recovery_codes', 'remember_token'])]
 class User extends Authenticatable
 {
@@ -63,8 +68,51 @@ class User extends Authenticatable
             'password' => 'hashed',
             'chime_sound' => ChimeSound::class,
             'share_read_receipts' => 'boolean',
+            'is_tombstone' => 'boolean',
             'collapsed_channel_sections' => 'array',
         ];
+    }
+
+    /**
+     * Get the retained "Deleted User" tombstone account, creating it on first use.
+     *
+     * Authored messages are reassigned to this account when their real author
+     * deletes their profile, so channel history reads coherently instead of
+     * collapsing into gaps. It is never attached to a team and cannot be signed
+     * into (its password is random and discarded).
+     */
+    public static function tombstone(): self
+    {
+        return static::firstOrCreate(
+            ['is_tombstone' => true],
+            [
+                'name' => 'Deleted User',
+                'email' => 'deleted-user@deleted.invalid',
+                'password' => Hash::make(Str::random(40)),
+            ],
+        );
+    }
+
+    /**
+     * Get the shared (non-personal) teams this user is the only owner of.
+     *
+     * Deleting the account would leave these teams ownerless, so the deletion
+     * flow blocks until the user transfers ownership (see App\Http\Requests\
+     * Settings\ProfileDeleteRequest).
+     *
+     * @return Collection<int, Team>
+     */
+    public function soleOwnedSharedTeams(): Collection
+    {
+        return $this->teams()
+            ->where('is_personal', false)
+            ->wherePivot('role', TeamRole::Owner->value)
+            ->get()
+            ->filter(fn (Team $team): bool => $team->members()
+                ->wherePivot('role', TeamRole::Owner->value)
+                ->where('users.id', '!=', $this->id)
+                ->doesntExist())
+            ->values();
     }
 
     /**
@@ -97,5 +145,15 @@ class User extends Authenticatable
     public function securityEvents(): HasMany
     {
         return $this->hasMany(SecurityEvent::class)->latest();
+    }
+
+    /**
+     * Get the user's requested data exports, newest first.
+     *
+     * @return HasMany<DataExport, $this>
+     */
+    public function dataExports(): HasMany
+    {
+        return $this->hasMany(DataExport::class)->latest();
     }
 }

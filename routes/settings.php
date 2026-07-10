@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Settings\DataExportController;
 use App\Http\Controllers\Settings\NotificationController;
 use App\Http\Controllers\Settings\ProfileController;
 use App\Http\Controllers\Settings\ReadReceiptsController;
@@ -24,6 +25,9 @@ Route::middleware(['auth'])->group(function () {
 
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::delete('settings/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
+
+    Route::post('settings/data-export', [DataExportController::class, 'store'])->name('data-export.store');
+    Route::get('settings/data-export/{dataExport}/download', [DataExportController::class, 'download'])->name('data-export.download');
 
     Route::get('settings/security', [SecurityController::class, 'edit'])
         ->middleware(RequirePassword::class)
@@ -56,6 +60,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('settings/teams/{team}/members/{user}', [TeamMemberController::class, 'show'])->name('teams.members.show');
         Route::get('settings/teams/{team}/members/{user}/card', [TeamMemberController::class, 'card'])->name('teams.members.card');
         Route::patch('settings/teams/{team}/members/{user}', [TeamMemberController::class, 'update'])->name('teams.members.update');
+        Route::post('settings/teams/{team}/members/{user}/transfer-ownership', [TeamMemberController::class, 'transferOwnership'])->name('teams.members.transfer-ownership');
         Route::delete('settings/teams/{team}/members/{user}', [TeamMemberController::class, 'destroy'])->name('teams.members.destroy');
 
         Route::post('settings/teams/{team}/invitations', [TeamInvitationController::class, 'store'])->name('teams.invitations.store');

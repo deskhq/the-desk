@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Form, Head, Link, router } from '@inertiajs/vue3';
-import { ChevronDown, Mail, UserPlus, X } from '@lucide/vue';
+import { ChevronDown, Crown, Mail, UserPlus, X } from '@lucide/vue';
 import { computed, ref } from 'vue';
 import CancelInvitationModal from '@/components/CancelInvitationModal.vue';
 import DeleteTeamModal from '@/components/DeleteTeamModal.vue';
@@ -8,6 +8,7 @@ import Heading from '@/components/Heading.vue';
 import InputError from '@/components/InputError.vue';
 import InviteMemberModal from '@/components/InviteMemberModal.vue';
 import RemoveMemberModal from '@/components/RemoveMemberModal.vue';
+import TransferOwnershipModal from '@/components/TransferOwnershipModal.vue';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -70,6 +71,8 @@ const inviteDialogOpen = ref(false);
 const deleteDialogOpen = ref(false);
 const removeMemberDialogOpen = ref(false);
 const memberToRemove = ref<TeamMember | null>(null);
+const transferOwnershipDialogOpen = ref(false);
+const memberToPromote = ref<TeamMember | null>(null);
 const cancelInvitationDialogOpen = ref(false);
 const invitationToCancel = ref<TeamInvitation | null>(null);
 
@@ -94,6 +97,11 @@ const confirmRemoveMember = (member: TeamMember) => {
 const confirmCancelInvitation = (invitation: TeamInvitation) => {
     invitationToCancel.value = invitation;
     cancelInvitationDialogOpen.value = true;
+};
+
+const confirmTransferOwnership = (member: TeamMember) => {
+    memberToPromote.value = member;
+    transferOwnershipDialogOpen.value = true;
 };
 </script>
 
@@ -237,6 +245,31 @@ const confirmCancelInvitation = (invitation: TeamInvitation) => {
                         <TooltipProvider
                             v-if="
                                 member.role !== 'owner' &&
+                                permissions.canTransferOwnership
+                            "
+                        >
+                            <Tooltip>
+                                <TooltipTrigger as-child>
+                                    <Button
+                                        data-test="member-transfer-ownership-button"
+                                        variant="ghost"
+                                        size="sm"
+                                        @click="
+                                            confirmTransferOwnership(member)
+                                        "
+                                    >
+                                        <Crown class="h-4 w-4" />
+                                    </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                    <p>Transfer ownership</p>
+                                </TooltipContent>
+                            </Tooltip>
+                        </TooltipProvider>
+
+                        <TooltipProvider
+                            v-if="
+                                member.role !== 'owner' &&
                                 permissions.canRemoveMember
                             "
                         >
@@ -357,6 +390,13 @@ const confirmCancelInvitation = (invitation: TeamInvitation) => {
         :member="memberToRemove"
         :open="removeMemberDialogOpen"
         @update:open="removeMemberDialogOpen = $event"
+    />
+
+    <TransferOwnershipModal
+        :team="team"
+        :member="memberToPromote"
+        :open="transferOwnershipDialogOpen"
+        @update:open="transferOwnershipDialogOpen = $event"
     />
 
     <CancelInvitationModal
