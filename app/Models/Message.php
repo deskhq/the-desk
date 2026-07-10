@@ -63,6 +63,32 @@ class Message extends Model
     ];
 
     /**
+     * The relations {@see MessageData::fromMessage()} — and its nested reply,
+     * forward, and reaction DTOs — read to render a message payload.
+     *
+     * This is the single home of the message payload's N+1 contract: every
+     * timeline, thread, search, post, edit, and broadcast path eager-loads
+     * exactly this set — query paths through {@see scopeWithMessageDataRelations()},
+     * post-fetch paths through {@see loadMessageDataRelations()} or
+     * {@see loadMessageDataRelationsInto()}. When `MessageData` starts reading a
+     * new relation, add it here, never at a call site.
+     *
+     * @var list<string>
+     */
+    private const MESSAGE_DATA_RELATIONS = [
+        'user',
+        'mentionedUsers',
+        'linkPreviews',
+        'reactions.user',
+        'replyTo.user',
+        'replyTo.mentionedUsers',
+        'forwardedFrom.user',
+        'forwardedFrom.channel',
+        'forwardedFrom.mentionedUsers',
+        'threadParticipants',
+    ];
+
+    /**
      * Get the channel the message was posted to.
      *
      * @return BelongsTo<Channel, $this>
@@ -252,6 +278,48 @@ class Message extends Model
     public function scopeWhereThreadUnreadFor(Builder $query, User $user): void
     {
         $query->whereRaw(self::THREAD_HAS_UNREAD_SQL, [$user->id, $user->id, $user->id, NotificationLevel::All->value]);
+    }
+
+    /**
+     * Eager-load the message-payload relation set onto a message query, so the
+     * resulting {@see MessageData} builds without an N+1. The one query
+     * interface to {@see self::MESSAGE_DATA_RELATIONS}; callers add only the
+     * extra relations their own read-model needs (e.g. the message's own
+     * `channel` for search or the thread inbox) on top.
+     *
+     * @param  Builder<Message>  $query
+     */
+    public function scopeWithMessageDataRelations(Builder $query): void
+    {
+        $query->with(self::MESSAGE_DATA_RELATIONS);
+    }
+
+    /**
+     * Eager-load the message-payload relation set onto an already-fetched
+     * message, for the post-create / post-edit broadcast paths that hold a model
+     * rather than a query. Forces a reload so a freshly edited body's mentions
+     * and previews are the current set. The single-model mirror of
+     * {@see self::scopeWithMessageDataRelations()}.
+     */
+    public function loadMessageDataRelations(): static
+    {
+        $this->load(self::MESSAGE_DATA_RELATIONS);
+
+        return $this;
+    }
+
+    /**
+     * Eager-load the message-payload relation set across a hydrated collection
+     * in a single batch, for the search path that holds its Scout matches as a
+     * collection (not a query) and must not load per-row. The collection mirror
+     * of {@see self::scopeWithMessageDataRelations()}.
+     *
+     * @param  Collection<int, Message>  $messages
+     * @return Collection<int, Message>
+     */
+    public static function loadMessageDataRelationsInto(Collection $messages): Collection
+    {
+        return $messages->load(self::MESSAGE_DATA_RELATIONS);
     }
 
     /**

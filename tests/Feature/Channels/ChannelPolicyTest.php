@@ -188,3 +188,23 @@ test('a non-team-member cannot manage a private channel membership', function ()
     expect($outsider->can('addMember', $private))->toBeFalse()
         ->and($outsider->can('removeMember', $private))->toBeFalse();
 });
+
+test('the pivot-preference abilities are granted only to channel members', function (string $ability) {
+    $channelMember = User::factory()->create();
+    $team = app(CreateTeam::class)->handle($channelMember, 'Acme');
+    $channel = Channel::factory()->for($team)->create();
+    $channel->channelMembers()->create(['user_id' => $channelMember->id]);
+
+    // A team member who never joined this channel — the team branch of the
+    // shared isMember predicate is true, the membership branch is false.
+    $teamMember = User::factory()->create();
+    $team->memberships()->create(['user_id' => $teamMember->id, 'role' => TeamRole::Member]);
+
+    // An outsider who does not belong to the team at all — the team branch is
+    // false, so the predicate short-circuits before touching membership.
+    $outsider = User::factory()->create();
+
+    expect($channelMember->can($ability, $channel))->toBeTrue()
+        ->and($teamMember->can($ability, $channel))->toBeFalse()
+        ->and($outsider->can($ability, $channel))->toBeFalse();
+})->with(['updatePreference', 'updateStar', 'place', 'saveDraft']);

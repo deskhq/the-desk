@@ -142,12 +142,8 @@ class HandleInertiaRequests extends Middleware
             return false;
         }
 
-        $channelIds = $user->channels()
-            ->where('channels.team_id', $team->id)
-            ->pluck('channels.id');
-
         return Message::query()
-            ->whereIn('channel_id', $channelIds)
+            ->whereIn('channel_id', $user->visibleChannelIds($team))
             ->whereNull('thread_root_id')
             ->where('reply_count', '>', 0)
             ->followedBy($user)

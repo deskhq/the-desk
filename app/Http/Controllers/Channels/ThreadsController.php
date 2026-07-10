@@ -32,9 +32,7 @@ class ThreadsController extends Controller
     {
         $user = $request->user();
 
-        $channelIds = $user->channels()
-            ->where('channels.team_id', $team->id)
-            ->pluck('channels.id');
+        $channelIds = $user->visibleChannelIds($team);
 
         return Inertia::render('channels/Threads', [
             'team' => [
@@ -48,7 +46,10 @@ class ThreadsController extends Controller
                 ->where('reply_count', '>', 0)
                 ->followedBy($user)
                 ->withThreadReadState($user)
-                ->with(['user', 'channel', 'mentionedUsers', 'reactions.user', 'replyTo.user', 'replyTo.mentionedUsers', 'forwardedFrom.user', 'forwardedFrom.channel', 'forwardedFrom.mentionedUsers', 'threadParticipants'])
+                ->withMessageDataRelations()
+                // The inbox row also names the message's own channel; that is the
+                // ThreadInboxItemData shell around the payload, not part of it.
+                ->with('channel')
                 ->orderByDesc('last_reply_at')
                 ->orderByDesc('id')
                 ->cursorPaginate(self::PAGE_SIZE)

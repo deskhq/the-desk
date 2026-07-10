@@ -9,6 +9,7 @@ import {
 import { index as search } from '@/actions/App/Http/Controllers/Channels/SearchController';
 import { Input } from '@/components/ui/input';
 import { SidebarTrigger } from '@/components/ui/sidebar';
+import { useDebouncedPost } from '@/composables/useDebouncedPost';
 import { getInitials } from '@/composables/useInitials';
 import { formatDateTime } from '@/lib/datetime';
 import { renderMessageBody } from '@/lib/messageBody';
@@ -32,14 +33,8 @@ const term = ref(props.query);
 
 // Debounce keystrokes into a single scoped reload that only refreshes the
 // results (and the echoed query), preserving the input's focus and caret.
-let debounce: ReturnType<typeof setTimeout> | null = null;
-
-watch(term, (value) => {
-    if (debounce) {
-        clearTimeout(debounce);
-    }
-
-    debounce = setTimeout(() => {
+const searchPost = useDebouncedPost(
+    (value: string) => {
         router.get(
             search(props.team.slug).url,
             { q: value },
@@ -50,7 +45,12 @@ watch(term, (value) => {
                 only: ['results', 'query'],
             },
         );
-    }, 300);
+    },
+    { delay: 300 },
+);
+
+watch(term, (value) => {
+    searchPost.schedule(value);
 });
 
 const page = usePage();

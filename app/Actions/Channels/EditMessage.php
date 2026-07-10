@@ -31,8 +31,7 @@ class EditMessage
         $this->syncMentions->handle($channel, $message);
         $this->syncLinkPreviews->handle($message);
 
-        $message->loadMissing('user');
-        $message->load(['mentionedUsers', 'linkPreviews', 'reactions.user']);
+        $message->loadMessageDataRelations();
         MessageUpdated::dispatch($channel, MessageData::fromMessage($message));
 
         return $message;

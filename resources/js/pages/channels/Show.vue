@@ -4,15 +4,11 @@ import { echo } from '@laravel/echo-vue';
 import {
     Archive,
     ArrowUp,
-    AtSign,
-    BellMinus,
-    BellOff,
     CalendarClock,
     ChevronDown,
     EllipsisVertical,
     Star,
 } from '@lucide/vue';
-import type { AcceptableValue } from 'reka-ui';
 import {
     computed,
     nextTick,
@@ -28,9 +24,6 @@ import {
     readThread as markThreadReadAction,
     show as showChannel,
 } from '@/actions/App/Http/Controllers/Channels/ChannelController';
-import { update as saveChannelDraft } from '@/actions/App/Http/Controllers/Channels/ChannelDraftController';
-import { update as updateChannelPreferences } from '@/actions/App/Http/Controllers/Channels/ChannelPreferenceController';
-import { update as updateChannelStar } from '@/actions/App/Http/Controllers/Channels/ChannelStarController';
 import { store as forwardMessageAction } from '@/actions/App/Http/Controllers/Channels/ForwardMessageController';
 import {
     destroy as destroyMessage,
@@ -72,6 +65,10 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Separator } from '@/components/ui/separator';
 import { SidebarTrigger } from '@/components/ui/sidebar';
+import { useChannelDraft } from '@/composables/useChannelDraft';
+import { useChannelPreferences } from '@/composables/useChannelPreferences';
+import { useChannelRealtime } from '@/composables/useChannelRealtime';
+import { useDebouncedPost } from '@/composables/useDebouncedPost';
 import {
     useMessageStream,
     optimisticMessage,
@@ -81,19 +78,15 @@ import { useTeamPresence } from '@/composables/useTeamPresence';
 import { useTimezone } from '@/composables/useTimezone';
 import { useTypingIndicator } from '@/composables/useTypingIndicator';
 import type { TypingUser } from '@/composables/useTypingIndicator';
+import { useUnreadDivider } from '@/composables/useUnreadDivider';
 import { toggleReaction } from '@/lib/reactions';
-import { shouldFlagThreadUnread } from '@/lib/shouldFlagThreadUnread';
-import { unreadDividerMessageId } from '@/lib/unreadDivider';
 import type {
     Channel,
     ChannelReader,
     Mention,
     Message,
-    MessageAuthor,
     MessagePage,
-    NotificationLevel,
     NotificationLevelOption,
-    Reaction,
     ScheduledMessage,
     Thread,
 } from '@/types';
@@ -247,142 +240,24 @@ function jumpToMessage(id: string): void {
     });
 }
 
-// The message the "New messages" divider sits above, frozen at the moment the
-// channel opens: the read pointer keeps advancing as the user reads, but the
-// boundary stays put until they leave the channel. Recomputed on open and on
-// every channel switch from the read pointer the server captured before its
-// debounced advance.
-const unreadDividerId = ref<string | null>(null);
-const unreadDividerInView = ref(false);
-let unreadObserver: IntersectionObserver | null = null;
-
-// The floating "jump to new messages" pill shows only while there's a boundary
-// the user hasn't scrolled to yet.
-const showJumpToUnread = computed(
-    () => unreadDividerId.value !== null && !unreadDividerInView.value,
-);
-
-function computeUnreadDivider(): void {
-    unreadDividerId.value = unreadDividerMessageId(
-        displayMessages.value,
-        props.lastReadMessageId ?? null,
-        currentUser.value.id,
-    );
-
-    observeUnreadDivider();
-}
-
-// Watch the divider element so the jump pill hides once it scrolls into view.
-function observeUnreadDivider(): void {
-    unreadObserver?.disconnect();
-    unreadObserver = null;
-    unreadDividerInView.value = false;
-
-    if (unreadDividerId.value === null) {
-        return;
-    }
-
-    nextTick(() => {
-        const el = document.getElementById('unread-divider');
-        const root = scrollContainer.value;
-
-        if (!el || !root) {
-            return;
-        }
-
-        unreadObserver = new IntersectionObserver(
-            ([entry]) => {
-                unreadDividerInView.value = entry.isIntersecting;
-            },
-            { root },
-        );
-        unreadObserver.observe(el);
-    });
-}
-
-function scrollToUnread(): void {
-    document
-        .getElementById('unread-divider')
-        ?.scrollIntoView({ block: 'center', behavior: 'smooth' });
-}
-
-// Append a message to the main timeline. When the reader was near the bottom the
-// view follows it down; otherwise the arrival raises the "new messages" count on
-// the jump-to-latest control instead of scrolling silently.
-function appendLiveMain(message: Message): void {
-    const wasNearBottom = isNearBottom();
-
-    if (mainStream.appendLive(message)) {
-        notifyAppended(wasNearBottom);
-    }
-}
-
-// Route a broadcast message to the timeline it belongs to. A thread reply stays
-// out of the main timeline unless it was explicitly "also sent to channel"; the
-// open thread only appends replies belonging to its root. The two are not
-// exclusive — a sent-to-channel reply in the open thread lands in both.
-function routeIncoming(message: Message): void {
-    if (message.threadRootId === null || message.sentToChannel) {
-        appendLiveMain(message);
-    }
-
-    if (
-        message.threadRootId !== null &&
-        message.threadRootId === activeThreadRootId.value
-    ) {
-        threadStream.appendLive(message);
-    }
-
-    // A thread reply either keeps the open, focused thread read as it streams in,
-    // or raises the unread dot on its root back in the main timeline.
-    if (message.threadRootId !== null) {
-        const viewingThreadFocused =
-            message.threadRootId === activeThreadRootId.value &&
-            document.hasFocus();
-
-        if (viewingThreadFocused) {
-            markThreadRead();
-
-            return;
-        }
-
-        const root = displayMessages.value.find(
-            (candidate) => candidate.id === message.threadRootId,
-        );
-
-        if (
-            shouldFlagThreadUnread({
-                isReply: true,
-                isOwnReply: message.user.id === currentUser.value.id,
-                isFollowedThread: root?.threadFollowed ?? false,
-                isViewingThreadFocused: false,
-                isSuppressed: threadUnreadSuppressed.value,
-            })
-        ) {
-            mainStream.patchThreadState(message.threadRootId, {
-                threadUnread: true,
-            });
-        }
-    }
-}
+// The "New messages" divider's lifecycle — freeze its position at open, refreeze
+// on each channel switch, and hide the jump pill once it scrolls into view —
+// lives in this composable. It reads the server page (not the live-merged list)
+// so the boundary is immune to the order per-channel state resets on a switch.
+const { unreadDividerId, showJumpToUnread, scrollToUnread } = useUnreadDivider({
+    channelId: () => props.channel.id,
+    scrollContainer,
+    messages: () => serverMessages.value,
+    lastReadMessageId: () => props.lastReadMessageId ?? null,
+    currentUserId: () => currentUser.value.id,
+});
 
 // Advance the open thread's read pointer so its unread dot clears, mirroring the
 // channel's markRead: debounced, gated on focus, and optimistically clearing the
-// dot on the root back in the main timeline.
-let threadReadTimer: ReturnType<typeof setTimeout> | null = null;
-
-function markThreadRead(): void {
-    const rootId = activeThreadRootId.value;
-
-    if (!rootId || !document.hasFocus()) {
-        return;
-    }
-
-    if (threadReadTimer) {
-        clearTimeout(threadReadTimer);
-    }
-
-    threadReadTimer = setTimeout(() => {
+// dot on the root back in the main timeline. The root id is captured as the
+// debounced payload so a fire uses the thread that was open when it was scheduled.
+const threadReadPost = useDebouncedPost(
+    (rootId: string) => {
         router.post(
             markThreadReadAction({
                 team: props.team.slug,
@@ -394,88 +269,30 @@ function markThreadRead(): void {
         );
 
         mainStream.patchThreadState(rootId, { threadUnread: false });
-    }, 400);
+    },
+    { delay: 400, gate: () => document.hasFocus() },
+);
+
+function markThreadRead(): void {
+    const rootId = activeThreadRootId.value;
+
+    if (!rootId) {
+        return;
+    }
+
+    threadReadPost.schedule(rootId);
 }
 
 function channelName(id: string): string {
     return `channel.${id}`;
 }
 
-// An edit or deletion may touch either timeline (or both, for a sent-to-channel
-// reply); patch both streams, since a patch is ignored where the message isn't
-// rendered.
-function applyPatch(message: Message): void {
-    mainStream.applyPatch(message);
-    threadStream.applyPatch(message);
-}
-
-function subscribe(id: string): void {
-    echo()
-        .private(channelName(id))
-        .listen('MessageSent', (message: Message) => {
-            // Their message landed; stop showing them as typing.
-            typing.forget(message.user.id);
-            routeIncoming(message);
-            // Keep the open, focused channel read as new messages arrive.
-            markRead();
-        })
-        .listen('MessageUpdated', (message: Message) => {
-            applyPatch(message);
-        })
-        .listen('MessageDeleted', (message: Message) => {
-            applyPatch(message);
-        })
-        .listen(
-            'MessageReactionChanged',
-            (event: { messageId: string; reactions: Reaction[] }) => {
-                // The authoritative, viewer-free summary; patch it into whichever
-                // timeline renders the message (the patch is a no-op elsewhere).
-                mainStream.patchReactions(event.messageId, event.reactions);
-                threadStream.patchReactions(event.messageId, event.reactions);
-            },
-        )
-        .listen(
-            'MessageRead',
-            (event: { reader: MessageAuthor; lastReadMessageId: string }) => {
-                // Our own advance echoes back on the shared private channel; the
-                // "Seen by" row never shows the viewer, so drop it here.
-                if (event.reader.id === currentUser.value.id) {
-                    return;
-                }
-
-                const next = new Map(readers.value);
-                next.set(event.reader.id, {
-                    user: event.reader,
-                    lastReadMessageId: event.lastReadMessageId,
-                });
-                readers.value = next;
-            },
-        )
-        .listenForWhisper('typing', (user: TypingUser) => {
-            typing.receiveTyping(user);
-        });
-}
-
-function unsubscribe(id: string): void {
-    echo().leave(channelName(id));
-}
-
 // Advance the read pointer for the open channel so its sidebar badge clears.
 // Debounced and gated on tab focus: a channel is only "read" while the user is
 // actually looking at it, and a burst of arriving messages collapses to one
 // request. The redirect refreshes just the shared `channels` prop.
-let markReadTimer: ReturnType<typeof setTimeout> | null = null;
-
-function markRead(): void {
-    if (!document.hasFocus()) {
-        return;
-    }
-
-    if (markReadTimer) {
-        clearTimeout(markReadTimer);
-    }
-
-    markReadTimer = setTimeout(() => {
+const readPost = useDebouncedPost(
+    () => {
         router.post(
             markChannelRead({
                 team: props.team.slug,
@@ -484,13 +301,55 @@ function markRead(): void {
             {},
             { preserveScroll: true, preserveState: true, only: ['channels'] },
         );
-    }, 400);
+    },
+    { delay: 400, gate: () => document.hasFocus() },
+);
+
+function markRead(): void {
+    readPost.schedule();
 }
 
+// The member's own star/mute/notification-level preferences for this channel:
+// seeded from the server, reseeded on every channel switch, saved optimistically
+// and rolled back on error. `threadUnreadSuppressed` mirrors the server's dot
+// suppression and feeds the realtime router below.
+const {
+    notificationLevel,
+    muted,
+    starred,
+    threadUnreadSuppressed,
+    notificationStatus,
+    toggleStar,
+    onNotificationLevelChange,
+    onMuteChange,
+} = useChannelPreferences({
+    channelId: () => props.channel.id,
+    channel: () => props.channel,
+    teamSlug: () => props.team.slug,
+    channelSlug: () => props.channel.slug,
+});
+
+// The active channel's Echo subscribe/route/teardown lives in this composable: it
+// moves the subscription as the open channel changes and routes each broadcast
+// into the two streams. `Show.vue` only supplies the state it reconciles against.
+useChannelRealtime({
+    channelId: () => props.channel.id,
+    currentUserId: () => currentUser.value.id,
+    mainStream,
+    threadStream,
+    activeThreadRootId,
+    displayMessages: () => displayMessages.value,
+    isThreadUnreadSuppressed: () => threadUnreadSuppressed.value,
+    readers,
+    isNearBottom,
+    notifyAppended,
+    typing,
+    markRead,
+    markThreadRead,
+});
+
 onMounted(() => {
-    subscribe(props.channel.id);
     seedReaders();
-    computeUnreadDivider();
     markRead();
     window.addEventListener('focus', markRead);
     window.addEventListener('focus', markThreadRead);
@@ -531,50 +390,29 @@ watch(
     },
 );
 
-// Inertia may reuse this page component when navigating between channels; move
-// the subscription and reset per-channel state when the channel changes.
+// Inertia may reuse this page component when navigating between channels; reset
+// the message-orchestration state this page owns when the channel changes. The
+// extracted composables (realtime, draft, preferences, unread divider) each move
+// or refreeze their own state on the same change via their own watchers.
 watch(
     () => props.channel.id,
-    (newId, oldId) => {
-        // Persist the outgoing channel's draft before switching; `pendingDraft`
-        // still carries the old channel's slug, so it writes to the right place.
-        flushDraft();
-
-        if (oldId) {
-            unsubscribe(oldId);
-        }
-
+    () => {
         mainStream.reset();
         resetScrollPin();
         resetThreadPanel();
         replyTarget.value = null;
         typing.reset();
-        notificationLevel.value = props.channel.notificationLevel;
-        muted.value = props.channel.muted;
-        starred.value = props.channel.starred;
-        subscribe(newId);
         seedReaders();
-        computeUnreadDivider();
         markRead();
     },
 );
 
 onBeforeUnmount(() => {
-    // Leaving the workspace (or a full navigation away) still persists a
-    // just-typed draft that the debounce hasn't written yet.
-    flushDraft();
-    unsubscribe(props.channel.id);
-    unreadObserver?.disconnect();
+    // The draft persists itself on teardown (flushOnUnmount) and the read posts
+    // cancel themselves, so leaving the workspace neither loses a just-typed draft
+    // nor fires a stale mark-read.
     window.removeEventListener('focus', markRead);
     window.removeEventListener('focus', markThreadRead);
-
-    if (markReadTimer) {
-        clearTimeout(markReadTimer);
-    }
-
-    if (threadReadTimer) {
-        clearTimeout(threadReadTimer);
-    }
 
     if (highlightTimer) {
         clearTimeout(highlightTimer);
@@ -684,61 +522,19 @@ function forwardMessage({
 }
 
 // The member's unsent composer text is persisted per channel so it survives
-// navigation, reloads and other devices. Saves are debounced — a burst of
-// keystrokes collapses to one request — and reload only the shared `channels`
-// prop so the sidebar's draft cue updates without disturbing the timeline. A
-// send clears the draft server-side, so only manual edits flow through here.
-const DRAFT_DEBOUNCE_MS = 700;
-
-let draftTimer: ReturnType<typeof setTimeout> | null = null;
-
-// The latest pending draft, tagged with the slug of the channel it belongs to,
-// so a flush triggered by switching channels still writes to the channel that
-// was actually being edited rather than the one just navigated to.
-let pendingDraft: { slug: string; body: string } | null = null;
-
-function persistDraft(slug: string, body: string): void {
-    router.patch(
-        saveChannelDraft({ team: props.team.slug, channel: slug }).url,
-        { body },
-        { preserveScroll: true, preserveState: true, only: ['channels'] },
-    );
-}
-
-// Write any pending draft immediately, cancelling the debounce. Called before
-// leaving the channel so a just-typed draft is never lost to an unfired timer.
-function flushDraft(): void {
-    if (draftTimer) {
-        clearTimeout(draftTimer);
-        draftTimer = null;
-    }
-
-    if (pendingDraft) {
-        persistDraft(pendingDraft.slug, pendingDraft.body);
-        pendingDraft = null;
-    }
-}
-
-// Debounce a draft save for the current channel; an empty body clears it.
-function onDraftChange(body: string): void {
-    pendingDraft = { slug: props.channel.slug, body };
-
-    if (draftTimer) {
-        clearTimeout(draftTimer);
-    }
-
-    draftTimer = setTimeout(flushDraft, DRAFT_DEBOUNCE_MS);
-}
+// navigation, reloads and other devices. This composable owns the debounce, the
+// channel-switch flush, and the flush-on-unmount; a send clears the draft
+// server-side, so only manual edits flow through `onDraftChange`.
+const { onDraftChange, cancel: cancelDraft } = useChannelDraft({
+    channelId: () => props.channel.id,
+    teamSlug: () => props.team.slug,
+    channelSlug: () => props.channel.slug,
+});
 
 function send(body: string, mentions: Mention[]): void {
     // Sending clears the draft server-side, so drop any debounced save still in
     // flight; otherwise it would re-persist the just-sent text after the clear.
-    if (draftTimer) {
-        clearTimeout(draftTimer);
-        draftTimer = null;
-    }
-
-    pendingDraft = null;
+    cancelDraft();
 
     const clientUuid = crypto.randomUUID();
     const target = replyTarget.value;
@@ -789,12 +585,7 @@ function scheduleMessage(
     _mentions: Mention[],
     sendAt: string,
 ): void {
-    if (draftTimer) {
-        clearTimeout(draftTimer);
-        draftTimer = null;
-    }
-
-    pendingDraft = null;
+    cancelDraft();
 
     const target = replyTarget.value;
 
@@ -946,6 +737,15 @@ function appendPendingMain(message: Message): void {
     }
 }
 
+// Patch a message into both timelines at once — it may render in either (or both,
+// for a sent-to-channel reply), and a patch is ignored where it isn't shown. Used
+// by the optimistic edit/delete paths; the realtime echo re-applies it via
+// `useChannelRealtime`.
+function applyPatch(message: Message): void {
+    mainStream.applyPatch(message);
+    threadStream.applyPatch(message);
+}
+
 function editMessage(message: Message, body: string): void {
     const previousMain = mainStream.getPatch(message.clientUuid);
     const previousThread = threadStream.getPatch(message.clientUuid);
@@ -1094,104 +894,6 @@ function closeThread(): void {
         },
     );
 }
-
-// The member's own notification preferences for this channel, seeded from the
-// server and reseeded on every channel switch. Changes are saved optimistically
-// (the sidebar reloads to reflect the new badge/dimming state) and rolled back
-// if the request fails.
-const notificationLevel = ref<NotificationLevel>(
-    props.channel.notificationLevel,
-);
-const muted = ref<boolean>(props.channel.muted);
-const starred = ref<boolean>(props.channel.starred);
-
-/**
- * Star or unstar this channel, reloading only the shared `channels` prop so the
- * sidebar re-partitions its "Starred" section. Optimistic, rolled back on error.
- */
-function toggleStar(): void {
-    const previous = starred.value;
-    starred.value = !previous;
-
-    router.patch(
-        updateChannelStar({
-            team: props.team.slug,
-            channel: props.channel.slug,
-        }).url,
-        { starred: starred.value },
-        {
-            preserveScroll: true,
-            preserveState: true,
-            only: ['channels'],
-            onError: () => {
-                starred.value = previous;
-                toast.error('Failed to update the channel. Please try again.');
-            },
-        },
-    );
-}
-
-// Thread-unread dots are silenced under the same rule as the sidebar's unread
-// badge: a muted channel or any level below "all". Mirrors the server's
-// suppression so a live dot and a navigation-time dot agree.
-const threadUnreadSuppressed = computed(
-    () => muted.value || notificationLevel.value !== 'all',
-);
-
-function savePreferences(rollback: () => void): void {
-    router.patch(
-        updateChannelPreferences({
-            team: props.team.slug,
-            channel: props.channel.slug,
-        }).url,
-        { muted: muted.value, notification_level: notificationLevel.value },
-        {
-            preserveScroll: true,
-            preserveState: true,
-            only: ['channels'],
-            onError: () => {
-                rollback();
-                toast.error(
-                    'Failed to update notification preferences. Please try again.',
-                );
-            },
-        },
-    );
-}
-
-function onNotificationLevelChange(value: AcceptableValue): void {
-    const previous = notificationLevel.value;
-    notificationLevel.value = value as NotificationLevel;
-    savePreferences(() => {
-        notificationLevel.value = previous;
-    });
-}
-
-function onMuteChange(value: boolean): void {
-    const previous = muted.value;
-    muted.value = value;
-    savePreferences(() => {
-        muted.value = previous;
-    });
-}
-
-// A compact header cue for the member's non-default notification state (muted or
-// a quieted level); the "all" default shows nothing to keep the header clean.
-const notificationStatus = computed(() => {
-    if (muted.value) {
-        return { icon: BellOff, label: 'Muted' };
-    }
-
-    if (notificationLevel.value === 'nothing') {
-        return { icon: BellMinus, label: 'Notifications off' };
-    }
-
-    if (notificationLevel.value === 'mentions') {
-        return { icon: AtSign, label: 'Mentions only' };
-    }
-
-    return null;
-});
 
 // Drives the archive confirmation dialog opened from the channel header menu.
 const confirmingArchive = ref(false);
