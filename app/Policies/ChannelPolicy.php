@@ -42,8 +42,7 @@ class ChannelPolicy
      */
     public function updatePreference(User $user, Channel $channel): bool
     {
-        return $user->belongsToTeam($channel->team)
-            && $channel->members()->whereKey($user->id)->exists();
+        return $this->isMember($user, $channel);
     }
 
     /**
@@ -55,8 +54,7 @@ class ChannelPolicy
      */
     public function updateStar(User $user, Channel $channel): bool
     {
-        return $user->belongsToTeam($channel->team)
-            && $channel->members()->whereKey($user->id)->exists();
+        return $this->isMember($user, $channel);
     }
 
     /**
@@ -69,8 +67,7 @@ class ChannelPolicy
      */
     public function place(User $user, Channel $channel): bool
     {
-        return $user->belongsToTeam($channel->team)
-            && $channel->members()->whereKey($user->id)->exists();
+        return $this->isMember($user, $channel);
     }
 
     /**
@@ -82,8 +79,7 @@ class ChannelPolicy
      */
     public function saveDraft(User $user, Channel $channel): bool
     {
-        return $user->belongsToTeam($channel->team)
-            && $channel->members()->whereKey($user->id)->exists();
+        return $this->isMember($user, $channel);
     }
 
     /**
@@ -130,6 +126,18 @@ class ChannelPolicy
     public function removeMember(User $user, Channel $channel): bool
     {
         return $this->managesMembership($user, $channel);
+    }
+
+    /**
+     * Shared rule for the pivot-preference abilities (notification preference,
+     * star, sidebar placement, draft): the user is a plain member of the channel
+     * within its team, so they have a membership row to mutate. Each of those
+     * abilities only ever touches the caller's own row.
+     */
+    private function isMember(User $user, Channel $channel): bool
+    {
+        return $user->belongsToTeam($channel->team)
+            && $channel->members()->whereKey($user->id)->exists();
     }
 
     /**
