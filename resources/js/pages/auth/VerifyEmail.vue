@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { Form, Head } from '@inertiajs/vue3';
-import TextLink from '@/components/TextLink.vue';
+import { Form, Head, Link } from '@inertiajs/vue3';
+import AuthStatus from '@/components/AuthStatus.vue';
 import { Button } from '@/components/ui/button';
 import { Spinner } from '@/components/ui/spinner';
 import { logout } from '@/routes';
@@ -8,9 +8,10 @@ import { send } from '@/routes/verification';
 
 defineOptions({
     layout: {
-        title: 'Email verification',
+        title: 'Check your email',
         description:
             'Please verify your email address by clicking on the link we just emailed to you.',
+        icon: 'mail',
     },
 });
 
@@ -22,26 +23,31 @@ defineProps<{
 <template>
     <Head title="Email verification" />
 
-    <div
-        v-if="status === 'verification-link-sent'"
-        class="mb-4 text-center text-sm font-medium text-green-600"
-    >
+    <AuthStatus v-if="status === 'verification-link-sent'" class="mb-5">
         A new verification link has been sent to the email address you provided
         during registration.
-    </div>
+    </AuthStatus>
 
     <Form
         v-bind="send.form()"
-        class="space-y-6 text-center"
+        class="flex flex-col items-center gap-4"
         v-slot="{ processing }"
     >
-        <Button :disabled="processing" variant="secondary" class="rounded-full">
+        <Button
+            :disabled="processing"
+            variant="outline"
+            class="w-full rounded-full bg-muted hover:bg-accent"
+        >
             <Spinner v-if="processing" />
             Resend verification email
         </Button>
 
-        <TextLink :href="logout()" as="button" class="mx-auto block text-sm">
+        <Link
+            :href="logout()"
+            as="button"
+            class="text-sm text-muted-foreground underline decoration-input underline-offset-4 transition-colors hover:text-foreground"
+        >
             Log out
-        </TextLink>
+        </Link>
     </Form>
 </template>

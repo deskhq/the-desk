@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { Form, Head } from '@inertiajs/vue3';
+import AuthStatus from '@/components/AuthStatus.vue';
 import InputError from '@/components/InputError.vue';
 import TextLink from '@/components/TextLink.vue';
 import { Button } from '@/components/ui/button';
@@ -24,12 +25,7 @@ defineProps<{
 <template>
     <Head title="Forgot password" />
 
-    <div
-        v-if="status"
-        class="mb-4 text-center text-sm font-medium text-green-600"
-    >
-        {{ status }}
-    </div>
+    <AuthStatus v-if="status" class="mb-6">{{ status }}</AuthStatus>
 
     <div class="space-y-6">
         <Form v-bind="email.form()" v-slot="{ errors, processing }">
