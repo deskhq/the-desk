@@ -103,32 +103,36 @@ watch(
 <template>
     <aside
         data-test="thread-panel"
-        class="flex w-full min-w-0 shrink-0 flex-col border-l border-border md:w-96"
+        class="flex w-full min-w-0 shrink-0 flex-col overflow-hidden border-l border-border md:m-3.5 md:w-96 md:rounded-[14px] md:border md:border-border md:bg-sidebar md:shadow-sm"
     >
         <header
-            class="flex h-12 shrink-0 items-center gap-2 border-b border-border px-4"
+            class="flex shrink-0 items-start gap-2 border-b border-border px-[18px] pt-4 pb-3"
         >
             <div class="min-w-0 flex-1">
-                <h2 class="text-[14px] font-semibold text-foreground">
+                <h2
+                    class="font-serif text-[19px] leading-[1.1] font-semibold text-foreground"
+                >
                     Thread
                 </h2>
                 <p
-                    v-if="replyCount > 0"
                     data-test="thread-reply-count"
-                    class="text-[11.5px] text-muted-foreground"
+                    class="mt-0.5 text-[11.5px] text-muted-foreground"
                 >
-                    {{ replyCount }}
-                    {{ replyCount === 1 ? 'reply' : 'replies' }}
+                    <template v-if="replyCount > 0"
+                        >{{ replyCount }}
+                        {{ replyCount === 1 ? 'reply' : 'replies' }}
+                        · </template
+                    >#{{ props.channelName }}
                 </p>
             </div>
             <button
                 type="button"
                 data-test="thread-close"
                 aria-label="Close thread"
-                class="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
+                class="flex size-[26px] shrink-0 items-center justify-center rounded-lg border border-border text-muted-foreground hover:bg-muted hover:text-foreground"
                 @click="emit('close')"
             >
-                <X class="size-4" />
+                <X class="size-3.5" />
             </button>
         </header>
 
