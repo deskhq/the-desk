@@ -36,6 +36,7 @@ import { tokenizeMessageBody } from '@/lib/messageBody';
 import type { MessageBodySegment } from '@/lib/messageBody';
 import { readersForMessage } from '@/lib/readReceipts';
 import { buildTimelineItems } from '@/lib/timeline';
+import type { TimelineGroup } from '@/lib/timeline';
 import type {
     ChannelReader,
     Mention,
@@ -90,6 +91,15 @@ function threadAvatars(message: Message): Mention[] {
 
 function extraThreadParticipants(message: Message): number {
     return Math.max(0, message.threadParticipants.length - MAX_THREAD_AVATARS);
+}
+
+/**
+ * Inside a thread panel, the root message — the only one with no thread root of
+ * its own — earns a brass left accent so it reads as the conversation's origin,
+ * setting it apart from the replies below.
+ */
+function isThreadRoot(item: TimelineGroup): boolean {
+    return props.inThread === true && item.messages[0]?.threadRootId === null;
 }
 
 // How many reader avatars to preview on the "Seen by" row before collapsing the
@@ -397,7 +407,14 @@ function confirmDelete(): void {
                         >{{ formatTime(item.leadCreatedAt) }}</span
                     >
                 </div>
-                <div class="min-w-0 flex-1 border-l border-border pl-[18px]">
+                <div
+                    class="min-w-0 flex-1 pl-[18px]"
+                    :class="
+                        isThreadRoot(item)
+                            ? 'border-l-2 border-brass'
+                            : 'border-l border-border'
+                    "
+                >
                     <UserHoverCard
                         :team-slug="props.teamSlug"
                         :user-id="item.author.id"
