@@ -35,6 +35,7 @@ import {
     store as storeMessage,
     update as updateMessage,
 } from '@/actions/App/Http/Controllers/Channels/MessageController';
+import { store as toggleReactionAction } from '@/actions/App/Http/Controllers/Channels/ReactionController';
 import ForwardMessageDialog from '@/components/ForwardMessageDialog.vue';
 import MessageComposer from '@/components/MessageComposer.vue';
 import MessageList from '@/components/MessageList.vue';
@@ -70,6 +71,7 @@ import {
 import { useTeamPresence } from '@/composables/useTeamPresence';
 import { useTypingIndicator } from '@/composables/useTypingIndicator';
 import type { TypingUser } from '@/composables/useTypingIndicator';
+import { toggleReaction } from '@/lib/reactions';
 import { shouldFlagThreadUnread } from '@/lib/shouldFlagThreadUnread';
 import { unreadDividerMessageId } from '@/lib/unreadDivider';
 import type {
@@ -81,6 +83,7 @@ import type {
     MessagePage,
     NotificationLevel,
     NotificationLevelOption,
+    Reaction,
     Thread,
 } from '@/types';
 
@@ -91,6 +94,9 @@ const props = defineProps<{
     members: Mention[];
     canArchive: boolean;
     canManagePreferences: boolean;
+    // Whether the viewer may react (member of a non-archived channel); read-only
+    // reaction pills still render for a non-member browsing a public channel.
+    canReact: boolean;
     notificationLevels: NotificationLevelOption[];
     jumpToMessageId?: string | null;
     // The viewer's read pointer at load time, used to place the "New messages"
@@ -416,6 +422,15 @@ function subscribe(id: string): void {
         .listen('MessageDeleted', (message: Message) => {
             applyPatch(message);
         })
+        .listen(
+            'MessageReactionChanged',
+            (event: { messageId: string; reactions: Reaction[] }) => {
+                // The authoritative, viewer-free summary; patch it into whichever
+                // timeline renders the message (the patch is a no-op elsewhere).
+                mainStream.patchReactions(event.messageId, event.reactions);
+                threadStream.patchReactions(event.messageId, event.reactions);
+            },
+        )
         .listen(
             'MessageRead',
             (event: { reader: MessageAuthor; lastReadMessageId: string }) => {
@@ -873,6 +888,38 @@ function deleteMessage(message: Message): void {
     );
 }
 
+// Toggle the viewer's emoji reaction on a message. The pills update
+// optimistically in whichever timeline renders it; the authoritative summary
+// arrives over the MessageReactionChanged broadcast (including the viewer's own
+// echo), and a failed request rolls the optimistic patch back.
+function reactToMessage(message: Message, emoji: string): void {
+    const previousMain = mainStream.getPatch(message.clientUuid);
+    const previousThread = threadStream.getPatch(message.clientUuid);
+
+    const next = toggleReaction(message.reactions, emoji, currentUser.value);
+    mainStream.patchReactions(message.id, next);
+    threadStream.patchReactions(message.id, next);
+
+    router.post(
+        toggleReactionAction({
+            team: props.team.slug,
+            channel: props.channel.slug,
+            message: message.id,
+        }).url,
+        { emoji },
+        {
+            preserveScroll: true,
+            preserveState: true,
+            only: ['channels'],
+            onError: () => {
+                mainStream.restorePatch(message.clientUuid, previousMain);
+                threadStream.restorePatch(message.clientUuid, previousThread);
+                toast.error('Failed to update the reaction. Please try again.');
+            },
+        },
+    );
+}
+
 // Reset the panel's client state without navigating. Used when switching
 // channels, where the URL has already moved off any open thread.
 function resetThreadPanel(): void {
@@ -1222,6 +1269,7 @@ function archive(): void {
                             :pending-uuids="pendingUuids"
                             :current-user-id="currentUser.id"
                             :can-moderate="canModerate"
+                            :can-react="props.canReact"
                             :online-ids="onlineIds"
                             :readers="channelReadersList"
                             :highlight-message-id="highlightedMessageId"
@@ -1231,6 +1279,7 @@ function archive(): void {
                             @delete="deleteMessage"
                             @reply="startReply"
                             @forward="openForward"
+                            @react="reactToMessage"
                             @open-thread="openThread"
                             @jump="jumpToMessage"
                             @mention="mentionInChannel"
@@ -1309,6 +1358,7 @@ function archive(): void {
                 :members="mentionableMembers"
                 :current-user-id="currentUser.id"
                 :can-moderate="canModerate"
+                :can-react="props.canReact"
                 :online-ids="onlineIds"
                 :loading="threadLoading"
                 :read-only="props.channel.isArchived"
@@ -1317,6 +1367,7 @@ function archive(): void {
                 @edit="editMessage"
                 @delete="deleteMessage"
                 @forward="openForward"
+                @react="reactToMessage"
                 @typing="onTyping"
                 @jump="jumpToMessage"
             />

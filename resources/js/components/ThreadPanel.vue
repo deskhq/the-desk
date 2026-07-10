@@ -20,6 +20,7 @@ const props = defineProps<{
     members: Mention[];
     currentUserId: string;
     canModerate?: boolean;
+    canReact?: boolean;
     onlineIds?: Set<string>;
     loading?: boolean;
     readOnly?: boolean;
@@ -31,6 +32,7 @@ const emit = defineEmits<{
     edit: [message: Message, body: string];
     delete: [message: Message];
     forward: [message: Message];
+    react: [message: Message, emoji: string];
     typing: [];
     jump: [messageId: string];
 }>();
@@ -157,11 +159,13 @@ watch(
                     :pending-uuids="props.pendingUuids"
                     :current-user-id="props.currentUserId"
                     :can-moderate="props.canModerate"
+                    :can-react="props.canReact"
                     :online-ids="props.onlineIds"
                     in-thread
                     @edit="(message, body) => emit('edit', message, body)"
                     @delete="(message) => emit('delete', message)"
                     @forward="(message) => emit('forward', message)"
+                    @react="(message, emoji) => emit('react', message, emoji)"
                     @jump="(id) => emit('jump', id)"
                     @mention="mentionInThread"
                 />

@@ -50,7 +50,7 @@ class PostMessage
             $this->syncMentions->handle($channel, $message);
             $this->syncLinkPreviews->handle($message);
             $message->setRelation('user', $author);
-            $message->load(['mentionedUsers', 'linkPreviews', 'replyTo.user', 'replyTo.mentionedUsers', 'forwardedFrom.user', 'forwardedFrom.channel', 'forwardedFrom.mentionedUsers']);
+            $message->load(['mentionedUsers', 'linkPreviews', 'reactions.user', 'replyTo.user', 'replyTo.mentionedUsers', 'forwardedFrom.user', 'forwardedFrom.channel', 'forwardedFrom.mentionedUsers']);
             MessageSent::dispatch($channel, MessageData::fromMessage($message));
 
             if ($threadRootId !== null) {
@@ -74,7 +74,7 @@ class PostMessage
         $root = $channel->messages()->withTrashed()->findOrFail($threadRootId);
         $root->forceFill(['reply_count' => $root->reply_count + 1, 'last_reply_at' => now()])->save();
 
-        $root->load(['user', 'mentionedUsers', 'linkPreviews', 'replyTo.user', 'replyTo.mentionedUsers', 'threadParticipants']);
+        $root->load(['user', 'mentionedUsers', 'linkPreviews', 'reactions.user', 'replyTo.user', 'replyTo.mentionedUsers', 'threadParticipants']);
         MessageUpdated::dispatch($channel, MessageData::fromMessage($root));
     }
 }

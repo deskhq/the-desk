@@ -15,6 +15,7 @@ class MessageData extends Data
     /**
      * @param  array<int, MentionData>  $mentions
      * @param  array<int, LinkPreviewData>  $linkPreviews
+     * @param  array<int, ReactionData>  $reactions
      * @param  array<int, MentionData>  $threadParticipants
      */
     public function __construct(
@@ -27,6 +28,7 @@ class MessageData extends Data
         public bool $isDeleted,
         public array $mentions,
         public array $linkPreviews,
+        public array $reactions,
         public ?MessageReplyData $replyTo,
         public ?MessageForwardData $forwardedFrom,
         public ?string $threadRootId,
@@ -85,6 +87,9 @@ class MessageData extends Data
                 ->map(fn (MessageLinkPreview $preview) => LinkPreviewData::fromModel($preview))
                 ->values()
                 ->all(),
+            // A tombstone carries no reactions; DeleteMessage also hard-deletes
+            // the rows, so a deleted message aggregates to an empty set either way.
+            reactions: $isDeleted ? [] : ReactionData::forMessage($message),
             replyTo: ! $isDeleted && $message->replyTo !== null
                 ? MessageReplyData::fromMessage($message->replyTo)
                 : null,

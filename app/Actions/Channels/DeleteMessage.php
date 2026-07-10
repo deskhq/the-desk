@@ -18,6 +18,11 @@ class DeleteMessage
      */
     public function handle(Channel $channel, Message $message): void
     {
+        // A soft delete leaves the row (and its FK-cascading children) in place,
+        // so drop the reactions explicitly — a tombstone shows none, and they
+        // would otherwise linger unreachable behind the deleted message.
+        $message->reactions()->delete();
+
         $message->delete();
 
         $message->loadMissing('user');

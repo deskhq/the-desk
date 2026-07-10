@@ -48,7 +48,7 @@ class ThreadsController extends Controller
                 ->where('reply_count', '>', 0)
                 ->followedBy($user)
                 ->withThreadReadState($user)
-                ->with(['user', 'channel', 'mentionedUsers', 'replyTo.user', 'replyTo.mentionedUsers', 'forwardedFrom.user', 'forwardedFrom.channel', 'forwardedFrom.mentionedUsers', 'threadParticipants'])
+                ->with(['user', 'channel', 'mentionedUsers', 'reactions.user', 'replyTo.user', 'replyTo.mentionedUsers', 'forwardedFrom.user', 'forwardedFrom.channel', 'forwardedFrom.mentionedUsers', 'threadParticipants'])
                 ->orderByDesc('last_reply_at')
                 ->orderByDesc('id')
                 ->cursorPaginate(self::PAGE_SIZE)

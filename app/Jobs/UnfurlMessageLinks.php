@@ -20,7 +20,7 @@ class UnfurlMessageLinks implements ShouldQueue
      * @var array<int, string>
      */
     private const array MESSAGE_RELATIONS = [
-        'user', 'mentionedUsers', 'linkPreviews',
+        'user', 'mentionedUsers', 'linkPreviews', 'reactions.user',
         'replyTo.user', 'replyTo.mentionedUsers',
         'forwardedFrom.user', 'forwardedFrom.channel', 'forwardedFrom.mentionedUsers',
     ];

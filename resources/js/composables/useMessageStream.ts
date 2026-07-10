@@ -1,6 +1,6 @@
 import { computed, ref, watch } from 'vue';
 import type { ComputedRef, Ref } from 'vue';
-import type { Mention, Message, MessageForward } from '@/types';
+import type { Mention, Message, MessageForward, Reaction } from '@/types';
 
 /**
  * The reactive merge engine behind a message list.
@@ -136,6 +136,15 @@ export function useMessageStream(
         patches.value.set(current.clientUuid, { ...current, ...partial });
     }
 
+    /**
+     * Replace a rendered message's reactions in place, found by its message id
+     * (the id the `MessageReactionChanged` broadcast carries). Used to patch the
+     * pills live as reactions are toggled, keeping every other field intact.
+     */
+    function patchReactions(id: string, reactions: Reaction[]): void {
+        patchThreadState(id, { reactions });
+    }
+
     function getPatch(clientUuid: string): Message | undefined {
         return patches.value.get(clientUuid);
     }
@@ -173,6 +182,7 @@ export function useMessageStream(
         appendLive,
         applyPatch,
         patchThreadState,
+        patchReactions,
         getPatch,
         restorePatch,
         addPending,
@@ -209,6 +219,8 @@ export function optimisticMessage(params: {
         // Previews resolve server-side; the echo replaces this optimistic copy
         // with one carrying any pending skeletons.
         linkPreviews: [],
+        // A just-sent message has no reactions yet.
+        reactions: [],
         replyTo: target
             ? {
                   id: target.id,
