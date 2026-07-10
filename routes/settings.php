@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Settings\DataExportController;
 use App\Http\Controllers\Settings\NotificationController;
 use App\Http\Controllers\Settings\ProfileController;
 use App\Http\Controllers\Settings\ReadReceiptsController;
@@ -24,6 +25,9 @@ Route::middleware(['auth'])->group(function () {
 
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::delete('settings/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
+
+    Route::post('settings/data-export', [DataExportController::class, 'store'])->name('data-export.store');
+    Route::get('settings/data-export/{dataExport}/download', [DataExportController::class, 'download'])->name('data-export.download');
 
     Route::get('settings/security', [SecurityController::class, 'edit'])
         ->middleware(RequirePassword::class)
