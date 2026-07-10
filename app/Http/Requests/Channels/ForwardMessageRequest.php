@@ -71,13 +71,14 @@ class ForwardMessageRequest extends FormRequest
     }
 
     /**
-     * The ids of channels the author belongs to, scoping the valid forward
-     * destinations to their own memberships.
+     * The ids of channels the author may see in the source's team, scoping the
+     * valid forward destinations to their own memberships. Forwarding stays
+     * within one team, so the source channel's team is the destination's team.
      *
      * @return array<int, string>
      */
     protected function membershipChannelIds(): array
     {
-        return $this->user()->channels()->pluck('channels.id')->all();
+        return $this->user()->visibleChannelIds($this->sourceChannel()->team)->all();
     }
 }

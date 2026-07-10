@@ -17,6 +17,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection as SupportCollection;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 
@@ -125,6 +126,26 @@ class User extends Authenticatable
         return $this->belongsToMany(Channel::class, 'channel_members')
             ->withPivot(['last_read_message_id', 'muted', 'notification_level', 'draft', 'starred', 'section_id', 'position'])
             ->withTimestamps();
+    }
+
+    /**
+     * The ids of the channels this user may see in a team — the whole
+     * authorization boundary for message search, the thread inbox, unread
+     * indicators, forwarding, and sidebar placement.
+     *
+     * "Visible" is membership scoped to the team: every channel the user belongs
+     * to within it, archived ones included (they are still readable, just hidden
+     * from the sidebar). This is the single home of that decision — no consumer
+     * re-derives the ACL with its own query, so tightening it (a block-list, an
+     * archived exclusion) is one change every consumer inherits.
+     *
+     * @return SupportCollection<int, string>
+     */
+    public function visibleChannelIds(Team $team): SupportCollection
+    {
+        return $this->channels()
+            ->where('channels.team_id', $team->id)
+            ->pluck('channels.id');
     }
 
     /**

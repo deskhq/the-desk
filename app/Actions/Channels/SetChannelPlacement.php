@@ -26,10 +26,7 @@ class SetChannelPlacement
      */
     public function handle(User $user, Team $team, Channel $channel, array $orderedIds, bool $moveSection, ?string $sectionId): void
     {
-        $memberChannelIds = $user->channels()
-            ->where('channels.team_id', $team->id)
-            ->pluck('channels.id')
-            ->all();
+        $memberChannelIds = $user->visibleChannelIds($team)->all();
 
         foreach ($orderedIds as $index => $id) {
             if (in_array($id, $memberChannelIds, true)) {

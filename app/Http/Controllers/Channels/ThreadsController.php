@@ -32,9 +32,7 @@ class ThreadsController extends Controller
     {
         $user = $request->user();
 
-        $channelIds = $user->channels()
-            ->where('channels.team_id', $team->id)
-            ->pluck('channels.id');
+        $channelIds = $user->visibleChannelIds($team);
 
         return Inertia::render('channels/Threads', [
             'team' => [
