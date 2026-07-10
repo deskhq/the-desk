@@ -90,7 +90,7 @@ function submit(): void {
 
             <div
                 v-if="message"
-                class="rounded-md border-l-2 border-border bg-muted/30 px-3 py-2"
+                class="rounded-r-lg border-l-2 border-brass bg-muted/30 px-3 py-2"
             >
                 <p class="text-[12.5px] font-semibold text-foreground">
                     {{ message.user.name }}

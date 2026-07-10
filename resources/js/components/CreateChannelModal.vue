@@ -65,13 +65,21 @@ function handleOpenChange(value: boolean) {
                 <div class="grid gap-4">
                     <div class="grid gap-2">
                         <Label for="name">Name</Label>
-                        <Input
-                            id="name"
-                            name="name"
-                            data-test="create-channel-name"
-                            placeholder="marketing"
-                            required
-                        />
+                        <div class="relative">
+                            <span
+                                aria-hidden="true"
+                                class="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 font-serif text-[15px] text-brass italic"
+                                >#</span
+                            >
+                            <Input
+                                id="name"
+                                name="name"
+                                data-test="create-channel-name"
+                                placeholder="marketing"
+                                class="pl-7"
+                                required
+                            />
+                        </div>
                         <InputError :message="errors.name" />
                     </div>
 
