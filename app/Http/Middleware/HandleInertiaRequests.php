@@ -13,6 +13,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Middleware;
+use Laravel\Fortify\Features;
 
 class HandleInertiaRequests extends Middleware
 {
@@ -49,6 +50,10 @@ class HandleInertiaRequests extends Middleware
         return [
             ...parent::share($request),
             'name' => config('app.name'),
+            // A single deploy-time flag lets self-hosters lock down public
+            // registration; when off, Fortify never registers the register
+            // routes, so the frontend hides its "sign up" affordances to match.
+            'registrationEnabled' => Features::enabled(Features::registration()),
             'auth' => [
                 'user' => $user,
             ],
