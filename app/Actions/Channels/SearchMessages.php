@@ -44,6 +44,6 @@ class SearchMessages
             ->whereIn('channel_id', $channelIds)
             ->take($limit)
             ->get()
-            ->load(['user', 'channel', 'mentionedUsers', 'replyTo.user', 'replyTo.mentionedUsers', 'forwardedFrom.user', 'forwardedFrom.channel', 'forwardedFrom.mentionedUsers']);
+            ->load(['user', 'channel', 'mentionedUsers', 'linkPreviews', 'replyTo.user', 'replyTo.mentionedUsers', 'forwardedFrom.user', 'forwardedFrom.channel', 'forwardedFrom.mentionedUsers']);
     }
 }

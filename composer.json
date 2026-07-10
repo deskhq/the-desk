@@ -20,7 +20,8 @@
         "laravel/wayfinder": "^0.1.14",
         "meilisearch/meilisearch-php": "^1.16",
         "spatie/laravel-data": "^4.23",
-        "spatie/laravel-typescript-transformer": "^3.3"
+        "spatie/laravel-typescript-transformer": "^3.3",
+        "symfony/dom-crawler": "^8.1"
     },
     "require-dev": {
         "fakerphp/faker": "^1.24",

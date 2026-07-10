@@ -164,7 +164,7 @@ class ChannelController extends Controller
             // "message deleted" tombstone in place; MessageData blanks their body.
             'messages' => Inertia::scroll(fn () => $this->mainTimeline($channel->messages()->withTrashed()->getQuery())
                 ->withThreadReadState($request->user())
-                ->with(['user', 'mentionedUsers', 'replyTo.user', 'replyTo.mentionedUsers', 'forwardedFrom.user', 'forwardedFrom.channel', 'forwardedFrom.mentionedUsers', 'threadParticipants'])
+                ->with(['user', 'mentionedUsers', 'linkPreviews', 'replyTo.user', 'replyTo.mentionedUsers', 'forwardedFrom.user', 'forwardedFrom.channel', 'forwardedFrom.mentionedUsers', 'threadParticipants'])
                 ->when($windowCeilingId, fn (Builder $query) => $query->where('id', '<=', $windowCeilingId))
                 ->orderByDesc('id')
                 ->cursorPaginate(self::MESSAGE_PAGE_SIZE)
@@ -209,7 +209,7 @@ class ChannelController extends Controller
         $root = $this->resolveThreadRoot($request, $channel);
 
         $query = $root !== null
-            ? $root->threadReplies()->withTrashed()->with(['user', 'mentionedUsers', 'replyTo.user', 'replyTo.mentionedUsers', 'forwardedFrom.user', 'forwardedFrom.channel', 'forwardedFrom.mentionedUsers'])
+            ? $root->threadReplies()->withTrashed()->with(['user', 'mentionedUsers', 'linkPreviews', 'replyTo.user', 'replyTo.mentionedUsers', 'forwardedFrom.user', 'forwardedFrom.channel', 'forwardedFrom.mentionedUsers'])
             : Message::query()->whereRaw('1 = 0');
 
         return $query
@@ -235,7 +235,7 @@ class ChannelController extends Controller
         return $channel->messages()
             ->whereNull('thread_root_id')
             ->withThreadReadState($request->user())
-            ->with(['user', 'mentionedUsers', 'replyTo.user', 'replyTo.mentionedUsers', 'forwardedFrom.user', 'forwardedFrom.channel', 'forwardedFrom.mentionedUsers', 'threadParticipants'])
+            ->with(['user', 'mentionedUsers', 'linkPreviews', 'replyTo.user', 'replyTo.mentionedUsers', 'forwardedFrom.user', 'forwardedFrom.channel', 'forwardedFrom.mentionedUsers', 'threadParticipants'])
             ->find($rootId);
     }
 
