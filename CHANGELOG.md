@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.2.0](https://github.com/emmpaul/laravel-slack-clone/compare/v0.1.0...v0.2.0) (2026-07-10)
+
+
+### Features
+
+* **messaging:** scheduled / send-later messages ([#115](https://github.com/emmpaul/laravel-slack-clone/issues/115)) ([c2f2728](https://github.com/emmpaul/laravel-slack-clone/commit/c2f27283b9c8c410c064d166a0233104d0bb081c))
+* self-hosting with Docker (prod image, compose, CI build check) ([#117](https://github.com/emmpaul/laravel-slack-clone/issues/117)) ([f4fbbf7](https://github.com/emmpaul/laravel-slack-clone/commit/f4fbbf7262725a3976261d427fa372897d78be0b))
+
+
+### Code Refactoring
+
+* **architecture:** land the architecture-hardening epic ([#131](https://github.com/emmpaul/laravel-slack-clone/issues/131)) ([211c3c0](https://github.com/emmpaul/laravel-slack-clone/commit/211c3c0731ef89b4b029ef64c0ead6779e136c96))
+
 ## 0.1.0 (2026-07-10)
 
 Initial release — the first tagged, self-hostable cut of the app.
