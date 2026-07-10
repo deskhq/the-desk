@@ -137,11 +137,11 @@ function occurredAt(iso: string): string {
             <li
                 v-for="entry in entries.data"
                 :key="entry.id"
-                class="flex flex-col gap-1 rounded-lg border border-border p-4 sm:flex-row sm:items-center sm:justify-between"
+                class="flex flex-col gap-1 rounded-lg border border-border bg-card p-4 shadow-[0_2px_8px_rgba(29,26,21,0.05)] sm:flex-row sm:items-center sm:justify-between"
                 :data-test="`audit-entry-${entry.id}`"
             >
                 <div class="min-w-0 space-y-0.5">
-                    <p class="text-sm font-medium">
+                    <p class="text-sm font-semibold">
                         {{ entry.actorName ?? 'Unknown member' }}
                     </p>
                     <p class="text-sm text-muted-foreground">
@@ -166,6 +166,7 @@ function occurredAt(iso: string): string {
                 as-child
                 variant="outline"
                 size="sm"
+                class="rounded-full"
                 data-test="audit-prev-page"
             >
                 <Link :href="entries.prevPageUrl" preserve-scroll>
@@ -179,6 +180,7 @@ function occurredAt(iso: string): string {
                 as-child
                 variant="outline"
                 size="sm"
+                class="rounded-full"
                 data-test="audit-next-page"
             >
                 <Link :href="entries.nextPageUrl" preserve-scroll>

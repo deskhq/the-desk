@@ -140,6 +140,7 @@ const confirmTransferOwnership = (member: TeamMember) => {
                 <div class="flex items-center gap-4">
                     <Button
                         type="submit"
+                        class="rounded-full px-6"
                         data-test="team-save-button"
                         :disabled="processing"
                     >
@@ -168,6 +169,7 @@ const confirmTransferOwnership = (member: TeamMember) => {
 
                 <Button
                     v-if="permissions.canCreateInvitation"
+                    class="rounded-full"
                     data-test="invite-member-button"
                     @click="inviteDialogOpen = true"
                 >
@@ -180,7 +182,7 @@ const confirmTransferOwnership = (member: TeamMember) => {
                     v-for="member in members"
                     :key="member.id"
                     data-test="member-row"
-                    class="flex items-center justify-between rounded-lg border p-4"
+                    class="flex items-center justify-between rounded-lg border bg-card p-4 shadow-[0_2px_8px_rgba(29,26,21,0.05)]"
                 >
                     <div class="flex items-center gap-4">
                         <Avatar class="h-10 w-10">
@@ -196,7 +198,7 @@ const confirmTransferOwnership = (member: TeamMember) => {
                         <div>
                             <Link
                                 :href="showMember([team.slug, member.id])"
-                                class="font-medium underline-offset-4 hover:underline"
+                                class="font-semibold underline-offset-4 hover:underline"
                                 data-test="member-profile-link"
                             >
                                 {{ member.name }}
@@ -308,7 +310,7 @@ const confirmTransferOwnership = (member: TeamMember) => {
                     v-for="invitation in invitations"
                     :key="invitation.code"
                     data-test="invitation-row"
-                    class="flex items-center justify-between rounded-lg border p-4"
+                    class="flex items-center justify-between rounded-lg border bg-card p-4 shadow-[0_2px_8px_rgba(29,26,21,0.05)]"
                 >
                     <div class="flex items-center gap-4">
                         <div
@@ -317,7 +319,7 @@ const confirmTransferOwnership = (member: TeamMember) => {
                             <Mail class="h-5 w-5 text-muted-foreground" />
                         </div>
                         <div>
-                            <div class="font-medium">
+                            <div class="font-semibold">
                                 {{ invitation.email }}
                             </div>
                             <div class="text-sm text-muted-foreground">
@@ -354,7 +356,12 @@ const confirmTransferOwnership = (member: TeamMember) => {
                 title="Audit log"
                 description="Review moderation and admin actions in this workspace"
             />
-            <Button as-child variant="outline" data-test="view-audit-log-link">
+            <Button
+                as-child
+                variant="outline"
+                class="rounded-full"
+                data-test="view-audit-log-link"
+            >
                 <Link :href="auditIndex(team.slug)">View audit log</Link>
             </Button>
         </div>
@@ -362,31 +369,26 @@ const confirmTransferOwnership = (member: TeamMember) => {
         <!-- Danger Zone -->
         <div
             v-if="permissions.canDeleteTeam && !team.isPersonal"
-            class="space-y-6"
+            class="space-y-3"
         >
-            <Heading
-                variant="small"
-                title="Delete team"
-                description="Permanently delete your team"
-            />
-            <div
-                class="space-y-4 rounded-lg border border-red-100 bg-red-50 p-4 dark:border-red-200/10 dark:bg-red-700/10"
-            >
-                <div
-                    class="relative space-y-0.5 text-red-600 dark:text-red-100"
+            <div>
+                <h3
+                    class="font-serif text-[17px] font-semibold text-destructive"
                 >
-                    <p class="font-medium">Warning</p>
-                    <p class="text-sm">
-                        Please proceed with caution, this cannot be undone.
-                    </p>
-                </div>
-                <Button
-                    data-test="delete-team-button"
-                    variant="destructive"
-                    @click="deleteDialogOpen = true"
-                    >Delete team</Button
-                >
+                    Delete team
+                </h3>
+                <p class="mt-1 text-sm text-muted-foreground">
+                    Permanently delete this team and all of its data. This
+                    cannot be undone.
+                </p>
             </div>
+            <Button
+                data-test="delete-team-button"
+                variant="outline"
+                class="rounded-full border-destructive/40 text-destructive hover:border-destructive/60 hover:bg-destructive/10 hover:text-destructive"
+                @click="deleteDialogOpen = true"
+                >Delete team&hellip;</Button
+            >
         </div>
     </div>
 

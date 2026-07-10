@@ -58,7 +58,7 @@ defineOptions({
             />
 
             <CreateTeamModal>
-                <Button data-test="teams-new-team-button">
+                <Button class="rounded-full" data-test="teams-new-team-button">
                     <Plus /> New team
                 </Button>
             </CreateTeamModal>
@@ -69,12 +69,12 @@ defineOptions({
                 v-for="team in teams"
                 :key="team.id"
                 data-test="team-row"
-                class="flex items-center justify-between gap-4 rounded-lg border p-4"
+                class="flex items-center justify-between gap-4 rounded-lg border bg-card p-4 shadow-[0_2px_8px_rgba(29,26,21,0.05)]"
             >
                 <div class="flex items-center gap-4">
                     <div>
                         <div class="flex items-center gap-2">
-                            <span class="font-medium">{{ team.name }}</span>
+                            <span class="font-semibold">{{ team.name }}</span>
                             <Badge v-if="team.isPersonal" variant="secondary">
                                 Personal
                             </Badge>

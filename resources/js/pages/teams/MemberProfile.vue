@@ -82,7 +82,9 @@ const localTime = computed(() =>
             :description="`Member of ${team.name}`"
         />
 
-        <div class="flex items-start gap-4 rounded-lg border p-6">
+        <div
+            class="flex items-start gap-4 rounded-lg border bg-card p-6 shadow-[0_2px_8px_rgba(29,26,21,0.05)]"
+        >
             <Avatar class="h-16 w-16 text-lg">
                 <AvatarFallback>{{ getInitials(profile.name) }}</AvatarFallback>
             </Avatar>
@@ -90,7 +92,7 @@ const localTime = computed(() =>
             <div class="min-w-0 flex-1 space-y-3">
                 <div>
                     <div class="flex flex-wrap items-center gap-2">
-                        <h3 class="text-lg font-semibold">
+                        <h3 class="font-serif text-xl font-semibold">
                             {{ profile.name }}
                         </h3>
                         <span
