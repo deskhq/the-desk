@@ -1161,13 +1161,13 @@ function archive(): void {
                             class="flex h-full flex-col items-center justify-center gap-1"
                         >
                             <div
-                                class="flex size-14 items-center justify-center rounded-2xl border border-border bg-muted text-2xl font-semibold text-muted-foreground"
+                                class="font-serif text-[64px] leading-none text-border italic"
                                 aria-hidden="true"
                             >
                                 #
                             </div>
                             <p
-                                class="mt-2.5 text-[15px] font-semibold text-foreground"
+                                class="mt-1.5 font-serif text-[20px] font-semibold text-foreground"
                             >
                                 No messages yet
                             </p>
