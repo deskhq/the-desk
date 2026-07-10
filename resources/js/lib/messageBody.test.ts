@@ -46,13 +46,20 @@ describe('tokenizeMessageBody', () => {
         ]);
     });
 
-    it('renders a resolved mention as a pill inside a text segment', () => {
-        const [segment] = tokenizeMessageBody(`hi @[Alice](${alice.id})`, [
-            alice,
+    it('splits a resolved mention out as its own segment', () => {
+        expect(
+            tokenizeMessageBody(`hi @[Alice](${alice.id})`, [alice]),
+        ).toEqual([
+            { kind: 'html', html: 'hi ' },
+            { kind: 'mention', id: alice.id, name: 'Alice' },
         ]);
+    });
 
-        expect(segment.kind).toBe('html');
-        expect(segment.kind === 'html' && segment.html).toContain('>@Alice<');
+    it('falls back to plain text for an unresolved mention', () => {
+        expect(tokenizeMessageBody(`hi @[Ghost](${alice.id})`)).toEqual([
+            { kind: 'html', html: 'hi ' },
+            { kind: 'html', html: '@Ghost' },
+        ]);
     });
 });
 
@@ -66,5 +73,12 @@ describe('renderMessageBody', () => {
 
     it('preserves newlines as <br>', () => {
         expect(renderMessageBody('a\nb')).toBe('a<br>b');
+    });
+
+    it('renders a resolved mention as a highlighted pill', () => {
+        const html = renderMessageBody(`hi @[Alice](${alice.id})`, [alice]);
+
+        expect(html).toContain('>@Alice<');
+        expect(html).toContain('text-blue-700');
     });
 });

@@ -32,30 +32,67 @@ const TRAILING_PUNCTUATION = /[.,!?;:'")\]]+$/;
  * `v-html` string can't support.
  */
 export type MessageBodySegment =
-    { kind: 'html'; html: string } | { kind: 'link'; href: string };
+    | { kind: 'html'; html: string }
+    | { kind: 'link'; href: string }
+    | { kind: 'mention'; id: string; name: string };
+
+// The highlighted-pill styling for a resolved mention, shared by the interactive
+// segment renderer and the flat-HTML {@see renderMessageBody}.
+const MENTION_PILL_CLASS =
+    'rounded px-1 py-0.5 font-medium text-blue-700 bg-blue-500/10 dark:text-blue-300 dark:bg-blue-400/15';
+
+function mentionPillHtml(name: string): string {
+    return `<span class="${MENTION_PILL_CLASS}">@${escapeHtml(name)}</span>`;
+}
+
+// Escape a run of text for HTML and preserve its newlines as `<br>`.
+function escapeInline(text: string): string {
+    return escapeHtml(text).replace(/\n/g, '<br>');
+}
 
 /**
- * Render a run of message text (no URLs) into safe HTML: HTML is escaped first
- * (so user input can never inject markup), mention tokens are highlighted, and
- * newlines are preserved as `<br>`.
+ * Split a run of message text (no URLs) into ordered segments: escaped HTML runs
+ * and standalone `mention` segments the timeline can wrap in a profile hover
+ * card.
  *
- * Only mentions whose id is present in `mentions` render as a highlighted pill;
+ * Only mentions whose id is present in `resolved` become a `mention` segment;
  * any other well-formed token falls back to its plain `@Name` text so a spoofed
  * token for a non-member can never masquerade as a resolved mention.
  */
-function renderInlineText(text: string, mentions: Mention[]): string {
-    const escaped = escapeHtml(text);
-    const resolved = new Set(mentions.map((mention) => mention.id));
+function tokenizeInlineText(
+    text: string,
+    resolved: Set<string>,
+): MessageBodySegment[] {
+    const segments: MessageBodySegment[] = [];
+    // A fresh regex per call keeps the shared `lastIndex` from leaking between
+    // invocations of this stateful global pattern.
+    const pattern = new RegExp(MENTION_PATTERN.source, 'g');
+    let lastIndex = 0;
+    let match: RegExpExecArray | null;
 
-    const withMentions = escaped.replace(
-        MENTION_PATTERN,
-        (_match, name: string, id: string) =>
-            resolved.has(id)
-                ? `<span class="rounded px-1 py-0.5 font-medium text-blue-700 bg-blue-500/10 dark:text-blue-300 dark:bg-blue-400/15">@${name}</span>`
-                : `@${name}`,
-    );
+    const pushText = (value: string) => {
+        if (value !== '') {
+            segments.push({ kind: 'html', html: escapeInline(value) });
+        }
+    };
 
-    return withMentions.replace(/\n/g, '<br>');
+    while ((match = pattern.exec(text)) !== null) {
+        const [raw, name, id] = match;
+
+        pushText(text.slice(lastIndex, match.index));
+
+        if (resolved.has(id)) {
+            segments.push({ kind: 'mention', id, name });
+        } else {
+            segments.push({ kind: 'html', html: `@${escapeHtml(name)}` });
+        }
+
+        lastIndex = match.index + raw.length;
+    }
+
+    pushText(text.slice(lastIndex));
+
+    return segments;
 }
 
 function linkHtml(href: string): string {
@@ -73,6 +110,7 @@ export function tokenizeMessageBody(
     mentions: Mention[] = [],
 ): MessageBodySegment[] {
     const segments: MessageBodySegment[] = [];
+    const resolved = new Set(mentions.map((mention) => mention.id));
     // A fresh regex per call keeps the shared `lastIndex` from leaking between
     // invocations of this stateful global pattern.
     const pattern = new RegExp(URL_PATTERN.source, 'gi');
@@ -81,13 +119,12 @@ export function tokenizeMessageBody(
 
     while ((match = pattern.exec(body)) !== null) {
         if (match.index > lastIndex) {
-            segments.push({
-                kind: 'html',
-                html: renderInlineText(
+            segments.push(
+                ...tokenizeInlineText(
                     body.slice(lastIndex, match.index),
-                    mentions,
+                    resolved,
                 ),
-            });
+            );
         }
 
         const raw = match[0];
@@ -105,10 +142,7 @@ export function tokenizeMessageBody(
     }
 
     if (lastIndex < body.length) {
-        segments.push({
-            kind: 'html',
-            html: renderInlineText(body.slice(lastIndex), mentions),
-        });
+        segments.push(...tokenizeInlineText(body.slice(lastIndex), resolved));
     }
 
     return segments;
@@ -126,9 +160,17 @@ export function renderMessageBody(
     mentions: Mention[] = [],
 ): string {
     return tokenizeMessageBody(body, mentions)
-        .map((segment) =>
-            segment.kind === 'link' ? linkHtml(segment.href) : segment.html,
-        )
+        .map((segment) => {
+            if (segment.kind === 'link') {
+                return linkHtml(segment.href);
+            }
+
+            if (segment.kind === 'mention') {
+                return mentionPillHtml(segment.name);
+            }
+
+            return segment.html;
+        })
         .join('');
 }
 

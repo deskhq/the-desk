@@ -573,6 +573,14 @@ function cancelReply(): void {
     replyTarget.value = null;
 }
 
+// The channel composer, so a profile hover card in the main timeline can drop a
+// mention straight into it.
+const channelComposer = ref<InstanceType<typeof MessageComposer> | null>(null);
+
+function mentionInChannel(member: { id: string; name: string }): void {
+    channelComposer.value?.insertMention(member);
+}
+
 // The message being forwarded and whether the forward dialog is open. The dialog
 // picks a target channel (from the sidebar list — the channels the viewer can
 // post to) and an optional note.
@@ -1210,6 +1218,7 @@ function archive(): void {
                     >
                         <MessageList
                             :messages="displayMessages"
+                            :team-slug="props.team.slug"
                             :pending-uuids="pendingUuids"
                             :current-user-id="currentUser.id"
                             :can-moderate="canModerate"
@@ -1224,6 +1233,7 @@ function archive(): void {
                             @forward="openForward"
                             @open-thread="openThread"
                             @jump="jumpToMessage"
+                            @mention="mentionInChannel"
                         />
                     </InfiniteScroll>
 
@@ -1266,6 +1276,7 @@ function archive(): void {
                     />
 
                     <MessageComposer
+                        ref="channelComposer"
                         :key="props.channel.id"
                         :channel-name="props.channel.name"
                         :members="mentionableMembers"
@@ -1291,6 +1302,7 @@ function archive(): void {
             <ThreadPanel
                 v-if="activeThreadRootId"
                 :root-id="activeThreadRootId"
+                :team-slug="props.team.slug"
                 :channel-name="props.channel.name"
                 :messages="threadMessages"
                 :pending-uuids="threadPendingUuids"

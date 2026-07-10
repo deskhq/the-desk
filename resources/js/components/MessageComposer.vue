@@ -209,6 +209,38 @@ function resize(): void {
     el.style.height = `${Math.min(el.scrollHeight, 200)}px`;
 }
 
+/**
+ * Insert a mention token at the caret (or the end), keeping a space separator
+ * from preceding text. Exposed so a profile hover card can drop a mention into
+ * the composer from elsewhere in the page.
+ */
+function insertMention(member: Mention): void {
+    const el = textarea.value;
+    const caret = el ? el.selectionStart : body.value.length;
+    const before = body.value.slice(0, caret);
+    const after = body.value.slice(caret);
+
+    const separator = before.length > 0 && !before.endsWith(' ') ? ' ' : '';
+    const token = `${separator}@[${member.name}](${member.id}) `;
+
+    body.value = before + token + after;
+
+    const nextCaret = before.length + token.length;
+
+    nextTick(() => {
+        const field = textarea.value;
+
+        if (field) {
+            field.focus();
+            field.setSelectionRange(nextCaret, nextCaret);
+        }
+
+        resize();
+    });
+}
+
+defineExpose({ insertMention });
+
 function submit(): void {
     const trimmed = body.value.trim();
 

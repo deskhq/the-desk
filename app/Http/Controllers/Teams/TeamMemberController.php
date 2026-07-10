@@ -26,12 +26,7 @@ class TeamMemberController extends Controller
      */
     public function show(Request $request, Team $team, User $user): Response
     {
-        /** @var Membership|null $membership */
-        $membership = $team->memberships()
-            ->where('user_id', $user->id)
-            ->first();
-
-        abort_if($membership === null, 404);
+        $membership = $this->membershipOrFail($team, $user);
 
         return Inertia::render('teams/MemberProfile', [
             'team' => [
@@ -41,6 +36,33 @@ class TeamMemberController extends Controller
             ],
             'profile' => UserProfileData::forMember($user, $membership, $request->user()),
         ]);
+    }
+
+    /**
+     * Return a member's profile as JSON for the on-hover profile card.
+     *
+     * Same team-scoped visibility as {@see show()}; fetched lazily by the hover
+     * card so names across the app can reveal richer details on demand.
+     */
+    public function card(Request $request, Team $team, User $user): UserProfileData
+    {
+        return UserProfileData::forMember($user, $this->membershipOrFail($team, $user), $request->user());
+    }
+
+    /**
+     * Resolve the target user's membership of the team, or 404 when they are not
+     * a member so profiles never leak across team boundaries.
+     */
+    private function membershipOrFail(Team $team, User $user): Membership
+    {
+        /** @var Membership|null $membership */
+        $membership = $team->memberships()
+            ->where('user_id', $user->id)
+            ->first();
+
+        abort_if($membership === null, 404);
+
+        return $membership;
     }
 
     /**

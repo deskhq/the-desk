@@ -26,6 +26,7 @@ import {
     HoverCardContent,
     HoverCardTrigger,
 } from '@/components/ui/hover-card';
+import UserHoverCard from '@/components/UserHoverCard.vue';
 import { useInitials } from '@/composables/useInitials';
 import { formatTimeOfDay } from '@/lib/datetime';
 import { tokenizeMessageBody } from '@/lib/messageBody';
@@ -41,6 +42,9 @@ import type {
 
 const props = defineProps<{
     messages: Message[];
+    // The team the messages belong to, so author hover cards can resolve the
+    // right member profile.
+    teamSlug: string;
     pendingUuids?: string[];
     currentUserId: string;
     canModerate?: boolean;
@@ -66,6 +70,7 @@ const emit = defineEmits<{
     forward: [message: Message];
     openThread: [messageId: string];
     jump: [messageId: string];
+    mention: [member: { id: string; name: string }];
 }>();
 
 // How many participant avatars to preview on a root's "N replies" affordance.
@@ -423,33 +428,47 @@ function confirmDelete(): void {
             </div>
 
             <div v-else class="mt-[18px] flex items-start gap-3">
-                <div class="relative mt-0.5 size-9 shrink-0">
-                    <div
-                        class="flex size-9 items-center justify-center rounded-[10px] bg-primary/10 text-[12px] font-semibold text-primary select-none"
-                        aria-hidden="true"
-                    >
-                        {{ getInitials(item.author.name) }}
+                <UserHoverCard
+                    :team-slug="props.teamSlug"
+                    :user-id="item.author.id"
+                    :name="item.author.name"
+                    @mention="(member) => emit('mention', member)"
+                >
+                    <div class="relative mt-0.5 size-9 shrink-0 cursor-pointer">
+                        <div
+                            class="flex size-9 items-center justify-center rounded-[10px] bg-primary/10 text-[12px] font-semibold text-primary select-none"
+                            aria-hidden="true"
+                        >
+                            {{ getInitials(item.author.name) }}
+                        </div>
+                        <span
+                            data-test="presence-dot"
+                            :data-online="isOnline(item.author.id)"
+                            :aria-label="
+                                isOnline(item.author.id) ? 'Online' : 'Offline'
+                            "
+                            class="absolute right-0.5 bottom-0.5 size-2.5 rounded-full ring-2 ring-background"
+                            :class="
+                                isOnline(item.author.id)
+                                    ? 'bg-emerald-500'
+                                    : 'bg-muted-foreground/60'
+                            "
+                        />
                     </div>
-                    <span
-                        data-test="presence-dot"
-                        :data-online="isOnline(item.author.id)"
-                        :aria-label="
-                            isOnline(item.author.id) ? 'Online' : 'Offline'
-                        "
-                        class="absolute right-0.5 bottom-0.5 size-2.5 rounded-full ring-2 ring-background"
-                        :class="
-                            isOnline(item.author.id)
-                                ? 'bg-emerald-500'
-                                : 'bg-muted-foreground/60'
-                        "
-                    />
-                </div>
+                </UserHoverCard>
                 <div class="min-w-0 flex-1">
                     <div class="flex items-baseline gap-2">
-                        <span
-                            class="text-[14.5px] font-semibold text-foreground"
-                            >{{ item.author.name }}</span
+                        <UserHoverCard
+                            :team-slug="props.teamSlug"
+                            :user-id="item.author.id"
+                            :name="item.author.name"
+                            @mention="(member) => emit('mention', member)"
                         >
+                            <span
+                                class="cursor-pointer text-[14.5px] font-semibold text-foreground hover:underline"
+                                >{{ item.author.name }}</span
+                            >
+                        </UserHoverCard>
                         <span class="text-[11px] text-muted-foreground/80">{{
                             formatTime(item.leadCreatedAt)
                         }}</span>
@@ -544,46 +563,61 @@ function confirmDelete(): void {
                                     v-if="segment.kind === 'html'"
                                     v-html="segment.html"
                                 ></span>
-                                <HoverCard
-                                    v-else-if="
-                                        previewFor(message, segment.href)
+                                <UserHoverCard
+                                    v-else-if="segment.kind === 'mention'"
+                                    :team-slug="props.teamSlug"
+                                    :user-id="segment.id"
+                                    :name="segment.name"
+                                    @mention="
+                                        (member) => emit('mention', member)
                                     "
-                                    :open-delay="200"
-                                    :close-delay="100"
                                 >
-                                    <HoverCardTrigger as-child>
-                                        <a
-                                            :href="segment.href"
-                                            target="_blank"
-                                            rel="noopener noreferrer nofollow"
-                                            data-test="message-link"
-                                            class="text-primary underline underline-offset-2 hover:no-underline"
-                                            >{{ segment.href }}</a
-                                        >
-                                    </HoverCardTrigger>
-                                    <HoverCardContent
-                                        data-test="link-preview-card"
-                                        class="w-80 overflow-hidden p-0"
+                                    <span
+                                        data-test="message-mention"
+                                        class="cursor-pointer rounded bg-blue-500/10 px-1 py-0.5 font-medium text-blue-700 dark:bg-blue-400/15 dark:text-blue-300"
+                                        >@{{ segment.name }}</span
                                     >
-                                        <LinkPreview
-                                            :preview="
-                                                previewFor(
-                                                    message,
-                                                    segment.href,
-                                                )!
-                                            "
-                                        />
-                                    </HoverCardContent>
-                                </HoverCard>
-                                <a
-                                    v-else
-                                    :href="segment.href"
-                                    target="_blank"
-                                    rel="noopener noreferrer nofollow"
-                                    data-test="message-link"
-                                    class="text-primary underline underline-offset-2 hover:no-underline"
-                                    >{{ segment.href }}</a
-                                >
+                                </UserHoverCard>
+                                <template v-else>
+                                    <HoverCard
+                                        v-if="previewFor(message, segment.href)"
+                                        :open-delay="200"
+                                        :close-delay="100"
+                                    >
+                                        <HoverCardTrigger as-child>
+                                            <a
+                                                :href="segment.href"
+                                                target="_blank"
+                                                rel="noopener noreferrer nofollow"
+                                                data-test="message-link"
+                                                class="text-primary underline underline-offset-2 hover:no-underline"
+                                                >{{ segment.href }}</a
+                                            >
+                                        </HoverCardTrigger>
+                                        <HoverCardContent
+                                            data-test="link-preview-card"
+                                            class="w-80 overflow-hidden p-0"
+                                        >
+                                            <LinkPreview
+                                                :preview="
+                                                    previewFor(
+                                                        message,
+                                                        segment.href,
+                                                    )!
+                                                "
+                                            />
+                                        </HoverCardContent>
+                                    </HoverCard>
+                                    <a
+                                        v-else
+                                        :href="segment.href"
+                                        target="_blank"
+                                        rel="noopener noreferrer nofollow"
+                                        data-test="message-link"
+                                        class="text-primary underline underline-offset-2 hover:no-underline"
+                                        >{{ segment.href }}</a
+                                    >
+                                </template>
                             </template>
                             <span
                                 v-if="message.editedAt"

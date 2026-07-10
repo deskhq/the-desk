@@ -11,6 +11,7 @@ const props = defineProps<{
     // The open thread's root id, used to key the reply scroll so switching
     // threads mounts a fresh, bottom-anchored list.
     rootId: string;
+    teamSlug: string;
     channelName: string;
     // The root followed by its replies (oldest first), merged and deduped by the
     // parent's thread stream; empty while the thread is still loading.
@@ -68,6 +69,14 @@ function scrollToBottom(): void {
     if (el) {
         el.scrollTop = el.scrollHeight;
     }
+}
+
+// The thread reply composer, so a hover card on a thread message can drop a
+// mention into it rather than the main channel composer.
+const threadComposer = ref<InstanceType<typeof MessageComposer> | null>(null);
+
+function mentionInThread(member: { id: string; name: string }): void {
+    threadComposer.value?.insertMention(member);
 }
 
 // Keep the panel pinned to the newest reply as the conversation grows, unless
@@ -144,6 +153,7 @@ watch(
             >
                 <MessageList
                     :messages="props.messages"
+                    :team-slug="props.teamSlug"
                     :pending-uuids="props.pendingUuids"
                     :current-user-id="props.currentUserId"
                     :can-moderate="props.canModerate"
@@ -153,12 +163,14 @@ watch(
                     @delete="(message) => emit('delete', message)"
                     @forward="(message) => emit('forward', message)"
                     @jump="(id) => emit('jump', id)"
+                    @mention="mentionInThread"
                 />
             </InfiniteScroll>
         </div>
 
         <MessageComposer
             v-if="hasRoot && !props.readOnly"
+            ref="threadComposer"
             :key="root?.id"
             :channel-name="props.channelName"
             :members="props.members"
