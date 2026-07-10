@@ -108,7 +108,10 @@ defineProps<{
             </Button>
         </div>
 
-        <div class="text-center text-sm text-muted-foreground">
+        <div
+            v-if="$page.props.registrationEnabled"
+            class="text-center text-sm text-muted-foreground"
+        >
             Don't have an account?
             <TextLink
                 :href="

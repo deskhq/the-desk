@@ -84,6 +84,11 @@ Registration is open, so onboarding is self-service:
    verification email is delivered, then verify.
 3. Create your first workspace from **Settings → Teams**, then invite teammates.
 
+> **Locking down registration.** Public sign-ups are open by default. To run a
+> private/invite-only instance, set `REGISTRATION_ENABLED=false` in `.env`
+> (create your own account first). With it off, `/register` returns 404 and the
+> "sign up" links are hidden — existing users and email invitations still work.
+
 ### Upgrading
 
 Upgrades follow the same tag-based flow. Check out the newer release tag and
