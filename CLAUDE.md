@@ -215,6 +215,10 @@ Vue components must have a single root element.
 
 <!-- Custom project guidance below is preserved across `boost:update` runs. -->
 
+## Implementing Issues (TDD)
+
+- **Always activate the `tdd` skill when implementing an issue or building a feature.** Drive the work test-first (red → green → refactor): write a failing test that captures the acceptance criterion, make it pass with the minimal change, then refactor. This pairs with the non-negotiable 100% coverage gate below.
+
 ## Frontend Tooling (run through Sail)
 
 - **Always run Node/npm tooling through Sail** — `./vendor/bin/sail npm run <script>`, never bare `npm` on the host. `node_modules` is installed inside the Linux container, so its native bindings (`@unrs/resolver-*`, `@rolldown/binding-*`) are Linux-only. Running `npm run build`, `lint`, etc. directly on macOS fails with `Cannot find native binding` (the npm optional-dependencies bug); Sail runs them in the matching Linux environment where the bindings exist.

@@ -176,6 +176,7 @@ trait HasTeams
             canCreateInvitation: $role?->hasPermission(TeamPermission::CreateInvitation) ?? false,
             canCancelInvitation: $role?->hasPermission(TeamPermission::CancelInvitation) ?? false,
             canTransferOwnership: ! $team->is_personal && $role === TeamRole::Owner,
+            canViewAudit: ! $team->is_personal && ($role?->isAtLeast(TeamRole::Admin) ?? false),
         );
     }
 

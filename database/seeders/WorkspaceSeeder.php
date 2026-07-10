@@ -6,6 +6,7 @@ use App\Actions\Channels\CreateChannel;
 use App\Actions\Channels\JoinChannel;
 use App\Actions\Channels\SyncMentions;
 use App\Actions\Teams\CreateTeam;
+use App\Enums\AuditAction;
 use App\Enums\ChannelVisibility;
 use App\Enums\TeamRole;
 use App\Models\Channel;
@@ -13,6 +14,7 @@ use App\Models\Message;
 use App\Models\Team;
 use App\Models\TeamInvitation;
 use App\Models\User;
+use App\Support\AuditRecorder;
 use Illuminate\Database\Seeder;
 
 /**
@@ -37,6 +39,7 @@ class WorkspaceSeeder extends Seeder
         private readonly CreateChannel $createChannel,
         private readonly JoinChannel $joinChannel,
         private readonly SyncMentions $syncMentions,
+        private readonly AuditRecorder $auditRecorder,
     ) {}
 
     /**
@@ -157,8 +160,53 @@ class WorkspaceSeeder extends Seeder
 
         $this->seedUnreadState($demo, $general, $announcements, $leadership);
         $this->seedInvitations($acme, $demo);
+        $this->seedAuditLog($acme, $demo, $admin, $member1, $announcements, $archived, $secret);
 
         return $acme;
+    }
+
+    /**
+     * Populate the workspace's append-only audit log with a representative set
+     * of admin and moderation actions across two actors, so the admin-only
+     * audit viewer (and its action/actor filters) has data to show.
+     */
+    private function seedAuditLog(
+        Team $team,
+        User $owner,
+        User $admin,
+        User $member,
+        Channel $announcements,
+        Channel $archived,
+        Channel $secret,
+    ): void {
+        $this->auditRecorder->record($team, $owner, AuditAction::TeamRenamed, $team, [
+            'old_name' => 'Acme',
+            'new_name' => $team->name,
+        ]);
+
+        $this->auditRecorder->record($team, $owner, AuditAction::MemberRoleChanged, $admin, [
+            'member_name' => $admin->name,
+            'old_role' => TeamRole::Member->label(),
+            'new_role' => TeamRole::Admin->label(),
+        ]);
+
+        $this->auditRecorder->record($team, $owner, AuditAction::ChannelCreated, $announcements, [
+            'channel_name' => $announcements->name,
+        ]);
+
+        $this->auditRecorder->record($team, $admin, AuditAction::ChannelMemberAdded, $secret, [
+            'channel_name' => $secret->name,
+            'member_name' => $member->name,
+        ]);
+
+        $this->auditRecorder->record($team, $admin, AuditAction::MessageDeleted, null, [
+            'channel_name' => Channel::GENERAL_SLUG,
+            'author_name' => $member->name,
+        ]);
+
+        $this->auditRecorder->record($team, $owner, AuditAction::ChannelArchived, $archived, [
+            'channel_name' => $archived->name,
+        ]);
     }
 
     /**
