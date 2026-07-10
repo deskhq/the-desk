@@ -14,17 +14,6 @@ class UnfurlMessageLinks implements ShouldQueue
 {
     use Queueable;
 
-    /**
-     * The relations {@see MessageData::fromMessage()} reads to build the broadcast.
-     *
-     * @var array<int, string>
-     */
-    private const array MESSAGE_RELATIONS = [
-        'user', 'mentionedUsers', 'linkPreviews', 'reactions.user',
-        'replyTo.user', 'replyTo.mentionedUsers',
-        'forwardedFrom.user', 'forwardedFrom.channel', 'forwardedFrom.mentionedUsers',
-    ];
-
     public function __construct(private string $messageId) {}
 
     /**
@@ -64,7 +53,7 @@ class UnfurlMessageLinks implements ShouldQueue
                 ]);
         }
 
-        $message->load(self::MESSAGE_RELATIONS);
+        $message->loadMessageDataRelations();
         MessageUpdated::dispatch($message->channel, MessageData::fromMessage($message));
     }
 }

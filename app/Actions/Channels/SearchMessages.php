@@ -40,10 +40,13 @@ class SearchMessages
             return new Collection;
         }
 
-        return Message::search($query)
+        $matches = Message::search($query)
             ->whereIn('channel_id', $channelIds)
             ->take($limit)
-            ->get()
-            ->load(['user', 'channel', 'mentionedUsers', 'linkPreviews', 'reactions.user', 'replyTo.user', 'replyTo.mentionedUsers', 'forwardedFrom.user', 'forwardedFrom.channel', 'forwardedFrom.mentionedUsers']);
+            ->get();
+
+        // The search result also names each match's own channel; that is the
+        // MessageSearchResultData shell around the payload, not part of it.
+        return Message::loadMessageDataRelationsInto($matches)->load('channel');
     }
 }
