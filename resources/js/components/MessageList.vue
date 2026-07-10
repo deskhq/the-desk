@@ -445,7 +445,7 @@ function confirmDelete(): void {
                         <p
                             v-if="message.isDeleted"
                             :data-test="'message-tombstone'"
-                            class="py-0.5 text-[13.5px] text-muted-foreground/70 italic"
+                            class="py-0.5 font-serif text-[13.5px] text-muted-foreground/70 italic"
                         >
                             This message was deleted
                         </p>
@@ -587,49 +587,60 @@ function confirmDelete(): void {
                             @toggle="(emoji) => emit('react', message, emoji)"
                         />
 
-                        <button
+                        <div
                             v-if="showThreadSummary(message)"
-                            type="button"
-                            data-test="thread-summary"
-                            :aria-label="`View thread, ${message.threadReplyCount} ${message.threadReplyCount === 1 ? 'reply' : 'replies'}`"
-                            class="mt-1 flex items-center gap-2 rounded-md py-0.5 pr-2 text-left"
-                            @click="emit('openThread', message.id)"
+                            class="mt-1.5 flex flex-wrap items-center gap-2"
                         >
-                            <span class="flex -space-x-1">
-                                <span
-                                    v-for="participant in threadAvatars(
-                                        message,
-                                    )"
-                                    :key="participant.id"
-                                    class="flex size-5 items-center justify-center rounded-[6px] bg-primary/10 text-[9px] font-semibold text-primary ring-2 ring-background select-none"
-                                    aria-hidden="true"
-                                >
-                                    {{ getInitials(participant.name) }}
-                                </span>
-                                <span
-                                    v-if="extraThreadParticipants(message) > 0"
-                                    class="flex size-5 items-center justify-center rounded-[6px] bg-muted text-[9px] font-semibold text-muted-foreground ring-2 ring-background select-none"
-                                    aria-hidden="true"
-                                >
-                                    +{{ extraThreadParticipants(message) }}
-                                </span>
-                            </span>
-                            <span
-                                v-if="message.threadUnread"
-                                data-test="thread-unread-dot"
-                                aria-label="Unread replies"
-                                class="size-2 shrink-0 rounded-full bg-rose-500"
-                            ></span>
-                            <span
-                                class="text-[12.5px] font-semibold text-primary hover:underline"
+                            <button
+                                type="button"
+                                data-test="thread-summary"
+                                :aria-label="`View thread, ${message.threadReplyCount} ${message.threadReplyCount === 1 ? 'reply' : 'replies'}`"
+                                class="inline-flex items-center gap-2 rounded-full border border-border bg-card px-2.5 py-1 text-left transition-colors hover:bg-muted/50"
+                                @click="emit('openThread', message.id)"
                             >
-                                {{ message.threadReplyCount }}
-                                {{
-                                    message.threadReplyCount === 1
-                                        ? 'reply'
-                                        : 'replies'
-                                }}
-                            </span>
+                                <span class="flex -space-x-1">
+                                    <span
+                                        v-for="participant in threadAvatars(
+                                            message,
+                                        )"
+                                        :key="participant.id"
+                                        class="flex size-4 items-center justify-center rounded-full bg-primary/10 text-[8px] font-semibold text-primary ring-2 ring-card select-none"
+                                        aria-hidden="true"
+                                    >
+                                        {{ getInitials(participant.name) }}
+                                    </span>
+                                    <span
+                                        v-if="
+                                            extraThreadParticipants(message) > 0
+                                        "
+                                        class="flex size-4 items-center justify-center rounded-full bg-muted text-[8px] font-semibold text-muted-foreground ring-2 ring-card select-none"
+                                        aria-hidden="true"
+                                    >
+                                        +{{ extraThreadParticipants(message) }}
+                                    </span>
+                                </span>
+                                <span
+                                    v-if="message.threadUnread"
+                                    data-test="thread-unread-dot"
+                                    aria-label="Unread replies"
+                                    class="size-2 shrink-0 rounded-full bg-rose-500"
+                                ></span>
+                                <span
+                                    class="text-[12px] font-semibold text-foreground"
+                                >
+                                    {{ message.threadReplyCount }}
+                                    {{
+                                        message.threadReplyCount === 1
+                                            ? 'reply'
+                                            : 'replies'
+                                    }}
+                                </span>
+                                <span
+                                    aria-hidden="true"
+                                    class="text-[12px] text-muted-foreground"
+                                    >→</span
+                                >
+                            </button>
                             <span
                                 v-if="message.threadLastReplyAt"
                                 class="text-[11.5px] text-muted-foreground"
@@ -637,7 +648,7 @@ function confirmDelete(): void {
                                 Last reply
                                 {{ formatTime(message.threadLastReplyAt) }}
                             </span>
-                        </button>
+                        </div>
 
                         <div
                             v-if="
@@ -728,21 +739,21 @@ function confirmDelete(): void {
             class="mt-1.5 flex items-center justify-end gap-1.5 pr-1"
             :title="seenByLabel"
         >
-            <span class="text-[11px] font-medium text-muted-foreground">
+            <span class="font-serif text-[11px] text-muted-foreground italic">
                 Seen by
             </span>
             <span class="flex -space-x-1">
                 <span
                     v-for="reader in seenByAvatars"
                     :key="reader.id"
-                    class="flex size-4 items-center justify-center rounded-[5px] bg-primary/10 text-[8px] font-semibold text-primary ring-2 ring-background select-none"
+                    class="flex size-4 items-center justify-center rounded-full bg-primary/10 text-[8px] font-semibold text-primary ring-2 ring-card select-none"
                     aria-hidden="true"
                 >
                     {{ getInitials(reader.name) }}
                 </span>
                 <span
                     v-if="extraSeenBy > 0"
-                    class="flex size-4 items-center justify-center rounded-[5px] bg-muted text-[8px] font-semibold text-muted-foreground ring-2 ring-background select-none"
+                    class="flex size-4 items-center justify-center rounded-full bg-muted text-[8px] font-semibold text-muted-foreground ring-2 ring-card select-none"
                     aria-hidden="true"
                 >
                     +{{ extraSeenBy }}

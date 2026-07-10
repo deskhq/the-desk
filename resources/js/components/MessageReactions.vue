@@ -74,7 +74,7 @@ function toggle(emoji: string): void {
                     class="inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[12px] leading-none transition-colors"
                     :class="
                         reacted(reaction)
-                            ? 'border-primary/40 bg-primary/10 text-primary'
+                            ? 'border-brass-border bg-brass-fill text-brass-fill-foreground'
                             : 'border-border bg-muted/40 text-muted-foreground hover:bg-muted'
                     "
                     @click="toggle(reaction.emoji)"

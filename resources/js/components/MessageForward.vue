@@ -36,7 +36,7 @@ const rendered = computed(() =>
             <p
                 v-if="isDeleted"
                 data-test="forward-deleted"
-                class="text-[13px] text-muted-foreground/70 italic"
+                class="font-serif text-[13px] text-muted-foreground/70 italic"
             >
                 Original message was deleted
             </p>

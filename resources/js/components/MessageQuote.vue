@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { CornerUpLeft } from '@lucide/vue';
 import { computed } from 'vue';
 import { messageBodyPreview } from '@/lib/messageBody';
 
@@ -17,23 +16,22 @@ const preview = computed(() =>
 </script>
 
 <template>
-    <span class="flex min-w-0 items-center gap-1.5 text-[12.5px] leading-tight">
-        <CornerUpLeft
-            class="size-3 shrink-0 text-muted-foreground/60"
-            aria-hidden="true"
-        />
+    <span
+        class="flex min-w-0 items-baseline gap-1.5 border-l-2 pl-2.5 text-[12.5px] leading-tight"
+        :class="isDeleted ? 'border-border' : 'border-brass'"
+    >
         <span
             v-if="isDeleted"
             data-test="quote-deleted"
-            class="truncate text-muted-foreground/70 italic"
+            class="truncate font-serif text-muted-foreground/70 italic"
         >
             Original message was deleted
         </span>
         <template v-else>
-            <span class="shrink-0 font-semibold text-muted-foreground">{{
+            <span class="shrink-0 font-semibold text-foreground/80">{{
                 authorName
             }}</span>
-            <span class="truncate text-muted-foreground/80">{{ preview }}</span>
+            <span class="truncate text-muted-foreground">{{ preview }}</span>
         </template>
     </span>
 </template>

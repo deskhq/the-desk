@@ -34,16 +34,20 @@ const siteLabel = computed(
             loading="lazy"
             class="w-full"
         />
-        <div class="p-3">
-            <p class="truncate text-[11.5px] font-medium text-muted-foreground">
+        <div class="px-[15px] py-[13px]">
+            <p
+                class="truncate text-[10px] font-semibold tracking-[0.08em] text-muted-foreground/70 uppercase"
+            >
                 {{ siteLabel }}
             </p>
-            <p class="mt-0.5 text-[13px] font-semibold text-foreground">
+            <p
+                class="mt-1 font-serif text-[15px] leading-[1.3] font-semibold text-foreground"
+            >
                 {{ preview.title }}
             </p>
             <p
                 v-if="preview.description"
-                class="mt-0.5 line-clamp-3 text-[12.5px] leading-[1.45] text-foreground/80"
+                class="mt-1 line-clamp-3 text-[12.5px] leading-[1.5] text-muted-foreground"
             >
                 {{ preview.description }}
             </p>
