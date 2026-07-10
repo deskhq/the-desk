@@ -2,17 +2,47 @@
 
 namespace App\Http\Controllers\Teams;
 
+use App\Data\UserProfileData;
 use App\Enums\TeamRole;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Teams\UpdateTeamMemberRequest;
+use App\Models\Membership;
 use App\Models\Team;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
+use Inertia\Response;
 
 class TeamMemberController extends Controller
 {
+    /**
+     * Show the profile page for a member of the team.
+     *
+     * Scoped to the team the viewer already belongs to (enforced by the route's
+     * membership middleware); a user who is not a member of that team resolves
+     * to a 404 so profiles never leak across team boundaries.
+     */
+    public function show(Request $request, Team $team, User $user): Response
+    {
+        /** @var Membership|null $membership */
+        $membership = $team->memberships()
+            ->where('user_id', $user->id)
+            ->first();
+
+        abort_if($membership === null, 404);
+
+        return Inertia::render('teams/MemberProfile', [
+            'team' => [
+                'id' => $team->id,
+                'name' => $team->name,
+                'slug' => $team->slug,
+            ],
+            'profile' => UserProfileData::forMember($user, $membership, $request->user()),
+        ]);
+    }
+
     /**
      * Update the specified team member's role.
      */

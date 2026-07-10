@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Form, Head, router } from '@inertiajs/vue3';
+import { Form, Head, Link, router } from '@inertiajs/vue3';
 import { ChevronDown, Mail, UserPlus, X } from '@lucide/vue';
 import { computed, ref } from 'vue';
 import CancelInvitationModal from '@/components/CancelInvitationModal.vue';
@@ -27,7 +27,10 @@ import {
 } from '@/components/ui/tooltip';
 import { useInitials } from '@/composables/useInitials';
 import { edit, index, update } from '@/routes/teams';
-import { update as updateMember } from '@/routes/teams/members';
+import {
+    show as showMember,
+    update as updateMember,
+} from '@/routes/teams/members';
 import type {
     RoleOption,
     Team,
@@ -182,9 +185,13 @@ const confirmCancelInvitation = (invitation: TeamInvitation) => {
                             }}</AvatarFallback>
                         </Avatar>
                         <div>
-                            <div class="font-medium">
+                            <Link
+                                :href="showMember([team.slug, member.id])"
+                                class="font-medium underline-offset-4 hover:underline"
+                                data-test="member-profile-link"
+                            >
                                 {{ member.name }}
-                            </div>
+                            </Link>
                             <div class="text-sm text-muted-foreground">
                                 {{ member.email }}
                             </div>

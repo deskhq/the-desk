@@ -19,6 +19,21 @@ export type TeamMember = {
     role_label: string;
 };
 
+/**
+ * A team member's profile as shown on their dedicated profile page. Mirrors the
+ * `App\Data\UserProfileData` DTO. `role`/`roleLabel`/`memberSince` come from the
+ * membership pivot; `isYou` marks the viewer's own profile.
+ */
+export type UserProfile = {
+    id: string;
+    name: string;
+    email: string;
+    role: TeamRole | null;
+    roleLabel: string | null;
+    memberSince: string | null;
+    isYou: boolean;
+};
+
 export type TeamInvitation = {
     code: string;
     email: string;
