@@ -1,7 +1,5 @@
 <script setup lang="ts">
 import { Link } from '@inertiajs/vue3';
-import Heading from '@/components/Heading.vue';
-import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { useCurrentUrl } from '@/composables/useCurrentUrl';
 import { toUrl } from '@/lib/utils';
@@ -40,32 +38,33 @@ const { isCurrentOrParentUrl } = useCurrentUrl();
 
 <template>
     <div class="px-4 py-6">
-        <Heading
-            title="Settings"
-            description="Manage your profile and account settings"
-        />
+        <header class="mb-6 border-b border-border pb-5">
+            <h2
+                class="font-serif text-[32px] leading-none font-semibold tracking-tight"
+            >
+                Settings
+            </h2>
+            <p class="mt-1.5 text-sm text-muted-foreground">
+                Manage your profile and account settings
+            </p>
+        </header>
 
         <div class="flex flex-col lg:flex-row lg:space-x-12">
             <aside class="w-full max-w-xl lg:w-48">
-                <nav
-                    class="flex flex-col space-y-1 space-x-0"
-                    aria-label="Settings"
-                >
-                    <Button
+                <nav class="flex flex-col gap-0.5" aria-label="Settings">
+                    <Link
                         v-for="item in sidebarNavItems"
                         :key="toUrl(item.href)"
-                        variant="ghost"
+                        :href="item.href"
                         :class="[
-                            'w-full justify-start',
-                            { 'bg-muted': isCurrentOrParentUrl(item.href) },
+                            'flex h-[34px] items-center rounded-lg px-3 text-sm font-medium transition-colors',
+                            isCurrentOrParentUrl(item.href)
+                                ? 'bg-primary text-primary-foreground'
+                                : 'text-muted-foreground hover:bg-accent hover:text-foreground',
                         ]"
-                        as-child
                     >
-                        <Link :href="item.href">
-                            <component :is="item.icon" class="h-4 w-4" />
-                            {{ item.title }}
-                        </Link>
-                    </Button>
+                        {{ item.title }}
+                    </Link>
                 </nav>
             </aside>
 

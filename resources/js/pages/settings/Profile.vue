@@ -73,7 +73,7 @@ function onTimezoneSelect(value: unknown): void {
         <Form
             v-bind="ProfileController.update.form()"
             class="space-y-6"
-            v-slot="{ errors, processing }"
+            v-slot="{ errors, processing, recentlySuccessful }"
         >
             <div class="grid gap-2">
                 <Label for="name">Name</Label>
@@ -166,9 +166,25 @@ function onTimezoneSelect(value: unknown): void {
             </div>
 
             <div class="flex items-center gap-4">
-                <Button :disabled="processing" data-test="update-profile-button"
+                <Button
+                    :disabled="processing"
+                    class="rounded-full px-6"
+                    data-test="update-profile-button"
                     >Save</Button
                 >
+                <Transition
+                    enter-active-class="transition ease-in-out"
+                    enter-from-class="opacity-0"
+                    leave-active-class="transition ease-in-out"
+                    leave-to-class="opacity-0"
+                >
+                    <p
+                        v-show="recentlySuccessful"
+                        class="font-serif text-sm text-muted-foreground italic"
+                    >
+                        Saved just now
+                    </p>
+                </Transition>
             </div>
         </Form>
 
