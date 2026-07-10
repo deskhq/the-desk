@@ -20,6 +20,7 @@ const props = defineProps<{
     teamSlug: string;
     userId: string;
     name: string;
+    online?: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -61,7 +62,9 @@ function onMention(): void {
         <HoverCardTrigger as-child>
             <slot />
         </HoverCardTrigger>
-        <HoverCardContent class="w-72">
+        <HoverCardContent
+            class="w-72 rounded-2xl p-5 shadow-[0_10px_28px_rgba(29,26,21,0.14)]"
+        >
             <!-- Loading skeleton until the first fetch resolves. -->
             <div v-if="loading && !profile" class="flex animate-pulse gap-3">
                 <div class="size-12 rounded-full bg-muted" />
@@ -71,21 +74,35 @@ function onMention(): void {
                 </div>
             </div>
 
-            <div v-else class="space-y-3">
+            <div v-else class="space-y-4">
                 <div class="flex items-start gap-3">
-                    <Avatar class="size-12 text-base">
-                        <AvatarFallback>{{
-                            getInitials(profile?.name ?? name)
-                        }}</AvatarFallback>
-                    </Avatar>
+                    <div class="relative size-12 shrink-0">
+                        <Avatar class="size-12 text-base">
+                            <AvatarFallback>{{
+                                getInitials(profile?.name ?? name)
+                            }}</AvatarFallback>
+                        </Avatar>
+                        <span
+                            data-test="hover-card-presence"
+                            :data-online="online === true"
+                            :aria-label="online ? 'Online' : 'Offline'"
+                            class="absolute right-0 bottom-0 size-3 rounded-full ring-[2.5px] ring-popover"
+                            :class="
+                                online
+                                    ? 'bg-emerald-500'
+                                    : 'bg-muted-foreground/60'
+                            "
+                        />
+                    </div>
                     <div class="min-w-0 flex-1">
-                        <div class="flex flex-wrap items-center gap-x-2">
-                            <span class="font-semibold">{{
-                                profile?.name ?? name
-                            }}</span>
+                        <div class="flex flex-wrap items-baseline gap-x-2">
+                            <span
+                                class="font-serif text-[17px] font-semibold"
+                                >{{ profile?.name ?? name }}</span
+                            >
                             <span
                                 v-if="profile?.pronouns"
-                                class="text-xs text-muted-foreground"
+                                class="font-serif text-xs text-muted-foreground/80 italic"
                                 >{{ profile.pronouns }}</span
                             >
                         </div>
@@ -96,9 +113,13 @@ function onMention(): void {
                             {{ profile.title }}
                         </p>
                         <div
-                            class="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1"
+                            class="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1"
                         >
-                            <Badge v-if="profile?.roleLabel" variant="outline">
+                            <Badge
+                                v-if="profile?.roleLabel"
+                                variant="outline"
+                                class="border-brass px-2 text-[10px] font-semibold tracking-wide text-brass-fill-foreground uppercase"
+                            >
                                 {{ profile.roleLabel }}
                             </Badge>
                             <span
@@ -112,17 +133,21 @@ function onMention(): void {
 
                 <div class="flex gap-2">
                     <Button
-                        variant="secondary"
                         size="sm"
-                        class="flex-1"
+                        class="h-8 flex-1 rounded-full"
                         data-test="hover-card-mention"
                         @click="onMention"
                     >
                         <AtSign class="size-4" /> Mention
                     </Button>
-                    <Button variant="outline" size="sm" class="flex-1" as-child>
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        class="h-8 flex-1 rounded-full"
+                        as-child
+                    >
                         <Link :href="show([teamSlug, userId])">
-                            <UserRound class="size-4" /> Profile
+                            <UserRound class="size-4" /> View profile
                         </Link>
                     </Button>
                 </div>

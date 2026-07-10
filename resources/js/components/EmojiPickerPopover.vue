@@ -43,15 +43,57 @@ function onPick(payload: { i: string }): void {
                 align="start"
                 :side-offset="6"
                 :collision-padding="8"
-                class="z-50 outline-none"
+                class="emoji-picker-shell z-50 overflow-hidden rounded-2xl border bg-popover shadow-[0_10px_28px_rgba(29,26,21,0.14)] outline-none"
             >
                 <EmojiPicker
                     :native="true"
                     :hide-search="false"
-                    theme="auto"
+                    theme="light"
                     @select="onPick"
                 />
             </PopoverContent>
         </PopoverPortal>
     </PopoverRoot>
 </template>
+
+<!--
+  vue3-emoji-picker themes itself through `--v3-picker-*` custom properties. We
+  remap them onto "The Desk" semantic tokens so the picker follows the warm
+  light/dark palette instead of its own black/white auto theme (hence
+  `theme="light"` above — it disables the library's dark overrides so our
+  token-driven values win in both modes). The shell card carries the border and
+  shadow, so the picker's own chrome is flattened.
+-->
+<style scoped>
+.emoji-picker-shell :deep(.v3-emoji-picker) {
+    width: 300px;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+    --v3-picker-bg: var(--popover);
+    --v3-picker-fg: var(--popover-foreground);
+    --v3-picker-border: var(--border);
+    --v3-picker-input-bg: var(--muted);
+    --v3-picker-input-border: transparent;
+    --v3-picker-input-focus-border: var(--brass);
+    --v3-picker-emoji-hover: var(--accent);
+}
+
+.emoji-picker-shell :deep(.v3-search input) {
+    height: 32px;
+    padding: 0 13px;
+    border-radius: 999px;
+}
+
+.emoji-picker-shell :deep(.v3-emojis button) {
+    border-radius: 8px;
+}
+
+.emoji-picker-shell :deep(.v3-body-inner .v3-group h5) {
+    font-size: 10.5px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted-foreground);
+}
+</style>

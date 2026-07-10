@@ -376,6 +376,7 @@ function confirmDelete(): void {
                         :team-slug="props.teamSlug"
                         :user-id="item.author.id"
                         :name="item.author.name"
+                        :online="isOnline(item.author.id)"
                         @mention="(member) => emit('mention', member)"
                     >
                         <div class="relative size-[34px] cursor-pointer">
@@ -419,6 +420,7 @@ function confirmDelete(): void {
                         :team-slug="props.teamSlug"
                         :user-id="item.author.id"
                         :name="item.author.name"
+                        :online="isOnline(item.author.id)"
                         @mention="(member) => emit('mention', member)"
                     >
                         <span

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { router, usePage } from '@inertiajs/vue3';
-import { CornerDownLeft, Hash, Search } from '@lucide/vue';
+import { Search } from '@lucide/vue';
 import { ListboxFilter } from 'reka-ui';
 import { computed, ref, watch } from 'vue';
 import { show } from '@/actions/App/Http/Controllers/Channels/ChannelController';
@@ -104,8 +104,8 @@ function seeAllResults(): void {
         title="Quick switcher"
         description="Jump to a channel or search messages"
     >
-        <div class="flex h-11 items-center gap-2 border-b px-3">
-            <Search class="size-4 shrink-0 opacity-50" />
+        <div class="flex h-12 items-center gap-2.5 border-b px-4">
+            <Search class="size-4 shrink-0 text-muted-foreground/70" />
             <ListboxFilter
                 v-model="query"
                 auto-focus
@@ -121,11 +121,20 @@ function seeAllResults(): void {
                     :key="channel.id"
                     :value="`channel:${channel.id}`"
                     data-test="quick-switcher-channel"
-                    class="gap-2"
+                    class="group h-[38px] gap-2 rounded-lg px-2.5 data-[highlighted]:bg-primary data-[highlighted]:text-primary-foreground"
                     @select="selectChannel(channel)"
                 >
-                    <Hash class="size-4 shrink-0 opacity-60" />
+                    <span
+                        class="shrink-0 font-semibold text-muted-foreground/70 group-data-[highlighted]:text-brass"
+                        aria-hidden="true"
+                        >#</span
+                    >
                     <span class="truncate">{{ channel.name }}</span>
+                    <span
+                        class="ml-auto font-mono text-[11px] text-primary-foreground/70 opacity-0 group-data-[highlighted]:opacity-100"
+                        aria-hidden="true"
+                        >↵</span
+                    >
                 </CommandItem>
             </CommandGroup>
 
@@ -160,7 +169,7 @@ function seeAllResults(): void {
                     </div>
                     <div class="min-w-0 flex-1">
                         <div class="flex items-baseline gap-1.5 text-xs">
-                            <span class="font-medium text-foreground">{{
+                            <span class="font-semibold text-foreground">{{
                                 result.message.user.name
                             }}</span>
                             <span class="text-muted-foreground/70"
@@ -192,14 +201,16 @@ function seeAllResults(): void {
                 <CommandItem
                     value="see-all-results"
                     data-test="quick-switcher-see-all"
-                    class="gap-2 text-muted-foreground"
+                    class="mt-1 gap-2 rounded-lg border-t border-border px-2.5 font-serif text-[13px] text-muted-foreground italic data-[highlighted]:bg-accent data-[highlighted]:text-accent-foreground"
                     @select="seeAllResults"
                 >
-                    <CornerDownLeft class="size-4 shrink-0 opacity-60" />
                     <span class="truncate"
                         >See all results for &ldquo;{{
                             trimmedQuery
                         }}&rdquo;</span
+                    >
+                    <span class="ml-auto shrink-0 not-italic" aria-hidden="true"
+                        >&rarr;</span
                     >
                 </CommandItem>
             </CommandGroup>
