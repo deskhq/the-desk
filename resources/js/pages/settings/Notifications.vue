@@ -84,6 +84,7 @@ const { shareReadReceipts, updateShareReadReceipts } = useReadReceipts();
                     type="button"
                     variant="outline"
                     size="icon"
+                    class="rounded-full"
                     :disabled="selected === 'off'"
                     data-test="preview-chime"
                     aria-label="Preview chime"
