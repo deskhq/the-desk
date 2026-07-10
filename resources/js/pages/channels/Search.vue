@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { Head, Link, router } from '@inertiajs/vue3';
+import { Head, Link, router, usePage } from '@inertiajs/vue3';
 import { Search } from '@lucide/vue';
-import { ref, watch } from 'vue';
+import { computed, ref, watch } from 'vue';
 import {
     index,
     show,
@@ -10,6 +10,7 @@ import { index as search } from '@/actions/App/Http/Controllers/Channels/SearchC
 import { Input } from '@/components/ui/input';
 import { SidebarTrigger } from '@/components/ui/sidebar';
 import { getInitials } from '@/composables/useInitials';
+import { formatDateTime } from '@/lib/datetime';
 import { renderMessageBody } from '@/lib/messageBody';
 import type { MessageSearchResult } from '@/types';
 
@@ -52,13 +53,14 @@ watch(term, (value) => {
     }, 300);
 });
 
+const page = usePage();
+
+const viewerTimeZone = computed(
+    () => page.props.auth.user.timezone ?? undefined,
+);
+
 function formatTimestamp(iso: string): string {
-    return new Date(iso).toLocaleString(undefined, {
-        month: 'short',
-        day: 'numeric',
-        hour: 'numeric',
-        minute: '2-digit',
-    });
+    return formatDateTime(iso, viewerTimeZone.value);
 }
 
 function jumpHref(result: MessageSearchResult): string {

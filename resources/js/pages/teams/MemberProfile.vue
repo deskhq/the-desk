@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import { Head } from '@inertiajs/vue3';
-import { computed } from 'vue';
+import { computed, onMounted, onUnmounted, ref } from 'vue';
 import Heading from '@/components/Heading.vue';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { useInitials } from '@/composables/useInitials';
+import { formatLocalTime } from '@/lib/datetime';
 import { edit, index } from '@/routes/teams';
 import type { Team, UserProfile } from '@/types';
 
@@ -48,6 +49,27 @@ const memberSince = computed(() => {
         year: 'numeric',
     });
 });
+
+// A ticking clock so the member's local time stays current while the page is
+// open, refreshed each minute.
+const now = ref(new Date());
+let ticker: ReturnType<typeof setInterval> | null = null;
+
+onMounted(() => {
+    ticker = setInterval(() => {
+        now.value = new Date();
+    }, 60_000);
+});
+
+onUnmounted(() => {
+    if (ticker !== null) {
+        clearInterval(ticker);
+    }
+});
+
+const localTime = computed(() =>
+    formatLocalTime(props.profile.timezone, now.value),
+);
 </script>
 
 <template>
@@ -109,6 +131,15 @@ const memberSince = computed(() => {
                                 :href="`tel:${profile.phone}`"
                                 class="underline-offset-4 hover:underline"
                                 >{{ profile.phone }}</a
+                            >
+                        </dd>
+                    </div>
+                    <div v-if="localTime">
+                        <dt class="text-muted-foreground">Local time</dt>
+                        <dd class="mt-0.5">
+                            {{ localTime }}
+                            <span class="text-muted-foreground"
+                                >· {{ profile.timezone }}</span
                             >
                         </dd>
                     </div>

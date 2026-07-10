@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { usePage } from '@inertiajs/vue3';
 import {
     CornerUpLeft,
     Forward,
@@ -26,6 +27,7 @@ import {
     HoverCardTrigger,
 } from '@/components/ui/hover-card';
 import { useInitials } from '@/composables/useInitials';
+import { formatTimeOfDay } from '@/lib/datetime';
 import { tokenizeMessageBody } from '@/lib/messageBody';
 import type { MessageBodySegment } from '@/lib/messageBody';
 import { readersForMessage } from '@/lib/readReceipts';
@@ -130,6 +132,13 @@ const seenByLabel = computed(() => {
 
 const { getInitials } = useInitials();
 
+const page = usePage();
+
+// Render timestamps in the viewer's stored zone, falling back to the browser's.
+const viewerTimeZone = computed(
+    () => page.props.auth.user.timezone ?? undefined,
+);
+
 /**
  * Whether a message author is currently present on the team presence roster.
  */
@@ -207,10 +216,7 @@ function dividerLabel(iso: string): string {
 }
 
 function formatTime(iso: string): string {
-    return new Date(iso).toLocaleTimeString(undefined, {
-        hour: 'numeric',
-        minute: '2-digit',
-    });
+    return formatTimeOfDay(iso, viewerTimeZone.value);
 }
 
 const renderItems = computed<RenderItem[]>(() => {

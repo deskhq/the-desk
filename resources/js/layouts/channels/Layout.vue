@@ -70,6 +70,7 @@ import { useKeyboardShortcuts } from '@/composables/useKeyboardShortcuts';
 import { useKeyboardShortcutsModal } from '@/composables/useKeyboardShortcutsModal';
 import { useSidebarBadges } from '@/composables/useSidebarBadges';
 import { useTeamSwitch } from '@/composables/useTeamSwitch';
+import { useTimezone } from '@/composables/useTimezone';
 import {
     partitionChannels,
     toggleCollapsedSection,
@@ -466,9 +467,14 @@ useKeyboardShortcuts({
     'show-shortcuts': () => toggleShortcuts(),
 });
 
+const { syncDetectedTimezone } = useTimezone();
+
 onMounted(() => {
     // Lazily pull the (optional) shared invitations so the post-login prompt appears.
     router.reload({ only: ['pendingInvitations'] });
+
+    // Persist the browser's timezone on first login when none is stored yet.
+    syncDetectedTimezone();
 });
 </script>
 

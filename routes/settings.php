@@ -4,6 +4,7 @@ use App\Http\Controllers\Settings\NotificationController;
 use App\Http\Controllers\Settings\ProfileController;
 use App\Http\Controllers\Settings\ReadReceiptsController;
 use App\Http\Controllers\Settings\SecurityController;
+use App\Http\Controllers\Settings\TimezoneController;
 use App\Http\Controllers\Teams\TeamController;
 use App\Http\Controllers\Teams\TeamInvitationController;
 use App\Http\Controllers\Teams\TeamMemberController;
@@ -16,6 +17,8 @@ Route::middleware(['auth'])->group(function () {
 
     Route::get('settings/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('settings/profile', [ProfileController::class, 'update'])->name('profile.update');
+
+    Route::patch('settings/timezone', [TimezoneController::class, 'update'])->name('timezone.update');
 });
 
 Route::middleware(['auth', 'verified'])->group(function () {

@@ -9,6 +9,14 @@ import InputError from '@/components/InputError.vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
+import { useTimezone } from '@/composables/useTimezone';
 import { edit } from '@/routes/profile';
 import { send } from '@/routes/verification';
 
@@ -25,6 +33,21 @@ defineOptions({
 
 const page = usePage();
 const user = computed(() => page.props.auth.user);
+
+const { timezone, setTimezone } = useTimezone();
+
+// The full IANA zone list from the runtime, labelled with underscores spaced out
+// (e.g. "America/New_York" → "America/New York") for readability.
+const timezoneOptions = Intl.supportedValuesOf('timeZone').map((zone) => ({
+    value: zone,
+    label: zone.replace(/_/g, ' '),
+}));
+
+function onTimezoneSelect(value: unknown): void {
+    if (typeof value === 'string') {
+        setTimezone(value);
+    }
+}
 </script>
 
 <template>
@@ -140,6 +163,36 @@ const user = computed(() => page.props.auth.user);
                 >
             </div>
         </Form>
+
+        <div class="grid max-w-md gap-2">
+            <Label for="timezone">Timezone</Label>
+            <Select
+                :model-value="timezone ?? undefined"
+                @update:model-value="onTimezoneSelect"
+            >
+                <SelectTrigger
+                    id="timezone"
+                    class="w-full"
+                    data-test="timezone"
+                >
+                    <SelectValue placeholder="Select a timezone" />
+                </SelectTrigger>
+                <SelectContent>
+                    <SelectItem
+                        v-for="option in timezoneOptions"
+                        :key="option.value"
+                        :value="option.value"
+                    >
+                        {{ option.label }}
+                    </SelectItem>
+                </SelectContent>
+            </Select>
+            <p class="text-sm text-muted-foreground">
+                Detected automatically on your first sign-in. It sets how
+                timestamps read for you and the local time others see on your
+                profile.
+            </p>
+        </div>
     </div>
 
     <DeleteUser />

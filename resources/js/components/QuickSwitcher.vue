@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { router } from '@inertiajs/vue3';
+import { router, usePage } from '@inertiajs/vue3';
 import { CornerDownLeft, Hash, Search } from '@lucide/vue';
 import { ListboxFilter } from 'reka-ui';
 import { computed, ref, watch } from 'vue';
@@ -17,6 +17,7 @@ import {
 import { rankChannels } from '@/composables/quickSwitcher';
 import { getInitials } from '@/composables/useInitials';
 import { useMessageSearch } from '@/composables/useMessageSearch';
+import { formatDateTime } from '@/lib/datetime';
 import { renderMessageBody } from '@/lib/messageBody';
 import type { MessageSearchResult } from '@/types';
 import type { Channel } from '@/types/channels';
@@ -64,13 +65,14 @@ watch(open, (isOpen) => {
     }
 });
 
+const page = usePage();
+
+const viewerTimeZone = computed(
+    () => page.props.auth.user.timezone ?? undefined,
+);
+
 function formatTimestamp(iso: string): string {
-    return new Date(iso).toLocaleString(undefined, {
-        month: 'short',
-        day: 'numeric',
-        hour: 'numeric',
-        minute: '2-digit',
-    });
+    return formatDateTime(iso, viewerTimeZone.value);
 }
 
 function selectChannel(channel: Channel): void {

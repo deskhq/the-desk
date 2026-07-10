@@ -7,6 +7,7 @@ export type User = {
     pronouns: string | null;
     title: string | null;
     phone: string | null;
+    timezone: string | null;
     avatar?: string;
     email_verified_at: string | null;
     created_at: string;

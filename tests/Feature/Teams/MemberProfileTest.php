@@ -13,6 +13,7 @@ test('a team member can view another member profile', function () {
         'pronouns' => 'she/her',
         'title' => 'Mathematician',
         'phone' => '+1 555 000 1815',
+        'timezone' => 'Europe/London',
     ]);
     $team = Team::factory()->create();
 
@@ -31,6 +32,7 @@ test('a team member can view another member profile', function () {
             ->where('profile.pronouns', 'she/her')
             ->where('profile.title', 'Mathematician')
             ->where('profile.phone', '+1 555 000 1815')
+            ->where('profile.timezone', 'Europe/London')
             ->where('profile.role', TeamRole::Admin->value)
             ->where('profile.roleLabel', 'Admin')
             ->where('profile.isYou', false)

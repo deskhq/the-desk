@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Head, InfiniteScroll, Link } from '@inertiajs/vue3';
+import { Head, InfiniteScroll, Link, usePage } from '@inertiajs/vue3';
 import { computed } from 'vue';
 import {
     index,
@@ -7,6 +7,7 @@ import {
 } from '@/actions/App/Http/Controllers/Channels/ChannelController';
 import { SidebarTrigger } from '@/components/ui/sidebar';
 import { getInitials } from '@/composables/useInitials';
+import { formatDateTime } from '@/lib/datetime';
 import { renderMessageBody } from '@/lib/messageBody';
 import type { Message, ThreadInboxItem, ThreadInboxPage } from '@/types';
 
@@ -40,13 +41,14 @@ function jumpHref(item: ThreadInboxItem): string {
     ).url;
 }
 
+const page = usePage();
+
+const viewerTimeZone = computed(
+    () => page.props.auth.user.timezone ?? undefined,
+);
+
 function formatTimestamp(iso: string): string {
-    return new Date(iso).toLocaleString(undefined, {
-        month: 'short',
-        day: 'numeric',
-        hour: 'numeric',
-        minute: '2-digit',
-    });
+    return formatDateTime(iso, viewerTimeZone.value);
 }
 </script>
 

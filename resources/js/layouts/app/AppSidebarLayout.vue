@@ -1,9 +1,11 @@
 <script setup lang="ts">
+import { onMounted } from 'vue';
 import AppContent from '@/components/AppContent.vue';
 import AppShell from '@/components/AppShell.vue';
 import AppSidebar from '@/components/AppSidebar.vue';
 import AppSidebarHeader from '@/components/AppSidebarHeader.vue';
 import { Toaster } from '@/components/ui/sonner';
+import { useTimezone } from '@/composables/useTimezone';
 import type { BreadcrumbItem } from '@/types';
 
 type Props = {
@@ -13,6 +15,10 @@ type Props = {
 withDefaults(defineProps<Props>(), {
     breadcrumbs: () => [],
 });
+
+const { syncDetectedTimezone } = useTimezone();
+
+onMounted(syncDetectedTimezone);
 </script>
 
 <template>
