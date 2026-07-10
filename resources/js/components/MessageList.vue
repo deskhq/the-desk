@@ -5,12 +5,15 @@ import {
     Forward,
     MessageSquareText,
     Pencil,
+    SmilePlus,
     Trash2,
 } from '@lucide/vue';
 import { computed, nextTick, ref } from 'vue';
+import EmojiPickerPopover from '@/components/EmojiPickerPopover.vue';
 import LinkPreview from '@/components/LinkPreview.vue';
 import MessageForward from '@/components/MessageForward.vue';
 import MessageQuote from '@/components/MessageQuote.vue';
+import MessageReactions from '@/components/MessageReactions.vue';
 import { Button } from '@/components/ui/button';
 import {
     Dialog,
@@ -48,6 +51,9 @@ const props = defineProps<{
     pendingUuids?: string[];
     currentUserId: string;
     canModerate?: boolean;
+    // Whether the viewer may add/remove reactions (member of a non-archived
+    // channel); existing reaction pills still render read-only when false.
+    canReact?: boolean;
     onlineIds?: Set<string>;
     highlightMessageId?: string | null;
     // The message the "New messages" divider sits above — the first unread on
@@ -68,6 +74,7 @@ const emit = defineEmits<{
     delete: [message: Message];
     reply: [message: Message];
     forward: [message: Message];
+    react: [message: Message, emoji: string];
     openThread: [messageId: string];
     jump: [messageId: string];
     mention: [member: { id: string; name: string }];
@@ -324,6 +331,12 @@ function canReply(message: Message): boolean {
 // thread panel. A pending or deleted row has no stable target to forward yet.
 function canForward(message: Message): boolean {
     return !message.isDeleted && !isPending(message);
+}
+
+// The viewer may react to any live, confirmed message when they're a member of
+// the (non-archived) channel; a pending or deleted row has no stable target yet.
+function canReactTo(message: Message): boolean {
+    return Boolean(props.canReact) && !message.isDeleted && !isPending(message);
 }
 
 // The hover "reply in thread" action shows on live root messages in the main
@@ -641,6 +654,16 @@ function confirmDelete(): void {
                             :mentions="message.forwardedFrom.mentions"
                         />
 
+                        <MessageReactions
+                            v-if="
+                                !message.isDeleted && editingId !== message.id
+                            "
+                            :reactions="message.reactions"
+                            :current-user-id="props.currentUserId"
+                            :can-react="canReactTo(message)"
+                            @toggle="(emoji) => emit('react', message, emoji)"
+                        />
+
                         <button
                             v-if="showThreadSummary(message)"
                             type="button"
@@ -696,14 +719,30 @@ function confirmDelete(): void {
                         <div
                             v-if="
                                 editingId !== message.id &&
-                                (canReply(message) ||
+                                (canReactTo(message) ||
+                                    canReply(message) ||
                                     canStartThread(message) ||
                                     canForward(message) ||
                                     canEdit(message) ||
                                     canDelete(message))
                             "
-                            class="absolute -top-3 right-2 hidden items-center gap-0.5 rounded-md border border-border bg-background p-0.5 shadow-sm group-hover/message:flex"
+                            class="absolute -top-3 right-2 hidden items-center gap-0.5 rounded-md border border-border bg-background p-0.5 shadow-sm group-hover/message:flex has-[[data-state=open]]:flex"
                         >
+                            <EmojiPickerPopover
+                                v-if="canReactTo(message)"
+                                @select="
+                                    (emoji) => emit('react', message, emoji)
+                                "
+                            >
+                                <button
+                                    type="button"
+                                    data-test="message-react"
+                                    aria-label="Add reaction"
+                                    class="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
+                                >
+                                    <SmilePlus class="size-3.5" />
+                                </button>
+                            </EmojiPickerPopover>
                             <button
                                 v-if="canStartThread(message)"
                                 type="button"

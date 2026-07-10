@@ -41,6 +41,7 @@ use Laravel\Scout\Searchable;
  * @property-read Collection<int, Message> $threadReplies
  * @property-read Collection<int, User> $threadParticipants
  * @property-read Collection<int, User> $mentionedUsers
+ * @property-read Collection<int, MessageReaction> $reactions
  */
 #[Fillable(['channel_id', 'user_id', 'client_uuid', 'reply_to_id', 'forwarded_from_id', 'thread_root_id', 'sent_to_channel', 'body', 'edited_at'])]
 class Message extends Model
@@ -162,6 +163,20 @@ class Message extends Model
     public function linkPreviews(): HasMany
     {
         return $this->hasMany(MessageLinkPreview::class)->orderBy('position');
+    }
+
+    /**
+     * Get the emoji reactions added to this message.
+     *
+     * Ordered by when each reaction was first added so the aggregated pills keep
+     * a stable, first-reacted-first order. Each row's `user` is eager-loaded when
+     * building the reaction summary so the reactor tooltip avoids an N+1.
+     *
+     * @return HasMany<MessageReaction, $this>
+     */
+    public function reactions(): HasMany
+    {
+        return $this->hasMany(MessageReaction::class)->orderBy('created_at')->orderBy('id');
     }
 
     /**

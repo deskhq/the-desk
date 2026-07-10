@@ -68,6 +68,20 @@ export type MessagePreview = {
     siteName: string | null;
 };
 
+/**
+ * A message's reactions for a single emoji. Mirrors the `ReactionData` DTO: the
+ * emoji, its total count, and the reactor set (id + name, for the "you and 3
+ * others" tooltip). The summary is viewer-free — the client derives whether it
+ * reacted by checking its own id against `reactors` — so it rides the
+ * `MessageReactionChanged` broadcast unchanged and every viewer merges the same
+ * payload. Ordered first-reacted first, matching the server's aggregation.
+ */
+export type Reaction = {
+    emoji: string;
+    count: number;
+    reactors: Mention[];
+};
+
 export type Message = {
     id: string;
     clientUuid: string;
@@ -77,6 +91,12 @@ export type Message = {
     editedAt: string | null;
     isDeleted: boolean;
     mentions: Mention[];
+    /**
+     * Aggregated emoji reactions (mirrors the `MessageData` DTO's `reactions`),
+     * one entry per distinct emoji. Empty when nobody has reacted and always
+     * empty on a tombstone. Patched live in place from `MessageReactionChanged`.
+     */
+    reactions: Reaction[];
     /**
      * Open Graph preview cards for the URLs in the body (mirrors the
      * `MessageData` DTO's `linkPreviews`), in order of appearance. Empty when the

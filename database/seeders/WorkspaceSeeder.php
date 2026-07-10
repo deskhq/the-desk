@@ -11,6 +11,7 @@ use App\Enums\ChannelVisibility;
 use App\Enums\TeamRole;
 use App\Models\Channel;
 use App\Models\Message;
+use App\Models\MessageReaction;
 use App\Models\Team;
 use App\Models\TeamInvitation;
 use App\Models\User;
@@ -119,10 +120,11 @@ class WorkspaceSeeder extends Seeder
         $members = [$demo, $admin, $member1, $member2, $twoFactor];
 
         // A busy channel: enough backfill to make infinite scroll meaningful.
-        $this->seedMessages($general, $members, 60);
+        $generalMessages = $this->seedMessages($general, $members, 60);
         $this->seedEditedMessage($general, $admin);
         $this->seedDeletedMessage($general, $member1);
         $this->seedMentionMessage($general, $member2, $demo);
+        $this->seedReactions($generalMessages, [$demo, $admin, $member1]);
 
         // Extra public channels — one with a topic, one without.
         $announcements = $this->createChannel->handle($acme, 'announcements', ChannelVisibility::Public, $demo, 'Company-wide news');
@@ -308,6 +310,36 @@ class WorkspaceSeeder extends Seeder
         }
 
         return $messages;
+    }
+
+    /**
+     * Attach a spread of emoji reactions to a few messages so the reaction pills,
+     * multi-reactor aggregation, and the "You and N others" tooltip all have data
+     * on load — including reactions by the demo user so its own pills highlight.
+     *
+     * @param  list<Message>  $messages
+     * @param  array{0: User, 1: User, 2: User}  $reactors
+     */
+    private function seedReactions(array $messages, array $reactors): void
+    {
+        if (count($messages) < 5) {
+            return;
+        }
+
+        [$demo, $admin, $member] = $reactors;
+
+        // A popular message: three reactors share one emoji, with a second emoji
+        // alongside — the viewer reads "You and 2 others" on the first pill.
+        $popular = $messages[count($messages) - 2];
+
+        foreach ([$demo, $admin, $member] as $reactor) {
+            MessageReaction::factory()->for($popular)->for($reactor)->emoji('👍')->create();
+        }
+
+        MessageReaction::factory()->for($popular)->for($demo)->emoji('🎉')->create();
+
+        // A lightly-reacted message: a single emoji from one other member.
+        MessageReaction::factory()->for($messages[count($messages) - 5])->for($admin)->emoji('❤️')->create();
     }
 
     /**
