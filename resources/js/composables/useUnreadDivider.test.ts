@@ -147,4 +147,34 @@ describe('useUnreadDivider', () => {
 
         expect(disconnect).toHaveBeenCalledOnce();
     });
+
+    it('computes the boundary without touching the DOM during SSR', async () => {
+        // The server has no DOM; the immediate watcher must still compute the
+        // pure boundary without scheduling any document/observer access (which
+        // would throw and crash the SSR render).
+        const rejections: unknown[] = [];
+        const onRejection = (reason: unknown): void => {
+            rejections.push(reason);
+        };
+        process.on('unhandledRejection', onRejection);
+
+        vi.stubGlobal('document', undefined);
+        vi.stubGlobal('IntersectionObserver', undefined);
+
+        const { divider } = withScope({
+            channelId: ref('c1'),
+            messages: () => [message('m1', 'peer')],
+            lastReadMessageId: ref(null),
+        });
+
+        // The pure decision still runs on the server.
+        expect(divider.unreadDividerId.value).toBe('m1');
+
+        // Let any scheduled microtasks surface an unhandled rejection.
+        await new Promise((resolve) => setTimeout(resolve, 0));
+        process.off('unhandledRejection', onRejection);
+
+        expect(rejections).toEqual([]);
+        expect(observe).not.toHaveBeenCalled();
+    });
 });
