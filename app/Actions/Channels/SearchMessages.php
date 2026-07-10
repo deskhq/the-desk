@@ -31,10 +31,7 @@ class SearchMessages
     {
         $query = trim($query);
 
-        $channelIds = $user->channels()
-            ->where('channels.team_id', $team->id)
-            ->pluck('channels.id')
-            ->all();
+        $channelIds = $user->visibleChannelIds($team)->all();
 
         if ($query === '' || $channelIds === []) {
             return new Collection;
