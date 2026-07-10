@@ -72,6 +72,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Separator } from '@/components/ui/separator';
 import { SidebarTrigger } from '@/components/ui/sidebar';
+import { useChannelRealtime } from '@/composables/useChannelRealtime';
 import {
     useMessageStream,
     optimisticMessage,
@@ -82,18 +83,15 @@ import { useTimezone } from '@/composables/useTimezone';
 import { useTypingIndicator } from '@/composables/useTypingIndicator';
 import type { TypingUser } from '@/composables/useTypingIndicator';
 import { toggleReaction } from '@/lib/reactions';
-import { shouldFlagThreadUnread } from '@/lib/shouldFlagThreadUnread';
 import { unreadDividerMessageId } from '@/lib/unreadDivider';
 import type {
     Channel,
     ChannelReader,
     Mention,
     Message,
-    MessageAuthor,
     MessagePage,
     NotificationLevel,
     NotificationLevelOption,
-    Reaction,
     ScheduledMessage,
     Thread,
 } from '@/types';
@@ -306,66 +304,6 @@ function scrollToUnread(): void {
         ?.scrollIntoView({ block: 'center', behavior: 'smooth' });
 }
 
-// Append a message to the main timeline. When the reader was near the bottom the
-// view follows it down; otherwise the arrival raises the "new messages" count on
-// the jump-to-latest control instead of scrolling silently.
-function appendLiveMain(message: Message): void {
-    const wasNearBottom = isNearBottom();
-
-    if (mainStream.appendLive(message)) {
-        notifyAppended(wasNearBottom);
-    }
-}
-
-// Route a broadcast message to the timeline it belongs to. A thread reply stays
-// out of the main timeline unless it was explicitly "also sent to channel"; the
-// open thread only appends replies belonging to its root. The two are not
-// exclusive — a sent-to-channel reply in the open thread lands in both.
-function routeIncoming(message: Message): void {
-    if (message.threadRootId === null || message.sentToChannel) {
-        appendLiveMain(message);
-    }
-
-    if (
-        message.threadRootId !== null &&
-        message.threadRootId === activeThreadRootId.value
-    ) {
-        threadStream.appendLive(message);
-    }
-
-    // A thread reply either keeps the open, focused thread read as it streams in,
-    // or raises the unread dot on its root back in the main timeline.
-    if (message.threadRootId !== null) {
-        const viewingThreadFocused =
-            message.threadRootId === activeThreadRootId.value &&
-            document.hasFocus();
-
-        if (viewingThreadFocused) {
-            markThreadRead();
-
-            return;
-        }
-
-        const root = displayMessages.value.find(
-            (candidate) => candidate.id === message.threadRootId,
-        );
-
-        if (
-            shouldFlagThreadUnread({
-                isReply: true,
-                isOwnReply: message.user.id === currentUser.value.id,
-                isFollowedThread: root?.threadFollowed ?? false,
-                isViewingThreadFocused: false,
-                isSuppressed: threadUnreadSuppressed.value,
-            })
-        ) {
-            mainStream.patchThreadState(message.threadRootId, {
-                threadUnread: true,
-            });
-        }
-    }
-}
-
 // Advance the open thread's read pointer so its unread dot clears, mirroring the
 // channel's markRead: debounced, gated on focus, and optimistically clearing the
 // dot on the root back in the main timeline.
@@ -401,65 +339,6 @@ function channelName(id: string): string {
     return `channel.${id}`;
 }
 
-// An edit or deletion may touch either timeline (or both, for a sent-to-channel
-// reply); patch both streams, since a patch is ignored where the message isn't
-// rendered.
-function applyPatch(message: Message): void {
-    mainStream.applyPatch(message);
-    threadStream.applyPatch(message);
-}
-
-function subscribe(id: string): void {
-    echo()
-        .private(channelName(id))
-        .listen('MessageSent', (message: Message) => {
-            // Their message landed; stop showing them as typing.
-            typing.forget(message.user.id);
-            routeIncoming(message);
-            // Keep the open, focused channel read as new messages arrive.
-            markRead();
-        })
-        .listen('MessageUpdated', (message: Message) => {
-            applyPatch(message);
-        })
-        .listen('MessageDeleted', (message: Message) => {
-            applyPatch(message);
-        })
-        .listen(
-            'MessageReactionChanged',
-            (event: { messageId: string; reactions: Reaction[] }) => {
-                // The authoritative, viewer-free summary; patch it into whichever
-                // timeline renders the message (the patch is a no-op elsewhere).
-                mainStream.patchReactions(event.messageId, event.reactions);
-                threadStream.patchReactions(event.messageId, event.reactions);
-            },
-        )
-        .listen(
-            'MessageRead',
-            (event: { reader: MessageAuthor; lastReadMessageId: string }) => {
-                // Our own advance echoes back on the shared private channel; the
-                // "Seen by" row never shows the viewer, so drop it here.
-                if (event.reader.id === currentUser.value.id) {
-                    return;
-                }
-
-                const next = new Map(readers.value);
-                next.set(event.reader.id, {
-                    user: event.reader,
-                    lastReadMessageId: event.lastReadMessageId,
-                });
-                readers.value = next;
-            },
-        )
-        .listenForWhisper('typing', (user: TypingUser) => {
-            typing.receiveTyping(user);
-        });
-}
-
-function unsubscribe(id: string): void {
-    echo().leave(channelName(id));
-}
-
 // Advance the read pointer for the open channel so its sidebar badge clears.
 // Debounced and gated on tab focus: a channel is only "read" while the user is
 // actually looking at it, and a burst of arriving messages collapses to one
@@ -487,8 +366,26 @@ function markRead(): void {
     }, 400);
 }
 
+// The active channel's Echo subscribe/route/teardown lives in this composable: it
+// moves the subscription as the open channel changes and routes each broadcast
+// into the two streams. `Show.vue` only supplies the state it reconciles against.
+useChannelRealtime({
+    channelId: () => props.channel.id,
+    currentUserId: () => currentUser.value.id,
+    mainStream,
+    threadStream,
+    activeThreadRootId,
+    displayMessages: () => displayMessages.value,
+    isThreadUnreadSuppressed: () => threadUnreadSuppressed.value,
+    readers,
+    isNearBottom,
+    notifyAppended,
+    typing,
+    markRead,
+    markThreadRead,
+});
+
 onMounted(() => {
-    subscribe(props.channel.id);
     seedReaders();
     computeUnreadDivider();
     markRead();
@@ -531,18 +428,15 @@ watch(
     },
 );
 
-// Inertia may reuse this page component when navigating between channels; move
-// the subscription and reset per-channel state when the channel changes.
+// Inertia may reuse this page component when navigating between channels; reset
+// per-channel state when the channel changes. `useChannelRealtime` moves the Echo
+// subscription on the same change via its own watcher.
 watch(
     () => props.channel.id,
-    (newId, oldId) => {
+    () => {
         // Persist the outgoing channel's draft before switching; `pendingDraft`
         // still carries the old channel's slug, so it writes to the right place.
         flushDraft();
-
-        if (oldId) {
-            unsubscribe(oldId);
-        }
 
         mainStream.reset();
         resetScrollPin();
@@ -552,7 +446,6 @@ watch(
         notificationLevel.value = props.channel.notificationLevel;
         muted.value = props.channel.muted;
         starred.value = props.channel.starred;
-        subscribe(newId);
         seedReaders();
         computeUnreadDivider();
         markRead();
@@ -563,7 +456,6 @@ onBeforeUnmount(() => {
     // Leaving the workspace (or a full navigation away) still persists a
     // just-typed draft that the debounce hasn't written yet.
     flushDraft();
-    unsubscribe(props.channel.id);
     unreadObserver?.disconnect();
     window.removeEventListener('focus', markRead);
     window.removeEventListener('focus', markThreadRead);
@@ -944,6 +836,15 @@ function appendPendingMain(message: Message): void {
     if (pinned) {
         nextTick(() => scrollToBottom());
     }
+}
+
+// Patch a message into both timelines at once — it may render in either (or both,
+// for a sent-to-channel reply), and a patch is ignored where it isn't shown. Used
+// by the optimistic edit/delete paths; the realtime echo re-applies it via
+// `useChannelRealtime`.
+function applyPatch(message: Message): void {
+    mainStream.applyPatch(message);
+    threadStream.applyPatch(message);
 }
 
 function editMessage(message: Message, body: string): void {
