@@ -35,6 +35,7 @@ import { formatTimeOfDay } from '@/lib/datetime';
 import { tokenizeMessageBody } from '@/lib/messageBody';
 import type { MessageBodySegment } from '@/lib/messageBody';
 import { readersForMessage } from '@/lib/readReceipts';
+import { buildTimelineItems } from '@/lib/timeline';
 import type {
     ChannelReader,
     Mention,
@@ -178,43 +179,17 @@ function previewFor(
     return message.linkPreviews.find((preview) => preview.url === href);
 }
 
-// Consecutive messages from the same author within this window are grouped
-// under a single avatar + header line.
-const GROUPING_WINDOW_MS = 5 * 60 * 1000;
-
-type RenderGroup = {
-    type: 'group';
-    key: string;
-    author: MessageAuthor;
-    leadCreatedAt: string;
-    messages: Message[];
-};
-
-type RenderDivider = {
-    type: 'divider';
-    key: string;
-    label: string;
-    // 'day' groups messages by date; 'unread' is the "New messages" boundary.
-    variant: 'day' | 'unread';
-};
-
-type RenderItem = RenderGroup | RenderDivider;
-
-function dayKey(iso: string): string {
-    return new Date(iso).toDateString();
-}
-
 function dividerLabel(iso: string): string {
     const date = new Date(iso);
     const today = new Date();
     const yesterday = new Date();
     yesterday.setDate(today.getDate() - 1);
 
-    if (dayKey(iso) === today.toDateString()) {
+    if (date.toDateString() === today.toDateString()) {
         return 'Today';
     }
 
-    if (dayKey(iso) === yesterday.toDateString()) {
+    if (date.toDateString() === yesterday.toDateString()) {
         return 'Yesterday';
     }
 
@@ -231,72 +206,12 @@ function formatTime(iso: string): string {
     return formatTimeOfDay(iso, viewerTimeZone.value);
 }
 
-const renderItems = computed<RenderItem[]>(() => {
-    const items: RenderItem[] = [];
-    let currentGroup: RenderGroup | null = null;
-    let currentDay: string | null = null;
-    let lastCreatedAt: string | null = null;
-
-    for (const message of props.messages) {
-        const messageDay = dayKey(message.createdAt);
-        const startsNewDay = messageDay !== currentDay;
-
-        if (startsNewDay) {
-            items.push({
-                type: 'divider',
-                key: `divider-${messageDay}`,
-                label: dividerLabel(message.createdAt),
-                variant: 'day',
-            });
-            currentDay = messageDay;
-        }
-
-        // The "New messages" boundary breaks the run of grouped messages so the
-        // divider sits on its own line directly above the first unread message.
-        const isUnreadBoundary =
-            props.unreadDividerId != null &&
-            message.id === props.unreadDividerId;
-
-        if (isUnreadBoundary) {
-            items.push({
-                type: 'divider',
-                key: 'unread-divider',
-                label: 'New',
-                variant: 'unread',
-            });
-        }
-
-        const sameAuthor = currentGroup?.author.id === message.user.id;
-        const withinWindow =
-            lastCreatedAt !== null &&
-            new Date(message.createdAt).getTime() -
-                new Date(lastCreatedAt).getTime() <=
-                GROUPING_WINDOW_MS;
-
-        if (
-            !currentGroup ||
-            startsNewDay ||
-            isUnreadBoundary ||
-            !sameAuthor ||
-            !withinWindow
-        ) {
-            currentGroup = {
-                type: 'group',
-                key: `group-${message.id}`,
-                author: message.user,
-                leadCreatedAt: message.createdAt,
-                messages: [message],
-            };
-            items.push(currentGroup);
-        } else {
-            currentGroup.messages.push(message);
-        }
-
-        lastCreatedAt = message.createdAt;
-    }
-
-    return items;
-});
+// The grouped, divider-interleaved render list. The grouping and boundary logic
+// lives in a pure, unit-tested helper; the day label is formatted here so it
+// stays relative to the viewer's "today".
+const renderItems = computed(() =>
+    buildTimelineItems(props.messages, props.unreadDividerId ?? null),
+);
 
 const pending = computed(() => new Set(props.pendingUuids ?? []));
 
@@ -415,77 +330,85 @@ function confirmDelete(): void {
                 v-if="item.type === 'divider' && item.variant === 'unread'"
                 id="unread-divider"
                 data-test="unread-divider"
-                class="relative my-3 flex items-center gap-2"
+                class="my-4 flex items-center gap-3"
             >
-                <span aria-hidden="true" class="h-px flex-1 bg-rose-500/50" />
                 <span
-                    class="text-[11px] font-semibold tracking-[0.05em] text-rose-500 uppercase"
-                >
-                    {{ item.label }}
+                    aria-hidden="true"
+                    class="h-px flex-1 bg-gradient-to-r from-transparent to-brass-border"
+                />
+                <span class="font-serif text-[13px] text-brass-border italic">
+                    new
                 </span>
+                <span
+                    aria-hidden="true"
+                    class="h-px flex-1 bg-gradient-to-r from-brass-border to-transparent"
+                />
             </div>
 
             <div
                 v-else-if="item.type === 'divider'"
-                class="relative my-4 flex items-center justify-center"
+                class="my-4 flex items-center gap-3"
             >
+                <span aria-hidden="true" class="h-px flex-1 bg-border" />
                 <span
-                    aria-hidden="true"
-                    class="absolute inset-x-0 top-1/2 h-px -translate-y-1/2 bg-border"
-                />
-                <span
-                    class="relative rounded-full border border-border bg-background px-3 py-0.5 text-[11.5px] font-medium text-muted-foreground"
+                    class="font-serif text-[13px] text-muted-foreground italic"
                 >
-                    {{ item.label }}
+                    {{ dividerLabel(item.iso!) }}
                 </span>
+                <span aria-hidden="true" class="h-px flex-1 bg-border" />
             </div>
 
-            <div v-else class="mt-[18px] flex items-start gap-3">
-                <UserHoverCard
-                    :team-slug="props.teamSlug"
-                    :user-id="item.author.id"
-                    :name="item.author.name"
-                    @mention="(member) => emit('mention', member)"
+            <div v-else class="mt-[18px] flex">
+                <div
+                    class="flex w-16 shrink-0 flex-col items-center gap-1 pt-0.5"
                 >
-                    <div class="relative mt-0.5 size-9 shrink-0 cursor-pointer">
-                        <div
-                            class="flex size-9 items-center justify-center rounded-[10px] bg-primary/10 text-[12px] font-semibold text-primary select-none"
-                            aria-hidden="true"
-                        >
-                            {{ getInitials(item.author.name) }}
-                        </div>
-                        <span
-                            data-test="presence-dot"
-                            :data-online="isOnline(item.author.id)"
-                            :aria-label="
-                                isOnline(item.author.id) ? 'Online' : 'Offline'
-                            "
-                            class="absolute right-0.5 bottom-0.5 size-2.5 rounded-full ring-2 ring-background"
-                            :class="
-                                isOnline(item.author.id)
-                                    ? 'bg-emerald-500'
-                                    : 'bg-muted-foreground/60'
-                            "
-                        />
-                    </div>
-                </UserHoverCard>
-                <div class="min-w-0 flex-1">
-                    <div class="flex items-baseline gap-2">
-                        <UserHoverCard
-                            :team-slug="props.teamSlug"
-                            :user-id="item.author.id"
-                            :name="item.author.name"
-                            @mention="(member) => emit('mention', member)"
-                        >
-                            <span
-                                class="cursor-pointer text-[14.5px] font-semibold text-foreground hover:underline"
-                                >{{ item.author.name }}</span
+                    <UserHoverCard
+                        :team-slug="props.teamSlug"
+                        :user-id="item.author.id"
+                        :name="item.author.name"
+                        @mention="(member) => emit('mention', member)"
+                    >
+                        <div class="relative size-[34px] cursor-pointer">
+                            <div
+                                class="flex size-[34px] items-center justify-center rounded-full bg-primary/10 text-[11px] font-semibold text-primary select-none"
+                                aria-hidden="true"
                             >
-                        </UserHoverCard>
-                        <span class="text-[11px] text-muted-foreground/80">{{
-                            formatTime(item.leadCreatedAt)
-                        }}</span>
-                    </div>
+                                {{ getInitials(item.author.name) }}
+                            </div>
+                            <span
+                                data-test="presence-dot"
+                                :data-online="isOnline(item.author.id)"
+                                :aria-label="
+                                    isOnline(item.author.id)
+                                        ? 'Online'
+                                        : 'Offline'
+                                "
+                                class="absolute right-0 bottom-0 size-2.5 rounded-full ring-2 ring-card"
+                                :class="
+                                    isOnline(item.author.id)
+                                        ? 'bg-emerald-500'
+                                        : 'bg-muted-foreground/60'
+                                "
+                            />
+                        </div>
+                    </UserHoverCard>
+                    <span
+                        class="font-mono text-[9.5px] text-muted-foreground/70"
+                        >{{ formatTime(item.leadCreatedAt) }}</span
+                    >
+                </div>
+                <div class="min-w-0 flex-1 border-l border-border pl-[18px]">
+                    <UserHoverCard
+                        :team-slug="props.teamSlug"
+                        :user-id="item.author.id"
+                        :name="item.author.name"
+                        @mention="(member) => emit('mention', member)"
+                    >
+                        <span
+                            class="cursor-pointer text-[14px] font-semibold text-foreground hover:underline"
+                            >{{ item.author.name }}</span
+                        >
+                    </UserHoverCard>
                     <div
                         v-for="(message, index) in item.messages"
                         :id="`message-${message.id}`"
@@ -587,7 +510,7 @@ function confirmDelete(): void {
                                 >
                                     <span
                                         data-test="message-mention"
-                                        class="cursor-pointer rounded bg-blue-500/10 px-1 py-0.5 font-medium text-blue-700 dark:bg-blue-400/15 dark:text-blue-300"
+                                        class="cursor-pointer border-b-[1.5px] border-brass font-medium text-foreground hover:border-brass-border"
                                         >@{{ segment.name }}</span
                                     >
                                 </UserHoverCard>
