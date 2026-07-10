@@ -59,19 +59,19 @@ The nouns the product is built from.
 
 These are the deep modules that carry the codebase's real weight. **When new work
 touches one of these concerns, route through the named module — do not re-inline
-the logic.** Items marked _(planned)_ are being introduced by the
-architecture-hardening epic; build them once, then reuse.
+the logic.** Items still marked _(planned)_ are deferred follow-ups not yet
+built; build them once, then reuse.
 
 ### Backend (`app/`)
 
-- **Message load-set scope** _(planned — ADR-0002)_ — the single query scope that
+- **Message load-set scope** _(ADR-0002)_ — the single query scope that
   eager-loads exactly the relations `MessageData::fromMessage()` reads. Every
   timeline / thread / search / broadcast / edit payload goes through it, so the
   N+1 contract has one home. Never hand-write the `with([...])` relation list.
-- **Visible-channels ACL** _(planned — ADR-0003)_ — one scope on `User` returning
+- **Visible-channels ACL** _(ADR-0003)_ — one scope on `User` returning
   the channel ids a user may see in a team. This *is* the authorization boundary
   for search, the thread inbox, unread dots, and forwarding. Never re-`pluck` it.
-- **Channel timeline window** _(planned — ADR-0004)_ — the read-model/query object
+- **Channel timeline window** _(ADR-0004)_ — the read-model/query object
   that resolves where a channel's initial message window opens (unread anchoring,
   jump context, paging). Takes explicit params; the controller keeps HTTP glue.
 - **Domain-event recording** _(ADR-0005)_ — audit and security events are recorded
@@ -94,14 +94,14 @@ architecture-hardening epic; build them once, then reuse.
   `unreadDivider`, `readReceipts`, `scheduleTime`.
 - **`useMessageStream`** — deep composable: a simple `appendLive`/`applyPatch`
   interface hiding a three-source merge engine. The model for composables.
-- **`useChannelRealtime`** _(planned — ADR-0006)_ — owns the channel's Echo
+- **`useChannelRealtime`** _(ADR-0006)_ — owns the channel's Echo
   subscribe/route/teardown and feeds the message streams; its placement decisions
   push into a pure `lib/` helper. Realtime wiring never lives inline in a page.
-- **`useChannelFleetSubscription`** _(planned — ADR-0006)_ — one engine for
+- **`useChannelFleetSubscription`** _(ADR-0006)_ — one engine for
   subscribing to a set of channels (sidebar badges, chimes, and the active
   channel all share it). One tested reconcile/teardown lifecycle.
-- **`useDebouncedPost`** _(planned)_ — the debounced, focus-gated, auto-teardown
-  router POST used by mark-read, mark-thread-read, and draft persistence.
+- **`useDebouncedPost`** — the debounced, focus-gated, auto-teardown router POST
+  used by mark-read, mark-thread-read, and draft persistence.
 - **`ScrollableMessageList`** _(planned)_ — the scroll container + `useScrollPin` +
   "jump to latest / N new" pill, shared by the channel view and the thread panel.
 - **`ConfirmDialog`** _(planned)_ — one confirmation-dialog module the
