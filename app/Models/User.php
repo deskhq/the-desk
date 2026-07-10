@@ -21,6 +21,9 @@ use Illuminate\Support\Carbon;
  * @property string $id
  * @property string $name
  * @property string $email
+ * @property string|null $pronouns
+ * @property string|null $title
+ * @property string|null $phone
  * @property Carbon|null $email_verified_at
  * @property string $password
  * @property string|null $two_factor_secret
@@ -40,7 +43,7 @@ use Illuminate\Support\Carbon;
  * @property-read Collection<int, Channel> $channels
  * @property-read Collection<int, ChannelSection> $channelSections
  */
-#[Fillable(['name', 'email', 'password', 'current_team_id', 'chime_sound', 'share_read_receipts', 'collapsed_channel_sections'])]
+#[Fillable(['name', 'email', 'pronouns', 'title', 'phone', 'password', 'current_team_id', 'chime_sound', 'share_read_receipts', 'collapsed_channel_sections'])]
 #[Hidden(['password', 'two_factor_secret', 'two_factor_recovery_codes', 'remember_token'])]
 class User extends Authenticatable
 {

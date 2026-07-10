@@ -28,6 +28,9 @@ export type UserProfile = {
     id: string;
     name: string;
     email: string;
+    pronouns: string | null;
+    title: string | null;
+    phone: string | null;
     role: TeamRole | null;
     roleLabel: string | null;
     memberSince: string | null;

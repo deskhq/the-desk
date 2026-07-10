@@ -66,12 +66,29 @@ const memberSince = computed(() => {
             </Avatar>
 
             <div class="min-w-0 flex-1 space-y-3">
-                <div class="flex flex-wrap items-center gap-2">
-                    <h3 class="text-lg font-semibold">{{ profile.name }}</h3>
-                    <Badge v-if="profile.isYou" variant="secondary">You</Badge>
-                    <Badge v-if="profile.roleLabel" variant="outline">
-                        {{ profile.roleLabel }}
-                    </Badge>
+                <div>
+                    <div class="flex flex-wrap items-center gap-2">
+                        <h3 class="text-lg font-semibold">
+                            {{ profile.name }}
+                        </h3>
+                        <span
+                            v-if="profile.pronouns"
+                            class="text-sm text-muted-foreground"
+                            >{{ profile.pronouns }}</span
+                        >
+                        <Badge v-if="profile.isYou" variant="secondary"
+                            >You</Badge
+                        >
+                        <Badge v-if="profile.roleLabel" variant="outline">
+                            {{ profile.roleLabel }}
+                        </Badge>
+                    </div>
+                    <p
+                        v-if="profile.title"
+                        class="mt-0.5 text-sm text-muted-foreground"
+                    >
+                        {{ profile.title }}
+                    </p>
                 </div>
 
                 <dl class="grid gap-3 text-sm sm:grid-cols-2">
@@ -82,6 +99,16 @@ const memberSince = computed(() => {
                                 :href="`mailto:${profile.email}`"
                                 class="underline-offset-4 hover:underline"
                                 >{{ profile.email }}</a
+                            >
+                        </dd>
+                    </div>
+                    <div v-if="profile.phone">
+                        <dt class="text-muted-foreground">Phone</dt>
+                        <dd class="mt-0.5">
+                            <a
+                                :href="`tel:${profile.phone}`"
+                                class="underline-offset-4 hover:underline"
+                                >{{ profile.phone }}</a
                             >
                         </dd>
                     </div>

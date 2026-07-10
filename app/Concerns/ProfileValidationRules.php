@@ -18,7 +18,40 @@ trait ProfileValidationRules
         return [
             'name' => $this->nameRules(),
             'email' => $this->emailRules($userId),
+            'pronouns' => $this->pronounsRules(),
+            'title' => $this->titleRules(),
+            'phone' => $this->phoneRules(),
         ];
+    }
+
+    /**
+     * Get the validation rules used to validate user pronouns.
+     *
+     * @return array<int, ValidationRule|array<mixed>|string>
+     */
+    protected function pronounsRules(): array
+    {
+        return ['nullable', 'string', 'max:50'];
+    }
+
+    /**
+     * Get the validation rules used to validate user job titles.
+     *
+     * @return array<int, ValidationRule|array<mixed>|string>
+     */
+    protected function titleRules(): array
+    {
+        return ['nullable', 'string', 'max:100'];
+    }
+
+    /**
+     * Get the validation rules used to validate user phone numbers.
+     *
+     * @return array<int, ValidationRule|array<mixed>|string>
+     */
+    protected function phoneRules(): array
+    {
+        return ['nullable', 'string', 'max:30'];
     }
 
     /**

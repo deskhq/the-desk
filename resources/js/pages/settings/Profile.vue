@@ -73,6 +73,47 @@ const user = computed(() => page.props.auth.user);
                 <InputError class="mt-2" :message="errors.email" />
             </div>
 
+            <div class="grid gap-2">
+                <Label for="pronouns">Pronouns</Label>
+                <Input
+                    id="pronouns"
+                    class="mt-1 block w-full"
+                    name="pronouns"
+                    :default-value="user.pronouns ?? ''"
+                    maxlength="50"
+                    placeholder="e.g. she/her, they/them"
+                />
+                <InputError class="mt-2" :message="errors.pronouns" />
+            </div>
+
+            <div class="grid gap-2">
+                <Label for="title">Job title</Label>
+                <Input
+                    id="title"
+                    class="mt-1 block w-full"
+                    name="title"
+                    :default-value="user.title ?? ''"
+                    maxlength="100"
+                    placeholder="e.g. Product Designer"
+                />
+                <InputError class="mt-2" :message="errors.title" />
+            </div>
+
+            <div class="grid gap-2">
+                <Label for="phone">Phone</Label>
+                <Input
+                    id="phone"
+                    type="tel"
+                    class="mt-1 block w-full"
+                    name="phone"
+                    :default-value="user.phone ?? ''"
+                    maxlength="30"
+                    autocomplete="tel"
+                    placeholder="e.g. +1 555 123 4567"
+                />
+                <InputError class="mt-2" :message="errors.phone" />
+            </div>
+
             <div v-if="page.props.mustVerifyEmail && !user.email_verified_at">
                 <p class="-mt-4 text-sm text-muted-foreground">
                     Your email address is unverified.

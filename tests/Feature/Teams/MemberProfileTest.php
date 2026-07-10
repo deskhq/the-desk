@@ -7,7 +7,13 @@ use Inertia\Testing\AssertableInertia as Assert;
 
 test('a team member can view another member profile', function () {
     $viewer = User::factory()->create();
-    $member = User::factory()->create(['name' => 'Ada Lovelace', 'email' => 'ada@example.com']);
+    $member = User::factory()->create([
+        'name' => 'Ada Lovelace',
+        'email' => 'ada@example.com',
+        'pronouns' => 'she/her',
+        'title' => 'Mathematician',
+        'phone' => '+1 555 000 1815',
+    ]);
     $team = Team::factory()->create();
 
     $team->members()->attach($viewer, ['role' => TeamRole::Member->value]);
@@ -22,6 +28,9 @@ test('a team member can view another member profile', function () {
             ->where('profile.id', $member->id)
             ->where('profile.name', 'Ada Lovelace')
             ->where('profile.email', 'ada@example.com')
+            ->where('profile.pronouns', 'she/her')
+            ->where('profile.title', 'Mathematician')
+            ->where('profile.phone', '+1 555 000 1815')
             ->where('profile.role', TeamRole::Admin->value)
             ->where('profile.roleLabel', 'Admin')
             ->where('profile.isYou', false)
