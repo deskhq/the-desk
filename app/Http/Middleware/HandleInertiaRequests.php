@@ -4,6 +4,7 @@ namespace App\Http\Middleware;
 
 use App\Data\ChannelData;
 use App\Data\ChannelSectionData;
+use App\Enums\TeamRole;
 use App\Models\Message;
 use App\Models\Team;
 use App\Models\TeamInvitation;
@@ -54,6 +55,13 @@ class HandleInertiaRequests extends Middleware
             'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',
             'currentTeam' => fn () => $user?->currentTeam ? $user->toUserTeam($user->currentTeam) : null,
             'teams' => fn () => $user?->toUserTeams(includeCurrent: true) ?? [],
+            // The dock header's "invite" affordance reuses the member-invite modal,
+            // so the current team's invite permission and the assignable roles ride
+            // along with every workspace request.
+            'canInviteToCurrentTeam' => fn () => $user?->currentTeam
+                ? $user->toTeamPermissions($user->currentTeam)->canCreateInvitation
+                : false,
+            'invitableRoles' => TeamRole::assignable(),
             'channels' => fn () => $this->channelsForSidebar($request, $user),
             'channelSections' => fn () => $this->channelSectionsForSidebar($request, $user),
             'collapsedChannelSections' => fn () => $user->collapsed_channel_sections ?? [],

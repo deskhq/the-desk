@@ -68,7 +68,7 @@ function toggleStar(): void {
             as-child
             :is-active="channel.slug === activeChannelSlug"
             :data-muted="channel.muted"
-            class="h-[30px] gap-1.5 rounded-md py-0 pr-2 pl-7 text-[13.5px] text-sidebar-foreground/80 hover:bg-sidebar-accent/60 hover:text-sidebar-foreground data-[active=true]:relative data-[active=true]:bg-sidebar-accent data-[active=true]:font-medium data-[active=true]:text-sidebar-accent-foreground data-[muted=true]:opacity-55 data-[muted=true]:hover:opacity-100"
+            class="h-8 gap-2 rounded-[9px] py-0 pr-2.5 pl-7 text-[13.5px] text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground data-[active=true]:bg-sidebar-primary data-[active=true]:font-medium data-[active=true]:text-sidebar-primary-foreground data-[active=true]:shadow-[0_2px_6px_rgba(29,26,21,0.25)] data-[active=true]:hover:bg-sidebar-primary data-[active=true]:hover:text-sidebar-primary-foreground data-[muted=true]:opacity-55 data-[muted=true]:hover:opacity-100"
         >
             <Link
                 :href="
@@ -79,23 +79,21 @@ function toggleStar(): void {
                 "
             >
                 <span
-                    v-if="channel.slug === activeChannelSlug"
-                    aria-hidden="true"
-                    class="absolute top-[7px] bottom-[7px] left-0 w-[3px] rounded-full bg-primary"
-                />
-                <span
-                    class="font-medium"
+                    class="shrink-0 font-medium"
                     :class="
                         channel.slug === activeChannelSlug
-                            ? 'text-sidebar-foreground/70'
-                            : 'text-muted-foreground/80'
+                            ? 'text-brass'
+                            : channel.unreadCount > 0
+                              ? 'text-muted-foreground'
+                              : 'text-muted-foreground/60'
                     "
                     >#</span
                 >
                 <span
                     class="truncate"
                     :class="
-                        channel.unreadCount > 0
+                        channel.unreadCount > 0 &&
+                        channel.slug !== activeChannelSlug
                             ? 'font-semibold text-sidebar-foreground'
                             : ''
                     "
@@ -107,7 +105,7 @@ function toggleStar(): void {
                 <span
                     v-if="channel.mentionCount > 0"
                     data-test="mention-badge"
-                    class="ml-auto flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-primary px-1 text-[11px] font-semibold text-primary-foreground tabular-nums"
+                    class="ml-auto flex h-[17px] min-w-[18px] items-center justify-center rounded-full bg-brass px-1.5 text-[10px] font-bold text-brass-foreground tabular-nums"
                     :aria-label="`${channel.mentionCount} unread mentions`"
                     >{{ channel.mentionCount }}</span
                 >
@@ -126,7 +124,7 @@ function toggleStar(): void {
                     v-else-if="channel.unreadCount > 0"
                     data-test="unread-dot"
                     aria-hidden="true"
-                    class="ml-auto size-1.5 rounded-full bg-primary"
+                    class="ml-auto size-1.5 rounded-full bg-brass"
                 />
             </Link>
         </SidebarMenuButton>
@@ -145,7 +143,7 @@ function toggleStar(): void {
                     : `Star ${channel.name}`
             "
             :title="channel.starred ? 'Unstar channel' : 'Star channel'"
-            class="absolute top-1/2 left-1 z-10 flex size-5 -translate-y-1/2 items-center justify-center rounded text-muted-foreground/60 opacity-70 transition hover:text-amber-500 hover:opacity-100 data-[starred=true]:text-amber-500 data-[starred=true]:opacity-100"
+            class="absolute top-1/2 left-1 z-10 flex size-5 -translate-y-1/2 items-center justify-center rounded text-muted-foreground/60 opacity-70 transition hover:text-brass hover:opacity-100 data-[starred=true]:text-brass data-[starred=true]:opacity-100"
             @click="toggleStar"
         >
             <Star
@@ -158,7 +156,7 @@ function toggleStar(): void {
              section. Revealed on hover or focus, and pinned open while the menu
              is; a solid background masks any unread badge underneath. -->
         <div
-            class="absolute top-1/2 right-1 z-10 flex -translate-y-1/2 items-center gap-0.5 rounded-md bg-sidebar pl-1 opacity-0 transition group-hover/row:opacity-100 group-data-[active=true]/row:bg-sidebar-accent focus-within:opacity-100"
+            class="absolute top-1/2 right-1 z-10 flex -translate-y-1/2 items-center gap-0.5 rounded-md bg-sidebar pl-1 opacity-0 transition group-hover/row:opacity-100 group-data-[active=true]/row:bg-sidebar-primary focus-within:opacity-100"
             :class="menuOpen ? 'opacity-100' : ''"
         >
             <button
@@ -166,7 +164,7 @@ function toggleStar(): void {
                 :data-test="`channel-drag-handle-${channel.slug}`"
                 :aria-label="`Reorder ${channel.name}`"
                 title="Drag to reorder"
-                class="channel-drag-handle flex size-5 cursor-grab items-center justify-center rounded text-muted-foreground/60 transition hover:text-sidebar-foreground active:cursor-grabbing"
+                class="channel-drag-handle flex size-5 cursor-grab items-center justify-center rounded text-muted-foreground/60 transition group-data-[active=true]/row:text-sidebar-primary-foreground/70 hover:text-sidebar-foreground group-data-[active=true]/row:hover:text-sidebar-primary-foreground active:cursor-grabbing"
             >
                 <GripVertical class="size-3.5" />
             </button>
@@ -180,7 +178,7 @@ function toggleStar(): void {
                         :data-test="`channel-menu-${channel.slug}`"
                         :aria-label="`Channel options for ${channel.name}`"
                         title="More options"
-                        class="flex size-5 items-center justify-center rounded text-muted-foreground/60 transition hover:text-sidebar-foreground data-[state=open]:text-sidebar-foreground"
+                        class="flex size-5 items-center justify-center rounded text-muted-foreground/60 transition group-data-[active=true]/row:text-sidebar-primary-foreground/70 hover:text-sidebar-foreground group-data-[active=true]/row:hover:text-sidebar-primary-foreground data-[state=open]:text-sidebar-foreground"
                     >
                         <MoreVertical class="size-3.5" />
                     </button>

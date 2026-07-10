@@ -78,8 +78,15 @@ describe('"The Desk" design foundation', () => {
             );
         });
 
+        it('keeps solid-brass badge text ink in both themes', () => {
+            expect(tokenValue(':root', '--brass-foreground')).toBe('#1d1a15');
+        });
+
         it('exposes brass as Tailwind color utilities via @theme inline', () => {
             expect(appCss).toContain('--color-brass: var(--brass);');
+            expect(appCss).toContain(
+                '--color-brass-foreground: var(--brass-foreground);',
+            );
             expect(appCss).toContain('--color-brass-fill: var(--brass-fill);');
             expect(appCss).toContain(
                 '--color-brass-fill-foreground: var(--brass-fill-foreground);',

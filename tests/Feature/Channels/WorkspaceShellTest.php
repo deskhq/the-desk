@@ -62,6 +62,23 @@ test('a logged in user lands in the #general workspace', function () {
         );
 });
 
+test('the workspace shell shares the dock header affordances', function () {
+    $user = User::factory()->create();
+
+    $this->actingAs($user)
+        ->get(route('channels.show', [
+            'team' => $user->currentTeam->slug,
+            'channel' => Channel::GENERAL_SLUG,
+        ]))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('currentTeam.membersCount', 1)
+            ->where('canInviteToCurrentTeam', true)
+            ->has('invitableRoles')
+            ->where('invitableRoles.0.value', 'admin')
+        );
+});
+
 test('login to workspace smoke: land in #general, create a channel, then browse', function () {
     $user = User::factory()->create();
     $slug = $user->currentTeam->slug;

@@ -55,6 +55,16 @@ test('fallback team returns the first team ordered by name', function () {
     expect($user->fallbackTeam()->id)->toBe($alpha->id);
 });
 
+test('user team dto carries the team member count', function () {
+    $user = User::factory()->create();
+
+    $team = Team::factory()->create();
+    $team->members()->attach($user, ['role' => TeamRole::Owner->value]);
+    $team->members()->attach(User::factory()->create(), ['role' => TeamRole::Member->value]);
+
+    expect($user->toUserTeam($team)->membersCount)->toBe(2);
+});
+
 test('fallback team can exclude a given team', function () {
     $user = User::factory()->create(['name' => 'Zzz']);
 

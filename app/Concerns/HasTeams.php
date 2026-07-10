@@ -156,6 +156,7 @@ trait HasTeams
             isPersonal: $team->is_personal,
             role: $role?->value,
             roleLabel: $role?->label(),
+            membersCount: $team->members()->count(),
             isCurrent: $this->isCurrentTeam($team),
         );
     }

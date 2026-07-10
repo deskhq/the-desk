@@ -68,6 +68,7 @@
 
     /* Brass accent — the single warm highlight (focus, active affordances, reaction pills). */
     --color-brass: var(--brass);
+    --color-brass-foreground: var(--brass-foreground);
     --color-brass-border: var(--brass-border);
     --color-brass-fill: var(--brass-fill);
     --color-brass-fill-foreground: var(--brass-fill-foreground);
@@ -127,6 +128,8 @@
     --input: #e0dbcd;
     --ring: #c9a35c;
     --brass: #c9a35c;
+    /* Ink text on a solid-brass fill (unread badges); stays ink in dark too. */
+    --brass-foreground: #1d1a15;
     --brass-border: #b98e3f;
     --brass-fill: rgba(201, 163, 92, 0.14);
     --brass-fill-foreground: #7d6023;

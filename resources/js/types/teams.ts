@@ -7,6 +7,7 @@ export type Team = {
     isPersonal: boolean;
     role?: TeamRole;
     roleLabel?: string;
+    membersCount: number;
     isCurrent?: boolean;
 };
 
