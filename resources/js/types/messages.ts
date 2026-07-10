@@ -136,6 +136,21 @@ export type Message = {
 };
 
 /**
+ * A message the viewer has scheduled for future delivery to the channel. Mirrors
+ * the `ScheduledMessageData` DTO: the pending body, the UTC `sendAt` instant (the
+ * client renders it in the viewer's zone), and the inline reply quote it will
+ * carry once delivered. The channel page lists the viewer's own pending rows in
+ * the `scheduledMessages` prop.
+ */
+export type ScheduledMessage = {
+    id: string;
+    body: string;
+    sendAt: string;
+    createdAt: string;
+    replyTo: MessageReply | null;
+};
+
+/**
  * An open thread's root message. Mirrors the `thread` prop the channel page
  * loads on demand from `?thread=`; the replies ride a separate, paginated
  * `threadReplies` scroll prop (a `MessagePage`).

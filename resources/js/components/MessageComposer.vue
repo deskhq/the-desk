@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { ArrowUp, Plus, X } from '@lucide/vue';
+import { ArrowUp, CalendarClock, Plus, X } from '@lucide/vue';
 import { computed, nextTick, onMounted, ref, watch } from 'vue';
 import MessageQuote from '@/components/MessageQuote.vue';
+import ScheduleMessageDialog from '@/components/ScheduleMessageDialog.vue';
 import { Button } from '@/components/ui/button';
 import { useInitials } from '@/composables/useInitials';
 import type { Mention, Message } from '@/types';
@@ -16,6 +17,10 @@ const props = defineProps<{
     // Text to seed the composer with on mount, e.g. a persisted draft. Restored
     // verbatim (mention tokens included) so it round-trips faithfully.
     initialBody?: string;
+    // Whether to offer the "schedule for later" affordance (main channel
+    // composer only). The viewer's zone drives the picker's presets.
+    allowSchedule?: boolean;
+    timezone?: string | null;
 }>();
 
 const emit = defineEmits<{
@@ -25,6 +30,8 @@ const emit = defineEmits<{
     // The composer body changed (typed, restored-then-edited, or cleared on
     // send). The parent decides whether to persist it as a draft.
     draftChange: [body: string];
+    // The composer text should be delivered later, at the chosen UTC instant.
+    schedule: [body: string, mentions: Mention[], sendAt: string];
 }>();
 
 const { getInitials } = useInitials();
@@ -241,6 +248,16 @@ function insertMention(member: Mention): void {
 
 defineExpose({ insertMention });
 
+// Clear the composer after the text has been handed off (an immediate send or a
+// scheduled one), flagging the wipe so it doesn't re-persist as a draft.
+function clearAfterHandoff(): void {
+    clearingAfterSend = true;
+    body.value = '';
+    sendToChannel.value = false;
+    menuOpen.value = false;
+    nextTick(resize);
+}
+
 function submit(): void {
     const trimmed = body.value.trim();
 
@@ -249,11 +266,30 @@ function submit(): void {
     }
 
     emit('send', trimmed, collectMentions(trimmed), sendToChannel.value);
-    clearingAfterSend = true;
-    body.value = '';
-    sendToChannel.value = false;
-    menuOpen.value = false;
-    nextTick(resize);
+    clearAfterHandoff();
+}
+
+// Whether the schedule picker is open. Opening requires some text — an empty
+// composer has nothing to schedule.
+const scheduling = ref(false);
+
+function openSchedule(): void {
+    if (body.value.trim() === '') {
+        return;
+    }
+
+    scheduling.value = true;
+}
+
+function onScheduleConfirm(sendAt: string): void {
+    const trimmed = body.value.trim();
+
+    if (trimmed === '') {
+        return;
+    }
+
+    emit('schedule', trimmed, collectMentions(trimmed), sendAt);
+    clearAfterHandoff();
 }
 
 function onKeydown(event: KeyboardEvent): void {
@@ -404,18 +440,40 @@ function onKeydown(event: KeyboardEvent): void {
                             Also send to #{{ props.channelName }}
                         </label>
                     </div>
-                    <Button
-                        size="icon"
-                        :disabled="body.trim() === ''"
-                        data-test="message-composer-send"
-                        class="size-7 rounded-lg"
-                        aria-label="Send message"
-                        @click="submit"
-                    >
-                        <ArrowUp class="size-3.5" />
-                    </Button>
+                    <div class="flex items-center gap-1.5">
+                        <Button
+                            v-if="props.allowSchedule"
+                            variant="ghost"
+                            size="icon"
+                            :disabled="body.trim() === ''"
+                            data-test="message-composer-schedule"
+                            class="size-7 rounded-lg text-muted-foreground"
+                            aria-label="Schedule for later"
+                            title="Schedule for later"
+                            @click="openSchedule"
+                        >
+                            <CalendarClock class="size-3.5" />
+                        </Button>
+                        <Button
+                            size="icon"
+                            :disabled="body.trim() === ''"
+                            data-test="message-composer-send"
+                            class="size-7 rounded-lg"
+                            aria-label="Send message"
+                            @click="submit"
+                        >
+                            <ArrowUp class="size-3.5" />
+                        </Button>
+                    </div>
                 </div>
             </div>
         </div>
+
+        <ScheduleMessageDialog
+            v-if="props.allowSchedule"
+            v-model:open="scheduling"
+            :timezone="props.timezone ?? null"
+            @confirm="onScheduleConfirm"
+        />
     </div>
 </template>

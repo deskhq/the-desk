@@ -31,8 +31,13 @@ class PostMessage
      * it stays out of the main timeline unless `$sentToChannel` is true, and it
      * bumps the root's denormalized reply count / last-reply time. The request
      * layer has already checked every reference points at a live, permitted message.
+     *
+     * A main-composer send clears the author's channel draft, since scheduling or
+     * sending consumes its text. A delayed delivery (the scheduler replaying a
+     * scheduled message) passes `$clearDraft: false` so it never wipes a draft the
+     * author has typed in the meantime.
      */
-    public function handle(Channel $channel, User $author, string $body, string $clientUuid, ?string $replyToId = null, ?string $forwardedFromId = null, ?string $threadRootId = null, bool $sentToChannel = false): Message
+    public function handle(Channel $channel, User $author, string $body, string $clientUuid, ?string $replyToId = null, ?string $forwardedFromId = null, ?string $threadRootId = null, bool $sentToChannel = false, bool $clearDraft = true): Message
     {
         $message = $channel->messages()->firstOrCreate(
             ['client_uuid' => $clientUuid],
@@ -55,9 +60,10 @@ class PostMessage
 
             if ($threadRootId !== null) {
                 $this->bumpThreadRoot($channel, $threadRootId);
-            } else {
+            } elseif ($clearDraft) {
                 // A message sent from the main composer clears its channel draft;
-                // a thread reply leaves the channel draft alone (it isn't its text).
+                // a thread reply leaves the channel draft alone (it isn't its text),
+                // and a delayed scheduled delivery leaves it alone too.
                 $author->channels()->updateExistingPivot($channel->id, ['draft' => null]);
             }
         }

@@ -7,6 +7,7 @@ import {
     AtSign,
     BellMinus,
     BellOff,
+    CalendarClock,
     ChevronDown,
     EllipsisVertical,
     Star,
@@ -37,9 +38,15 @@ import {
     update as updateMessage,
 } from '@/actions/App/Http/Controllers/Channels/MessageController';
 import { store as toggleReactionAction } from '@/actions/App/Http/Controllers/Channels/ReactionController';
+import {
+    destroy as destroyScheduledMessage,
+    store as storeScheduledMessage,
+    update as updateScheduledMessage,
+} from '@/actions/App/Http/Controllers/Channels/ScheduledMessageController';
 import ForwardMessageDialog from '@/components/ForwardMessageDialog.vue';
 import MessageComposer from '@/components/MessageComposer.vue';
 import MessageList from '@/components/MessageList.vue';
+import ScheduledMessagesDialog from '@/components/ScheduledMessagesDialog.vue';
 import ThreadPanel from '@/components/ThreadPanel.vue';
 import TypingIndicator from '@/components/TypingIndicator.vue';
 import { Button } from '@/components/ui/button';
@@ -71,6 +78,7 @@ import {
 } from '@/composables/useMessageStream';
 import { useScrollPin } from '@/composables/useScrollPin';
 import { useTeamPresence } from '@/composables/useTeamPresence';
+import { useTimezone } from '@/composables/useTimezone';
 import { useTypingIndicator } from '@/composables/useTypingIndicator';
 import type { TypingUser } from '@/composables/useTypingIndicator';
 import { toggleReaction } from '@/lib/reactions';
@@ -86,6 +94,7 @@ import type {
     NotificationLevel,
     NotificationLevelOption,
     Reaction,
+    ScheduledMessage,
     Thread,
 } from '@/types';
 
@@ -112,6 +121,9 @@ const props = defineProps<{
     // The open thread's replies, a reverse-infinite-scroll page that grows as
     // older replies load. Empty when no thread is open.
     threadReplies: MessagePage;
+    // The viewer's own pending scheduled messages for this channel, soonest
+    // first, feeding the composer's "Scheduled" affordance.
+    scheduledMessages: ScheduledMessage[];
 }>();
 
 const page = usePage();
@@ -761,6 +773,107 @@ function send(body: string, mentions: Mention[]): void {
     );
 }
 
+// The viewer's stored timezone, driving the schedule picker's presets and the
+// list's "sends at" labels so a scheduled time always reads in their own zone.
+const { timezone } = useTimezone();
+
+// Whether the "Scheduled messages" management dialog is open.
+const scheduledDialogOpen = ref(false);
+
+// Schedule the composer's text for later delivery. Unlike a send it renders
+// nothing in the timeline (it isn't posted yet) — it only lands in the
+// "Scheduled" surface. Scheduling consumes the composer text like a send, so any
+// debounced draft save in flight is dropped and the server clears the draft.
+function scheduleMessage(
+    body: string,
+    _mentions: Mention[],
+    sendAt: string,
+): void {
+    if (draftTimer) {
+        clearTimeout(draftTimer);
+        draftTimer = null;
+    }
+
+    pendingDraft = null;
+
+    const target = replyTarget.value;
+
+    router.post(
+        storeScheduledMessage({
+            team: props.team.slug,
+            channel: props.channel.slug,
+        }).url,
+        {
+            body,
+            client_uuid: crypto.randomUUID(),
+            reply_to_id: target?.id ?? null,
+            send_at: sendAt,
+        },
+        {
+            preserveScroll: true,
+            preserveState: true,
+            only: ['scheduledMessages', 'channels'],
+            onSuccess: () => toast.success('Message scheduled.'),
+            onError: () =>
+                toast.error(
+                    'Failed to schedule your message. Please try again.',
+                ),
+        },
+    );
+
+    cancelReply();
+}
+
+// Save an edit to a pending scheduled message's body and send time.
+function updateScheduled({
+    id,
+    body,
+    sendAt,
+}: {
+    id: string;
+    body: string;
+    sendAt: string;
+}): void {
+    router.patch(
+        updateScheduledMessage({
+            team: props.team.slug,
+            channel: props.channel.slug,
+            scheduledMessage: id,
+        }).url,
+        { body, send_at: sendAt },
+        {
+            preserveScroll: true,
+            preserveState: true,
+            only: ['scheduledMessages'],
+            onError: () =>
+                toast.error(
+                    'Failed to update the scheduled message. Please try again.',
+                ),
+        },
+    );
+}
+
+// Cancel a pending scheduled message so it is never delivered.
+function cancelScheduled(id: string): void {
+    router.delete(
+        destroyScheduledMessage({
+            team: props.team.slug,
+            channel: props.channel.slug,
+            scheduledMessage: id,
+        }).url,
+        {
+            preserveScroll: true,
+            preserveState: true,
+            only: ['scheduledMessages'],
+            onSuccess: () => toast.success('Scheduled message cancelled.'),
+            onError: () =>
+                toast.error(
+                    'Failed to cancel the scheduled message. Please try again.',
+                ),
+        },
+    );
+}
+
 // Post a reply into the open thread. It renders optimistically in the panel and,
 // when "also send to channel" is checked, in the main timeline too.
 function sendThreadReply(
@@ -1359,6 +1472,22 @@ function archive(): void {
                         class="mx-5 shrink-0"
                     />
 
+                    <button
+                        v-if="props.scheduledMessages.length > 0"
+                        type="button"
+                        data-test="scheduled-trigger"
+                        class="mx-5 mb-1 inline-flex w-fit items-center gap-1.5 rounded-full bg-muted px-2.5 py-1 text-[12px] font-medium text-muted-foreground hover:bg-muted/70 hover:text-foreground"
+                        @click="scheduledDialogOpen = true"
+                    >
+                        <CalendarClock class="size-3.5" />
+                        {{ props.scheduledMessages.length }}
+                        {{
+                            props.scheduledMessages.length === 1
+                                ? 'scheduled message'
+                                : 'scheduled messages'
+                        }}
+                    </button>
+
                     <MessageComposer
                         ref="channelComposer"
                         :key="props.channel.id"
@@ -1366,7 +1495,10 @@ function archive(): void {
                         :members="mentionableMembers"
                         :reply-target="replyTarget"
                         :initial-body="props.channel.draft ?? ''"
+                        allow-schedule
+                        :timezone="timezone"
                         @send="send"
+                        @schedule="scheduleMessage"
                         @typing="onTyping"
                         @cancel-reply="cancelReply"
                         @draft-change="onDraftChange"
@@ -1414,6 +1546,14 @@ function archive(): void {
         :message="forwardTarget"
         :channels="forwardableChannels"
         @submit="forwardMessage"
+    />
+
+    <ScheduledMessagesDialog
+        v-model:open="scheduledDialogOpen"
+        :scheduled-messages="props.scheduledMessages"
+        :timezone="timezone"
+        @update="updateScheduled"
+        @cancel="cancelScheduled"
     />
 
     <Dialog v-model:open="confirmingArchive">

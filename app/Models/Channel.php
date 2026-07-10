@@ -103,6 +103,16 @@ class Channel extends Model
     }
 
     /**
+     * Get the messages scheduled for future delivery to the channel.
+     *
+     * @return HasMany<ScheduledMessage, $this>
+     */
+    public function scheduledMessages(): HasMany
+    {
+        return $this->hasMany(ScheduledMessage::class);
+    }
+
+    /**
      * Get the users who are members of the channel.
      *
      * @return BelongsToMany<User, $this>

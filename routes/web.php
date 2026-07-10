@@ -10,6 +10,7 @@ use App\Http\Controllers\Channels\ChannelStarController;
 use App\Http\Controllers\Channels\ForwardMessageController;
 use App\Http\Controllers\Channels\MessageController;
 use App\Http\Controllers\Channels\ReactionController;
+use App\Http\Controllers\Channels\ScheduledMessageController;
 use App\Http\Controllers\Channels\SearchController;
 use App\Http\Controllers\Channels\ThreadsController;
 use App\Http\Controllers\SidebarSectionController;
@@ -70,6 +71,15 @@ Route::middleware(['auth', 'verified', EnsureTeamMembership::class])->group(func
     Route::post('t/{team}/c/{channel}/messages/{message}/forward', [ForwardMessageController::class, 'store'])
         ->scopeBindings()
         ->name('channels.messages.forward');
+    Route::post('t/{team}/c/{channel}/scheduled-messages', [ScheduledMessageController::class, 'store'])
+        ->scopeBindings()
+        ->name('channels.scheduled-messages.store');
+    Route::patch('t/{team}/c/{channel}/scheduled-messages/{scheduledMessage}', [ScheduledMessageController::class, 'update'])
+        ->scopeBindings()
+        ->name('channels.scheduled-messages.update');
+    Route::delete('t/{team}/c/{channel}/scheduled-messages/{scheduledMessage}', [ScheduledMessageController::class, 'destroy'])
+        ->scopeBindings()
+        ->name('channels.scheduled-messages.destroy');
     Route::post('t/{team}/c/{channel}/messages/{message}/reactions', [ReactionController::class, 'store'])
         ->scopeBindings()
         ->name('channels.messages.reactions.store');

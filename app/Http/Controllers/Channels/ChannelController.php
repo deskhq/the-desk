@@ -10,6 +10,7 @@ use App\Actions\Channels\MarkThreadRead;
 use App\Data\ChannelData;
 use App\Data\ChannelReaderData;
 use App\Data\MessageData;
+use App\Data\ScheduledMessageData;
 use App\Data\UserData;
 use App\Enums\AuditAction;
 use App\Enums\ChannelVisibility;
@@ -154,6 +155,18 @@ class ChannelController extends Controller
             // independent of the main timeline's, and the client's reverse
             // InfiniteScroll pages older replies in above as it scrolls up.
             'threadReplies' => Inertia::scroll(fn () => $this->threadRepliesPage($request, $channel)),
+            // The viewer's own pending scheduled messages for this channel, soonest
+            // first, feeding the composer's "Scheduled" affordance. Only pending
+            // rows are listed — sent and cancelled ones drop off. The reply quote
+            // is eager-loaded so an inline-reply schedule renders its parent.
+            'scheduledMessages' => ScheduledMessageData::collect(
+                $channel->scheduledMessages()
+                    ->pending()
+                    ->where('user_id', $request->user()->id)
+                    ->with(['replyTo.user', 'replyTo.mentionedUsers'])
+                    ->orderBy('send_at')
+                    ->get()
+            ),
             // Team members feed the composer's @mention autocomplete; mentions are
             // scoped to the team, never limited to the current channel's members.
             'members' => UserData::collect($team->members()->orderBy('name')->get()),
