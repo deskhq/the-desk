@@ -373,7 +373,7 @@ function onKeydown(event: KeyboardEvent): void {
             <div
                 v-if="props.replyTarget"
                 data-test="reply-preview"
-                class="flex items-center gap-2 rounded-t-xl border border-b-0 border-input bg-muted/40 px-3 py-1.5"
+                class="mb-2 flex items-center gap-2 rounded-2xl border border-input bg-muted/40 px-3.5 py-2"
             >
                 <span class="min-w-0 flex-1">
                     <MessageQuote
@@ -393,9 +393,11 @@ function onKeydown(event: KeyboardEvent): void {
                 </button>
             </div>
 
+            <!-- Floating pill: input on the left, ghost tool icons and the ink
+                 send circle tucked to the right. Grows upward as the textarea
+                 wraps, with the tools pinned to the bottom edge. -->
             <div
-                class="rounded-xl border border-input bg-background p-3 pb-2 focus-within:border-ring focus-within:ring-[3px] focus-within:ring-ring/20"
-                :class="props.replyTarget ? 'rounded-t-none' : ''"
+                class="flex items-end gap-2.5 rounded-[26px] border border-input bg-card py-2 pr-2 pl-[18px] shadow-[0_3px_12px_rgba(29,26,21,0.08)] focus-within:border-ring focus-within:ring-[3px] focus-within:ring-ring/20 dark:shadow-[0_3px_12px_rgba(0,0,0,0.3)]"
             >
                 <textarea
                     ref="textarea"
@@ -411,62 +413,57 @@ function onKeydown(event: KeyboardEvent): void {
                     data-lpignore="true"
                     data-bwignore
                     data-form-type="other"
-                    class="max-h-[200px] w-full resize-none bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground/70"
+                    class="max-h-[200px] min-w-0 flex-1 resize-none self-center bg-transparent py-1 text-sm text-foreground outline-none placeholder:text-muted-foreground/70"
                     @input="(resize(), refreshSuggestions(), emit('typing'))"
                     @click="refreshSuggestions"
                     @keydown="onKeydown"
                 ></textarea>
-                <div class="mt-2.5 flex items-center justify-between">
-                    <div class="flex items-center gap-2">
-                        <Button
-                            variant="outline"
-                            size="icon"
-                            disabled
-                            class="size-[26px] rounded-[7px] text-muted-foreground"
-                            aria-label="Add attachment"
-                        >
-                            <Plus class="size-3.5" />
-                        </Button>
-                        <label
-                            v-if="props.allowSendToChannel"
-                            class="flex cursor-pointer items-center gap-1.5 text-[12px] text-muted-foreground select-none"
-                        >
-                            <input
-                                v-model="sendToChannel"
-                                type="checkbox"
-                                data-test="send-to-channel"
-                                class="size-3.5 rounded border-input accent-primary"
-                            />
-                            Also send to #{{ props.channelName }}
-                        </label>
-                    </div>
-                    <div class="flex items-center gap-1.5">
-                        <Button
-                            v-if="props.allowSchedule"
-                            variant="ghost"
-                            size="icon"
-                            :disabled="body.trim() === ''"
-                            data-test="message-composer-schedule"
-                            class="size-7 rounded-lg text-muted-foreground"
-                            aria-label="Schedule for later"
-                            title="Schedule for later"
-                            @click="openSchedule"
-                        >
-                            <CalendarClock class="size-3.5" />
-                        </Button>
-                        <Button
-                            size="icon"
-                            :disabled="body.trim() === ''"
-                            data-test="message-composer-send"
-                            class="size-7 rounded-lg"
-                            aria-label="Send message"
-                            @click="submit"
-                        >
-                            <ArrowUp class="size-3.5" />
-                        </Button>
-                    </div>
-                </div>
+                <Button
+                    variant="ghost"
+                    size="icon"
+                    disabled
+                    class="size-7 shrink-0 rounded-full text-muted-foreground"
+                    aria-label="Add attachment"
+                >
+                    <Plus class="size-3.5" />
+                </Button>
+                <Button
+                    v-if="props.allowSchedule"
+                    variant="ghost"
+                    size="icon"
+                    :disabled="body.trim() === ''"
+                    data-test="message-composer-schedule"
+                    class="size-7 shrink-0 rounded-full text-muted-foreground"
+                    aria-label="Schedule for later"
+                    title="Schedule for later"
+                    @click="openSchedule"
+                >
+                    <CalendarClock class="size-3.5" />
+                </Button>
+                <Button
+                    size="icon"
+                    :disabled="body.trim() === ''"
+                    data-test="message-composer-send"
+                    class="size-[34px] shrink-0 rounded-full bg-primary text-brass hover:bg-primary/90"
+                    aria-label="Send message"
+                    @click="submit"
+                >
+                    <ArrowUp class="size-[15px]" :stroke-width="2.2" />
+                </Button>
             </div>
+
+            <label
+                v-if="props.allowSendToChannel"
+                class="mt-2 flex w-fit cursor-pointer items-center gap-1.5 px-1.5 text-[12px] text-muted-foreground select-none"
+            >
+                <input
+                    v-model="sendToChannel"
+                    type="checkbox"
+                    data-test="send-to-channel"
+                    class="size-3.5 rounded border-input accent-primary"
+                />
+                Also send to #{{ props.channelName }}
+            </label>
         </div>
 
         <ScheduleMessageDialog

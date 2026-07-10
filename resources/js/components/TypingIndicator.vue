@@ -27,21 +27,22 @@ const label = computed<string>(() => {
 <template>
     <!-- Fixed height reserves the line so the composer never jumps as it toggles. -->
     <div
-        class="flex h-5 items-center gap-1.5 px-1 text-xs text-muted-foreground"
+        class="flex h-5 items-center gap-1.5 px-1.5 font-serif text-xs text-muted-foreground italic"
         aria-live="polite"
         data-test="typing-indicator"
     >
         <template v-if="names.length > 0">
-            <!-- Three dots rippling out of phase, the classic "typing" tell. -->
+            <!-- Three dots rippling out of phase, graduating from light to dark —
+                 the classic "typing" tell rendered in the sand palette. -->
             <span class="flex items-end gap-0.5" aria-hidden="true">
                 <span
-                    class="size-1 animate-bounce rounded-full bg-muted-foreground/60 [animation-delay:-0.3s]"
+                    class="size-1 animate-bounce rounded-full bg-muted-foreground/40 [animation-delay:-0.3s]"
                 />
                 <span
-                    class="size-1 animate-bounce rounded-full bg-muted-foreground/60 [animation-delay:-0.15s]"
+                    class="size-1 animate-bounce rounded-full bg-muted-foreground/65 [animation-delay:-0.15s]"
                 />
                 <span
-                    class="size-1 animate-bounce rounded-full bg-muted-foreground/60"
+                    class="size-1 animate-bounce rounded-full bg-muted-foreground/90"
                 />
             </span>
             <span class="truncate">{{ label }}</span>
