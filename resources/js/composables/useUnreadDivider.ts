@@ -58,7 +58,11 @@ export function useUnreadDivider(options: UnreadDividerOptions): UnreadDivider {
         observer = null;
         unreadDividerInView.value = false;
 
-        if (unreadDividerId.value === null) {
+        // The divider element and IntersectionObserver only exist in the
+        // browser. During SSR there's no DOM, so skip the wiring entirely — the
+        // client re-runs this on hydration. Guards against a `document is not
+        // defined` crash when the immediate watcher fires on the server.
+        if (unreadDividerId.value === null || typeof document === 'undefined') {
             return;
         }
 
