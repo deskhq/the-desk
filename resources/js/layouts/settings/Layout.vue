@@ -10,10 +10,10 @@
                 <h2
                     class="font-serif text-[32px] leading-none font-semibold tracking-tight"
                 >
-                    Settings
+                    {{ $t('Settings') }}
                 </h2>
                 <p class="mt-1.5 text-sm text-muted-foreground">
-                    Manage your profile and account settings
+                    {{ $t('Manage your profile and account settings') }}
                 </p>
             </header>
 

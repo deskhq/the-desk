@@ -13,12 +13,17 @@ use App\Http\Controllers\Channels\ReactionController;
 use App\Http\Controllers\Channels\ScheduledMessageController;
 use App\Http\Controllers\Channels\SearchController;
 use App\Http\Controllers\Channels\ThreadsController;
+use App\Http\Controllers\LocaleCatalogController;
 use App\Http\Controllers\SidebarSectionController;
 use App\Http\Controllers\Teams\TeamInvitationController;
 use App\Http\Middleware\EnsureTeamMembership;
 use Illuminate\Support\Facades\Route;
 
 Route::inertia('/', 'Welcome')->name('home');
+
+Route::get('locales/{locale}.json', [LocaleCatalogController::class, 'show'])
+    ->where('locale', '[a-z]{2}')
+    ->name('locales.show');
 
 Route::middleware(['auth', 'verified', EnsureTeamMembership::class])->group(function () {
     Route::get('t/{team}', [ChannelController::class, 'index'])->name('channels.index');

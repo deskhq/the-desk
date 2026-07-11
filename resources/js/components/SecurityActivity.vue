@@ -29,7 +29,7 @@ function occurredAt(iso: string): string {
             class="text-sm text-muted-foreground"
             data-test="security-activity-empty"
         >
-            No recent activity to show yet.
+            {{ $t('No recent activity to show yet.') }}
         </p>
 
         <ul
@@ -59,12 +59,18 @@ function occurredAt(iso: string): string {
                             variant="destructive"
                             data-test="new-device-badge"
                         >
-                            New device
+                            {{ $t('New device') }}
                         </Badge>
                     </div>
                     <p class="truncate text-xs text-muted-foreground">
-                        {{ event.browser }} on {{ event.platform }} &middot;
-                        {{ event.ipAddress ?? 'Unknown IP' }} &middot;
+                        {{
+                            $t(':browser on :platform', {
+                                browser: event.browser,
+                                platform: event.platform,
+                            })
+                        }}
+                        &middot;
+                        {{ event.ipAddress ?? $t('Unknown IP') }} &middot;
                         {{ occurredAt(event.occurredAt) }}
                     </p>
                 </div>

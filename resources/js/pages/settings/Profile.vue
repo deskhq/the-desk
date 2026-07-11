@@ -17,6 +17,7 @@ import {
     SelectValue,
 } from '@/components/ui/select';
 import { useTimezone } from '@/composables/useTimezone';
+import { translate } from '@/lib/i18n';
 import { edit } from '@/routes/profile';
 import { send } from '@/routes/verification';
 
@@ -24,7 +25,7 @@ defineOptions({
     layout: {
         breadcrumbs: [
             {
-                title: 'Profile settings',
+                title: translate('Profile settings'),
                 href: edit(),
             },
         ],
@@ -51,13 +52,13 @@ function onTimezoneSelect(value: unknown): void {
 </script>
 
 <template>
-    <Head title="Profile settings" />
+    <Head :title="$t('Profile settings')" />
 
-    <h1 class="sr-only">Profile settings</h1>
+    <h1 class="sr-only">{{ $t('Profile settings') }}</h1>
 
     <SettingsSection
-        title="Profile"
-        description="Update your name and email address"
+        :title="$t('Profile')"
+        :description="$t('Update your name and email address')"
     >
         <Form
             v-bind="ProfileController.update.form()"
@@ -65,7 +66,7 @@ function onTimezoneSelect(value: unknown): void {
             v-slot="{ errors, processing, recentlySuccessful }"
         >
             <div class="grid gap-2">
-                <Label for="name">Name</Label>
+                <Label for="name">{{ $t('Name') }}</Label>
                 <Input
                     id="name"
                     class="mt-1 block w-full"
@@ -73,13 +74,13 @@ function onTimezoneSelect(value: unknown): void {
                     :default-value="user.name"
                     required
                     autocomplete="name"
-                    placeholder="Full name"
+                    :placeholder="$t('Full name')"
                 />
                 <InputError class="mt-2" :message="errors.name" />
             </div>
 
             <div class="grid gap-2">
-                <Label for="email">Email address</Label>
+                <Label for="email">{{ $t('Email address') }}</Label>
                 <Input
                     id="email"
                     type="email"
@@ -88,39 +89,39 @@ function onTimezoneSelect(value: unknown): void {
                     :default-value="user.email"
                     required
                     autocomplete="username"
-                    placeholder="Email address"
+                    :placeholder="$t('Email address')"
                 />
                 <InputError class="mt-2" :message="errors.email" />
             </div>
 
             <div class="grid gap-2">
-                <Label for="pronouns">Pronouns</Label>
+                <Label for="pronouns">{{ $t('Pronouns') }}</Label>
                 <Input
                     id="pronouns"
                     class="mt-1 block w-full"
                     name="pronouns"
                     :default-value="user.pronouns ?? ''"
                     maxlength="50"
-                    placeholder="e.g. she/her, they/them"
+                    :placeholder="$t('e.g. she/her, they/them')"
                 />
                 <InputError class="mt-2" :message="errors.pronouns" />
             </div>
 
             <div class="grid gap-2">
-                <Label for="title">Job title</Label>
+                <Label for="title">{{ $t('Job title') }}</Label>
                 <Input
                     id="title"
                     class="mt-1 block w-full"
                     name="title"
                     :default-value="user.title ?? ''"
                     maxlength="100"
-                    placeholder="e.g. Product Designer"
+                    :placeholder="$t('e.g. Product Designer')"
                 />
                 <InputError class="mt-2" :message="errors.title" />
             </div>
 
             <div class="grid gap-2">
-                <Label for="phone">Phone</Label>
+                <Label for="phone">{{ $t('Phone') }}</Label>
                 <Input
                     id="phone"
                     type="tel"
@@ -129,20 +130,22 @@ function onTimezoneSelect(value: unknown): void {
                     :default-value="user.phone ?? ''"
                     maxlength="30"
                     autocomplete="tel"
-                    placeholder="e.g. +1 555 123 4567"
+                    :placeholder="$t('e.g. +1 555 123 4567')"
                 />
                 <InputError class="mt-2" :message="errors.phone" />
             </div>
 
             <div v-if="page.props.mustVerifyEmail && !user.email_verified_at">
                 <p class="-mt-4 text-sm text-muted-foreground">
-                    Your email address is unverified.
+                    {{ $t('Your email address is unverified.') }}
                     <Link
                         :href="send()"
                         as="button"
                         class="text-foreground underline decoration-neutral-300 underline-offset-4 transition-colors duration-300 ease-out hover:decoration-current! dark:decoration-neutral-500"
                     >
-                        Click here to re-send the verification email.
+                        {{
+                            $t('Click here to re-send the verification email.')
+                        }}
                     </Link>
                 </p>
 
@@ -150,7 +153,11 @@ function onTimezoneSelect(value: unknown): void {
                     v-if="page.props.status === 'verification-link-sent'"
                     class="mt-2 text-sm font-medium text-green-600"
                 >
-                    A new verification link has been sent to your email address.
+                    {{
+                        $t(
+                            'A new verification link has been sent to your email address.',
+                        )
+                    }}
                 </div>
             </div>
 
@@ -159,7 +166,7 @@ function onTimezoneSelect(value: unknown): void {
                     :disabled="processing"
                     class="rounded-full px-6"
                     data-test="update-profile-button"
-                    >Save</Button
+                    >{{ $t('Save') }}</Button
                 >
                 <Transition
                     enter-active-class="transition ease-in-out"
@@ -171,7 +178,7 @@ function onTimezoneSelect(value: unknown): void {
                         v-show="recentlySuccessful"
                         class="font-serif text-sm text-muted-foreground italic"
                     >
-                        Saved just now
+                        {{ $t('Saved just now') }}
                     </p>
                 </Transition>
             </div>
@@ -179,11 +186,15 @@ function onTimezoneSelect(value: unknown): void {
     </SettingsSection>
 
     <SettingsSection
-        title="Timezone"
-        description="Detected automatically on your first sign-in. It sets how timestamps read for you and the local time others see on your profile."
+        :title="$t('Timezone')"
+        :description="
+            $t(
+                'Detected automatically on your first sign-in. It sets how timestamps read for you and the local time others see on your profile.',
+            )
+        "
     >
         <div class="grid gap-2">
-            <Label for="timezone">Timezone</Label>
+            <Label for="timezone">{{ $t('Timezone') }}</Label>
             <Select
                 :model-value="timezone ?? undefined"
                 @update:model-value="onTimezoneSelect"
@@ -193,7 +204,7 @@ function onTimezoneSelect(value: unknown): void {
                     class="w-full"
                     data-test="timezone"
                 >
-                    <SelectValue placeholder="Select a timezone" />
+                    <SelectValue :placeholder="$t('Select a timezone')" />
                 </SelectTrigger>
                 <SelectContent>
                     <SelectItem
@@ -209,8 +220,8 @@ function onTimezoneSelect(value: unknown): void {
     </SettingsSection>
 
     <SettingsSection
-        title="Danger zone"
-        description="Irreversible actions for your account."
+        :title="$t('Danger zone')"
+        :description="$t('Irreversible actions for your account.')"
     >
         <div
             class="rounded-lg border border-destructive/30 bg-destructive/5 p-4"

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { formatDateTime, formatLocalTime, formatTimeOfDay } from './datetime';
+import { formatNumber } from './numbers';
 
 // A fixed instant: 2026-07-10 15:30 UTC. July is DST in the US, so New York
 // (UTC-4) reads 11:30 and Tokyo (UTC+9) reads the next day at 00:30.
@@ -29,6 +30,22 @@ describe('formatDateTime', () => {
     it('rolls over to the next day in a far-ahead zone', () => {
         expect(formatDateTime(INSTANT, 'Asia/Tokyo')).toContain('11');
         expect(formatDateTime(INSTANT, 'Asia/Tokyo')).toContain('12:30');
+    });
+});
+
+describe('locale-aware formatting', () => {
+    it('formats the date in the requested locale', () => {
+        // French abbreviates July as "juil." and uses a 24-hour clock.
+        const french = formatDateTime(INSTANT, 'UTC', 'fr');
+
+        expect(french).toContain('juil');
+        expect(french).toContain('15:30');
+    });
+
+    it('formats numbers in the requested locale', () => {
+        // French groups thousands with a narrow no-break space, not a comma.
+        expect(formatNumber(1234, 'en')).toBe('1,234');
+        expect(formatNumber(1234, 'fr')).not.toBe('1,234');
     });
 });
 

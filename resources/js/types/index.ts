@@ -2,6 +2,7 @@ export * from './auth';
 export * from './channels';
 export * from './chimes';
 export * from './dataExport';
+export * from './locale';
 export * from './messages';
 export * from './navigation';
 export * from './security';

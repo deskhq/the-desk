@@ -82,9 +82,9 @@ function submit(): void {
     <Dialog v-model:open="open">
         <DialogContent class="gap-4 sm:max-w-md">
             <DialogHeader>
-                <DialogTitle>Forward message</DialogTitle>
+                <DialogTitle>{{ $t('Forward message') }}</DialogTitle>
                 <DialogDescription>
-                    Share this message to another channel you're in.
+                    {{ $t("Share this message to another channel you're in.") }}
                 </DialogDescription>
             </DialogHeader>
 
@@ -99,7 +99,9 @@ function submit(): void {
                     class="mt-0.5 line-clamp-2 text-[13px] text-foreground/80"
                     :class="message.isDeleted ? 'italic' : ''"
                 >
-                    {{ message.isDeleted ? 'Message was deleted' : preview }}
+                    {{
+                        message.isDeleted ? $t('Message was deleted') : preview
+                    }}
                 </p>
             </div>
 
@@ -107,7 +109,7 @@ function submit(): void {
                 <label
                     class="mb-1 block text-[12px] font-medium text-muted-foreground"
                 >
-                    Channel
+                    {{ $t('Channel') }}
                 </label>
                 <div
                     class="flex h-9 items-center gap-2 rounded-md border border-input px-2.5"
@@ -116,7 +118,7 @@ function submit(): void {
                     <input
                         v-model="query"
                         type="text"
-                        placeholder="Search channels…"
+                        :placeholder="$t('Search channels…')"
                         data-test="forward-channel-search"
                         class="h-full w-full bg-transparent text-sm outline-hidden placeholder:text-muted-foreground"
                     />
@@ -150,7 +152,7 @@ function submit(): void {
                         v-if="rankedChannels.length === 0"
                         class="px-2 py-2 text-xs text-muted-foreground"
                     >
-                        No channels match “{{ query }}”.
+                        {{ $t('No channels match “:query”.', { query }) }}
                     </li>
                 </ul>
             </div>
@@ -159,15 +161,15 @@ function submit(): void {
                 <label
                     class="mb-1 block text-[12px] font-medium text-muted-foreground"
                 >
-                    Add a note
-                    <span class="font-normal text-muted-foreground/70"
-                        >(optional)</span
-                    >
+                    {{ $t('Add a note') }}
+                    <span class="font-normal text-muted-foreground/70">{{
+                        $t('(optional)')
+                    }}</span>
                 </label>
                 <textarea
                     v-model="note"
                     rows="2"
-                    placeholder="Say something about this…"
+                    :placeholder="$t('Say something about this…')"
                     data-test="forward-note"
                     class="w-full resize-none rounded-md border border-input bg-background px-2.5 py-1.5 text-sm leading-[1.5] text-foreground outline-none focus:border-ring focus:ring-1 focus:ring-ring"
                 ></textarea>
@@ -175,14 +177,14 @@ function submit(): void {
 
             <DialogFooter class="gap-2">
                 <Button variant="secondary" @click="open = false">
-                    Cancel
+                    {{ $t('Cancel') }}
                 </Button>
                 <Button
                     data-test="forward-submit"
                     :disabled="!selectedChannel"
                     @click="submit"
                 >
-                    Forward
+                    {{ $t('Forward') }}
                 </Button>
             </DialogFooter>
         </DialogContent>

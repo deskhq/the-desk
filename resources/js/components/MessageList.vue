@@ -31,6 +31,7 @@ import {
 } from '@/components/ui/hover-card';
 import UserHoverCard from '@/components/UserHoverCard.vue';
 import { useInitials } from '@/composables/useInitials';
+import { useTranslations } from '@/composables/useTranslations';
 import { formatTimeOfDay } from '@/lib/datetime';
 import { tokenizeMessageBody } from '@/lib/messageBody';
 import type { MessageBodySegment } from '@/lib/messageBody';
@@ -140,20 +141,30 @@ const seenByLabel = computed(() => {
     }
 
     if (names.length === 1) {
-        return `Seen by ${names[0]}`;
+        return t('Seen by :name', { name: names[0] });
     }
 
     if (names.length <= MAX_SEEN_AVATARS) {
-        return `Seen by ${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`;
+        return t('Seen by :names and :last', {
+            names: names.slice(0, -1).join(', '),
+            last: names[names.length - 1],
+        });
     }
 
     const shown = names.slice(0, MAX_SEEN_AVATARS).join(', ');
     const others = names.length - MAX_SEEN_AVATARS;
 
-    return `Seen by ${shown} and ${others} ${others === 1 ? 'other' : 'others'}`;
+    return others === 1
+        ? t('Seen by :names and :count other', { names: shown, count: others })
+        : t('Seen by :names and :count others', {
+              names: shown,
+              count: others,
+          });
 });
 
 const { getInitials } = useInitials();
+
+const { t } = useTranslations();
 
 const page = usePage();
 
@@ -196,11 +207,11 @@ function dividerLabel(iso: string): string {
     yesterday.setDate(today.getDate() - 1);
 
     if (date.toDateString() === today.toDateString()) {
-        return 'Today';
+        return t('Today');
     }
 
     if (date.toDateString() === yesterday.toDateString()) {
-        return 'Yesterday';
+        return t('Yesterday');
     }
 
     return date.toLocaleDateString(undefined, {
@@ -347,7 +358,7 @@ function confirmDelete(): void {
                     class="h-px flex-1 bg-gradient-to-r from-transparent to-brass-border"
                 />
                 <span class="font-serif text-[13px] text-brass-border italic">
-                    new
+                    {{ $t('new') }}
                 </span>
                 <span
                     aria-hidden="true"
@@ -391,8 +402,8 @@ function confirmDelete(): void {
                                 :data-online="isOnline(item.author.id)"
                                 :aria-label="
                                     isOnline(item.author.id)
-                                        ? 'Online'
-                                        : 'Offline'
+                                        ? $t('Online')
+                                        : $t('Offline')
                                 "
                                 class="absolute right-0 bottom-0 size-2.5 rounded-full ring-2 ring-card"
                                 :class="
@@ -466,7 +477,7 @@ function confirmDelete(): void {
                             :data-test="'message-tombstone'"
                             class="py-0.5 font-serif text-[13.5px] text-muted-foreground/70 italic"
                         >
-                            This message was deleted
+                            {{ $t('This message was deleted') }}
                         </p>
 
                         <div
@@ -489,16 +500,18 @@ function confirmDelete(): void {
                                     class="rounded bg-primary px-2 py-1 font-medium text-primary-foreground hover:bg-primary/90"
                                     @click="saveEdit(message)"
                                 >
-                                    Save
+                                    {{ $t('Save') }}
                                 </button>
                                 <button
                                     type="button"
                                     class="rounded border border-border px-2 py-1 font-medium text-foreground hover:bg-muted"
                                     @click="cancelEdit"
                                 >
-                                    Cancel
+                                    {{ $t('Cancel') }}
                                 </button>
-                                <span>Enter to save · Esc to cancel</span>
+                                <span>{{
+                                    $t('Enter to save · Esc to cancel')
+                                }}</span>
                             </div>
                         </div>
 
@@ -578,7 +591,7 @@ function confirmDelete(): void {
                                 v-if="message.editedAt"
                                 :data-test="'message-edited'"
                                 class="ml-1 align-baseline text-[11px] text-muted-foreground/70 select-none"
-                                >(edited)</span
+                                >{{ $t('(edited)') }}</span
                             >
                         </p>
 
@@ -613,7 +626,15 @@ function confirmDelete(): void {
                             <button
                                 type="button"
                                 data-test="thread-summary"
-                                :aria-label="`View thread, ${message.threadReplyCount} ${message.threadReplyCount === 1 ? 'reply' : 'replies'}`"
+                                :aria-label="
+                                    message.threadReplyCount === 1
+                                        ? $t('View thread, :count reply', {
+                                              count: message.threadReplyCount,
+                                          })
+                                        : $t('View thread, :count replies', {
+                                              count: message.threadReplyCount,
+                                          })
+                                "
                                 class="inline-flex items-center gap-2 rounded-full border border-border bg-card px-2.5 py-1 text-left transition-colors hover:bg-muted/50"
                                 @click="emit('openThread', message.id)"
                             >
@@ -641,17 +662,20 @@ function confirmDelete(): void {
                                 <span
                                     v-if="message.threadUnread"
                                     data-test="thread-unread-dot"
-                                    aria-label="Unread replies"
+                                    :aria-label="$t('Unread replies')"
                                     class="size-2 shrink-0 rounded-full bg-rose-500"
                                 ></span>
                                 <span
                                     class="text-[12px] font-semibold text-foreground"
                                 >
-                                    {{ message.threadReplyCount }}
                                     {{
                                         message.threadReplyCount === 1
-                                            ? 'reply'
-                                            : 'replies'
+                                            ? $t(':count reply', {
+                                                  count: message.threadReplyCount,
+                                              })
+                                            : $t(':count replies', {
+                                                  count: message.threadReplyCount,
+                                              })
                                     }}
                                 </span>
                                 <span
@@ -664,7 +688,7 @@ function confirmDelete(): void {
                                 v-if="message.threadLastReplyAt"
                                 class="text-[11.5px] text-muted-foreground"
                             >
-                                Last reply
+                                {{ $t('Last reply') }}
                                 {{ formatTime(message.threadLastReplyAt) }}
                             </span>
                         </div>
@@ -690,7 +714,7 @@ function confirmDelete(): void {
                                 <button
                                     type="button"
                                     data-test="message-react"
-                                    aria-label="Add reaction"
+                                    :aria-label="$t('Add reaction')"
                                     class="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
                                 >
                                     <SmilePlus class="size-3.5" />
@@ -700,7 +724,7 @@ function confirmDelete(): void {
                                 v-if="canStartThread(message)"
                                 type="button"
                                 data-test="message-thread"
-                                aria-label="Reply in thread"
+                                :aria-label="$t('Reply in thread')"
                                 class="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
                                 @click="emit('openThread', message.id)"
                             >
@@ -710,7 +734,7 @@ function confirmDelete(): void {
                                 v-if="canReply(message)"
                                 type="button"
                                 :data-test="'message-reply'"
-                                aria-label="Reply to message"
+                                :aria-label="$t('Reply to message')"
                                 class="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
                                 @click="emit('reply', message)"
                             >
@@ -720,7 +744,7 @@ function confirmDelete(): void {
                                 v-if="canForward(message)"
                                 type="button"
                                 :data-test="'message-forward'"
-                                aria-label="Forward message"
+                                :aria-label="$t('Forward message')"
                                 class="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
                                 @click="emit('forward', message)"
                             >
@@ -730,7 +754,7 @@ function confirmDelete(): void {
                                 v-if="canEdit(message)"
                                 type="button"
                                 :data-test="'message-edit'"
-                                aria-label="Edit message"
+                                :aria-label="$t('Edit message')"
                                 class="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
                                 @click="startEdit(message)"
                             >
@@ -740,7 +764,7 @@ function confirmDelete(): void {
                                 v-if="canDelete(message)"
                                 type="button"
                                 :data-test="'message-delete'"
-                                aria-label="Delete message"
+                                :aria-label="$t('Delete message')"
                                 class="rounded p-1 text-muted-foreground hover:bg-muted hover:text-destructive"
                                 @click="requestDelete(message)"
                             >
@@ -759,7 +783,7 @@ function confirmDelete(): void {
             :title="seenByLabel"
         >
             <span class="font-serif text-[11px] text-muted-foreground italic">
-                Seen by
+                {{ $t('Seen by') }}
             </span>
             <span class="flex -space-x-1">
                 <span
@@ -784,16 +808,21 @@ function confirmDelete(): void {
         <Dialog :open="pendingDelete !== null" @update:open="setDeleteOpen">
             <DialogContent>
                 <DialogHeader>
-                    <DialogTitle>Delete message</DialogTitle>
+                    <DialogTitle>{{ $t('Delete message') }}</DialogTitle>
                     <DialogDescription>
-                        Are you sure you want to delete this message? This can't
-                        be undone.
+                        {{
+                            $t(
+                                "Are you sure you want to delete this message? This can't be undone.",
+                            )
+                        }}
                     </DialogDescription>
                 </DialogHeader>
 
                 <DialogFooter class="gap-2">
                     <DialogClose as-child>
-                        <Button variant="secondary"> Cancel </Button>
+                        <Button variant="secondary">
+                            {{ $t('Cancel') }}
+                        </Button>
                     </DialogClose>
 
                     <Button
@@ -801,7 +830,7 @@ function confirmDelete(): void {
                         variant="destructive"
                         @click="confirmDelete"
                     >
-                        Delete
+                        {{ $t('Delete') }}
                     </Button>
                 </DialogFooter>
             </DialogContent>

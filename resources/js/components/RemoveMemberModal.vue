@@ -44,16 +44,17 @@ const removeMember = () => {
     <Dialog :open="props.open" @update:open="emit('update:open', $event)">
         <DialogContent>
             <DialogHeader>
-                <DialogTitle>Remove team member</DialogTitle>
+                <DialogTitle>{{ $t('Remove team member') }}</DialogTitle>
                 <DialogDescription>
-                    Are you sure you want to remove
-                    <strong>{{ props.member?.name }}</strong> from this team?
+                    {{ $t('Are you sure you want to remove') }}
+                    <strong>{{ props.member?.name }}</strong>
+                    {{ $t('from this team?') }}
                 </DialogDescription>
             </DialogHeader>
 
             <DialogFooter class="gap-2">
                 <DialogClose as-child>
-                    <Button variant="secondary"> Cancel </Button>
+                    <Button variant="secondary"> {{ $t('Cancel') }} </Button>
                 </DialogClose>
 
                 <Button
@@ -62,7 +63,7 @@ const removeMember = () => {
                     :disabled="processing"
                     @click="removeMember"
                 >
-                    Remove member
+                    {{ $t('Remove member') }}
                 </Button>
             </DialogFooter>
         </DialogContent>

@@ -14,9 +14,9 @@ enum NotificationLevel: string
     public function label(): string
     {
         return match ($this) {
-            self::All => 'All messages',
-            self::Mentions => 'Mentions only',
-            self::Nothing => 'Nothing',
+            self::All => __('All messages'),
+            self::Mentions => __('Mentions only'),
+            self::Nothing => __('Nothing'),
         };
     }
 

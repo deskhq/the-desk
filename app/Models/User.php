@@ -4,6 +4,7 @@ namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 use App\Concerns\HasTeams;
+use App\Enums\AppLocale;
 use App\Enums\ChimeSound;
 use App\Enums\TeamRole;
 use Database\Factories\UserFactory;
@@ -29,6 +30,7 @@ use Illuminate\Support\Str;
  * @property string|null $title
  * @property string|null $phone
  * @property string|null $timezone
+ * @property AppLocale $locale
  * @property Carbon|null $email_verified_at
  * @property string $password
  * @property string|null $two_factor_secret
@@ -50,7 +52,7 @@ use Illuminate\Support\Str;
  * @property-read Collection<int, ChannelSection> $channelSections
  * @property-read Collection<int, DataExport> $dataExports
  */
-#[Fillable(['name', 'email', 'pronouns', 'title', 'phone', 'timezone', 'password', 'current_team_id', 'chime_sound', 'share_read_receipts', 'collapsed_channel_sections', 'is_tombstone'])]
+#[Fillable(['name', 'email', 'pronouns', 'title', 'phone', 'timezone', 'locale', 'password', 'current_team_id', 'chime_sound', 'share_read_receipts', 'collapsed_channel_sections', 'is_tombstone'])]
 #[Hidden(['password', 'two_factor_secret', 'two_factor_recovery_codes', 'remember_token'])]
 class User extends Authenticatable
 {
@@ -67,6 +69,7 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'locale' => AppLocale::class,
             'chime_sound' => ChimeSound::class,
             'share_read_receipts' => 'boolean',
             'is_tombstone' => 'boolean',

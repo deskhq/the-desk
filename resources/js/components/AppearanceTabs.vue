@@ -1,12 +1,14 @@
 <script setup lang="ts">
 import { useAppearance } from '@/composables/useAppearance';
+import { useTranslations } from '@/composables/useTranslations';
 
 const { appearance, updateAppearance } = useAppearance();
+const { t } = useTranslations();
 
 const tabs = [
-    { value: 'light', label: 'Light' },
-    { value: 'dark', label: 'Dark' },
-    { value: 'system', label: 'System' },
+    { value: 'light', label: t('Light') },
+    { value: 'dark', label: t('Dark') },
+    { value: 'system', label: t('System') },
 ] as const;
 </script>
 

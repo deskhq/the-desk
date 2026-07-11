@@ -72,7 +72,7 @@ function jumpHref(result: MessageSearchResult): string {
 </script>
 
 <template>
-    <Head title="Search messages" />
+    <Head :title="$t('Search messages')" />
 
     <header
         class="flex h-12 shrink-0 items-center gap-2.5 border-b border-border px-5"
@@ -81,12 +81,12 @@ function jumpHref(result: MessageSearchResult): string {
             class="-ml-1.5 size-8 text-muted-foreground md:hidden"
         />
         <h1 class="text-[15px] font-semibold text-foreground">
-            Search messages
+            {{ $t('Search messages') }}
         </h1>
         <Link
             :href="index(props.team.slug).url"
             class="ml-auto text-[13px] text-muted-foreground hover:text-foreground"
-            >Back</Link
+            >{{ $t('Back') }}</Link
         >
     </header>
 
@@ -100,8 +100,8 @@ function jumpHref(result: MessageSearchResult): string {
                 <Input
                     v-model="term"
                     type="search"
-                    placeholder="Search messages"
-                    aria-label="Search messages"
+                    :placeholder="$t('Search messages')"
+                    :aria-label="$t('Search messages')"
                     autofocus
                     class="h-[38px] rounded-[10px] bg-muted/40 pl-9"
                 />
@@ -111,7 +111,7 @@ function jumpHref(result: MessageSearchResult): string {
                 v-if="props.query === ''"
                 class="pt-16 text-center text-sm text-muted-foreground"
             >
-                Search your channels for messages.
+                {{ $t('Search your channels for messages.') }}
             </p>
 
             <p
@@ -119,14 +119,13 @@ function jumpHref(result: MessageSearchResult): string {
                 data-test="search-empty"
                 class="pt-16 text-center text-sm text-muted-foreground"
             >
-                No messages match &ldquo;{{ props.query }}&rdquo;.
+                {{ $t('No messages match “:query”.', { query: props.query }) }}
             </p>
 
             <template v-else>
                 <p class="mt-4 mb-1 text-xs text-muted-foreground">
-                    {{ props.results.length }} result{{
-                        props.results.length === 1 ? '' : 's'
-                    }}
+                    {{ props.results.length }} {{ $t('result')
+                    }}{{ props.results.length === 1 ? '' : 's' }}
                 </p>
 
                 <ul>

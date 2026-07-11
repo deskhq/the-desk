@@ -1,14 +1,22 @@
 /**
  * Timestamp formatting helpers. All rendering happens client-side in a target
  * IANA time zone — the viewer's stored zone where known, otherwise the runtime's
- * local zone (passing `timeZone: undefined` to the Intl APIs falls back to it).
+ * local zone (passing `timeZone: undefined` to the Intl APIs falls back to it) —
+ * and in the active locale, so month names, ordering, and clock style follow the
+ * user's language.
  */
+
+import { i18n } from './i18n';
 
 /**
  * Format an ISO timestamp as a time of day (e.g. "3:45 PM").
  */
-export function formatTimeOfDay(iso: string, timeZone?: string): string {
-    return new Date(iso).toLocaleTimeString(undefined, {
+export function formatTimeOfDay(
+    iso: string,
+    timeZone?: string,
+    locale: string = i18n.locale,
+): string {
+    return new Date(iso).toLocaleTimeString(locale, {
         hour: 'numeric',
         minute: '2-digit',
         timeZone,
@@ -18,8 +26,12 @@ export function formatTimeOfDay(iso: string, timeZone?: string): string {
 /**
  * Format an ISO timestamp as an abbreviated date and time (e.g. "Jul 10, 3:45 PM").
  */
-export function formatDateTime(iso: string, timeZone?: string): string {
-    return new Date(iso).toLocaleString(undefined, {
+export function formatDateTime(
+    iso: string,
+    timeZone?: string,
+    locale: string = i18n.locale,
+): string {
+    return new Date(iso).toLocaleString(locale, {
         month: 'short',
         day: 'numeric',
         hour: 'numeric',
@@ -35,13 +47,14 @@ export function formatDateTime(iso: string, timeZone?: string): string {
 export function formatLocalTime(
     timeZone: string | null,
     at: Date,
+    locale: string = i18n.locale,
 ): string | null {
     if (!timeZone) {
         return null;
     }
 
     try {
-        return at.toLocaleTimeString(undefined, {
+        return at.toLocaleTimeString(locale, {
             hour: 'numeric',
             minute: '2-digit',
             timeZone,

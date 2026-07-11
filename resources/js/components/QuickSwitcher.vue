@@ -101,21 +101,24 @@ function seeAllResults(): void {
 <template>
     <CommandDialog
         v-model:open="open"
-        title="Quick switcher"
-        description="Jump to a channel or search messages"
+        :title="$t('Quick switcher')"
+        :description="$t('Jump to a channel or search messages')"
     >
         <div class="flex h-12 items-center gap-2.5 border-b px-4">
             <Search class="size-4 shrink-0 text-muted-foreground/70" />
             <ListboxFilter
                 v-model="query"
                 auto-focus
-                placeholder="Jump to a channel or search messages…"
+                :placeholder="$t('Jump to a channel or search messages…')"
                 data-test="quick-switcher-input"
                 class="flex h-10 w-full rounded-md bg-transparent py-3 text-sm outline-hidden placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50"
             />
         </div>
         <CommandList>
-            <CommandGroup v-if="channelResults.length > 0" heading="Channels">
+            <CommandGroup
+                v-if="channelResults.length > 0"
+                :heading="$t('Channels')"
+            >
                 <CommandItem
                     v-for="channel in channelResults"
                     :key="channel.id"
@@ -138,19 +141,23 @@ function seeAllResults(): void {
                 </CommandItem>
             </CommandGroup>
 
-            <CommandGroup v-if="trimmedQuery !== ''" heading="Messages">
+            <CommandGroup v-if="trimmedQuery !== ''" :heading="$t('Messages')">
                 <p
                     v-if="isSearchingMessages && messageResults.length === 0"
                     class="px-2 py-2 text-xs text-muted-foreground"
                 >
-                    Searching…
+                    {{ $t('Searching…') }}
                 </p>
                 <p
                     v-else-if="messageResults.length === 0"
                     data-test="quick-switcher-no-messages"
                     class="px-2 py-2 text-xs text-muted-foreground"
                 >
-                    No messages match &ldquo;{{ trimmedQuery }}&rdquo;.
+                    {{
+                        $t('No messages match “:query”.', {
+                            query: trimmedQuery,
+                        })
+                    }}
                 </p>
 
                 <CommandItem
@@ -204,11 +211,11 @@ function seeAllResults(): void {
                     class="mt-1 gap-2 rounded-lg border-t border-border px-2.5 font-serif text-[13px] text-muted-foreground italic data-[highlighted]:bg-accent data-[highlighted]:text-accent-foreground"
                     @select="seeAllResults"
                 >
-                    <span class="truncate"
-                        >See all results for &ldquo;{{
-                            trimmedQuery
-                        }}&rdquo;</span
-                    >
+                    <span class="truncate">{{
+                        $t('See all results for “:query”', {
+                            query: trimmedQuery,
+                        })
+                    }}</span>
                     <span class="ml-auto shrink-0 not-italic" aria-hidden="true"
                         >&rarr;</span
                     >

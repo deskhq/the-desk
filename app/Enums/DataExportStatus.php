@@ -14,9 +14,9 @@ enum DataExportStatus: string
     public function label(): string
     {
         return match ($this) {
-            self::Pending => 'Preparing',
-            self::Ready => 'Ready to download',
-            self::Failed => 'Failed',
+            self::Pending => __('Preparing'),
+            self::Ready => __('Ready to download'),
+            self::Failed => __('Failed'),
         };
     }
 }

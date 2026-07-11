@@ -57,32 +57,42 @@ const handleOpenChange = (nextOpen: boolean) => {
                 v-slot="{ errors, processing }"
             >
                 <DialogHeader class="space-y-3">
-                    <DialogTitle>Transfer team ownership</DialogTitle>
+                    <DialogTitle>{{
+                        $t('Transfer team ownership')
+                    }}</DialogTitle>
                     <DialogDescription>
-                        Ownership of this team will be transferred to
+                        {{
+                            $t('Ownership of this team will be transferred to')
+                        }}
                         <strong>{{ props.member.name }}</strong
-                        >. You will be demoted to Admin and can no longer manage
-                        ownership. Enter your password to confirm.
+                        >.
+                        {{
+                            $t(
+                                'You will be demoted to Admin and can no longer manage ownership. Enter your password to confirm.',
+                            )
+                        }}
                     </DialogDescription>
                 </DialogHeader>
 
                 <div class="grid gap-2">
                     <Label for="transfer-password" class="sr-only">
-                        Password
+                        {{ $t('Password') }}
                     </Label>
                     <PasswordInput
                         id="transfer-password"
                         name="password"
                         ref="passwordInput"
                         data-test="transfer-ownership-password"
-                        placeholder="Password"
+                        :placeholder="$t('Password')"
                     />
                     <InputError :message="errors.password" />
                 </div>
 
                 <DialogFooter class="gap-2">
                     <DialogClose as-child>
-                        <Button variant="secondary"> Cancel </Button>
+                        <Button variant="secondary">
+                            {{ $t('Cancel') }}
+                        </Button>
                     </DialogClose>
 
                     <Button
@@ -90,7 +100,7 @@ const handleOpenChange = (nextOpen: boolean) => {
                         data-test="transfer-ownership-confirm"
                         :disabled="processing"
                     >
-                        Transfer ownership
+                        {{ $t('Transfer ownership') }}
                     </Button>
                 </DialogFooter>
             </Form>

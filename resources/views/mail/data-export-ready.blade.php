@@ -1,18 +1,18 @@
 <x-mail::message>
-# Your data export is ready
+# {{ __('Your data export is ready') }}
 
-We've finished assembling a copy of your {{ config('app.name') }} data. Use the button below to download the archive.
+{{ __("We've finished assembling a copy of your :app data. Use the button below to download the archive.", ['app' => config('app.name')]) }}
 
 <x-mail::button :url="$url">
-Download your data
+{{ __('Download your data') }}
 </x-mail::button>
 
 @isset($expiresAt)
-This link expires on {{ $expiresAt->toFormattedDayDateString() }}. You can request a fresh export any time from your profile settings.
+{{ __('This link expires on :date. You can request a fresh export any time from your profile settings.', ['date' => $expiresAt->toFormattedDayDateString()]) }}
 @endisset
 
-If you didn't request this export, you can safely ignore this email.
+{{ __("If you didn't request this export, you can safely ignore this email.") }}
 
-Thanks,<br>
+{{ __('Thanks,') }}<br>
 {{ config('app.name') }}
 </x-mail::message>

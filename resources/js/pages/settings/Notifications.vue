@@ -15,6 +15,7 @@ import {
 import { Switch } from '@/components/ui/switch';
 import { useChimes } from '@/composables/useChimes';
 import { useReadReceipts } from '@/composables/useReadReceipts';
+import { translate } from '@/lib/i18n';
 import { edit } from '@/routes/notifications';
 import type { ChimeSound, ChimeSoundOption } from '@/types';
 
@@ -26,7 +27,7 @@ defineOptions({
     layout: {
         breadcrumbs: [
             {
-                title: 'Notification settings',
+                title: translate('Notification settings'),
                 href: edit(),
             },
         ],
@@ -50,21 +51,25 @@ const { shareReadReceipts, updateShareReadReceipts } = useReadReceipts();
 </script>
 
 <template>
-    <Head title="Notification settings" />
+    <Head :title="$t('Notification settings')" />
 
-    <h1 class="sr-only">Notification settings</h1>
+    <h1 class="sr-only">{{ $t('Notification settings') }}</h1>
 
     <SettingsSection
-        title="Notifications"
-        description="Choose the chime played when a new message arrives while you're away"
+        :title="$t('Notifications')"
+        :description="
+            $t(
+                'Choose the chime played when a new message arrives while you\'re away',
+            )
+        "
     >
         <div class="grid gap-2">
-            <Label for="chime-sound">Chime sound</Label>
+            <Label for="chime-sound">{{ $t('Chime sound') }}</Label>
 
             <div class="flex items-center gap-2">
                 <Select :model-value="selected" @update:model-value="onSelect">
                     <SelectTrigger id="chime-sound" class="w-full">
-                        <SelectValue placeholder="Select a chime" />
+                        <SelectValue :placeholder="$t('Select a chime')" />
                     </SelectTrigger>
                     <SelectContent>
                         <SelectItem
@@ -84,7 +89,7 @@ const { shareReadReceipts, updateShareReadReceipts } = useReadReceipts();
                     class="rounded-full"
                     :disabled="selected === 'off'"
                     data-test="preview-chime"
-                    aria-label="Preview chime"
+                    :aria-label="$t('Preview chime')"
                     @click="preview(selected)"
                 >
                     <Play class="size-4" />
@@ -92,20 +97,30 @@ const { shareReadReceipts, updateShareReadReceipts } = useReadReceipts();
             </div>
 
             <p class="text-sm text-muted-foreground">
-                Chimes never play for your own messages, for muted channels, or
-                for the channel you're actively viewing. Choose
-                <span class="font-medium">Off</span> to silence them entirely.
+                {{
+                    $t(
+                        "Chimes never play for your own messages, for muted channels, or for the channel you're actively viewing. Choose",
+                    )
+                }}
+                <span class="font-medium">{{ $t('Off') }}</span>
+                {{ $t('to silence them entirely.') }}
             </p>
         </div>
     </SettingsSection>
 
     <SettingsSection
-        title="Read receipts"
-        description="Control whether channel members can see when you've read their messages."
+        :title="$t('Read receipts')"
+        :description="
+            $t(
+                'Control whether channel members can see when you\'ve read their messages.',
+            )
+        "
     >
         <div class="grid gap-2">
             <div class="flex items-center justify-between gap-4">
-                <Label for="share-read-receipts">Share read receipts</Label>
+                <Label for="share-read-receipts">{{
+                    $t('Share read receipts')
+                }}</Label>
 
                 <Switch
                     id="share-read-receipts"
@@ -116,9 +131,11 @@ const { shareReadReceipts, updateShareReadReceipts } = useReadReceipts();
             </div>
 
             <p class="text-sm text-muted-foreground">
-                When on, channel members can see when you've read their
-                messages. Turn this off to keep your read position private —
-                you'll still see when others have read yours.
+                {{
+                    $t(
+                        "When on, channel members can see when you've read their messages. Turn this off to keep your read position private — you'll still see when others have read yours.",
+                    )
+                }}
             </p>
         </div>
     </SettingsSection>

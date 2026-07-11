@@ -2,6 +2,7 @@
 import { Head } from '@inertiajs/vue3';
 import DataPrivacy from '@/components/DataPrivacy.vue';
 import SettingsSection from '@/components/SettingsSection.vue';
+import { translate } from '@/lib/i18n';
 import { edit } from '@/routes/data-export';
 import type { DataExport } from '@/types';
 
@@ -13,7 +14,7 @@ defineOptions({
     layout: {
         breadcrumbs: [
             {
-                title: 'Data & privacy',
+                title: translate('Data & privacy'),
                 href: edit(),
             },
         ],
@@ -22,13 +23,13 @@ defineOptions({
 </script>
 
 <template>
-    <Head title="Data & privacy" />
+    <Head :title="$t('Data & privacy')" />
 
-    <h1 class="sr-only">Data &amp; privacy</h1>
+    <h1 class="sr-only">{{ $t('Data & privacy') }}</h1>
 
     <SettingsSection
-        title="Data &amp; privacy"
-        description="Download a copy of your personal data"
+        :title="$t('Data & privacy')"
+        :description="$t('Download a copy of your personal data')"
     >
         <DataPrivacy :data-export="dataExport" />
     </SettingsSection>

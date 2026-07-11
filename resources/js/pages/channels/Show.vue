@@ -78,6 +78,7 @@ import {
 import { useScrollPin } from '@/composables/useScrollPin';
 import { useTeamPresence } from '@/composables/useTeamPresence';
 import { useTimezone } from '@/composables/useTimezone';
+import { useTranslations } from '@/composables/useTranslations';
 import { useTypingIndicator } from '@/composables/useTypingIndicator';
 import type { TypingUser } from '@/composables/useTypingIndicator';
 import { useUnreadDivider } from '@/composables/useUnreadDivider';
@@ -123,6 +124,8 @@ const props = defineProps<{
 }>();
 
 const page = usePage();
+
+const { t } = useTranslations();
 
 const currentUser = computed(() => ({
     id: String(page.props.auth.user.id),
@@ -518,7 +521,11 @@ function forwardMessage({
             only: ['channels'],
             onSuccess: () => {
                 if (!toCurrentChannel) {
-                    toast.success(`Message forwarded to #${channel.name}.`);
+                    toast.success(
+                        t('Message forwarded to #:channel.', {
+                            channel: channel.name,
+                        }),
+                    );
                 }
             },
             onError: () => {
@@ -526,7 +533,9 @@ function forwardMessage({
                     mainStream.removePending(clientUuid);
                 }
 
-                toast.error('Failed to forward the message. Please try again.');
+                toast.error(
+                    t('Failed to forward the message. Please try again.'),
+                );
             },
         },
     );
@@ -576,7 +585,9 @@ function send(body: string, mentions: Mention[]): void {
             onError: () => {
                 // The optimistic row failed to persist; roll it back and notify.
                 mainStream.removePending(clientUuid);
-                toast.error('Your message failed to send. Please try again.');
+                toast.error(
+                    t('Your message failed to send. Please try again.'),
+                );
             },
         },
     );
@@ -617,10 +628,10 @@ function scheduleMessage(
             preserveScroll: true,
             preserveState: true,
             only: ['scheduledMessages', 'channels'],
-            onSuccess: () => toast.success('Message scheduled.'),
+            onSuccess: () => toast.success(t('Message scheduled.')),
             onError: () =>
                 toast.error(
-                    'Failed to schedule your message. Please try again.',
+                    t('Failed to schedule your message. Please try again.'),
                 ),
         },
     );
@@ -651,7 +662,9 @@ function updateScheduled({
             only: ['scheduledMessages'],
             onError: () =>
                 toast.error(
-                    'Failed to update the scheduled message. Please try again.',
+                    t(
+                        'Failed to update the scheduled message. Please try again.',
+                    ),
                 ),
         },
     );
@@ -669,10 +682,12 @@ function cancelScheduled(id: string): void {
             preserveScroll: true,
             preserveState: true,
             only: ['scheduledMessages'],
-            onSuccess: () => toast.success('Scheduled message cancelled.'),
+            onSuccess: () => toast.success(t('Scheduled message cancelled.')),
             onError: () =>
                 toast.error(
-                    'Failed to cancel the scheduled message. Please try again.',
+                    t(
+                        'Failed to cancel the scheduled message. Please try again.',
+                    ),
                 ),
         },
     );
@@ -732,7 +747,7 @@ function sendThreadReply(
                     mainStream.removePending(clientUuid);
                 }
 
-                toast.error('Your reply failed to send. Please try again.');
+                toast.error(t('Your reply failed to send. Please try again.'));
             },
         },
     );
@@ -778,7 +793,7 @@ function editMessage(message: Message, body: string): void {
             onError: () => {
                 mainStream.restorePatch(message.clientUuid, previousMain);
                 threadStream.restorePatch(message.clientUuid, previousThread);
-                toast.error('Your edit failed to save. Please try again.');
+                toast.error(t('Your edit failed to save. Please try again.'));
             },
         },
     );
@@ -802,7 +817,9 @@ function deleteMessage(message: Message): void {
             onError: () => {
                 mainStream.restorePatch(message.clientUuid, previousMain);
                 threadStream.restorePatch(message.clientUuid, previousThread);
-                toast.error('Failed to delete the message. Please try again.');
+                toast.error(
+                    t('Failed to delete the message. Please try again.'),
+                );
             },
         },
     );
@@ -834,7 +851,9 @@ function reactToMessage(message: Message, emoji: string): void {
             onError: () => {
                 mainStream.restorePatch(message.clientUuid, previousMain);
                 threadStream.restorePatch(message.clientUuid, previousThread);
-                toast.error('Failed to update the reaction. Please try again.');
+                toast.error(
+                    t('Failed to update the reaction. Please try again.'),
+                );
             },
         },
     );
@@ -920,7 +939,9 @@ function archive(): void {
         {},
         {
             onError: () => {
-                toast.error('Failed to archive the channel. Please try again.');
+                toast.error(
+                    t('Failed to archive the channel. Please try again.'),
+                );
             },
         },
     );
@@ -969,7 +990,7 @@ function archive(): void {
                             class="inline-flex shrink-0 items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground"
                         >
                             <Archive class="size-3" />
-                            Archived
+                            {{ $t('Archived') }}
                         </span>
 
                         <p v-if="props.channel.topic" class="min-w-0 truncate">
@@ -1005,7 +1026,7 @@ function archive(): void {
                     <Link
                         :href="searchMessages(props.team.slug).url"
                         data-test="masthead-search"
-                        aria-label="Search messages"
+                        :aria-label="$t('Search messages')"
                         class="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
                     >
                         <Search class="size-4" />
@@ -1017,7 +1038,7 @@ function archive(): void {
                         <DropdownMenuTrigger as-child>
                             <button
                                 type="button"
-                                aria-label="Channel options"
+                                :aria-label="$t('Channel options')"
                                 data-test="channel-options"
                                 class="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
                             >
@@ -1045,15 +1066,15 @@ function archive(): void {
                                     />
                                     {{
                                         starred
-                                            ? 'Unstar channel'
-                                            : 'Star channel'
+                                            ? $t('Unstar channel')
+                                            : $t('Star channel')
                                     }}
                                 </DropdownMenuItem>
                                 <DropdownMenuSeparator />
                                 <DropdownMenuLabel
                                     class="text-[11px] font-semibold tracking-[0.06em] text-muted-foreground uppercase"
                                 >
-                                    Notifications
+                                    {{ $t('Notifications') }}
                                 </DropdownMenuLabel>
                                 <DropdownMenuRadioGroup
                                     :model-value="notificationLevel"
@@ -1079,7 +1100,7 @@ function archive(): void {
                                         (event: Event) => event.preventDefault()
                                     "
                                 >
-                                    Mute channel
+                                    {{ $t('Mute channel') }}
                                 </DropdownMenuCheckboxItem>
                             </template>
                             <template v-if="props.canArchive">
@@ -1092,7 +1113,7 @@ function archive(): void {
                                     @select="confirmingArchive = true"
                                 >
                                     <Archive class="size-4" />
-                                    Archive channel
+                                    {{ $t('Archive channel') }}
                                 </DropdownMenuItem>
                             </template>
                         </DropdownMenuContent>
@@ -1118,7 +1139,7 @@ function archive(): void {
                             @click="scrollToUnread"
                         >
                             <ArrowUp class="size-3.5" />
-                            New messages
+                            {{ $t('New messages') }}
                         </button>
                     </Transition>
 
@@ -1169,12 +1190,15 @@ function archive(): void {
                             <p
                                 class="mt-1.5 font-serif text-[20px] font-semibold text-foreground"
                             >
-                                No messages yet
+                                {{ $t('No messages yet') }}
                             </p>
                             <p class="text-[13.5px] text-muted-foreground">
-                                Be the first to say something in #{{
-                                    props.channel.name
-                                }}.
+                                {{
+                                    $t(
+                                        'Be the first to say something in #:channel.',
+                                        { channel: props.channel.name },
+                                    )
+                                }}
                             </p>
                         </div>
                     </div>
@@ -1194,8 +1218,11 @@ function archive(): void {
                             :data-new-count="newMessageCount"
                             :aria-label="
                                 newMessageCount > 0
-                                    ? `${newMessageCount} new messages, jump to latest`
-                                    : 'Jump to latest message'
+                                    ? $t(
+                                          ':count new messages, jump to latest',
+                                          { count: newMessageCount },
+                                      )
+                                    : $t('Jump to latest message')
                             "
                             class="absolute right-4 bottom-4 z-10 inline-flex items-center gap-1.5 rounded-full shadow-md transition-colors"
                             :class="
@@ -1207,11 +1234,14 @@ function archive(): void {
                         >
                             <ChevronDown class="size-4 shrink-0" />
                             <span v-if="newMessageCount > 0">
-                                {{ newMessageCount }} new
                                 {{
                                     newMessageCount === 1
-                                        ? 'message'
-                                        : 'messages'
+                                        ? $t(':count new message', {
+                                              count: newMessageCount,
+                                          })
+                                        : $t(':count new messages', {
+                                              count: newMessageCount,
+                                          })
                                 }}
                             </span>
                         </button>
@@ -1223,8 +1253,11 @@ function archive(): void {
                     data-test="archived-notice"
                     class="m-5 shrink-0 rounded-lg border border-border bg-muted/40 px-4 py-3 text-center text-[13px] text-muted-foreground"
                 >
-                    This channel is archived. It's read-only, but its history is
-                    preserved.
+                    {{
+                        $t(
+                            "This channel is archived. It's read-only, but its history is preserved.",
+                        )
+                    }}
                 </div>
 
                 <template v-else>
@@ -1244,8 +1277,8 @@ function archive(): void {
                         {{ props.scheduledMessages.length }}
                         {{
                             props.scheduledMessages.length === 1
-                                ? 'scheduled message'
-                                : 'scheduled messages'
+                                ? $t('scheduled message')
+                                : $t('scheduled messages')
                         }}
                     </button>
 
@@ -1320,16 +1353,21 @@ function archive(): void {
     <Dialog v-model:open="confirmingArchive">
         <DialogContent>
             <DialogHeader>
-                <DialogTitle>Archive #{{ props.channel.name }}</DialogTitle>
+                <DialogTitle>{{
+                    $t('Archive #:channel', { channel: props.channel.name })
+                }}</DialogTitle>
                 <DialogDescription>
-                    The channel becomes read-only and leaves the sidebar. Its
-                    messages are kept and stay searchable.
+                    {{
+                        $t(
+                            'The channel becomes read-only and leaves the sidebar. Its messages are kept and stay searchable.',
+                        )
+                    }}
                 </DialogDescription>
             </DialogHeader>
 
             <DialogFooter class="gap-2">
                 <DialogClose as-child>
-                    <Button variant="secondary"> Cancel </Button>
+                    <Button variant="secondary"> {{ $t('Cancel') }} </Button>
                 </DialogClose>
 
                 <Button
@@ -1337,7 +1375,7 @@ function archive(): void {
                     variant="destructive"
                     @click="archive"
                 >
-                    Archive
+                    {{ $t('Archive') }}
                 </Button>
             </DialogFooter>
         </DialogContent>

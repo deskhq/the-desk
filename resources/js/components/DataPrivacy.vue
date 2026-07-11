@@ -6,6 +6,7 @@ import DataExportController from '@/actions/App/Http/Controllers/Settings/DataEx
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { useTimezone } from '@/composables/useTimezone';
+import { useTranslations } from '@/composables/useTranslations';
 import { formatDateTime } from '@/lib/datetime';
 import type { DataExport } from '@/types';
 
@@ -16,6 +17,7 @@ type Props = {
 const props = defineProps<Props>();
 
 const { timezone } = useTimezone();
+const { t } = useTranslations();
 
 const isPending = computed(() => props.dataExport?.status === 'pending');
 const isReady = computed(() => props.dataExport?.isReady ?? false);
@@ -28,7 +30,7 @@ const downloadUrl = computed(() =>
 );
 
 const requestLabel = computed(() =>
-    props.dataExport ? 'Request a new export' : 'Request export',
+    props.dataExport ? t('Request a new export') : t('Request export'),
 );
 
 function formatExpiry(iso: string): string {
@@ -47,10 +49,11 @@ function formatExpiry(iso: string): string {
 
             <div class="min-w-0 flex-1 space-y-4">
                 <p class="text-sm text-pretty text-muted-foreground">
-                    Request an export and we'll assemble an archive of your
-                    profile, teams, messages, and security activity. It's
-                    prepared in the background — we'll email you a download link
-                    when it's ready.
+                    {{
+                        $t(
+                            "Request an export and we'll assemble an archive of your profile, teams, messages, and security activity. It's prepared in the background — we'll email you a download link when it's ready.",
+                        )
+                    }}
                 </p>
 
                 <div
@@ -65,13 +68,17 @@ function formatExpiry(iso: string): string {
                         class="w-full justify-center sm:w-auto sm:justify-start"
                     >
                         <Download class="size-4" />
-                        Download your data
+                        {{ $t('Download your data') }}
                     </Button>
                     <p
                         v-if="dataExport.expiresAt"
                         class="text-xs text-muted-foreground"
                     >
-                        Link expires {{ formatExpiry(dataExport.expiresAt) }}
+                        {{
+                            $t('Link expires :time', {
+                                time: formatExpiry(dataExport.expiresAt),
+                            })
+                        }}
                     </p>
                 </div>
 
@@ -80,9 +87,12 @@ function formatExpiry(iso: string): string {
                     class="flex items-center gap-2 text-sm text-muted-foreground"
                     data-test="data-export-pending"
                 >
-                    <Badge variant="secondary">Preparing</Badge>
-                    Your export is being prepared. We'll email you when it's
-                    ready.
+                    <Badge variant="secondary">{{ $t('Preparing') }}</Badge>
+                    {{
+                        $t(
+                            "Your export is being prepared. We'll email you when it's ready.",
+                        )
+                    }}
                 </p>
 
                 <p
@@ -90,7 +100,11 @@ function formatExpiry(iso: string): string {
                     class="text-sm text-red-600 dark:text-red-400"
                     data-test="data-export-failed"
                 >
-                    We couldn't prepare your last export. Please try again.
+                    {{
+                        $t(
+                            "We couldn't prepare your last export. Please try again.",
+                        )
+                    }}
                 </p>
 
                 <div :class="dataExport ? 'border-t border-border pt-4' : ''">

@@ -70,6 +70,7 @@ import { useKeyboardShortcutsModal } from '@/composables/useKeyboardShortcutsMod
 import { useSidebarBadges } from '@/composables/useSidebarBadges';
 import { useTeamSwitch } from '@/composables/useTeamSwitch';
 import { useTimezone } from '@/composables/useTimezone';
+import { useTranslations } from '@/composables/useTranslations';
 import {
     partitionChannels,
     toggleCollapsedSection,
@@ -79,6 +80,8 @@ import type { Channel, ChannelSection } from '@/types/channels';
 import type { RoleOption } from '@/types/teams';
 
 const page = usePage();
+
+const { t } = useTranslations();
 
 // The same workspace shell wraps the settings/teams section, but its sidebar
 // swaps the channel list for the settings navigation so there is a single
@@ -175,7 +178,7 @@ function persistPlacement(
             onError: () => {
                 syncSidebarGroups();
                 toast.error(
-                    'Failed to save the sidebar layout. Please try again.',
+                    t('Failed to save the sidebar layout. Please try again.'),
                 );
             },
         },
@@ -256,7 +259,7 @@ function onSectionReorder(): void {
             onError: () => {
                 syncSidebarGroups();
                 toast.error(
-                    'Failed to save the section order. Please try again.',
+                    t('Failed to save the section order. Please try again.'),
                 );
             },
         },
@@ -297,7 +300,9 @@ function createSection(): void {
             only: ['channelSections'],
             onSuccess: () => cancelSectionForm(),
             onError: () => {
-                toast.error('Failed to create the section. Please try again.');
+                toast.error(
+                    t('Failed to create the section. Please try again.'),
+                );
             },
         },
     );
@@ -350,7 +355,9 @@ function submitRename(section: ChannelSection): void {
             only: ['channelSections'],
             onSuccess: () => cancelRename(),
             onError: () => {
-                toast.error('Failed to rename the section. Please try again.');
+                toast.error(
+                    t('Failed to rename the section. Please try again.'),
+                );
             },
         },
     );
@@ -367,7 +374,9 @@ function deleteSection(section: ChannelSection): void {
             preserveState: true,
             only: ['channels', 'channelSections'],
             onError: () => {
-                toast.error('Failed to delete the section. Please try again.');
+                toast.error(
+                    t('Failed to delete the section. Please try again.'),
+                );
             },
         },
     );
@@ -398,7 +407,7 @@ function toggleCustomSection(group: {
             onError: () => {
                 group.section.collapsed = previous;
                 toast.error(
-                    'Failed to save the sidebar layout. Please try again.',
+                    t('Failed to save the sidebar layout. Please try again.'),
                 );
             },
         },
@@ -444,7 +453,7 @@ function toggleSection(section: SidebarSectionKey): void {
             onError: () => {
                 collapsedSections.value = previous;
                 toast.error(
-                    'Failed to save the sidebar layout. Please try again.',
+                    t('Failed to save the sidebar layout. Please try again.'),
                 );
             },
         },
@@ -527,7 +536,8 @@ onMounted(() => {
                                     <span
                                         class="block truncate text-sm font-semibold text-sidebar-foreground"
                                         >{{
-                                            currentTeam?.name ?? 'Select team'
+                                            currentTeam?.name ??
+                                            $t('Select team')
                                         }}</span
                                     >
                                     <span
@@ -536,8 +546,8 @@ onMounted(() => {
                                         {{
                                             (currentTeam?.membersCount ?? 0) ===
                                             1
-                                                ? 'member'
-                                                : 'members'
+                                                ? $t('member')
+                                                : $t('members')
                                         }}</span
                                     >
                                 </span>
@@ -547,7 +557,7 @@ onMounted(() => {
                             <DropdownMenuLabel
                                 class="text-xs text-muted-foreground"
                             >
-                                Teams
+                                {{ $t('Teams') }}
                             </DropdownMenuLabel>
                             <DropdownMenuItem
                                 v-for="team in teams"
@@ -570,9 +580,9 @@ onMounted(() => {
                                     @select.prevent
                                 >
                                     <Plus class="size-4" />
-                                    <span class="text-muted-foreground"
-                                        >New team</span
-                                    >
+                                    <span class="text-muted-foreground">{{
+                                        $t('New team')
+                                    }}</span>
                                 </DropdownMenuItem>
                             </CreateTeamModal>
                         </DropdownMenuContent>
@@ -581,23 +591,27 @@ onMounted(() => {
                         <button
                             v-if="canInviteToCurrentTeam"
                             type="button"
-                            title="Invite people"
+                            :title="$t('Invite people')"
                             data-test="invite-member-trigger"
                             class="flex size-6 items-center justify-center rounded-[7px] border border-sidebar-border text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground"
                             @click="inviteOpen = true"
                         >
                             <UserPlus class="size-3" />
-                            <span class="sr-only">Invite people</span>
+                            <span class="sr-only">{{
+                                $t('Invite people')
+                            }}</span>
                         </button>
                         <CreateTeamModal>
                             <button
                                 type="button"
-                                title="New team"
+                                :title="$t('New team')"
                                 data-test="new-team-trigger"
                                 class="flex size-6 items-center justify-center rounded-[7px] border border-dashed border-sidebar-border text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground"
                             >
                                 <Plus class="size-3" />
-                                <span class="sr-only">New team</span>
+                                <span class="sr-only">{{
+                                    $t('New team')
+                                }}</span>
                             </button>
                         </CreateTeamModal>
                     </div>
@@ -615,7 +629,7 @@ onMounted(() => {
                             @click="quickSwitcherOpen = true"
                         >
                             <Search class="size-[13px] shrink-0" />
-                            <span>Jump to…</span>
+                            <span>{{ $t('Jump to…') }}</span>
                             <kbd
                                 class="ml-auto font-mono text-[10px] font-semibold tracking-wide text-muted-foreground/70"
                                 >⌘K</kbd
@@ -643,7 +657,7 @@ onMounted(() => {
                                         : 'rotate-90'
                                 "
                             />
-                            Starred
+                            {{ $t('Starred') }}
                         </button>
                         <SidebarGroupContent
                             v-show="!isSectionCollapsed('starred')"
@@ -695,8 +709,12 @@ onMounted(() => {
                                     <button
                                         type="button"
                                         :data-test="`section-drag-${group.section.id}`"
-                                        :aria-label="`Reorder ${group.section.name}`"
-                                        title="Drag to reorder section"
+                                        :aria-label="
+                                            $t('Reorder :name', {
+                                                name: group.section.name,
+                                            })
+                                        "
+                                        :title="$t('Drag to reorder section')"
                                         class="section-drag-handle flex size-4 shrink-0 cursor-grab items-center justify-center rounded text-muted-foreground/50 opacity-0 transition group-hover/section:opacity-100 hover:text-sidebar-foreground active:cursor-grabbing"
                                     >
                                         <GripVertical class="size-3" />
@@ -750,8 +768,13 @@ onMounted(() => {
                                             <button
                                                 type="button"
                                                 :data-test="`section-menu-${group.section.id}`"
-                                                :aria-label="`Options for ${group.section.name}`"
-                                                title="Section options"
+                                                :aria-label="
+                                                    $t('Options for :name', {
+                                                        name: group.section
+                                                            .name,
+                                                    })
+                                                "
+                                                :title="$t('Section options')"
                                                 class="flex size-5 shrink-0 items-center justify-center rounded text-muted-foreground/60 opacity-0 transition group-hover/section:opacity-100 hover:text-sidebar-foreground focus-visible:opacity-100 data-[state=open]:opacity-100"
                                             >
                                                 <MoreVertical
@@ -770,7 +793,7 @@ onMounted(() => {
                                                 "
                                             >
                                                 <Pencil class="size-3.5" />
-                                                Rename
+                                                {{ $t('Rename') }}
                                             </DropdownMenuItem>
                                             <DropdownMenuItem
                                                 variant="destructive"
@@ -780,7 +803,7 @@ onMounted(() => {
                                                 "
                                             >
                                                 <Trash2 class="size-3.5" />
-                                                Delete
+                                                {{ $t('Delete') }}
                                             </DropdownMenuItem>
                                         </DropdownMenuContent>
                                     </DropdownMenu>
@@ -840,7 +863,7 @@ onMounted(() => {
                                         v-if="group.channels.length === 0"
                                         class="px-7 pb-1 text-[12px] text-muted-foreground/50 normal-case"
                                     >
-                                        Drag channels here
+                                        {{ $t('Drag channels here') }}
                                     </p>
                                 </SidebarGroupContent>
                             </SidebarGroup>
@@ -866,19 +889,21 @@ onMounted(() => {
                                         : 'rotate-90'
                                 "
                             />
-                            Channels
+                            {{ $t('Channels') }}
                         </button>
                         <CreateChannelModal
                             v-if="currentTeam"
                             :team-slug="currentTeam.slug"
                         >
                             <SidebarGroupAction
-                                title="Create channel"
+                                :title="$t('Create channel')"
                                 data-test="create-channel-trigger"
                                 class="top-2 size-5 rounded-md text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
                             >
                                 <Plus class="size-[13px]" />
-                                <span class="sr-only">Create channel</span>
+                                <span class="sr-only">{{
+                                    $t('Create channel')
+                                }}</span>
                             </SidebarGroupAction>
                         </CreateChannelModal>
                         <SidebarGroupContent
@@ -933,7 +958,7 @@ onMounted(() => {
                                     class="w-full rounded-md border border-sidebar-border bg-sidebar px-2 py-1 text-[13px] text-sidebar-foreground focus:outline-none"
                                     type="text"
                                     maxlength="50"
-                                    placeholder="New section name"
+                                    :placeholder="$t('New section name')"
                                     @keydown.enter.prevent="
                                         sectionNameInput?.blur()
                                     "
@@ -949,7 +974,7 @@ onMounted(() => {
                                 @click="openSectionForm"
                             >
                                 <FolderPlus class="size-3.5" />
-                                New section
+                                {{ $t('New section') }}
                             </button>
                         </SidebarGroupContent>
                     </SidebarGroup>
@@ -975,7 +1000,7 @@ onMounted(() => {
                                             <MessagesSquare
                                                 class="size-[13px]"
                                             />
-                                            <span>Threads</span>
+                                            <span>{{ $t('Threads') }}</span>
                                             <span
                                                 v-if="hasUnreadThreads"
                                                 data-test="threads-unread-dot"
@@ -1001,7 +1026,9 @@ onMounted(() => {
                                             <MessageSquareText
                                                 class="size-[13px]"
                                             />
-                                            <span>Search messages</span>
+                                            <span>{{
+                                                $t('Search messages')
+                                            }}</span>
                                         </Link>
                                     </SidebarMenuButton>
                                 </SidebarMenuItem>
@@ -1016,7 +1043,9 @@ onMounted(() => {
                                             data-test="browse-channels"
                                         >
                                             <Search class="size-[13px]" />
-                                            <span>Browse channels</span>
+                                            <span>{{
+                                                $t('Browse channels')
+                                            }}</span>
                                         </Link>
                                     </SidebarMenuButton>
                                 </SidebarMenuItem>

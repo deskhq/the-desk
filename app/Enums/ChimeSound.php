@@ -16,11 +16,11 @@ enum ChimeSound: string
     public function label(): string
     {
         return match ($this) {
-            self::Off => 'Off',
-            self::Ping => 'Ping',
-            self::Chime => 'Chime',
-            self::Knock => 'Knock',
-            self::Pop => 'Pop',
+            self::Off => __('Off'),
+            self::Ping => __('Ping'),
+            self::Chime => __('Chime'),
+            self::Knock => __('Knock'),
+            self::Pop => __('Pop'),
         };
     }
 

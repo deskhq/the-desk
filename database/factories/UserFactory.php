@@ -2,6 +2,7 @@
 
 namespace Database\Factories;
 
+use App\Enums\AppLocale;
 use App\Enums\ChimeSound;
 use App\Enums\TeamRole;
 use App\Models\Team;
@@ -36,6 +37,7 @@ class UserFactory extends Factory
             'two_factor_secret' => null,
             'two_factor_recovery_codes' => null,
             'two_factor_confirmed_at' => null,
+            'locale' => AppLocale::English->value,
             'chime_sound' => ChimeSound::Ping->value,
             'share_read_receipts' => true,
         ];

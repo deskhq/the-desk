@@ -5,6 +5,7 @@ import MessageQuote from '@/components/MessageQuote.vue';
 import ScheduleMessageDialog from '@/components/ScheduleMessageDialog.vue';
 import { Button } from '@/components/ui/button';
 import { useInitials } from '@/composables/useInitials';
+import { useTranslations } from '@/composables/useTranslations';
 import type { Mention, Message } from '@/types';
 
 const props = defineProps<{
@@ -35,6 +36,7 @@ const emit = defineEmits<{
 }>();
 
 const { getInitials } = useInitials();
+const { t } = useTranslations();
 
 const body = ref(props.initialBody ?? '');
 const textarea = ref<HTMLTextAreaElement | null>(null);
@@ -61,7 +63,9 @@ watch(body, (value) => {
 const sendToChannel = ref(false);
 
 const composerPlaceholder = computed(
-    () => props.placeholder ?? `Message #${props.channelName}`,
+    () =>
+        props.placeholder ??
+        t('Message #:channel', { channel: props.channelName }),
 );
 
 // Focus on mount when asked (e.g. the thread composer when a thread opens) so
@@ -385,7 +389,7 @@ function onKeydown(event: KeyboardEvent): void {
                 <button
                     type="button"
                     data-test="reply-preview-dismiss"
-                    aria-label="Cancel reply"
+                    :aria-label="$t('Cancel reply')"
                     class="shrink-0 rounded p-0.5 text-muted-foreground hover:bg-muted hover:text-foreground"
                     @click="emit('cancelReply')"
                 >
@@ -423,7 +427,7 @@ function onKeydown(event: KeyboardEvent): void {
                     size="icon"
                     disabled
                     class="size-7 shrink-0 rounded-full text-muted-foreground"
-                    aria-label="Add attachment"
+                    :aria-label="$t('Add attachment')"
                 >
                     <Plus class="size-3.5" />
                 </Button>
@@ -434,8 +438,8 @@ function onKeydown(event: KeyboardEvent): void {
                     :disabled="body.trim() === ''"
                     data-test="message-composer-schedule"
                     class="size-7 shrink-0 rounded-full text-muted-foreground"
-                    aria-label="Schedule for later"
-                    title="Schedule for later"
+                    :aria-label="$t('Schedule for later')"
+                    :title="$t('Schedule for later')"
                     @click="openSchedule"
                 >
                     <CalendarClock class="size-3.5" />
@@ -445,7 +449,7 @@ function onKeydown(event: KeyboardEvent): void {
                     :disabled="body.trim() === ''"
                     data-test="message-composer-send"
                     class="size-[34px] shrink-0 rounded-full bg-primary text-brass hover:bg-primary/90"
-                    aria-label="Send message"
+                    :aria-label="$t('Send message')"
                     @click="submit"
                 >
                     <ArrowUp class="size-[15px]" :stroke-width="2.2" />
@@ -462,7 +466,9 @@ function onKeydown(event: KeyboardEvent): void {
                     data-test="send-to-channel"
                     class="size-3.5 rounded border-input accent-primary"
                 />
-                Also send to #{{ props.channelName }}
+                {{
+                    $t('Also send to #:channel', { channel: props.channelName })
+                }}
             </label>
         </div>
 

@@ -1,4 +1,5 @@
 import type { ChimeSound } from './chimes';
+import type { AppLocale } from './locale';
 
 export type User = {
     id: number;
@@ -8,6 +9,7 @@ export type User = {
     title: string | null;
     phone: string | null;
     timezone: string | null;
+    locale: AppLocale;
     avatar?: string;
     email_verified_at: string | null;
     created_at: string;

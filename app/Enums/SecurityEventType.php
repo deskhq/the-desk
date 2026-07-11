@@ -19,14 +19,14 @@ enum SecurityEventType: string
     public function label(): string
     {
         return match ($this) {
-            self::LoggedIn => 'Signed in',
-            self::LoggedOut => 'Signed out',
-            self::PasswordChanged => 'Password changed',
-            self::PasswordReset => 'Password reset',
-            self::TwoFactorEnabled => 'Two-factor authentication enabled',
-            self::TwoFactorDisabled => 'Two-factor authentication disabled',
-            self::TwoFactorConfirmed => 'Two-factor authentication confirmed',
-            self::RecoveryCodesGenerated => 'Recovery codes generated',
+            self::LoggedIn => __('Signed in'),
+            self::LoggedOut => __('Signed out'),
+            self::PasswordChanged => __('Password changed'),
+            self::PasswordReset => __('Password reset'),
+            self::TwoFactorEnabled => __('Two-factor authentication enabled'),
+            self::TwoFactorDisabled => __('Two-factor authentication disabled'),
+            self::TwoFactorConfirmed => __('Two-factor authentication confirmed'),
+            self::RecoveryCodesGenerated => __('Recovery codes generated'),
         };
     }
 }

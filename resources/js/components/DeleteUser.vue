@@ -24,11 +24,14 @@ const passwordInput = useTemplateRef('passwordInput');
     <div class="space-y-3">
         <div>
             <h3 class="font-serif text-[17px] font-semibold text-destructive">
-                Delete account
+                {{ $t('Delete account') }}
             </h3>
             <p class="mt-1 text-sm text-muted-foreground">
-                Permanently remove your account and all of its data. This cannot
-                be undone.
+                {{
+                    $t(
+                        'Permanently remove your account and all of its data. This cannot be undone.',
+                    )
+                }}
             </p>
         </div>
         <Dialog>
@@ -37,7 +40,7 @@ const passwordInput = useTemplateRef('passwordInput');
                     variant="outline"
                     class="rounded-full border-destructive/40 text-destructive hover:border-destructive/60 hover:bg-destructive/10 hover:text-destructive"
                     data-test="delete-user-button"
-                    >Delete account…</Button
+                    >{{ $t('Delete account…') }}</Button
                 >
             </DialogTrigger>
             <DialogContent>
@@ -52,25 +55,27 @@ const passwordInput = useTemplateRef('passwordInput');
                     v-slot="{ errors, processing, reset, clearErrors }"
                 >
                     <DialogHeader class="space-y-3">
-                        <DialogTitle
-                            >Are you sure you want to delete your
-                            account?</DialogTitle
-                        >
+                        <DialogTitle>{{
+                            $t('Are you sure you want to delete your account?')
+                        }}</DialogTitle>
                         <DialogDescription>
-                            Once your account is deleted, all of its resources
-                            and data will also be permanently deleted. Please
-                            enter your password to confirm you would like to
-                            permanently delete your account.
+                            {{
+                                $t(
+                                    'Once your account is deleted, all of its resources and data will also be permanently deleted. Please enter your password to confirm you would like to permanently delete your account.',
+                                )
+                            }}
                         </DialogDescription>
                     </DialogHeader>
 
                     <div class="grid gap-2">
-                        <Label for="password" class="sr-only">Password</Label>
+                        <Label for="password" class="sr-only">{{
+                            $t('Password')
+                        }}</Label>
                         <PasswordInput
                             id="password"
                             name="password"
                             ref="passwordInput"
-                            placeholder="Password"
+                            :placeholder="$t('Password')"
                         />
                         <InputError :message="errors.password" />
                     </div>
@@ -86,7 +91,7 @@ const passwordInput = useTemplateRef('passwordInput');
                                     }
                                 "
                             >
-                                Cancel
+                                {{ $t('Cancel') }}
                             </Button>
                         </DialogClose>
 
@@ -96,7 +101,7 @@ const passwordInput = useTemplateRef('passwordInput');
                             :disabled="processing"
                             data-test="confirm-delete-user-button"
                         >
-                            Delete account
+                            {{ $t('Delete account') }}
                         </Button>
                     </DialogFooter>
                 </Form>

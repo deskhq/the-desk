@@ -23,7 +23,7 @@ const props = defineProps<{
 </script>
 
 <template>
-    <Head title="Browse channels" />
+    <Head :title="$t('Browse channels')" />
 
     <header
         class="flex shrink-0 items-end gap-4 border-b border-border px-7 pt-5 pb-3.5"
@@ -35,7 +35,7 @@ const props = defineProps<{
             <h1
                 class="truncate font-serif text-[32px] leading-none font-semibold tracking-[-0.02em] text-foreground"
             >
-                Browse channels
+                {{ $t('Browse channels') }}
             </h1>
             <p
                 v-if="props.joinableChannels.length > 0"
@@ -43,9 +43,11 @@ const props = defineProps<{
             >
                 {{ props.joinableChannels.length }}
                 {{
-                    props.joinableChannels.length === 1 ? 'channel' : 'channels'
+                    props.joinableChannels.length === 1
+                        ? $t('channel')
+                        : $t('channels')
                 }}
-                you can join
+                {{ $t('you can join') }}
             </p>
         </div>
         <Link
@@ -53,7 +55,7 @@ const props = defineProps<{
             class="flex shrink-0 items-center gap-1 pb-1 text-[13px] text-muted-foreground hover:text-foreground"
         >
             <ArrowLeft class="size-3.5" />
-            Back
+            {{ $t('Back') }}
         </Link>
     </header>
 
@@ -68,9 +70,9 @@ const props = defineProps<{
                 />
                 <Input
                     type="search"
-                    placeholder="Search channels"
+                    :placeholder="$t('Search channels')"
                     class="h-9 rounded-full border-0 bg-muted pl-10 text-[13.5px]"
-                    aria-label="Search channels"
+                    :aria-label="$t('Search channels')"
                 />
             </div>
 
@@ -78,7 +80,7 @@ const props = defineProps<{
                 v-if="props.joinableChannels.length === 0"
                 class="pt-16 text-center text-sm text-muted-foreground"
             >
-                There are no public channels left to join.
+                {{ $t('There are no public channels left to join.') }}
             </p>
 
             <ul v-else class="mt-2.5 flex flex-col">
@@ -115,7 +117,7 @@ const props = defineProps<{
                             variant="outline"
                             size="sm"
                             class="h-[30px] rounded-full border-primary bg-transparent px-4 text-[12.5px] font-semibold text-primary group-hover:border-primary group-hover:bg-primary group-hover:text-primary-foreground hover:border-primary hover:bg-primary hover:text-primary-foreground"
-                            >Join</Button
+                            >{{ $t('Join') }}</Button
                         >
                     </Form>
                 </li>

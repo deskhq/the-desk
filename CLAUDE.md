@@ -219,6 +219,19 @@ Vue components must have a single root element.
 
 - **Always activate the `tdd` skill when implementing an issue or building a feature.** Drive the work test-first (red → green → refactor): write a failing test that captures the acceptance criterion, make it pass with the minimal change, then refactor. This pairs with the non-negotiable 100% coverage gate below.
 
+## Internationalization (i18n) — never hardcode user-facing copy
+
+- **All user-visible copy must go through the translation layer — never hardcode English in a component, controller, or Blade view.** The message key *is* the English source string (matching Laravel's JSON translation convention), so a missing translation falls back to readable English.
+- **Frontend (Vue):**
+  - In templates, use the global `$t` helper (registered in `resources/js/app.ts`, available in every component with no import): `{{ $t('Save changes') }}`, `:placeholder="$t('Search messages')"`, `:aria-label="$t('Close')"`, `<Head :title="$t('Notifications')" />`.
+  - In `<script setup>`, use `const { t } = useTranslations()` (from `@/composables/useTranslations`). For module-scope contexts like `defineOptions({ layout: { breadcrumbs: [...] } })`, import `translate` from `@/lib/i18n`.
+  - Interpolate dynamic values with Laravel-style `:placeholder` tokens: `$t('Signed in as :name', { name: user.name })`.
+  - Format dates, times, and numbers through the locale-aware helpers in `@/lib/datetime` and `@/lib/numbers` (they default to the active locale) — never call `toLocaleString`/`Intl` with a hardcoded locale.
+  - Keep `data-test` selectors, route names, CSS classes, and other non-visible strings **out** of `$t` — translate only what a user reads.
+- **Backend (PHP/Blade):** wrap user-facing strings in `__('...')` (flash messages, mailables, notifications, any string rendered to the user). Add new keys to the catalogs below.
+- **Catalogs:** English needs no file (keys are English). Add every new key's translation to `lang/fr.json` (and any future locale). The per-user locale lives on `users.locale` (the `App\Enums\AppLocale` enum); `App\Http\Middleware\SetLocale` applies it and inlines the active catalog, and `LocaleCatalogController` serves catalogs for in-app language switching.
+- When adding a new locale, add its enum case in `App\Enums\AppLocale`, its `lang/{locale}.json`, and nothing else — the plumbing picks it up automatically.
+
 ## Frontend Tooling (run through Sail)
 
 - **Always run Node/npm tooling through Sail** — `./vendor/bin/sail npm run <script>`, never bare `npm` on the host. `node_modules` is installed inside the Linux container, so its native bindings (`@unrs/resolver-*`, `@rolldown/binding-*`) are Linux-only. Running `npm run build`, `lint`, etc. directly on macOS fails with `Cannot find native binding` (the npm optional-dependencies bug); Sail runs them in the matching Linux environment where the bindings exist.

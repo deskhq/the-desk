@@ -62,19 +62,28 @@ function lastActive(iso: string): string {
                 <div class="min-w-0 flex-1 space-y-0.5">
                     <div class="flex items-center gap-2">
                         <p class="truncate text-sm font-medium">
-                            {{ session.browser }} on {{ session.platform }}
+                            {{
+                                $t(':browser on :platform', {
+                                    browser: session.browser,
+                                    platform: session.platform,
+                                })
+                            }}
                         </p>
                         <Badge
                             v-if="session.isCurrentDevice"
                             variant="secondary"
                             data-test="current-device-badge"
                         >
-                            This device
+                            {{ $t('This device') }}
                         </Badge>
                     </div>
                     <p class="truncate text-xs text-muted-foreground">
-                        {{ session.ipAddress ?? 'Unknown IP' }} &middot; Last
-                        active {{ lastActive(session.lastActive) }}
+                        {{ session.ipAddress ?? $t('Unknown IP') }} &middot;
+                        {{
+                            $t('Last active :time', {
+                                time: lastActive(session.lastActive),
+                            })
+                        }}
                     </p>
                 </div>
 
@@ -85,7 +94,7 @@ function lastActive(iso: string): string {
                             size="sm"
                             :data-test="`revoke-session-${session.id}`"
                         >
-                            Revoke
+                            {{ $t('Revoke') }}
                         </Button>
                     </DialogTrigger>
                     <DialogContent>
@@ -98,23 +107,27 @@ function lastActive(iso: string): string {
                             v-slot="{ errors, processing, reset, clearErrors }"
                         >
                             <DialogHeader class="space-y-3">
-                                <DialogTitle>Revoke this session?</DialogTitle>
+                                <DialogTitle>{{
+                                    $t('Revoke this session?')
+                                }}</DialogTitle>
                                 <DialogDescription>
-                                    The device signed in with this session will
-                                    be logged out. Enter your password to
-                                    confirm.
+                                    {{
+                                        $t(
+                                            'The device signed in with this session will be logged out. Enter your password to confirm.',
+                                        )
+                                    }}
                                 </DialogDescription>
                             </DialogHeader>
 
                             <div class="grid gap-2">
                                 <Label for="revoke_password" class="sr-only">
-                                    Password
+                                    {{ $t('Password') }}
                                 </Label>
                                 <PasswordInput
                                     id="revoke_password"
                                     name="password"
                                     ref="revokeInput"
-                                    placeholder="Password"
+                                    :placeholder="$t('Password')"
                                 />
                                 <InputError :message="errors.password" />
                             </div>
@@ -130,7 +143,7 @@ function lastActive(iso: string): string {
                                             }
                                         "
                                     >
-                                        Cancel
+                                        {{ $t('Cancel') }}
                                     </Button>
                                 </DialogClose>
 
@@ -140,7 +153,7 @@ function lastActive(iso: string): string {
                                     :disabled="processing"
                                     :data-test="`confirm-revoke-${session.id}`"
                                 >
-                                    Revoke
+                                    {{ $t('Revoke') }}
                                 </Button>
                             </DialogFooter>
                         </Form>
@@ -152,7 +165,7 @@ function lastActive(iso: string): string {
         <Dialog v-if="hasOtherSessions">
             <DialogTrigger as-child>
                 <Button variant="outline" data-test="revoke-others-button">
-                    Log out other devices
+                    {{ $t('Log out other devices') }}
                 </Button>
             </DialogTrigger>
             <DialogContent>
@@ -165,22 +178,27 @@ function lastActive(iso: string): string {
                     v-slot="{ errors, processing, reset, clearErrors }"
                 >
                     <DialogHeader class="space-y-3">
-                        <DialogTitle>Log out other devices?</DialogTitle>
+                        <DialogTitle>{{
+                            $t('Log out other devices?')
+                        }}</DialogTitle>
                         <DialogDescription>
-                            This logs out every session except the one you are
-                            using now. Enter your password to confirm.
+                            {{
+                                $t(
+                                    'This logs out every session except the one you are using now. Enter your password to confirm.',
+                                )
+                            }}
                         </DialogDescription>
                     </DialogHeader>
 
                     <div class="grid gap-2">
                         <Label for="revoke_others_password" class="sr-only">
-                            Password
+                            {{ $t('Password') }}
                         </Label>
                         <PasswordInput
                             id="revoke_others_password"
                             name="password"
                             ref="revokeOthersInput"
-                            placeholder="Password"
+                            :placeholder="$t('Password')"
                         />
                         <InputError :message="errors.password" />
                     </div>
@@ -196,7 +214,7 @@ function lastActive(iso: string): string {
                                     }
                                 "
                             >
-                                Cancel
+                                {{ $t('Cancel') }}
                             </Button>
                         </DialogClose>
 
@@ -206,7 +224,7 @@ function lastActive(iso: string): string {
                             :disabled="processing"
                             data-test="confirm-revoke-others"
                         >
-                            Log out other devices
+                            {{ $t('Log out other devices') }}
                         </Button>
                     </DialogFooter>
                 </Form>

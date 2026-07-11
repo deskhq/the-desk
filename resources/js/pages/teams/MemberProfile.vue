@@ -6,6 +6,7 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { useInitials } from '@/composables/useInitials';
 import { formatLocalTime } from '@/lib/datetime';
+import { translate } from '@/lib/i18n';
 import { edit, index } from '@/routes/teams';
 import type { Team, UserProfile } from '@/types';
 
@@ -25,7 +26,7 @@ defineOptions({
     }) => ({
         breadcrumbs: [
             {
-                title: 'Teams',
+                title: translate('Teams'),
                 href: index(),
             },
             {
@@ -78,8 +79,8 @@ const localTime = computed(() =>
     <div class="flex flex-col space-y-6">
         <Heading
             variant="small"
-            title="Profile"
-            :description="`Member of ${team.name}`"
+            :title="$t('Profile')"
+            :description="$t('Member of :name', { name: team.name })"
         />
 
         <div
@@ -100,9 +101,9 @@ const localTime = computed(() =>
                             class="text-sm text-muted-foreground"
                             >{{ profile.pronouns }}</span
                         >
-                        <Badge v-if="profile.isYou" variant="secondary"
-                            >You</Badge
-                        >
+                        <Badge v-if="profile.isYou" variant="secondary">{{
+                            $t('You')
+                        }}</Badge>
                         <Badge v-if="profile.roleLabel" variant="outline">
                             {{ profile.roleLabel }}
                         </Badge>
@@ -117,7 +118,7 @@ const localTime = computed(() =>
 
                 <dl class="grid gap-3 text-sm sm:grid-cols-2">
                     <div>
-                        <dt class="text-muted-foreground">Email</dt>
+                        <dt class="text-muted-foreground">{{ $t('Email') }}</dt>
                         <dd class="mt-0.5">
                             <a
                                 :href="`mailto:${profile.email}`"
@@ -127,7 +128,7 @@ const localTime = computed(() =>
                         </dd>
                     </div>
                     <div v-if="profile.phone">
-                        <dt class="text-muted-foreground">Phone</dt>
+                        <dt class="text-muted-foreground">{{ $t('Phone') }}</dt>
                         <dd class="mt-0.5">
                             <a
                                 :href="`tel:${profile.phone}`"
@@ -137,7 +138,9 @@ const localTime = computed(() =>
                         </dd>
                     </div>
                     <div v-if="localTime">
-                        <dt class="text-muted-foreground">Local time</dt>
+                        <dt class="text-muted-foreground">
+                            {{ $t('Local time') }}
+                        </dt>
                         <dd class="mt-0.5">
                             {{ localTime }}
                             <span class="text-muted-foreground"
@@ -146,7 +149,9 @@ const localTime = computed(() =>
                         </dd>
                     </div>
                     <div v-if="memberSince">
-                        <dt class="text-muted-foreground">Member since</dt>
+                        <dt class="text-muted-foreground">
+                            {{ $t('Member since') }}
+                        </dt>
                         <dd class="mt-0.5">{{ memberSince }}</dd>
                     </div>
                 </dl>

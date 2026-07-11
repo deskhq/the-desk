@@ -1,6 +1,11 @@
 <?php
 
 use App\Enums\AuditAction;
+use Tests\TestCase;
+
+// The labels/descriptions are localized via __(), which resolves against the
+// framework's translator, so these tests boot the application container.
+uses(TestCase::class);
 
 test('every action describes itself from context', function (AuditAction $action) {
     $context = [

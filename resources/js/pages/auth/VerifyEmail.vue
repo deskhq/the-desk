@@ -3,14 +3,16 @@ import { Form, Head, Link } from '@inertiajs/vue3';
 import AuthStatus from '@/components/AuthStatus.vue';
 import { Button } from '@/components/ui/button';
 import { Spinner } from '@/components/ui/spinner';
+import { translate } from '@/lib/i18n';
 import { logout } from '@/routes';
 import { send } from '@/routes/verification';
 
 defineOptions({
     layout: {
-        title: 'Check your email',
-        description:
+        title: translate('Check your email'),
+        description: translate(
             'Please verify your email address by clicking on the link we just emailed to you.',
+        ),
         icon: 'mail',
     },
 });
@@ -21,11 +23,14 @@ defineProps<{
 </script>
 
 <template>
-    <Head title="Email verification" />
+    <Head :title="$t('Email verification')" />
 
     <AuthStatus v-if="status === 'verification-link-sent'" class="mb-5">
-        A new verification link has been sent to the email address you provided
-        during registration.
+        {{
+            $t(
+                'A new verification link has been sent to the email address you provided during registration.',
+            )
+        }}
     </AuthStatus>
 
     <Form
@@ -39,7 +44,7 @@ defineProps<{
             class="w-full rounded-full bg-muted hover:bg-accent"
         >
             <Spinner v-if="processing" />
-            Resend verification email
+            {{ $t('Resend verification email') }}
         </Button>
 
         <Link
@@ -47,7 +52,7 @@ defineProps<{
             as="button"
             class="text-sm text-muted-foreground underline decoration-input underline-offset-4 transition-colors hover:text-foreground"
         >
-            Log out
+            {{ $t('Log out') }}
         </Link>
     </Form>
 </template>

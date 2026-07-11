@@ -31,7 +31,7 @@ const name = page.props.name;
                         v-if="icon === 'logo'"
                         :href="home()"
                         class="inline-flex"
-                        aria-label="Home"
+                        :aria-label="$t('Home')"
                     >
                         <AppLogoIcon class="size-8 text-foreground" />
                     </Link>
@@ -67,7 +67,7 @@ const name = page.props.name;
             >
                 <span class="font-serif italic">{{ name }}</span>
                 <span>&middot;</span>
-                <span>Team chat, quietly done</span>
+                <span>{{ $t('Team chat, quietly done') }}</span>
             </div>
         </div>
     </div>

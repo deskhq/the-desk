@@ -59,35 +59,37 @@ function handleOpenChange(value: boolean) {
                 @success="emit('update:open', false)"
             >
                 <DialogHeader>
-                    <DialogTitle>Invite a team member</DialogTitle>
+                    <DialogTitle>{{ $t('Invite a team member') }}</DialogTitle>
                     <DialogDescription>
-                        Send an invitation to join this team.
+                        {{ $t('Send an invitation to join this team.') }}
                     </DialogDescription>
                 </DialogHeader>
 
                 <div class="grid gap-4">
                     <div class="grid gap-2">
-                        <Label for="email">Email address</Label>
+                        <Label for="email">{{ $t('Email address') }}</Label>
                         <Input
                             id="email"
                             name="email"
                             data-test="invite-email"
                             type="email"
-                            placeholder="colleague@example.com"
+                            :placeholder="$t('colleague@example.com')"
                             required
                         />
                         <InputError :message="errors.email" />
                     </div>
 
                     <div class="grid gap-2">
-                        <Label for="role">Role</Label>
+                        <Label for="role">{{ $t('Role') }}</Label>
                         <Select
                             v-model="inviteRole"
                             name="role"
                             data-test="invite-role"
                         >
                             <SelectTrigger class="w-full">
-                                <SelectValue placeholder="Select a role" />
+                                <SelectValue
+                                    :placeholder="$t('Select a role')"
+                                />
                             </SelectTrigger>
                             <SelectContent>
                                 <SelectItem
@@ -105,7 +107,9 @@ function handleOpenChange(value: boolean) {
 
                 <DialogFooter class="gap-2">
                     <DialogClose as-child>
-                        <Button variant="secondary"> Cancel </Button>
+                        <Button variant="secondary">
+                            {{ $t('Cancel') }}
+                        </Button>
                     </DialogClose>
 
                     <Button
@@ -113,7 +117,7 @@ function handleOpenChange(value: boolean) {
                         data-test="invite-submit"
                         :disabled="processing"
                     >
-                        Send invitation
+                        {{ $t('Send invitation') }}
                     </Button>
                 </DialogFooter>
             </Form>

@@ -55,10 +55,13 @@ const handleOpenChange = (nextOpen: boolean) => {
                 @success="handleOpenChange(false)"
             >
                 <DialogHeader>
-                    <DialogTitle>Are you sure?</DialogTitle>
+                    <DialogTitle>{{ $t('Are you sure?') }}</DialogTitle>
                     <DialogDescription>
-                        This action cannot be undone. This will permanently
-                        delete the team
+                        {{
+                            $t(
+                                'This action cannot be undone. This will permanently delete the team',
+                            )
+                        }}
                         <strong>"{{ props.team.name }}"</strong>.
                     </DialogDescription>
                 </DialogHeader>
@@ -66,15 +69,16 @@ const handleOpenChange = (nextOpen: boolean) => {
                 <div class="space-y-4 py-4">
                     <div class="grid gap-2">
                         <Label for="confirmation-name">
-                            Type
-                            <strong>"{{ props.team.name }}"</strong> to confirm
+                            {{ $t('Type') }}
+                            <strong>"{{ props.team.name }}"</strong>
+                            {{ $t('to confirm') }}
                         </Label>
                         <Input
                             id="confirmation-name"
                             name="name"
                             data-test="delete-team-name"
                             v-model="confirmationName"
-                            placeholder="Enter team name"
+                            :placeholder="$t('Enter team name')"
                             autocomplete="off"
                         />
                         <InputError :message="errors.name" />

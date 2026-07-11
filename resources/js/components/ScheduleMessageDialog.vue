@@ -20,6 +20,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
+import { translate } from '@/lib/i18n';
 import {
     formatScheduledFor,
     isSendAtInFuture,
@@ -43,8 +44,8 @@ const props = withDefaults(
     }>(),
     {
         initialSendAt: null,
-        title: 'Schedule message',
-        confirmLabel: 'Schedule',
+        title: translate('Schedule message'),
+        confirmLabel: translate('Schedule'),
     },
 );
 
@@ -175,8 +176,11 @@ function confirm(): void {
             <DialogHeader>
                 <DialogTitle>{{ props.title }}</DialogTitle>
                 <DialogDescription>
-                    Pick when this message should be sent. Times are in your
-                    timezone.
+                    {{
+                        $t(
+                            'Pick when this message should be sent. Times are in your timezone.',
+                        )
+                    }}
                 </DialogDescription>
             </DialogHeader>
 
@@ -196,7 +200,7 @@ function confirm(): void {
                     "
                     @click="choosePreset(preset)"
                 >
-                    <span class="truncate">{{ preset.label }}</span>
+                    <span class="truncate">{{ $t(preset.label) }}</span>
                     <Check
                         v-if="preset.key === activePresetKey"
                         class="size-4 shrink-0 text-primary"
@@ -208,7 +212,7 @@ function confirm(): void {
                 <p
                     class="border-b border-border px-3 py-1.5 text-[12px] font-medium text-muted-foreground"
                 >
-                    Or pick a date &amp; time
+                    {{ $t('Or pick a date & time') }}
                 </p>
                 <Calendar
                     v-model="dateValue"
@@ -273,19 +277,19 @@ function confirm(): void {
                 class="flex items-center gap-1.5 text-[13px] text-muted-foreground"
             >
                 <Clock class="size-3.5 shrink-0" />
-                Sends {{ preview }}
+                {{ $t('Sends :when', { when: preview }) }}
             </p>
             <p
                 v-else-if="preview"
                 data-test="schedule-past"
                 class="text-[13px] text-destructive"
             >
-                Pick a time in the future.
+                {{ $t('Pick a time in the future.') }}
             </p>
 
             <DialogFooter class="gap-2">
                 <Button variant="secondary" @click="open = false">
-                    Cancel
+                    {{ $t('Cancel') }}
                 </Button>
                 <Button
                     data-test="schedule-confirm"

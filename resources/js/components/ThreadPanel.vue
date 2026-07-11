@@ -112,15 +112,18 @@ watch(
                 <h2
                     class="font-serif text-[19px] leading-[1.1] font-semibold text-foreground"
                 >
-                    Thread
+                    {{ $t('Thread') }}
                 </h2>
                 <p
                     data-test="thread-reply-count"
                     class="mt-0.5 text-[11.5px] text-muted-foreground"
                 >
                     <template v-if="replyCount > 0"
-                        >{{ replyCount }}
-                        {{ replyCount === 1 ? 'reply' : 'replies' }}
+                        >{{
+                            replyCount === 1
+                                ? $t(':count reply', { count: replyCount })
+                                : $t(':count replies', { count: replyCount })
+                        }}
                         · </template
                     >#{{ props.channelName }}
                 </p>
@@ -128,7 +131,7 @@ watch(
             <button
                 type="button"
                 data-test="thread-close"
-                aria-label="Close thread"
+                :aria-label="$t('Close thread')"
                 class="flex size-[26px] shrink-0 items-center justify-center rounded-lg border border-border text-muted-foreground hover:bg-muted hover:text-foreground"
                 @click="emit('close')"
             >
@@ -205,8 +208,10 @@ watch(
                     :data-new-count="newMessageCount"
                     :aria-label="
                         newMessageCount > 0
-                            ? `${newMessageCount} new replies, jump to latest`
-                            : 'Jump to latest reply'
+                            ? $t(':count new replies, jump to latest', {
+                                  count: newMessageCount,
+                              })
+                            : $t('Jump to latest reply')
                     "
                     class="absolute right-4 bottom-4 z-10 inline-flex items-center gap-1.5 rounded-full shadow-md transition-colors"
                     :class="
@@ -218,8 +223,15 @@ watch(
                 >
                     <ChevronDown class="size-4 shrink-0" />
                     <span v-if="newMessageCount > 0">
-                        {{ newMessageCount }} new
-                        {{ newMessageCount === 1 ? 'reply' : 'replies' }}
+                        {{
+                            newMessageCount === 1
+                                ? $t(':count new reply', {
+                                      count: newMessageCount,
+                                  })
+                                : $t(':count new replies', {
+                                      count: newMessageCount,
+                                  })
+                        }}
                     </span>
                 </button>
             </Transition>
@@ -231,7 +243,7 @@ watch(
             :key="root?.id"
             :channel-name="props.channelName"
             :members="props.members"
-            placeholder="Reply…"
+            :placeholder="$t('Reply…')"
             allow-send-to-channel
             autofocus
             @send="

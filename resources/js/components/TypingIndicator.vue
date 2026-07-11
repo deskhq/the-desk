@@ -1,9 +1,12 @@
 <script setup lang="ts">
 import { computed } from 'vue';
+import { useTranslations } from '@/composables/useTranslations';
 
 const props = defineProps<{
     names: string[];
 }>();
+
+const { t } = useTranslations();
 
 /**
  * Human-readable summary of who is typing: one or two names by name, and a
@@ -13,14 +16,14 @@ const label = computed<string>(() => {
     const [first, second] = props.names;
 
     if (props.names.length === 1) {
-        return `${first} is typing`;
+        return t(':name is typing', { name: first });
     }
 
     if (props.names.length === 2) {
-        return `${first} and ${second} are typing`;
+        return t(':first and :second are typing', { first, second });
     }
 
-    return 'Several people are typing';
+    return t('Several people are typing');
 });
 </script>
 

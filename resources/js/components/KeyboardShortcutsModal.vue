@@ -17,9 +17,13 @@ const groups = shortcutsByCategory();
     <Dialog v-model:open="open">
         <DialogContent data-test="keyboard-shortcuts-modal" class="sm:max-w-md">
             <DialogHeader>
-                <DialogTitle>Keyboard shortcuts</DialogTitle>
+                <DialogTitle>{{ $t('Keyboard shortcuts') }}</DialogTitle>
                 <DialogDescription>
-                    Speed up navigation without reaching for the mouse.
+                    {{
+                        $t(
+                            'Speed up navigation without reaching for the mouse.',
+                        )
+                    }}
                 </DialogDescription>
             </DialogHeader>
 
@@ -28,7 +32,7 @@ const groups = shortcutsByCategory();
                     <p
                         class="mb-2 text-[11px] font-semibold tracking-[0.06em] text-muted-foreground uppercase"
                     >
-                        {{ group.category }}
+                        {{ $t(group.category) }}
                     </p>
                     <ul class="grid gap-1.5">
                         <li
@@ -38,7 +42,7 @@ const groups = shortcutsByCategory();
                             class="flex items-center justify-between gap-4 text-sm"
                         >
                             <span class="text-foreground/90">{{
-                                shortcut.description
+                                $t(shortcut.description)
                             }}</span>
                             <span class="flex shrink-0 items-center gap-1">
                                 <kbd

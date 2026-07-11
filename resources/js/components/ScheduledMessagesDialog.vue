@@ -104,10 +104,13 @@ function bodyPreview(body: string): string {
     <Dialog v-model:open="open">
         <DialogContent class="gap-4 sm:max-w-lg">
             <DialogHeader>
-                <DialogTitle>Scheduled messages</DialogTitle>
+                <DialogTitle>{{ $t('Scheduled messages') }}</DialogTitle>
                 <DialogDescription>
-                    Messages waiting to be sent to this channel. Edit or cancel
-                    any that haven't gone out yet.
+                    {{
+                        $t(
+                            "Messages waiting to be sent to this channel. Edit or cancel any that haven't gone out yet.",
+                        )
+                    }}
                 </DialogDescription>
             </DialogHeader>
 
@@ -148,7 +151,7 @@ function bodyPreview(body: string): string {
                                     class="h-7"
                                     @click="cancelEdit"
                                 >
-                                    Discard
+                                    {{ $t('Discard') }}
                                 </Button>
                                 <Button
                                     size="sm"
@@ -157,7 +160,7 @@ function bodyPreview(body: string): string {
                                     :disabled="!canSave"
                                     @click="saveEdit"
                                 >
-                                    Save
+                                    {{ $t('Save') }}
                                 </Button>
                             </div>
                         </div>
@@ -187,7 +190,7 @@ function bodyPreview(body: string): string {
                             <div class="flex items-center gap-1">
                                 <button
                                     type="button"
-                                    aria-label="Edit scheduled message"
+                                    :aria-label="$t('Edit scheduled message')"
                                     data-test="scheduled-edit"
                                     class="rounded p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground"
                                     @click="startEdit(scheduled)"
@@ -196,7 +199,7 @@ function bodyPreview(body: string): string {
                                 </button>
                                 <button
                                     type="button"
-                                    aria-label="Cancel scheduled message"
+                                    :aria-label="$t('Cancel scheduled message')"
                                     data-test="scheduled-cancel"
                                     class="rounded p-1.5 text-muted-foreground hover:bg-muted hover:text-destructive"
                                     @click="cancelSend(scheduled)"
@@ -214,7 +217,7 @@ function bodyPreview(body: string): string {
                 data-test="scheduled-empty"
                 class="py-6 text-center text-[13px] text-muted-foreground"
             >
-                You have no messages scheduled for this channel.
+                {{ $t('You have no messages scheduled for this channel.') }}
             </p>
         </DialogContent>
     </Dialog>
@@ -223,8 +226,8 @@ function bodyPreview(body: string): string {
         v-model:open="rescheduling"
         :timezone="props.timezone"
         :initial-send-at="editSendAt"
-        title="Reschedule message"
-        confirm-label="Reschedule"
+        :title="$t('Reschedule message')"
+        :confirm-label="$t('Reschedule')"
         @confirm="onRescheduled"
     />
 </template>

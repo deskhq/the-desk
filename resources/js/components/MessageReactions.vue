@@ -95,7 +95,9 @@ function toggle(emoji: string): void {
                     }}</span>
                     <p class="text-[12.5px] leading-snug text-foreground">
                         <span class="font-medium">{{ roster(reaction) }}</span>
-                        <span class="text-muted-foreground"> reacted</span>
+                        <span class="text-muted-foreground">
+                            {{ ' ' + $t('reacted') }}</span
+                        >
                     </p>
                 </div>
             </HoverCardContent>
@@ -108,7 +110,7 @@ function toggle(emoji: string): void {
             <button
                 type="button"
                 data-test="add-reaction"
-                aria-label="Add reaction"
+                :aria-label="$t('Add reaction')"
                 class="inline-flex items-center rounded-full border border-border bg-muted/40 p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
             >
                 <SmilePlus class="size-3.5" />

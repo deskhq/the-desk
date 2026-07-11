@@ -56,15 +56,15 @@ function handleOpenChange(value: boolean) {
                 @success="open = false"
             >
                 <DialogHeader>
-                    <DialogTitle>Create a channel</DialogTitle>
+                    <DialogTitle>{{ $t('Create a channel') }}</DialogTitle>
                     <DialogDescription>
-                        Channels are where your team communicates.
+                        {{ $t('Channels are where your team communicates.') }}
                     </DialogDescription>
                 </DialogHeader>
 
                 <div class="grid gap-4">
                     <div class="grid gap-2">
-                        <Label for="name">Name</Label>
+                        <Label for="name">{{ $t('Name') }}</Label>
                         <div class="relative">
                             <span
                                 aria-hidden="true"
@@ -75,7 +75,7 @@ function handleOpenChange(value: boolean) {
                                 id="name"
                                 name="name"
                                 data-test="create-channel-name"
-                                placeholder="marketing"
+                                :placeholder="$t('marketing')"
                                 class="pl-7"
                                 required
                             />
@@ -84,30 +84,36 @@ function handleOpenChange(value: boolean) {
                     </div>
 
                     <div class="grid gap-2">
-                        <Label for="visibility">Visibility</Label>
+                        <Label for="visibility">{{ $t('Visibility') }}</Label>
                         <Select
                             v-model="visibility"
                             name="visibility"
                             data-test="create-channel-visibility"
                         >
                             <SelectTrigger class="w-full">
-                                <SelectValue placeholder="Select visibility" />
+                                <SelectValue
+                                    :placeholder="$t('Select visibility')"
+                                />
                             </SelectTrigger>
                             <SelectContent>
-                                <SelectItem value="public">Public</SelectItem>
-                                <SelectItem value="private">Private</SelectItem>
+                                <SelectItem value="public">{{
+                                    $t('Public')
+                                }}</SelectItem>
+                                <SelectItem value="private">{{
+                                    $t('Private')
+                                }}</SelectItem>
                             </SelectContent>
                         </Select>
                         <InputError :message="errors.visibility" />
                     </div>
 
                     <div class="grid gap-2">
-                        <Label for="topic">Topic (optional)</Label>
+                        <Label for="topic">{{ $t('Topic (optional)') }}</Label>
                         <Input
                             id="topic"
                             name="topic"
                             data-test="create-channel-topic"
-                            placeholder="What's this channel about?"
+                            :placeholder="$t('What\'s this channel about?')"
                         />
                         <InputError :message="errors.topic" />
                     </div>
@@ -115,7 +121,9 @@ function handleOpenChange(value: boolean) {
 
                 <DialogFooter class="gap-2">
                     <DialogClose as-child>
-                        <Button variant="secondary"> Cancel </Button>
+                        <Button variant="secondary">
+                            {{ $t('Cancel') }}
+                        </Button>
                     </DialogClose>
 
                     <Button
@@ -123,7 +131,7 @@ function handleOpenChange(value: boolean) {
                         data-test="create-channel-submit"
                         :disabled="processing"
                     >
-                        Create channel
+                        {{ $t('Create channel') }}
                     </Button>
                 </DialogFooter>
             </Form>

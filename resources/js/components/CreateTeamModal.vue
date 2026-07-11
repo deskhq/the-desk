@@ -43,19 +43,21 @@ function handleOpenChange(value: boolean) {
                 @success="open = false"
             >
                 <DialogHeader>
-                    <DialogTitle>Create a new team</DialogTitle>
+                    <DialogTitle>{{ $t('Create a new team') }}</DialogTitle>
                     <DialogDescription>
-                        Create a new team to collaborate with others.
+                        {{
+                            $t('Create a new team to collaborate with others.')
+                        }}
                     </DialogDescription>
                 </DialogHeader>
 
                 <div class="grid gap-2">
-                    <Label for="name">Team name</Label>
+                    <Label for="name">{{ $t('Team name') }}</Label>
                     <Input
                         id="name"
                         name="name"
                         data-test="create-team-name"
-                        placeholder="My team"
+                        :placeholder="$t('My team')"
                         required
                     />
                     <InputError :message="errors.name" />
@@ -63,7 +65,9 @@ function handleOpenChange(value: boolean) {
 
                 <DialogFooter class="gap-2">
                     <DialogClose as-child>
-                        <Button variant="secondary"> Cancel </Button>
+                        <Button variant="secondary">
+                            {{ $t('Cancel') }}
+                        </Button>
                     </DialogClose>
 
                     <Button
@@ -71,7 +75,7 @@ function handleOpenChange(value: boolean) {
                         data-test="create-team-submit"
                         :disabled="processing"
                     >
-                        Create team
+                        {{ $t('Create team') }}
                     </Button>
                 </DialogFooter>
             </Form>

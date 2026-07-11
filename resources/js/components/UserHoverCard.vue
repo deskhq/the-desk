@@ -85,7 +85,7 @@ function onMention(): void {
                         <span
                             data-test="hover-card-presence"
                             :data-online="online === true"
-                            :aria-label="online ? 'Online' : 'Offline'"
+                            :aria-label="online ? $t('Online') : $t('Offline')"
                             class="absolute right-0 bottom-0 size-3 rounded-full ring-[2.5px] ring-popover"
                             :class="
                                 online
@@ -125,7 +125,7 @@ function onMention(): void {
                             <span
                                 v-if="localTime()"
                                 class="text-xs text-muted-foreground"
-                                >{{ localTime() }} local time</span
+                                >{{ localTime() }} {{ $t('local time') }}</span
                             >
                         </div>
                     </div>
@@ -138,7 +138,7 @@ function onMention(): void {
                         data-test="hover-card-mention"
                         @click="onMention"
                     >
-                        <AtSign class="size-4" /> Mention
+                        <AtSign class="size-4" /> {{ $t('Mention') }}
                     </Button>
                     <Button
                         variant="outline"
@@ -147,7 +147,8 @@ function onMention(): void {
                         as-child
                     >
                         <Link :href="show([teamSlug, userId])">
-                            <UserRound class="size-4" /> View profile
+                            <UserRound class="size-4" />
+                            {{ $t('View profile') }}
                         </Link>
                     </Button>
                 </div>

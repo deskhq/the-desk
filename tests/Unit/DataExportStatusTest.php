@@ -1,6 +1,11 @@
 <?php
 
 use App\Enums\DataExportStatus;
+use Tests\TestCase;
+
+// Labels are localized via __(), which resolves against the framework's
+// translator, so these tests boot the application container.
+uses(TestCase::class);
 
 test('every status has a non-empty label', function (DataExportStatus $status) {
     expect($status->label())->toBeString()->not->toBeEmpty();

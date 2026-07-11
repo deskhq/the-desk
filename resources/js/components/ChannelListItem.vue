@@ -14,6 +14,7 @@ import {
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { SidebarMenuButton, SidebarMenuItem } from '@/components/ui/sidebar';
+import { useTranslations } from '@/composables/useTranslations';
 import type { Channel, ChannelSection } from '@/types/channels';
 
 const props = defineProps<{
@@ -39,6 +40,8 @@ const emit = defineEmits<{
 // menu item doesn't dismiss the row's actions mid-interaction.
 const menuOpen = ref(false);
 
+const { t } = useTranslations();
+
 /**
  * Star or unstar the channel, reloading only the shared `channels` prop so the
  * sidebar re-partitions between the "Starred" and "Channels" sections.
@@ -55,7 +58,9 @@ function toggleStar(): void {
             preserveState: true,
             only: ['channels'],
             onError: () => {
-                toast.error('Failed to update the channel. Please try again.');
+                toast.error(
+                    t('Failed to update the channel. Please try again.'),
+                );
             },
         },
     );
@@ -106,7 +111,11 @@ function toggleStar(): void {
                     v-if="channel.mentionCount > 0"
                     data-test="mention-badge"
                     class="ml-auto flex h-[17px] min-w-[18px] items-center justify-center rounded-full bg-brass px-1.5 text-[10px] font-bold text-brass-foreground tabular-nums"
-                    :aria-label="`${channel.mentionCount} unread mentions`"
+                    :aria-label="
+                        $t(':count unread mentions', {
+                            count: channel.mentionCount,
+                        })
+                    "
                     >{{ channel.mentionCount }}</span
                 >
                 <span
@@ -115,10 +124,10 @@ function toggleStar(): void {
                     "
                     data-test="draft-indicator"
                     class="ml-auto inline-flex items-center gap-1 text-[10px] font-semibold tracking-[0.04em] text-amber-500 uppercase"
-                    aria-label="Draft saved"
+                    :aria-label="$t('Draft saved')"
                 >
                     <Pencil class="size-3" />
-                    Draft
+                    {{ $t('Draft') }}
                 </span>
                 <span
                     v-else-if="channel.unreadCount > 0"
@@ -139,10 +148,10 @@ function toggleStar(): void {
             :aria-pressed="channel.starred"
             :aria-label="
                 channel.starred
-                    ? `Unstar ${channel.name}`
-                    : `Star ${channel.name}`
+                    ? $t('Unstar :channel', { channel: channel.name })
+                    : $t('Star :channel', { channel: channel.name })
             "
-            :title="channel.starred ? 'Unstar channel' : 'Star channel'"
+            :title="channel.starred ? $t('Unstar channel') : $t('Star channel')"
             class="absolute top-1/2 left-1 z-10 flex size-5 -translate-y-1/2 items-center justify-center rounded text-muted-foreground/60 opacity-70 transition hover:text-brass hover:opacity-100 data-[starred=true]:text-brass data-[starred=true]:opacity-100"
             @click="toggleStar"
         >
@@ -162,8 +171,8 @@ function toggleStar(): void {
             <button
                 type="button"
                 :data-test="`channel-drag-handle-${channel.slug}`"
-                :aria-label="`Reorder ${channel.name}`"
-                title="Drag to reorder"
+                :aria-label="$t('Reorder :channel', { channel: channel.name })"
+                :title="$t('Drag to reorder')"
                 class="channel-drag-handle flex size-5 cursor-grab items-center justify-center rounded text-muted-foreground/60 transition group-data-[active=true]/row:text-sidebar-primary-foreground/70 hover:text-sidebar-foreground group-data-[active=true]/row:hover:text-sidebar-primary-foreground active:cursor-grabbing"
             >
                 <GripVertical class="size-3.5" />
@@ -176,15 +185,19 @@ function toggleStar(): void {
                     <button
                         type="button"
                         :data-test="`channel-menu-${channel.slug}`"
-                        :aria-label="`Channel options for ${channel.name}`"
-                        title="More options"
+                        :aria-label="
+                            $t('Channel options for :channel', {
+                                channel: channel.name,
+                            })
+                        "
+                        :title="$t('More options')"
                         class="flex size-5 items-center justify-center rounded text-muted-foreground/60 transition group-data-[active=true]/row:text-sidebar-primary-foreground/70 hover:text-sidebar-foreground group-data-[active=true]/row:hover:text-sidebar-primary-foreground data-[state=open]:text-sidebar-foreground"
                     >
                         <MoreVertical class="size-3.5" />
                     </button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" class="w-52">
-                    <DropdownMenuLabel>Move to</DropdownMenuLabel>
+                    <DropdownMenuLabel>{{ $t('Move to') }}</DropdownMenuLabel>
                     <DropdownMenuItem
                         v-for="section in sections"
                         :key="section.id"
@@ -200,7 +213,7 @@ function toggleStar(): void {
                         data-test="move-to-default"
                         @select="emit('move', null)"
                     >
-                        Channels
+                        {{ $t('Channels') }}
                     </DropdownMenuItem>
                 </DropdownMenuContent>
             </DropdownMenu>

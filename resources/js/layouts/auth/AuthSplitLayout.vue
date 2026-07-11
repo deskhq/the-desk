@@ -35,7 +35,7 @@ defineProps<{
                 <p
                     class="max-w-sm font-serif text-2xl leading-snug text-primary-foreground/90 italic dark:text-card-foreground/90"
                 >
-                    Where your team&rsquo;s conversations come together.
+                    {{ $t('Where your team’s conversations come together.') }}
                 </p>
             </blockquote>
         </div>

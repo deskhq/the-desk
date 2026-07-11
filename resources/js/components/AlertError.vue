@@ -2,6 +2,7 @@
 import { AlertCircle } from '@lucide/vue';
 import { computed } from 'vue';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { translate } from '@/lib/i18n';
 
 type Props = {
     errors: string[];
@@ -9,7 +10,7 @@ type Props = {
 };
 
 const props = withDefaults(defineProps<Props>(), {
-    title: 'Something went wrong.',
+    title: translate('Something went wrong.'),
 });
 
 const uniqueErrors = computed(() => Array.from(new Set(props.errors)));

@@ -27,6 +27,8 @@ import {
     TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { useInitials } from '@/composables/useInitials';
+import { useTranslations } from '@/composables/useTranslations';
+import { translate } from '@/lib/i18n';
 import { edit, index, update } from '@/routes/teams';
 import { index as auditIndex } from '@/routes/teams/audit';
 import {
@@ -55,7 +57,7 @@ defineOptions({
     layout: (props: { team: Team }) => ({
         breadcrumbs: [
             {
-                title: 'Teams',
+                title: translate('Teams'),
                 href: index(),
             },
             {
@@ -67,6 +69,7 @@ defineOptions({
 });
 
 const { getInitials } = useInitials();
+const { t } = useTranslations();
 
 const inviteDialogOpen = ref(false);
 const deleteDialogOpen = ref(false);
@@ -79,8 +82,8 @@ const invitationToCancel = ref<TeamInvitation | null>(null);
 
 const pageTitle = computed(() =>
     props.permissions.canUpdateTeam
-        ? `Edit ${props.team.name}`
-        : `View ${props.team.name}`,
+        ? t('Edit :name', { name: props.team.name })
+        : t('View :name', { name: props.team.name }),
 );
 
 const updateMemberRole = (member: TeamMember, newRole: string) => {
@@ -116,8 +119,8 @@ const confirmTransferOwnership = (member: TeamMember) => {
         <div v-if="permissions.canUpdateTeam" class="space-y-6">
             <Heading
                 variant="small"
-                title="Team settings"
-                description="Update your team name and settings"
+                :title="$t('Team settings')"
+                :description="$t('Update your team name and settings')"
             />
 
             <Form
@@ -126,7 +129,7 @@ const confirmTransferOwnership = (member: TeamMember) => {
                 v-slot="{ errors, processing }"
             >
                 <div class="grid gap-2">
-                    <Label for="name">Team name</Label>
+                    <Label for="name">{{ $t('Team name') }}</Label>
                     <Input
                         id="name"
                         name="name"
@@ -144,7 +147,7 @@ const confirmTransferOwnership = (member: TeamMember) => {
                         data-test="team-save-button"
                         :disabled="processing"
                     >
-                        Save
+                        {{ $t('Save') }}
                     </Button>
                 </div>
             </Form>
@@ -159,10 +162,10 @@ const confirmTransferOwnership = (member: TeamMember) => {
             <div class="flex items-center justify-between">
                 <Heading
                     variant="small"
-                    title="Team members"
+                    :title="$t('Team members')"
                     :description="
                         permissions.canCreateInvitation
-                            ? 'Manage who belongs to this team'
+                            ? $t('Manage who belongs to this team')
                             : ''
                     "
                 />
@@ -173,7 +176,7 @@ const confirmTransferOwnership = (member: TeamMember) => {
                     data-test="invite-member-button"
                     @click="inviteDialogOpen = true"
                 >
-                    <UserPlus /> Invite member
+                    <UserPlus /> {{ $t('Invite member') }}
                 </Button>
             </div>
 
@@ -265,7 +268,7 @@ const confirmTransferOwnership = (member: TeamMember) => {
                                     </Button>
                                 </TooltipTrigger>
                                 <TooltipContent>
-                                    <p>Transfer ownership</p>
+                                    <p>{{ $t('Transfer ownership') }}</p>
                                 </TooltipContent>
                             </Tooltip>
                         </TooltipProvider>
@@ -288,7 +291,7 @@ const confirmTransferOwnership = (member: TeamMember) => {
                                     </Button>
                                 </TooltipTrigger>
                                 <TooltipContent>
-                                    <p>Remove member</p>
+                                    <p>{{ $t('Remove member') }}</p>
                                 </TooltipContent>
                             </Tooltip>
                         </TooltipProvider>
@@ -301,8 +304,8 @@ const confirmTransferOwnership = (member: TeamMember) => {
         <div v-if="invitations.length > 0" class="space-y-6">
             <Heading
                 variant="small"
-                title="Pending invitations"
-                description="Invitations that haven't been accepted yet"
+                :title="$t('Pending invitations')"
+                :description="$t('Invitations that haven\'t been accepted yet')"
             />
 
             <div class="space-y-3">
@@ -341,7 +344,7 @@ const confirmTransferOwnership = (member: TeamMember) => {
                                 </Button>
                             </TooltipTrigger>
                             <TooltipContent>
-                                <p>Cancel invitation</p>
+                                <p>{{ $t('Cancel invitation') }}</p>
                             </TooltipContent>
                         </Tooltip>
                     </TooltipProvider>
@@ -353,8 +356,10 @@ const confirmTransferOwnership = (member: TeamMember) => {
         <div v-if="permissions.canViewAudit" class="space-y-6">
             <Heading
                 variant="small"
-                title="Audit log"
-                description="Review moderation and admin actions in this workspace"
+                :title="$t('Audit log')"
+                :description="
+                    $t('Review moderation and admin actions in this workspace')
+                "
             />
             <Button
                 as-child
@@ -362,7 +367,9 @@ const confirmTransferOwnership = (member: TeamMember) => {
                 class="rounded-full"
                 data-test="view-audit-log-link"
             >
-                <Link :href="auditIndex(team.slug)">View audit log</Link>
+                <Link :href="auditIndex(team.slug)">{{
+                    $t('View audit log')
+                }}</Link>
             </Button>
         </div>
 
@@ -375,11 +382,14 @@ const confirmTransferOwnership = (member: TeamMember) => {
                 <h3
                     class="font-serif text-[17px] font-semibold text-destructive"
                 >
-                    Delete team
+                    {{ $t('Delete team') }}
                 </h3>
                 <p class="mt-1 text-sm text-muted-foreground">
-                    Permanently delete this team and all of its data. This
-                    cannot be undone.
+                    {{
+                        $t(
+                            'Permanently delete this team and all of its data. This cannot be undone.',
+                        )
+                    }}
                 </p>
             </div>
             <Button
@@ -387,7 +397,7 @@ const confirmTransferOwnership = (member: TeamMember) => {
                 variant="outline"
                 class="rounded-full border-destructive/40 text-destructive hover:border-destructive/60 hover:bg-destructive/10 hover:text-destructive"
                 @click="deleteDialogOpen = true"
-                >Delete team&hellip;</Button
+                >{{ $t('Delete team…') }}</Button
             >
         </div>
     </div>

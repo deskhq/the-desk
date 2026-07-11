@@ -18,8 +18,12 @@ defineProps<Props>();
         >
             <Info class="size-4" />
             <AlertDescription class="text-foreground">
-                {{ action }} to join the &ldquo;{{ invitation.teamName }}&rdquo;
-                team.
+                {{
+                    $t(':action to join the “:team” team.', {
+                        action: $t(action),
+                        team: invitation.teamName,
+                    })
+                }}
             </AlertDescription>
         </Alert>
     </div>

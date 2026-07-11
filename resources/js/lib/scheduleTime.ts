@@ -8,6 +8,8 @@
  * `now` is always injectable so tests are deterministic.
  */
 
+import { i18n, translate } from './i18n';
+
 /** Wall-clock components, as read off a clock on the wall in some zone. */
 export type WallTime = {
     year: number;
@@ -225,7 +227,7 @@ export function formatScheduledFor(
     now: Date = new Date(),
 ): string {
     const target = new Date(iso);
-    const time = target.toLocaleTimeString(undefined, {
+    const time = target.toLocaleTimeString(i18n.locale, {
         hour: 'numeric',
         minute: '2-digit',
         timeZone,
@@ -241,19 +243,19 @@ export function formatScheduledFor(
     );
 
     if (dayDiff === 0) {
-        return `Today at ${time}`;
+        return translate('Today at :time', { time });
     }
 
     if (dayDiff === 1) {
-        return `Tomorrow at ${time}`;
+        return translate('Tomorrow at :time', { time });
     }
 
-    const date = target.toLocaleDateString(undefined, {
+    const date = target.toLocaleDateString(i18n.locale, {
         weekday: 'short',
         month: 'short',
         day: 'numeric',
         timeZone,
     });
 
-    return `${date} at ${time}`;
+    return translate(':date at :time', { date, time });
 }

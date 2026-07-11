@@ -25,15 +25,15 @@ enum AuditAction: string
     public function label(): string
     {
         return match ($this) {
-            self::TeamRenamed => 'Workspace renamed',
-            self::MemberRoleChanged => 'Member role changed',
-            self::MemberRemoved => 'Member removed',
-            self::OwnershipTransferred => 'Ownership transferred',
-            self::ChannelCreated => 'Channel created',
-            self::ChannelArchived => 'Channel archived',
-            self::ChannelMemberAdded => 'Channel member added',
-            self::ChannelMemberRemoved => 'Channel member removed',
-            self::MessageDeleted => 'Message deleted',
+            self::TeamRenamed => __('Workspace renamed'),
+            self::MemberRoleChanged => __('Member role changed'),
+            self::MemberRemoved => __('Member removed'),
+            self::OwnershipTransferred => __('Ownership transferred'),
+            self::ChannelCreated => __('Channel created'),
+            self::ChannelArchived => __('Channel archived'),
+            self::ChannelMemberAdded => __('Channel member added'),
+            self::ChannelMemberRemoved => __('Channel member removed'),
+            self::MessageDeleted => __('Message deleted'),
         };
     }
 
@@ -47,15 +47,15 @@ enum AuditAction: string
     public function describe(array $context): string
     {
         return match ($this) {
-            self::TeamRenamed => sprintf('Renamed the workspace from “%s” to “%s”', $this->text($context, 'old_name'), $this->text($context, 'new_name')),
-            self::MemberRoleChanged => sprintf('Changed %s’s role from %s to %s', $this->text($context, 'member_name'), $this->text($context, 'old_role'), $this->text($context, 'new_role')),
-            self::MemberRemoved => sprintf('Removed %s from the workspace', $this->text($context, 'member_name')),
-            self::OwnershipTransferred => sprintf('Transferred ownership to %s', $this->text($context, 'new_owner_name')),
-            self::ChannelCreated => sprintf('Created #%s', $this->text($context, 'channel_name')),
-            self::ChannelArchived => sprintf('Archived #%s', $this->text($context, 'channel_name')),
-            self::ChannelMemberAdded => sprintf('Added %s to #%s', $this->text($context, 'member_name'), $this->text($context, 'channel_name')),
-            self::ChannelMemberRemoved => sprintf('Removed %s from #%s', $this->text($context, 'member_name'), $this->text($context, 'channel_name')),
-            self::MessageDeleted => sprintf('Deleted a message from %s in #%s', $this->text($context, 'author_name'), $this->text($context, 'channel_name')),
+            self::TeamRenamed => sprintf(__('Renamed the workspace from “%s” to “%s”'), $this->text($context, 'old_name'), $this->text($context, 'new_name')),
+            self::MemberRoleChanged => sprintf(__('Changed %s’s role from %s to %s'), $this->text($context, 'member_name'), $this->text($context, 'old_role'), $this->text($context, 'new_role')),
+            self::MemberRemoved => sprintf(__('Removed %s from the workspace'), $this->text($context, 'member_name')),
+            self::OwnershipTransferred => sprintf(__('Transferred ownership to %s'), $this->text($context, 'new_owner_name')),
+            self::ChannelCreated => sprintf(__('Created #%s'), $this->text($context, 'channel_name')),
+            self::ChannelArchived => sprintf(__('Archived #%s'), $this->text($context, 'channel_name')),
+            self::ChannelMemberAdded => sprintf(__('Added %s to #%s'), $this->text($context, 'member_name'), $this->text($context, 'channel_name')),
+            self::ChannelMemberRemoved => sprintf(__('Removed %s from #%s'), $this->text($context, 'member_name'), $this->text($context, 'channel_name')),
+            self::MessageDeleted => sprintf(__('Deleted a message from %s in #%s'), $this->text($context, 'author_name'), $this->text($context, 'channel_name')),
         };
     }
 

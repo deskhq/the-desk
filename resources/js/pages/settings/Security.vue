@@ -8,6 +8,7 @@ import SecurityActivity from '@/components/SecurityActivity.vue';
 import SettingsSection from '@/components/SettingsSection.vue';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
+import { translate } from '@/lib/i18n';
 import { edit } from '@/routes/security';
 import type { ActiveSession, SecurityActivityEvent } from '@/types';
 
@@ -23,7 +24,7 @@ defineOptions({
     layout: {
         breadcrumbs: [
             {
-                title: 'Security settings',
+                title: translate('Security settings'),
                 href: edit(),
             },
         ],
@@ -32,13 +33,17 @@ defineOptions({
 </script>
 
 <template>
-    <Head title="Security settings" />
+    <Head :title="$t('Security settings')" />
 
-    <h1 class="sr-only">Security settings</h1>
+    <h1 class="sr-only">{{ $t('Security settings') }}</h1>
 
     <SettingsSection
-        title="Update password"
-        description="Ensure your account is using a long, random password to stay secure"
+        :title="$t('Update password')"
+        :description="
+            $t(
+                'Ensure your account is using a long, random password to stay secure',
+            )
+        "
     >
         <Form
             v-bind="SecurityController.update.form()"
@@ -55,38 +60,42 @@ defineOptions({
             v-slot="{ errors, processing, recentlySuccessful }"
         >
             <div class="grid gap-2">
-                <Label for="current_password">Current password</Label>
+                <Label for="current_password">{{
+                    $t('Current password')
+                }}</Label>
                 <PasswordInput
                     id="current_password"
                     name="current_password"
                     class="mt-1 block w-full"
                     autocomplete="current-password"
-                    placeholder="Current password"
+                    :placeholder="$t('Current password')"
                 />
                 <InputError :message="errors.current_password" />
             </div>
 
             <div class="grid gap-2">
-                <Label for="password">New password</Label>
+                <Label for="password">{{ $t('New password') }}</Label>
                 <PasswordInput
                     id="password"
                     name="password"
                     class="mt-1 block w-full"
                     autocomplete="new-password"
-                    placeholder="New password"
+                    :placeholder="$t('New password')"
                     :passwordrules="props.passwordRules"
                 />
                 <InputError :message="errors.password" />
             </div>
 
             <div class="grid gap-2">
-                <Label for="password_confirmation">Confirm password</Label>
+                <Label for="password_confirmation">{{
+                    $t('Confirm password')
+                }}</Label>
                 <PasswordInput
                     id="password_confirmation"
                     name="password_confirmation"
                     class="mt-1 block w-full"
                     autocomplete="new-password"
-                    placeholder="Confirm password"
+                    :placeholder="$t('Confirm password')"
                     :passwordrules="props.passwordRules"
                 />
                 <InputError :message="errors.password_confirmation" />
@@ -98,7 +107,7 @@ defineOptions({
                     class="rounded-full px-6"
                     data-test="update-password-button"
                 >
-                    Save
+                    {{ $t('Save') }}
                 </Button>
                 <Transition
                     enter-active-class="transition ease-in-out"
@@ -110,7 +119,7 @@ defineOptions({
                         v-show="recentlySuccessful"
                         class="font-serif text-sm text-muted-foreground italic"
                     >
-                        Saved just now
+                        {{ $t('Saved just now') }}
                     </p>
                 </Transition>
             </div>
@@ -118,15 +127,23 @@ defineOptions({
     </SettingsSection>
 
     <SettingsSection
-        title="Active sessions"
-        description="Manage and log out your active sessions on other browsers and devices"
+        :title="$t('Active sessions')"
+        :description="
+            $t(
+                'Manage and log out your active sessions on other browsers and devices',
+            )
+        "
     >
         <ManageSessions :sessions="props.sessions" />
     </SettingsSection>
 
     <SettingsSection
-        title="Recent activity"
-        description="Review recent security activity on your account to spot anything unfamiliar"
+        :title="$t('Recent activity')"
+        :description="
+            $t(
+                'Review recent security activity on your account to spot anything unfamiliar',
+            )
+        "
     >
         <SecurityActivity :events="props.securityEvents" />
     </SettingsSection>

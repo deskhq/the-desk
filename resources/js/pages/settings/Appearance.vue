@@ -2,13 +2,14 @@
 import { Head } from '@inertiajs/vue3';
 import AppearanceTabs from '@/components/AppearanceTabs.vue';
 import SettingsSection from '@/components/SettingsSection.vue';
+import { translate } from '@/lib/i18n';
 import { edit } from '@/routes/appearance';
 
 defineOptions({
     layout: {
         breadcrumbs: [
             {
-                title: 'Appearance settings',
+                title: translate('Appearance settings'),
                 href: edit(),
             },
         ],
@@ -17,13 +18,13 @@ defineOptions({
 </script>
 
 <template>
-    <Head title="Appearance settings" />
+    <Head :title="$t('Appearance settings')" />
 
-    <h1 class="sr-only">Appearance settings</h1>
+    <h1 class="sr-only">{{ $t('Appearance settings') }}</h1>
 
     <SettingsSection
-        title="Appearance"
-        description="Update the appearance settings for your account"
+        :title="$t('Appearance')"
+        :description="$t('Update the appearance settings for your account')"
     >
         <AppearanceTabs />
     </SettingsSection>

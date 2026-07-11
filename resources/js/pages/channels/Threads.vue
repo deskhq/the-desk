@@ -53,7 +53,7 @@ function formatTimestamp(iso: string): string {
 </script>
 
 <template>
-    <Head title="Threads" />
+    <Head :title="$t('Threads')" />
 
     <header
         class="flex h-12 shrink-0 items-center gap-2.5 border-b border-border px-5"
@@ -61,11 +61,13 @@ function formatTimestamp(iso: string): string {
         <SidebarTrigger
             class="-ml-1.5 size-8 text-muted-foreground md:hidden"
         />
-        <h1 class="text-[15px] font-semibold text-foreground">Threads</h1>
+        <h1 class="text-[15px] font-semibold text-foreground">
+            {{ $t('Threads') }}
+        </h1>
         <Link
             :href="index(props.team.slug).url"
             class="ml-auto text-[13px] text-muted-foreground hover:text-foreground"
-            >Back</Link
+            >{{ $t('Back') }}</Link
         >
     </header>
 
@@ -76,8 +78,11 @@ function formatTimestamp(iso: string): string {
                 data-test="threads-empty"
                 class="pt-16 text-center text-sm text-muted-foreground"
             >
-                You're not following any threads yet. Reply to a thread or get
-                @mentioned in one and it'll show up here.
+                {{
+                    $t(
+                        "You're not following any threads yet. Reply to a thread or get @mentioned in one and it'll show up here.",
+                    )
+                }}
             </p>
 
             <InfiniteScroll v-else data="threads" preserve-url>
@@ -158,15 +163,15 @@ function formatTimestamp(iso: string): string {
                                     <span
                                         v-if="item.root.threadUnread"
                                         data-test="thread-unread-dot"
-                                        aria-label="Unread replies"
+                                        :aria-label="$t('Unread replies')"
                                         class="size-2 shrink-0 rounded-full bg-rose-500"
                                     ></span>
                                     <span class="font-semibold text-primary">
                                         {{ item.root.threadReplyCount }}
                                         {{
                                             item.root.threadReplyCount === 1
-                                                ? 'reply'
-                                                : 'replies'
+                                                ? $t('reply')
+                                                : $t('replies')
                                         }}
                                     </span>
                                 </div>

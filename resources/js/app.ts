@@ -5,6 +5,8 @@ import AuthLayout from '@/layouts/AuthLayout.vue';
 import MainLayout from '@/layouts/MainLayout.vue';
 import SettingsLayout from '@/layouts/settings/Layout.vue';
 import { initializeFlashToast } from '@/lib/flashToast';
+import { setMessages, translate } from '@/lib/i18n';
+import type { Messages } from '@/lib/i18n';
 
 configureEcho({
     broadcaster: 'reverb',
@@ -14,6 +16,21 @@ const appName = import.meta.env.VITE_APP_NAME || 'Laravel';
 
 createInertiaApp({
     title: (title) => (title ? `${title} - ${appName}` : appName),
+    // Seed the translation catalog from the server-shared props before the first
+    // render — on both the SSR pass and the client — so the initial paint is
+    // already in the active locale (no flash of English on refresh). `translations`
+    // is a once prop, so it rides the initial document only, not every visit.
+    // Also expose the translation helper as a global `$t` for templates.
+    withApp(app, { page }) {
+        const props = page.props as {
+            locale?: string;
+            translations?: Messages;
+        };
+
+        setMessages(props.locale ?? 'en', props.translations ?? {});
+
+        app.config.globalProperties.$t = translate;
+    },
     layout: (name) => {
         switch (true) {
             case name === 'Welcome':

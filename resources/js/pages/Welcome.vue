@@ -24,7 +24,7 @@ const getStartedUrl = computed(() =>
 </script>
 
 <template>
-    <Head title="Welcome" />
+    <Head :title="$t('Welcome')" />
 
     <div
         class="flex min-h-screen flex-col bg-[radial-gradient(1200px_500px_at_50%_-100px,var(--muted),var(--background))] text-foreground transition-opacity duration-700 starting:opacity-0"
@@ -43,19 +43,21 @@ const getStartedUrl = computed(() =>
                 <div class="flex items-center gap-2">
                     <template v-if="user">
                         <Button as-child class="rounded-full">
-                            <Link :href="workspaceUrl">Open workspace</Link>
+                            <Link :href="workspaceUrl">{{
+                                $t('Open workspace')
+                            }}</Link>
                         </Button>
                     </template>
                     <template v-else>
                         <Button as-child variant="ghost" class="rounded-full">
-                            <Link :href="login()">Log in</Link>
+                            <Link :href="login()">{{ $t('Log in') }}</Link>
                         </Button>
                         <Button
                             v-if="registrationEnabled"
                             as-child
                             class="rounded-full"
                         >
-                            <Link :href="register()">Sign up</Link>
+                            <Link :href="register()">{{ $t('Sign up') }}</Link>
                         </Button>
                     </template>
                 </div>
@@ -69,23 +71,28 @@ const getStartedUrl = computed(() =>
             <span
                 class="text-xs font-semibold tracking-[0.14em] text-brass-fill-foreground uppercase"
             >
-                Team chat, quietly done
+                {{ $t('Team chat, quietly done') }}
             </span>
             <h1
                 class="mt-5 max-w-3xl font-serif text-[clamp(2.75rem,5.4vw,4.25rem)] leading-[1.02] font-semibold tracking-tight text-balance"
             >
-                Where your team&rsquo;s work finds its focus.
+                {{ $t('Where your team’s work finds its focus.') }}
             </h1>
             <p
                 class="mt-6 max-w-xl text-[17px] leading-relaxed text-pretty text-muted-foreground"
             >
-                Channels, threads, and reactions &mdash; calm, fast, and out of
-                your way. A warm place for the conversation behind the work.
+                {{
+                    $t(
+                        'Channels, threads, and reactions — calm, fast, and out of your way. A warm place for the conversation behind the work.',
+                    )
+                }}
             </p>
             <div class="mt-9 flex flex-wrap items-center justify-center gap-3">
                 <template v-if="user">
                     <Button as-child size="lg" class="h-12 rounded-full px-8">
-                        <Link :href="workspaceUrl">Open workspace</Link>
+                        <Link :href="workspaceUrl">{{
+                            $t('Open workspace')
+                        }}</Link>
                     </Button>
                 </template>
                 <template v-else>
@@ -95,7 +102,9 @@ const getStartedUrl = computed(() =>
                         class="h-12 rounded-full px-8"
                         data-test="welcome-primary-cta"
                     >
-                        <Link :href="getStartedUrl">Get started</Link>
+                        <Link :href="getStartedUrl">{{
+                            $t('Get started')
+                        }}</Link>
                     </Button>
                     <Button
                         as-child
@@ -103,7 +112,7 @@ const getStartedUrl = computed(() =>
                         variant="outline"
                         class="h-12 rounded-full bg-card/60 px-7"
                     >
-                        <Link :href="login()">Log in</Link>
+                        <Link :href="login()">{{ $t('Log in') }}</Link>
                     </Button>
                 </template>
             </div>
@@ -571,35 +580,44 @@ const getStartedUrl = computed(() =>
             <div class="mt-14 flex flex-wrap justify-center gap-x-16 gap-y-10">
                 <div class="max-w-60 text-center">
                     <div class="font-serif text-lg font-semibold">
-                        Threads that resolve
+                        {{ $t('Threads that resolve') }}
                     </div>
                     <div
                         class="mt-1.5 text-[13.5px] leading-relaxed text-pretty text-muted-foreground"
                     >
-                        Side conversations stay beside the work, not on top of
-                        it.
+                        {{
+                            $t(
+                                'Side conversations stay beside the work, not on top of it.',
+                            )
+                        }}
                     </div>
                 </div>
                 <div class="max-w-60 text-center">
                     <div class="font-serif text-lg font-semibold">
-                        Everything, one keystroke
+                        {{ $t('Everything, one keystroke') }}
                     </div>
                     <div
                         class="mt-1.5 text-[13.5px] leading-relaxed text-pretty text-muted-foreground"
                     >
-                        &#8984;K jumps to any channel or teammate. Search
-                        reaches every message.
+                        {{
+                            $t(
+                                '⌘K jumps to any channel or teammate. Search reaches every message.',
+                            )
+                        }}
                     </div>
                 </div>
                 <div class="max-w-60 text-center">
                     <div class="font-serif text-lg font-semibold">
-                        Presence, not pressure
+                        {{ $t('Presence, not pressure') }}
                     </div>
                     <div
                         class="mt-1.5 text-[13.5px] leading-relaxed text-pretty text-muted-foreground"
                     >
-                        Read receipts and typing hints you can share &mdash; or
-                        switch off.
+                        {{
+                            $t(
+                                'Read receipts and typing hints you can share — or switch off.',
+                            )
+                        }}
                     </div>
                 </div>
             </div>
@@ -611,7 +629,7 @@ const getStartedUrl = computed(() =>
         >
             <span class="font-serif italic">{{ name }}</span>
             <span>&middot;</span>
-            <span>Team chat, quietly done</span>
+            <span>{{ $t('Team chat, quietly done') }}</span>
         </footer>
     </div>
 </template>

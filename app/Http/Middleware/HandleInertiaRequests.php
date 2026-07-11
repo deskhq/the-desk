@@ -9,6 +9,7 @@ use App\Models\Message;
 use App\Models\Team;
 use App\Models\TeamInvitation;
 use App\Models\User;
+use App\Support\TranslationCatalog;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -50,6 +51,12 @@ class HandleInertiaRequests extends Middleware
         return [
             ...parent::share($request),
             'name' => config('app.name'),
+            'locale' => app()->getLocale(),
+            // The active locale's catalog rides the initial document as a "once"
+            // prop: it reaches the SSR render and first hydration (so the first
+            // paint is already translated) but is excluded from every subsequent
+            // SPA visit, keeping navigation payloads free of the catalog.
+            'translations' => Inertia::once(fn () => app(TranslationCatalog::class)->messages(app()->getLocale())),
             // A single deploy-time flag lets self-hosters lock down public
             // registration; when off, Fortify never registers the register
             // routes, so the frontend hides its "sign up" affordances to match.

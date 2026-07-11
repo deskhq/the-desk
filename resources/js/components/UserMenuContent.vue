@@ -38,7 +38,7 @@ defineProps<Props>();
         <DropdownMenuItem :as-child="true">
             <Link class="block w-full cursor-pointer" :href="edit()" prefetch>
                 <Settings class="mr-2 h-4 w-4" />
-                Settings
+                {{ $t('Settings') }}
             </Link>
         </DropdownMenuItem>
         <DropdownMenuItem
@@ -47,7 +47,7 @@ defineProps<Props>();
             @select="openKeyboardShortcuts"
         >
             <Keyboard class="mr-2 h-4 w-4" />
-            Keyboard shortcuts
+            {{ $t('Keyboard shortcuts') }}
             <DropdownMenuShortcut>?</DropdownMenuShortcut>
         </DropdownMenuItem>
     </DropdownMenuGroup>
@@ -61,7 +61,7 @@ defineProps<Props>();
             data-test="logout-button"
         >
             <LogOut class="mr-2 h-4 w-4" />
-            Log out
+            {{ $t('Log out') }}
         </Link>
     </DropdownMenuItem>
 </template>

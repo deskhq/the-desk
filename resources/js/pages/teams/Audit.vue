@@ -13,6 +13,7 @@ import {
 } from '@/components/ui/select';
 import { useTimezone } from '@/composables/useTimezone';
 import { formatDateTime } from '@/lib/datetime';
+import { translate } from '@/lib/i18n';
 import { edit, index } from '@/routes/teams';
 import { index as auditIndex } from '@/routes/teams/audit';
 import type {
@@ -39,7 +40,7 @@ defineOptions({
     layout: (props: { team: Team }) => ({
         breadcrumbs: [
             {
-                title: 'Teams',
+                title: translate('Teams'),
                 href: index(),
             },
             {
@@ -47,7 +48,7 @@ defineOptions({
                 href: edit(props.team.slug),
             },
             {
-                title: 'Audit log',
+                title: translate('Audit log'),
                 href: auditIndex(props.team.slug),
             },
         ],
@@ -82,22 +83,26 @@ function occurredAt(iso: string): string {
 </script>
 
 <template>
-    <Head title="Audit log" />
+    <Head :title="$t('Audit log')" />
 
     <div class="flex flex-col space-y-6">
         <Heading
             variant="small"
-            title="Audit log"
-            description="A record of moderation and admin actions in this workspace"
+            :title="$t('Audit log')"
+            :description="
+                $t('A record of moderation and admin actions in this workspace')
+            "
         />
 
         <div class="flex flex-wrap items-center gap-3">
             <Select v-model="actionFilter">
                 <SelectTrigger class="w-56" data-test="audit-action-filter">
-                    <SelectValue placeholder="All actions" />
+                    <SelectValue :placeholder="$t('All actions')" />
                 </SelectTrigger>
                 <SelectContent>
-                    <SelectItem :value="ALL">All actions</SelectItem>
+                    <SelectItem :value="ALL">{{
+                        $t('All actions')
+                    }}</SelectItem>
                     <SelectItem
                         v-for="option in actionOptions"
                         :key="option.value"
@@ -110,10 +115,12 @@ function occurredAt(iso: string): string {
 
             <Select v-model="actorFilter">
                 <SelectTrigger class="w-56" data-test="audit-actor-filter">
-                    <SelectValue placeholder="All members" />
+                    <SelectValue :placeholder="$t('All members')" />
                 </SelectTrigger>
                 <SelectContent>
-                    <SelectItem :value="ALL">All members</SelectItem>
+                    <SelectItem :value="ALL">{{
+                        $t('All members')
+                    }}</SelectItem>
                     <SelectItem
                         v-for="actor in actors"
                         :key="actor.id"
@@ -130,7 +137,7 @@ function occurredAt(iso: string): string {
             class="text-sm text-muted-foreground"
             data-test="audit-empty"
         >
-            No audit activity to show.
+            {{ $t('No audit activity to show.') }}
         </p>
 
         <ul v-else class="space-y-3" role="list" data-test="audit-list">
@@ -142,7 +149,7 @@ function occurredAt(iso: string): string {
             >
                 <div class="min-w-0 space-y-0.5">
                     <p class="text-sm font-semibold">
-                        {{ entry.actorName ?? 'Unknown member' }}
+                        {{ entry.actorName ?? $t('Unknown member') }}
                     </p>
                     <p class="text-sm text-muted-foreground">
                         {{ entry.description }}
@@ -170,7 +177,7 @@ function occurredAt(iso: string): string {
                 data-test="audit-prev-page"
             >
                 <Link :href="entries.prevPageUrl" preserve-scroll>
-                    <ChevronLeft class="h-4 w-4" /> Newer
+                    <ChevronLeft class="h-4 w-4" /> {{ $t('Newer') }}
                 </Link>
             </Button>
             <span v-else></span>
@@ -184,7 +191,7 @@ function occurredAt(iso: string): string {
                 data-test="audit-next-page"
             >
                 <Link :href="entries.nextPageUrl" preserve-scroll>
-                    Older <ChevronRight class="h-4 w-4" />
+                    {{ $t('Older') }} <ChevronRight class="h-4 w-4" />
                 </Link>
             </Button>
             <span v-else></span>

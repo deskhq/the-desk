@@ -31,6 +31,8 @@ declare module '@inertiajs/core' {
             collapsedChannelSections?: string[];
             hasUnreadThreads?: boolean;
             pendingInvitations?: DashboardInvitation[];
+            locale: string;
+            translations?: Record<string, string>;
             [key: string]: unknown;
         };
     }
@@ -41,5 +43,13 @@ declare module 'vue' {
         $inertia: typeof Router;
         $page: Page;
         $headManager: ReturnType<typeof createHeadManager>;
+        /**
+         * Translate a message key against the active catalog. Registered as a
+         * global property in `app.ts` so it is available in every template.
+         */
+        $t: (
+            key: string,
+            replacements?: Record<string, string | number>,
+        ) => string;
     }
 }

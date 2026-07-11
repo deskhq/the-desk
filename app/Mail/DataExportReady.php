@@ -21,7 +21,7 @@ class DataExportReady extends Mailable
     public function envelope(): Envelope
     {
         return new Envelope(
-            subject: 'Your data export is ready',
+            subject: __('Your data export is ready'),
         );
     }
 
