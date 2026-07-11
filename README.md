@@ -111,7 +111,13 @@ docker compose -f docker-compose.prod.yml up -d --build
 ```
 
 Your data persists across `down`/`up` in named volumes (`pgsql-data`,
-`meili-data`, `storage-app`).
+`the-desk-meili-<version>`, `storage-app`).
+
+> **Meilisearch upgrades reindex automatically.** The search index lives in a
+> version-scoped volume, so bumping `MEILISEARCH_VERSION` starts the new
+> Meilisearch on a fresh volume and the app rebuilds the index from Postgres on
+> boot (`php artisan search:sync`) — no manual dump/migration. The old volume is
+> left behind; prune it with `docker volume rm the-desk-meili-<old-version>`.
 
 > **MAJOR version upgrades may contain breaking changes.** Before upgrading
 > across a major version, read the [CHANGELOG](CHANGELOG.md) and the

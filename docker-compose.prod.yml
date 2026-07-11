@@ -87,7 +87,13 @@ services:
       retries: 5
 
   meilisearch:
-    image: getmeili/meilisearch:v1.49
+    # Meilisearch's on-disk format is version-specific and it will refuse to
+    # boot against a data directory written by a different version. MEILISEARCH_VERSION
+    # pins both the image tag and the data volume name (see `volumes` below), so
+    # bumping it starts the new version against a fresh volume; the app then
+    # rebuilds the index from Postgres on boot (`php artisan search:sync`). No
+    # dump-based migration is needed — the search index is derived data.
+    image: getmeili/meilisearch:${MEILISEARCH_VERSION:-v1.49}
     environment:
       MEILI_MASTER_KEY: ${MEILISEARCH_KEY:?MEILISEARCH_KEY is required}
       MEILI_ENV: production
@@ -110,4 +116,8 @@ networks:
 volumes:
   pgsql-data:
   meili-data:
+    # Version-scoped so a MEILISEARCH_VERSION bump lands on a new empty volume and
+    # the new Meilisearch boots cleanly. The previous version's volume is left
+    # behind for manual pruning (`docker volume rm the-desk-meili-<old>`).
+    name: the-desk-meili-${MEILISEARCH_VERSION:-v1.49}
   storage-app:

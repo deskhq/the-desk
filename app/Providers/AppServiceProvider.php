@@ -7,6 +7,7 @@ use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Validation\Rules\Password;
+use Meilisearch\Client;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -15,7 +16,10 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        $this->app->singleton(Client::class, fn (): Client => new Client(
+            config('scout.meilisearch.host'),
+            config('scout.meilisearch.key'),
+        ));
     }
 
     /**

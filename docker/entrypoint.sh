@@ -16,6 +16,11 @@ mkdir -p \
 if [ "${AUTORUN_MIGRATIONS:-false}" = "true" ]; then
     echo "Running database migrations..."
     php artisan migrate --force
+
+    # Rebuild the search index if it is empty (e.g. after a Meilisearch version
+    # bump rotated its data volume). No-op once the index is populated.
+    echo "Syncing search index..."
+    php artisan search:sync
 fi
 
 # Cache config/routes/events against the runtime environment (compose injects it
