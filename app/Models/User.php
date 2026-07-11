@@ -8,6 +8,7 @@ use App\Enums\AppLocale;
 use App\Enums\ChimeSound;
 use App\Enums\TeamRole;
 use Database\Factories\UserFactory;
+use Illuminate\Contracts\Translation\HasLocalePreference;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Collection;
@@ -54,10 +55,19 @@ use Illuminate\Support\Str;
  */
 #[Fillable(['name', 'email', 'pronouns', 'title', 'phone', 'timezone', 'locale', 'password', 'current_team_id', 'chime_sound', 'share_read_receipts', 'collapsed_channel_sections', 'is_tombstone'])]
 #[Hidden(['password', 'two_factor_secret', 'two_factor_recovery_codes', 'remember_token'])]
-class User extends Authenticatable
+class User extends Authenticatable implements HasLocalePreference
 {
     /** @use HasFactory<UserFactory> */
     use HasFactory, HasTeams, HasUuids, Notifiable;
+
+    /**
+     * Get the recipient's preferred locale so mail and notifications render
+     * in the language they chose in their settings.
+     */
+    public function preferredLocale(): string
+    {
+        return $this->locale->value;
+    }
 
     /**
      * Get the attributes that should be cast.
