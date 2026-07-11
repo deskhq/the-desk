@@ -426,6 +426,8 @@
   "This invitation has expired.": "Cette invitation a expiré.",
   "This invitation was sent to a different email address.": "Cette invitation a été envoyée à une autre adresse e-mail.",
   "This is a secure area of the application. Please confirm your password before continuing.": "Il s’agit d’une zone sécurisée de l’application. Veuillez confirmer votre mot de passe avant de continuer.",
+  "This is the start of your conversation with :name.": "C’est le début de votre conversation avec :name.",
+  "This is your space — jot anything down.": "C’est votre espace — notez ce que vous voulez.",
   "This link expires on :date. You can request a fresh export any time from your profile settings.": "Ce lien expire le :date. Vous pouvez demander un nouvel export à tout moment depuis les paramètres de votre profil.",
   "This logs out every session except the one you are using now. Enter your password to confirm.": "Cela déconnecte toutes les sessions à l’exception de celle que vous utilisez actuellement. Saisissez votre mot de passe pour confirmer.",
   "This message was deleted": "Ce message a été supprimé",
