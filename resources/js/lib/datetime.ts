@@ -41,6 +41,32 @@ export function formatDateTime(
 }
 
 /**
+ * Format a date as an abbreviated month and day (e.g. "Jul 10"), for chart axes
+ * and other date-only labels.
+ */
+export function formatCalendarDate(
+    date: Date | string,
+    locale: string = i18n.locale,
+): string {
+    return new Date(date).toLocaleDateString(locale, {
+        month: 'short',
+        day: 'numeric',
+    });
+}
+
+/**
+ * Format a date as an abbreviated month (e.g. "Jul"), for month-grouped charts.
+ */
+export function formatMonthLabel(
+    date: Date | string,
+    locale: string = i18n.locale,
+): string {
+    return new Date(date).toLocaleDateString(locale, {
+        month: 'short',
+    });
+}
+
+/**
  * A person's current wall-clock time (e.g. "3:45 PM") in their time zone, or
  * null when the zone is unknown or not a valid IANA identifier.
  */

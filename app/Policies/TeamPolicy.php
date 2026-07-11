@@ -121,4 +121,16 @@ class TeamPolicy
         return ! $team->is_personal
             && ($user->teamRole($team)?->isAtLeast(TeamRole::Admin) ?? false);
     }
+
+    /**
+     * Determine whether the user can view the team's analytics dashboard.
+     *
+     * The dashboard aggregates workspace-wide activity, so it is scoped to
+     * admins and the owner of a real (non-personal) workspace.
+     */
+    public function viewAnalytics(User $user, Team $team): bool
+    {
+        return ! $team->is_personal
+            && ($user->teamRole($team)?->isAtLeast(TeamRole::Admin) ?? false);
+    }
 }
