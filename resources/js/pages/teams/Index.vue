@@ -1,6 +1,13 @@
 <script setup lang="ts">
 import { Head, Link } from '@inertiajs/vue3';
-import { Eye, LogOut, Pencil, Plus } from '@lucide/vue';
+import {
+    ChartColumn,
+    Eye,
+    LogOut,
+    Pencil,
+    Plus,
+    ScrollText,
+} from '@lucide/vue';
 import { ref } from 'vue';
 import CreateTeamModal from '@/components/CreateTeamModal.vue';
 import Heading from '@/components/Heading.vue';
@@ -15,6 +22,8 @@ import {
 } from '@/components/ui/tooltip';
 import { translate } from '@/lib/i18n';
 import { edit, index } from '@/routes/teams';
+import { index as analyticsIndex } from '@/routes/teams/analytics';
+import { index as auditIndex } from '@/routes/teams/audit';
 import type { Team } from '@/types';
 
 type Props = {
@@ -27,6 +36,11 @@ const leaveTeamDialogOpen = ref(false);
 const teamLeaving = ref<Team | null>(null);
 
 const canLeaveTeam = (team: Team) => !team.isPersonal && team.role !== 'owner';
+
+// The analytics and audit pages are admin-only on a real workspace, mirroring
+// the viewAnalytics / viewAudit policies.
+const canViewAdminPages = (team: Team) =>
+    !team.isPersonal && (team.role === 'owner' || team.role === 'admin');
 
 const openLeaveTeamDialog = (team: Team) => {
     teamLeaving.value = team;
@@ -88,6 +102,42 @@ defineOptions({
 
                 <TooltipProvider>
                     <div class="flex items-center gap-2">
+                        <Tooltip v-if="canViewAdminPages(team)">
+                            <TooltipTrigger as-child>
+                                <Button
+                                    data-test="team-analytics-button"
+                                    variant="ghost"
+                                    size="sm"
+                                    as-child
+                                >
+                                    <Link :href="analyticsIndex(team.slug)">
+                                        <ChartColumn class="h-4 w-4" />
+                                    </Link>
+                                </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                                <p>{{ $t('Analytics') }}</p>
+                            </TooltipContent>
+                        </Tooltip>
+
+                        <Tooltip v-if="canViewAdminPages(team)">
+                            <TooltipTrigger as-child>
+                                <Button
+                                    data-test="team-audit-button"
+                                    variant="ghost"
+                                    size="sm"
+                                    as-child
+                                >
+                                    <Link :href="auditIndex(team.slug)">
+                                        <ScrollText class="h-4 w-4" />
+                                    </Link>
+                                </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                                <p>{{ $t('Audit log') }}</p>
+                            </TooltipContent>
+                        </Tooltip>
+
                         <Tooltip v-if="canLeaveTeam(team)">
                             <TooltipTrigger as-child>
                                 <Button

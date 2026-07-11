@@ -30,6 +30,7 @@ import { useInitials } from '@/composables/useInitials';
 import { useTranslations } from '@/composables/useTranslations';
 import { translate } from '@/lib/i18n';
 import { edit, index, update } from '@/routes/teams';
+import { index as analyticsIndex } from '@/routes/teams/analytics';
 import { index as auditIndex } from '@/routes/teams/audit';
 import {
     show as showMember,
@@ -350,6 +351,29 @@ const confirmTransferOwnership = (member: TeamMember) => {
                     </TooltipProvider>
                 </div>
             </div>
+        </div>
+
+        <!-- Analytics -->
+        <div v-if="permissions.canViewAnalytics" class="space-y-6">
+            <Heading
+                variant="small"
+                :title="$t('Analytics')"
+                :description="
+                    $t(
+                        'See activity, growth, and the busiest channels in this workspace',
+                    )
+                "
+            />
+            <Button
+                as-child
+                variant="outline"
+                class="rounded-full"
+                data-test="view-analytics-link"
+            >
+                <Link :href="analyticsIndex(team.slug)">{{
+                    $t('View analytics')
+                }}</Link>
+            </Button>
         </div>
 
         <!-- Audit Log -->

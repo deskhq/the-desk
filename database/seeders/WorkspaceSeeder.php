@@ -18,6 +18,8 @@ use App\Models\TeamInvitation;
 use App\Models\User;
 use App\Support\AuditRecorder;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 /**
  * Stands up a rich, log-in-ready local workspace that exercises every model and
@@ -166,6 +168,7 @@ class WorkspaceSeeder extends Seeder
         $this->seedDirectMessages($acme, $demo, $admin, $member1, $member2);
         $this->seedInvitations($acme, $demo);
         $this->seedAuditLog($acme, $demo, $admin, $member1, $announcements, $archived, $secret);
+        $this->seedAnalyticsHistory($acme, $members, [$general, $announcements, $random]);
 
         return $acme;
     }
@@ -251,6 +254,91 @@ class WorkspaceSeeder extends Seeder
     }
 
     /**
+     * Give the demo user's owned workspace a real activity history, so the
+     * admin-only analytics dashboard renders meaningful charts on load: a spread
+     * of messages across the busiest channels over the last twelve weeks (with
+     * lighter weekends), plus back-dated member joins for the growth line.
+     *
+     * Messages are bulk-inserted straight to the table: analytics reads the
+     * database directly, so the history needs volume and back-dated timestamps,
+     * not model events or search indexing.
+     *
+     * @param  non-empty-list<User>  $members
+     * @param  non-empty-list<Channel>  $channels
+     */
+    private function seedAnalyticsHistory(Team $team, array $members, array $channels): void
+    {
+        $this->backdateMemberships($team);
+
+        $authorIds = array_map(fn (User $user): string => $user->id, $members);
+
+        // The first channel (#general) carries the most traffic; the rest taper.
+        foreach ($channels as $index => $channel) {
+            $this->backfillChannelHistory($channel, $authorIds, weeks: 12, weekdayVolume: 10 - ($index * 3));
+        }
+    }
+
+    /**
+     * Spread a team's member joins across the last six months so the cumulative
+     * growth line climbs rather than spiking on seed day.
+     */
+    private function backdateMemberships(Team $team): void
+    {
+        $memberships = $team->memberships()->orderBy('created_at')->orderBy('id')->get();
+        $lastIndex = max(1, $memberships->count() - 1);
+
+        foreach ($memberships->values() as $index => $membership) {
+            $monthsAgo = (int) round((5 * ($lastIndex - $index)) / $lastIndex);
+
+            DB::table('team_members')
+                ->where('id', $membership->id)
+                ->update(['created_at' => now()->subMonthsNoOverflow($monthsAgo)->startOfMonth()->addDays(2)]);
+        }
+    }
+
+    /**
+     * Bulk-insert a run of back-dated messages for a channel, a handful each
+     * weekday and fewer on weekends, across the given number of weeks.
+     *
+     * @param  non-empty-list<string>  $authorIds
+     */
+    private function backfillChannelHistory(Channel $channel, array $authorIds, int $weeks, int $weekdayVolume): void
+    {
+        $weekdayVolume = max(1, $weekdayVolume);
+        $rows = [];
+
+        for ($day = $weeks * 7; $day >= 1; $day--) {
+            $date = now()->subDays($day)->setTime(9, 0);
+
+            // Vary each day organically around its weekday/weekend baseline so the
+            // chart reads like real activity rather than a flat plateau — with the
+            // occasional quiet day or busy spike.
+            $baseline = $date->isWeekend() ? max(1, intdiv($weekdayVolume, 2)) : $weekdayVolume;
+            $count = max(0, (int) round($baseline * fake()->randomFloat(2, 0.35, 1.75)));
+
+            for ($index = 0; $index < $count; $index++) {
+                $createdAt = $date->copy()->addHours($index);
+
+                $rows[] = [
+                    'id' => (string) Str::uuid(),
+                    'channel_id' => $channel->id,
+                    'user_id' => $authorIds[($day + $index) % count($authorIds)],
+                    'client_uuid' => (string) Str::uuid(),
+                    'body' => fake()->sentence(),
+                    'sent_to_channel' => false,
+                    'reply_count' => 0,
+                    'created_at' => $createdAt,
+                    'updated_at' => $createdAt,
+                ];
+            }
+        }
+
+        foreach (array_chunk($rows, 200) as $chunk) {
+            DB::table('messages')->insert($chunk);
+        }
+    }
+
+    /**
      * A team owned by someone else where the demo user is an Admin, so the
      * admin-gated UI (invitations, channel management) can be exercised.
      */
@@ -264,6 +352,10 @@ class WorkspaceSeeder extends Seeder
         $engineering = $this->createChannel->handle($globex, 'engineering', ChannelVisibility::Public, $owner, 'Ship it');
         $this->joinChannel->handle($engineering, $demo);
         $this->seedMessages($engineering, [$owner, $demo, $member], 12);
+
+        // The demo is an Admin here too, so give Globex a real history for its
+        // analytics dashboard.
+        $this->seedAnalyticsHistory($globex, [$owner, $demo, $member], [$engineering, $this->generalChannel($globex)]);
     }
 
     /**

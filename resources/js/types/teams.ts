@@ -71,6 +71,7 @@ export type TeamPermissions = {
     canCancelInvitation: boolean;
     canTransferOwnership: boolean;
     canViewAudit: boolean;
+    canViewAnalytics: boolean;
 };
 
 export type RoleOption = {
@@ -110,4 +111,63 @@ export type AuditEntriesPage = {
     data: AuditEntry[];
     prevPageUrl: string | null;
     nextPageUrl: string | null;
+};
+
+/**
+ * A single headline metric on the analytics dashboard. Mirrors the
+ * `AnalyticsStatData` DTO; each tile fills only the optional fields it renders.
+ */
+export type AnalyticsStat = {
+    value: number;
+    total: number | null;
+    delta: number | null;
+    deltaPercent: number | null;
+    secondary: number | null;
+};
+
+/** The message count for a single day in the messages-per-day series. */
+export type DailyMessageCount = {
+    date: string;
+    count: number;
+};
+
+/** A channel's message count in the most-active-channels ranking. */
+export type ChannelActivity = {
+    id: string;
+    name: string;
+    count: number;
+};
+
+/** The cumulative member total at the end of a month in the growth series. */
+export type MonthlyMemberCount = {
+    month: string;
+    total: number;
+};
+
+/** A member's message count in the top-contributors ranking. */
+export type Contributor = {
+    id: string;
+    name: string;
+    count: number;
+};
+
+/** The full analytics payload for a workspace over a selected window. */
+export type WorkspaceAnalytics = {
+    range: string;
+    days: number;
+    activeMembers: AnalyticsStat;
+    messagesPerDay: AnalyticsStat;
+    messagesSent: AnalyticsStat;
+    activeChannels: AnalyticsStat;
+    messagesByDay: DailyMessageCount[];
+    topChannels: ChannelActivity[];
+    memberGrowth: MonthlyMemberCount[];
+    topContributors: Contributor[];
+};
+
+/** One option in the analytics range toggle (7d / 30d / 90d). */
+export type AnalyticsRangeOption = {
+    value: string;
+    label: string;
+    days: number;
 };
