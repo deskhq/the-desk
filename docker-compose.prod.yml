@@ -9,8 +9,10 @@
 # `app` (published on APP_PORT) and `reverb` (published on REVERB_PORT). The
 # proxy must forward WebSocket upgrade requests to the reverb service.
 #
-# No Redis service: cache, session, and queue all use the `database` driver, and
-# broadcasting uses Reverb — nothing resolves to Redis.
+# Redis backs cache, session, and queue (SESSION_DRIVER/CACHE_STORE=redis,
+# QUEUE_CONNECTION=redis in .env, with REDIS_HOST=redis). Broadcasting uses
+# Reverb. The `redis` service below is always-on; every app process depends on
+# it being healthy before it starts.
 
 x-app: &app
   # Defaults to the local build tag (build-from-source). Set APP_IMAGE to the
@@ -28,6 +30,8 @@ x-app: &app
     - storage-app:/app/storage/app
   depends_on:
     pgsql:
+      condition: service_healthy
+    redis:
       condition: service_healthy
     meilisearch:
       condition: service_healthy
@@ -56,7 +60,7 @@ services:
     ports:
       - '${REVERB_PORT:-8080}:8080'
 
-  # Queue worker (queue connection is `database`).
+  # Queue worker (queue connection is `redis`).
   queue:
     <<: *app
     command: ['php', 'artisan', 'queue:work', '--tries=3']
@@ -109,6 +113,23 @@ services:
       timeout: 5s
       retries: 5
 
+  # Backs cache, session, and queue (see the app env drivers above). Persists to
+  # a named volume so queued jobs survive a restart; `appendonly` keeps the AOF
+  # log for durability between snapshots.
+  redis:
+    image: redis:alpine
+    command: ['redis-server', '--appendonly', 'yes']
+    volumes:
+      - redis-data:/data
+    restart: unless-stopped
+    networks:
+      - app
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
 networks:
   app:
     driver: bridge
@@ -120,4 +141,5 @@ volumes:
     # the new Meilisearch boots cleanly. The previous version's volume is left
     # behind for manual pruning (`docker volume rm the-desk-meili-<old>`).
     name: the-desk-meili-${MEILISEARCH_VERSION:-v1.49}
+  redis-data:
   storage-app:
