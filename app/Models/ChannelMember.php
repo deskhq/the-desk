@@ -22,6 +22,7 @@ use Illuminate\Support\Carbon;
  * @property bool $starred
  * @property string|null $section_id
  * @property int $position
+ * @property Carbon|null $hidden_at
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  * @property-read Channel $channel
@@ -46,6 +47,7 @@ class ChannelMember extends Model
             'notification_level' => NotificationLevel::class,
             'starred' => 'boolean',
             'position' => 'integer',
+            'hidden_at' => 'datetime',
         ];
     }
 

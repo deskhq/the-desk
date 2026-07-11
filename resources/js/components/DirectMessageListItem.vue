@@ -1,7 +1,10 @@
 <script setup lang="ts">
-import { Link } from '@inertiajs/vue3';
+import { Link, router } from '@inertiajs/vue3';
+import { X } from '@lucide/vue';
 import { computed } from 'vue';
+import { toast } from 'vue-sonner';
 import { show } from '@/actions/App/Http/Controllers/Channels/ChannelController';
+import { store as hideDirectMessage } from '@/actions/App/Http/Controllers/Channels/HideDirectMessageController';
 import { SidebarMenuButton, SidebarMenuItem } from '@/components/ui/sidebar';
 import {
     Tooltip,
@@ -40,10 +43,35 @@ const isActive = computed(() => props.channel.slug === props.activeChannelSlug);
 const indicator = computed(() =>
     notificationIndicator(props.channel.muted, props.channel.notificationLevel),
 );
+
+/**
+ * Close (hide) this DM from the sidebar, reloading only the shared `channels`
+ * prop so the row leaves without a full reload. A later message — or reopening
+ * the conversation — brings it back.
+ */
+function hide(): void {
+    router.post(
+        hideDirectMessage({
+            team: props.teamSlug,
+            channel: props.channel.slug,
+        }).url,
+        {},
+        {
+            preserveScroll: true,
+            preserveState: true,
+            only: ['channels'],
+            onError: () => {
+                toast.error(
+                    t('Failed to close the conversation. Please try again.'),
+                );
+            },
+        },
+    );
+}
 </script>
 
 <template>
-    <SidebarMenuItem>
+    <SidebarMenuItem class="group/row relative">
         <SidebarMenuButton
             as-child
             :is-active="isActive"
@@ -121,5 +149,21 @@ const indicator = computed(() =>
                 >
             </Link>
         </SidebarMenuButton>
+        <!-- Hover control: a close button that hides this DM from the sidebar. A
+             separate button (outside the navigation link, so the anchor stays
+             valid) overlaid on the row's right side, revealed on hover or focus;
+             a solid background masks any unread badge underneath. -->
+        <button
+            type="button"
+            :data-test="`dm-close-${channel.slug}`"
+            :aria-label="
+                $t('Close conversation with :name', { name: displayName })
+            "
+            :title="$t('Close direct message')"
+            class="absolute top-1/2 right-1 z-10 flex size-5 -translate-y-1/2 items-center justify-center rounded bg-sidebar text-muted-foreground/60 opacity-0 transition group-hover/row:opacity-100 group-data-[active=true]/row:bg-sidebar-primary group-data-[active=true]/row:text-sidebar-primary-foreground/70 hover:text-sidebar-foreground group-data-[active=true]/row:hover:text-sidebar-primary-foreground focus-visible:opacity-100"
+            @click="hide"
+        >
+            <X class="size-3.5" />
+        </button>
     </SidebarMenuItem>
 </template>
