@@ -11,6 +11,7 @@ use App\Http\Controllers\Channels\DirectMessageController;
 use App\Http\Controllers\Channels\ForwardMessageController;
 use App\Http\Controllers\Channels\HideDirectMessageController;
 use App\Http\Controllers\Channels\MessageController;
+use App\Http\Controllers\Channels\MessageReminderController;
 use App\Http\Controllers\Channels\ReactionController;
 use App\Http\Controllers\Channels\ScheduledMessageController;
 use App\Http\Controllers\Channels\SearchController;
@@ -92,6 +93,12 @@ Route::middleware(['auth', 'verified', EnsureTeamMembership::class])->group(func
     Route::delete('t/{team}/c/{channel}/scheduled-messages/{scheduledMessage}', [ScheduledMessageController::class, 'destroy'])
         ->scopeBindings()
         ->name('channels.scheduled-messages.destroy');
+    Route::post('t/{team}/reminders', [MessageReminderController::class, 'store'])
+        ->name('channels.reminders.store');
+    Route::delete('t/{team}/reminders', [MessageReminderController::class, 'destroyAll'])
+        ->name('channels.reminders.clear');
+    Route::delete('t/{team}/reminders/{reminder}', [MessageReminderController::class, 'destroy'])
+        ->name('channels.reminders.destroy');
     Route::post('t/{team}/c/{channel}/messages/{message}/reactions', [ReactionController::class, 'store'])
         ->scopeBindings()
         ->name('channels.messages.reactions.store');

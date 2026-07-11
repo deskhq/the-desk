@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { usePage } from '@inertiajs/vue3';
 import {
+    AlarmClock,
     CornerUpLeft,
     Forward,
     MessageSquareText,
@@ -14,6 +15,7 @@ import LinkPreview from '@/components/LinkPreview.vue';
 import MessageForward from '@/components/MessageForward.vue';
 import MessageQuote from '@/components/MessageQuote.vue';
 import MessageReactions from '@/components/MessageReactions.vue';
+import MessageReminderPopover from '@/components/MessageReminderPopover.vue';
 import { Button } from '@/components/ui/button';
 import {
     Dialog,
@@ -78,10 +80,17 @@ const emit = defineEmits<{
     reply: [message: Message];
     forward: [message: Message];
     react: [message: Message, emoji: string];
+    remind: [message: Message, remindAt: string];
+    remindCustom: [message: Message];
     openThread: [messageId: string];
     jump: [messageId: string];
     mention: [member: { id: string; name: string }];
 }>();
+
+// The viewer's stored zone, feeding the reminder popover's wall-clock presets.
+const viewerTimezone = computed<string | null>(
+    () => page.props.auth.user.timezone ?? null,
+);
 
 // How many participant avatars to preview on a root's "N replies" affordance.
 const MAX_THREAD_AVATARS = 3;
@@ -273,6 +282,13 @@ function canForward(message: Message): boolean {
 // the (non-archived) channel; a pending or deleted row has no stable target yet.
 function canReactTo(message: Message): boolean {
     return Boolean(props.canReact) && !message.isDeleted && !isPending(message);
+}
+
+// A reminder is personal — the viewer can set one on any live message they can
+// see, in any channel and even from inside a thread. A pending or deleted row
+// has no stable id to point back to yet.
+function canRemind(message: Message): boolean {
+    return !message.isDeleted && !isPending(message);
 }
 
 // The hover "reply in thread" action shows on live root messages in the main
@@ -700,6 +716,7 @@ function confirmDelete(): void {
                                     canReply(message) ||
                                     canStartThread(message) ||
                                     canForward(message) ||
+                                    canRemind(message) ||
                                     canEdit(message) ||
                                     canDelete(message))
                             "
@@ -750,6 +767,24 @@ function confirmDelete(): void {
                             >
                                 <Forward class="size-3.5" />
                             </button>
+                            <MessageReminderPopover
+                                v-if="canRemind(message)"
+                                :timezone="viewerTimezone"
+                                @set="
+                                    (remindAt) =>
+                                        emit('remind', message, remindAt)
+                                "
+                                @custom="emit('remindCustom', message)"
+                            >
+                                <button
+                                    type="button"
+                                    data-test="message-remind"
+                                    :aria-label="$t('Remind me about this')"
+                                    class="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground data-[state=open]:bg-muted data-[state=open]:text-foreground"
+                                >
+                                    <AlarmClock class="size-3.5" />
+                                </button>
+                            </MessageReminderPopover>
                             <button
                                 v-if="canEdit(message)"
                                 type="button"

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Link, router, usePage } from '@inertiajs/vue3';
 import {
+    AlarmClock,
     Check,
     ChevronRight,
     FolderPlus,
@@ -28,6 +29,11 @@ import {
     store as storeSection,
     update as updateSection,
 } from '@/actions/App/Http/Controllers/Channels/ChannelSectionController';
+import {
+    destroy as destroyReminder,
+    destroyAll as clearRemindersAction,
+    store as storeReminder,
+} from '@/actions/App/Http/Controllers/Channels/MessageReminderController';
 import { index as searchMessages } from '@/actions/App/Http/Controllers/Channels/SearchController';
 import { index as threadsInbox } from '@/actions/App/Http/Controllers/Channels/ThreadsController';
 import { update as updateSidebarSections } from '@/actions/App/Http/Controllers/SidebarSectionController';
@@ -42,6 +48,8 @@ import NewDirectMessageModal from '@/components/NewDirectMessageModal.vue';
 import OnboardingTour from '@/components/OnboardingTour.vue';
 import PendingInvitationsModal from '@/components/PendingInvitationsModal.vue';
 import QuickSwitcher from '@/components/QuickSwitcher.vue';
+import ReminderNudge from '@/components/ReminderNudge.vue';
+import RemindersDialog from '@/components/RemindersDialog.vue';
 import SettingsNav from '@/components/SettingsNav.vue';
 import {
     DropdownMenu,
@@ -70,6 +78,7 @@ import { useChimeNotifications } from '@/composables/useChimeNotifications';
 import { useInitials } from '@/composables/useInitials';
 import { useKeyboardShortcuts } from '@/composables/useKeyboardShortcuts';
 import { useKeyboardShortcutsModal } from '@/composables/useKeyboardShortcutsModal';
+import { useMessageReminders } from '@/composables/useMessageReminders';
 import { useNewDirectMessages } from '@/composables/useNewDirectMessages';
 import {
     shouldAutoStartTour,
@@ -86,6 +95,7 @@ import {
 } from '@/lib/channelSections';
 import type { SidebarSectionKey } from '@/lib/channelSections';
 import type { Channel, ChannelSection } from '@/types/channels';
+import type { MessageReminder } from '@/types/messages';
 import type { RoleOption } from '@/types/teams';
 
 const page = usePage();
@@ -111,6 +121,9 @@ useSidebarBadges();
 // Surface a brand-new direct message in the sidebar the moment someone messages
 // the viewer for the first time, without a manual reload.
 useNewDirectMessages();
+
+// Slide in a nudge the moment a message reminder comes due.
+useMessageReminders();
 
 const currentTeam = computed(() => page.props.currentTeam);
 const teams = computed(() => page.props.teams ?? []);
@@ -494,6 +507,93 @@ const quickSwitcherOpen = ref(false);
 const { isOpen: shortcutsOpen, toggle: toggleShortcuts } =
     useKeyboardShortcutsModal();
 
+// The viewer's still-pending reminders in this team, feeding the "Reminders"
+// list and its sidebar count; the due-and-unacknowledged ones drive the nudges.
+const reminders = computed<MessageReminder[]>(() => page.props.reminders ?? []);
+const firedReminders = computed<MessageReminder[]>(
+    () => page.props.firedReminders ?? [],
+);
+const remindersDialogOpen = ref(false);
+
+/**
+ * Common reload options for a reminder mutation: leave the page in place and
+ * refresh only the reminder props so the list and nudges stay current.
+ */
+const reminderReloadOptions = {
+    preserveScroll: true,
+    preserveState: true,
+    only: ['reminders', 'firedReminders'] as string[],
+};
+
+// Jump to the reminded message, then clear its now-acknowledged nudge. The
+// clear runs first so the fresh page load no longer carries the fired reminder.
+function openReminder(reminder: MessageReminder): void {
+    const target = show(
+        { team: reminder.teamSlug, channel: reminder.channelSlug },
+        { query: { message: reminder.messageId } },
+    ).url;
+
+    router.delete(
+        destroyReminder({ team: reminder.teamSlug, reminder: reminder.id }).url,
+        {
+            ...reminderReloadOptions,
+            onFinish: () => router.visit(target),
+        },
+    );
+}
+
+// Push a fired reminder out by 20 minutes, re-arming it back to pending.
+function snoozeReminder(reminder: MessageReminder): void {
+    router.post(
+        storeReminder({ team: reminder.teamSlug }).url,
+        {
+            message_id: reminder.messageId,
+            remind_at: new Date(Date.now() + 20 * 60_000).toISOString(),
+        },
+        {
+            ...reminderReloadOptions,
+            onSuccess: () =>
+                toast.success(t('Reminder snoozed for 20 minutes.')),
+            onError: () =>
+                toast.error(
+                    t('Failed to snooze the reminder. Please try again.'),
+                ),
+        },
+    );
+}
+
+// Clear a single reminder — an acknowledged nudge, or a pending row from the list.
+function clearReminder(
+    reminder: Pick<MessageReminder, 'id' | 'teamSlug'>,
+): void {
+    router.delete(
+        destroyReminder({ team: reminder.teamSlug, reminder: reminder.id }).url,
+        reminderReloadOptions,
+    );
+}
+
+// Clear every pending reminder in the current team at once.
+function clearAllReminders(): void {
+    if (!currentTeam.value) {
+        return;
+    }
+
+    router.delete(
+        clearRemindersAction({ team: currentTeam.value.slug }).url,
+        reminderReloadOptions,
+    );
+}
+
+// The dialog rows only carry the reminder id; resolve the team from the shared
+// prop (all listed reminders belong to the current team).
+function clearReminderById(id: string): void {
+    const reminder = reminders.value.find((entry) => entry.id === id);
+
+    if (reminder) {
+        clearReminder(reminder);
+    }
+}
+
 /**
  * Jump `delta` channels along the sidebar list from the active one, wrapping at
  * either end. Does nothing until a team and its channels are loaded.
@@ -522,7 +622,7 @@ useKeyboardShortcuts({
     'show-shortcuts': () => toggleShortcuts(),
 });
 
-const { syncDetectedTimezone } = useTimezone();
+const { timezone, syncDetectedTimezone } = useTimezone();
 
 onMounted(() => {
     // Lazily pull the (optional) shared invitations so the post-login prompt appears.
@@ -1131,6 +1231,22 @@ onMounted(() => {
                                 </SidebarMenuItem>
                                 <SidebarMenuItem>
                                     <SidebarMenuButton
+                                        data-test="reminders-trigger"
+                                        class="h-[30px] gap-2 rounded-[9px] px-2.5 text-[13px] text-muted-foreground hover:bg-sidebar-accent/60"
+                                        @click="remindersDialogOpen = true"
+                                    >
+                                        <AlarmClock class="size-[13px]" />
+                                        <span>{{ $t('Reminders') }}</span>
+                                        <span
+                                            v-if="reminders.length > 0"
+                                            data-test="reminders-badge"
+                                            class="ml-auto inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-brass px-1 text-[10px] font-semibold text-brass-foreground"
+                                            >{{ reminders.length }}</span
+                                        >
+                                    </SidebarMenuButton>
+                                </SidebarMenuItem>
+                                <SidebarMenuItem>
+                                    <SidebarMenuButton
                                         as-child
                                         class="h-[30px] gap-2 rounded-[9px] px-2.5 text-[13px] text-muted-foreground hover:bg-sidebar-accent/60"
                                     >
@@ -1206,6 +1322,7 @@ onMounted(() => {
             :members="teamMembers"
             :current-user-id="currentUserId"
             :team-slug="currentTeam.slug"
+            @open-reminders="remindersDialogOpen = true"
         />
 
         <NewDirectMessageModal
@@ -1217,6 +1334,33 @@ onMounted(() => {
         />
 
         <KeyboardShortcutsModal v-model:open="shortcutsOpen" />
+
+        <RemindersDialog
+            v-model:open="remindersDialogOpen"
+            :reminders="reminders"
+            :timezone="timezone"
+            @open="openReminder"
+            @clear="clearReminderById"
+            @clear-all="clearAllReminders"
+        />
+
+        <!-- Due reminders slide in, stacked, in the bottom-right corner. The
+             wrapper ignores pointer events so it never blocks the app behind
+             the gaps; each card re-enables them. -->
+        <div
+            v-if="firedReminders.length > 0"
+            data-test="reminder-nudges"
+            class="pointer-events-none fixed right-4 bottom-4 z-50 flex flex-col gap-2.5"
+        >
+            <ReminderNudge
+                v-for="reminder in firedReminders"
+                :key="reminder.id"
+                :reminder="reminder"
+                @open="openReminder"
+                @snooze="snoozeReminder"
+                @dismiss="clearReminder"
+            />
+        </div>
 
         <OnboardingTour />
     </SidebarProvider>

@@ -153,6 +153,26 @@ export type ScheduledMessage = {
 };
 
 /**
+ * A personal "remind me about this" reminder on a message. Mirrors the
+ * `MessageReminderData` DTO: the id, the reminded message (id + author + body +
+ * a `isDeleted` stub flag), where it lives (team + channel slug/name for the
+ * link back), and the UTC `remindAt` instant the client renders in the viewer's
+ * zone. The workspace shares the viewer's pending rows in `reminders` and the
+ * due-and-unacknowledged ones in `firedReminders`.
+ */
+export type MessageReminder = {
+    id: string;
+    messageId: string;
+    remindAt: string;
+    teamSlug: string;
+    channelSlug: string;
+    channelName: string | null;
+    authorName: string;
+    body: string;
+    isDeleted: boolean;
+};
+
+/**
  * An open thread's root message. Mirrors the `thread` prop the channel page
  * loads on demand from `?thread=`; the replies ride a separate, paginated
  * `threadReplies` scroll prop (a `MessagePage`).

@@ -34,6 +34,8 @@ const emit = defineEmits<{
     delete: [message: Message];
     forward: [message: Message];
     react: [message: Message, emoji: string];
+    remind: [message: Message, remindAt: string];
+    remindCustom: [message: Message];
     typing: [];
     jump: [messageId: string];
 }>();
@@ -186,6 +188,13 @@ watch(
                         @forward="(message) => emit('forward', message)"
                         @react="
                             (message, emoji) => emit('react', message, emoji)
+                        "
+                        @remind="
+                            (message, remindAt) =>
+                                emit('remind', message, remindAt)
+                        "
+                        @remind-custom="
+                            (message) => emit('remindCustom', message)
                         "
                         @jump="(id) => emit('jump', id)"
                         @mention="mentionInThread"

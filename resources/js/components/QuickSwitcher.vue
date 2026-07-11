@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { router, usePage } from '@inertiajs/vue3';
-import { Search } from '@lucide/vue';
+import { AlarmClock, Search } from '@lucide/vue';
 import { ListboxFilter } from 'reka-ui';
 import { computed, ref, watch } from 'vue';
 import { show } from '@/actions/App/Http/Controllers/Channels/ChannelController';
@@ -34,6 +34,11 @@ const props = defineProps<{
 }>();
 
 const open = defineModel<boolean>('open', { default: false });
+
+const emit = defineEmits<{
+    // The viewer picked the "Reminders" action; the layout owns the dialog.
+    openReminders: [];
+}>();
 
 // Our own query drives the fuzzy channel ranking. The Command's internal filter
 // state is deliberately left untouched (empty) so it never hides a subsequence
@@ -115,6 +120,11 @@ function seeAllResults(): void {
         searchPage(props.teamSlug, { query: { q: trimmedQuery.value } }).url,
     );
 }
+
+function openReminders(): void {
+    open.value = false;
+    emit('openReminders');
+}
 </script>
 
 <template>
@@ -134,6 +144,25 @@ function seeAllResults(): void {
             />
         </div>
         <CommandList>
+            <CommandGroup v-if="trimmedQuery === ''" :heading="$t('Actions')">
+                <CommandItem
+                    value="action:reminders"
+                    data-test="quick-switcher-reminders"
+                    class="group h-[38px] gap-2 rounded-lg px-2.5 data-[highlighted]:bg-primary data-[highlighted]:text-primary-foreground"
+                    @select="openReminders"
+                >
+                    <AlarmClock
+                        class="size-4 shrink-0 text-muted-foreground/70 group-data-[highlighted]:text-brass"
+                    />
+                    <span class="truncate">{{ $t('Reminders') }}</span>
+                    <span
+                        class="ml-auto font-mono text-[11px] text-primary-foreground/70 opacity-0 group-data-[highlighted]:opacity-100"
+                        aria-hidden="true"
+                        >↵</span
+                    >
+                </CommandItem>
+            </CommandGroup>
+
             <CommandGroup
                 v-if="channelResults.length > 0"
                 :heading="$t('Channels')"

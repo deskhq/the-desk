@@ -1,6 +1,7 @@
 import type { ReverbRuntimeConfig } from '@/lib/echo';
 import type { Auth } from '@/types/auth';
 import type { Channel, ChannelSection } from '@/types/channels';
+import type { MessageReminder } from '@/types/messages';
 import type { PersonRef } from '@/types/people';
 import type { DashboardInvitation, RoleOption, Team } from '@/types/teams';
 
@@ -34,6 +35,8 @@ declare module '@inertiajs/core' {
             collapsedChannelSections?: string[];
             hasUnreadThreads?: boolean;
             pendingInvitations?: DashboardInvitation[];
+            reminders?: MessageReminder[];
+            firedReminders?: MessageReminder[];
             locale: string;
             translations?: Record<string, string>;
             [key: string]: unknown;

@@ -33,6 +33,7 @@ import {
     store as storeMessage,
     update as updateMessage,
 } from '@/actions/App/Http/Controllers/Channels/MessageController';
+import { store as remindMessage } from '@/actions/App/Http/Controllers/Channels/MessageReminderController';
 import { store as toggleReactionAction } from '@/actions/App/Http/Controllers/Channels/ReactionController';
 import {
     destroy as destroyScheduledMessage,
@@ -46,6 +47,7 @@ import InviteMemberModal from '@/components/InviteMemberModal.vue';
 import MessageComposer from '@/components/MessageComposer.vue';
 import MessageList from '@/components/MessageList.vue';
 import ScheduledMessagesDialog from '@/components/ScheduledMessagesDialog.vue';
+import ScheduleMessageDialog from '@/components/ScheduleMessageDialog.vue';
 import ThreadPanel from '@/components/ThreadPanel.vue';
 import TypingIndicator from '@/components/TypingIndicator.vue';
 import { Button } from '@/components/ui/button';
@@ -771,6 +773,50 @@ function cancelScheduled(id: string): void {
     );
 }
 
+// The message a custom-time reminder is being set for, and whether the custom
+// date & time picker is open.
+const reminderTargetId = ref<string | null>(null);
+const reminderCustomOpen = ref(false);
+
+// Set (or re-arm) a personal reminder on a message at a chosen instant. Only the
+// shared reminder props are reloaded, so the pending list and any nudge stay
+// current without disturbing the timeline.
+function setReminder(messageId: string, remindAt: string): void {
+    router.post(
+        remindMessage({ team: props.team.slug }).url,
+        { message_id: messageId, remind_at: remindAt },
+        {
+            preserveScroll: true,
+            preserveState: true,
+            only: ['reminders', 'firedReminders'],
+            onSuccess: () => toast.success(t('Reminder set.')),
+            onError: () =>
+                toast.error(t('Failed to set the reminder. Please try again.')),
+        },
+    );
+}
+
+// A preset was chosen from a message's reminder popover.
+function remindWith(message: Message, remindAt: string): void {
+    setReminder(message.id, remindAt);
+}
+
+// The viewer chose "Custom date & time…"; remember the target and open the picker.
+function openCustomReminder(message: Message): void {
+    reminderTargetId.value = message.id;
+    reminderCustomOpen.value = true;
+}
+
+// Confirm the custom reminder time picked in the dialog.
+function confirmCustomReminder(remindAt: string): void {
+    if (reminderTargetId.value === null) {
+        return;
+    }
+
+    setReminder(reminderTargetId.value, remindAt);
+    reminderTargetId.value = null;
+}
+
 // Post a reply into the open thread. It renders optimistically in the panel and,
 // when "also send to channel" is checked, in the main timeline too.
 function sendThreadReply(
@@ -1300,6 +1346,8 @@ function archive(): void {
                                 @reply="startReply"
                                 @forward="openForward"
                                 @react="reactToMessage"
+                                @remind="remindWith"
+                                @remind-custom="openCustomReminder"
                                 @open-thread="openThread"
                                 @jump="jumpToMessage"
                                 @mention="mentionInChannel"
@@ -1646,6 +1694,8 @@ function archive(): void {
                 @delete="deleteMessage"
                 @forward="openForward"
                 @react="reactToMessage"
+                @remind="remindWith"
+                @remind-custom="openCustomReminder"
                 @typing="onTyping"
                 @jump="jumpToMessage"
             />
@@ -1674,6 +1724,14 @@ function archive(): void {
         :timezone="timezone"
         @update="updateScheduled"
         @cancel="cancelScheduled"
+    />
+
+    <ScheduleMessageDialog
+        v-model:open="reminderCustomOpen"
+        :timezone="timezone"
+        :title="$t('Remind me about this')"
+        :confirm-label="$t('Set reminder')"
+        @confirm="confirmCustomReminder"
     />
 
     <Dialog v-model:open="confirmingArchive">

@@ -4,10 +4,13 @@ namespace App\Http\Middleware;
 
 use App\Data\ChannelData;
 use App\Data\ChannelSectionData;
+use App\Data\MessageReminderData;
 use App\Data\UserData;
+use App\Enums\MessageReminderStatus;
 use App\Enums\TeamRole;
 use App\Models\Channel;
 use App\Models\Message;
+use App\Models\MessageReminder;
 use App\Models\Team;
 use App\Models\TeamInvitation;
 use App\Models\User;
@@ -90,6 +93,12 @@ class HandleInertiaRequests extends Middleware
             'collapsedChannelSections' => fn () => $user->collapsed_channel_sections ?? [],
             'hasUnreadThreads' => fn () => $this->hasUnreadThreads($request, $user),
             'pendingInvitations' => Inertia::optional(fn () => $user ? $this->pendingInvitationsFor($user) : []),
+            // The viewer's still-pending reminders in this team, soonest first,
+            // feeding the "Reminders" list and its sidebar count.
+            'reminders' => fn () => $this->remindersForSidebar($request, $user, MessageReminderStatus::Pending),
+            // Reminders that have come due and await acknowledgement, driving the
+            // in-app nudges; reloaded live when a MessageReminderDue signal lands.
+            'firedReminders' => fn () => $this->remindersForSidebar($request, $user, MessageReminderStatus::Fired),
         ];
     }
 
@@ -200,6 +209,36 @@ class HandleInertiaRequests extends Middleware
         }
 
         return UserData::collect($team->members()->orderBy('name')->get(), 'array');
+    }
+
+    /**
+     * The current user's reminders in the team in the URL, filtered by status.
+     *
+     * Pending reminders feed the "Reminders" list (and its sidebar count); fired
+     * ones drive the in-app nudges. Both are scoped to messages in the current
+     * team and eager-load the message, its author, and its channel + team so each
+     * row renders a quote and a working link back. Ordered by due time. Empty off
+     * the channel workspace, where the surfaces are absent.
+     *
+     * @return array<int, MessageReminderData>
+     */
+    protected function remindersForSidebar(Request $request, ?User $user, MessageReminderStatus $status): array
+    {
+        $team = $request->route('team');
+
+        if (! $user || ! $team instanceof Team || ! $request->routeIs('channels.*')) {
+            return [];
+        }
+
+        $reminders = MessageReminder::query()
+            ->where('user_id', $user->id)
+            ->where('status', $status)
+            ->whereHas('message.channel', fn (Builder $query) => $query->where('team_id', $team->id))
+            ->with(['message.user', 'message.channel.team'])
+            ->orderBy('remind_at')
+            ->get();
+
+        return MessageReminderData::collect($reminders, 'array');
     }
 
     /**

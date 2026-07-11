@@ -1,5 +1,6 @@
 <?php
 
+use App\Actions\Channels\DispatchDueMessageReminders;
 use App\Actions\Channels\DispatchDueScheduledMessages;
 use App\Models\TeamInvitation;
 use Illuminate\Support\Facades\Schedule;
@@ -16,3 +17,9 @@ Schedule::call(fn (DispatchDueScheduledMessages $dispatch) => $dispatch->handle(
     ->everyMinute()
     ->withoutOverlapping()
     ->description('Deliver due scheduled messages');
+
+Schedule::call(fn (DispatchDueMessageReminders $dispatch) => $dispatch->handle())
+    ->name('fire-due-message-reminders')
+    ->everyMinute()
+    ->withoutOverlapping()
+    ->description('Fire due message reminders');
