@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.5.0](https://github.com/emmpaul/the-desk/compare/v0.4.0...v0.5.0) (2026-07-11)
+
+
+### Features
+
+* **analytics:** admin workspace analytics dashboard ([#51](https://github.com/emmpaul/the-desk/issues/51)) ([#220](https://github.com/emmpaul/the-desk/issues/220)) ([898055b](https://github.com/emmpaul/the-desk/commit/898055ba92544885ff77d5aa29f9dd78777fb2d2))
+* **messaging:** forward a message into a direct message ([#219](https://github.com/emmpaul/the-desk/issues/219)) ([b2a9734](https://github.com/emmpaul/the-desk/commit/b2a9734616d622679438e9facfac8bba1ba2bb7f))
+* **navigation:** close (hide) a direct message from the sidebar ([#218](https://github.com/emmpaul/the-desk/issues/218)) ([7d7c00e](https://github.com/emmpaul/the-desk/commit/7d7c00e090cdcbb9b1e0f892e59591380a115af9))
+* **navigation:** surface notification-preference indicator in sidebar rows ([#217](https://github.com/emmpaul/the-desk/issues/217)) ([c90bd74](https://github.com/emmpaul/the-desk/commit/c90bd749f152f7d49097728bca9660c8a2bd6166))
+* **onboarding:** first-run tour and empty-state welcome ([#43](https://github.com/emmpaul/the-desk/issues/43)) ([#221](https://github.com/emmpaul/the-desk/issues/221)) ([ca8b26d](https://github.com/emmpaul/the-desk/commit/ca8b26d8b3e9134ea21352e947015fd60bd1ce7f))
+* **platform:** runtime-configurable Reverb settings for a reusable image ([#208](https://github.com/emmpaul/the-desk/issues/208)) ([b89c8a6](https://github.com/emmpaul/the-desk/commit/b89c8a6e9b10cf91b79b2eb46c116e50f20128f7))
+
 ## [0.4.0](https://github.com/emmpaul/the-desk/compare/v0.3.0...v0.4.0) (2026-07-11)
 
 
