@@ -1,0 +1,346 @@
+/* "The Desk" transactional email theme.
+
+   Warm editorial system: stone canvas, Newsreader-style serif headings
+   (web-safe serif fallback — no external font requests), Instrument-Sans-style
+   body (system sans fallback), brass accents, and pill CTA buttons.
+
+   Colours live here as inline styles (light). Dark-mode overrides ride in the
+   layout <style> block with !important, since @media rules cannot be inlined. */
+
+/* Base */
+
+body,
+body *:not(html):not(style):not(br):not(tr):not(code) {
+    box-sizing: border-box;
+    /* Keep this value on one line: Laravel's CSS inliner drops multi-line
+       declarations, which would leave body text on the client's default serif. */
+    font-family: 'Instrument Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    position: relative;
+}
+
+body {
+    -webkit-text-size-adjust: none;
+    background-color: #e7e4dd;
+    color: #665f4e;
+    height: 100%;
+    line-height: 1.6;
+    margin: 0;
+    padding: 0;
+    width: 100% !important;
+}
+
+p,
+ul,
+ol,
+blockquote {
+    line-height: 1.6;
+    text-align: start;
+}
+
+a {
+    color: #1d1a15;
+}
+
+a img {
+    border: none;
+}
+
+/* Typography */
+
+h1 {
+    color: #1d1a15;
+    font-size: 26px;
+    font-weight: 600;
+    margin-top: 0;
+    text-align: start;
+}
+
+h2 {
+    color: #1d1a15;
+    font-size: 20px;
+    font-weight: 600;
+    margin-top: 0;
+    text-align: start;
+}
+
+h3 {
+    color: #1d1a15;
+    font-size: 16px;
+    font-weight: 600;
+    margin-top: 0;
+    text-align: start;
+}
+
+/* Serif headings need class-level specificity to beat the `body *` base rule. */
+.content-cell h1,
+.content-cell h2,
+.content-cell h3 {
+    font-family: 'Newsreader', ui-serif, Georgia, 'Times New Roman', serif;
+    letter-spacing: -0.015em;
+    line-height: 1.15;
+}
+
+.content-cell h1 {
+    margin-bottom: 16px;
+}
+
+p {
+    color: #665f4e;
+    /* Set the body sans stack on simple selectors that inline reliably — the
+       grouped `body *:not(...)` base rule is skipped by Laravel's inliner. */
+    font-family: 'Instrument Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    font-size: 15px;
+    line-height: 1.6;
+    margin-top: 0;
+    text-align: left;
+}
+
+p.sub {
+    font-size: 12px;
+}
+
+img {
+    max-width: 100%;
+}
+
+/* Layout */
+
+.wrapper {
+    -premailer-cellpadding: 0;
+    -premailer-cellspacing: 0;
+    -premailer-width: 100%;
+    background-color: #e7e4dd;
+    margin: 0;
+    padding: 0;
+    width: 100%;
+}
+
+.content {
+    -premailer-cellpadding: 0;
+    -premailer-cellspacing: 0;
+    -premailer-width: 100%;
+    margin: 0;
+    padding: 0;
+    width: 100%;
+}
+
+/* Header */
+
+.header {
+    padding: 28px 0 8px;
+    text-align: center;
+}
+
+.header a {
+    color: #1d1a15;
+    text-decoration: none;
+}
+
+.brand-mark {
+    color: #c9a35c;
+    font-size: 17px;
+    line-height: 1;
+    vertical-align: middle;
+}
+
+.brand-name {
+    color: #1d1a15;
+    font-family: 'Newsreader', ui-serif, Georgia, 'Times New Roman', serif;
+    font-size: 19px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    padding-left: 8px;
+    vertical-align: middle;
+}
+
+/* Body */
+
+.body {
+    -premailer-cellpadding: 0;
+    -premailer-cellspacing: 0;
+    -premailer-width: 100%;
+    background-color: #e7e4dd;
+    border-bottom: 1px solid #e7e4dd;
+    border-top: 1px solid #e7e4dd;
+    margin: 0;
+    padding: 0;
+    width: 100%;
+}
+
+.inner-body {
+    -premailer-cellpadding: 0;
+    -premailer-cellspacing: 0;
+    -premailer-width: 570px;
+    background-color: #fbfaf7;
+    border-color: #e3dfd5;
+    border-radius: 16px;
+    border-style: solid;
+    border-width: 1px;
+    box-shadow: 0 2px 8px rgba(60, 55, 40, 0.06);
+    margin: 0 auto;
+    padding: 0;
+    width: 570px;
+}
+
+.inner-body a {
+    word-break: break-all;
+}
+
+/* Subcopy */
+
+.subcopy {
+    border-top: 1px solid #eeeade;
+    margin-top: 28px;
+    padding-top: 22px;
+}
+
+.subcopy p {
+    color: #9b937f;
+    font-size: 12px;
+    line-height: 1.6;
+}
+
+.subcopy a {
+    color: #7d6023;
+}
+
+/* Footer */
+
+.footer {
+    -premailer-cellpadding: 0;
+    -premailer-cellspacing: 0;
+    -premailer-width: 570px;
+    margin: 0 auto;
+    padding: 0;
+    text-align: center;
+    width: 570px;
+}
+
+.footer p {
+    color: #9b937f;
+    font-size: 12px;
+    text-align: center;
+}
+
+.footer a {
+    color: #9b937f;
+    text-decoration: underline;
+}
+
+/* Tables */
+
+.table table {
+    -premailer-cellpadding: 0;
+    -premailer-cellspacing: 0;
+    -premailer-width: 100%;
+    margin: 30px auto;
+    width: 100%;
+}
+
+.table th {
+    border-bottom: 1px solid #e3dfd5;
+    margin: 0;
+    padding-bottom: 8px;
+}
+
+.table td {
+    color: #665f4e;
+    font-size: 15px;
+    line-height: 18px;
+    margin: 0;
+    padding: 10px 0;
+}
+
+.content-cell {
+    max-width: 100vw;
+    /* Sans catch-all so lists, links, and bold inherit the body face. */
+    font-family: 'Instrument Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    padding: 36px 40px 40px;
+}
+
+/* Buttons */
+
+.action {
+    -premailer-cellpadding: 0;
+    -premailer-cellspacing: 0;
+    -premailer-width: 100%;
+    margin: 26px auto;
+    padding: 0;
+    text-align: left;
+    width: 100%;
+    float: unset;
+}
+
+.button {
+    -webkit-text-size-adjust: none;
+    border-radius: 999px;
+    color: #f3efe4;
+    display: inline-block;
+    font-family: 'Instrument Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    font-size: 14px;
+    font-weight: 600;
+    overflow: hidden;
+    text-decoration: none;
+}
+
+.button-blue,
+.button-primary {
+    background-color: #1d1a15;
+    border-bottom: 13px solid #1d1a15;
+    border-left: 26px solid #1d1a15;
+    border-right: 26px solid #1d1a15;
+    border-top: 13px solid #1d1a15;
+}
+
+.button-green,
+.button-success {
+    background-color: #1d1a15;
+    border-bottom: 13px solid #1d1a15;
+    border-left: 26px solid #1d1a15;
+    border-right: 26px solid #1d1a15;
+    border-top: 13px solid #1d1a15;
+}
+
+.button-red,
+.button-error {
+    background-color: #9a3412;
+    border-bottom: 13px solid #9a3412;
+    border-left: 26px solid #9a3412;
+    border-right: 26px solid #9a3412;
+    border-top: 13px solid #9a3412;
+}
+
+/* Panels */
+
+.panel {
+    margin: 22px 0;
+}
+
+.panel-content {
+    background-color: #f7f3e8;
+    border: 1px solid #eee6d2;
+    border-radius: 10px;
+    color: #7d6023;
+    padding: 14px 16px;
+}
+
+.panel-content p {
+    color: #7d6023;
+    font-size: 13px;
+    line-height: 1.6;
+}
+
+.panel-item {
+    padding: 0;
+}
+
+.panel-item p:last-of-type {
+    margin-bottom: 0;
+    padding-bottom: 0;
+}
+
+/* Utilities */
+
+.break-all {
+    word-break: break-all;
+}

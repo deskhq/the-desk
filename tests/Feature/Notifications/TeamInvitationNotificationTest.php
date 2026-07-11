@@ -29,10 +29,12 @@ test('the mail message links to the login page with the invitation code', functi
     $mail = $notification->toMail(new stdClass);
 
     expect($mail->subject)->toBe("You've been invited to join Laravel Team")
-        ->and($mail->actionText)->toBe('Log in')
+        ->and($mail->greeting)->toBe('Taylor Otwell invited you to join Laravel Team')
+        ->and($mail->actionText)->toBe('Log in to The Desk')
         ->and($mail->actionUrl)->toBe(route('login', ['invitation' => $this->invitation->code]));
 
     expect($mail->introLines)->toContain('Taylor Otwell has invited you to join the Laravel Team team.');
+    expect($mail->outroLines)->toContain("Didn't expect this invitation? You can safely ignore this email.");
 });
 
 test('the array representation carries the invitation context', function () {

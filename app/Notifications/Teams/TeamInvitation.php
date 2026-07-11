@@ -40,15 +40,20 @@ class TeamInvitation extends Notification implements ShouldQueue
 
         return (new MailMessage)
             ->subject(__("You've been invited to join :teamName", ['teamName' => $team->name]))
+            ->greeting(__(':inviterName invited you to join :teamName', [
+                'inviterName' => $inviter->name,
+                'teamName' => $team->name,
+            ]))
             ->line(__(':inviterName has invited you to join the :teamName team.', [
                 'inviterName' => $inviter->name,
                 'teamName' => $team->name,
             ]))
             ->line(__('Log in and visit your workspace to accept or decline this invitation.'))
             ->action(
-                __('Log in'),
+                __('Log in to :app', ['app' => config('app.name')]),
                 route('login', ['invitation' => $this->invitation->code]),
-            );
+            )
+            ->line(__("Didn't expect this invitation? You can safely ignore this email."));
     }
 
     /**

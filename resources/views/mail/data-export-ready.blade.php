@@ -8,11 +8,10 @@
 </x-mail::button>
 
 @isset($expiresAt)
+<x-mail::panel>
 {{ __('This link expires on :date. You can request a fresh export any time from your profile settings.', ['date' => $expiresAt->toFormattedDayDateString()]) }}
+</x-mail::panel>
 @endisset
 
 {{ __("If you didn't request this export, you can safely ignore this email.") }}
-
-{{ __('Thanks,') }}<br>
-{{ config('app.name') }}
 </x-mail::message>
