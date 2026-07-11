@@ -15,6 +15,7 @@ use App\Support\ReverbConfig;
 use App\Support\TranslationCatalog;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Inertia\Inertia;
 use Inertia\Middleware;
 use Laravel\Fortify\Features;
@@ -109,7 +110,7 @@ class HandleInertiaRequests extends Middleware
             ->where('channels.team_id', $team->id)
             ->whereNull('channels.archived_at')
             ->select('channels.*')
-            ->addSelect(['channel_members.muted', 'channel_members.notification_level', 'channel_members.starred', 'channel_members.section_id', 'channel_members.position'])
+            ->addSelect(['channel_members.muted', 'channel_members.notification_level', 'channel_members.starred', 'channel_members.section_id', 'channel_members.position', 'channel_members.hidden_at'])
             // The channel's latest message time drives the "Direct messages" group
             // ordering (recent activity first) and, being null when a DM has no
             // messages yet, the listing predicate that hides an empty DM from its
@@ -138,17 +139,48 @@ class HandleInertiaRequests extends Middleware
         // A DM is listed once it has real activity: it has at least one message,
         // or the viewer created it (the initiator navigated straight into it), or
         // the viewer is currently viewing it. An empty DM the recipient was never
-        // messaged in therefore stays hidden for them. Standard channels always
-        // list. `directParticipantFor`/ordering are then applied client-side.
+        // messaged in therefore stays hidden for them. A DM the viewer closed
+        // stays out until a message arrives after the close instant — that check
+        // wins even over the created/active overrides, so closing removes the row
+        // immediately. Standard channels always list. `directParticipantFor`/
+        // ordering are then applied client-side.
         $activeChannel = $request->route('channel');
         $activeChannelId = $activeChannel instanceof Channel ? $activeChannel->getKey() : null;
 
-        $channels = $channels->filter(fn (Channel $channel): bool => ! $channel->isDirect()
-            || $channel->getAttribute('last_message_at') !== null
-            || $channel->created_by === $user->id
-            || $channel->getKey() === $activeChannelId)->values();
+        $channels = $channels->filter(function (Channel $channel) use ($user, $activeChannelId): bool {
+            if (! $channel->isDirect()) {
+                return true;
+            }
+
+            if ($this->directMessageHidden($channel)) {
+                return false;
+            }
+
+            return $channel->getAttribute('last_message_at') !== null
+                || $channel->created_by === $user->id
+                || $channel->getKey() === $activeChannelId;
+        })->values();
 
         return ChannelData::collect($channels, 'array');
+    }
+
+    /**
+     * Whether the viewer has closed (hidden) the direct message and no message has
+     * arrived since. A reply after the close instant re-surfaces the DM without
+     * any write on the message path, so the check compares the two timestamps.
+     */
+    protected function directMessageHidden(Channel $channel): bool
+    {
+        $hiddenAt = $channel->getAttribute('hidden_at');
+
+        if ($hiddenAt === null) {
+            return false;
+        }
+
+        $lastMessageAt = $channel->getAttribute('last_message_at');
+
+        return $lastMessageAt === null
+            || Carbon::parse($lastMessageAt)->lessThanOrEqualTo(Carbon::parse($hiddenAt));
     }
 
     /**

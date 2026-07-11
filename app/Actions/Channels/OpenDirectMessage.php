@@ -32,6 +32,12 @@ class OpenDirectMessage
             $existing = $team->channels()->where('dm_key', $dmKey)->first();
 
             if ($existing !== null) {
+                // Reopening a DM the initiator had closed brings it back to their
+                // sidebar, even before any new message arrives.
+                $existing->channelMembers()
+                    ->where('user_id', $initiator->id)
+                    ->update(['hidden_at' => null]);
+
                 return $existing;
             }
 

@@ -83,6 +83,19 @@ class ChannelPolicy
     }
 
     /**
+     * Determine whether the user can close (hide) the direct message from their
+     * own sidebar.
+     *
+     * Only direct messages are hidable — a standard channel leaves the sidebar by
+     * archiving, not per-member hiding — and only a member has a pivot row to
+     * stamp. Each member only ever touches their own row.
+     */
+    public function hide(User $user, Channel $channel): bool
+    {
+        return $channel->isDirect() && $this->isMember($user, $channel);
+    }
+
+    /**
      * Determine whether the user can post a message to the channel.
      *
      * Only members of a non-archived channel may post.
