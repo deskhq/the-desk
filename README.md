@@ -26,11 +26,16 @@ Run the quality gate before pushing:
 
 ## Self-Hosting with Docker
 
-The production stack is built **from source at a release tag** and orchestrated
-with `docker-compose.prod.yml`. There is no prebuilt image to pull; you clone the
-repo, check out a tagged release, and bring the stack up. The app is served with
+The supported production stack is built **from source at a release tag** and
+orchestrated with `docker-compose.prod.yml`: you clone the repo, check out a
+tagged release, and bring the stack up. The app is served with
 [FrankenPHP](https://frankenphp.dev/); Postgres, Meilisearch, Reverb, a queue
 worker, and the scheduler all run as containers.
+
+A prebuilt image is also published to the GitHub Container Registry, but only as
+a **reference/demo image** — see [Pulling the reference image](#pulling-the-reference-image-from-ghcr)
+below for its limitations. Build-from-source remains the supported path for real
+deployments.
 
 ### Prerequisites
 
@@ -109,6 +114,35 @@ Your data persists across `down`/`up` in named volumes (`pgsql-data`,
 > across a major version, read the [CHANGELOG](CHANGELOG.md) and the
 > corresponding [GitHub Release notes](https://github.com/emmpaul/laravel-slack-clone/releases)
 > for required manual steps.
+
+### Pulling the reference image from GHCR
+
+Each release also publishes a prebuilt image to the GitHub Container Registry at
+`ghcr.io/emmpaul/the-desk` (tags `X.Y.Z`, `X.Y`, and `latest`; `edge` tracks the
+tip of `master`).
+
+> **This is a reference/demo image, not a turnkey production artifact.** The
+> browser-side `VITE_REVERB_APP_KEY`, `VITE_REVERB_HOST`, `VITE_REVERB_PORT`,
+> `VITE_REVERB_SCHEME`, and `VITE_APP_NAME` values are compiled into the
+> JavaScript bundle **at build time**, so the published image carries one fixed
+> set of settings (a `localhost` Reverb host). It is fine for `docker run` and
+> clicking around, but real-time broadcasting will point at the wrong host on any
+> other domain. For a real deployment, **build from source** (above) so your own
+> `VITE_*` values are baked in.
+
+The package is currently **private**, so pulling requires authenticating to GHCR
+with a [personal access token](https://github.com/settings/tokens) that has the
+`read:packages` scope:
+
+```bash
+echo "$GHCR_PAT" | docker login ghcr.io -u YOUR_GITHUB_USERNAME --password-stdin
+docker pull ghcr.io/emmpaul/the-desk:latest
+```
+
+> **Maintainer note:** the GHCR package is created private on first push. When
+> the repository is made public, flip the package to public in its package
+> settings (**Package settings → Change visibility**) so unauthenticated pulls
+> work — CI cannot toggle this.
 
 ### What runs, and why no Redis
 

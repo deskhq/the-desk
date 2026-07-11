@@ -21,7 +21,7 @@ x-app: &app
       VITE_REVERB_HOST: ${VITE_REVERB_HOST}
       VITE_REVERB_PORT: ${VITE_REVERB_PORT:-8080}
       VITE_REVERB_SCHEME: ${VITE_REVERB_SCHEME:-https}
-  image: laravel-slack-clone:latest
+  image: the-desk:latest
   env_file:
     - .env
   restart: unless-stopped
