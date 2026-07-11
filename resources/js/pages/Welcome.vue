@@ -36,7 +36,7 @@ const getStartedUrl = computed(() =>
                     :href="user ? workspaceUrl : '/'"
                     class="flex items-center gap-2.5 font-serif text-lg font-semibold tracking-tight"
                 >
-                    <AppLogoIcon class="size-6 fill-current text-brass" />
+                    <AppLogoIcon class="size-6 text-foreground" />
                     {{ name }}
                 </Link>
 

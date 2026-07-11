@@ -33,7 +33,7 @@ const name = page.props.name;
                         class="inline-flex"
                         aria-label="Home"
                     >
-                        <AppLogoIcon class="size-8 fill-current text-brass" />
+                        <AppLogoIcon class="size-8 text-foreground" />
                     </Link>
                     <span
                         v-else

@@ -27,7 +27,7 @@ defineProps<{
                 :href="home()"
                 class="relative z-10 flex items-center gap-2.5 font-serif text-lg font-semibold"
             >
-                <AppLogoIcon class="size-7 fill-current text-brass" />
+                <AppLogoIcon class="size-7 text-primary-foreground" />
                 {{ name }}
             </Link>
 
@@ -49,7 +49,7 @@ defineProps<{
                     :href="home()"
                     class="mb-8 flex items-center justify-center lg:hidden"
                 >
-                    <AppLogoIcon class="size-9 fill-current text-foreground" />
+                    <AppLogoIcon class="size-9 text-foreground" />
                     <span class="sr-only">{{ name }}</span>
                 </Link>
 
