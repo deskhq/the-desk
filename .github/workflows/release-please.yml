@@ -13,8 +13,14 @@ jobs:
   release-please:
     runs-on: ubuntu-latest
     steps:
+      # Use a PAT (not the built-in GITHUB_TOKEN) so the `v*` tag release-please
+      # pushes triggers downstream workflows — notably docker.yml's GHCR publish.
+      # GitHub deliberately suppresses `on: push` triggers for refs created by
+      # GITHUB_TOKEN, so with the default token a release would tag but never
+      # publish the versioned image. RELEASE_PLEASE_TOKEN needs `contents: write`
+      # and `pull-requests: write`.
       - uses: googleapis/release-please-action@5c625bfb5d1ff62eadeeb3772007f7f66fdcf071 # v4
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.RELEASE_PLEASE_TOKEN }}
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
