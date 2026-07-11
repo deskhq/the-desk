@@ -34,6 +34,7 @@ createInertiaApp({
     layout: (name) => {
         switch (true) {
             case name === 'Welcome':
+            case name === 'Error':
                 return null;
             case name.startsWith('channels/'):
                 return MainLayout;
