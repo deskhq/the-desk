@@ -66,6 +66,11 @@ import {
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { SidebarTrigger } from '@/components/ui/sidebar';
+import {
+    Tooltip,
+    TooltipContent,
+    TooltipTrigger,
+} from '@/components/ui/tooltip';
 import { useChannelDraft } from '@/composables/useChannelDraft';
 import { useChannelPreferences } from '@/composables/useChannelPreferences';
 import { useChannelRealtime } from '@/composables/useChannelRealtime';
@@ -1020,19 +1025,24 @@ function archive(): void {
                              with the title so it reads as a property of this
                              conversation rather than floating in the meta row
                              (which is empty for a DM with no topic). -->
-                        <span
-                            v-if="notificationStatus"
-                            data-test="notification-status"
-                            :data-status="muted ? 'muted' : notificationLevel"
-                            class="inline-flex shrink-0 items-center text-muted-foreground"
-                            :title="notificationStatus.label"
-                            :aria-label="notificationStatus.label"
-                        >
-                            <component
-                                :is="notificationStatus.icon"
-                                class="size-4"
-                            />
-                        </span>
+                        <Tooltip v-if="notificationStatus">
+                            <TooltipTrigger as-child>
+                                <span
+                                    data-test="notification-status"
+                                    :data-status="notificationStatus.status"
+                                    class="inline-flex shrink-0 items-center text-muted-foreground"
+                                    :aria-label="$t(notificationStatus.label)"
+                                >
+                                    <component
+                                        :is="notificationStatus.icon"
+                                        class="size-4"
+                                    />
+                                </span>
+                            </TooltipTrigger>
+                            <TooltipContent>{{
+                                $t(notificationStatus.label)
+                            }}</TooltipContent>
+                        </Tooltip>
                     </h1>
 
                     <div

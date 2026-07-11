@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { Link, router } from '@inertiajs/vue3';
 import { GripVertical, MoreVertical, Pencil, Star } from '@lucide/vue';
-import { ref } from 'vue';
+import { computed, ref } from 'vue';
 import { toast } from 'vue-sonner';
 import { show } from '@/actions/App/Http/Controllers/Channels/ChannelController';
 import { update as updateChannelStar } from '@/actions/App/Http/Controllers/Channels/ChannelStarController';
@@ -14,7 +14,13 @@ import {
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { SidebarMenuButton, SidebarMenuItem } from '@/components/ui/sidebar';
+import {
+    Tooltip,
+    TooltipContent,
+    TooltipTrigger,
+} from '@/components/ui/tooltip';
 import { useTranslations } from '@/composables/useTranslations';
+import { notificationIndicator } from '@/lib/notificationIndicator';
 import type { Channel, ChannelSection } from '@/types/channels';
 
 const props = defineProps<{
@@ -41,6 +47,12 @@ const emit = defineEmits<{
 const menuOpen = ref(false);
 
 const { t } = useTranslations();
+
+// The mute / notification-level cue for this row, matching the conversation
+// masthead; null (and so no icon) for an unmuted channel at the default level.
+const indicator = computed(() =>
+    notificationIndicator(props.channel.muted, props.channel.notificationLevel),
+);
 
 /**
  * Star or unstar the channel, reloading only the shared `channels` prop so the
@@ -104,6 +116,22 @@ function toggleStar(): void {
                     "
                     >{{ channel.name }}</span
                 >
+                <!-- The mute / notification-level cue sits just after the name,
+                     left of the right-aligned unread/mention/draft badge so the
+                     two never collide. A tooltip names the state on hover/focus. -->
+                <Tooltip v-if="indicator">
+                    <TooltipTrigger as-child>
+                        <span
+                            data-test="notification-indicator"
+                            :data-status="indicator.status"
+                            class="inline-flex shrink-0 items-center text-muted-foreground/70"
+                            :aria-label="$t(indicator.label)"
+                        >
+                            <component :is="indicator.icon" class="size-3" />
+                        </span>
+                    </TooltipTrigger>
+                    <TooltipContent>{{ $t(indicator.label) }}</TooltipContent>
+                </Tooltip>
                 <!-- A numeric badge for unread @mentions takes priority; -->
                 <!-- then a "draft" cue for a pending unsent message on -->
                 <!-- another channel; otherwise a plain unread dot. -->

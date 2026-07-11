@@ -3,8 +3,14 @@ import { Link } from '@inertiajs/vue3';
 import { computed } from 'vue';
 import { show } from '@/actions/App/Http/Controllers/Channels/ChannelController';
 import { SidebarMenuButton, SidebarMenuItem } from '@/components/ui/sidebar';
+import {
+    Tooltip,
+    TooltipContent,
+    TooltipTrigger,
+} from '@/components/ui/tooltip';
 import { useInitials } from '@/composables/useInitials';
 import { useTranslations } from '@/composables/useTranslations';
+import { notificationIndicator } from '@/lib/notificationIndicator';
 import type { Channel } from '@/types/channels';
 
 const props = defineProps<{
@@ -28,6 +34,12 @@ const displayName = computed(() =>
 );
 
 const isActive = computed(() => props.channel.slug === props.activeChannelSlug);
+
+// The mute / notification-level cue for this DM, matching the conversation
+// masthead; null (and so no icon) for an unmuted DM at the default level.
+const indicator = computed(() =>
+    notificationIndicator(props.channel.muted, props.channel.notificationLevel),
+);
 </script>
 
 <template>
@@ -78,6 +90,22 @@ const isActive = computed(() => props.channel.slug === props.activeChannelSlug);
                     "
                     >{{ displayName }}</span
                 >
+                <!-- The mute / notification-level cue sits just after the name,
+                     left of the right-aligned unread badge so the two never
+                     collide. A tooltip names the state on hover/focus. -->
+                <Tooltip v-if="indicator">
+                    <TooltipTrigger as-child>
+                        <span
+                            data-test="notification-indicator"
+                            :data-status="indicator.status"
+                            class="inline-flex shrink-0 items-center text-muted-foreground/70"
+                            :aria-label="$t(indicator.label)"
+                        >
+                            <component :is="indicator.icon" class="size-3" />
+                        </span>
+                    </TooltipTrigger>
+                    <TooltipContent>{{ $t(indicator.label) }}</TooltipContent>
+                </Tooltip>
                 <!-- DMs badge on plain unread count (never mention-weighted): a
                      numeric pill when there is anything unread. -->
                 <span

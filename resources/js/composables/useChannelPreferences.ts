@@ -1,11 +1,12 @@
 import { router } from '@inertiajs/vue3';
-import { AtSign, BellMinus, BellOff } from '@lucide/vue';
 import type { AcceptableValue } from 'reka-ui';
 import { computed, ref, watch } from 'vue';
-import type { Component, ComputedRef, Ref } from 'vue';
+import type { ComputedRef, Ref } from 'vue';
 import { toast } from 'vue-sonner';
 import { update as updateChannelPreferences } from '@/actions/App/Http/Controllers/Channels/ChannelPreferenceController';
 import { update as updateChannelStar } from '@/actions/App/Http/Controllers/Channels/ChannelStarController';
+import { notificationIndicator } from '@/lib/notificationIndicator';
+import type { NotificationIndicator } from '@/lib/notificationIndicator';
 import type { Channel, NotificationLevel } from '@/types';
 
 /** The member's own star/mute/notification state for the open channel. */
@@ -35,7 +36,7 @@ export interface ChannelPreferences {
     /** Whether thread-unread dots are silenced (muted or a quieted level). */
     threadUnreadSuppressed: ComputedRef<boolean>;
     /** A compact header cue for a non-default notification state, or null. */
-    notificationStatus: ComputedRef<{ icon: Component; label: string } | null>;
+    notificationStatus: ComputedRef<NotificationIndicator | null>;
     /** Star or unstar the channel, optimistically, rolled back on error. */
     toggleStar: () => void;
     /** Change the notification level, optimistically, rolled back on error. */
@@ -75,23 +76,12 @@ export function useChannelPreferences(
         () => muted.value || notificationLevel.value !== 'all',
     );
 
-    // A compact header cue for the member's non-default notification state; the
-    // "all" default shows nothing to keep the header clean.
-    const notificationStatus = computed(() => {
-        if (muted.value) {
-            return { icon: BellOff, label: 'Muted' };
-        }
-
-        if (notificationLevel.value === 'nothing') {
-            return { icon: BellMinus, label: 'Notifications off' };
-        }
-
-        if (notificationLevel.value === 'mentions') {
-            return { icon: AtSign, label: 'Mentions only' };
-        }
-
-        return null;
-    });
+    // A compact header cue for the member's non-default notification state,
+    // shared with the sidebar rows; the "all" default shows nothing to keep the
+    // header clean.
+    const notificationStatus = computed(() =>
+        notificationIndicator(muted.value, notificationLevel.value),
+    );
 
     function toggleStar(): void {
         const previous = starred.value;
