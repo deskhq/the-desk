@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { Monitor, Smartphone } from '@lucide/vue';
-import Heading from '@/components/Heading.vue';
 import { Badge } from '@/components/ui/badge';
 import { useTimezone } from '@/composables/useTimezone';
 import { formatDateTime } from '@/lib/datetime';
@@ -24,13 +23,7 @@ function occurredAt(iso: string): string {
 </script>
 
 <template>
-    <div class="space-y-6">
-        <Heading
-            variant="small"
-            title="Recent activity"
-            description="Review recent security activity on your account to spot anything unfamiliar"
-        />
-
+    <div>
         <p
             v-if="props.events.length === 0"
             class="text-sm text-muted-foreground"

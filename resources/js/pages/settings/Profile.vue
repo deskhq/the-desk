@@ -3,10 +3,9 @@ import { Form, Head, usePage } from '@inertiajs/vue3';
 import { Link } from '@inertiajs/vue3';
 import { computed } from 'vue';
 import ProfileController from '@/actions/App/Http/Controllers/Settings/ProfileController';
-import DataPrivacy from '@/components/DataPrivacy.vue';
 import DeleteUser from '@/components/DeleteUser.vue';
-import Heading from '@/components/Heading.vue';
 import InputError from '@/components/InputError.vue';
+import SettingsSection from '@/components/SettingsSection.vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -20,13 +19,6 @@ import {
 import { useTimezone } from '@/composables/useTimezone';
 import { edit } from '@/routes/profile';
 import { send } from '@/routes/verification';
-import type { DataExport } from '@/types';
-
-type Props = {
-    dataExport: DataExport | null;
-};
-
-defineProps<Props>();
 
 defineOptions({
     layout: {
@@ -63,13 +55,10 @@ function onTimezoneSelect(value: unknown): void {
 
     <h1 class="sr-only">Profile settings</h1>
 
-    <div class="flex flex-col space-y-6">
-        <Heading
-            variant="small"
-            title="Profile"
-            description="Update your name and email address"
-        />
-
+    <SettingsSection
+        title="Profile"
+        description="Update your name and email address"
+    >
         <Form
             v-bind="ProfileController.update.form()"
             class="space-y-6"
@@ -187,8 +176,13 @@ function onTimezoneSelect(value: unknown): void {
                 </Transition>
             </div>
         </Form>
+    </SettingsSection>
 
-        <div class="grid max-w-md gap-2">
+    <SettingsSection
+        title="Timezone"
+        description="Detected automatically on your first sign-in. It sets how timestamps read for you and the local time others see on your profile."
+    >
+        <div class="grid gap-2">
             <Label for="timezone">Timezone</Label>
             <Select
                 :model-value="timezone ?? undefined"
@@ -211,15 +205,17 @@ function onTimezoneSelect(value: unknown): void {
                     </SelectItem>
                 </SelectContent>
             </Select>
-            <p class="text-sm text-muted-foreground">
-                Detected automatically on your first sign-in. It sets how
-                timestamps read for you and the local time others see on your
-                profile.
-            </p>
         </div>
-    </div>
+    </SettingsSection>
 
-    <DataPrivacy :data-export="dataExport" />
-
-    <DeleteUser />
+    <SettingsSection
+        title="Danger zone"
+        description="Irreversible actions for your account."
+    >
+        <div
+            class="rounded-lg border border-destructive/30 bg-destructive/5 p-4"
+        >
+            <DeleteUser />
+        </div>
+    </SettingsSection>
 </template>

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Settings;
 
+use App\Data\DataExportData;
 use App\Enums\DataExportStatus;
 use App\Http\Controllers\Controller;
 use App\Jobs\ExportUserData;
@@ -10,10 +11,23 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
+use Inertia\Response;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class DataExportController extends Controller
 {
+    /**
+     * Show the data & privacy settings page, carrying the user's latest export.
+     */
+    public function edit(Request $request): Response
+    {
+        $latestExport = $request->user()->dataExports()->first();
+
+        return Inertia::render('settings/DataPrivacy', [
+            'dataExport' => $latestExport === null ? null : DataExportData::fromExport($latestExport),
+        ]);
+    }
+
     /**
      * Queue a fresh export of the authenticated user's personal data.
      */

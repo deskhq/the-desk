@@ -3,7 +3,6 @@ import { Form } from '@inertiajs/vue3';
 import { Monitor, Smartphone } from '@lucide/vue';
 import { computed, useTemplateRef } from 'vue';
 import SessionController from '@/actions/App/Http/Controllers/Settings/SessionController';
-import Heading from '@/components/Heading.vue';
 import InputError from '@/components/InputError.vue';
 import PasswordInput from '@/components/PasswordInput.vue';
 import { Badge } from '@/components/ui/badge';
@@ -47,13 +46,7 @@ function lastActive(iso: string): string {
 </script>
 
 <template>
-    <div class="space-y-6">
-        <Heading
-            variant="small"
-            title="Active sessions"
-            description="Manage and log out your active sessions on other browsers and devices"
-        />
-
+    <div class="space-y-4">
         <ul class="space-y-3" role="list" data-test="sessions-list">
             <li
                 v-for="session in props.sessions"

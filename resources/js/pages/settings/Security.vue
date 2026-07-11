@@ -1,14 +1,13 @@
 <script setup lang="ts">
 import { Form, Head } from '@inertiajs/vue3';
 import SecurityController from '@/actions/App/Http/Controllers/Settings/SecurityController';
-import Heading from '@/components/Heading.vue';
 import InputError from '@/components/InputError.vue';
 import ManageSessions from '@/components/ManageSessions.vue';
 import PasswordInput from '@/components/PasswordInput.vue';
 import SecurityActivity from '@/components/SecurityActivity.vue';
+import SettingsSection from '@/components/SettingsSection.vue';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
-import { Separator } from '@/components/ui/separator';
 import { edit } from '@/routes/security';
 import type { ActiveSession, SecurityActivityEvent } from '@/types';
 
@@ -37,13 +36,10 @@ defineOptions({
 
     <h1 class="sr-only">Security settings</h1>
 
-    <div class="space-y-6">
-        <Heading
-            variant="small"
-            title="Update password"
-            description="Ensure your account is using a long, random password to stay secure"
-        />
-
+    <SettingsSection
+        title="Update password"
+        description="Ensure your account is using a long, random password to stay secure"
+    >
         <Form
             v-bind="SecurityController.update.form()"
             :options="{
@@ -119,13 +115,19 @@ defineOptions({
                 </Transition>
             </div>
         </Form>
+    </SettingsSection>
 
-        <Separator />
-
+    <SettingsSection
+        title="Active sessions"
+        description="Manage and log out your active sessions on other browsers and devices"
+    >
         <ManageSessions :sessions="props.sessions" />
+    </SettingsSection>
 
-        <Separator />
-
+    <SettingsSection
+        title="Recent activity"
+        description="Review recent security activity on your account to spot anything unfamiliar"
+    >
         <SecurityActivity :events="props.securityEvents" />
-    </div>
+    </SettingsSection>
 </template>

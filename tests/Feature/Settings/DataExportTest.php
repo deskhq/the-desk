@@ -135,25 +135,25 @@ test('an expired export cannot be downloaded', function () {
         ->assertNotFound();
 });
 
-test('the profile page carries the latest export', function () {
+test('the data & privacy page carries the latest export', function () {
     $user = User::factory()->create();
     DataExport::factory()->for($user)->ready()->create();
 
     $this->actingAs($user)
-        ->get(route('profile.edit'))
+        ->get(route('data-export.edit'))
         ->assertInertia(fn (Assert $page) => $page
-            ->component('settings/Profile')
+            ->component('settings/DataPrivacy')
             ->where('dataExport.status', 'ready')
             ->where('dataExport.isReady', true));
 });
 
-test('the profile page carries a null export when none has been requested', function () {
+test('the data & privacy page carries a null export when none has been requested', function () {
     $user = User::factory()->create();
 
     $this->actingAs($user)
-        ->get(route('profile.edit'))
+        ->get(route('data-export.edit'))
         ->assertInertia(fn (Assert $page) => $page
-            ->component('settings/Profile')
+            ->component('settings/DataPrivacy')
             ->where('dataExport', null));
 });
 

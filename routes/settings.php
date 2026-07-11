@@ -27,6 +27,7 @@ Route::middleware(['auth'])->group(function () {
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::delete('settings/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 
+    Route::get('settings/data-export', [DataExportController::class, 'edit'])->name('data-export.edit');
     Route::post('settings/data-export', [DataExportController::class, 'store'])->name('data-export.store');
     Route::get('settings/data-export/{dataExport}/download', [DataExportController::class, 'download'])->name('data-export.download');
 

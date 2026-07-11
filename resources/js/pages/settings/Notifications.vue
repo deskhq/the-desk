@@ -2,7 +2,7 @@
 import { Head } from '@inertiajs/vue3';
 import { Play } from '@lucide/vue';
 import { ref } from 'vue';
-import Heading from '@/components/Heading.vue';
+import SettingsSection from '@/components/SettingsSection.vue';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import {
@@ -54,14 +54,11 @@ const { shareReadReceipts, updateShareReadReceipts } = useReadReceipts();
 
     <h1 class="sr-only">Notification settings</h1>
 
-    <div class="space-y-6">
-        <Heading
-            variant="small"
-            title="Notifications"
-            description="Choose the chime played when a new message arrives while you're away"
-        />
-
-        <div class="grid max-w-md gap-2">
+    <SettingsSection
+        title="Notifications"
+        description="Choose the chime played when a new message arrives while you're away"
+    >
+        <div class="grid gap-2">
             <Label for="chime-sound">Chime sound</Label>
 
             <div class="flex items-center gap-2">
@@ -100,8 +97,13 @@ const { shareReadReceipts, updateShareReadReceipts } = useReadReceipts();
                 <span class="font-medium">Off</span> to silence them entirely.
             </p>
         </div>
+    </SettingsSection>
 
-        <div class="grid max-w-md gap-2">
+    <SettingsSection
+        title="Read receipts"
+        description="Control whether channel members can see when you've read their messages."
+    >
+        <div class="grid gap-2">
             <div class="flex items-center justify-between gap-4">
                 <Label for="share-read-receipts">Share read receipts</Label>
 
@@ -119,5 +121,5 @@ const { shareReadReceipts, updateShareReadReceipts } = useReadReceipts();
                 you'll still see when others have read yours.
             </p>
         </div>
-    </div>
+    </SettingsSection>
 </template>

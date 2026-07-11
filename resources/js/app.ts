@@ -1,9 +1,8 @@
 import { createInertiaApp } from '@inertiajs/vue3';
 import { configureEcho } from '@laravel/echo-vue';
 import { initializeTheme } from '@/composables/useAppearance';
-import AppLayout from '@/layouts/AppLayout.vue';
 import AuthLayout from '@/layouts/AuthLayout.vue';
-import ChannelLayout from '@/layouts/channels/Layout.vue';
+import MainLayout from '@/layouts/MainLayout.vue';
 import SettingsLayout from '@/layouts/settings/Layout.vue';
 import { initializeFlashToast } from '@/lib/flashToast';
 
@@ -20,14 +19,14 @@ createInertiaApp({
             case name === 'Welcome':
                 return null;
             case name.startsWith('channels/'):
-                return ChannelLayout;
+                return MainLayout;
             case name.startsWith('auth/'):
                 return AuthLayout;
             case name.startsWith('settings/'):
             case name.startsWith('teams/'):
-                return [AppLayout, SettingsLayout];
+                return [MainLayout, SettingsLayout];
             default:
-                return AppLayout;
+                return MainLayout;
         }
     },
     progress: {
