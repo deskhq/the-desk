@@ -16,7 +16,10 @@ class MessageForwardData extends Data
         public string $id,
         public string $body,
         public string $authorName,
-        public string $channelName,
+        // The source channel's name, or null when the source is a direct message
+        // (a DM has no name); the client then reads "a direct message" instead of
+        // a "#channel" attribution.
+        public ?string $channelName,
         public bool $isDeleted,
         public array $mentions,
     ) {}

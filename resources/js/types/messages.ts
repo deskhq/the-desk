@@ -47,7 +47,9 @@ export type MessageForward = {
     id: string;
     body: string;
     authorName: string;
-    channelName: string;
+    // Null when the source is a direct message (a DM has no name); the client
+    // then renders "a direct message" instead of a "#channel" attribution.
+    channelName: string | null;
     isDeleted: boolean;
     mentions: Mention[];
 };
