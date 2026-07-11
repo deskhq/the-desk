@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.1](https://github.com/emmpaul/the-desk/compare/v0.5.0...v0.5.1) (2026-07-11)
+
+
+### Bug Fixes
+
+* **docker:** mount pgsql volume at /var/lib/postgresql for Postgres 18 ([#224](https://github.com/emmpaul/the-desk/issues/224)) ([0d5828c](https://github.com/emmpaul/the-desk/commit/0d5828c8046afff05fbf0160f42975b04751d9e2)), closes [#223](https://github.com/emmpaul/the-desk/issues/223)
+
 ## [0.5.0](https://github.com/emmpaul/the-desk/compare/v0.4.0...v0.5.0) (2026-07-11)
 
 
