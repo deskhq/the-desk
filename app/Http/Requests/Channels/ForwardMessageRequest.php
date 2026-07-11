@@ -44,16 +44,28 @@ class ForwardMessageRequest extends FormRequest
             // The note is optional — the forwarded quote carries the content.
             'body' => ['nullable', 'string', 'max:8000'],
             'client_uuid' => ['required', 'uuid'],
-            // The destination must be a live (non-archived) channel in the same
-            // team that the author is a member of — the same constraint the
-            // `postMessage` gate applies, expressed as an existence check.
+            // The destination is exactly one of a channel or a person: a channel
+            // the author is in, or a teammate whose DM is opened-or-created on
+            // forward. Each is required only when the other is absent.
+            //
+            // A channel must be live (non-archived), in the same team, and one the
+            // author is a member of — the same constraint the `postMessage` gate
+            // applies, expressed as an existence check.
             'target_channel_id' => [
-                'required',
+                'required_without:target_user_id',
                 'uuid',
                 Rule::exists('channels', 'id')
                     ->where('team_id', $this->sourceChannel()->team_id)
                     ->whereNull('archived_at')
                     ->whereIn('id', $this->membershipChannelIds()),
+            ],
+            // A person must be a member of the source's team; the DM they map to is
+            // resolved (or created) in the controller.
+            'target_user_id' => [
+                'required_without:target_channel_id',
+                'uuid',
+                Rule::exists('team_members', 'user_id')
+                    ->where('team_id', $this->sourceChannel()->team_id),
             ],
         ];
     }

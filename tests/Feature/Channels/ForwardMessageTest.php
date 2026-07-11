@@ -1,5 +1,6 @@
 <?php
 
+use App\Actions\Channels\OpenDirectMessage;
 use App\Actions\Teams\CreateTeam;
 use App\Enums\ChannelVisibility;
 use App\Enums\TeamRole;
@@ -99,6 +100,26 @@ test('the target channel renders a forwarded message with source attribution', f
             ->where('messages.data.0.forwardedFrom.channelName', $general->name)
             ->where('messages.data.0.forwardedFrom.isDeleted', false)
             ->where('messages.data.0.forwardedFrom.mentions.0.id', $mentioned->id)
+        );
+});
+
+test('a message forwarded from a direct message carries a null source channel name', function () {
+    [$owner, $team, $general, $target, $source] = forwardFixture();
+
+    $friend = User::factory()->create();
+    $team->memberships()->create(['user_id' => $friend->id, 'role' => TeamRole::Member]);
+    $dm = app(OpenDirectMessage::class)->handle($team, $owner, $friend);
+    $dmMessage = Message::factory()->for($dm)->for($owner)->create(['body' => 'from the dm']);
+
+    // Forward the DM message into a standard channel; the source has no channel
+    // name, so the forwarded quote must carry null rather than blow up.
+    Message::factory()->for($target)->for($owner)->forwardedFrom($dmMessage)->create(['body' => 'passing along']);
+
+    $this->actingAs($owner)
+        ->get(route('channels.show', ['team' => $team->slug, 'channel' => $target->slug]))
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('messages.data.0.forwardedFrom.id', $dmMessage->id)
+            ->where('messages.data.0.forwardedFrom.channelName', null)
         );
 });
 
@@ -238,4 +259,89 @@ test('forwarding is idempotent on a resent client uuid', function () {
     $this->actingAs($owner)->post(forwardRoute($team, $general, $source), $payload);
 
     expect(Message::where('client_uuid', $clientUuid)->count())->toBe(1);
+});
+
+test('a message can be forwarded into an existing direct message', function () {
+    [$owner, $team, $general, $target, $source] = forwardFixture();
+
+    $friend = User::factory()->create();
+    $team->memberships()->create(['user_id' => $friend->id, 'role' => TeamRole::Member]);
+    $dm = app(OpenDirectMessage::class)->handle($team, $owner, $friend);
+
+    $clientUuid = (string) Str::uuid7();
+
+    $this->actingAs($owner)->post(forwardRoute($team, $general, $source), [
+        'body' => 'for you',
+        'client_uuid' => $clientUuid,
+        'target_user_id' => $friend->id,
+    ])->assertRedirect();
+
+    $this->assertDatabaseHas('messages', [
+        'client_uuid' => $clientUuid,
+        'channel_id' => $dm->id,
+        'body' => 'for you',
+        'forwarded_from_id' => $source->id,
+    ]);
+});
+
+test('forwarding to a person with no existing direct message opens one', function () {
+    [$owner, $team, $general, $target, $source] = forwardFixture();
+
+    $friend = User::factory()->create();
+    $team->memberships()->create(['user_id' => $friend->id, 'role' => TeamRole::Member]);
+
+    $clientUuid = (string) Str::uuid7();
+
+    $this->actingAs($owner)->post(forwardRoute($team, $general, $source), [
+        'body' => 'nice to meet you',
+        'client_uuid' => $clientUuid,
+        'target_user_id' => $friend->id,
+    ])->assertRedirect();
+
+    $dm = Channel::query()->where('team_id', $team->id)->whereNotNull('dm_key')->firstOrFail();
+
+    expect($dm->members()->whereKey($friend->id)->exists())->toBeTrue()
+        ->and($dm->members()->whereKey($owner->id)->exists())->toBeTrue();
+
+    $this->assertDatabaseHas('messages', [
+        'client_uuid' => $clientUuid,
+        'channel_id' => $dm->id,
+        'forwarded_from_id' => $source->id,
+    ]);
+});
+
+test('a message can be forwarded to yourself as a self note', function () {
+    [$owner, $team, $general, $target, $source] = forwardFixture();
+    $clientUuid = (string) Str::uuid7();
+
+    $this->actingAs($owner)->post(forwardRoute($team, $general, $source), [
+        'client_uuid' => $clientUuid,
+        'target_user_id' => $owner->id,
+    ])->assertRedirect();
+
+    $selfDm = Channel::query()->where('team_id', $team->id)->whereNotNull('dm_key')->firstOrFail();
+
+    $this->assertDatabaseHas('messages', [
+        'client_uuid' => $clientUuid,
+        'channel_id' => $selfDm->id,
+        'forwarded_from_id' => $source->id,
+    ]);
+});
+
+test('a message cannot be forwarded to a non-member of the team', function () {
+    [$owner, $team, $general, $target, $source] = forwardFixture();
+    $outsider = User::factory()->create();
+
+    $this->actingAs($owner)->post(forwardRoute($team, $general, $source), [
+        'client_uuid' => (string) Str::uuid7(),
+        'target_user_id' => $outsider->id,
+    ])->assertInvalid(['target_user_id']);
+});
+
+test('a forward must name either a target channel or a target user', function () {
+    [$owner, $team, $general, $target, $source] = forwardFixture();
+
+    $this->actingAs($owner)->post(forwardRoute($team, $general, $source), [
+        'client_uuid' => (string) Str::uuid7(),
+    ])->assertInvalid(['target_channel_id']);
 });

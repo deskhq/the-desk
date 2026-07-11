@@ -6,7 +6,8 @@ import type { Mention } from '@/types';
 
 const props = defineProps<{
     authorName: string;
-    channelName: string;
+    // Null when the source is a direct message, which has no channel name.
+    channelName: string | null;
     body: string;
     isDeleted: boolean;
     mentions: Mention[];
@@ -25,9 +26,12 @@ const rendered = computed(() =>
             class="flex items-center gap-1.5 text-[11.5px] font-medium text-muted-foreground"
         >
             <Forward class="size-3 shrink-0" aria-hidden="true" />
-            <span>
+            <span v-if="channelName">
                 {{ $t('Forwarded from') }}
                 <span class="text-muted-foreground/70">#</span>{{ channelName }}
+            </span>
+            <span v-else>
+                {{ $t('Forwarded from a direct message') }}
             </span>
         </p>
         <div

@@ -99,6 +99,8 @@ import type {
     ScheduledMessage,
     Thread,
 } from '@/types';
+import type { ForwardTarget } from '@/types/forward';
+import type { PersonRef } from '@/types/people';
 
 const props = defineProps<{
     team: { id: string; name: string; slug: string };
@@ -487,20 +489,28 @@ const forwardableChannels = computed<Channel[]>(
     () => page.props.channels ?? [],
 );
 
+// Team members offered as DM forward targets; selecting one opens-or-creates the
+// 1:1 DM on the server.
+const forwardablePeople = computed<PersonRef[]>(
+    () => page.props.teamMembers ?? [],
+);
+
 function openForward(message: Message): void {
     forwardTarget.value = message;
     forwardDialogOpen.value = true;
 }
 
-// Forward the selected message into `channel` with an optional note. The source
-// always lives in the current channel (the action originates from its timeline
-// or thread), so a forward back into it renders optimistically and dedups
-// against the broadcast echo; a forward elsewhere just confirms with a toast.
+// Forward the selected message into a channel or a person's DM with an optional
+// note. The source always lives in the current channel (the action originates
+// from its timeline or thread), so a forward back into the current channel
+// renders optimistically and dedups against the broadcast echo; a forward
+// elsewhere (another channel or a DM) just confirms with a toast. A person
+// target opens-or-creates the DM server-side via `target_user_id`.
 function forwardMessage({
-    channel,
+    target,
     note,
 }: {
-    channel: Channel;
+    target: ForwardTarget;
     note: string;
 }): void {
     const source = forwardTarget.value;
@@ -510,7 +520,8 @@ function forwardMessage({
     }
 
     const clientUuid = crypto.randomUUID();
-    const toCurrentChannel = channel.id === props.channel.id;
+    const toCurrentChannel =
+        target.kind === 'channel' && target.id === props.channel.id;
 
     if (toCurrentChannel) {
         appendPendingMain(
@@ -523,7 +534,11 @@ function forwardMessage({
                     id: source.id,
                     body: source.body,
                     authorName: source.user.name,
-                    channelName: props.channel.name,
+                    // A DM has no channel name; match the server so the quote
+                    // reads "a direct message" instead of the participant's name.
+                    channelName: props.channel.isDirect
+                        ? null
+                        : props.channel.name,
                     isDeleted: source.isDeleted,
                     mentions: source.mentions,
                 },
@@ -531,25 +546,36 @@ function forwardMessage({
         );
     }
 
+    const destination =
+        target.kind === 'channel'
+            ? { target_channel_id: target.id }
+            : { target_user_id: target.id };
+
     router.post(
         forwardMessageAction({
             team: props.team.slug,
             channel: props.channel.slug,
             message: source.id,
         }).url,
-        { body: note, client_uuid: clientUuid, target_channel_id: channel.id },
+        { body: note, client_uuid: clientUuid, ...destination },
         {
             preserveScroll: true,
             preserveState: true,
             only: ['channels'],
             onSuccess: () => {
-                if (!toCurrentChannel) {
-                    toast.success(
-                        t('Message forwarded to #:channel.', {
-                            channel: channel.name,
-                        }),
-                    );
+                if (toCurrentChannel) {
+                    return;
                 }
+
+                toast.success(
+                    target.kind === 'channel'
+                        ? t('Message forwarded to #:channel.', {
+                              channel: target.name,
+                          })
+                        : t('Message forwarded to :name.', {
+                              name: target.name,
+                          }),
+                );
             },
             onError: () => {
                 if (toCurrentChannel) {
@@ -1422,6 +1448,8 @@ function archive(): void {
         v-model:open="forwardDialogOpen"
         :message="forwardTarget"
         :channels="forwardableChannels"
+        :people="forwardablePeople"
+        :current-user-id="currentUser.id"
         @submit="forwardMessage"
     />
 
