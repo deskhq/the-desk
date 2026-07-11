@@ -38,6 +38,7 @@ import DirectMessageListItem from '@/components/DirectMessageListItem.vue';
 import InviteMemberModal from '@/components/InviteMemberModal.vue';
 import KeyboardShortcutsModal from '@/components/KeyboardShortcutsModal.vue';
 import NavUser from '@/components/NavUser.vue';
+import NewDirectMessageModal from '@/components/NewDirectMessageModal.vue';
 import PendingInvitationsModal from '@/components/PendingInvitationsModal.vue';
 import QuickSwitcher from '@/components/QuickSwitcher.vue';
 import SettingsNav from '@/components/SettingsNav.vue';
@@ -105,9 +106,14 @@ const currentTeam = computed(() => page.props.currentTeam);
 const teams = computed(() => page.props.teams ?? []);
 const channels = computed(() => page.props.channels ?? []);
 const currentUserId = computed(() => String(page.props.auth.user.id));
+// The current team's members, feeding the DM entry points (people picker + ⌘K).
+const teamMembers = computed(() => page.props.teamMembers ?? []);
 
 // Online roster for the current team, driving the presence dot on each DM row.
 const { onlineIds } = useTeamPresence(() => currentTeam.value?.id);
+
+// The "New message" people picker opened from the "Direct messages" header.
+const newDmOpen = ref(false);
 const activeChannelSlug = computed(
     () => (page.props.channel as { slug?: string } | undefined)?.slug ?? null,
 );
@@ -982,6 +988,15 @@ onMounted(() => {
                             />
                             {{ $t('Direct messages') }}
                         </button>
+                        <SidebarGroupAction
+                            :title="$t('New message')"
+                            data-test="new-dm-trigger"
+                            class="top-2 size-5 rounded-md text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                            @click="newDmOpen = true"
+                        >
+                            <Plus class="size-[13px]" />
+                            <span class="sr-only">{{ $t('New message') }}</span>
+                        </SidebarGroupAction>
                         <SidebarGroupContent
                             v-show="!isSectionCollapsed('direct')"
                             data-test="section-content-direct"
@@ -1147,6 +1162,16 @@ onMounted(() => {
             v-if="currentTeam"
             v-model:open="quickSwitcherOpen"
             :channels="channels"
+            :members="teamMembers"
+            :current-user-id="currentUserId"
+            :team-slug="currentTeam.slug"
+        />
+
+        <NewDirectMessageModal
+            v-if="currentTeam"
+            v-model:open="newDmOpen"
+            :members="teamMembers"
+            :current-user-id="currentUserId"
             :team-slug="currentTeam.slug"
         />
 

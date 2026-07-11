@@ -4,6 +4,7 @@ namespace App\Http\Middleware;
 
 use App\Data\ChannelData;
 use App\Data\ChannelSectionData;
+use App\Data\UserData;
 use App\Enums\TeamRole;
 use App\Models\Channel;
 use App\Models\Message;
@@ -81,6 +82,9 @@ class HandleInertiaRequests extends Middleware
                 : false,
             'invitableRoles' => TeamRole::assignable(),
             'channels' => fn () => $this->channelsForSidebar($request, $user),
+            // The current team's members feed the DM entry points (the sidebar
+            // people picker and the ⌘K "People" group); empty off the workspace.
+            'teamMembers' => fn () => $this->teamMembersForSidebar($request, $user),
             'channelSections' => fn () => $this->channelSectionsForSidebar($request, $user),
             'collapsedChannelSections' => fn () => $user->collapsed_channel_sections ?? [],
             'hasUnreadThreads' => fn () => $this->hasUnreadThreads($request, $user),
@@ -145,6 +149,25 @@ class HandleInertiaRequests extends Middleware
             || $channel->getKey() === $activeChannelId)->values();
 
         return ChannelData::collect($channels, 'array');
+    }
+
+    /**
+     * The current team's members, feeding the DM entry points (the sidebar
+     * people picker and the quick-switcher "People" group). Ordered by name and
+     * including the viewer themselves (a self-DM renders as "You"). Empty off the
+     * channel workspace, where the entry points are absent.
+     *
+     * @return array<int, UserData>
+     */
+    protected function teamMembersForSidebar(Request $request, ?User $user): array
+    {
+        $team = $request->route('team');
+
+        if (! $user || ! $team instanceof Team || ! $request->routeIs('channels.*')) {
+            return [];
+        }
+
+        return UserData::collect($team->members()->orderBy('name')->get(), 'array');
     }
 
     /**

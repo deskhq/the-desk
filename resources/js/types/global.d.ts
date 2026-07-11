@@ -1,6 +1,7 @@
 import type { ReverbRuntimeConfig } from '@/lib/echo';
 import type { Auth } from '@/types/auth';
 import type { Channel, ChannelSection } from '@/types/channels';
+import type { PersonRef } from '@/types/people';
 import type { DashboardInvitation, RoleOption, Team } from '@/types/teams';
 
 // Extend ImportMeta interface for Vite...
@@ -28,6 +29,7 @@ declare module '@inertiajs/core' {
             canInviteToCurrentTeam: boolean;
             invitableRoles: RoleOption[];
             channels?: Channel[];
+            teamMembers?: PersonRef[];
             channelSections?: ChannelSection[];
             collapsedChannelSections?: string[];
             hasUnreadThreads?: boolean;
