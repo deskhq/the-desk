@@ -165,7 +165,9 @@ class ChannelPolicy
      */
     public function archive(User $user, Channel $channel): bool
     {
-        if ($channel->isGeneral() || $channel->isArchived()) {
+        // Direct messages are never archived — they have no archive affordance and
+        // are managed only through the open-or-create flow.
+        if ($channel->isGeneral() || $channel->isArchived() || $channel->isDirect()) {
             return false;
         }
 

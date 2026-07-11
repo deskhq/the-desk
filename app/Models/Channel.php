@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\ChannelType;
 use App\Enums\ChannelVisibility;
 use Database\Factories\ChannelFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
@@ -17,9 +18,11 @@ use Illuminate\Support\Carbon;
 /**
  * @property string $id
  * @property string $team_id
- * @property string $name
+ * @property string|null $name
  * @property string $slug
  * @property ChannelVisibility $visibility
+ * @property ChannelType $type
+ * @property string|null $dm_key
  * @property string|null $topic
  * @property string|null $created_by
  * @property Carbon|null $archived_at
@@ -35,7 +38,7 @@ use Illuminate\Support\Carbon;
  * @property-read Collection<int, User> $members
  * @property-read Collection<int, Message> $messages
  */
-#[Fillable(['team_id', 'name', 'slug', 'visibility', 'topic', 'created_by', 'archived_at'])]
+#[Fillable(['team_id', 'name', 'slug', 'visibility', 'type', 'dm_key', 'topic', 'created_by', 'archived_at'])]
 class Channel extends Model
 {
     /** @use HasFactory<ChannelFactory> */
@@ -52,6 +55,31 @@ class Channel extends Model
     public function isGeneral(): bool
     {
         return $this->slug === self::GENERAL_SLUG;
+    }
+
+    /**
+     * Determine whether the channel is a 1:1 direct message.
+     */
+    public function isDirect(): bool
+    {
+        return $this->type === ChannelType::Direct;
+    }
+
+    /**
+     * Resolve the DM participant to display to the given viewer.
+     *
+     * DMs render viewer-relative: in a two-person DM the viewer sees the other
+     * participant; in a self-DM (a single member) they see themselves, which the
+     * frontend labels "You". Returns null for a standard channel.
+     */
+    public function directParticipantFor(User $viewer): ?User
+    {
+        if (! $this->isDirect()) {
+            return null;
+        }
+
+        return $this->members()->where('users.id', '!=', $viewer->id)->first()
+            ?? $this->members()->whereKey($viewer->id)->first();
     }
 
     /**
@@ -141,6 +169,7 @@ class Channel extends Model
     {
         return [
             'visibility' => ChannelVisibility::class,
+            'type' => ChannelType::class,
             'archived_at' => 'datetime',
         ];
     }
