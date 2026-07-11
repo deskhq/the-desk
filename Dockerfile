@@ -62,20 +62,9 @@ RUN npm ci
 COPY --from=vendor /app/vendor ./vendor
 COPY . .
 
-# VITE_* values are compiled into the browser bundle at build time, so the
-# operator's real Reverb/app settings must be passed as build args. These are
-# wired up from the .env file in docker-compose.prod.yml.
-ARG VITE_APP_NAME=Laravel
-ARG VITE_REVERB_APP_KEY
-ARG VITE_REVERB_HOST=localhost
-ARG VITE_REVERB_PORT=8080
-ARG VITE_REVERB_SCHEME=https
-ENV VITE_APP_NAME=${VITE_APP_NAME} \
-    VITE_REVERB_APP_KEY=${VITE_REVERB_APP_KEY} \
-    VITE_REVERB_HOST=${VITE_REVERB_HOST} \
-    VITE_REVERB_PORT=${VITE_REVERB_PORT} \
-    VITE_REVERB_SCHEME=${VITE_REVERB_SCHEME}
-
+# No VITE_* build args: the app name and the browser-facing Reverb settings are
+# served to the SPA at runtime (an Inertia shared prop read at boot), so nothing
+# operator-specific is baked into the bundle. One built image works for any host.
 RUN npm run build
 
 # -----------------------------------------------------------------------------

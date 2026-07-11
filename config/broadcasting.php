@@ -35,6 +35,19 @@ return [
             'key' => env('REVERB_APP_KEY'),
             'secret' => env('REVERB_APP_SECRET'),
             'app_id' => env('REVERB_APP_ID'),
+            // Browser-facing connection details, served to the SPA at runtime (see
+            // App\Support\ReverbConfig) so nothing operator-specific is baked into
+            // the bundle. Each is optional and falls back sensibly:
+            //   public_host   → APP_URL host (single-domain reverse proxy). Override
+            //                   for a dedicated WebSocket subdomain.
+            //   public_port   → REVERB_PORT. Override when the browser reaches Reverb
+            //                   on a different port than the server (e.g. 443 through
+            //                   a TLS proxy while the container listens on 8080).
+            //   public_scheme → REVERB_SCHEME. Override to https/wss when the proxy
+            //                   terminates TLS but the container speaks plain http.
+            'public_host' => env('REVERB_HOST_PUBLIC'),
+            'public_port' => env('REVERB_PORT_PUBLIC'),
+            'public_scheme' => env('REVERB_SCHEME_PUBLIC'),
             'options' => [
                 'host' => env('REVERB_HOST'),
                 'port' => env('REVERB_PORT', 443),

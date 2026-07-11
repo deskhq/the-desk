@@ -26,16 +26,19 @@ Run the quality gate before pushing:
 
 ## Self-Hosting with Docker
 
-The supported production stack is built **from source at a release tag** and
-orchestrated with `docker-compose.prod.yml`: you clone the repo, check out a
-tagged release, and bring the stack up. The app is served with
-[FrankenPHP](https://frankenphp.dev/); Postgres, Meilisearch, Reverb, a queue
-worker, and the scheduler all run as containers.
+The production stack is orchestrated with `docker-compose.prod.yml`. The app is
+served with [FrankenPHP](https://frankenphp.dev/); Postgres, Meilisearch, Reverb,
+a queue worker, and the scheduler all run as containers.
 
-A prebuilt image is also published to the GitHub Container Registry, but only as
-a **reference/demo image** — see [Pulling the reference image](#pulling-the-reference-image-from-ghcr)
-below for its limitations. Build-from-source remains the supported path for real
-deployments.
+There are two supported ways to get the app image, both driven by the same
+`.env`:
+
+- **Pull the prebuilt image** from the GitHub Container Registry
+  (`ghcr.io/emmpaul/the-desk`) — no build step. Every setting, including the
+  browser-facing Reverb values, is read at **runtime**, so one published image
+  works for any host. See [Using the published image](#using-the-published-image).
+- **Build from source** at a release tag — clone the repo, check out a tag, and
+  `--build`. See [First install](#first-install).
 
 ### Prerequisites
 
@@ -61,10 +64,10 @@ git checkout v0.1.0                                   # the desired release tag
 ./docker/gen-secrets.sh
 
 # 3. Edit .env and set the non-secret settings the script can't guess:
-#    APP_URL, SMTP mail credentials, and the browser-side VITE_REVERB_HOST /
-#    VITE_REVERB_PORT / VITE_REVERB_SCHEME (your public domain + wss/https).
-#    VITE_* values are compiled into the frontend at build time, so set them
-#    before building.
+#    APP_URL, SMTP mail credentials, and — since your TLS proxy terminates
+#    wss/443 while the container speaks http/8080 — REVERB_PORT_PUBLIC=443 and
+#    REVERB_SCHEME_PUBLIC=https. These are read at runtime (a restart applies
+#    changes), so no rebuild is needed when they change.
 
 # 4. Build the images and start the stack.
 docker compose -f docker-compose.prod.yml up -d --build
@@ -115,34 +118,39 @@ Your data persists across `down`/`up` in named volumes (`pgsql-data`,
 > corresponding [GitHub Release notes](https://github.com/emmpaul/laravel-slack-clone/releases)
 > for required manual steps.
 
-### Pulling the reference image from GHCR
+### Using the published image
 
-Each release also publishes a prebuilt image to the GitHub Container Registry at
+Each release publishes a prebuilt image to the GitHub Container Registry at
 `ghcr.io/emmpaul/the-desk` (tags `X.Y.Z`, `X.Y`, and `latest`; `edge` tracks the
-tip of `master`).
-
-> **This is a reference/demo image, not a turnkey production artifact.** The
-> browser-side `VITE_REVERB_APP_KEY`, `VITE_REVERB_HOST`, `VITE_REVERB_PORT`,
-> `VITE_REVERB_SCHEME`, and `VITE_APP_NAME` values are compiled into the
-> JavaScript bundle **at build time**, so the published image carries one fixed
-> set of settings (a `localhost` Reverb host). It is fine for `docker run` and
-> clicking around, but real-time broadcasting will point at the wrong host on any
-> other domain. For a real deployment, **build from source** (above) so your own
-> `VITE_*` values are baked in.
-
-The package is currently **private**, so pulling requires authenticating to GHCR
-with a [personal access token](https://github.com/settings/tokens) that has the
-`read:packages` scope:
+tip of `master`). Because the app name and the browser-facing Reverb settings are
+served to the frontend at **runtime** — not baked into the JavaScript bundle at
+build time — the same image works for any operator's host with no rebuild. Point
+it at your `.env` and go:
 
 ```bash
-echo "$GHCR_PAT" | docker login ghcr.io -u YOUR_GITHUB_USERNAME --password-stdin
-docker pull ghcr.io/emmpaul/the-desk:latest
+# 1. Grab the compose file, env template, and secret generator from a release tag.
+git clone git@github.com:emmpaul/the-desk.git
+cd the-desk
+git fetch --tags && git checkout v0.4.0                # the desired release tag
+
+# 2. Generate .env secrets, then edit APP_URL, mail, and REVERB_*_PUBLIC (see below).
+./docker/gen-secrets.sh
+
+# 3. Run the published image instead of building. Pin the version to the tag.
+echo 'APP_IMAGE=ghcr.io/emmpaul/the-desk:0.4.0' >> .env
+docker compose -f docker-compose.prod.yml pull
+docker compose -f docker-compose.prod.yml up -d
 ```
 
-> **Maintainer note:** the GHCR package is created private on first push. When
-> the repository is made public, flip the package to public in its package
-> settings (**Package settings → Change visibility**) so unauthenticated pulls
-> work — CI cannot toggle this.
+`docker compose pull` fetches the prebuilt image; `up -d` runs it without a build
+step. Upgrades are just `APP_IMAGE=…:X.Y.Z`, then `pull` + `up -d` again.
+
+> **Reverb settings are runtime, so mind the browser vs. server split.** The
+> container speaks plain `http` on `8080` (`REVERB_PORT` / `REVERB_SCHEME`), but
+> the browser reaches Reverb through your TLS proxy on `wss`/`443`. Set
+> `REVERB_PORT_PUBLIC=443` and `REVERB_SCHEME_PUBLIC=https` in `.env`; the
+> browser-facing host defaults to your `APP_URL` host (override with
+> `REVERB_HOST_PUBLIC` only for a dedicated WebSocket subdomain).
 
 ### What runs, and why no Redis
 

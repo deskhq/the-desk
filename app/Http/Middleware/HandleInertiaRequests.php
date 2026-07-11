@@ -9,6 +9,7 @@ use App\Models\Message;
 use App\Models\Team;
 use App\Models\TeamInvitation;
 use App\Models\User;
+use App\Support\ReverbConfig;
 use App\Support\TranslationCatalog;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
@@ -51,6 +52,10 @@ class HandleInertiaRequests extends Middleware
         return [
             ...parent::share($request),
             'name' => config('app.name'),
+            // Browser-facing Reverb connection details, resolved at runtime so a
+            // single built image works for any operator without baking VITE_*
+            // values into the bundle. Read by app.ts to configure Echo at boot.
+            'reverb' => ReverbConfig::forFrontend(),
             'locale' => app()->getLocale(),
             // The active locale's catalog rides the initial document as a "once"
             // prop: it reaches the SSR render and first hydration (so the first

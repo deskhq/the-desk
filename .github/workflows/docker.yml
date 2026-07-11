@@ -74,10 +74,9 @@ jobs:
             type=semver,pattern={{major}}.{{minor}}
             type=raw,value=edge,enable={{is_default_branch}}
 
-      # amd64 only for now (arm64 emulation is deferred — see the issue).
-      # VITE_* values are baked into the browser bundle at build time, so this
-      # published image is a reference/demo image carrying these fixed settings;
-      # build-from-source remains the supported production path.
+      # amd64 only for now (arm64 emulation is deferred — see #205). No VITE_*
+      # build args: the app name and browser-facing Reverb settings are served to
+      # the SPA at runtime, so this single image works for any operator's host.
       - name: Build and push image
         if: env.PUBLISH == 'true'
         uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7.3.0
@@ -90,9 +89,3 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
-          build-args: |
-            VITE_APP_NAME=The Desk
-            VITE_REVERB_APP_KEY=reverb
-            VITE_REVERB_HOST=localhost
-            VITE_REVERB_PORT=8080
-            VITE_REVERB_SCHEME=http

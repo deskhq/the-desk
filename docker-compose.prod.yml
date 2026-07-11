@@ -13,15 +13,14 @@
 # broadcasting uses Reverb — nothing resolves to Redis.
 
 x-app: &app
+  # Defaults to the local build tag (build-from-source). Set APP_IMAGE to the
+  # published image — e.g. APP_IMAGE=ghcr.io/emmpaul/the-desk:0.4.0 — to run the
+  # prebuilt turnkey image instead: `docker compose -f docker-compose.prod.yml pull`
+  # then `up -d`, no build step. Browser Reverb settings are read at runtime, so
+  # one published image works for any host.
+  image: ${APP_IMAGE:-the-desk:latest}
   build:
     context: .
-    args:
-      VITE_APP_NAME: ${APP_NAME:-Laravel}
-      VITE_REVERB_APP_KEY: ${REVERB_APP_KEY}
-      VITE_REVERB_HOST: ${VITE_REVERB_HOST}
-      VITE_REVERB_PORT: ${VITE_REVERB_PORT:-8080}
-      VITE_REVERB_SCHEME: ${VITE_REVERB_SCHEME:-https}
-  image: the-desk:latest
   env_file:
     - .env
   restart: unless-stopped

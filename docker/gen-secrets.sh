@@ -7,7 +7,8 @@
 # Creates .env from .env.prod.example (if missing) and fills any EMPTY required
 # secret with a freshly generated value. Existing values are never overwritten,
 # so the script is safe to re-run. After it finishes, fill in the non-secret
-# settings (APP_URL, mail, VITE_REVERB_HOST, …) before building the stack.
+# settings (APP_URL, mail, the browser-side REVERB_*_PUBLIC values) before
+# starting the stack.
 set -eu
 
 EXAMPLE_FILE=".env.prod.example"
@@ -49,14 +50,12 @@ set_if_empty "DB_PASSWORD"     "$(openssl rand -hex 24)"
 set_if_empty "MEILISEARCH_KEY" "$(openssl rand -hex 32)"
 set_if_empty "REVERB_APP_ID"   "$(openssl rand 4 | od -An -tu4 | tr -d ' ')"
 
-# The browser (VITE_REVERB_APP_KEY) and server (REVERB_APP_KEY) must share the
-# same app key, so generate it once and set both when they are empty.
-reverb_key="$(openssl rand -hex 16)"
-set_if_empty "REVERB_APP_KEY"      "$reverb_key"
-set_if_empty "VITE_REVERB_APP_KEY" "$reverb_key"
-set_if_empty "REVERB_APP_SECRET"   "$(openssl rand -hex 16)"
+# The browser and server share the one REVERB_APP_KEY (the frontend receives it
+# at runtime), so it is generated once here.
+set_if_empty "REVERB_APP_KEY"    "$(openssl rand -hex 16)"
+set_if_empty "REVERB_APP_SECRET" "$(openssl rand -hex 16)"
 
 echo
 echo "Done. Review $ENV_FILE and set APP_URL, mail credentials, and the"
-echo "browser-side VITE_REVERB_* values before running:"
-echo "  docker compose -f docker-compose.prod.yml up -d --build"
+echo "browser-side REVERB_*_PUBLIC values before running:"
+echo "  docker compose -f docker-compose.prod.yml up -d"
