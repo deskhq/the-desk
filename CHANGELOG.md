@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.4.0](https://github.com/emmpaul/the-desk/compare/v0.3.0...v0.4.0) (2026-07-11)
+
+
+### Features
+
+* **i18n:** internationalization scaffolding with French locale ([#56](https://github.com/emmpaul/the-desk/issues/56)) ([#199](https://github.com/emmpaul/the-desk/issues/199)) ([2b4ed53](https://github.com/emmpaul/the-desk/commit/2b4ed537dbb0760fd2e1fcd1665a4b01c5e749e0))
+* **mail:** reskin transactional emails to "The Desk" ([#197](https://github.com/emmpaul/the-desk/issues/197)) ([#201](https://github.com/emmpaul/the-desk/issues/201)) ([6307a3c](https://github.com/emmpaul/the-desk/commit/6307a3c3ded1216aeb127b010f4d73f04ec1cf43))
+* **platform:** branded "The Desk" error pages ([#198](https://github.com/emmpaul/the-desk/issues/198)) ([#200](https://github.com/emmpaul/the-desk/issues/200)) ([905e8d9](https://github.com/emmpaul/the-desk/commit/905e8d936a7988986601d66bb88708b983a5a031))
+* **platform:** publish production image to GHCR ([#203](https://github.com/emmpaul/the-desk/issues/203)) ([#206](https://github.com/emmpaul/the-desk/issues/206)) ([fdc8bff](https://github.com/emmpaul/the-desk/commit/fdc8bff2105fd8bee1a23b759633dbe2d238aead))
+* **settings:** move settings into the main workspace shell ([#194](https://github.com/emmpaul/the-desk/issues/194)) ([#195](https://github.com/emmpaul/the-desk/issues/195)) ([c4cbdc6](https://github.com/emmpaul/the-desk/commit/c4cbdc63bf93c2f13ad3b242b84ef18867cf4f1c))
+
 ## [0.3.0](https://github.com/emmpaul/laravel-slack-clone/compare/v0.2.0...v0.3.0) (2026-07-10)
 
 
