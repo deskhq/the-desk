@@ -7,6 +7,7 @@ use App\Http\Controllers\Channels\ChannelPlacementController;
 use App\Http\Controllers\Channels\ChannelPreferenceController;
 use App\Http\Controllers\Channels\ChannelSectionController;
 use App\Http\Controllers\Channels\ChannelStarController;
+use App\Http\Controllers\Channels\DirectMessageController;
 use App\Http\Controllers\Channels\ForwardMessageController;
 use App\Http\Controllers\Channels\MessageController;
 use App\Http\Controllers\Channels\ReactionController;
@@ -28,6 +29,7 @@ Route::get('locales/{locale}.json', [LocaleCatalogController::class, 'show'])
 Route::middleware(['auth', 'verified', EnsureTeamMembership::class])->group(function () {
     Route::get('t/{team}', [ChannelController::class, 'index'])->name('channels.index');
     Route::post('t/{team}/channels', [ChannelController::class, 'store'])->name('channels.store');
+    Route::post('t/{team}/dm', [DirectMessageController::class, 'store'])->name('channels.dm.store');
     Route::get('t/{team}/channels/browse', [ChannelController::class, 'browse'])->name('channels.browse');
     Route::get('t/{team}/search', [SearchController::class, 'index'])->name('search');
     Route::get('t/{team}/search/suggest', [SearchController::class, 'suggest'])->name('search.suggest');
