@@ -1,17 +1,7 @@
 <script setup lang="ts">
-import { Head, InfiniteScroll, Link, router, usePage } from '@inertiajs/vue3';
+import { Head, InfiniteScroll, router, usePage } from '@inertiajs/vue3';
 import { echo } from '@laravel/echo-vue';
-import {
-    Archive,
-    ArrowUp,
-    CalendarClock,
-    ChevronDown,
-    EllipsisVertical,
-    Search,
-    Send,
-    Star,
-    UserPlus,
-} from '@lucide/vue';
+import { ArrowUp, CalendarClock, ChevronDown } from '@lucide/vue';
 import {
     computed,
     nextTick,
@@ -24,26 +14,10 @@ import { toast } from 'vue-sonner';
 import {
     archive as archiveChannel,
     read as markChannelRead,
-    readThread as markThreadReadAction,
-    show as showChannel,
 } from '@/actions/App/Http/Controllers/Channels/ChannelController';
-import { store as forwardMessageAction } from '@/actions/App/Http/Controllers/Channels/ForwardMessageController';
-import {
-    destroy as destroyMessage,
-    store as storeMessage,
-    update as updateMessage,
-} from '@/actions/App/Http/Controllers/Channels/MessageController';
-import { store as remindMessage } from '@/actions/App/Http/Controllers/Channels/MessageReminderController';
-import { store as toggleReactionAction } from '@/actions/App/Http/Controllers/Channels/ReactionController';
-import {
-    destroy as destroyScheduledMessage,
-    store as storeScheduledMessage,
-    update as updateScheduledMessage,
-} from '@/actions/App/Http/Controllers/Channels/ScheduledMessageController';
-import { index as searchMessages } from '@/actions/App/Http/Controllers/Channels/SearchController';
-import CreateChannelModal from '@/components/CreateChannelModal.vue';
+import ChannelEmptyState from '@/components/ChannelEmptyState.vue';
+import ChannelMasthead from '@/components/ChannelMasthead.vue';
 import ForwardMessageDialog from '@/components/ForwardMessageDialog.vue';
-import InviteMemberModal from '@/components/InviteMemberModal.vue';
 import MessageComposer from '@/components/MessageComposer.vue';
 import MessageList from '@/components/MessageList.vue';
 import ScheduledMessagesDialog from '@/components/ScheduledMessagesDialog.vue';
@@ -60,42 +34,20 @@ import {
     DialogHeader,
     DialogTitle,
 } from '@/components/ui/dialog';
-import {
-    DropdownMenu,
-    DropdownMenuCheckboxItem,
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuLabel,
-    DropdownMenuRadioGroup,
-    DropdownMenuRadioItem,
-    DropdownMenuSeparator,
-    DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import { SidebarTrigger } from '@/components/ui/sidebar';
-import {
-    Tooltip,
-    TooltipContent,
-    TooltipTrigger,
-} from '@/components/ui/tooltip';
 import { useChannelDraft } from '@/composables/useChannelDraft';
 import { useChannelPreferences } from '@/composables/useChannelPreferences';
 import { useChannelRealtime } from '@/composables/useChannelRealtime';
 import { useDebouncedPost } from '@/composables/useDebouncedPost';
-import { getInitials } from '@/composables/useInitials';
-import {
-    useMessageStream,
-    optimisticMessage,
-} from '@/composables/useMessageStream';
-import { useOnboardingTour } from '@/composables/useOnboardingTour';
+import { useMessageActions } from '@/composables/useMessageActions';
+import { useMessageStream } from '@/composables/useMessageStream';
 import { useScrollPin } from '@/composables/useScrollPin';
 import { useTeamPresence } from '@/composables/useTeamPresence';
+import { useThreadPanel } from '@/composables/useThreadPanel';
 import { useTimezone } from '@/composables/useTimezone';
 import { useTranslations } from '@/composables/useTranslations';
 import { useTypingIndicator } from '@/composables/useTypingIndicator';
 import type { TypingUser } from '@/composables/useTypingIndicator';
 import { useUnreadDivider } from '@/composables/useUnreadDivider';
-import { memberAvatarStack } from '@/lib/memberAvatars';
-import { toggleReaction } from '@/lib/reactions';
 import type {
     Channel,
     ChannelReader,
@@ -180,20 +132,10 @@ const mentionableMembers = computed(() =>
     props.members.filter((member) => member.id !== currentUser.value.id),
 );
 
-// How many member avatars the masthead shows before collapsing the rest into a
-// single "+N" overflow chip.
-const MAX_MASTHEAD_AVATARS = 3;
-
-// The overlapping member avatars for the masthead's right side, driven by the
-// team roster the page already carries for the composer.
-const mastheadAvatars = computed(() =>
-    memberAvatarStack(props.members, MAX_MASTHEAD_AVATARS),
-);
-
 // A direct message renders viewer-relative: no "#", the other participant's
-// name and presence (the viewer's own self-DM reads "You"), and no team
-// facepile — a DM is a fixed pair, so the "who's in the channel" stack is
-// meaningless there.
+// name (the viewer's own self-DM reads "You"). Drives the `<Head>` title, the
+// masthead, and the empty state's viewer-relative copy; the masthead owns the DM
+// presence dot and member facepile itself.
 const isSelfDm = computed(
     () =>
         props.channel.isDirect &&
@@ -201,11 +143,6 @@ const isSelfDm = computed(
 );
 const mastheadTitle = computed(() =>
     isSelfDm.value ? t('You') : props.channel.name,
-);
-const dmParticipantOnline = computed(
-    () =>
-        props.channel.dmUserId != null &&
-        onlineIds.value.has(props.channel.dmUserId),
 );
 
 // A team Admin+ may delete anyone's message in the channel (moderation).
@@ -241,52 +178,34 @@ const pendingUuids = mainStream.pendingUuids;
 
 const hasMessages = computed(() => displayMessages.value.length > 0);
 
-// The brand-new-workspace welcome replaces the plain "no messages" empty state on
-// a fresh #general for a user who has not yet completed onboarding — the reachable
-// "first channel, first message" moment. Any other empty channel/DM keeps the
-// plain copy.
-const { open: openOnboardingTour } = useOnboardingTour();
-const showWelcome = computed(
-    () =>
-        props.channel.slug === 'general' &&
-        page.props.auth.user.onboarding_completed_at == null,
-);
-
-// The welcome's "Invite your teammates" action reuses the member-invite modal,
-// gated on the same permission and roles the workspace already shares.
-const inviteOpen = ref(false);
-const canInviteToCurrentTeam = computed(
-    () => page.props.canInviteToCurrentTeam ?? false,
-);
-const invitableRoles = computed(() => page.props.invitableRoles ?? []);
-const currentTeamForInvite = computed(() => page.props.currentTeam);
-
+// Focus the channel composer — from the empty-state welcome's "Post your first
+// message" card, or a profile hover card dropping in a mention.
 function focusComposer(): void {
     channelComposer.value?.focus();
 }
 
-// The open thread's root, kept client-side so a partial reload that omits the
-// optional `thread` prop can't drop it. The panel runs its own stream instance
-// over the root plus its paginated replies.
-const activeThreadRootId = ref<string | null>(null);
-const threadData = ref<Thread | null>(null);
-const threadLoading = ref(false);
-
-// The reply page arrives newest-first (older replies page in on scroll-up); the
-// root is the thread's oldest message, so it leads the reversed list. The stream
-// then re-sorts by timestamp, keeping the root pinned to the top.
-const threadServerMessages = computed<Message[]>(() =>
-    threadData.value
-        ? [
-              threadData.value.root,
-              ...[...(props.threadReplies?.data ?? [])].reverse(),
-          ]
-        : [],
-);
-
-const threadStream = useMessageStream(threadServerMessages);
-const threadMessages = threadStream.displayMessages;
-const threadPendingUuids = threadStream.pendingUuids;
+// The thread panel's whole open → load → reset → mark-read lifecycle, with its own
+// merge stream over the root plus paginated replies. It resets itself on a channel
+// switch, so this page no longer juggles two stream lifecycles inline;
+// `sendThreadReply` stays in `useMessageActions`, sharing this panel's stream.
+const {
+    activeThreadRootId,
+    threadLoading,
+    threadStream,
+    threadMessages,
+    threadPendingUuids,
+    openThread,
+    closeThread,
+    markThreadRead,
+    adoptDeepLinkedThread,
+} = useThreadPanel({
+    teamSlug: () => props.team.slug,
+    channelSlug: () => props.channel.slug,
+    channelId: () => props.channel.id,
+    mainStream,
+    thread: () => props.thread,
+    threadReplies: () => props.threadReplies,
+});
 
 // The message to briefly highlight after a search jump. The server windows the
 // initial page so the target is loaded; we scroll it into view and clear the
@@ -323,37 +242,6 @@ const { unreadDividerId, showJumpToUnread, scrollToUnread } = useUnreadDivider({
     lastReadMessageId: () => props.lastReadMessageId ?? null,
     currentUserId: () => currentUser.value.id,
 });
-
-// Advance the open thread's read pointer so its unread dot clears, mirroring the
-// channel's markRead: debounced, gated on focus, and optimistically clearing the
-// dot on the root back in the main timeline. The root id is captured as the
-// debounced payload so a fire uses the thread that was open when it was scheduled.
-const threadReadPost = useDebouncedPost(
-    (rootId: string) => {
-        router.post(
-            markThreadReadAction({
-                team: props.team.slug,
-                channel: props.channel.slug,
-                message: rootId,
-            }).url,
-            {},
-            { preserveScroll: true, preserveState: true, only: ['channels'] },
-        );
-
-        mainStream.patchThreadState(rootId, { threadUnread: false });
-    },
-    { delay: 400, gate: () => document.hasFocus() },
-);
-
-function markThreadRead(): void {
-    const rootId = activeThreadRootId.value;
-
-    if (!rootId) {
-        return;
-    }
-
-    threadReadPost.schedule(rootId);
-}
 
 function channelName(id: string): string {
     return `channel.${id}`;
@@ -430,26 +318,9 @@ onMounted(() => {
         jumpToMessage(props.jumpToMessageId);
     }
 
-    // Reopen a deep-linked thread: the `thread` prop is already resolved from
-    // the `?thread=` param on the initial load, so adopt it directly.
-    if (props.thread) {
-        activeThreadRootId.value = props.thread.root.id;
-        threadData.value = props.thread;
-    }
+    // Reopen a deep-linked thread resolved from the `?thread=` param on load.
+    adoptDeepLinkedThread();
 });
-
-// The thread prop only arrives on a partial reload that requests it; copy it
-// into client state (guarded to the thread we're actually opening) so a later
-// full visit that omits the optional prop can't blank the open panel.
-watch(
-    () => props.thread,
-    (thread) => {
-        if (thread && thread.root.id === activeThreadRootId.value) {
-            threadData.value = thread;
-            threadLoading.value = false;
-        }
-    },
-);
 
 // A jump to another result in the same already-open channel reuses this
 // component, so the channel-id watch won't fire; react to the target changing.
@@ -464,14 +335,14 @@ watch(
 
 // Inertia may reuse this page component when navigating between channels; reset
 // the message-orchestration state this page owns when the channel changes. The
-// extracted composables (realtime, draft, preferences, unread divider) each move
-// or refreeze their own state on the same change via their own watchers.
+// extracted composables (realtime, draft, preferences, unread divider, thread
+// panel) each move or refreeze their own state on the same change via their own
+// watchers.
 watch(
     () => props.channel.id,
     () => {
         mainStream.reset();
         resetScrollPin();
-        resetThreadPanel();
         replyTarget.value = null;
         typing.reset();
         seedReaders();
@@ -531,94 +402,14 @@ function openForward(message: Message): void {
     forwardDialogOpen.value = true;
 }
 
-// Forward the selected message into a channel or a person's DM with an optional
-// note. The source always lives in the current channel (the action originates
-// from its timeline or thread), so a forward back into the current channel
-// renders optimistically and dedups against the broadcast echo; a forward
-// elsewhere (another channel or a DM) just confirms with a toast. A person
-// target opens-or-creates the DM server-side via `target_user_id`.
-function forwardMessage({
-    target,
-    note,
-}: {
-    target: ForwardTarget;
-    note: string;
-}): void {
+// Submit the forward dialog: hand the selected source and destination to the
+// actions engine, then clear the target so the dialog resets.
+function submitForward(payload: { target: ForwardTarget; note: string }): void {
     const source = forwardTarget.value;
 
-    if (!source) {
-        return;
+    if (source) {
+        actions.forwardMessage(source, payload);
     }
-
-    const clientUuid = crypto.randomUUID();
-    const toCurrentChannel =
-        target.kind === 'channel' && target.id === props.channel.id;
-
-    if (toCurrentChannel) {
-        appendPendingMain(
-            optimisticMessage({
-                clientUuid,
-                body: note,
-                author: currentUser.value,
-                mentions: [],
-                forwardedFrom: {
-                    id: source.id,
-                    body: source.body,
-                    authorName: source.user.name,
-                    // A DM has no channel name; match the server so the quote
-                    // reads "a direct message" instead of the participant's name.
-                    channelName: props.channel.isDirect
-                        ? null
-                        : props.channel.name,
-                    isDeleted: source.isDeleted,
-                    mentions: source.mentions,
-                },
-            }),
-        );
-    }
-
-    const destination =
-        target.kind === 'channel'
-            ? { target_channel_id: target.id }
-            : { target_user_id: target.id };
-
-    router.post(
-        forwardMessageAction({
-            team: props.team.slug,
-            channel: props.channel.slug,
-            message: source.id,
-        }).url,
-        { body: note, client_uuid: clientUuid, ...destination },
-        {
-            preserveScroll: true,
-            preserveState: true,
-            only: ['channels'],
-            onSuccess: () => {
-                if (toCurrentChannel) {
-                    return;
-                }
-
-                toast.success(
-                    target.kind === 'channel'
-                        ? t('Message forwarded to #:channel.', {
-                              channel: target.name,
-                          })
-                        : t('Message forwarded to :name.', {
-                              name: target.name,
-                          }),
-                );
-            },
-            onError: () => {
-                if (toCurrentChannel) {
-                    mainStream.removePending(clientUuid);
-                }
-
-                toast.error(
-                    t('Failed to forward the message. Please try again.'),
-                );
-            },
-        },
-    );
 
     forwardTarget.value = null;
 }
@@ -633,45 +424,34 @@ const { onDraftChange, cancel: cancelDraft } = useChannelDraft({
     channelSlug: () => props.channel.slug,
 });
 
-function send(body: string, mentions: Mention[]): void {
-    // Sending clears the draft server-side, so drop any debounced save still in
-    // flight; otherwise it would re-persist the just-sent text after the clear.
-    cancelDraft();
+// The channel's optimistic-mutation engine: send/edit/delete/react/forward,
+// thread replies, scheduling, and reminders all follow the same optimistic-apply
+// → router-call → rollback-on-error shape, concentrated behind one seam.
+const actions = useMessageActions({
+    teamSlug: () => props.team.slug,
+    channel: () => props.channel,
+    currentUser: () => currentUser.value,
+    mainStream,
+    threadStream,
+    activeThreadRootId,
+    replyTarget,
+    isNearBottom,
+    scrollToBottom,
+    cancelDraft,
+    cancelReply,
+});
 
-    const clientUuid = crypto.randomUUID();
-    const target = replyTarget.value;
-
-    // The optimistic row mirrors the parent quote so the reference renders
-    // immediately; the server echo replaces it, keyed on the same client uuid.
-    mainStream.addPending(
-        optimisticMessage({
-            clientUuid,
-            body,
-            author: currentUser.value,
-            mentions,
-            replyTo: target,
-        }),
-    );
-
-    cancelReply();
-    nextTick(() => scrollToBottom());
-
-    router.post(
-        storeMessage({ team: props.team.slug, channel: props.channel.slug })
-            .url,
-        { body, client_uuid: clientUuid, reply_to_id: target?.id ?? null },
-        {
-            preserveScroll: true,
-            onError: () => {
-                // The optimistic row failed to persist; roll it back and notify.
-                mainStream.removePending(clientUuid);
-                toast.error(
-                    t('Your message failed to send. Please try again.'),
-                );
-            },
-        },
-    );
-}
+const {
+    send,
+    editMessage,
+    deleteMessage,
+    reactToMessage,
+    sendThreadReply,
+    scheduleMessage,
+    updateScheduled,
+    cancelScheduled,
+    setReminder,
+} = actions;
 
 // The viewer's stored timezone, driving the schedule picker's presets and the
 // list's "sends at" labels so a scheduled time always reads in their own zone.
@@ -680,121 +460,10 @@ const { timezone } = useTimezone();
 // Whether the "Scheduled messages" management dialog is open.
 const scheduledDialogOpen = ref(false);
 
-// Schedule the composer's text for later delivery. Unlike a send it renders
-// nothing in the timeline (it isn't posted yet) — it only lands in the
-// "Scheduled" surface. Scheduling consumes the composer text like a send, so any
-// debounced draft save in flight is dropped and the server clears the draft.
-function scheduleMessage(
-    body: string,
-    _mentions: Mention[],
-    sendAt: string,
-): void {
-    cancelDraft();
-
-    const target = replyTarget.value;
-
-    router.post(
-        storeScheduledMessage({
-            team: props.team.slug,
-            channel: props.channel.slug,
-        }).url,
-        {
-            body,
-            client_uuid: crypto.randomUUID(),
-            reply_to_id: target?.id ?? null,
-            send_at: sendAt,
-        },
-        {
-            preserveScroll: true,
-            preserveState: true,
-            only: ['scheduledMessages', 'channels'],
-            onSuccess: () => toast.success(t('Message scheduled.')),
-            onError: () =>
-                toast.error(
-                    t('Failed to schedule your message. Please try again.'),
-                ),
-        },
-    );
-
-    cancelReply();
-}
-
-// Save an edit to a pending scheduled message's body and send time.
-function updateScheduled({
-    id,
-    body,
-    sendAt,
-}: {
-    id: string;
-    body: string;
-    sendAt: string;
-}): void {
-    router.patch(
-        updateScheduledMessage({
-            team: props.team.slug,
-            channel: props.channel.slug,
-            scheduledMessage: id,
-        }).url,
-        { body, send_at: sendAt },
-        {
-            preserveScroll: true,
-            preserveState: true,
-            only: ['scheduledMessages'],
-            onError: () =>
-                toast.error(
-                    t(
-                        'Failed to update the scheduled message. Please try again.',
-                    ),
-                ),
-        },
-    );
-}
-
-// Cancel a pending scheduled message so it is never delivered.
-function cancelScheduled(id: string): void {
-    router.delete(
-        destroyScheduledMessage({
-            team: props.team.slug,
-            channel: props.channel.slug,
-            scheduledMessage: id,
-        }).url,
-        {
-            preserveScroll: true,
-            preserveState: true,
-            only: ['scheduledMessages'],
-            onSuccess: () => toast.success(t('Scheduled message cancelled.')),
-            onError: () =>
-                toast.error(
-                    t(
-                        'Failed to cancel the scheduled message. Please try again.',
-                    ),
-                ),
-        },
-    );
-}
-
 // The message a custom-time reminder is being set for, and whether the custom
 // date & time picker is open.
 const reminderTargetId = ref<string | null>(null);
 const reminderCustomOpen = ref(false);
-
-// Set (or re-arm) a personal reminder on a message at a chosen instant. Only the
-// shared reminder props are reloaded, so the pending list and any nudge stay
-// current without disturbing the timeline.
-function setReminder(messageId: string, remindAt: string): void {
-    router.post(
-        remindMessage({ team: props.team.slug }).url,
-        { message_id: messageId, remind_at: remindAt },
-        {
-            preserveScroll: true,
-            preserveState: true,
-            only: ['reminders', 'firedReminders'],
-            onSuccess: () => toast.success(t('Reminder set.')),
-            onError: () =>
-                toast.error(t('Failed to set the reminder. Please try again.')),
-        },
-    );
-}
 
 // A preset was chosen from a message's reminder popover.
 function remindWith(message: Message, remindAt: string): void {
@@ -815,240 +484,6 @@ function confirmCustomReminder(remindAt: string): void {
 
     setReminder(reminderTargetId.value, remindAt);
     reminderTargetId.value = null;
-}
-
-// Post a reply into the open thread. It renders optimistically in the panel and,
-// when "also send to channel" is checked, in the main timeline too.
-function sendThreadReply(
-    body: string,
-    mentions: Mention[],
-    sendToChannel?: boolean,
-): void {
-    const rootId = activeThreadRootId.value;
-
-    if (!rootId) {
-        return;
-    }
-
-    const clientUuid = crypto.randomUUID();
-    const optimistic = optimisticMessage({
-        clientUuid,
-        body,
-        author: currentUser.value,
-        mentions,
-        threadRootId: rootId,
-        sentToChannel: sendToChannel ?? false,
-    });
-
-    threadStream.addPending(optimistic);
-
-    // Replying makes the viewer a follower of the thread and means they've seen
-    // it, so keep the root's affordance in the main timeline dot-free.
-    mainStream.patchThreadState(rootId, {
-        threadFollowed: true,
-        threadUnread: false,
-    });
-
-    if (sendToChannel) {
-        appendPendingMain(optimistic);
-    }
-
-    router.post(
-        storeMessage({ team: props.team.slug, channel: props.channel.slug })
-            .url,
-        {
-            body,
-            client_uuid: clientUuid,
-            thread_root_id: rootId,
-            sent_to_channel: sendToChannel ?? false,
-        },
-        {
-            preserveScroll: true,
-            onError: () => {
-                threadStream.removePending(clientUuid);
-
-                if (sendToChannel) {
-                    mainStream.removePending(clientUuid);
-                }
-
-                toast.error(t('Your reply failed to send. Please try again.'));
-            },
-        },
-    );
-}
-
-// Add an optimistic row to the main timeline, keeping the pinned-to-bottom rule.
-// This is the viewer's own message (a forward or sent-to-channel reply), so it
-// follows them down when near the bottom but never inflates the unread count.
-function appendPendingMain(message: Message): void {
-    const pinned = isNearBottom();
-    mainStream.addPending(message);
-
-    if (pinned) {
-        nextTick(() => scrollToBottom());
-    }
-}
-
-// Patch a message into both timelines at once — it may render in either (or both,
-// for a sent-to-channel reply), and a patch is ignored where it isn't shown. Used
-// by the optimistic edit/delete paths; the realtime echo re-applies it via
-// `useChannelRealtime`.
-function applyPatch(message: Message): void {
-    mainStream.applyPatch(message);
-    threadStream.applyPatch(message);
-}
-
-function editMessage(message: Message, body: string): void {
-    const previousMain = mainStream.getPatch(message.clientUuid);
-    const previousThread = threadStream.getPatch(message.clientUuid);
-
-    // Optimistically show the edit; the broadcast echo later confirms it.
-    applyPatch({ ...message, body, editedAt: new Date().toISOString() });
-
-    router.patch(
-        updateMessage({
-            team: props.team.slug,
-            channel: props.channel.slug,
-            message: message.id,
-        }).url,
-        { body },
-        {
-            preserveScroll: true,
-            onError: () => {
-                mainStream.restorePatch(message.clientUuid, previousMain);
-                threadStream.restorePatch(message.clientUuid, previousThread);
-                toast.error(t('Your edit failed to save. Please try again.'));
-            },
-        },
-    );
-}
-
-function deleteMessage(message: Message): void {
-    const previousMain = mainStream.getPatch(message.clientUuid);
-    const previousThread = threadStream.getPatch(message.clientUuid);
-
-    // Optimistically show the tombstone; the broadcast echo later confirms it.
-    applyPatch({ ...message, body: '', isDeleted: true });
-
-    router.delete(
-        destroyMessage({
-            team: props.team.slug,
-            channel: props.channel.slug,
-            message: message.id,
-        }).url,
-        {
-            preserveScroll: true,
-            onError: () => {
-                mainStream.restorePatch(message.clientUuid, previousMain);
-                threadStream.restorePatch(message.clientUuid, previousThread);
-                toast.error(
-                    t('Failed to delete the message. Please try again.'),
-                );
-            },
-        },
-    );
-}
-
-// Toggle the viewer's emoji reaction on a message. The pills update
-// optimistically in whichever timeline renders it; the authoritative summary
-// arrives over the MessageReactionChanged broadcast (including the viewer's own
-// echo), and a failed request rolls the optimistic patch back.
-function reactToMessage(message: Message, emoji: string): void {
-    const previousMain = mainStream.getPatch(message.clientUuid);
-    const previousThread = threadStream.getPatch(message.clientUuid);
-
-    const next = toggleReaction(message.reactions, emoji, currentUser.value);
-    mainStream.patchReactions(message.id, next);
-    threadStream.patchReactions(message.id, next);
-
-    router.post(
-        toggleReactionAction({
-            team: props.team.slug,
-            channel: props.channel.slug,
-            message: message.id,
-        }).url,
-        { emoji },
-        {
-            preserveScroll: true,
-            preserveState: true,
-            only: ['channels'],
-            onError: () => {
-                mainStream.restorePatch(message.clientUuid, previousMain);
-                threadStream.restorePatch(message.clientUuid, previousThread);
-                toast.error(
-                    t('Failed to update the reaction. Please try again.'),
-                );
-            },
-        },
-    );
-}
-
-// Reset the panel's client state without navigating. Used when switching
-// channels, where the URL has already moved off any open thread.
-function resetThreadPanel(): void {
-    activeThreadRootId.value = null;
-    threadData.value = null;
-    threadLoading.value = false;
-    threadStream.reset();
-}
-
-// Open the thread rooted at a message by putting `?thread=<root>` in the URL, so
-// the root (`thread`) and the first page of replies (`threadReplies`) load and
-// the reply InfiniteScroll's paging requests carry the root. `reset` clears any
-// previous thread's merged replies; a skeleton shows until the root arrives.
-function openThread(rootId: string): void {
-    if (activeThreadRootId.value === rootId) {
-        return;
-    }
-
-    activeThreadRootId.value = rootId;
-    threadStream.reset();
-    threadData.value = null;
-    threadLoading.value = true;
-
-    // Opening the thread clears its dot straight away; the read pointer advances
-    // once the replies load (and again on focus / as new replies stream in).
-    mainStream.patchThreadState(rootId, { threadUnread: false });
-
-    router.get(
-        showChannel(
-            { team: props.team.slug, channel: props.channel.slug },
-            { query: { thread: rootId } },
-        ).url,
-        {},
-        {
-            only: ['thread', 'threadReplies'],
-            reset: ['threadReplies'],
-            preserveState: true,
-            preserveScroll: true,
-            replace: true,
-            onFinish: () => {
-                threadLoading.value = false;
-                markThreadRead();
-            },
-        },
-    );
-}
-
-// Close the thread: drop `?thread=` from the URL and reset the panel.
-function closeThread(): void {
-    if (activeThreadRootId.value === null) {
-        return;
-    }
-
-    resetThreadPanel();
-
-    router.get(
-        showChannel({ team: props.team.slug, channel: props.channel.slug }).url,
-        {},
-        {
-            only: ['thread', 'threadReplies'],
-            reset: ['threadReplies'],
-            preserveState: true,
-            preserveScroll: true,
-            replace: true,
-        },
-    );
 }
 
 // Drives the archive confirmation dialog opened from the channel header menu.
@@ -1081,220 +516,24 @@ function archive(): void {
 
     <div class="flex min-h-0 flex-1 overflow-hidden">
         <div class="flex min-w-0 flex-1 flex-col">
-            <header
-                class="flex shrink-0 items-end gap-4 border-b border-border px-7 pt-5 pb-3.5"
-            >
-                <SidebarTrigger
-                    class="mb-1 -ml-1.5 size-8 shrink-0 text-muted-foreground md:hidden"
-                />
-
-                <div class="min-w-0 flex-1">
-                    <h1
-                        class="flex items-center gap-2 truncate font-serif text-[32px] leading-none font-semibold tracking-[-0.02em] text-foreground"
-                    >
-                        <!-- A DM shows the participant's avatar + presence dot
-                             instead of the channel "#"; the name is already
-                             viewer-relative (self reads "You"). -->
-                        <span
-                            v-if="props.channel.isDirect"
-                            data-test="masthead-dm-avatar"
-                            class="relative inline-flex size-7 shrink-0"
-                        >
-                            <span
-                                class="flex size-7 items-center justify-center rounded-full bg-primary/10 text-[11px] font-semibold text-primary select-none"
-                                aria-hidden="true"
-                                >{{ getInitials(props.channel.name) }}</span
-                            >
-                            <span
-                                :data-online="dmParticipantOnline"
-                                :aria-label="
-                                    dmParticipantOnline
-                                        ? $t('Online')
-                                        : $t('Offline')
-                                "
-                                class="absolute -right-0.5 -bottom-0.5 size-2.5 rounded-full ring-2 ring-card"
-                                :class="
-                                    dmParticipantOnline
-                                        ? 'bg-emerald-500'
-                                        : 'bg-muted-foreground/50'
-                                "
-                            />
-                        </span>
-                        <span v-else class="text-brass italic">#</span>
-                        <span class="truncate">{{ mastheadTitle }}</span>
-                        <!-- The mute / notification-level indicator sits inline
-                             with the title so it reads as a property of this
-                             conversation rather than floating in the meta row
-                             (which is empty for a DM with no topic). -->
-                        <Tooltip v-if="notificationStatus">
-                            <TooltipTrigger as-child>
-                                <span
-                                    data-test="notification-status"
-                                    :data-status="notificationStatus.status"
-                                    class="inline-flex shrink-0 items-center text-muted-foreground"
-                                    :aria-label="$t(notificationStatus.label)"
-                                >
-                                    <component
-                                        :is="notificationStatus.icon"
-                                        class="size-4"
-                                    />
-                                </span>
-                            </TooltipTrigger>
-                            <TooltipContent>{{
-                                $t(notificationStatus.label)
-                            }}</TooltipContent>
-                        </Tooltip>
-                    </h1>
-
-                    <div
-                        v-if="props.channel.isArchived || props.channel.topic"
-                        class="mt-1.5 flex items-center gap-2 text-[13px] text-muted-foreground"
-                    >
-                        <span
-                            v-if="props.channel.isArchived"
-                            class="inline-flex shrink-0 items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground"
-                        >
-                            <Archive class="size-3" />
-                            {{ $t('Archived') }}
-                        </span>
-
-                        <p v-if="props.channel.topic" class="min-w-0 truncate">
-                            {{ props.channel.topic }}
-                        </p>
-                    </div>
-                </div>
-
-                <div class="flex shrink-0 items-center gap-3 pb-1">
-                    <span
-                        v-if="
-                            !props.channel.isDirect &&
-                            mastheadAvatars.visible.length > 0
-                        "
-                        data-test="masthead-members"
-                        class="flex -space-x-1.5"
-                    >
-                        <span
-                            v-for="member in mastheadAvatars.visible"
-                            :key="member.id"
-                            class="flex size-6 items-center justify-center rounded-full bg-primary/10 text-[9px] font-semibold text-primary ring-2 ring-card select-none"
-                            :title="member.name"
-                            aria-hidden="true"
-                        >
-                            {{ getInitials(member.name) }}
-                        </span>
-                        <span
-                            v-if="mastheadAvatars.overflow > 0"
-                            class="flex size-6 items-center justify-center rounded-full bg-muted text-[9px] font-semibold text-muted-foreground ring-2 ring-card select-none"
-                            aria-hidden="true"
-                        >
-                            +{{ mastheadAvatars.overflow }}
-                        </span>
-                    </span>
-
-                    <Link
-                        :href="searchMessages(props.team.slug).url"
-                        data-test="masthead-search"
-                        :aria-label="$t('Search messages')"
-                        class="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
-                    >
-                        <Search class="size-4" />
-                    </Link>
-
-                    <DropdownMenu
-                        v-if="props.canManagePreferences || props.canArchive"
-                    >
-                        <DropdownMenuTrigger as-child>
-                            <button
-                                type="button"
-                                :aria-label="$t('Channel options')"
-                                data-test="channel-options"
-                                class="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
-                            >
-                                <EllipsisVertical class="size-4" />
-                            </button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" class="w-56">
-                            <template v-if="props.canManagePreferences">
-                                <!-- Starring files a channel into the sidebar's
-                                     "Starred" group; DMs live in their own fixed
-                                     group and are never filed, so the affordance
-                                     is hidden for them. -->
-                                <DropdownMenuItem
-                                    v-if="!props.channel.isDirect"
-                                    data-test="star-channel"
-                                    :aria-pressed="starred"
-                                    @select="
-                                        (event: Event) => {
-                                            event.preventDefault();
-                                            toggleStar();
-                                        }
-                                    "
-                                >
-                                    <Star
-                                        :class="
-                                            starred
-                                                ? 'fill-current text-amber-500'
-                                                : ''
-                                        "
-                                    />
-                                    {{
-                                        starred
-                                            ? $t('Unstar channel')
-                                            : $t('Star channel')
-                                    }}
-                                </DropdownMenuItem>
-                                <DropdownMenuSeparator
-                                    v-if="!props.channel.isDirect"
-                                />
-                                <DropdownMenuLabel
-                                    class="text-[11px] font-semibold tracking-[0.06em] text-muted-foreground uppercase"
-                                >
-                                    {{ $t('Notifications') }}
-                                </DropdownMenuLabel>
-                                <DropdownMenuRadioGroup
-                                    :model-value="notificationLevel"
-                                    @update:model-value="
-                                        onNotificationLevelChange
-                                    "
-                                >
-                                    <DropdownMenuRadioItem
-                                        v-for="level in props.notificationLevels"
-                                        :key="level.value"
-                                        :value="level.value"
-                                        :data-test="`notification-level-${level.value}`"
-                                    >
-                                        {{ level.label }}
-                                    </DropdownMenuRadioItem>
-                                </DropdownMenuRadioGroup>
-                                <DropdownMenuSeparator />
-                                <DropdownMenuCheckboxItem
-                                    :model-value="muted"
-                                    data-test="mute-channel"
-                                    @update:model-value="onMuteChange"
-                                    @select="
-                                        (event: Event) => event.preventDefault()
-                                    "
-                                >
-                                    {{ $t('Mute channel') }}
-                                </DropdownMenuCheckboxItem>
-                            </template>
-                            <template v-if="props.canArchive">
-                                <DropdownMenuSeparator
-                                    v-if="props.canManagePreferences"
-                                />
-                                <DropdownMenuItem
-                                    data-test="archive-channel"
-                                    class="text-destructive focus:text-destructive"
-                                    @select="confirmingArchive = true"
-                                >
-                                    <Archive class="size-4" />
-                                    {{ $t('Archive channel') }}
-                                </DropdownMenuItem>
-                            </template>
-                        </DropdownMenuContent>
-                    </DropdownMenu>
-                </div>
-            </header>
+            <ChannelMasthead
+                :channel="props.channel"
+                :team-slug="props.team.slug"
+                :members="props.members"
+                :online-ids="onlineIds"
+                :title="mastheadTitle"
+                :can-manage-preferences="props.canManagePreferences"
+                :can-archive="props.canArchive"
+                :notification-levels="props.notificationLevels"
+                :starred="starred"
+                :muted="muted"
+                :notification-level="notificationLevel"
+                :notification-status="notificationStatus"
+                @toggle-star="toggleStar"
+                @notification-level-change="onNotificationLevelChange"
+                @mute-change="onMuteChange"
+                @archive="confirmingArchive = true"
+            />
 
             <div class="relative flex min-h-0 flex-1 flex-col">
                 <div class="relative flex min-h-0 flex-1 flex-col">
@@ -1354,217 +593,14 @@ function archive(): void {
                             />
                         </InfiniteScroll>
 
-                        <div
+                        <ChannelEmptyState
                             v-else
-                            class="flex h-full flex-col items-center justify-center gap-1 px-6"
-                        >
-                            <!-- Brand-new workspace: the reachable first-run
-                                 welcome, shown on an empty #general until the
-                                 viewer completes onboarding. -->
-                            <div
-                                v-if="showWelcome"
-                                data-test="workspace-welcome"
-                                class="flex w-full max-w-[460px] flex-col items-center text-center"
-                            >
-                                <svg
-                                    width="52"
-                                    height="52"
-                                    viewBox="0 0 40 40"
-                                    aria-hidden="true"
-                                >
-                                    <polygon
-                                        points="20,18 36,27 20,36 4,27"
-                                        class="fill-foreground/40"
-                                    />
-                                    <polygon
-                                        points="20,11 36,20 20,29 4,20"
-                                        class="fill-foreground/70"
-                                    />
-                                    <polygon
-                                        points="20,4 36,13 20,22 4,13"
-                                        class="fill-brass"
-                                    />
-                                </svg>
-                                <h2
-                                    class="mt-5 font-serif text-[30px] font-semibold tracking-[-0.015em] text-foreground"
-                                >
-                                    {{
-                                        $t('Welcome to :team', {
-                                            team: props.team.name,
-                                        })
-                                    }}
-                                </h2>
-                                <p
-                                    class="mt-3 max-w-[400px] text-[15px] leading-[1.6] text-muted-foreground"
-                                >
-                                    {{
-                                        $t(
-                                            'Your workspace is ready. A few small steps and it starts feeling like home.',
-                                        )
-                                    }}
-                                </p>
-
-                                <div class="mt-7 flex w-full flex-col gap-2.5">
-                                    <CreateChannelModal
-                                        :team-slug="props.team.slug"
-                                    >
-                                        <button
-                                            type="button"
-                                            data-test="welcome-create-channel"
-                                            class="flex items-center gap-3.5 rounded-[13px] border border-border bg-card px-4 py-3.5 text-left shadow-sm transition-colors hover:bg-accent/40"
-                                        >
-                                            <span
-                                                class="flex size-9 shrink-0 items-center justify-center rounded-[11px] bg-brass-fill text-[16px] font-semibold text-brass-fill-foreground"
-                                                >#</span
-                                            >
-                                            <span class="flex flex-1 flex-col">
-                                                <span
-                                                    class="text-[14.5px] font-semibold text-foreground"
-                                                    >{{
-                                                        $t(
-                                                            'Create your first channel',
-                                                        )
-                                                    }}</span
-                                                >
-                                                <span
-                                                    class="text-[12.5px] text-muted-foreground"
-                                                    >{{
-                                                        $t(
-                                                            'Group conversations by topic or project',
-                                                        )
-                                                    }}</span
-                                                >
-                                            </span>
-                                            <span
-                                                class="inline-flex h-9 items-center rounded-full bg-primary px-4 text-[13px] font-semibold text-primary-foreground"
-                                                >{{ $t('Create') }}</span
-                                            >
-                                        </button>
-                                    </CreateChannelModal>
-
-                                    <button
-                                        v-if="canInviteToCurrentTeam"
-                                        type="button"
-                                        data-test="welcome-invite"
-                                        class="flex items-center gap-3.5 rounded-[13px] border border-border bg-card px-4 py-3.5 text-left shadow-sm transition-colors hover:bg-accent/40"
-                                        @click="inviteOpen = true"
-                                    >
-                                        <span
-                                            class="flex size-9 shrink-0 items-center justify-center rounded-[11px] bg-brass-fill text-brass-fill-foreground"
-                                        >
-                                            <UserPlus class="size-[17px]" />
-                                        </span>
-                                        <span class="flex flex-1 flex-col">
-                                            <span
-                                                class="text-[14.5px] font-semibold text-foreground"
-                                                >{{
-                                                    $t('Invite your teammates')
-                                                }}</span
-                                            >
-                                            <span
-                                                class="text-[12.5px] text-muted-foreground"
-                                                >{{
-                                                    $t(
-                                                        'A workspace comes alive with people',
-                                                    )
-                                                }}</span
-                                            >
-                                        </span>
-                                        <span
-                                            class="inline-flex h-9 items-center rounded-full border border-input bg-background px-4 text-[13px] font-semibold text-foreground"
-                                            >{{ $t('Invite') }}</span
-                                        >
-                                    </button>
-
-                                    <button
-                                        type="button"
-                                        data-test="welcome-post-message"
-                                        class="flex items-center gap-3.5 rounded-[13px] border border-border bg-card px-4 py-3.5 text-left shadow-sm transition-colors hover:bg-accent/40"
-                                        @click="focusComposer"
-                                    >
-                                        <span
-                                            class="flex size-9 shrink-0 items-center justify-center rounded-[11px] bg-brass-fill text-brass-fill-foreground"
-                                        >
-                                            <Send class="size-[16px]" />
-                                        </span>
-                                        <span class="flex flex-1 flex-col">
-                                            <span
-                                                class="text-[14.5px] font-semibold text-foreground"
-                                                >{{
-                                                    $t(
-                                                        'Post your first message',
-                                                    )
-                                                }}</span
-                                            >
-                                            <span
-                                                class="text-[12.5px] text-muted-foreground"
-                                                >{{
-                                                    $t(
-                                                        'Break the ice — even a wave counts',
-                                                    )
-                                                }}</span
-                                            >
-                                        </span>
-                                        <span
-                                            class="inline-flex h-9 items-center rounded-full border border-input bg-background px-4 text-[13px] font-semibold text-foreground"
-                                            >{{ $t('Compose') }}</span
-                                        >
-                                    </button>
-                                </div>
-
-                                <p
-                                    class="mt-5 text-[12.5px] text-muted-foreground"
-                                >
-                                    {{ $t('Prefer to explore on your own?') }}
-                                    <button
-                                        type="button"
-                                        data-test="welcome-take-tour"
-                                        class="font-semibold text-brass-fill-foreground hover:underline"
-                                        @click="openOnboardingTour"
-                                    >
-                                        {{ $t('Take the 30-second tour') }}
-                                    </button>
-                                </p>
-                            </div>
-
-                            <!-- Every other empty channel or DM. -->
-                            <template v-else>
-                                <div
-                                    class="font-serif text-[64px] leading-none text-border italic"
-                                    aria-hidden="true"
-                                >
-                                    {{ props.channel.isDirect ? '@' : '#' }}
-                                </div>
-                                <p
-                                    class="mt-1.5 font-serif text-[20px] font-semibold text-foreground"
-                                >
-                                    {{ $t('No messages yet') }}
-                                </p>
-                                <p class="text-[13.5px] text-muted-foreground">
-                                    {{
-                                        props.channel.isDirect
-                                            ? isSelfDm
-                                                ? $t(
-                                                      'This is your space — jot anything down.',
-                                                  )
-                                                : $t(
-                                                      'This is the start of your conversation with :name.',
-                                                      {
-                                                          name: props.channel
-                                                              .name,
-                                                      },
-                                                  )
-                                            : $t(
-                                                  'Be the first to say something in #:channel.',
-                                                  {
-                                                      channel:
-                                                          props.channel.name,
-                                                  },
-                                              )
-                                    }}
-                                </p>
-                            </template>
-                        </div>
+                            :channel="props.channel"
+                            :is-self-dm="isSelfDm"
+                            :team-name="props.team.name"
+                            :team-slug="props.team.slug"
+                            @focus-composer="focusComposer"
+                        />
                     </div>
 
                     <Transition
@@ -1708,14 +744,7 @@ function archive(): void {
         :channels="forwardableChannels"
         :people="forwardablePeople"
         :current-user-id="currentUser.id"
-        @submit="forwardMessage"
-    />
-
-    <InviteMemberModal
-        v-if="currentTeamForInvite && canInviteToCurrentTeam"
-        v-model:open="inviteOpen"
-        :team="currentTeamForInvite"
-        :available-roles="invitableRoles"
+        @submit="submitForward"
     />
 
     <ScheduledMessagesDialog
