@@ -73,7 +73,10 @@ services:
       POSTGRES_USER: ${DB_USERNAME:-laravel}
       POSTGRES_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD is required}
     volumes:
-      - pgsql-data:/var/lib/postgresql/data
+      # Postgres 18+ stores data in a major-version subdirectory and expects the
+      # mount at /var/lib/postgresql (not /var/lib/postgresql/data, the pre-18
+      # path); mounting the old path makes the container refuse to start.
+      - pgsql-data:/var/lib/postgresql
     restart: unless-stopped
     networks:
       - app
