@@ -31,6 +31,18 @@ export type Channel = {
     // The channel's manual order within whichever sidebar group it renders in;
     // ties fall back to the alphabetical order the server applies.
     position: number;
+    // Whether this channel is a 1:1 direct message. DMs render in the dedicated
+    // "Direct messages" sidebar group with a viewer-relative name and avatar
+    // instead of in the channel sections.
+    isDirect: boolean;
+    // For a DM, the id of the participant the viewer sees (the other member, or
+    // themselves in a self-DM — labelled "You"); null for a standard channel.
+    // Keys the presence dot and avatar.
+    dmUserId: string | null;
+    // ISO-8601 timestamp of the channel's most recent activity (latest message,
+    // falling back to when the channel was created), used to order the "Direct
+    // messages" group by recency.
+    lastActivityAt: string | null;
 };
 
 // A user-created sidebar section, rendered between "Starred" and the default

@@ -27,6 +27,9 @@ function channel(overrides: Partial<Channel> = {}): Channel {
         starred: false,
         sectionId: null,
         position: 0,
+        isDirect: false,
+        dmUserId: null,
+        lastActivityAt: null,
         ...overrides,
     };
 }
@@ -71,6 +74,7 @@ describe('partitionChannels', () => {
             starred: [],
             custom: [],
             others: [],
+            direct: [],
         });
     });
 
@@ -134,6 +138,55 @@ describe('partitionChannels', () => {
 
         expect(custom).toHaveLength(1);
         expect(custom[0].channels).toEqual([]);
+    });
+
+    it('pulls direct messages into their own group, out of the others list', () => {
+        const dm = channel({ slug: 'dm-1', isDirect: true });
+        const dmStarredFlag = channel({
+            slug: 'dm-2',
+            isDirect: true,
+            starred: true,
+            sectionId: 's1',
+        });
+        const regular = channel({ slug: 'general' });
+
+        const { direct, others, starred, custom } = partitionChannels(
+            [dm, dmStarredFlag, regular],
+            [section({ id: 's1' })],
+        );
+
+        // DMs are pulled out first, so a stray starred/section flag never files
+        // them into the star or section groups.
+        expect(direct.map((c) => c.slug)).toEqual(['dm-1', 'dm-2']);
+        expect(others.map((c) => c.slug)).toEqual(['general']);
+        expect(starred).toEqual([]);
+        expect(custom[0].channels).toEqual([]);
+    });
+
+    it('orders direct messages by most-recent activity, undated last', () => {
+        const older = channel({
+            slug: 'dm-older',
+            isDirect: true,
+            lastActivityAt: '2026-07-01T10:00:00.000Z',
+        });
+        const newer = channel({
+            slug: 'dm-newer',
+            isDirect: true,
+            lastActivityAt: '2026-07-10T10:00:00.000Z',
+        });
+        const undated = channel({
+            slug: 'dm-undated',
+            isDirect: true,
+            lastActivityAt: null,
+        });
+
+        const { direct } = partitionChannels([older, undated, newer]);
+
+        expect(direct.map((c) => c.slug)).toEqual([
+            'dm-newer',
+            'dm-older',
+            'dm-undated',
+        ]);
     });
 });
 

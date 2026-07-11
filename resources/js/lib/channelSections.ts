@@ -4,7 +4,7 @@ import type { Channel, ChannelSection } from '@/types/channels';
  * The built-in sidebar sections whose collapsed state is persisted per user.
  * Keys must match `App\Http\Requests\UpdateSidebarSectionsRequest::SECTIONS`.
  */
-export const SIDEBAR_SECTIONS = ['starred', 'channels'] as const;
+export const SIDEBAR_SECTIONS = ['starred', 'channels', 'direct'] as const;
 
 export type SidebarSectionKey = (typeof SIDEBAR_SECTIONS)[number];
 
@@ -21,6 +21,12 @@ export type ChannelSections = {
     custom: ChannelSectionGroup[];
     /** Unstarred, unassigned channels — the default "Channels" group. */
     others: Channel[];
+    /**
+     * Direct messages, rendered in their own fixed "Direct messages" group,
+     * ordered by most-recent activity. DMs never file into the star/section
+     * system, so they are pulled out here before any other bucketing.
+     */
+    direct: Channel[];
 };
 
 /**
@@ -31,6 +37,10 @@ export type ChannelSections = {
  * Starring wins over section assignment: a starred channel always renders in
  * "Starred", even when it also carries a `sectionId`. A channel assigned to a
  * section that no longer exists falls back to the default group.
+ *
+ * Direct messages are pulled out first — they always render in the dedicated
+ * "Direct messages" group (ordered by most-recent activity), never in the
+ * star/section system.
  */
 export function partitionChannels(
     channels: Channel[],
@@ -38,11 +48,17 @@ export function partitionChannels(
 ): ChannelSections {
     const starred: Channel[] = [];
     const others: Channel[] = [];
+    const direct: Channel[] = [];
     const bySection = new Map<string, Channel[]>(
         sections.map((section) => [section.id, []]),
     );
 
     for (const channel of channels) {
+        if (channel.isDirect) {
+            direct.push(channel);
+            continue;
+        }
+
         if (channel.starred) {
             starred.push(channel);
             continue;
@@ -65,7 +81,21 @@ export function partitionChannels(
         channels: bySection.get(section.id) ?? [],
     }));
 
-    return { starred, custom, others };
+    // Most-recent activity first; a DM with no activity timestamp sorts last.
+    direct.sort(
+        (a, b) =>
+            activityValue(b.lastActivityAt) - activityValue(a.lastActivityAt),
+    );
+
+    return { starred, custom, others, direct };
+}
+
+/**
+ * A sortable numeric value for a DM's last-activity timestamp; a missing
+ * timestamp sorts oldest (to the bottom of the group).
+ */
+function activityValue(timestamp: string | null): number {
+    return timestamp ? Date.parse(timestamp) : 0;
 }
 
 /**

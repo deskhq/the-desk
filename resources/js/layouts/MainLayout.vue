@@ -34,6 +34,7 @@ import { update as updateSidebarSections } from '@/actions/App/Http/Controllers/
 import ChannelListItem from '@/components/ChannelListItem.vue';
 import CreateChannelModal from '@/components/CreateChannelModal.vue';
 import CreateTeamModal from '@/components/CreateTeamModal.vue';
+import DirectMessageListItem from '@/components/DirectMessageListItem.vue';
 import InviteMemberModal from '@/components/InviteMemberModal.vue';
 import KeyboardShortcutsModal from '@/components/KeyboardShortcutsModal.vue';
 import NavUser from '@/components/NavUser.vue';
@@ -68,6 +69,7 @@ import { useInitials } from '@/composables/useInitials';
 import { useKeyboardShortcuts } from '@/composables/useKeyboardShortcuts';
 import { useKeyboardShortcutsModal } from '@/composables/useKeyboardShortcutsModal';
 import { useSidebarBadges } from '@/composables/useSidebarBadges';
+import { useTeamPresence } from '@/composables/useTeamPresence';
 import { useTeamSwitch } from '@/composables/useTeamSwitch';
 import { useTimezone } from '@/composables/useTimezone';
 import { useTranslations } from '@/composables/useTranslations';
@@ -102,6 +104,10 @@ useSidebarBadges();
 const currentTeam = computed(() => page.props.currentTeam);
 const teams = computed(() => page.props.teams ?? []);
 const channels = computed(() => page.props.channels ?? []);
+const currentUserId = computed(() => String(page.props.auth.user.id));
+
+// Online roster for the current team, driving the presence dot on each DM row.
+const { onlineIds } = useTeamPresence(() => currentTeam.value?.id);
 const activeChannelSlug = computed(
     () => (page.props.channel as { slug?: string } | undefined)?.slug ?? null,
 );
@@ -130,6 +136,9 @@ const customSections = computed<ChannelSection[]>(
 // reorder round-tripping), so the layout follows the user across devices.
 const starredList = ref<Channel[]>([]);
 const defaultList = ref<Channel[]>([]);
+// Direct messages, ordered by recent activity (the partitioner sorts them). Not
+// drag-mutable — DMs never file into sections — so this is a plain projection.
+const directList = ref<Channel[]>([]);
 const customGroups = ref<{ section: ChannelSection; channels: Channel[] }[]>(
     [],
 );
@@ -138,6 +147,7 @@ function syncSidebarGroups(): void {
     const partitioned = partitionChannels(channels.value, customSections.value);
     starredList.value = [...partitioned.starred];
     defaultList.value = [...partitioned.others];
+    directList.value = [...partitioned.direct];
     customGroups.value = partitioned.custom.map((group) => ({
         section: group.section,
         channels: [...group.channels],
@@ -944,6 +954,59 @@ onMounted(() => {
                                     />
                                 </template>
                             </draggable>
+                        </SidebarGroupContent>
+                    </SidebarGroup>
+
+                    <!-- Direct messages: a fixed group outside the
+                             star/section/placement system. Rows render the other
+                             participant (self renders "You") with a presence dot
+                             and a plain unread badge, ordered by recent activity. -->
+                    <SidebarGroup
+                        class="pb-0"
+                        data-test="direct-messages-group"
+                    >
+                        <button
+                            type="button"
+                            data-test="section-toggle-direct"
+                            :aria-expanded="!isSectionCollapsed('direct')"
+                            class="flex h-7 w-full items-center gap-1 rounded-md px-2 text-[10.5px] font-semibold tracking-[0.1em] text-muted-foreground/70 uppercase transition-colors hover:bg-sidebar-accent/40 hover:text-sidebar-foreground"
+                            @click="toggleSection('direct')"
+                        >
+                            <ChevronRight
+                                class="size-3 shrink-0 transition-transform"
+                                :class="
+                                    isSectionCollapsed('direct')
+                                        ? ''
+                                        : 'rotate-90'
+                                "
+                            />
+                            {{ $t('Direct messages') }}
+                        </button>
+                        <SidebarGroupContent
+                            v-show="!isSectionCollapsed('direct')"
+                            data-test="section-content-direct"
+                        >
+                            <ul class="flex w-full min-w-0 flex-col gap-1">
+                                <DirectMessageListItem
+                                    v-for="dm in directList"
+                                    :key="dm.id"
+                                    :channel="dm"
+                                    :team-slug="currentTeam?.slug ?? ''"
+                                    :active-channel-slug="activeChannelSlug"
+                                    :online="
+                                        dm.dmUserId != null &&
+                                        onlineIds.has(dm.dmUserId)
+                                    "
+                                    :is-self="dm.dmUserId === currentUserId"
+                                />
+                            </ul>
+                            <p
+                                v-if="directList.length === 0"
+                                data-test="direct-messages-empty"
+                                class="px-2 pb-1 text-[12px] text-muted-foreground/50 normal-case"
+                            >
+                                {{ $t('No direct messages yet') }}
+                            </p>
                         </SidebarGroupContent>
                     </SidebarGroup>
 

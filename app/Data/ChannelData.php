@@ -5,6 +5,7 @@ namespace App\Data;
 use App\Enums\NotificationLevel;
 use App\Models\Channel;
 use App\Models\User;
+use Illuminate\Support\Carbon;
 use Spatie\LaravelData\Data;
 use Spatie\TypeScriptTransformer\Attributes\TypeScript;
 
@@ -30,6 +31,7 @@ class ChannelData extends Data
         public int $position = 0,
         public bool $isDirect = false,
         public ?string $dmUserId = null,
+        public ?string $lastActivityAt = null,
     ) {}
 
     /**
@@ -88,6 +90,13 @@ class ChannelData extends Data
         $dmParticipant = $isDirect && $viewer instanceof User ? $channel->directParticipantFor($viewer) : null;
         $name = $dmParticipant !== null ? $dmParticipant->name : (string) $channel->name;
 
+        // The timestamp the "Direct messages" sidebar group orders on: the
+        // channel's latest message (populated by the sidebar query as
+        // `last_message_at`), falling back to when the channel itself was created
+        // so a never-messaged DM the creator opened still sorts sensibly.
+        $lastMessageAt = $channel->getAttribute('last_message_at');
+        $lastActivityAt = $lastMessageAt !== null ? Carbon::parse($lastMessageAt)->toISOString() : $channel->created_at?->toISOString();
+
         return new self(
             id: $channel->id,
             name: $name,
@@ -107,6 +116,7 @@ class ChannelData extends Data
             position: $position,
             isDirect: $isDirect,
             dmUserId: $dmParticipant?->id,
+            lastActivityAt: $lastActivityAt,
         );
     }
 }
