@@ -140,9 +140,16 @@ class ChannelController extends Controller
                     ->orderBy('send_at')
                     ->get()
             ),
-            // Team members feed the composer's @mention autocomplete; mentions are
-            // scoped to the team, never limited to the current channel's members.
-            'members' => UserData::collect($team->members()->orderBy('name')->get()),
+            // Feeds the composer's @mention autocomplete. A standard channel is
+            // team-scoped — you may mention anyone on the team. A direct message
+            // is scoped to its own participants, since mentioning someone who
+            // isn't in the conversation would never reach them (this generalizes
+            // to group DMs, whatever their member count).
+            'members' => UserData::collect(
+                ($channel->isDirect() ? $channel->members() : $team->members())
+                    ->orderBy('name')
+                    ->get()
+            ),
             // Read pointers of the channel's other members who share read receipts,
             // seeding the "Seen by" affordance at open; later advances arrive via the
             // MessageRead broadcast. The viewer and opted-out members are excluded.
