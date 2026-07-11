@@ -17,13 +17,19 @@ import {
 import { rankChannels } from '@/composables/quickSwitcher';
 import { getInitials } from '@/composables/useInitials';
 import { useMessageSearch } from '@/composables/useMessageSearch';
+import { useOpenDirectMessage } from '@/composables/useOpenDirectMessage';
+import { useTranslations } from '@/composables/useTranslations';
 import { formatDateTime } from '@/lib/datetime';
 import { renderMessageBody } from '@/lib/messageBody';
+import { rankPeople } from '@/lib/peopleDirectory';
 import type { MessageSearchResult } from '@/types';
 import type { Channel } from '@/types/channels';
+import type { PersonRef } from '@/types/people';
 
 const props = defineProps<{
     channels: Channel[];
+    members: PersonRef[];
+    currentUserId: string;
     teamSlug: string;
 }>();
 
@@ -39,6 +45,14 @@ const trimmedQuery = computed(() => query.value.trim().replace(/^#+/, ''));
 
 const channelResults = computed(() =>
     rankChannels(props.channels, query.value),
+);
+
+// Team members ranked next to channels; choosing one opens/creates their DM.
+const { t } = useTranslations();
+const { openDirectMessage } = useOpenDirectMessage(() => props.teamSlug);
+
+const peopleResults = computed(() =>
+    rankPeople(props.members, query.value, props.currentUserId),
 );
 
 // Live message search: a debounced JSON call to the suggest endpoint, with the
@@ -78,6 +92,11 @@ function formatTimestamp(iso: string): string {
 function selectChannel(channel: Channel): void {
     open.value = false;
     router.visit(show({ team: props.teamSlug, channel: channel.slug }).url);
+}
+
+function selectPerson(id: string): void {
+    open.value = false;
+    openDirectMessage(id);
 }
 
 function selectMessage(result: MessageSearchResult): void {
@@ -133,6 +152,34 @@ function seeAllResults(): void {
                         >#</span
                     >
                     <span class="truncate">{{ channel.name }}</span>
+                    <span
+                        class="ml-auto font-mono text-[11px] text-primary-foreground/70 opacity-0 group-data-[highlighted]:opacity-100"
+                        aria-hidden="true"
+                        >↵</span
+                    >
+                </CommandItem>
+            </CommandGroup>
+
+            <CommandGroup
+                v-if="peopleResults.length > 0"
+                :heading="$t('People')"
+            >
+                <CommandItem
+                    v-for="person in peopleResults"
+                    :key="person.id"
+                    :value="`person:${person.id}`"
+                    data-test="quick-switcher-person"
+                    class="group h-[38px] gap-2 rounded-lg px-2.5 data-[highlighted]:bg-primary data-[highlighted]:text-primary-foreground"
+                    @select="selectPerson(person.id)"
+                >
+                    <span
+                        class="flex size-6 shrink-0 items-center justify-center rounded-full bg-primary/10 text-[10px] font-semibold text-primary select-none group-data-[highlighted]:bg-primary-foreground/20 group-data-[highlighted]:text-primary-foreground"
+                        aria-hidden="true"
+                        >{{ getInitials(person.name) }}</span
+                    >
+                    <span class="truncate">{{
+                        person.isSelf ? t('You') : person.name
+                    }}</span>
                     <span
                         class="ml-auto font-mono text-[11px] text-primary-foreground/70 opacity-0 group-data-[highlighted]:opacity-100"
                         aria-hidden="true"
