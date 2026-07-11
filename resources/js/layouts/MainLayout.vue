@@ -69,6 +69,7 @@ import { useChimeNotifications } from '@/composables/useChimeNotifications';
 import { useInitials } from '@/composables/useInitials';
 import { useKeyboardShortcuts } from '@/composables/useKeyboardShortcuts';
 import { useKeyboardShortcutsModal } from '@/composables/useKeyboardShortcutsModal';
+import { useNewDirectMessages } from '@/composables/useNewDirectMessages';
 import { useSidebarBadges } from '@/composables/useSidebarBadges';
 import { useTeamPresence } from '@/composables/useTeamPresence';
 import { useTeamSwitch } from '@/composables/useTeamSwitch';
@@ -101,6 +102,10 @@ useChimeNotifications();
 // Keep the sidebar unread/mention badges live as messages arrive in channels the
 // user is a member of but not currently viewing.
 useSidebarBadges();
+
+// Surface a brand-new direct message in the sidebar the moment someone messages
+// the viewer for the first time, without a manual reload.
+useNewDirectMessages();
 
 const currentTeam = computed(() => page.props.currentTeam);
 const teams = computed(() => page.props.teams ?? []);
