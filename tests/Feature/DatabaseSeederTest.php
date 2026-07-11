@@ -1,5 +1,6 @@
 <?php
 
+use App\Enums\ChannelType;
 use App\Enums\ChannelVisibility;
 use App\Enums\TeamRole;
 use App\Models\Channel;
@@ -100,6 +101,27 @@ test('it varies the demo user unread state across channels', function () {
 
     expect($pivots->filter()->isNotEmpty())->toBeTrue()
         ->and($pivots->contains(null))->toBeTrue();
+});
+
+test('it seeds direct messages covering the self, empty and excluded shapes', function () {
+    $directChannels = Channel::where('type', ChannelType::Direct)->get();
+
+    // The demo participates in several DMs.
+    expect($this->demo->channels()->where('type', ChannelType::Direct)->exists())->toBeTrue();
+
+    // A self-DM: a single-member direct channel whose member is the demo.
+    $selfDm = $directChannels->first(fn (Channel $channel) => $channel->members()->count() === 1
+        && $channel->members()->whereKey($this->demo->id)->exists());
+    expect($selfDm)->not->toBeNull();
+
+    // An empty DM the demo opened (no messages) — visible to them as the creator.
+    $emptyOwned = $directChannels->first(fn (Channel $channel) => $channel->created_by === $this->demo->id
+        && $channel->messages()->doesntExist());
+    expect($emptyOwned)->not->toBeNull();
+
+    // A DM the demo is excluded from (between two other members).
+    $excluded = $directChannels->first(fn (Channel $channel) => $channel->members()->whereKey($this->demo->id)->doesntExist());
+    expect($excluded)->not->toBeNull();
 });
 
 test('it seeds pending, accepted and expired invitations across roles on an admin team', function () {

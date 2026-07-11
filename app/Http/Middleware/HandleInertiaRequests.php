@@ -4,7 +4,9 @@ namespace App\Http\Middleware;
 
 use App\Data\ChannelData;
 use App\Data\ChannelSectionData;
+use App\Data\UserData;
 use App\Enums\TeamRole;
+use App\Models\Channel;
 use App\Models\Message;
 use App\Models\Team;
 use App\Models\TeamInvitation;
@@ -80,6 +82,9 @@ class HandleInertiaRequests extends Middleware
                 : false,
             'invitableRoles' => TeamRole::assignable(),
             'channels' => fn () => $this->channelsForSidebar($request, $user),
+            // The current team's members feed the DM entry points (the sidebar
+            // people picker and the ⌘K "People" group); empty off the workspace.
+            'teamMembers' => fn () => $this->teamMembersForSidebar($request, $user),
             'channelSections' => fn () => $this->channelSectionsForSidebar($request, $user),
             'collapsedChannelSections' => fn () => $user->collapsed_channel_sections ?? [],
             'hasUnreadThreads' => fn () => $this->hasUnreadThreads($request, $user),
@@ -105,6 +110,14 @@ class HandleInertiaRequests extends Middleware
             ->whereNull('channels.archived_at')
             ->select('channels.*')
             ->addSelect(['channel_members.muted', 'channel_members.notification_level', 'channel_members.starred', 'channel_members.section_id', 'channel_members.position'])
+            // The channel's latest message time drives the "Direct messages" group
+            // ordering (recent activity first) and, being null when a DM has no
+            // messages yet, the listing predicate that hides an empty DM from its
+            // recipient below.
+            ->selectSub(
+                Message::query()->selectRaw('max(messages.created_at)')->whereColumn('messages.channel_id', 'channels.id'),
+                'last_message_at'
+            )
             // Only the presence of a draft drives the sidebar cue; the draft text
             // itself is shipped solely to the open channel, so keep it out of the
             // sidebar payload and expose a 1/0 flag instead (an integer, not a
@@ -122,7 +135,39 @@ class HandleInertiaRequests extends Middleware
             ->orderBy('channels.name')
             ->get();
 
+        // A DM is listed once it has real activity: it has at least one message,
+        // or the viewer created it (the initiator navigated straight into it), or
+        // the viewer is currently viewing it. An empty DM the recipient was never
+        // messaged in therefore stays hidden for them. Standard channels always
+        // list. `directParticipantFor`/ordering are then applied client-side.
+        $activeChannel = $request->route('channel');
+        $activeChannelId = $activeChannel instanceof Channel ? $activeChannel->getKey() : null;
+
+        $channels = $channels->filter(fn (Channel $channel): bool => ! $channel->isDirect()
+            || $channel->getAttribute('last_message_at') !== null
+            || $channel->created_by === $user->id
+            || $channel->getKey() === $activeChannelId)->values();
+
         return ChannelData::collect($channels, 'array');
+    }
+
+    /**
+     * The current team's members, feeding the DM entry points (the sidebar
+     * people picker and the quick-switcher "People" group). Ordered by name and
+     * including the viewer themselves (a self-DM renders as "You"). Empty off the
+     * channel workspace, where the entry points are absent.
+     *
+     * @return array<int, UserData>
+     */
+    protected function teamMembersForSidebar(Request $request, ?User $user): array
+    {
+        $team = $request->route('team');
+
+        if (! $user || ! $team instanceof Team || ! $request->routeIs('channels.*')) {
+            return [];
+        }
+
+        return UserData::collect($team->members()->orderBy('name')->get(), 'array');
     }
 
     /**

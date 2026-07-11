@@ -4,6 +4,7 @@ namespace Database\Seeders;
 
 use App\Actions\Channels\CreateChannel;
 use App\Actions\Channels\JoinChannel;
+use App\Actions\Channels\OpenDirectMessage;
 use App\Actions\Channels\SyncMentions;
 use App\Actions\Teams\CreateTeam;
 use App\Enums\AuditAction;
@@ -39,6 +40,7 @@ class WorkspaceSeeder extends Seeder
         private readonly CreateTeam $createTeam,
         private readonly CreateChannel $createChannel,
         private readonly JoinChannel $joinChannel,
+        private readonly OpenDirectMessage $openDirectMessage,
         private readonly SyncMentions $syncMentions,
         private readonly AuditRecorder $auditRecorder,
     ) {}
@@ -161,10 +163,47 @@ class WorkspaceSeeder extends Seeder
         $archived->members()->attach([$demo->id, $admin->id]);
 
         $this->seedUnreadState($demo, $general, $announcements, $leadership);
+        $this->seedDirectMessages($acme, $demo, $admin, $member1, $member2);
         $this->seedInvitations($acme, $demo);
         $this->seedAuditLog($acme, $demo, $admin, $member1, $announcements, $archived, $secret);
 
         return $acme;
+    }
+
+    /**
+     * Seed direct messages so the sidebar's "Direct messages" group is populated
+     * on load, covering every DM shape: an unread 1:1 (badge on open), a fully
+     * read 1:1, a self-DM ("notes to self", rendered "You"), an empty DM the demo
+     * opened (visible to the creator, hidden from the recipient until a first
+     * message), and a DM between two other members the demo is excluded from.
+     *
+     * Created through the open-or-create action so the dedup key, membership and
+     * `notification_level = all` all match the real flow.
+     */
+    private function seedDirectMessages(Team $team, User $demo, User $admin, User $member1, User $member2): void
+    {
+        // An unread 1:1 — the other person spoke last, so it badges on open.
+        $withAdmin = $this->openDirectMessage->handle($team, $demo, $admin);
+        $this->seedMessages($withAdmin, [$demo, $admin], 8);
+
+        // A fully caught-up 1:1 — read pointer at the latest message, so no badge.
+        $withBob = $this->openDirectMessage->handle($team, $demo, $member1);
+        $this->seedMessages($withBob, [$demo, $member1], 5);
+        $latest = $withBob->messages()->latest()->first();
+        $demo->channels()->updateExistingPivot($withBob->id, ['last_read_message_id' => $latest?->id]);
+
+        // A self-DM: a single-member direct channel the sidebar renders as "You".
+        $selfDm = $this->openDirectMessage->handle($team, $demo, $demo);
+        $this->seedMessages($selfDm, [$demo], 3);
+
+        // An empty DM the demo opened: it shows for them (the creator) but stays
+        // hidden from the recipient until the first message.
+        $this->openDirectMessage->handle($team, $demo, $member2);
+
+        // A DM between two other members — the demo is not a participant, so it
+        // never appears in the demo's sidebar.
+        $othersDm = $this->openDirectMessage->handle($team, $admin, $member1);
+        $this->seedMessages($othersDm, [$admin, $member1], 4);
     }
 
     /**

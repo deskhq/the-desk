@@ -13,7 +13,7 @@ class UpdateSidebarSectionsRequest extends FormRequest
      *
      * @var list<string>
      */
-    public const SECTIONS = ['starred', 'channels'];
+    public const SECTIONS = ['starred', 'channels', 'direct'];
 
     /**
      * Determine if the user is authorized to make this request.

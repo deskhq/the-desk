@@ -3,6 +3,7 @@
 namespace App\Actions\Channels;
 
 use App\Data\MessageData;
+use App\Events\DirectMessageStarted;
 use App\Events\MessageSent;
 use App\Events\MessageUpdated;
 use App\Models\Channel;
@@ -57,6 +58,8 @@ class PostMessage
             $message->loadMessageDataRelations();
             MessageSent::dispatch($channel, MessageData::fromMessage($message));
 
+            $this->announceFirstDirectMessage($channel, $author);
+
             if ($threadRootId !== null) {
                 $this->bumpThreadRoot($channel, $threadRootId);
             } elseif ($clearDraft) {
@@ -68,6 +71,25 @@ class PostMessage
         }
 
         return $message;
+    }
+
+    /**
+     * When a direct message receives its very first message, notify the other
+     * participant(s) on their private `user.{id}` channel so the DM appears in
+     * their sidebar live. Only the first message announces — thereafter the DM is
+     * already listed and the sidebar fleet keeps its badge current. A self-DM has
+     * no other participant, so nothing is announced.
+     */
+    private function announceFirstDirectMessage(Channel $channel, User $author): void
+    {
+        if (! $channel->isDirect() || $channel->messages()->count() !== 1) {
+            return;
+        }
+
+        $channel->members()
+            ->where('users.id', '!=', $author->id)
+            ->pluck('users.id')
+            ->each(fn (string $recipientId) => DirectMessageStarted::dispatch($recipientId, $channel->id));
     }
 
     /**

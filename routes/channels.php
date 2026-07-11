@@ -18,6 +18,17 @@ Broadcast::channel('channel.{channelId}', function (User $user, string $channelI
 });
 
 /**
+ * Authorize a user's own private notification channel.
+ *
+ * Only the user themselves may subscribe to `user.{id}`, which delivers
+ * personal signals such as a brand-new direct message appearing in their
+ * sidebar. No other member of the team can listen in.
+ */
+Broadcast::channel('user.{userId}', function (User $user, string $userId): bool {
+    return $user->id === $userId;
+});
+
+/**
  * Track which team members are currently online.
  *
  * Only members of the team may join, and the identity returned here becomes

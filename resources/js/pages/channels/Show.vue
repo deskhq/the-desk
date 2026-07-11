@@ -176,6 +176,24 @@ const mastheadAvatars = computed(() =>
     memberAvatarStack(props.members, MAX_MASTHEAD_AVATARS),
 );
 
+// A direct message renders viewer-relative: no "#", the other participant's
+// name and presence (the viewer's own self-DM reads "You"), and no team
+// facepile — a DM is a fixed pair, so the "who's in the channel" stack is
+// meaningless there.
+const isSelfDm = computed(
+    () =>
+        props.channel.isDirect &&
+        props.channel.dmUserId === currentUser.value.id,
+);
+const mastheadTitle = computed(() =>
+    isSelfDm.value ? t('You') : props.channel.name,
+);
+const dmParticipantOnline = computed(
+    () =>
+        props.channel.dmUserId != null &&
+        onlineIds.value.has(props.channel.dmUserId),
+);
+
 // A team Admin+ may delete anyone's message in the channel (moderation).
 const canModerate = computed(() =>
     ['admin', 'owner'].includes(page.props.currentTeam?.role ?? ''),
@@ -949,7 +967,11 @@ function archive(): void {
 </script>
 
 <template>
-    <Head :title="`#${props.channel.name}`" />
+    <Head
+        :title="
+            props.channel.isDirect ? mastheadTitle : `#${props.channel.name}`
+        "
+    />
 
     <div class="flex min-h-0 flex-1 overflow-hidden">
         <div class="flex min-w-0 flex-1 flex-col">
@@ -962,29 +984,61 @@ function archive(): void {
 
                 <div class="min-w-0 flex-1">
                     <h1
-                        class="truncate font-serif text-[32px] leading-none font-semibold tracking-[-0.02em] text-foreground"
+                        class="flex items-center gap-2 truncate font-serif text-[32px] leading-none font-semibold tracking-[-0.02em] text-foreground"
                     >
-                        <span class="text-brass italic">#</span
-                        >{{ props.channel.name }}
-                    </h1>
-
-                    <div
-                        class="mt-1.5 flex items-center gap-2 text-[13px] text-muted-foreground"
-                    >
+                        <!-- A DM shows the participant's avatar + presence dot
+                             instead of the channel "#"; the name is already
+                             viewer-relative (self reads "You"). -->
+                        <span
+                            v-if="props.channel.isDirect"
+                            data-test="masthead-dm-avatar"
+                            class="relative inline-flex size-7 shrink-0"
+                        >
+                            <span
+                                class="flex size-7 items-center justify-center rounded-full bg-primary/10 text-[11px] font-semibold text-primary select-none"
+                                aria-hidden="true"
+                                >{{ getInitials(props.channel.name) }}</span
+                            >
+                            <span
+                                :data-online="dmParticipantOnline"
+                                :aria-label="
+                                    dmParticipantOnline
+                                        ? $t('Online')
+                                        : $t('Offline')
+                                "
+                                class="absolute -right-0.5 -bottom-0.5 size-2.5 rounded-full ring-2 ring-card"
+                                :class="
+                                    dmParticipantOnline
+                                        ? 'bg-emerald-500'
+                                        : 'bg-muted-foreground/50'
+                                "
+                            />
+                        </span>
+                        <span v-else class="text-brass italic">#</span>
+                        <span class="truncate">{{ mastheadTitle }}</span>
+                        <!-- The mute / notification-level indicator sits inline
+                             with the title so it reads as a property of this
+                             conversation rather than floating in the meta row
+                             (which is empty for a DM with no topic). -->
                         <span
                             v-if="notificationStatus"
                             data-test="notification-status"
                             :data-status="muted ? 'muted' : notificationLevel"
-                            class="inline-flex shrink-0 items-center"
+                            class="inline-flex shrink-0 items-center text-muted-foreground"
                             :title="notificationStatus.label"
                             :aria-label="notificationStatus.label"
                         >
                             <component
                                 :is="notificationStatus.icon"
-                                class="size-3.5"
+                                class="size-4"
                             />
                         </span>
+                    </h1>
 
+                    <div
+                        v-if="props.channel.isArchived || props.channel.topic"
+                        class="mt-1.5 flex items-center gap-2 text-[13px] text-muted-foreground"
+                    >
                         <span
                             v-if="props.channel.isArchived"
                             class="inline-flex shrink-0 items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground"
@@ -1001,7 +1055,10 @@ function archive(): void {
 
                 <div class="flex shrink-0 items-center gap-3 pb-1">
                     <span
-                        v-if="mastheadAvatars.visible.length > 0"
+                        v-if="
+                            !props.channel.isDirect &&
+                            mastheadAvatars.visible.length > 0
+                        "
                         data-test="masthead-members"
                         class="flex -space-x-1.5"
                     >
@@ -1047,7 +1104,12 @@ function archive(): void {
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end" class="w-56">
                             <template v-if="props.canManagePreferences">
+                                <!-- Starring files a channel into the sidebar's
+                                     "Starred" group; DMs live in their own fixed
+                                     group and are never filed, so the affordance
+                                     is hidden for them. -->
                                 <DropdownMenuItem
+                                    v-if="!props.channel.isDirect"
                                     data-test="star-channel"
                                     :aria-pressed="starred"
                                     @select="
@@ -1070,7 +1132,9 @@ function archive(): void {
                                             : $t('Star channel')
                                     }}
                                 </DropdownMenuItem>
-                                <DropdownMenuSeparator />
+                                <DropdownMenuSeparator
+                                    v-if="!props.channel.isDirect"
+                                />
                                 <DropdownMenuLabel
                                     class="text-[11px] font-semibold tracking-[0.06em] text-muted-foreground uppercase"
                                 >
@@ -1185,7 +1249,7 @@ function archive(): void {
                                 class="font-serif text-[64px] leading-none text-border italic"
                                 aria-hidden="true"
                             >
-                                #
+                                {{ props.channel.isDirect ? '@' : '#' }}
                             </div>
                             <p
                                 class="mt-1.5 font-serif text-[20px] font-semibold text-foreground"
@@ -1194,10 +1258,19 @@ function archive(): void {
                             </p>
                             <p class="text-[13.5px] text-muted-foreground">
                                 {{
-                                    $t(
-                                        'Be the first to say something in #:channel.',
-                                        { channel: props.channel.name },
-                                    )
+                                    props.channel.isDirect
+                                        ? isSelfDm
+                                            ? $t(
+                                                  'This is your space — jot anything down.',
+                                              )
+                                            : $t(
+                                                  'This is the start of your conversation with :name.',
+                                                  { name: props.channel.name },
+                                              )
+                                        : $t(
+                                              'Be the first to say something in #:channel.',
+                                              { channel: props.channel.name },
+                                          )
                                 }}
                             </p>
                         </div>

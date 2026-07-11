@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Link } from '@inertiajs/vue3';
-import { AtSign, UserRound } from '@lucide/vue';
+import { AtSign, MessageSquare, UserRound } from '@lucide/vue';
 import { ref } from 'vue';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
@@ -11,6 +11,7 @@ import {
     HoverCardTrigger,
 } from '@/components/ui/hover-card';
 import { useInitials } from '@/composables/useInitials';
+import { useOpenDirectMessage } from '@/composables/useOpenDirectMessage';
 import { fetchUserProfile } from '@/composables/useUserProfileCard';
 import { formatLocalTime } from '@/lib/datetime';
 import { show } from '@/routes/teams/members';
@@ -28,6 +29,7 @@ const emit = defineEmits<{
 }>();
 
 const { getInitials } = useInitials();
+const { openDirectMessage } = useOpenDirectMessage(() => props.teamSlug);
 
 const profile = ref<UserProfile | null>(null);
 const loading = ref(false);
@@ -54,6 +56,10 @@ function localTime(): string | null {
 
 function onMention(): void {
     emit('mention', { id: props.userId, name: props.name });
+}
+
+function onMessage(): void {
+    openDirectMessage(props.userId);
 }
 </script>
 
@@ -131,19 +137,30 @@ function onMention(): void {
                     </div>
                 </div>
 
-                <div class="flex gap-2">
-                    <Button
-                        size="sm"
-                        class="h-8 flex-1 rounded-full"
-                        data-test="hover-card-mention"
-                        @click="onMention"
-                    >
-                        <AtSign class="size-4" /> {{ $t('Mention') }}
-                    </Button>
+                <div class="space-y-2">
+                    <div class="flex gap-2">
+                        <Button
+                            size="sm"
+                            class="h-8 flex-1 rounded-full"
+                            data-test="hover-card-message"
+                            @click="onMessage"
+                        >
+                            <MessageSquare class="size-4" /> {{ $t('Message') }}
+                        </Button>
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            class="h-8 flex-1 rounded-full"
+                            data-test="hover-card-mention"
+                            @click="onMention"
+                        >
+                            <AtSign class="size-4" /> {{ $t('Mention') }}
+                        </Button>
+                    </div>
                     <Button
                         variant="outline"
                         size="sm"
-                        class="h-8 flex-1 rounded-full"
+                        class="h-8 w-full rounded-full"
                         as-child
                     >
                         <Link :href="show([teamSlug, userId])">
