@@ -59,7 +59,11 @@ test('a deleted message becomes a tombstone live for another member', function (
         ->click('@delete-message-confirm')
         ->assertPresent('@message-tombstone');
 
-    // Bob's copy collapses to the tombstone over Reverb.
+    // Bob's copy collapses to the tombstone over Reverb. Scope the "gone" check
+    // to the timeline: the visually-hidden aria-live announcer region still holds
+    // the "New message from …: <body>" string it spoke on arrival, so a page-wide
+    // assertDontSee would match that stale announcement rather than the message
+    // itself (#272).
     $bobPage->assertPresent('@message-tombstone');
-    $bobPage->assertDontSee($body);
+    $bobPage->assertDontSeeIn('[data-test="message-body"]', $body);
 });
