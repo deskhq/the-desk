@@ -96,14 +96,20 @@ and Reverb on `REVERB_PORT` (default `8080`); point your reverse proxy at them.
 Registration is open, so onboarding is self-service:
 
 1. Visit your `APP_URL` and go to **/register** to create the first account.
-2. Email verification is enabled — make sure your SMTP settings work so the
-   verification email is delivered, then verify.
-3. Create your first workspace from **Settings → Teams**, then invite teammates.
+2. Create your first workspace from **Settings → Teams**, then invite teammates.
 
 > **Locking down registration.** Public sign-ups are open by default. To run a
 > private/invite-only instance, set `REGISTRATION_ENABLED=false` in `.env`
 > (create your own account first). With it off, `/register` returns 404 and the
 > "sign up" links are hidden — existing users and email invitations still work.
+
+> **Requiring email verification.** New accounts are _not_ asked to confirm
+> their email by default. To run a verified-only instance, set
+> `EMAIL_VERIFICATION_ENABLED=true` in `.env` and make sure your SMTP settings
+> work so the verification email is delivered. With it on, a freshly registered
+> user is emailed a confirmation link and is blocked from the workspace until
+> they verify; any existing account with an unverified email is likewise gated
+> on its next request.
 
 ### Upgrading
 

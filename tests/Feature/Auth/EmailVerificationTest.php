@@ -5,6 +5,10 @@ use Illuminate\Auth\Events\Verified;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\URL;
 
+// These tests exercise the verification flow itself, so they run with the
+// EMAIL_VERIFICATION_ENABLED enforcement flag on (it defaults off).
+beforeEach(fn () => config(['fortify.email_verification_enabled' => true]));
+
 test('email verification screen can be rendered', function (): void {
     $user = User::factory()->unverified()->create();
 
