@@ -80,6 +80,13 @@ jobs:
       - name: Generate Application Key
         run: php artisan key:generate
 
+      # `resources/js/generated/generated.d.ts` (the App.Data.* / App.Enums.*
+      # ambient namespace) is a git-ignored build artifact, so a fresh checkout
+      # lacks it. Regenerate it before the type check, otherwise `vue-tsc` cannot
+      # resolve the `App` namespace pages now consume.
+      - name: Generate TypeScript Types
+        run: php artisan typescript:transform
+
       - name: Build Assets
         run: npm run build
 
