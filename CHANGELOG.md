@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.7.0](https://github.com/emmpaul/the-desk/compare/v0.6.0...v0.7.0) (2026-07-12)
+
+
+### Features
+
+* **settings:** redesign account panes to "The Desk" ([#231](https://github.com/emmpaul/the-desk/issues/231)) ([#288](https://github.com/emmpaul/the-desk/issues/288)) ([1a91e61](https://github.com/emmpaul/the-desk/commit/1a91e61c36288a09122a0fc4d31670f90e0e6d74))
+* **teams:** resend a pending invitation ([#230](https://github.com/emmpaul/the-desk/issues/230)) ([#286](https://github.com/emmpaul/the-desk/issues/286)) ([1c8d70a](https://github.com/emmpaul/the-desk/commit/1c8d70ae243c867a125835bfc3b36d25bf438ac0))
+
+
+### Bug Fixes
+
+* **a11y:** blocker fixes + automated-a11y tooling foundation ([#266](https://github.com/emmpaul/the-desk/issues/266)) ([#270](https://github.com/emmpaul/the-desk/issues/270)) ([188a05b](https://github.com/emmpaul/the-desk/commit/188a05b433857065facd8a37d06203443b5b897e))
+* **a11y:** color contrast & focus indicators meet WCAG AA ([#269](https://github.com/emmpaul/the-desk/issues/269)) ([#275](https://github.com/emmpaul/the-desk/issues/275)) ([306935b](https://github.com/emmpaul/the-desk/commit/306935b7cf9eb8e748e0d4e94a81881e461c0a94))
+* **a11y:** message timeline & composer semantics (roles, live regions, combobox) ([#279](https://github.com/emmpaul/the-desk/issues/279)) ([23c6159](https://github.com/emmpaul/the-desk/commit/23c6159e12efdc9726e1d7c2f6bb66c959fe5b68))
+* **a11y:** shell & sidebar — skip link, landmarks, aria-current + shadcn controls ([#267](https://github.com/emmpaul/the-desk/issues/267)) ([#273](https://github.com/emmpaul/the-desk/issues/273)) ([21e7fe4](https://github.com/emmpaul/the-desk/commit/21e7fe4a3817ba79cd0a492d7ffba7b1df93120c))
+* **a11y:** unread affordance & marketing-page contrast meet WCAG AA ([#278](https://github.com/emmpaul/the-desk/issues/278), [#274](https://github.com/emmpaul/the-desk/issues/274)) ([#284](https://github.com/emmpaul/the-desk/issues/284)) ([f620789](https://github.com/emmpaul/the-desk/commit/f620789c9cfe176a82d7048016265653dfdf6c83))
+* **security:** back active sessions with a driver-agnostic index ([#287](https://github.com/emmpaul/the-desk/issues/287)) ([#289](https://github.com/emmpaul/the-desk/issues/289)) ([2748e42](https://github.com/emmpaul/the-desk/commit/2748e42f3ed41ae335cbb5ba054c870d42d34874))
+
 ## [0.6.0](https://github.com/emmpaul/the-desk/compare/v0.5.1...v0.6.0) (2026-07-12)
 
 
