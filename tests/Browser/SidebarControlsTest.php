@@ -27,8 +27,12 @@ test('a section can be renamed through the inline shadcn input', function (): vo
     signInThroughBrowser($alice)
         ->assertSee('Old name')
         // Rename from the section's kebab menu opens the inline editor; typing
-        // over it and blurring (clicking away) commits the rename.
+        // over it and pressing Enter commits the rename.
         ->click("@section-menu-{$section->id}")
+        ->assertPresent("@section-rename-{$section->id}")
+        // Let the dropdown settle past its open/pointer-grace window, otherwise
+        // the "Rename" click can be swallowed and the editor never opens.
+        ->wait(0.5)
         ->click("@section-rename-{$section->id}")
         // Re-establish focus on the editor (the dropdown returns focus to its
         // trigger on close), then type over the name and press Enter to commit.

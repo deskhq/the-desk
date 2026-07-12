@@ -80,9 +80,16 @@ test('the settings sidebar is a labelled landmark with a current-page item', fun
 
     signInThroughBrowser($alice)
         // Open the user menu and follow the Settings link (a client-side Inertia
-        // visit, so the browser session survives).
+        // visit, so the browser session survives). Gate each step — wait for the
+        // menu item to render, then for the settings route to land — before
+        // asserting the landmark, so a slow menu/navigation doesn't race the check.
         ->click('@sidebar-menu-button')
+        ->assertPresent('@settings-menu-item')
+        // Let the dropdown settle past its open/pointer-grace window, otherwise
+        // the item click can be swallowed and never navigate.
+        ->wait(0.5)
         ->click('@settings-menu-item')
+        ->assertPathContains('/settings')
         ->assertAriaAttribute('nav[data-test="settings-nav"]', 'label', 'Settings')
         ->assertAriaAttribute(
             '[data-test="settings-nav-profile"]',
