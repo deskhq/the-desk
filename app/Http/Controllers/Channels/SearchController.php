@@ -18,7 +18,7 @@ class SearchController extends Controller
      * The number of message matches surfaced inline in the quick switcher, kept
      * small so the palette stays a preview; the full page shows the rest.
      */
-    private const SUGGEST_LIMIT = 5;
+    private const int SUGGEST_LIMIT = 5;
 
     /**
      * Search messages in the current team, scoped to the user's channels.
@@ -32,7 +32,7 @@ class SearchController extends Controller
         $query = trim((string) $request->validated('q'));
 
         $results = $searchMessages->handle($request->user(), $team, $query)
-            ->map(fn (Message $message) => MessageSearchResultData::fromMessage($message))
+            ->map(fn (Message $message): MessageSearchResultData => MessageSearchResultData::fromMessage($message))
             ->all();
 
         return Inertia::render('channels/Search', [
@@ -58,7 +58,7 @@ class SearchController extends Controller
         $query = trim((string) $request->validated('q'));
 
         $results = $searchMessages->handle($request->user(), $team, $query, self::SUGGEST_LIMIT)
-            ->map(fn (Message $message) => MessageSearchResultData::fromMessage($message))
+            ->map(fn (Message $message): MessageSearchResultData => MessageSearchResultData::fromMessage($message))
             ->all();
 
         return response()->json(['results' => $results]);

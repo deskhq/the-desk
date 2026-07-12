@@ -38,7 +38,7 @@ function receiptsMember(Team $team, Channel $channel, User $user): User
     return $user;
 }
 
-test('MarkChannelRead broadcasts the advance for a user who shares read receipts', function () {
+test('MarkChannelRead broadcasts the advance for a user who shares read receipts', function (): void {
     Event::fake([MessageRead::class]);
 
     [$owner, $team, $general] = receiptsTeamWithGeneral();
@@ -49,15 +49,13 @@ test('MarkChannelRead broadcasts the advance for a user who shares read receipts
 
     app(MarkChannelRead::class)->handle($general, $member);
 
-    Event::assertDispatched(MessageRead::class, function (MessageRead $event) use ($general, $member, $latest) {
-        return $event->channel->is($general)
-            && $event->reader->id === $member->id
-            && $event->reader->name === 'Ada Lovelace'
-            && $event->lastReadMessageId === $latest->id;
-    });
+    Event::assertDispatched(MessageRead::class, fn (MessageRead $event): bool => $event->channel->is($general)
+        && $event->reader->id === $member->id
+        && $event->reader->name === 'Ada Lovelace'
+        && $event->lastReadMessageId === $latest->id);
 });
 
-test('MarkChannelRead does not broadcast for a user who opted out of read receipts', function () {
+test('MarkChannelRead does not broadcast for a user who opted out of read receipts', function (): void {
     Event::fake([MessageRead::class]);
 
     [$owner, $team, $general] = receiptsTeamWithGeneral();
@@ -78,7 +76,7 @@ test('MarkChannelRead does not broadcast for a user who opted out of read receip
     Event::assertNotDispatched(MessageRead::class);
 });
 
-test('MarkChannelRead does not re-broadcast when the pointer is already at the tail', function () {
+test('MarkChannelRead does not re-broadcast when the pointer is already at the tail', function (): void {
     Event::fake([MessageRead::class]);
 
     [$owner, $team, $general] = receiptsTeamWithGeneral();
@@ -94,7 +92,7 @@ test('MarkChannelRead does not re-broadcast when the pointer is already at the t
     Event::assertDispatchedTimes(MessageRead::class, 1);
 });
 
-test('MarkChannelRead does not broadcast on an empty channel', function () {
+test('MarkChannelRead does not broadcast on an empty channel', function (): void {
     Event::fake([MessageRead::class]);
 
     [, $team, $general] = receiptsTeamWithGeneral();
@@ -105,7 +103,7 @@ test('MarkChannelRead does not broadcast on an empty channel', function () {
     Event::assertNotDispatched(MessageRead::class);
 });
 
-test('MarkChannelRead does not broadcast for a non-member', function () {
+test('MarkChannelRead does not broadcast for a non-member', function (): void {
     Event::fake([MessageRead::class]);
 
     [$owner, $team, $general] = receiptsTeamWithGeneral();
@@ -120,7 +118,7 @@ test('MarkChannelRead does not broadcast for a non-member', function () {
     Event::assertNotDispatched(MessageRead::class);
 });
 
-test('the read endpoint broadcasts the advance for a sharing member', function () {
+test('the read endpoint broadcasts the advance for a sharing member', function (): void {
     Event::fake([MessageRead::class]);
 
     [$owner, $team, $general] = receiptsTeamWithGeneral();
@@ -132,10 +130,10 @@ test('the read endpoint broadcasts the advance for a sharing member', function (
         ->post(route('channels.read', ['team' => $team->slug, 'channel' => $general->slug]))
         ->assertRedirect();
 
-    Event::assertDispatched(MessageRead::class, fn (MessageRead $event) => $event->lastReadMessageId === $latest->id);
+    Event::assertDispatched(MessageRead::class, fn (MessageRead $event): bool => $event->lastReadMessageId === $latest->id);
 });
 
-test('MessageRead broadcasts on the channel private channel with the reader and pointer', function () {
+test('MessageRead broadcasts on the channel private channel with the reader and pointer', function (): void {
     [$owner, $team, $general] = receiptsTeamWithGeneral();
 
     $message = Message::factory()->for($general)->for($owner)->create();
@@ -148,7 +146,7 @@ test('MessageRead broadcasts on the channel private channel with the reader and 
     ]);
 });
 
-test('the channel page seeds channelReaders with sharing members, excluding the viewer and opt-outs', function () {
+test('the channel page seeds channelReaders with sharing members, excluding the viewer and opt-outs', function (): void {
     [$owner, $team, $general] = receiptsTeamWithGeneral();
     $viewer = receiptsMember($team, $general, User::factory()->create(['name' => 'Viewer']));
     $sharer = receiptsMember($team, $general, User::factory()->create(['name' => 'Sharer']));
@@ -162,9 +160,9 @@ test('the channel page seeds channelReaders with sharing members, excluding the 
         'channel' => $general->slug,
     ]))->assertOk();
 
-    $response->assertInertia(fn (Assert $page) => $page
+    $response->assertInertia(fn (Assert $page): Assert => $page
         ->has('channelReaders')
-        ->where('channelReaders', fn ($readers) => collect($readers)->pluck('user.id')->contains($sharer->id)
+        ->where('channelReaders', fn ($readers): bool => collect($readers)->pluck('user.id')->contains($sharer->id)
             && ! collect($readers)->pluck('user.id')->contains($viewer->id)
             && ! collect($readers)->pluck('user.id')->contains($optedOut->id))
     );

@@ -42,7 +42,7 @@ function decoratedMessage(): string
     return $root->id;
 }
 
-it('builds MessageData with no follow-up queries when loaded through the scope', function () {
+it('builds MessageData with no follow-up queries when loaded through the scope', function (): void {
     $id = decoratedMessage();
 
     $message = Message::query()->withMessageDataRelations()->findOrFail($id);

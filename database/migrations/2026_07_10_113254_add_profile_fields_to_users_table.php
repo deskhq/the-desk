@@ -11,7 +11,7 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('users', function (Blueprint $table) {
+        Schema::table('users', function (Blueprint $table): void {
             // Optional self-service identity fields surfaced on the member profile.
             $table->string('pronouns')->nullable()->after('email');
             $table->string('title')->nullable()->after('pronouns');
@@ -24,7 +24,7 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::table('users', function (Blueprint $table) {
+        Schema::table('users', function (Blueprint $table): void {
             $table->dropColumn(['pronouns', 'title', 'phone']);
         });
     }

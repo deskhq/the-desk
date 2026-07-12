@@ -33,14 +33,14 @@ function sidebarChannelSlugs(User $viewer, Team $team): array
 
     test()->actingAs($viewer)
         ->get(route('channels.show', ['team' => $team->slug, 'channel' => Channel::GENERAL_SLUG]))
-        ->assertInertia(function (Assert $page) use (&$slugs) {
+        ->assertInertia(function (Assert $page) use (&$slugs): void {
             $slugs = collect($page->toArray()['props']['channels'])->pluck('slug')->all();
         });
 
     return $slugs;
 }
 
-test('the creator sees an empty direct message they opened', function () {
+test('the creator sees an empty direct message they opened', function (): void {
     $owner = User::factory()->create();
     $team = app(CreateTeam::class)->handle($owner, 'Acme');
     $other = sidebarTeamMember($team);
@@ -50,7 +50,7 @@ test('the creator sees an empty direct message they opened', function () {
     expect(sidebarChannelSlugs($owner, $team))->toContain($dm->slug);
 });
 
-test('the recipient does not see an empty direct message', function () {
+test('the recipient does not see an empty direct message', function (): void {
     $owner = User::factory()->create();
     $team = app(CreateTeam::class)->handle($owner, 'Acme');
     $other = sidebarTeamMember($team);
@@ -60,7 +60,7 @@ test('the recipient does not see an empty direct message', function () {
     expect(sidebarChannelSlugs($other, $team))->not->toContain($dm->slug);
 });
 
-test('the recipient sees a direct message once it has a message', function () {
+test('the recipient sees a direct message once it has a message', function (): void {
     $owner = User::factory()->create();
     $team = app(CreateTeam::class)->handle($owner, 'Acme');
     $other = sidebarTeamMember($team);
@@ -71,7 +71,7 @@ test('the recipient sees a direct message once it has a message', function () {
     expect(sidebarChannelSlugs($other, $team))->toContain($dm->slug);
 });
 
-test('the recipient sees an empty direct message while actively viewing it', function () {
+test('the recipient sees an empty direct message while actively viewing it', function (): void {
     $owner = User::factory()->create();
     $team = app(CreateTeam::class)->handle($owner, 'Acme');
     $other = sidebarTeamMember($team);
@@ -81,14 +81,14 @@ test('the recipient sees an empty direct message while actively viewing it', fun
     $slugs = [];
     $this->actingAs($other)
         ->get(route('channels.show', ['team' => $team->slug, 'channel' => $dm->slug]))
-        ->assertInertia(function (Assert $page) use (&$slugs) {
+        ->assertInertia(function (Assert $page) use (&$slugs): void {
             $slugs = collect($page->toArray()['props']['channels'])->pluck('slug')->all();
         });
 
     expect($slugs)->toContain($dm->slug);
 });
 
-test('a direct message carries its viewer-relative identity in the sidebar prop', function () {
+test('a direct message carries its viewer-relative identity in the sidebar prop', function (): void {
     $owner = User::factory()->create();
     $team = app(CreateTeam::class)->handle($owner, 'Acme');
     $other = sidebarTeamMember($team);
@@ -97,10 +97,10 @@ test('a direct message carries its viewer-relative identity in the sidebar prop'
 
     $this->actingAs($owner)
         ->get(route('channels.show', ['team' => $team->slug, 'channel' => Channel::GENERAL_SLUG]))
-        ->assertInertia(fn (Assert $page) => $page
+        ->assertInertia(fn (Assert $page): Assert => $page
             ->has('channels', 2)
             ->where('channels', fn ($channels) => collect($channels)->contains(
-                fn ($channel) => $channel['slug'] === $dm->slug
+                fn ($channel): bool => $channel['slug'] === $dm->slug
                     && $channel['isDirect'] === true
                     && $channel['name'] === $other->name
                     && $channel['dmUserId'] === $other->id
@@ -108,7 +108,7 @@ test('a direct message carries its viewer-relative identity in the sidebar prop'
         );
 });
 
-test('a direct message orders on its latest message activity', function () {
+test('a direct message orders on its latest message activity', function (): void {
     $owner = User::factory()->create();
     $team = app(CreateTeam::class)->handle($owner, 'Acme');
     $other = sidebarTeamMember($team);
@@ -119,7 +119,7 @@ test('a direct message orders on its latest message activity', function () {
     $activity = null;
     $this->actingAs($owner)
         ->get(route('channels.show', ['team' => $team->slug, 'channel' => Channel::GENERAL_SLUG]))
-        ->assertInertia(function (Assert $page) use (&$activity, $dm) {
+        ->assertInertia(function (Assert $page) use (&$activity, $dm): void {
             $activity = collect($page->toArray()['props']['channels'])
                 ->firstWhere('slug', $dm->slug)['lastActivityAt'];
         });

@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Actions\Channels;
 
 use App\Data\ReactionData;
@@ -37,6 +39,6 @@ class ToggleReaction
 
         $message->load('reactions.user');
 
-        MessageReactionChanged::dispatch($channel, $message->id, ReactionData::forMessage($message));
+        event(new MessageReactionChanged($channel, $message->id, ReactionData::forMessage($message)));
     }
 }

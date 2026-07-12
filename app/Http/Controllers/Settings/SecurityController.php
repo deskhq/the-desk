@@ -21,7 +21,7 @@ class SecurityController extends Controller
     /**
      * The number of recent security events to surface on the settings page.
      */
-    private const RECENT_ACTIVITY_LIMIT = 20;
+    private const int RECENT_ACTIVITY_LIMIT = 20;
 
     /**
      * Show the user's security settings page.

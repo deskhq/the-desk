@@ -2,7 +2,7 @@
 
 use App\Support\UserAgentParser;
 
-test('it detects the browser', function (string $userAgent, string $browser) {
+test('it detects the browser', function (string $userAgent, string $browser): void {
     expect(UserAgentParser::parse($userAgent)['browser'])->toBe($browser);
 })->with([
     'Edge' => ['Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 Edg/120.0.0.0', 'Edge'],
@@ -13,7 +13,7 @@ test('it detects the browser', function (string $userAgent, string $browser) {
     'unknown browser' => ['curl/8.4.0', 'Unknown browser'],
 ]);
 
-test('it detects the platform', function (string $userAgent, string $platform) {
+test('it detects the platform', function (string $userAgent, string $platform): void {
     expect(UserAgentParser::parse($userAgent)['platform'])->toBe($platform);
 })->with([
     'Windows' => ['Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36', 'Windows'],
@@ -24,7 +24,7 @@ test('it detects the platform', function (string $userAgent, string $platform) {
     'unknown platform' => ['curl/8.4.0', 'Unknown platform'],
 ]);
 
-test('it falls back to unknowns for a missing user agent', function (?string $userAgent) {
+test('it falls back to unknowns for a missing user agent', function (?string $userAgent): void {
     expect(UserAgentParser::parse($userAgent))->toBe([
         'browser' => 'Unknown browser',
         'platform' => 'Unknown platform',

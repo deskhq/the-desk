@@ -14,10 +14,8 @@ class JoinChannel
      */
     public function handle(Channel $channel, User $user): ChannelMember
     {
-        return DB::transaction(function () use ($channel, $user) {
-            return $channel->channelMembers()->firstOrCreate([
-                'user_id' => $user->id,
-            ]);
-        });
+        return DB::transaction(fn () => $channel->channelMembers()->firstOrCreate([
+            'user_id' => $user->id,
+        ]));
     }
 }

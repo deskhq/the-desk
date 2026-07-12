@@ -20,7 +20,7 @@ function usePresenceBroadcaster(): void
     require base_path('routes/channels.php');
 }
 
-test('a team member is authorized to join the team presence channel and receives their roster identity', function () {
+test('a team member is authorized to join the team presence channel and receives their roster identity', function (): void {
     usePresenceBroadcaster();
 
     $member = User::factory()->create();
@@ -34,12 +34,12 @@ test('a team member is authorized to join the team presence channel and receives
         ])
         ->assertOk();
 
-    $channelData = json_decode($response->json('channel_data'), true);
+    $channelData = json_decode((string) $response->json('channel_data'), true);
 
     expect($channelData['user_info'])->toBe(['id' => $member->id, 'name' => $member->name]);
 });
 
-test('a non-member cannot join the team presence channel', function () {
+test('a non-member cannot join the team presence channel', function (): void {
     usePresenceBroadcaster();
 
     $team = Team::factory()->create();
@@ -53,7 +53,7 @@ test('a non-member cannot join the team presence channel', function () {
         ->assertForbidden();
 });
 
-test('joining the presence channel of an unknown team is denied', function () {
+test('joining the presence channel of an unknown team is denied', function (): void {
     usePresenceBroadcaster();
 
     $user = User::factory()->create();

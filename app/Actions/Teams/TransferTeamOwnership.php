@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Actions\Teams;
 
 use App\Enums\TeamRole;
@@ -18,7 +20,7 @@ class TransferTeamOwnership
      */
     public function handle(Team $team, User $currentOwner, User $newOwner): void
     {
-        DB::transaction(function () use ($team, $currentOwner, $newOwner) {
+        DB::transaction(function () use ($team, $currentOwner, $newOwner): void {
             $team->memberships()
                 ->where('user_id', $currentOwner->id)
                 ->update(['role' => TeamRole::Admin]);

@@ -7,7 +7,7 @@ use Tests\TestCase;
 // framework's translator, so these tests boot the application container.
 uses(TestCase::class);
 
-test('every action describes itself from context', function (AuditAction $action) {
+test('every action describes itself from context', function (AuditAction $action): void {
     $context = [
         'old_name' => 'Acme',
         'new_name' => 'Acme Corp',
@@ -22,11 +22,11 @@ test('every action describes itself from context', function (AuditAction $action
     expect($action->describe($context))->toBeString()->not->toBe('');
 })->with(AuditAction::cases());
 
-test('a missing context value falls back to a placeholder', function () {
+test('a missing context value falls back to a placeholder', function (): void {
     expect(AuditAction::ChannelCreated->describe([]))->toContain('—');
 });
 
-test('the action options expose a value and label for every case', function () {
+test('the action options expose a value and label for every case', function (): void {
     $options = AuditAction::options();
 
     expect($options)->toHaveCount(count(AuditAction::cases()));

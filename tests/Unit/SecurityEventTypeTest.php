@@ -7,11 +7,11 @@ use Tests\TestCase;
 // translator, so these tests boot the application container.
 uses(TestCase::class);
 
-test('every event type has a non-empty label', function (SecurityEventType $type) {
+test('every event type has a non-empty label', function (SecurityEventType $type): void {
     expect($type->label())->toBeString()->not->toBeEmpty();
 })->with(SecurityEventType::cases());
 
-test('labels describe the action', function () {
+test('labels describe the action', function (): void {
     expect(SecurityEventType::LoggedIn->label())->toBe('Signed in');
     expect(SecurityEventType::TwoFactorEnabled->label())->toBe('Two-factor authentication enabled');
 });

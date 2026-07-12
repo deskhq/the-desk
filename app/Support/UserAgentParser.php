@@ -12,7 +12,7 @@ class UserAgentParser
      *
      * @var array<string, string>
      */
-    private const BROWSERS = [
+    private const array BROWSERS = [
         'Edge' => '/\bEdg/i',
         'Opera' => '/\bOPR\b|\bOpera\b/i',
         'Firefox' => '/\bFirefox\b|\bFxiOS\b/i',
@@ -28,7 +28,7 @@ class UserAgentParser
      *
      * @var array<string, string>
      */
-    private const PLATFORMS = [
+    private const array PLATFORMS = [
         'Windows' => '/\bWindows\b/i',
         'iOS' => '/\biPhone\b|\biPad\b|\biPod\b/i',
         'Android' => '/\bAndroid\b/i',

@@ -29,7 +29,7 @@ Route::get('locales/{locale}.json', [LocaleCatalogController::class, 'show'])
     ->where('locale', '[a-z]{2}')
     ->name('locales.show');
 
-Route::middleware(['auth', 'verified', EnsureTeamMembership::class])->group(function () {
+Route::middleware(['auth', 'verified', EnsureTeamMembership::class])->group(function (): void {
     Route::get('t/{team}', [ChannelController::class, 'index'])->name('channels.index');
     Route::post('t/{team}/channels', [ChannelController::class, 'store'])->name('channels.store');
     Route::post('t/{team}/dm', [DirectMessageController::class, 'store'])->name('channels.dm.store');
@@ -110,7 +110,7 @@ Route::middleware(['auth', 'verified', EnsureTeamMembership::class])->group(func
         ->name('channels.members.destroy');
 });
 
-Route::middleware(['auth'])->group(function () {
+Route::middleware(['auth'])->group(function (): void {
     Route::patch('sidebar/sections', [SidebarSectionController::class, 'update'])->name('sidebar.sections.update');
 
     Route::patch('onboarding', [OnboardingController::class, 'update'])->name('onboarding.update');

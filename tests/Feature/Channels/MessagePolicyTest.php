@@ -24,14 +24,14 @@ function teamWithMessage(User $author): array
     return [$owner, $team, $general, $message];
 }
 
-test('the author can edit their own message', function () {
+test('the author can edit their own message', function (): void {
     $author = User::factory()->create();
     [, , , $message] = teamWithMessage($author);
 
     expect($author->can('update', $message))->toBeTrue();
 });
 
-test('a non-author cannot edit a message even as an admin', function () {
+test('a non-author cannot edit a message even as an admin', function (): void {
     $author = User::factory()->create();
     [$owner, $team, , $message] = teamWithMessage($author);
 
@@ -42,14 +42,14 @@ test('a non-author cannot edit a message even as an admin', function () {
         ->and($owner->can('update', $message))->toBeFalse();
 });
 
-test('the author can delete their own message', function () {
+test('the author can delete their own message', function (): void {
     $author = User::factory()->create();
     [, , , $message] = teamWithMessage($author);
 
     expect($author->can('delete', $message))->toBeTrue();
 });
 
-test('a team admin can delete another members message', function () {
+test('a team admin can delete another members message', function (): void {
     $author = User::factory()->create();
     [$owner, $team, , $message] = teamWithMessage($author);
 
@@ -60,7 +60,7 @@ test('a team admin can delete another members message', function () {
         ->and($owner->can('delete', $message))->toBeTrue();
 });
 
-test('a plain member cannot delete another members message', function () {
+test('a plain member cannot delete another members message', function (): void {
     $author = User::factory()->create();
     [, $team, , $message] = teamWithMessage($author);
 

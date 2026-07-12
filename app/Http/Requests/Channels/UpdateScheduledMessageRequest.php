@@ -22,6 +22,7 @@ class UpdateScheduledMessageRequest extends FormRequest
     /**
      * Trim surrounding whitespace while preserving the message's inner newlines.
      */
+    #[\Override]
     protected function prepareForValidation(): void
     {
         $this->merge([

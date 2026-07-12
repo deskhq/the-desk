@@ -3,7 +3,7 @@
 use App\Rules\TeamName;
 use Illuminate\Support\Facades\Validator;
 
-test('reserved team names fail validation', function () {
+test('reserved team names fail validation', function (): void {
     $validator = Validator::make(
         ['name' => 'Settings'],
         ['name' => new TeamName],
@@ -14,7 +14,7 @@ test('reserved team names fail validation', function () {
         ->toBe('This team name is reserved and cannot be used.');
 });
 
-test('ordinary team names pass validation', function () {
+test('ordinary team names pass validation', function (): void {
     $validator = Validator::make(
         ['name' => 'Marketing Wizards'],
         ['name' => new TeamName],

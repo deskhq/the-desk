@@ -40,7 +40,7 @@ class AuditRecorder
                 $activity->team_id = $team->id;
             });
 
-        if ($target !== null) {
+        if ($target instanceof Model) {
             $logger->performedOn($target);
         }
 

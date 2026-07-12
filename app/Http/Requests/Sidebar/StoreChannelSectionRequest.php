@@ -22,6 +22,7 @@ class StoreChannelSectionRequest extends FormRequest
     /**
      * Trim surrounding whitespace from the section name before validation.
      */
+    #[\Override]
     protected function prepareForValidation(): void
     {
         $this->merge([

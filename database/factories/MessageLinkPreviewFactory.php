@@ -36,7 +36,7 @@ class MessageLinkPreviewFactory extends Factory
      */
     public function ready(): static
     {
-        return $this->state(fn (array $attributes) => [
+        return $this->state(fn (array $attributes): array => [
             'status' => LinkPreviewStatus::Ready,
             'title' => fake()->sentence(4),
             'description' => fake()->sentence(10),
@@ -50,7 +50,7 @@ class MessageLinkPreviewFactory extends Factory
      */
     public function failed(): static
     {
-        return $this->state(fn (array $attributes) => [
+        return $this->state(fn (array $attributes): array => [
             'status' => LinkPreviewStatus::Failed,
         ]);
     }

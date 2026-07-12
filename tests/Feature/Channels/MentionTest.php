@@ -43,7 +43,7 @@ function mentionToken(User $user): string
     return "@[{$user->name}]({$user->id})";
 }
 
-test('posting a message persists a mention row for a real team member', function () {
+test('posting a message persists a mention row for a real team member', function (): void {
     [$owner, $team, $general] = mentionTeamWithGeneral();
     $mentioned = teamMember($team, 'Ada Lovelace');
 
@@ -63,7 +63,7 @@ test('posting a message persists a mention row for a real team member', function
     expect($message->mentionedUsers)->toHaveCount(1);
 });
 
-test('parsing resolves only real team members, ignoring non-members and unknown ids', function () {
+test('parsing resolves only real team members, ignoring non-members and unknown ids', function (): void {
     [$owner, $team, $general] = mentionTeamWithGeneral();
     $member = teamMember($team, 'Real Member');
     $stranger = User::factory()->create(['name' => 'Outsider']);
@@ -84,7 +84,7 @@ test('parsing resolves only real team members, ignoring non-members and unknown 
     $this->assertDatabaseMissing('mentions', ['mentioned_user_id' => $stranger->id]);
 });
 
-test('a user mentioned twice in one message is persisted once', function () {
+test('a user mentioned twice in one message is persisted once', function (): void {
     [$owner, $team, $general] = mentionTeamWithGeneral();
     $mentioned = teamMember($team);
 
@@ -98,7 +98,7 @@ test('a user mentioned twice in one message is persisted once', function () {
     expect(Message::firstOrFail()->mentionedUsers)->toHaveCount(1);
 });
 
-test('editing a message re-syncs mentions: adds new and removes stale', function () {
+test('editing a message re-syncs mentions: adds new and removes stale', function (): void {
     [$owner, $team, $general] = mentionTeamWithGeneral();
     $first = teamMember($team, 'First Person');
     $second = teamMember($team, 'Second Person');
@@ -121,7 +121,7 @@ test('editing a message re-syncs mentions: adds new and removes stale', function
     $this->assertDatabaseHas('mentions', ['mentioned_user_id' => $second->id]);
 });
 
-test('the mention payload rides the MessageData on the channel page', function () {
+test('the mention payload rides the MessageData on the channel page', function (): void {
     [$owner, $team, $general] = mentionTeamWithGeneral();
     $mentioned = teamMember($team, 'Grace Hopper');
 
@@ -132,14 +132,14 @@ test('the mention payload rides the MessageData on the channel page', function (
 
     $this->actingAs($owner)
         ->get(route('channels.show', ['team' => $team->slug, 'channel' => $general->slug]))
-        ->assertInertia(fn (Assert $page) => $page
+        ->assertInertia(fn (Assert $page): Assert => $page
             ->has('messages.data.0.mentions', 1)
             ->where('messages.data.0.mentions.0.id', $mentioned->id)
             ->where('messages.data.0.mentions.0.name', 'Grace Hopper')
         );
 });
 
-test('the mention payload rides the broadcast MessageData', function () {
+test('the mention payload rides the broadcast MessageData', function (): void {
     [$owner, $team, $general] = mentionTeamWithGeneral();
     $mentioned = teamMember($team, 'Alan Turing');
     $clientUuid = (string) Str::uuid7();
@@ -158,7 +158,7 @@ test('the mention payload rides the broadcast MessageData', function () {
     expect($payload['mentions'])->toBe([['id' => $mentioned->id, 'name' => 'Alan Turing']]);
 });
 
-test('a deleted message blanks its mentions in the tombstone payload', function () {
+test('a deleted message blanks its mentions in the tombstone payload', function (): void {
     [$owner, $team, $general] = mentionTeamWithGeneral();
     $mentioned = teamMember($team);
 
@@ -172,15 +172,15 @@ test('a deleted message blanks its mentions in the tombstone payload', function 
         ->and($payload['mentions'])->toBe([]);
 });
 
-test('the channel page exposes team members for the composer autocomplete', function () {
+test('the channel page exposes team members for the composer autocomplete', function (): void {
     [$owner, $team, $general] = mentionTeamWithGeneral();
     teamMember($team, 'Bea Member');
 
     $this->actingAs($owner)
         ->get(route('channels.show', ['team' => $team->slug, 'channel' => $general->slug]))
-        ->assertInertia(fn (Assert $page) => $page
+        ->assertInertia(fn (Assert $page): Assert => $page
             ->has('members', 2)
-            ->where('members', fn ($members) => collect($members)->pluck('name')->contains('Bea Member')
+            ->where('members', fn ($members): bool => collect($members)->pluck('name')->contains('Bea Member')
                 && collect($members)->pluck('name')->contains($owner->name))
         );
 });

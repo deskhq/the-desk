@@ -2,12 +2,12 @@
 
 use Inertia\Testing\AssertableInertia as Assert;
 
-afterEach(function () {
+afterEach(function (): void {
     putenv('REGISTRATION_ENABLED');
     unset($_ENV['REGISTRATION_ENABLED'], $_SERVER['REGISTRATION_ENABLED']);
 });
 
-test('registration routes respond when registration is enabled', function () {
+test('registration routes respond when registration is enabled', function (): void {
     $this->reloadWithRegistrationEnabled(true);
 
     $this->get('/register')->assertOk();
@@ -23,7 +23,7 @@ test('registration routes respond when registration is enabled', function () {
     $response->assertRedirect();
 });
 
-test('registration routes return 404 when registration is disabled', function () {
+test('registration routes return 404 when registration is disabled', function (): void {
     $this->reloadWithRegistrationEnabled(false);
 
     $this->get('/register')->assertNotFound();
@@ -37,29 +37,29 @@ test('registration routes return 404 when registration is disabled', function ()
     $this->assertGuest();
 });
 
-test('the shared registrationEnabled prop is true when registration is enabled', function () {
+test('the shared registrationEnabled prop is true when registration is enabled', function (): void {
     $this->reloadWithRegistrationEnabled(true);
 
-    $this->get(route('home'))->assertInertia(fn (Assert $page) => $page
+    $this->get(route('home'))->assertInertia(fn (Assert $page): Assert => $page
         ->component('Welcome')
         ->where('registrationEnabled', true),
     );
 
-    $this->get(route('login'))->assertInertia(fn (Assert $page) => $page
+    $this->get(route('login'))->assertInertia(fn (Assert $page): Assert => $page
         ->component('auth/Login')
         ->where('registrationEnabled', true),
     );
 });
 
-test('the shared registrationEnabled prop is false when registration is disabled', function () {
+test('the shared registrationEnabled prop is false when registration is disabled', function (): void {
     $this->reloadWithRegistrationEnabled(false);
 
-    $this->get(route('home'))->assertInertia(fn (Assert $page) => $page
+    $this->get(route('home'))->assertInertia(fn (Assert $page): Assert => $page
         ->component('Welcome')
         ->where('registrationEnabled', false),
     );
 
-    $this->get(route('login'))->assertInertia(fn (Assert $page) => $page
+    $this->get(route('login'))->assertInertia(fn (Assert $page): Assert => $page
         ->component('auth/Login')
         ->where('registrationEnabled', false),
     );

@@ -45,16 +45,16 @@ function windowMessages(Channel $channel, User $author, int $count): Collection
 function bodiesOf(ChannelTimelineWindow $window): array
 {
     return collect($window->messages()->items())
-        ->map(fn (MessageData $message) => $message->body)
+        ->map(fn (MessageData $message): string => $message->body)
         ->all();
 }
 
-it('opens at newest with no ceiling on a never-read channel', function () {
+it('opens at newest with no ceiling on a never-read channel', function (): void {
     ['user' => $user, 'general' => $general] = windowFixture();
     windowMessages($general, $user, 60);
 
     // Null read pointer: nothing to anchor, so the default newest window holds.
-    $window = new ChannelTimelineWindow(channel: $general, viewer: $user, lastReadMessageId: null);
+    $window = new ChannelTimelineWindow(channel: $general, viewer: $user);
 
     expect($window->ceilingId())->toBeNull()
         ->and($window->jumpToMessageId())->toBeNull();
@@ -65,7 +65,7 @@ it('opens at newest with no ceiling on a never-read channel', function () {
         ->and($bodies[49])->toBe('message 11');
 });
 
-it('opens at newest with no ceiling on a fully-read channel', function () {
+it('opens at newest with no ceiling on a fully-read channel', function (): void {
     ['user' => $user, 'general' => $general] = windowFixture();
     $messages = windowMessages($general, $user, 60);
 
@@ -80,7 +80,7 @@ it('opens at newest with no ceiling on a fully-read channel', function () {
     expect(bodiesOf($window))->toHaveCount(50);
 });
 
-it('keeps the newest window when unread fits within a page', function () {
+it('keeps the newest window when unread fits within a page', function (): void {
     ['user' => $user, 'general' => $general] = windowFixture();
     $messages = windowMessages($general, $user, 60);
 
@@ -98,7 +98,7 @@ it('keeps the newest window when unread fits within a page', function () {
         ->and($bodies[49])->toBe('message 11');
 });
 
-it('anchors the window around the boundary when unread exceeds a page', function () {
+it('anchors the window around the boundary when unread exceeds a page', function (): void {
     ['user' => $user, 'general' => $general] = windowFixture();
     $messages = windowMessages($general, $user, 100);
 
@@ -118,7 +118,7 @@ it('anchors the window around the boundary when unread exceeds a page', function
         ->and($bodies[49])->toBe('message 22');
 });
 
-it('windows a jump target with newer context below it', function () {
+it('windows a jump target with newer context below it', function (): void {
     ['user' => $user, 'general' => $general] = windowFixture();
     $messages = windowMessages($general, $user, 30);
     $target = $messages[4]; // message 5
@@ -138,7 +138,7 @@ it('windows a jump target with newer context below it', function () {
         ->and($bodies[0])->toBe('message 20');
 });
 
-it('leaves a jump near the newest message uncapped', function () {
+it('leaves a jump near the newest message uncapped', function (): void {
     ['user' => $user, 'general' => $general] = windowFixture();
     $messages = windowMessages($general, $user, 5);
     $target = $messages[4]; // the newest
@@ -155,7 +155,7 @@ it('leaves a jump near the newest message uncapped', function () {
     expect(bodiesOf($window))->toHaveCount(5);
 });
 
-it('ignores a jump target from another channel', function () {
+it('ignores a jump target from another channel', function (): void {
     ['user' => $user, 'team' => $team, 'general' => $general] = windowFixture();
     windowMessages($general, $user, 3);
     $other = Channel::factory()->for($team)->create(['created_by' => $user->id]);
@@ -171,7 +171,7 @@ it('ignores a jump target from another channel', function () {
         ->and($window->ceilingId())->toBeNull();
 });
 
-it('ignores an absent or non-string jump target', function () {
+it('ignores an absent or non-string jump target', function (): void {
     ['user' => $user, 'general' => $general] = windowFixture();
     windowMessages($general, $user, 3);
 
@@ -183,7 +183,7 @@ it('ignores an absent or non-string jump target', function () {
         ->toBeNull();
 });
 
-it('includes thread replies sent to the channel and excludes those that are not', function () {
+it('includes thread replies sent to the channel and excludes those that are not', function (): void {
     ['user' => $user, 'general' => $general] = windowFixture();
     $root = Message::factory()->for($general)->for($user)->create(['body' => 'root']);
     Message::factory()->for($user)->inThread($root)->sentToChannel()->create(['body' => 'echoed reply']);
@@ -197,7 +197,7 @@ it('includes thread replies sent to the channel and excludes those that are not'
         ->and($bodies)->not->toContain('thread-only reply');
 });
 
-it('resolves the open thread root and its replies', function () {
+it('resolves the open thread root and its replies', function (): void {
     ['user' => $user, 'general' => $general] = windowFixture();
     $root = Message::factory()->for($general)->for($user)->create(['body' => 'root']);
     Message::factory()->for($user)->inThread($root)->create(['body' => 'reply one']);
@@ -214,12 +214,12 @@ it('resolves the open thread root and its replies', function () {
         ->and($thread['root']->id)->toBe($root->id);
 
     $replyBodies = collect($window->threadReplies()->items())
-        ->map(fn (MessageData $message) => $message->body)
+        ->map(fn (MessageData $message): string => $message->body)
         ->all();
     expect($replyBodies)->toBe(['reply one']);
 });
 
-it('returns no thread and an empty replies page without a thread param', function () {
+it('returns no thread and an empty replies page without a thread param', function (): void {
     ['user' => $user, 'general' => $general] = windowFixture();
     windowMessages($general, $user, 2);
 
@@ -229,7 +229,7 @@ it('returns no thread and an empty replies page without a thread param', functio
         ->and($window->threadReplies()->items())->toBe([]);
 });
 
-it('returns no thread for a non-string or foreign thread param', function () {
+it('returns no thread for a non-string or foreign thread param', function (): void {
     ['user' => $user, 'team' => $team, 'general' => $general] = windowFixture();
     $other = Channel::factory()->for($team)->create(['created_by' => $user->id]);
     $foreignRoot = Message::factory()->for($other)->for($user)->create();

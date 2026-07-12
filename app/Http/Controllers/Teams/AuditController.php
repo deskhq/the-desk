@@ -31,8 +31,7 @@ class AuditController extends Controller
             ->where('team_id', $team->id)
             ->when($action, fn ($query) => $query->where('event', $action))
             ->when($actorId, fn ($query) => $query->where('causer_id', $actorId))
-            ->with('causer')
-            ->orderByDesc('created_at')
+            ->with('causer')->latest()
             ->orderByDesc('id')
             ->simplePaginate(self::PER_PAGE)
             ->withQueryString();

@@ -29,7 +29,7 @@ class DispatchDueMessageReminders
                     'fired_at' => now(),
                 ]);
 
-                MessageReminderDue::dispatch($reminder->user_id);
+                event(new MessageReminderDue($reminder->user_id));
             });
     }
 }

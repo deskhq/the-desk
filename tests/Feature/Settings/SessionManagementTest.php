@@ -20,7 +20,7 @@ function seedSession(User $user, string $id, string $userAgent = 'Mozilla/5.0 (W
     ]);
 }
 
-test('active sessions are listed on the security page with the current device flagged', function () {
+test('active sessions are listed on the security page with the current device flagged', function (): void {
     $user = User::factory()->create();
     $currentId = Str::random(40);
     $otherId = Str::random(40);
@@ -33,7 +33,7 @@ test('active sessions are listed on the security page with the current device fl
         ->withCookie(config('session.cookie'), $currentId)
         ->get(route('security.edit'))
         ->assertOk()
-        ->assertInertia(fn (Assert $page) => $page
+        ->assertInertia(fn (Assert $page): Assert => $page
             ->component('settings/Security')
             ->has('sessions', 2)
             ->where('sessions.0.id', $currentId)
@@ -46,7 +46,7 @@ test('active sessions are listed on the security page with the current device fl
         );
 });
 
-test('a single session can be revoked', function () {
+test('a single session can be revoked', function (): void {
     $user = User::factory()->create();
     $currentId = Str::random(40);
     $otherId = Str::random(40);
@@ -65,7 +65,7 @@ test('a single session can be revoked', function () {
     $this->assertDatabaseHas('sessions', ['id' => $currentId]);
 });
 
-test('the current session cannot be revoked through the single-session route', function () {
+test('the current session cannot be revoked through the single-session route', function (): void {
     $user = User::factory()->create();
     $currentId = Str::random(40);
 
@@ -80,7 +80,7 @@ test('the current session cannot be revoked through the single-session route', f
     $this->assertDatabaseHas('sessions', ['id' => $currentId]);
 });
 
-test('a session belonging to another user cannot be revoked', function () {
+test('a session belonging to another user cannot be revoked', function (): void {
     $user = User::factory()->create();
     $otherUser = User::factory()->create();
     $currentId = Str::random(40);
@@ -98,7 +98,7 @@ test('a session belonging to another user cannot be revoked', function () {
     $this->assertDatabaseHas('sessions', ['id' => $victimId]);
 });
 
-test('logging out other devices removes other sessions but keeps the current one', function () {
+test('logging out other devices removes other sessions but keeps the current one', function (): void {
     $user = User::factory()->create();
     $currentId = Str::random(40);
     $otherId = Str::random(40);
@@ -120,7 +120,7 @@ test('logging out other devices removes other sessions but keeps the current one
     $this->assertDatabaseMissing('sessions', ['id' => $anotherId]);
 });
 
-test('revoking a session requires the correct password', function () {
+test('revoking a session requires the correct password', function (): void {
     $user = User::factory()->create();
     $currentId = Str::random(40);
     $otherId = Str::random(40);
@@ -138,7 +138,7 @@ test('revoking a session requires the correct password', function () {
     $this->assertDatabaseHas('sessions', ['id' => $otherId]);
 });
 
-test('logging out other devices requires the correct password', function () {
+test('logging out other devices requires the correct password', function (): void {
     $user = User::factory()->create();
     $currentId = Str::random(40);
     $otherId = Str::random(40);

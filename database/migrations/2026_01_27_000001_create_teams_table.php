@@ -12,7 +12,7 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('teams', function (Blueprint $table) {
+        Schema::create('teams', function (Blueprint $table): void {
             $table->uuid('id')->primary()->default(DB::raw('gen_random_uuid()'));
             $table->string('name');
             $table->string('slug')->unique();
@@ -21,7 +21,7 @@ return new class extends Migration
             $table->softDeletes();
         });
 
-        Schema::create('team_members', function (Blueprint $table) {
+        Schema::create('team_members', function (Blueprint $table): void {
             $table->uuid('id')->primary()->default(DB::raw('gen_random_uuid()'));
             $table->foreignUuid('team_id')->constrained()->cascadeOnDelete();
             $table->foreignUuid('user_id')->constrained()->cascadeOnDelete();
@@ -31,7 +31,7 @@ return new class extends Migration
             $table->unique(['team_id', 'user_id']);
         });
 
-        Schema::create('team_invitations', function (Blueprint $table) {
+        Schema::create('team_invitations', function (Blueprint $table): void {
             $table->uuid('id')->primary()->default(DB::raw('gen_random_uuid()'));
             $table->string('code', 64)->unique();
             $table->foreignUuid('team_id')->constrained()->cascadeOnDelete();

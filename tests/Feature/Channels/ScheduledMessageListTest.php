@@ -23,7 +23,7 @@ function scheduledListTeamWithGeneral(): array
     return [$owner, $team, $general];
 }
 
-test('the channel page lists the viewer own pending scheduled messages, soonest first', function () {
+test('the channel page lists the viewer own pending scheduled messages, soonest first', function (): void {
     [$owner, $team, $general] = scheduledListTeamWithGeneral();
 
     $later = ScheduledMessage::factory()->for($general)->for($owner)->create([
@@ -37,7 +37,7 @@ test('the channel page lists the viewer own pending scheduled messages, soonest 
 
     $this->actingAs($owner)
         ->get(route('channels.show', ['team' => $team->slug, 'channel' => $general->slug]))
-        ->assertInertia(fn (Assert $page) => $page
+        ->assertInertia(fn (Assert $page): Assert => $page
             ->has('scheduledMessages', 2)
             ->where('scheduledMessages.0.id', $sooner->id)
             ->where('scheduledMessages.0.body', 'the sooner one')
@@ -45,7 +45,7 @@ test('the channel page lists the viewer own pending scheduled messages, soonest 
         );
 });
 
-test('the list excludes other members scheduled messages', function () {
+test('the list excludes other members scheduled messages', function (): void {
     [$owner, $team, $general] = scheduledListTeamWithGeneral();
 
     $other = User::factory()->create();
@@ -56,13 +56,13 @@ test('the list excludes other members scheduled messages', function () {
 
     $this->actingAs($owner)
         ->get(route('channels.show', ['team' => $team->slug, 'channel' => $general->slug]))
-        ->assertInertia(fn (Assert $page) => $page
+        ->assertInertia(fn (Assert $page): Assert => $page
             ->has('scheduledMessages', 1)
             ->where('scheduledMessages.0.body', 'mine')
         );
 });
 
-test('the list excludes sent and cancelled scheduled messages', function () {
+test('the list excludes sent and cancelled scheduled messages', function (): void {
     [$owner, $team, $general] = scheduledListTeamWithGeneral();
 
     ScheduledMessage::factory()->for($general)->for($owner)->create(['body' => 'still pending']);
@@ -71,13 +71,13 @@ test('the list excludes sent and cancelled scheduled messages', function () {
 
     $this->actingAs($owner)
         ->get(route('channels.show', ['team' => $team->slug, 'channel' => $general->slug]))
-        ->assertInertia(fn (Assert $page) => $page
+        ->assertInertia(fn (Assert $page): Assert => $page
             ->has('scheduledMessages', 1)
             ->where('scheduledMessages.0.body', 'still pending')
         );
 });
 
-test('the list is scoped to the current channel', function () {
+test('the list is scoped to the current channel', function (): void {
     [$owner, $team, $general] = scheduledListTeamWithGeneral();
     $other = Channel::factory()->for($team)->create();
     $other->channelMembers()->create(['user_id' => $owner->id]);
@@ -87,20 +87,20 @@ test('the list is scoped to the current channel', function () {
 
     $this->actingAs($owner)
         ->get(route('channels.show', ['team' => $team->slug, 'channel' => $general->slug]))
-        ->assertInertia(fn (Assert $page) => $page
+        ->assertInertia(fn (Assert $page): Assert => $page
             ->has('scheduledMessages', 1)
             ->where('scheduledMessages.0.body', 'in general')
         );
 });
 
-test('a scheduled message carries its inline reply quote', function () {
+test('a scheduled message carries its inline reply quote', function (): void {
     [$owner, $team, $general] = scheduledListTeamWithGeneral();
     $parent = Message::factory()->for($general)->for($owner)->create(['body' => 'the original']);
     ScheduledMessage::factory()->for($general)->for($owner)->replyTo($parent)->create(['body' => 'scheduled answer']);
 
     $this->actingAs($owner)
         ->get(route('channels.show', ['team' => $team->slug, 'channel' => $general->slug]))
-        ->assertInertia(fn (Assert $page) => $page
+        ->assertInertia(fn (Assert $page): Assert => $page
             ->where('scheduledMessages.0.replyTo.id', $parent->id)
             ->where('scheduledMessages.0.replyTo.body', 'the original')
             ->where('scheduledMessages.0.replyTo.authorName', $owner->name)

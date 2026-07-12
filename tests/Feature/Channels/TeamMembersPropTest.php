@@ -6,7 +6,7 @@ use App\Models\Channel;
 use App\Models\User;
 use Inertia\Testing\AssertableInertia as Assert;
 
-test('the workspace ships the team members for the DM entry points', function () {
+test('the workspace ships the team members for the DM entry points', function (): void {
     $owner = User::factory()->create(['name' => 'Zoe Owner']);
     $team = app(CreateTeam::class)->handle($owner, 'Acme');
     $member = User::factory()->create(['name' => 'Amy Member']);
@@ -14,7 +14,7 @@ test('the workspace ships the team members for the DM entry points', function ()
 
     $this->actingAs($owner)
         ->get(route('channels.show', ['team' => $team->slug, 'channel' => Channel::GENERAL_SLUG]))
-        ->assertInertia(fn (Assert $page) => $page
+        ->assertInertia(fn (Assert $page): Assert => $page
             ->has('teamMembers', 2)
             // Ordered by name: Amy before Zoe.
             ->where('teamMembers.0.name', 'Amy Member')
@@ -23,13 +23,13 @@ test('the workspace ships the team members for the DM entry points', function ()
         );
 });
 
-test('the team members prop is absent off the channel workspace', function () {
+test('the team members prop is absent off the channel workspace', function (): void {
     $owner = User::factory()->create();
     app(CreateTeam::class)->handle($owner, 'Acme');
 
     $this->actingAs($owner)
         ->get(route('profile.edit'))
-        ->assertInertia(fn (Assert $page) => $page
+        ->assertInertia(fn (Assert $page): Assert => $page
             ->where('teamMembers', [])
         );
 });

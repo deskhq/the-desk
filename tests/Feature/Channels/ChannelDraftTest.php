@@ -64,7 +64,7 @@ function saveDraft(User $user, Team $team, Channel $channel, ?string $body): Tes
     ]), ['body' => $body]);
 }
 
-test('a member can save a draft for a channel', function () {
+test('a member can save a draft for a channel', function (): void {
     [, $team, $general] = draftTeamWithGeneral();
     $member = draftMember($team, $general);
 
@@ -78,7 +78,7 @@ test('a member can save a draft for a channel', function () {
     ]);
 });
 
-test('saving a blank draft clears it', function () {
+test('saving a blank draft clears it', function (): void {
     [, $team, $general] = draftTeamWithGeneral();
     $member = draftMember($team, $general);
     $member->channels()->updateExistingPivot($general->id, ['draft' => 'stale text']);
@@ -96,7 +96,7 @@ test('saving a blank draft clears it', function () {
     'null body' => [null],
 ]);
 
-test('a non-member cannot save a draft for a channel', function () {
+test('a non-member cannot save a draft for a channel', function (): void {
     [$owner, $team] = draftTeamWithGeneral();
     $private = Channel::factory()->for($team)->create([
         'visibility' => ChannelVisibility::Private,
@@ -114,7 +114,7 @@ test('a non-member cannot save a draft for a channel', function () {
     ]);
 });
 
-test('a draft cannot exceed the message length limit', function () {
+test('a draft cannot exceed the message length limit', function (): void {
     [, $team, $general] = draftTeamWithGeneral();
     $member = draftMember($team, $general);
 
@@ -122,7 +122,7 @@ test('a draft cannot exceed the message length limit', function () {
         ->assertSessionHasErrors('body');
 });
 
-test('the channel view restores the members saved draft', function () {
+test('the channel view restores the members saved draft', function (): void {
     [, $team, $general] = draftTeamWithGeneral();
     $member = draftMember($team, $general);
     $member->channels()->updateExistingPivot($general->id, ['draft' => 'unsent words']);
@@ -136,7 +136,7 @@ test('the channel view restores the members saved draft', function () {
         ->toMatchArray(['draft' => 'unsent words', 'hasDraft' => true]);
 });
 
-test('a member without a draft opens the channel with an empty composer', function () {
+test('a member without a draft opens the channel with an empty composer', function (): void {
     [, $team, $general] = draftTeamWithGeneral();
     $member = draftMember($team, $general);
 
@@ -149,7 +149,7 @@ test('a member without a draft opens the channel with an empty composer', functi
         ->toMatchArray(['draft' => null, 'hasDraft' => false]);
 });
 
-test('the sidebar flags a channel with a draft without shipping the draft text', function () {
+test('the sidebar flags a channel with a draft without shipping the draft text', function (): void {
     [, $team, $general] = draftTeamWithGeneral();
     $member = draftMember($team, $general);
     $member->channels()->updateExistingPivot($general->id, ['draft' => 'secret sauce']);
@@ -158,7 +158,7 @@ test('the sidebar flags a channel with a draft without shipping the draft text',
         ->toMatchArray(['hasDraft' => true, 'draft' => null]);
 });
 
-test('the sidebar shows no draft cue when the channel has none', function () {
+test('the sidebar shows no draft cue when the channel has none', function (): void {
     [, $team, $general] = draftTeamWithGeneral();
     $member = draftMember($team, $general);
 
@@ -166,7 +166,7 @@ test('the sidebar shows no draft cue when the channel has none', function () {
         ->toMatchArray(['hasDraft' => false, 'draft' => null]);
 });
 
-test('posting a message from the main composer clears the channel draft', function () {
+test('posting a message from the main composer clears the channel draft', function (): void {
     [, $team, $general] = draftTeamWithGeneral();
     $member = draftMember($team, $general);
     $member->channels()->updateExistingPivot($general->id, ['draft' => 'about to send this']);

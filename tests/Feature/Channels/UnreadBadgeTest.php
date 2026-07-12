@@ -42,11 +42,11 @@ function unreadChannelMember(Team $team, Channel $channel, ?string $name = null)
  */
 function unreadPost(Channel $channel, User $author, ?User $mention = null): Message
 {
-    $body = $mention ? "hey @[{$mention->name}]({$mention->id})" : fake()->sentence();
+    $body = $mention instanceof User ? "hey @[{$mention->name}]({$mention->id})" : fake()->sentence();
 
     $message = Message::factory()->for($channel)->for($author)->create(['body' => $body]);
 
-    if ($mention) {
+    if ($mention instanceof User) {
         $message->mentionedUsers()->attach($mention->id);
     }
 
@@ -80,27 +80,27 @@ function sidebarChannel(User $user, Team $team, Channel $channel): array
     return ['unreadCount' => $entry['unreadCount'], 'mentionCount' => $entry['mentionCount']];
 }
 
-test('unread count reflects only the messages posted after last_read', function () {
+test('unread count reflects only the messages posted after last_read', function (): void {
     [$owner, $team, $general] = unreadTeamWithGeneral();
     $member = unreadChannelMember($team, $general, 'Ada Lovelace');
 
-    $messages = collect(range(1, 5))->map(fn () => unreadPost($general, $owner));
+    $messages = collect(range(1, 5))->map(fn (): Message => unreadPost($general, $owner));
     markReadUpTo($member, $general, $messages[2]);
 
     expect(sidebarChannel($member, $team, $general))
         ->toMatchArray(['unreadCount' => 2, 'mentionCount' => 0]);
 });
 
-test('a null last_read means every message in the channel is unread', function () {
+test('a null last_read means every message in the channel is unread', function (): void {
     [$owner, $team, $general] = unreadTeamWithGeneral();
     $member = unreadChannelMember($team, $general);
 
-    collect(range(1, 3))->each(fn () => unreadPost($general, $owner));
+    collect(range(1, 3))->each(fn (): Message => unreadPost($general, $owner));
 
     expect(sidebarChannel($member, $team, $general)['unreadCount'])->toBe(3);
 });
 
-test('a member does not see their own messages as unread', function () {
+test('a member does not see their own messages as unread', function (): void {
     [$owner, $team, $general] = unreadTeamWithGeneral();
     $member = unreadChannelMember($team, $general);
 
@@ -111,7 +111,7 @@ test('a member does not see their own messages as unread', function () {
     expect(sidebarChannel($member, $team, $general)['unreadCount'])->toBe(1);
 });
 
-test('soft-deleted messages are excluded from the unread count', function () {
+test('soft-deleted messages are excluded from the unread count', function (): void {
     [$owner, $team, $general] = unreadTeamWithGeneral();
     $member = unreadChannelMember($team, $general);
 
@@ -122,7 +122,7 @@ test('soft-deleted messages are excluded from the unread count', function () {
     expect(sidebarChannel($member, $team, $general)['unreadCount'])->toBe(1);
 });
 
-test('the mention count only counts unread messages that mention the user', function () {
+test('the mention count only counts unread messages that mention the user', function (): void {
     [$owner, $team, $general] = unreadTeamWithGeneral();
     $member = unreadChannelMember($team, $general, 'Grace Hopper');
 
@@ -137,7 +137,7 @@ test('the mention count only counts unread messages that mention the user', func
         ->toMatchArray(['unreadCount' => 3, 'mentionCount' => 2]);
 });
 
-test('a mention of another member does not inflate the users mention count', function () {
+test('a mention of another member does not inflate the users mention count', function (): void {
     [$owner, $team, $general] = unreadTeamWithGeneral();
     $member = unreadChannelMember($team, $general);
     $other = unreadChannelMember($team, $general, 'Someone Else');
@@ -147,7 +147,7 @@ test('a mention of another member does not inflate the users mention count', fun
     expect(sidebarChannel($member, $team, $general)['mentionCount'])->toBe(0);
 });
 
-test('MarkChannelRead advances last_read to the latest message and clears the badge', function () {
+test('MarkChannelRead advances last_read to the latest message and clears the badge', function (): void {
     [$owner, $team, $general] = unreadTeamWithGeneral();
     $member = unreadChannelMember($team, $general, 'Alan Turing');
 
@@ -166,7 +166,7 @@ test('MarkChannelRead advances last_read to the latest message and clears the ba
         ->toMatchArray(['unreadCount' => 0, 'mentionCount' => 0]);
 });
 
-test('MarkChannelRead leaves the pointer untouched when the channel has no messages', function () {
+test('MarkChannelRead leaves the pointer untouched when the channel has no messages', function (): void {
     [, $team, $general] = unreadTeamWithGeneral();
     $member = unreadChannelMember($team, $general);
 
@@ -179,7 +179,7 @@ test('MarkChannelRead leaves the pointer untouched when the channel has no messa
     ]);
 });
 
-test('MarkChannelRead is a no-op for a user who is not a channel member', function () {
+test('MarkChannelRead is a no-op for a user who is not a channel member', function (): void {
     [$owner, $team, $general] = unreadTeamWithGeneral();
     $private = Channel::factory()->for($team)->create([
         'visibility' => ChannelVisibility::Private,
@@ -198,7 +198,7 @@ test('MarkChannelRead is a no-op for a user who is not a channel member', functi
     ]);
 });
 
-test('hitting the read endpoint advances the pointer and clears the badges', function () {
+test('hitting the read endpoint advances the pointer and clears the badges', function (): void {
     [$owner, $team, $general] = unreadTeamWithGeneral();
     $member = unreadChannelMember($team, $general, 'Katherine Johnson');
 
@@ -223,7 +223,7 @@ test('hitting the read endpoint advances the pointer and clears the badges', fun
         ->toMatchArray(['unreadCount' => 0, 'mentionCount' => 0]);
 });
 
-test('the read endpoint is forbidden on a private channel the user cannot view', function () {
+test('the read endpoint is forbidden on a private channel the user cannot view', function (): void {
     [$owner, $team] = unreadTeamWithGeneral();
     $private = Channel::factory()->for($team)->create([
         'visibility' => ChannelVisibility::Private,

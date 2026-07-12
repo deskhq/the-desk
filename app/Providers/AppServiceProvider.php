@@ -14,6 +14,7 @@ class AppServiceProvider extends ServiceProvider
     /**
      * Register any application services.
      */
+    #[\Override]
     public function register(): void
     {
         $this->app->singleton(Client::class, fn (): Client => new Client(

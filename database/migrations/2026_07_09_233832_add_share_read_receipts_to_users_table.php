@@ -11,7 +11,7 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('users', function (Blueprint $table) {
+        Schema::table('users', function (Blueprint $table): void {
             // Whether the user shares their read position with channel peers, powering
             // the "Seen by" affordance. Default on; turning it off stops the user from
             // broadcasting or exposing where they've read up to (they can still see others').
@@ -24,7 +24,7 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::table('users', function (Blueprint $table) {
+        Schema::table('users', function (Blueprint $table): void {
             $table->dropColumn('share_read_receipts');
         });
     }

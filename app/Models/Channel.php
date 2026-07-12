@@ -155,6 +155,7 @@ class Channel extends Model
     /**
      * Get the route key for the model.
      */
+    #[\Override]
     public function getRouteKeyName(): string
     {
         return 'slug';
@@ -165,6 +166,7 @@ class Channel extends Model
      *
      * @return array<string, string>
      */
+    #[\Override]
     protected function casts(): array
     {
         return [

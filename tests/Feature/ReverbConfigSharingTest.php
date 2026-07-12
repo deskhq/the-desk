@@ -2,7 +2,7 @@
 
 use Inertia\Testing\AssertableInertia as Assert;
 
-test('the browser-facing reverb config is shared to the frontend at runtime', function () {
+test('the browser-facing reverb config is shared to the frontend at runtime', function (): void {
     config([
         'app.name' => 'The Desk',
         'app.url' => 'https://chat.example.test',
@@ -13,7 +13,7 @@ test('the browser-facing reverb config is shared to the frontend at runtime', fu
     ]);
 
     $this->get(route('home'))
-        ->assertInertia(fn (Assert $page) => $page
+        ->assertInertia(fn (Assert $page): Assert => $page
             ->where('name', 'The Desk')
             ->where('reverb.key', 'demo-key')
             ->where('reverb.host', 'chat.example.test')
@@ -22,7 +22,7 @@ test('the browser-facing reverb config is shared to the frontend at runtime', fu
         );
 });
 
-test('browser-facing host, port, and scheme can each override the server-facing values', function () {
+test('browser-facing host, port, and scheme can each override the server-facing values', function (): void {
     // A TLS-terminating reverse proxy: the container speaks http on 8080, but the
     // browser reaches Reverb as wss on 443 at a dedicated WebSocket host.
     config([
@@ -35,7 +35,7 @@ test('browser-facing host, port, and scheme can each override the server-facing 
     ]);
 
     $this->get(route('home'))
-        ->assertInertia(fn (Assert $page) => $page
+        ->assertInertia(fn (Assert $page): Assert => $page
             ->where('reverb.host', 'ws.example.test')
             ->where('reverb.port', 443)
             ->where('reverb.scheme', 'https')

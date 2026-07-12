@@ -11,7 +11,7 @@ use Illuminate\Support\Str;
 
 class CreateChannel
 {
-    public function __construct(private JoinChannel $joinChannel) {}
+    public function __construct(private readonly JoinChannel $joinChannel) {}
 
     /**
      * Create a channel in the team and add its creator as a member.

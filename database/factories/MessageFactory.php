@@ -33,7 +33,7 @@ class MessageFactory extends Factory
      */
     public function edited(): static
     {
-        return $this->state(fn (array $attributes) => [
+        return $this->state(fn (array $attributes): array => [
             'edited_at' => now(),
         ]);
     }
@@ -43,7 +43,7 @@ class MessageFactory extends Factory
      */
     public function replyTo(Message $parent): static
     {
-        return $this->state(fn (array $attributes) => [
+        return $this->state(fn (array $attributes): array => [
             'reply_to_id' => $parent->id,
         ]);
     }
@@ -53,7 +53,7 @@ class MessageFactory extends Factory
      */
     public function forwardedFrom(Message $source): static
     {
-        return $this->state(fn (array $attributes) => [
+        return $this->state(fn (array $attributes): array => [
             'forwarded_from_id' => $source->id,
         ]);
     }
@@ -66,7 +66,7 @@ class MessageFactory extends Factory
      */
     public function inThread(Message $root): static
     {
-        return $this->state(fn (array $attributes) => [
+        return $this->state(fn (array $attributes): array => [
             'thread_root_id' => $root->id,
             'channel_id' => $root->channel_id,
         ]);
@@ -77,7 +77,7 @@ class MessageFactory extends Factory
      */
     public function sentToChannel(): static
     {
-        return $this->state(fn (array $attributes) => [
+        return $this->state(fn (array $attributes): array => [
             'sent_to_channel' => true,
         ]);
     }

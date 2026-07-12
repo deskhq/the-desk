@@ -13,7 +13,7 @@ use Illuminate\Support\Facades\Cache;
 /**
  * Freeze the clock so day/month bucketing is deterministic.
  */
-beforeEach(function () {
+beforeEach(function (): void {
     $this->travelTo('2026-07-15 12:00:00');
 });
 
@@ -68,7 +68,7 @@ function analyticsFor(Team $team, AnalyticsRange $range = AnalyticsRange::Month)
     return app(WorkspaceAnalytics::class)->for($team, $range);
 }
 
-test('active members counts distinct authors in the window against total members', function () {
+test('active members counts distinct authors in the window against total members', function (): void {
     [$team, $owner] = analyticsTeam(members: 3);
     $channel = analyticsChannel($team);
     $members = $team->members()->where('team_members.role', TeamRole::Member->value)->get();
@@ -86,7 +86,7 @@ test('active members counts distinct authors in the window against total members
         ->and($stat->total)->toBe(4);
 });
 
-test('active members delta compares against the previous window', function () {
+test('active members delta compares against the previous window', function (): void {
     [$team, $owner] = analyticsTeam(members: 2);
     $channel = analyticsChannel($team);
     $members = $team->members()->where('team_members.role', TeamRole::Member->value)->get();
@@ -100,7 +100,7 @@ test('active members delta compares against the previous window', function () {
     expect(analyticsFor($team)->activeMembers->delta)->toBe(1);
 });
 
-test('messages per day averages volume over the window and reports percent change', function () {
+test('messages per day averages volume over the window and reports percent change', function (): void {
     [$team, $owner] = analyticsTeam();
     $channel = analyticsChannel($team);
 
@@ -119,7 +119,7 @@ test('messages per day averages volume over the window and reports percent chang
         ->and($stat->deltaPercent)->toBe(100);
 });
 
-test('messages per day percent change is null without a previous baseline', function () {
+test('messages per day percent change is null without a previous baseline', function (): void {
     [$team, $owner] = analyticsTeam();
     $channel = analyticsChannel($team);
     postMessage($channel, $owner, '2026-07-10 09:00:00');
@@ -127,7 +127,7 @@ test('messages per day percent change is null without a previous baseline', func
     expect(analyticsFor($team)->messagesPerDay->deltaPercent)->toBeNull();
 });
 
-test('messages sent totals the window and counts thread replies separately', function () {
+test('messages sent totals the window and counts thread replies separately', function (): void {
     [$team, $owner] = analyticsTeam();
     $channel = analyticsChannel($team);
 
@@ -141,7 +141,7 @@ test('messages sent totals the window and counts thread replies separately', fun
         ->and($stat->secondary)->toBe(2);
 });
 
-test('active channels counts channels with activity against live channel count', function () {
+test('active channels counts channels with activity against live channel count', function (): void {
     [$team, $owner] = analyticsTeam();
     $general = analyticsChannel($team);
     $random = analyticsChannel($team, 'random');
@@ -158,7 +158,7 @@ test('active channels counts channels with activity against live channel count',
         ->and($stat->total)->toBe(3);
 });
 
-test('the messages-by-day series is zero-filled for the whole window', function () {
+test('the messages-by-day series is zero-filled for the whole window', function (): void {
     [$team, $owner] = analyticsTeam();
     $channel = analyticsChannel($team);
 
@@ -174,7 +174,7 @@ test('the messages-by-day series is zero-filled for the whole window', function 
         ->and($series[6]->count)->toBe(0);
 });
 
-test('top channels ranks the busiest channels by message count', function () {
+test('top channels ranks the busiest channels by message count', function (): void {
     [$team, $owner] = analyticsTeam();
     $design = analyticsChannel($team, 'design');
     $general = analyticsChannel($team);
@@ -193,7 +193,7 @@ test('top channels ranks the busiest channels by message count', function () {
         ->and($top[1]->count)->toBe(1);
 });
 
-test('member growth accumulates the member total over six months', function () {
+test('member growth accumulates the member total over six months', function (): void {
     [$team, $owner] = analyticsTeam();
     $channel = analyticsChannel($team);
 
@@ -212,7 +212,7 @@ test('member growth accumulates the member total over six months', function () {
         ->and($growth[5]->total)->toBe(3);
 });
 
-test('top contributors ranks the most active members', function () {
+test('top contributors ranks the most active members', function (): void {
     [$team, $owner] = analyticsTeam(members: 1);
     $channel = analyticsChannel($team);
     $member = $team->members()->where('team_members.role', TeamRole::Member->value)->first();
@@ -229,7 +229,7 @@ test('top contributors ranks the most active members', function () {
         ->and($top[1]->id)->toBe($member->id);
 });
 
-test('analytics ignores direct messages, other teams, and soft-deleted messages', function () {
+test('analytics ignores direct messages, other teams, and soft-deleted messages', function (): void {
     [$team, $owner] = analyticsTeam();
     $channel = analyticsChannel($team);
 
@@ -250,7 +250,7 @@ test('analytics ignores direct messages, other teams, and soft-deleted messages'
     expect(analyticsFor($team)->messagesSent->value)->toBe(1);
 });
 
-test('snapshots are cached per team and range', function () {
+test('snapshots are cached per team and range', function (): void {
     [$team, $owner] = analyticsTeam();
     $channel = analyticsChannel($team);
     postMessage($channel, $owner, '2026-07-10 09:00:00');
@@ -265,7 +265,7 @@ test('snapshots are cached per team and range', function () {
     expect(analyticsFor($team)->messagesSent->value)->toBe(2);
 });
 
-test('caching is scoped to the requested range', function () {
+test('caching is scoped to the requested range', function (): void {
     [$team, $owner] = analyticsTeam();
     $channel = analyticsChannel($team);
     Cache::spy();
@@ -273,6 +273,6 @@ test('caching is scoped to the requested range', function () {
     app(WorkspaceAnalytics::class)->for($team, AnalyticsRange::Week);
 
     Cache::shouldHaveReceived('remember')
-        ->withArgs(fn (string $key) => str_contains($key, ':analytics:7d'))
+        ->withArgs(fn (string $key): bool => str_contains($key, ':analytics:7d'))
         ->once();
 });

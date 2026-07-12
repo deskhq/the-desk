@@ -41,7 +41,7 @@ class ScheduledMessageFactory extends Factory
      */
     public function replyTo(Message $parent): static
     {
-        return $this->state(fn (array $attributes) => [
+        return $this->state(fn (array $attributes): array => [
             'reply_to_id' => $parent->id,
         ]);
     }
@@ -51,7 +51,7 @@ class ScheduledMessageFactory extends Factory
      */
     public function sent(): static
     {
-        return $this->state(fn (array $attributes) => [
+        return $this->state(fn (array $attributes): array => [
             'status' => ScheduledMessageStatus::Sent,
             'sent_at' => now(),
         ]);
@@ -62,7 +62,7 @@ class ScheduledMessageFactory extends Factory
      */
     public function cancelled(): static
     {
-        return $this->state(fn (array $attributes) => [
+        return $this->state(fn (array $attributes): array => [
             'status' => ScheduledMessageStatus::Cancelled,
             'cancelled_at' => now(),
         ]);

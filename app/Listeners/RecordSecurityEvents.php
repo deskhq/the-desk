@@ -20,7 +20,7 @@ use Laravel\Fortify\Events\TwoFactorAuthenticationEnabled;
  */
 class RecordSecurityEvents
 {
-    public function __construct(private SecurityEventRecorder $recorder) {}
+    public function __construct(private readonly SecurityEventRecorder $recorder) {}
 
     /**
      * Handle a successful sign in.

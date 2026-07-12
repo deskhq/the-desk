@@ -24,9 +24,7 @@ Broadcast::channel('channel.{channelId}', function (User $user, string $channelI
  * personal signals such as a brand-new direct message appearing in their
  * sidebar. No other member of the team can listen in.
  */
-Broadcast::channel('user.{userId}', function (User $user, string $userId): bool {
-    return $user->id === $userId;
-});
+Broadcast::channel('user.{userId}', fn (User $user, string $userId): bool => $user->id === $userId);
 
 /**
  * Track which team members are currently online.

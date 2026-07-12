@@ -51,7 +51,7 @@ function performSuggest(User $user, Team $team, string $query): TestResponse
     return test()->actingAs($user)->getJson(route('search.suggest', ['team' => $team->slug, 'q' => $query]));
 }
 
-test('a member searches messages in their channels', function () {
+test('a member searches messages in their channels', function (): void {
     [$owner, $team, $general] = searchTeamWithGeneral();
     $member = searchMember($team, $general, 'Ada Lovelace');
     Message::factory()->for($general)->for($member)->create(['body' => 'the quokka danced at dawn']);
@@ -59,7 +59,7 @@ test('a member searches messages in their channels', function () {
 
     performSearch($member, $team, 'quokka')
         ->assertOk()
-        ->assertInertia(fn (Assert $page) => $page
+        ->assertInertia(fn (Assert $page): Assert => $page
             ->component('channels/Search')
             ->where('query', 'quokka')
             ->has('results', 1)
@@ -70,7 +70,7 @@ test('a member searches messages in their channels', function () {
         );
 });
 
-test('the search page shares the workspace sidebar props', function () {
+test('the search page shares the workspace sidebar props', function (): void {
     [, $team, $general] = searchTeamWithGeneral();
     $member = searchMember($team, $general, 'Ada Lovelace');
 
@@ -78,7 +78,7 @@ test('the search page shares the workspace sidebar props', function () {
     // route lives outside the channels.* name prefix, so it must be covered too.
     performSearch($member, $team, '')
         ->assertOk()
-        ->assertInertia(fn (Assert $page) => $page
+        ->assertInertia(fn (Assert $page): Assert => $page
             ->component('channels/Search')
             ->has('channels', 1)
             ->where('channels.0.slug', 'general')
@@ -86,7 +86,7 @@ test('the search page shares the workspace sidebar props', function () {
         );
 });
 
-test('search does not leak messages from channels the user is not a member of', function () {
+test('search does not leak messages from channels the user is not a member of', function (): void {
     [$owner, $team, $general] = searchTeamWithGeneral();
     $member = searchMember($team, $general);
     $private = Channel::factory()->for($team)->private()->create(['created_by' => $owner->id]);
@@ -94,10 +94,10 @@ test('search does not leak messages from channels the user is not a member of', 
 
     performSearch($member, $team, 'zephyr')
         ->assertOk()
-        ->assertInertia(fn (Assert $page) => $page->has('results', 0));
+        ->assertInertia(fn (Assert $page): Assert => $page->has('results', 0));
 });
 
-test('search does not leak messages from other teams the member also belongs to', function () {
+test('search does not leak messages from other teams the member also belongs to', function (): void {
     [, $team, $general] = searchTeamWithGeneral();
     $member = searchMember($team, $general);
 
@@ -110,20 +110,20 @@ test('search does not leak messages from other teams the member also belongs to'
     Message::factory()->for($otherGeneral)->for($otherOwner)->create(['body' => 'crossteam zephyr note']);
 
     performSearch($member, $team, 'zephyr')
-        ->assertInertia(fn (Assert $page) => $page->has('results', 0));
+        ->assertInertia(fn (Assert $page): Assert => $page->has('results', 0));
 });
 
-test('soft-deleted messages are excluded from search results', function () {
+test('soft-deleted messages are excluded from search results', function (): void {
     [$owner, $team, $general] = searchTeamWithGeneral();
     $member = searchMember($team, $general);
     $message = Message::factory()->for($general)->for($owner)->create(['body' => 'deletable zephyr note']);
     $message->delete();
 
     performSearch($member, $team, 'zephyr')
-        ->assertInertia(fn (Assert $page) => $page->has('results', 0));
+        ->assertInertia(fn (Assert $page): Assert => $page->has('results', 0));
 });
 
-test('editing a message changes what search matches', function () {
+test('editing a message changes what search matches', function (): void {
     [$owner, $team, $general] = searchTeamWithGeneral();
     $member = searchMember($team, $general);
     $message = Message::factory()->for($general)->for($owner)->create(['body' => 'original zephyr wording']);
@@ -131,26 +131,26 @@ test('editing a message changes what search matches', function () {
     $message->update(['body' => 'reworded qibble wording']);
 
     performSearch($member, $team, 'zephyr')
-        ->assertInertia(fn (Assert $page) => $page->has('results', 0));
+        ->assertInertia(fn (Assert $page): Assert => $page->has('results', 0));
     performSearch($member, $team, 'qibble')
-        ->assertInertia(fn (Assert $page) => $page->has('results', 1));
+        ->assertInertia(fn (Assert $page): Assert => $page->has('results', 1));
 });
 
-test('an empty query renders the page without touching the search engine', function () {
+test('an empty query renders the page without touching the search engine', function (): void {
     [$owner, $team, $general] = searchTeamWithGeneral();
     $member = searchMember($team, $general);
     Message::factory()->for($general)->for($owner)->create(['body' => 'zephyr']);
 
     performSearch($member, $team, '')
         ->assertOk()
-        ->assertInertia(fn (Assert $page) => $page
+        ->assertInertia(fn (Assert $page): Assert => $page
             ->component('channels/Search')
             ->where('query', '')
             ->has('results', 0)
         );
 });
 
-test('a team member who belongs to no channel gets no results', function () {
+test('a team member who belongs to no channel gets no results', function (): void {
     [$owner, $team, $general] = searchTeamWithGeneral();
     $loner = User::factory()->create();
     $team->memberships()->create(['user_id' => $loner->id, 'role' => TeamRole::Member]);
@@ -160,17 +160,17 @@ test('a team member who belongs to no channel gets no results', function () {
     Message::factory()->for($general)->for($owner)->create(['body' => 'zephyr']);
 
     performSearch($loner, $team, 'zephyr')
-        ->assertInertia(fn (Assert $page) => $page->has('results', 0));
+        ->assertInertia(fn (Assert $page): Assert => $page->has('results', 0));
 });
 
-test('a non-member of the team cannot search it', function () {
+test('a non-member of the team cannot search it', function (): void {
     [, $team] = searchTeamWithGeneral();
     $outsider = User::factory()->create();
 
     performSearch($outsider, $team, 'zephyr')->assertForbidden();
 });
 
-test('the search query cannot exceed 255 characters', function () {
+test('the search query cannot exceed 255 characters', function (): void {
     [, $team, $general] = searchTeamWithGeneral();
     $member = searchMember($team, $general);
 
@@ -178,7 +178,7 @@ test('the search query cannot exceed 255 characters', function () {
         ->assertSessionHasErrors('q');
 });
 
-test('a jump windows the messages around the target with newer context below', function () {
+test('a jump windows the messages around the target with newer context below', function (): void {
     [$owner, $team, $general] = searchTeamWithGeneral();
     $messages = collect(range(1, 30))->map(
         fn (int $i) => Message::factory()->for($general)->for($owner)->create(['body' => "message {$i}"])
@@ -189,7 +189,7 @@ test('a jump windows the messages around the target with newer context below', f
         'team' => $team->slug,
         'channel' => $general->slug,
         'message' => $target->id,
-    ]))->assertInertia(fn (Assert $page) => $page
+    ]))->assertInertia(fn (Assert $page): Assert => $page
         ->where('jumpToMessageId', $target->id)
         // 15 messages newer than the target cap the window (message 20), so the
         // window is messages 1..20 newest-first and messages 21..30 are excluded.
@@ -198,7 +198,7 @@ test('a jump windows the messages around the target with newer context below', f
     );
 });
 
-test('a jump to the newest message keeps it at the bottom of the window', function () {
+test('a jump to the newest message keeps it at the bottom of the window', function (): void {
     [$owner, $team, $general] = searchTeamWithGeneral();
     $messages = collect(range(1, 5))->map(
         fn (int $i) => Message::factory()->for($general)->for($owner)->create(['body' => "message {$i}"])
@@ -209,14 +209,14 @@ test('a jump to the newest message keeps it at the bottom of the window', functi
         'team' => $team->slug,
         'channel' => $general->slug,
         'message' => $target->id,
-    ]))->assertInertia(fn (Assert $page) => $page
+    ]))->assertInertia(fn (Assert $page): Assert => $page
         ->where('jumpToMessageId', $target->id)
         ->has('messages.data', 5)
         ->where('messages.data.0.body', 'message 5')
     );
 });
 
-test('a message param from another channel is ignored', function () {
+test('a message param from another channel is ignored', function (): void {
     [$owner, $team, $general] = searchTeamWithGeneral();
     Message::factory()->for($general)->for($owner)->create(['body' => 'only message here']);
     $other = Channel::factory()->for($team)->create(['created_by' => $owner->id]);
@@ -226,13 +226,13 @@ test('a message param from another channel is ignored', function () {
         'team' => $team->slug,
         'channel' => $general->slug,
         'message' => $foreign->id,
-    ]))->assertInertia(fn (Assert $page) => $page
+    ]))->assertInertia(fn (Assert $page): Assert => $page
         ->where('jumpToMessageId', null)
         ->has('messages.data', 1)
     );
 });
 
-test('the suggest endpoint returns matching messages as JSON', function () {
+test('the suggest endpoint returns matching messages as JSON', function (): void {
     [$owner, $team, $general] = searchTeamWithGeneral();
     $member = searchMember($team, $general, 'Ada Lovelace');
     Message::factory()->for($general)->for($member)->create(['body' => 'the quokka danced at dawn']);
@@ -247,7 +247,7 @@ test('the suggest endpoint returns matching messages as JSON', function () {
         ->assertJsonPath('results.0.channelSlug', $general->slug);
 });
 
-test('the suggest endpoint caps results at the preview limit', function () {
+test('the suggest endpoint caps results at the preview limit', function (): void {
     [$owner, $team, $general] = searchTeamWithGeneral();
     $member = searchMember($team, $general);
     collect(range(1, 8))->each(
@@ -259,7 +259,7 @@ test('the suggest endpoint caps results at the preview limit', function () {
         ->assertJsonCount(5, 'results');
 });
 
-test('the suggest endpoint is ACL-filtered to the user channels', function () {
+test('the suggest endpoint is ACL-filtered to the user channels', function (): void {
     [$owner, $team, $general] = searchTeamWithGeneral();
     $member = searchMember($team, $general);
     $private = Channel::factory()->for($team)->private()->create(['created_by' => $owner->id]);
@@ -270,7 +270,7 @@ test('the suggest endpoint is ACL-filtered to the user channels', function () {
         ->assertJsonCount(0, 'results');
 });
 
-test('an empty suggest query returns no results without touching the engine', function () {
+test('an empty suggest query returns no results without touching the engine', function (): void {
     [$owner, $team, $general] = searchTeamWithGeneral();
     $member = searchMember($team, $general);
     Message::factory()->for($general)->for($owner)->create(['body' => 'zephyr']);
@@ -280,14 +280,14 @@ test('an empty suggest query returns no results without touching the engine', fu
         ->assertJsonCount(0, 'results');
 });
 
-test('a non-member of the team cannot use suggest', function () {
+test('a non-member of the team cannot use suggest', function (): void {
     [, $team] = searchTeamWithGeneral();
     $outsider = User::factory()->create();
 
     performSuggest($outsider, $team, 'zephyr')->assertForbidden();
 });
 
-test('the suggest query cannot exceed 255 characters', function () {
+test('the suggest query cannot exceed 255 characters', function (): void {
     [, $team, $general] = searchTeamWithGeneral();
     $member = searchMember($team, $general);
 
@@ -295,7 +295,7 @@ test('the suggest query cannot exceed 255 characters', function () {
         ->assertJsonValidationErrorFor('q');
 });
 
-test('soft-deleted messages report that they should not be searchable', function () {
+test('soft-deleted messages report that they should not be searchable', function (): void {
     $message = Message::factory()->create();
 
     expect($message->shouldBeSearchable())->toBeTrue();

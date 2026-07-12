@@ -12,7 +12,7 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('channel_sections', function (Blueprint $table) {
+        Schema::create('channel_sections', function (Blueprint $table): void {
             $table->uuid('id')->primary()->default(DB::raw('gen_random_uuid()'));
             // A custom section is owned by one user within one team, so each user
             // curates their own sidebar grouping independently. Both cascade so a

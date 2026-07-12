@@ -48,7 +48,7 @@ function auditEntry(Team $team, AuditAction $action): AuditActivity
         ->sole();
 }
 
-test('renaming a team records an audit entry with old and new names', function () {
+test('renaming a team records an audit entry with old and new names', function (): void {
     [$owner, $team] = auditTeam();
 
     $this->actingAs($owner)
@@ -62,7 +62,7 @@ test('renaming a team records an audit entry with old and new names', function (
     expect($entry->properties['new_name'])->toBe('Acme Corp');
 });
 
-test('renaming a team to the same name records nothing', function () {
+test('renaming a team to the same name records nothing', function (): void {
     [$owner, $team] = auditTeam();
 
     $this->actingAs($owner)
@@ -72,7 +72,7 @@ test('renaming a team to the same name records nothing', function () {
     expect(AuditActivity::query()->where('team_id', $team->id)->count())->toBe(0);
 });
 
-test('changing a member role records an audit entry with old and new roles', function () {
+test('changing a member role records an audit entry with old and new roles', function (): void {
     [$owner, $team] = auditTeam();
     $member = auditMember($team);
 
@@ -88,7 +88,7 @@ test('changing a member role records an audit entry with old and new roles', fun
     expect($entry->properties['new_role'])->toBe(TeamRole::Admin->label());
 });
 
-test('changing a member role to the same role records nothing', function () {
+test('changing a member role to the same role records nothing', function (): void {
     [$owner, $team] = auditTeam();
     $member = auditMember($team);
 
@@ -99,7 +99,7 @@ test('changing a member role to the same role records nothing', function () {
     expect(AuditActivity::query()->where('team_id', $team->id)->count())->toBe(0);
 });
 
-test('removing a member records an audit entry', function () {
+test('removing a member records an audit entry', function (): void {
     [$owner, $team] = auditTeam();
     $member = auditMember($team);
 
@@ -113,7 +113,7 @@ test('removing a member records an audit entry', function () {
     expect($entry->properties['member_name'])->toBe($member->name);
 });
 
-test('transferring ownership records an audit entry', function () {
+test('transferring ownership records an audit entry', function (): void {
     [$owner, $team] = auditTeam();
     $member = auditMember($team, TeamRole::Admin);
 
@@ -127,7 +127,7 @@ test('transferring ownership records an audit entry', function () {
     expect($entry->properties['new_owner_name'])->toBe($member->name);
 });
 
-test('creating a channel records an audit entry', function () {
+test('creating a channel records an audit entry', function (): void {
     [$owner, $team] = auditTeam();
 
     $this->actingAs($owner)
@@ -143,7 +143,7 @@ test('creating a channel records an audit entry', function () {
     expect($entry->properties['channel_name'])->toBe('marketing');
 });
 
-test('archiving a channel records an audit entry', function () {
+test('archiving a channel records an audit entry', function (): void {
     [$owner, $team] = auditTeam();
     $channel = Channel::factory()->for($team)->create(['created_by' => $owner->id]);
 
@@ -157,7 +157,7 @@ test('archiving a channel records an audit entry', function () {
     expect($entry->properties['channel_name'])->toBe($channel->name);
 });
 
-test('adding a channel member records an audit entry', function () {
+test('adding a channel member records an audit entry', function (): void {
     [$owner, $team] = auditTeam();
     $member = auditMember($team);
     $channel = Channel::factory()->for($team)->private()->create(['slug' => 'secret']);
@@ -176,7 +176,7 @@ test('adding a channel member records an audit entry', function () {
     expect($entry->properties['member_name'])->toBe($member->name);
 });
 
-test('removing a channel member records an audit entry', function () {
+test('removing a channel member records an audit entry', function (): void {
     [$owner, $team] = auditTeam();
     $member = auditMember($team);
     $channel = Channel::factory()->for($team)->private()->create(['slug' => 'secret']);
@@ -195,7 +195,7 @@ test('removing a channel member records an audit entry', function () {
     expect($entry->properties['member_name'])->toBe($member->name);
 });
 
-test('a moderator deleting another members message records an audit entry', function () {
+test('a moderator deleting another members message records an audit entry', function (): void {
     [$owner, $team] = auditTeam();
     $member = auditMember($team);
     $general = $team->channels()->where('slug', Channel::GENERAL_SLUG)->firstOrFail();
@@ -215,7 +215,7 @@ test('a moderator deleting another members message records an audit entry', func
     expect($entry->properties['author_name'])->toBe($member->name);
 });
 
-test('a member deleting their own message records nothing', function () {
+test('a member deleting their own message records nothing', function (): void {
     [$owner, $team] = auditTeam();
     $member = auditMember($team);
     $general = $team->channels()->where('slug', Channel::GENERAL_SLUG)->firstOrFail();
@@ -232,14 +232,14 @@ test('a member deleting their own message records nothing', function () {
     expect(AuditActivity::query()->where('event', AuditAction::MessageDeleted->value)->count())->toBe(0);
 });
 
-test('an audit entry belongs to its team', function () {
+test('an audit entry belongs to its team', function (): void {
     [$owner, $team] = auditTeam();
     $entry = AuditActivity::factory()->forTeam($team)->causedBy($owner)->create();
 
     expect($entry->team->id)->toBe($team->id);
 });
 
-test('an audit entry cannot be updated', function () {
+test('an audit entry cannot be updated', function (): void {
     $entry = AuditActivity::factory()->create();
 
     expect(fn () => $entry->update(['description' => 'tampered']))
@@ -248,7 +248,7 @@ test('an audit entry cannot be updated', function () {
     expect($entry->fresh()->description)->not->toBe('tampered');
 });
 
-test('an audit entry cannot be deleted', function () {
+test('an audit entry cannot be deleted', function (): void {
     $entry = AuditActivity::factory()->create();
 
     expect(fn () => $entry->delete())
@@ -257,7 +257,7 @@ test('an audit entry cannot be deleted', function () {
     expect(AuditActivity::query()->whereKey($entry->id)->exists())->toBeTrue();
 });
 
-test('an admin can view the audit log', function () {
+test('an admin can view the audit log', function (): void {
     [$owner, $team] = auditTeam();
     $admin = auditMember($team, TeamRole::Admin);
     AuditActivity::factory()->forTeam($team)->causedBy($owner)->ofAction(AuditAction::ChannelCreated)->create();
@@ -265,14 +265,14 @@ test('an admin can view the audit log', function () {
     $this->actingAs($admin)
         ->get(route('teams.audit.index', $team))
         ->assertOk()
-        ->assertInertia(fn (Assert $page) => $page
+        ->assertInertia(fn (Assert $page): Assert => $page
             ->component('teams/Audit')
             ->has('entries.data', 1)
             ->where('entries.data.0.action', AuditAction::ChannelCreated->value)
         );
 });
 
-test('a plain member cannot view the audit log', function () {
+test('a plain member cannot view the audit log', function (): void {
     [$owner, $team] = auditTeam();
     $member = auditMember($team);
 
@@ -281,7 +281,7 @@ test('a plain member cannot view the audit log', function () {
         ->assertForbidden();
 });
 
-test('a non member cannot view the audit log', function () {
+test('a non member cannot view the audit log', function (): void {
     [$owner, $team] = auditTeam();
     $stranger = User::factory()->create();
 
@@ -290,7 +290,7 @@ test('a non member cannot view the audit log', function () {
         ->assertForbidden();
 });
 
-test('the audit log is not available for a personal team', function () {
+test('the audit log is not available for a personal team', function (): void {
     $user = User::factory()->create();
     $personal = $user->personalTeam();
 
@@ -299,7 +299,7 @@ test('the audit log is not available for a personal team', function () {
         ->assertForbidden();
 });
 
-test('the audit log only shows the current teams entries', function () {
+test('the audit log only shows the current teams entries', function (): void {
     [$owner, $team] = auditTeam();
     $otherTeam = Team::factory()->create();
 
@@ -309,13 +309,13 @@ test('the audit log only shows the current teams entries', function () {
     $this->actingAs($owner)
         ->get(route('teams.audit.index', $team))
         ->assertOk()
-        ->assertInertia(fn (Assert $page) => $page
+        ->assertInertia(fn (Assert $page): Assert => $page
             ->has('entries.data', 1)
             ->where('entries.data.0.action', AuditAction::ChannelCreated->value)
         );
 });
 
-test('the audit log can be filtered by action', function () {
+test('the audit log can be filtered by action', function (): void {
     [$owner, $team] = auditTeam();
 
     AuditActivity::factory()->forTeam($team)->causedBy($owner)->ofAction(AuditAction::ChannelCreated)->create();
@@ -324,13 +324,13 @@ test('the audit log can be filtered by action', function () {
     $this->actingAs($owner)
         ->get(route('teams.audit.index', ['team' => $team, 'action' => AuditAction::ChannelCreated->value]))
         ->assertOk()
-        ->assertInertia(fn (Assert $page) => $page
+        ->assertInertia(fn (Assert $page): Assert => $page
             ->has('entries.data', 1)
             ->where('entries.data.0.action', AuditAction::ChannelCreated->value)
         );
 });
 
-test('the audit log can be filtered by actor', function () {
+test('the audit log can be filtered by actor', function (): void {
     [$owner, $team] = auditTeam();
     $admin = auditMember($team, TeamRole::Admin);
 
@@ -340,7 +340,7 @@ test('the audit log can be filtered by actor', function () {
     $this->actingAs($owner)
         ->get(route('teams.audit.index', ['team' => $team, 'actor' => $admin->id]))
         ->assertOk()
-        ->assertInertia(fn (Assert $page) => $page
+        ->assertInertia(fn (Assert $page): Assert => $page
             ->has('entries.data', 1)
             ->where('entries.data.0.action', AuditAction::MemberRemoved->value)
         );

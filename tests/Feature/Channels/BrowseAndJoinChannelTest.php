@@ -6,7 +6,7 @@ use App\Models\Channel;
 use App\Models\User;
 use Inertia\Testing\AssertableInertia as Assert;
 
-test('browsing lists joinable public channels only', function () {
+test('browsing lists joinable public channels only', function (): void {
     $user = User::factory()->create();
     $team = app(CreateTeam::class)->handle($user, 'Acme');
 
@@ -19,14 +19,14 @@ test('browsing lists joinable public channels only', function () {
     $this->actingAs($user)
         ->get(route('channels.browse', ['team' => $team->slug]))
         ->assertOk()
-        ->assertInertia(fn (Assert $page) => $page
+        ->assertInertia(fn (Assert $page): Assert => $page
             ->component('channels/Browse')
             ->has('joinableChannels', 1)
             ->where('joinableChannels.0.slug', 'marketing')
         );
 });
 
-test('browsing does not leak channels from other teams', function () {
+test('browsing does not leak channels from other teams', function (): void {
     $user = User::factory()->create();
     $team = app(CreateTeam::class)->handle($user, 'Acme');
     $otherTeam = app(CreateTeam::class)->handle(User::factory()->create(), 'Globex');
@@ -35,10 +35,10 @@ test('browsing does not leak channels from other teams', function () {
     $this->actingAs($user)
         ->get(route('channels.browse', ['team' => $team->slug]))
         ->assertOk()
-        ->assertInertia(fn (Assert $page) => $page->has('joinableChannels', 0));
+        ->assertInertia(fn (Assert $page): Assert => $page->has('joinableChannels', 0));
 });
 
-test('a team member can join a public channel', function () {
+test('a team member can join a public channel', function (): void {
     $user = User::factory()->create();
     $team = app(CreateTeam::class)->handle($user, 'Acme');
     $channel = Channel::factory()->for($team)->create(['name' => 'Marketing', 'slug' => 'marketing']);
@@ -50,7 +50,7 @@ test('a team member can join a public channel', function () {
     expect($channel->members()->whereKey($user->id)->exists())->toBeTrue();
 });
 
-test('joining a channel is idempotent', function () {
+test('joining a channel is idempotent', function (): void {
     $user = User::factory()->create();
     $team = app(CreateTeam::class)->handle($user, 'Acme');
     $channel = Channel::factory()->for($team)->create(['slug' => 'marketing']);
@@ -63,7 +63,7 @@ test('joining a channel is idempotent', function () {
     expect($channel->channelMembers()->where('user_id', $user->id)->count())->toBe(1);
 });
 
-test('a private channel cannot be joined by browsing', function () {
+test('a private channel cannot be joined by browsing', function (): void {
     $user = User::factory()->create();
     $team = app(CreateTeam::class)->handle($user, 'Acme');
     $channel = Channel::factory()->for($team)->private()->create(['slug' => 'secret']);
@@ -75,7 +75,7 @@ test('a private channel cannot be joined by browsing', function () {
     expect($channel->members()->whereKey($user->id)->exists())->toBeFalse();
 });
 
-test('an archived channel cannot be joined', function () {
+test('an archived channel cannot be joined', function (): void {
     $user = User::factory()->create();
     $team = app(CreateTeam::class)->handle($user, 'Acme');
     $channel = Channel::factory()->for($team)->archived()->create(['slug' => 'old']);
@@ -85,7 +85,7 @@ test('an archived channel cannot be joined', function () {
         ->assertForbidden();
 });
 
-test('a non-team-member cannot join a channel', function () {
+test('a non-team-member cannot join a channel', function (): void {
     $owner = User::factory()->create();
     $outsider = User::factory()->create();
     $team = app(CreateTeam::class)->handle($owner, 'Acme');

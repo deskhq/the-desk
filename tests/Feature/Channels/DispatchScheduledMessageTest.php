@@ -33,7 +33,7 @@ function dispatchDue(): void
     app(DispatchDueScheduledMessages::class)->handle();
 }
 
-test('a due scheduled message is delivered through the normal send path and broadcasts', function () {
+test('a due scheduled message is delivered through the normal send path and broadcasts', function (): void {
     Event::fake([MessageSent::class]);
 
     [$owner, $team, $general] = dispatchTeamWithGeneral();
@@ -52,13 +52,11 @@ test('a due scheduled message is delivered through the normal send path and broa
         ->and($scheduled->fresh()->status)->toBe(ScheduledMessageStatus::Sent)
         ->and($scheduled->fresh()->sent_at)->not->toBeNull();
 
-    Event::assertDispatched(MessageSent::class, function (MessageSent $event) use ($general, $message) {
-        return $event->broadcastOn()[0]->name === 'private-channel.'.$general->id
-            && $event->broadcastWith() === MessageData::fromMessage($message->fresh()->load('user'))->toArray();
-    });
+    Event::assertDispatched(MessageSent::class, fn (MessageSent $event): bool => $event->broadcastOn()[0]->name === 'private-channel.'.$general->id
+        && $event->broadcastWith() === MessageData::fromMessage($message->fresh()->load('user'))->toArray());
 });
 
-test('a scheduled message not yet due is left pending', function () {
+test('a scheduled message not yet due is left pending', function (): void {
     Event::fake([MessageSent::class]);
 
     [$owner, $team, $general] = dispatchTeamWithGeneral();
@@ -73,7 +71,7 @@ test('a scheduled message not yet due is left pending', function () {
     Event::assertNotDispatched(MessageSent::class);
 });
 
-test('a cancelled scheduled message is never delivered', function () {
+test('a cancelled scheduled message is never delivered', function (): void {
     Event::fake([MessageSent::class]);
 
     [$owner, $team, $general] = dispatchTeamWithGeneral();
@@ -87,7 +85,7 @@ test('a cancelled scheduled message is never delivered', function () {
     Event::assertNotDispatched(MessageSent::class);
 });
 
-test('a due message is delivered at most once across overlapping runs', function () {
+test('a due message is delivered at most once across overlapping runs', function (): void {
     Event::fake([MessageSent::class]);
 
     [$owner, $team, $general] = dispatchTeamWithGeneral();
@@ -102,7 +100,7 @@ test('a due message is delivered at most once across overlapping runs', function
     Event::assertDispatchedTimes(MessageSent::class, 1);
 });
 
-test('a due message preserves the inline reply quote when its target is still live', function () {
+test('a due message preserves the inline reply quote when its target is still live', function (): void {
     [$owner, $team, $general] = dispatchTeamWithGeneral();
     $parent = Message::factory()->for($general)->for($owner)->create();
     $scheduled = ScheduledMessage::factory()->for($general)->for($owner)->replyTo($parent)->create([
@@ -117,7 +115,7 @@ test('a due message preserves the inline reply quote when its target is still li
         ->and($scheduled->fresh()->status)->toBe(ScheduledMessageStatus::Sent);
 });
 
-test('a due message drops a since-deleted reply target but still sends', function () {
+test('a due message drops a since-deleted reply target but still sends', function (): void {
     [$owner, $team, $general] = dispatchTeamWithGeneral();
     $parent = Message::factory()->for($general)->for($owner)->create();
     $scheduled = ScheduledMessage::factory()->for($general)->for($owner)->replyTo($parent)->create([
@@ -135,7 +133,7 @@ test('a due message drops a since-deleted reply target but still sends', functio
         ->and($scheduled->fresh()->status)->toBe(ScheduledMessageStatus::Sent);
 });
 
-test('a due message for an archived channel fails instead of delivering', function () {
+test('a due message for an archived channel fails instead of delivering', function (): void {
     Event::fake([MessageSent::class]);
 
     [$owner, $team] = dispatchTeamWithGeneral();
@@ -155,7 +153,7 @@ test('a due message for an archived channel fails instead of delivering', functi
     Event::assertNotDispatched(MessageSent::class);
 });
 
-test('a due message fails when its author is no longer a channel member', function () {
+test('a due message fails when its author is no longer a channel member', function (): void {
     Event::fake([MessageSent::class]);
 
     [$owner, $team, $general] = dispatchTeamWithGeneral();
@@ -174,7 +172,7 @@ test('a due message fails when its author is no longer a channel member', functi
     Event::assertNotDispatched(MessageSent::class);
 });
 
-test('delivering a scheduled message leaves the author current draft untouched', function () {
+test('delivering a scheduled message leaves the author current draft untouched', function (): void {
     [$owner, $team, $general] = dispatchTeamWithGeneral();
     $owner->channels()->updateExistingPivot($general->id, ['draft' => 'a fresh draft']);
     ScheduledMessage::factory()->for($general)->for($owner)->create([
@@ -187,7 +185,7 @@ test('delivering a scheduled message leaves the author current draft untouched',
         ->toBe('a fresh draft');
 });
 
-test('the send time is honored as a UTC instant regardless of when the scan runs', function () {
+test('the send time is honored as a UTC instant regardless of when the scan runs', function (): void {
     [$owner, $team, $general] = dispatchTeamWithGeneral();
     $sendAt = now()->addMinutes(30);
     ScheduledMessage::factory()->for($general)->for($owner)->create(['send_at' => $sendAt]);

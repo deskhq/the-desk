@@ -1,6 +1,6 @@
 <?php
 
-test('the catalog endpoint returns the locale messages as cacheable json', function () {
+test('the catalog endpoint returns the locale messages as cacheable json', function (): void {
     $response = $this->get('/locales/fr.json');
 
     $response->assertOk();
@@ -10,6 +10,6 @@ test('the catalog endpoint returns the locale messages as cacheable json', funct
     expect($response->headers->get('ETag'))->not->toBeNull();
 });
 
-test('the catalog endpoint rejects an unknown locale', function () {
+test('the catalog endpoint rejects an unknown locale', function (): void {
     $this->get('/locales/xx.json')->assertNotFound();
 });

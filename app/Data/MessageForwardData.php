@@ -3,6 +3,7 @@
 namespace App\Data;
 
 use App\Models\Message;
+use App\Models\User;
 use Spatie\LaravelData\Data;
 use Spatie\TypeScriptTransformer\Attributes\TypeScript;
 
@@ -44,7 +45,7 @@ class MessageForwardData extends Data
             authorName: $message->user->name,
             channelName: $message->channel->name,
             isDeleted: $isDeleted,
-            mentions: $isDeleted ? [] : $message->mentionedUsers->map(fn ($user) => MentionData::fromUser($user))->all(),
+            mentions: $isDeleted ? [] : $message->mentionedUsers->map(fn (User $user): MentionData => MentionData::fromUser($user))->all(),
         );
     }
 }

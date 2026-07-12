@@ -26,6 +26,7 @@ class ForwardMessageRequest extends FormRequest
     /**
      * Trim the optional note while preserving its inner newlines.
      */
+    #[\Override]
     protected function prepareForValidation(): void
     {
         $this->merge([

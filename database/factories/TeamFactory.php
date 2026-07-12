@@ -32,7 +32,7 @@ class TeamFactory extends Factory
      */
     public function personal(): static
     {
-        return $this->state(fn (array $attributes) => [
+        return $this->state(fn (array $attributes): array => [
             'is_personal' => true,
         ]);
     }
@@ -42,7 +42,7 @@ class TeamFactory extends Factory
      */
     public function trashed(): static
     {
-        return $this->state(fn (array $attributes) => [
+        return $this->state(fn (array $attributes): array => [
             'deleted_at' => now(),
         ]);
     }

@@ -14,7 +14,7 @@ use Illuminate\Http\Request;
  */
 class SecurityEventRecorder
 {
-    public function __construct(private Request $request) {}
+    public function __construct(private readonly Request $request) {}
 
     /**
      * Record a security event for the given user against the current request.

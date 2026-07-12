@@ -6,7 +6,7 @@ use App\Enums\TeamRole;
 use App\Models\Channel;
 use App\Models\User;
 
-test('a team member can create a channel and is redirected to it', function () {
+test('a team member can create a channel and is redirected to it', function (): void {
     $owner = User::factory()->create();
     $team = app(CreateTeam::class)->handle($owner, 'Acme');
 
@@ -28,7 +28,7 @@ test('a team member can create a channel and is redirected to it', function () {
         ->and($channel->members()->whereKey($owner->id)->exists())->toBeTrue();
 });
 
-test('a plain team member can create a channel', function () {
+test('a plain team member can create a channel', function (): void {
     $owner = User::factory()->create();
     $member = User::factory()->create();
     $team = app(CreateTeam::class)->handle($owner, 'Acme');
@@ -44,7 +44,7 @@ test('a plain team member can create a channel', function () {
     expect(Channel::where('team_id', $team->id)->where('slug', 'random')->exists())->toBeTrue();
 });
 
-test('a channel name must be unique within the team', function () {
+test('a channel name must be unique within the team', function (): void {
     $owner = User::factory()->create();
     $team = app(CreateTeam::class)->handle($owner, 'Acme');
     Channel::factory()->for($team)->create(['name' => 'Marketing', 'slug' => 'marketing']);
@@ -59,7 +59,7 @@ test('a channel name must be unique within the team', function () {
     expect(Channel::where('team_id', $team->id)->where('slug', 'marketing')->count())->toBe(1);
 });
 
-test('the same channel name may exist in different teams', function () {
+test('the same channel name may exist in different teams', function (): void {
     $owner = User::factory()->create();
     $teamA = app(CreateTeam::class)->handle($owner, 'Acme');
     $teamB = app(CreateTeam::class)->handle($owner, 'Globex');
@@ -75,7 +75,7 @@ test('the same channel name may exist in different teams', function () {
     expect(Channel::where('team_id', $teamB->id)->where('slug', 'marketing')->exists())->toBeTrue();
 });
 
-test('creating a channel requires a valid visibility', function () {
+test('creating a channel requires a valid visibility', function (): void {
     $owner = User::factory()->create();
     $team = app(CreateTeam::class)->handle($owner, 'Acme');
 
@@ -87,7 +87,7 @@ test('creating a channel requires a valid visibility', function () {
         ->assertSessionHasErrors('visibility');
 });
 
-test('creating a channel requires a name', function () {
+test('creating a channel requires a name', function (): void {
     $owner = User::factory()->create();
     $team = app(CreateTeam::class)->handle($owner, 'Acme');
 
@@ -99,7 +99,7 @@ test('creating a channel requires a name', function () {
         ->assertSessionHasErrors('name');
 });
 
-test('a user who is not a team member cannot create a channel', function () {
+test('a user who is not a team member cannot create a channel', function (): void {
     $owner = User::factory()->create();
     $outsider = User::factory()->create();
     $team = app(CreateTeam::class)->handle($owner, 'Acme');

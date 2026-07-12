@@ -26,7 +26,7 @@ function scheduleTeamWithGeneral(): array
     return [$owner, $team, $general];
 }
 
-test('a member can schedule a message for a future time', function () {
+test('a member can schedule a message for a future time', function (): void {
     Event::fake([MessageSent::class]);
 
     [$owner, $team, $general] = scheduleTeamWithGeneral();
@@ -55,7 +55,7 @@ test('a member can schedule a message for a future time', function () {
     Event::assertNotDispatched(MessageSent::class);
 });
 
-test('scheduling clears the author composer draft for the channel', function () {
+test('scheduling clears the author composer draft for the channel', function (): void {
     [$owner, $team, $general] = scheduleTeamWithGeneral();
     $owner->channels()->updateExistingPivot($general->id, ['draft' => 'half-typed']);
 
@@ -69,7 +69,7 @@ test('scheduling clears the author composer draft for the channel', function () 
     expect($owner->channels()->where('channels.id', $general->id)->first()->pivot->draft)->toBeNull();
 });
 
-test('a scheduled message can quote a live message in the same channel', function () {
+test('a scheduled message can quote a live message in the same channel', function (): void {
     [$owner, $team, $general] = scheduleTeamWithGeneral();
     $parent = Message::factory()->for($general)->for($owner)->create();
 
@@ -84,7 +84,7 @@ test('a scheduled message can quote a live message in the same channel', functio
     expect(ScheduledMessage::firstOrFail()->reply_to_id)->toBe($parent->id);
 });
 
-test('a non-future send time is rejected', function () {
+test('a non-future send time is rejected', function (): void {
     [$owner, $team, $general] = scheduleTeamWithGeneral();
 
     $this->actingAs($owner)
@@ -98,7 +98,7 @@ test('a non-future send time is rejected', function () {
     expect(ScheduledMessage::count())->toBe(0);
 });
 
-test('a missing send time is rejected', function () {
+test('a missing send time is rejected', function (): void {
     [$owner, $team, $general] = scheduleTeamWithGeneral();
 
     $this->actingAs($owner)
@@ -109,7 +109,7 @@ test('a missing send time is rejected', function () {
         ->assertInvalid(['send_at']);
 });
 
-test('an empty body is rejected', function () {
+test('an empty body is rejected', function (): void {
     [$owner, $team, $general] = scheduleTeamWithGeneral();
 
     $this->actingAs($owner)
@@ -121,7 +121,7 @@ test('an empty body is rejected', function () {
         ->assertInvalid(['body']);
 });
 
-test('the reply target must belong to the same channel', function () {
+test('the reply target must belong to the same channel', function (): void {
     [$owner, $team, $general] = scheduleTeamWithGeneral();
     $other = Channel::factory()->for($team)->create();
     $other->channelMembers()->create(['user_id' => $owner->id]);
@@ -137,7 +137,7 @@ test('the reply target must belong to the same channel', function () {
         ->assertInvalid(['reply_to_id']);
 });
 
-test('the reply target cannot be a deleted message', function () {
+test('the reply target cannot be a deleted message', function (): void {
     [$owner, $team, $general] = scheduleTeamWithGeneral();
     $parent = Message::factory()->for($general)->for($owner)->create();
     $parent->delete();
@@ -152,7 +152,7 @@ test('the reply target cannot be a deleted message', function () {
         ->assertInvalid(['reply_to_id']);
 });
 
-test('a non-member cannot schedule a message', function () {
+test('a non-member cannot schedule a message', function (): void {
     [$owner, $team] = scheduleTeamWithGeneral();
     // A private channel the team member is not a member of: the postMessage gate
     // rejects scheduling just as it would an immediate send.
@@ -173,7 +173,7 @@ test('a non-member cannot schedule a message', function () {
     expect(ScheduledMessage::count())->toBe(0);
 });
 
-test('a message cannot be scheduled to an archived channel', function () {
+test('a message cannot be scheduled to an archived channel', function (): void {
     [$owner, $team, $general] = scheduleTeamWithGeneral();
     $channel = Channel::factory()->for($team)->archived()->create();
     $channel->channelMembers()->create(['user_id' => $owner->id]);

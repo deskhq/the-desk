@@ -29,7 +29,7 @@ class SearchIndexSyncCommand extends Command
      *
      * @var list<class-string<Message>>
      */
-    private const SEARCHABLE_MODELS = [
+    private const array SEARCHABLE_MODELS = [
         Message::class,
     ];
 

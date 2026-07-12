@@ -12,7 +12,7 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('users', function (Blueprint $table) {
+        Schema::table('users', function (Blueprint $table): void {
             // The account-wide notification chime the client plays for a qualifying
             // incoming message. `off` disables chimes entirely (see App\Enums\ChimeSound).
             $table->string('chime_sound')->default(ChimeSound::Ping->value)->after('current_team_id');
@@ -24,7 +24,7 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::table('users', function (Blueprint $table) {
+        Schema::table('users', function (Blueprint $table): void {
             $table->dropColumn('chime_sound');
         });
     }

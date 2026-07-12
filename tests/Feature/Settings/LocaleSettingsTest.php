@@ -4,21 +4,21 @@ use App\Enums\AppLocale;
 use App\Models\User;
 use Inertia\Testing\AssertableInertia as Assert;
 
-test('localization settings page is displayed with the selectable locales', function () {
+test('localization settings page is displayed with the selectable locales', function (): void {
     $user = User::factory()->create();
 
     $this
         ->actingAs($user)
         ->get(route('locale.edit'))
         ->assertOk()
-        ->assertInertia(fn (Assert $page) => $page
+        ->assertInertia(fn (Assert $page): Assert => $page
             ->component('settings/Localization')
             ->has('locales', count(AppLocale::cases()))
             ->where('locales.0', ['value' => AppLocale::English->value, 'label' => 'English'])
         );
 });
 
-test('the locale can be updated', function () {
+test('the locale can be updated', function (): void {
     $user = User::factory()->create(['locale' => AppLocale::English->value]);
 
     $this
@@ -32,7 +32,7 @@ test('the locale can be updated', function () {
     expect($user->refresh()->locale)->toBe(AppLocale::French);
 });
 
-test('an unknown locale is rejected', function () {
+test('an unknown locale is rejected', function (): void {
     $user = User::factory()->create(['locale' => AppLocale::English->value]);
 
     $this
@@ -47,7 +47,7 @@ test('an unknown locale is rejected', function () {
     expect($user->refresh()->locale)->toBe(AppLocale::English);
 });
 
-test('a locale is required', function () {
+test('a locale is required', function (): void {
     $user = User::factory()->create();
 
     $this
@@ -57,6 +57,6 @@ test('a locale is required', function () {
         ->assertSessionHasErrors('locale');
 });
 
-test('guests cannot view the localization settings page', function () {
+test('guests cannot view the localization settings page', function (): void {
     $this->get(route('locale.edit'))->assertRedirect(route('login'));
 });

@@ -7,11 +7,11 @@ use Tests\TestCase;
 // translator, so these tests boot the application container.
 uses(TestCase::class);
 
-test('every status has a non-empty label', function (DataExportStatus $status) {
+test('every status has a non-empty label', function (DataExportStatus $status): void {
     expect($status->label())->toBeString()->not->toBeEmpty();
 })->with(DataExportStatus::cases());
 
-test('labels describe the status', function () {
+test('labels describe the status', function (): void {
     expect(DataExportStatus::Pending->label())->toBe('Preparing');
     expect(DataExportStatus::Ready->label())->toBe('Ready to download');
     expect(DataExportStatus::Failed->label())->toBe('Failed');

@@ -4,6 +4,8 @@ use App\Enums\TeamRole;
 use App\Http\Middleware\EnsureTeamMembership;
 use App\Models\Team;
 use App\Models\User;
+use Illuminate\Contracts\Routing\ResponseFactory;
+use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Route;
 
 /**
@@ -18,12 +20,12 @@ function gatedTeamUrl(string $slug, ?string $role = null): string
         : EnsureTeamMembership::class.':'.$role;
 
     Route::middleware($middleware)
-        ->get('_test/gated/'.$suffix.'/{current_team}', fn () => response('ok'));
+        ->get('_test/gated/'.$suffix.'/{current_team}', fn (): ResponseFactory|Response => response('ok'));
 
     return '/_test/gated/'.$suffix.'/'.$slug;
 }
 
-test('members are allowed through', function () {
+test('members are allowed through', function (): void {
     $user = User::factory()->create();
 
     $this->actingAs($user)
@@ -31,7 +33,7 @@ test('members are allowed through', function () {
         ->assertOk();
 });
 
-test('non members are forbidden', function () {
+test('non members are forbidden', function (): void {
     $user = User::factory()->create();
     $team = Team::factory()->create();
 
@@ -40,7 +42,7 @@ test('non members are forbidden', function () {
         ->assertForbidden();
 });
 
-test('unknown team slug is forbidden', function () {
+test('unknown team slug is forbidden', function (): void {
     $user = User::factory()->create();
 
     $this->actingAs($user)
@@ -48,7 +50,7 @@ test('unknown team slug is forbidden', function () {
         ->assertForbidden();
 });
 
-test('members with a sufficient role are allowed through', function () {
+test('members with a sufficient role are allowed through', function (): void {
     $user = User::factory()->create();
 
     // Personal-team owners outrank the admin requirement.
@@ -57,7 +59,7 @@ test('members with a sufficient role are allowed through', function () {
         ->assertOk();
 });
 
-test('members with an insufficient role are forbidden', function () {
+test('members with an insufficient role are forbidden', function (): void {
     $owner = User::factory()->create();
     $member = User::factory()->create();
     $team = Team::factory()->create();
@@ -70,7 +72,7 @@ test('members with an insufficient role are forbidden', function () {
         ->assertForbidden();
 });
 
-test('an unknown minimum role is forbidden', function () {
+test('an unknown minimum role is forbidden', function (): void {
     $user = User::factory()->create();
 
     $this->actingAs($user)
@@ -78,7 +80,7 @@ test('an unknown minimum role is forbidden', function () {
         ->assertForbidden();
 });
 
-test('visiting a team route switches the current team', function () {
+test('visiting a team route switches the current team', function (): void {
     $user = User::factory()->create();
     $current = $user->currentTeam;
 

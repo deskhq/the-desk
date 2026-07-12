@@ -11,7 +11,7 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('channel_members', function (Blueprint $table) {
+        Schema::table('channel_members', function (Blueprint $table): void {
             // Whether the member has starred (favorited) the channel, pinning it to
             // the sidebar's "Starred" section. Per member, so each user curates
             // their own favorites independently.
@@ -24,7 +24,7 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::table('channel_members', function (Blueprint $table) {
+        Schema::table('channel_members', function (Blueprint $table): void {
             $table->dropColumn('starred');
         });
     }

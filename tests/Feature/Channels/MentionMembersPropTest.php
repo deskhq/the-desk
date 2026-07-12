@@ -7,7 +7,7 @@ use App\Models\Channel;
 use App\Models\User;
 use Inertia\Testing\AssertableInertia as Assert;
 
-test('a standard channel ships the whole team for mention autocomplete', function () {
+test('a standard channel ships the whole team for mention autocomplete', function (): void {
     $owner = User::factory()->create(['name' => 'Zoe Owner']);
     $team = app(CreateTeam::class)->handle($owner, 'Acme');
     $member = User::factory()->create(['name' => 'Amy Member']);
@@ -15,14 +15,14 @@ test('a standard channel ships the whole team for mention autocomplete', functio
 
     $this->actingAs($owner)
         ->get(route('channels.show', ['team' => $team->slug, 'channel' => Channel::GENERAL_SLUG]))
-        ->assertInertia(fn (Assert $page) => $page
+        ->assertInertia(fn (Assert $page): Assert => $page
             ->has('members', 2)
             ->where('members.0.name', 'Amy Member')
             ->where('members.1.name', 'Zoe Owner')
         );
 });
 
-test('a direct message scopes mention autocomplete to its participants', function () {
+test('a direct message scopes mention autocomplete to its participants', function (): void {
     $owner = User::factory()->create(['name' => 'Zoe Owner']);
     $team = app(CreateTeam::class)->handle($owner, 'Acme');
     $other = User::factory()->create(['name' => 'Amy Member']);
@@ -35,7 +35,7 @@ test('a direct message scopes mention autocomplete to its participants', functio
 
     $this->actingAs($owner)
         ->get(route('channels.show', ['team' => $team->slug, 'channel' => $dm->slug]))
-        ->assertInertia(fn (Assert $page) => $page
+        ->assertInertia(fn (Assert $page): Assert => $page
             ->has('members', 2)
             // Only the two DM participants, ordered by name; the bystander is excluded.
             ->where('members.0.name', 'Amy Member')

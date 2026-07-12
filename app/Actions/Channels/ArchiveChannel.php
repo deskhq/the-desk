@@ -15,7 +15,7 @@ class ArchiveChannel
      */
     public function handle(Channel $channel): Channel
     {
-        return DB::transaction(function () use ($channel) {
+        return DB::transaction(function () use ($channel): Channel {
             if (! $channel->isArchived()) {
                 $channel->update(['archived_at' => now()]);
             }

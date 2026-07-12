@@ -14,7 +14,7 @@ use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Testing\AssertableInertia as Assert;
 
-test('requesting an export queues the job and records a pending export', function () {
+test('requesting an export queues the job and records a pending export', function (): void {
     Queue::fake();
 
     $user = User::factory()->create();
@@ -33,7 +33,7 @@ test('requesting an export queues the job and records a pending export', functio
     expect($export->status)->toBe(DataExportStatus::Pending);
 });
 
-test('the export job builds a downloadable archive and emails the user', function () {
+test('the export job builds a downloadable archive and emails the user', function (): void {
     Storage::fake('local');
     Mail::fake();
 
@@ -70,7 +70,7 @@ test('the export job builds a downloadable archive and emails the user', functio
     Mail::assertSent(DataExportReady::class, fn (DataExportReady $mail): bool => $mail->hasTo($user->email));
 });
 
-test('the job bails quietly when the export no longer exists', function () {
+test('the job bails quietly when the export no longer exists', function (): void {
     Mail::fake();
 
     $export = DataExport::factory()->create();
@@ -82,7 +82,7 @@ test('the job bails quietly when the export no longer exists', function () {
     Mail::assertNothingSent();
 });
 
-test('the failed hook marks the export failed', function () {
+test('the failed hook marks the export failed', function (): void {
     $export = DataExport::factory()->create();
 
     (new ExportUserData($export->id))->failed(new RuntimeException('boom'));
@@ -90,7 +90,7 @@ test('the failed hook marks the export failed', function () {
     expect($export->refresh()->status)->toBe(DataExportStatus::Failed);
 });
 
-test('the owner can download a ready export', function () {
+test('the owner can download a ready export', function (): void {
     Storage::fake('local');
 
     $user = User::factory()->create();
@@ -103,7 +103,7 @@ test('the owner can download a ready export', function () {
         ->assertDownload('data-export.zip');
 });
 
-test('another user cannot download an export', function () {
+test('another user cannot download an export', function (): void {
     Storage::fake('local');
 
     $export = DataExport::factory()->ready()->create();
@@ -114,7 +114,7 @@ test('another user cannot download an export', function () {
         ->assertForbidden();
 });
 
-test('a pending export cannot be downloaded', function () {
+test('a pending export cannot be downloaded', function (): void {
     $user = User::factory()->create();
     $export = DataExport::factory()->for($user)->create();
 
@@ -123,7 +123,7 @@ test('a pending export cannot be downloaded', function () {
         ->assertNotFound();
 });
 
-test('an expired export cannot be downloaded', function () {
+test('an expired export cannot be downloaded', function (): void {
     Storage::fake('local');
 
     $user = User::factory()->create();
@@ -135,29 +135,29 @@ test('an expired export cannot be downloaded', function () {
         ->assertNotFound();
 });
 
-test('the data & privacy page carries the latest export', function () {
+test('the data & privacy page carries the latest export', function (): void {
     $user = User::factory()->create();
     DataExport::factory()->for($user)->ready()->create();
 
     $this->actingAs($user)
         ->get(route('data-export.edit'))
-        ->assertInertia(fn (Assert $page) => $page
+        ->assertInertia(fn (Assert $page): Assert => $page
             ->component('settings/DataPrivacy')
             ->where('dataExport.status', 'ready')
             ->where('dataExport.isReady', true));
 });
 
-test('the data & privacy page carries a null export when none has been requested', function () {
+test('the data & privacy page carries a null export when none has been requested', function (): void {
     $user = User::factory()->create();
 
     $this->actingAs($user)
         ->get(route('data-export.edit'))
-        ->assertInertia(fn (Assert $page) => $page
+        ->assertInertia(fn (Assert $page): Assert => $page
             ->component('settings/DataPrivacy')
             ->where('dataExport', null));
 });
 
-test('the DTO maps a ready export', function () {
+test('the DTO maps a ready export', function (): void {
     $export = DataExport::factory()->ready()->create();
 
     $data = DataExportData::fromExport($export);
@@ -169,7 +169,7 @@ test('the DTO maps a ready export', function () {
     expect($data->requestedAt)->not->toBeNull();
 });
 
-test('the DTO maps a pending export', function () {
+test('the DTO maps a pending export', function (): void {
     $export = DataExport::factory()->create();
 
     $data = DataExportData::fromExport($export);
@@ -180,7 +180,7 @@ test('the DTO maps a pending export', function () {
     expect($data->expiresAt)->toBeNull();
 });
 
-test('the ready-export mail renders the download link', function () {
+test('the ready-export mail renders the download link', function (): void {
     $export = DataExport::factory()->ready()->create();
 
     $mail = new DataExportReady($export);

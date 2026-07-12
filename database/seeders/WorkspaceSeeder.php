@@ -284,7 +284,7 @@ class WorkspaceSeeder extends Seeder
      */
     private function backdateMemberships(Team $team): void
     {
-        $memberships = $team->memberships()->orderBy('created_at')->orderBy('id')->get();
+        $memberships = $team->memberships()->oldest()->orderBy('id')->get();
         $lastIndex = max(1, $memberships->count() - 1);
 
         foreach ($memberships->values() as $index => $membership) {

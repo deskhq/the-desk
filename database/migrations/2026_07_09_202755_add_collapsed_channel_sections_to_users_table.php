@@ -11,7 +11,7 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('users', function (Blueprint $table) {
+        Schema::table('users', function (Blueprint $table): void {
             // The sidebar section keys the user has collapsed (e.g. ["starred"]),
             // persisted so the collapsed/expanded layout follows them across
             // reloads and devices. Null is treated as "nothing collapsed".
@@ -28,7 +28,7 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::table('users', function (Blueprint $table) {
+        Schema::table('users', function (Blueprint $table): void {
             $table->dropColumn('collapsed_channel_sections');
         });
     }

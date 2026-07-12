@@ -2,7 +2,7 @@
 
 use App\Models\User;
 
-test('a user can set their timezone', function () {
+test('a user can set their timezone', function (): void {
     $user = User::factory()->create(['timezone' => null]);
 
     $response = $this
@@ -19,7 +19,7 @@ test('a user can set their timezone', function () {
     expect($user->refresh()->timezone)->toBe('America/New_York');
 });
 
-test('an invalid timezone is rejected', function () {
+test('an invalid timezone is rejected', function (): void {
     $user = User::factory()->create(['timezone' => 'UTC']);
 
     $response = $this
@@ -34,7 +34,7 @@ test('an invalid timezone is rejected', function () {
     expect($user->refresh()->timezone)->toBe('UTC');
 });
 
-test('the timezone is required', function () {
+test('the timezone is required', function (): void {
     $user = User::factory()->create();
 
     $this

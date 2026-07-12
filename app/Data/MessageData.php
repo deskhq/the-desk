@@ -81,10 +81,10 @@ class MessageData extends Data
             createdAt: $message->created_at->toIso8601String(),
             editedAt: $message->edited_at?->toIso8601String(),
             isDeleted: $isDeleted,
-            mentions: $isDeleted ? [] : $message->mentionedUsers->map(fn (User $user) => MentionData::fromUser($user))->all(),
+            mentions: $isDeleted ? [] : $message->mentionedUsers->map(fn (User $user): MentionData => MentionData::fromUser($user))->all(),
             linkPreviews: $isDeleted ? [] : $message->linkPreviews
-                ->reject(fn (MessageLinkPreview $preview) => $preview->status === LinkPreviewStatus::Failed)
-                ->map(fn (MessageLinkPreview $preview) => LinkPreviewData::fromModel($preview))
+                ->reject(fn (MessageLinkPreview $preview): bool => $preview->status === LinkPreviewStatus::Failed)
+                ->map(fn (MessageLinkPreview $preview): LinkPreviewData => LinkPreviewData::fromModel($preview))
                 ->values()
                 ->all(),
             // A tombstone carries no reactions; DeleteMessage also hard-deletes
@@ -101,7 +101,7 @@ class MessageData extends Data
             threadReplyCount: $message->reply_count,
             threadLastReplyAt: $message->last_reply_at?->toIso8601String(),
             threadParticipants: $message->relationLoaded('threadParticipants')
-                ? $message->threadParticipants->map(fn (User $user) => MentionData::fromUser($user))->all()
+                ? $message->threadParticipants->map(fn (User $user): MentionData => MentionData::fromUser($user))->all()
                 : [],
             threadFollowed: $threadFollowed,
             threadUnread: $threadFollowed && $threadHasUnread,

@@ -19,7 +19,7 @@ function resolverReturning(array $map = [], array $default = ['93.184.216.34']):
          * @param  array<string, array<int, string>>  $map
          * @param  array<int, string>  $default
          */
-        public function __construct(private array $map, private array $default) {}
+        public function __construct(private array $map, private readonly array $default) {}
 
         public function resolve(string $host): array
         {
@@ -33,7 +33,7 @@ function fetcherWith(HostResolver $resolver): FetchLinkPreview
     return new FetchLinkPreview($resolver);
 }
 
-test('unfurls Open Graph metadata from a public URL', function () {
+test('unfurls Open Graph metadata from a public URL', function (): void {
     Http::fake(['https://example.com' => Http::response(
         '<html><head>'
         .'<meta property="og:title" content="Hello">'
@@ -53,7 +53,7 @@ test('unfurls Open Graph metadata from a public URL', function () {
     ]);
 });
 
-test('falls back to the title tag and host when og tags are absent', function () {
+test('falls back to the title tag and host when og tags are absent', function (): void {
     Http::fake(['https://example.com' => Http::response(
         '<html><head><title>Just a title</title></head></html>',
         200,
@@ -68,7 +68,7 @@ test('falls back to the title tag and host when og tags are absent', function ()
     ]);
 });
 
-test('ignores whitespace-only meta content', function () {
+test('ignores whitespace-only meta content', function (): void {
     Http::fake(['https://example.com' => Http::response(
         '<html><head><title>T</title><meta property="og:description" content="   "></head></html>',
         200,
@@ -78,7 +78,7 @@ test('ignores whitespace-only meta content', function () {
     expect(fetcherWith(resolverReturning())->handle('https://example.com')['description'])->toBeNull();
 });
 
-test('returns null when the page has no title at all', function () {
+test('returns null when the page has no title at all', function (): void {
     Http::fake(['https://example.com' => Http::response(
         '<html><body><p>nothing to see</p></body></html>',
         200,
@@ -88,13 +88,13 @@ test('returns null when the page has no title at all', function () {
     expect(fetcherWith(resolverReturning())->handle('https://example.com'))->toBeNull();
 });
 
-test('returns null for an empty body', function () {
+test('returns null for an empty body', function (): void {
     Http::fake(['https://example.com' => Http::response('   ', 200, ['Content-Type' => 'text/html'])]);
 
     expect(fetcherWith(resolverReturning())->handle('https://example.com'))->toBeNull();
 });
 
-test('resolves a protocol-relative og:image against the base scheme', function () {
+test('resolves a protocol-relative og:image against the base scheme', function (): void {
     Http::fake(['https://example.com' => Http::response(
         '<html><head><title>T</title><meta property="og:image" content="//cdn.example.com/i.png"></head></html>',
         200,
@@ -105,7 +105,7 @@ test('resolves a protocol-relative og:image against the base scheme', function (
         ->toBe('https://cdn.example.com/i.png');
 });
 
-test('resolves a root-relative og:image against the base origin', function () {
+test('resolves a root-relative og:image against the base origin', function (): void {
     Http::fake(['https://example.com' => Http::response(
         '<html><head><title>T</title><meta property="og:image" content="/img/a.png"></head></html>',
         200,
@@ -116,7 +116,7 @@ test('resolves a root-relative og:image against the base origin', function () {
         ->toBe('https://example.com/img/a.png');
 });
 
-test('blocks a private, loopback, link-local or reserved host', function (string $ip) {
+test('blocks a private, loopback, link-local or reserved host', function (string $ip): void {
     Http::fake();
 
     expect(fetcherWith(resolverReturning(default: [$ip]))->handle('https://internal.test'))->toBeNull();
@@ -124,7 +124,7 @@ test('blocks a private, loopback, link-local or reserved host', function (string
     Http::assertNothingSent();
 })->with(['10.0.0.5', '127.0.0.1', '169.254.169.254', '192.168.1.1', '172.16.0.1']);
 
-test('rejects a non-http(s) scheme', function () {
+test('rejects a non-http(s) scheme', function (): void {
     Http::fake();
 
     expect(fetcherWith(resolverReturning())->handle('ftp://example.com'))->toBeNull();
@@ -132,7 +132,7 @@ test('rejects a non-http(s) scheme', function () {
     Http::assertNothingSent();
 });
 
-test('rejects a malformed URL', function () {
+test('rejects a malformed URL', function (): void {
     Http::fake();
 
     expect(fetcherWith(resolverReturning())->handle('http://foo:bar'))->toBeNull();
@@ -140,7 +140,7 @@ test('rejects a malformed URL', function () {
     Http::assertNothingSent();
 });
 
-test('rejects a URL with no host', function () {
+test('rejects a URL with no host', function (): void {
     Http::fake();
 
     expect(fetcherWith(resolverReturning())->handle('http:///just/a/path'))->toBeNull();
@@ -148,7 +148,7 @@ test('rejects a URL with no host', function () {
     Http::assertNothingSent();
 });
 
-test('rejects a host that does not resolve', function () {
+test('rejects a host that does not resolve', function (): void {
     Http::fake();
 
     expect(fetcherWith(resolverReturning(default: []))->handle('https://ghost.example'))->toBeNull();
@@ -156,7 +156,7 @@ test('rejects a host that does not resolve', function () {
     Http::assertNothingSent();
 });
 
-test('follows a safe redirect to the final page', function () {
+test('follows a safe redirect to the final page', function (): void {
     Http::fake([
         'https://example.com/start' => Http::response('', 301, ['Location' => 'https://example.com/final']),
         'https://example.com/final' => Http::response(
@@ -169,13 +169,13 @@ test('follows a safe redirect to the final page', function () {
     expect(fetcherWith(resolverReturning())->handle('https://example.com/start')['title'])->toBe('Final');
 });
 
-test('rejects a redirect with no Location', function () {
+test('rejects a redirect with no Location', function (): void {
     Http::fake(['https://example.com/go' => Http::response('', 302, [])]);
 
     expect(fetcherWith(resolverReturning())->handle('https://example.com/go'))->toBeNull();
 });
 
-test('re-validates the host on each redirect hop', function () {
+test('re-validates the host on each redirect hop', function (): void {
     Http::fake(['https://safe.test/go' => Http::response('', 302, ['Location' => 'https://internal.test/secret'])]);
 
     $resolver = resolverReturning([
@@ -186,25 +186,25 @@ test('re-validates the host on each redirect hop', function () {
     expect(fetcherWith($resolver)->handle('https://safe.test/go'))->toBeNull();
 });
 
-test('gives up after too many redirects', function () {
+test('gives up after too many redirects', function (): void {
     Http::fake(['https://example.com/loop' => Http::response('', 302, ['Location' => 'https://example.com/loop'])]);
 
     expect(fetcherWith(resolverReturning())->handle('https://example.com/loop'))->toBeNull();
 });
 
-test('rejects an unsuccessful response', function () {
+test('rejects an unsuccessful response', function (): void {
     Http::fake(['https://example.com' => Http::response('nope', 404)]);
 
     expect(fetcherWith(resolverReturning())->handle('https://example.com'))->toBeNull();
 });
 
-test('rejects a non-html response', function () {
+test('rejects a non-html response', function (): void {
     Http::fake(['https://example.com' => Http::response('{"a":1}', 200, ['Content-Type' => 'application/json'])]);
 
     expect(fetcherWith(resolverReturning())->handle('https://example.com'))->toBeNull();
 });
 
-test('rejects an oversized response', function () {
+test('rejects an oversized response', function (): void {
     Http::fake(['https://example.com' => Http::response(
         '<html><head><title>Huge</title></head></html>',
         200,
@@ -214,7 +214,7 @@ test('rejects an oversized response', function () {
     expect(fetcherWith(resolverReturning())->handle('https://example.com'))->toBeNull();
 });
 
-test('caches the result so the same URL is only fetched once', function () {
+test('caches the result so the same URL is only fetched once', function (): void {
     Http::fake(['https://example.com' => Http::response(
         '<html><head><title>Cached</title></head></html>',
         200,

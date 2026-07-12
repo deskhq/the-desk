@@ -35,11 +35,12 @@ class TeamInvitation extends Model
     /**
      * Bootstrap the model and its traits.
      */
+    #[\Override]
     protected static function boot(): void
     {
         parent::boot();
 
-        static::creating(function (TeamInvitation $invitation) {
+        static::creating(function (TeamInvitation $invitation): void {
             if (empty($invitation->code)) {
                 $invitation->code = Str::random(64);
             }
@@ -95,6 +96,7 @@ class TeamInvitation extends Model
      *
      * @return array<string, string>
      */
+    #[\Override]
     protected function casts(): array
     {
         return [
@@ -107,6 +109,7 @@ class TeamInvitation extends Model
     /**
      * Get the route key for the model.
      */
+    #[\Override]
     public function getRouteKeyName(): string
     {
         return 'code';

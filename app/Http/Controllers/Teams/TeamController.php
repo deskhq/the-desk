@@ -59,7 +59,7 @@ class TeamController extends Controller
                 'slug' => $team->slug,
                 'isPersonal' => $team->is_personal,
             ],
-            'members' => $team->members()->get()->map(function (User $member) {
+            'members' => $team->members()->get()->map(function (User $member): array {
                 /** @var Membership $membership */
                 $membership = $member->getRelation('pivot');
 
@@ -75,7 +75,7 @@ class TeamController extends Controller
             'invitations' => $team->invitations()
                 ->whereNull('accepted_at')
                 ->get()
-                ->map(fn ($invitation) => [
+                ->map(fn ($invitation): array => [
                     'code' => $invitation->code,
                     'email' => $invitation->email,
                     'role' => $invitation->role->value,
@@ -161,10 +161,10 @@ class TeamController extends Controller
         $user = $request->user();
         $fallbackTeam = $user->isCurrentTeam($team) ? $user->fallbackTeam($team) : null;
 
-        DB::transaction(function () use ($user, $team) {
+        DB::transaction(function () use ($user, $team): void {
             User::where('current_team_id', $team->id)
                 ->where('id', '!=', $user->id)
-                ->each(fn (User $affectedUser) => $affectedUser->switchTeam($affectedUser->personalTeam()));
+                ->each(fn (User $affectedUser): bool => $affectedUser->switchTeam($affectedUser->personalTeam()));
 
             $team->invitations()->delete();
             $team->memberships()->delete();

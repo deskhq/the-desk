@@ -50,7 +50,7 @@ function rootPayload(User $viewer, Team $team, Channel $channel, Message $root):
 
     test()->actingAs($viewer)
         ->get(route('channels.show', ['team' => $team->slug, 'channel' => $channel->slug]))
-        ->assertInertia(function (Assert $page) use (&$captured, $root) {
+        ->assertInertia(function (Assert $page) use (&$captured, $root): void {
             $page->has('messages.data');
             $data = $page->toArray()['props']['messages']['data'];
             $captured = collect($data)->firstWhere('id', $root->id);
@@ -59,7 +59,7 @@ function rootPayload(User $viewer, Team $team, Channel $channel, Message $root):
     return $captured;
 }
 
-test('a followed thread with an unseen reply raises the root unread flag', function () {
+test('a followed thread with an unseen reply raises the root unread flag', function (): void {
     [$owner, $team, $general] = threadReadSetup();
     $alice = threadReadMember($team, $general);
 
@@ -72,7 +72,7 @@ test('a followed thread with an unseen reply raises the root unread flag', funct
         ->and($payload['threadUnread'])->toBeTrue();
 });
 
-test('a non-participant who was never mentioned does not follow the thread', function () {
+test('a non-participant who was never mentioned does not follow the thread', function (): void {
     [$owner, $team, $general] = threadReadSetup();
     $alice = threadReadMember($team, $general);
     $bob = threadReadMember($team, $general);
@@ -86,7 +86,7 @@ test('a non-participant who was never mentioned does not follow the thread', fun
         ->and($payload['threadUnread'])->toBeFalse();
 });
 
-test('replying in a thread makes the user a follower', function () {
+test('replying in a thread makes the user a follower', function (): void {
     [$owner, $team, $general] = threadReadSetup();
     $alice = threadReadMember($team, $general);
     $bob = threadReadMember($team, $general);
@@ -101,7 +101,7 @@ test('replying in a thread makes the user a follower', function () {
         ->and($payload['threadUnread'])->toBeTrue();
 });
 
-test('a mention inside a reply makes the user a follower', function () {
+test('a mention inside a reply makes the user a follower', function (): void {
     [$owner, $team, $general] = threadReadSetup();
     $alice = threadReadMember($team, $general);
     $bob = threadReadMember($team, $general);
@@ -116,7 +116,7 @@ test('a mention inside a reply makes the user a follower', function () {
         ->and($payload['threadUnread'])->toBeTrue();
 });
 
-test('a user\'s own replies never raise their unread flag', function () {
+test('a user\'s own replies never raise their unread flag', function (): void {
     [$owner, $team, $general] = threadReadSetup();
 
     $root = Message::factory()->for($general)->for($owner)->create();
@@ -128,7 +128,7 @@ test('a user\'s own replies never raise their unread flag', function () {
         ->and($payload['threadUnread'])->toBeFalse();
 });
 
-test('a soft-deleted reply does not count as unread', function () {
+test('a soft-deleted reply does not count as unread', function (): void {
     [$owner, $team, $general] = threadReadSetup();
     $alice = threadReadMember($team, $general);
 
@@ -141,7 +141,7 @@ test('a soft-deleted reply does not count as unread', function () {
         ->and($payload['threadUnread'])->toBeFalse();
 });
 
-test('marking the thread read clears the unread flag and persists the pointer', function () {
+test('marking the thread read clears the unread flag and persists the pointer', function (): void {
     [$owner, $team, $general] = threadReadSetup();
     $alice = threadReadMember($team, $general);
 
@@ -160,7 +160,7 @@ test('marking the thread read clears the unread flag and persists the pointer', 
     expect($payload['threadUnread'])->toBeFalse();
 });
 
-test('a newer reply after the read pointer raises the flag again', function () {
+test('a newer reply after the read pointer raises the flag again', function (): void {
     [$owner, $team, $general] = threadReadSetup();
     $alice = threadReadMember($team, $general);
 
@@ -177,7 +177,7 @@ test('a newer reply after the read pointer raises the flag again', function () {
     expect(rootPayload($owner, $team, $general, $root)['threadUnread'])->toBeTrue();
 });
 
-test('thread read state is independent of the channel read pointer', function () {
+test('thread read state is independent of the channel read pointer', function (): void {
     [$owner, $team, $general] = threadReadSetup();
     $alice = threadReadMember($team, $general);
 
@@ -198,7 +198,7 @@ test('thread read state is independent of the channel read pointer', function ()
         ->toBe($channelPointer);
 });
 
-test('a muted channel suppresses the thread unread flag', function () {
+test('a muted channel suppresses the thread unread flag', function (): void {
     [$owner, $team, $general] = threadReadSetup();
     $alice = threadReadMember($team, $general);
 
@@ -213,7 +213,7 @@ test('a muted channel suppresses the thread unread flag', function () {
         ->and($payload['threadUnread'])->toBeFalse();
 });
 
-test('a notification level below all suppresses the thread unread flag', function () {
+test('a notification level below all suppresses the thread unread flag', function (): void {
     [$owner, $team, $general] = threadReadSetup();
     $alice = threadReadMember($team, $general);
 
@@ -226,7 +226,7 @@ test('a notification level below all suppresses the thread unread flag', functio
     expect(rootPayload($owner, $team, $general, $root)['threadUnread'])->toBeFalse();
 });
 
-test('the thread panel root carries the viewer follow and unread state', function () {
+test('the thread panel root carries the viewer follow and unread state', function (): void {
     [$owner, $team, $general] = threadReadSetup();
     $alice = threadReadMember($team, $general);
 
@@ -235,12 +235,12 @@ test('the thread panel root carries the viewer follow and unread state', functio
 
     $this->actingAs($owner)
         ->get(route('channels.show', ['team' => $team->slug, 'channel' => $general->slug, 'thread' => $root->id]))
-        ->assertInertia(fn (Assert $page) => $page
+        ->assertInertia(fn (Assert $page): Assert => $page
             ->where('thread.root.threadFollowed', true)
             ->where('thread.root.threadUnread', true));
 });
 
-test('marking read is a no-op for a thread with no replies', function () {
+test('marking read is a no-op for a thread with no replies', function (): void {
     [$owner, $team, $general] = threadReadSetup();
 
     $root = Message::factory()->for($general)->for($owner)->create();
@@ -250,7 +250,7 @@ test('marking read is a no-op for a thread with no replies', function () {
     expect(ThreadRead::where('thread_root_id', $root->id)->exists())->toBeFalse();
 });
 
-test('marking a thread read requires permission to view the channel', function () {
+test('marking a thread read requires permission to view the channel', function (): void {
     [$owner, $team, $general] = threadReadSetup();
     $root = Message::factory()->for($general)->for($owner)->create();
 

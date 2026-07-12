@@ -62,7 +62,7 @@ function setStar(User $user, Team $team, Channel $channel, bool $starred): TestR
     ]), ['starred' => $starred]);
 }
 
-test('a member can star a channel', function () {
+test('a member can star a channel', function (): void {
     [, $team, $general] = starTeamWithGeneral();
     $member = starMember($team, $general);
 
@@ -75,7 +75,7 @@ test('a member can star a channel', function () {
     ]);
 });
 
-test('a member can unstar a channel', function () {
+test('a member can unstar a channel', function (): void {
     [, $team, $general] = starTeamWithGeneral();
     $member = starMember($team, $general);
     $member->channels()->updateExistingPivot($general->id, ['starred' => true]);
@@ -89,7 +89,7 @@ test('a member can unstar a channel', function () {
     ]);
 });
 
-test('the sidebar reflects a channel star flag', function () {
+test('the sidebar reflects a channel star flag', function (): void {
     [, $team, $general] = starTeamWithGeneral();
     $member = starMember($team, $general);
 
@@ -102,7 +102,7 @@ test('the sidebar reflects a channel star flag', function () {
         ->toMatchArray(['starred' => true]);
 });
 
-test('one member starring a channel does not star it for another', function () {
+test('one member starring a channel does not star it for another', function (): void {
     [$owner, $team, $general] = starTeamWithGeneral();
     $member = starMember($team, $general);
 
@@ -112,7 +112,7 @@ test('one member starring a channel does not star it for another', function () {
     expect(starSidebarEntry($member, $team, $general))->toMatchArray(['starred' => true]);
 });
 
-test('a non-member cannot star a channel', function () {
+test('a non-member cannot star a channel', function (): void {
     [$owner, $team] = starTeamWithGeneral();
     $private = Channel::factory()->for($team)->create([
         'visibility' => ChannelVisibility::Private,
@@ -129,7 +129,7 @@ test('a non-member cannot star a channel', function () {
     ]);
 });
 
-test('starring requires a boolean flag', function () {
+test('starring requires a boolean flag', function (): void {
     [, $team, $general] = starTeamWithGeneral();
     $member = starMember($team, $general);
 

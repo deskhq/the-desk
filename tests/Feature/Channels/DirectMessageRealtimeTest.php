@@ -44,7 +44,7 @@ function postDmMessage(User $author, Team $team, Channel $dm, string $body): voi
     ]), ['body' => $body, 'client_uuid' => (string) Str::uuid7()]);
 }
 
-test('the first message in a direct message announces to the recipient user channel', function () {
+test('the first message in a direct message announces to the recipient user channel', function (): void {
     Event::fake([DirectMessageStarted::class]);
 
     [$owner, $team, $other] = realtimeTeamWithMember();
@@ -52,7 +52,7 @@ test('the first message in a direct message announces to the recipient user chan
 
     postDmMessage($owner, $team, $dm, 'Hey there');
 
-    Event::assertDispatched(DirectMessageStarted::class, function (DirectMessageStarted $event) use ($dm, $other) {
+    Event::assertDispatched(DirectMessageStarted::class, function (DirectMessageStarted $event) use ($dm, $other): bool {
         $target = $event->broadcastOn()[0];
 
         expect($target)->toBeInstanceOf(PrivateChannel::class)
@@ -64,7 +64,7 @@ test('the first message in a direct message announces to the recipient user chan
     });
 });
 
-test('only the first direct message announces; later messages do not', function () {
+test('only the first direct message announces; later messages do not', function (): void {
     Event::fake([DirectMessageStarted::class]);
 
     [$owner, $team, $other] = realtimeTeamWithMember();
@@ -77,7 +77,7 @@ test('only the first direct message announces; later messages do not', function 
     Event::assertDispatchedTimes(DirectMessageStarted::class, 1);
 });
 
-test('a self direct message announces to no one', function () {
+test('a self direct message announces to no one', function (): void {
     Event::fake([DirectMessageStarted::class]);
 
     $owner = User::factory()->create();
@@ -89,7 +89,7 @@ test('a self direct message announces to no one', function () {
     Event::assertNotDispatched(DirectMessageStarted::class);
 });
 
-test('a message in a standard channel never announces a direct message', function () {
+test('a message in a standard channel never announces a direct message', function (): void {
     Event::fake([DirectMessageStarted::class]);
 
     [$owner, $team] = realtimeTeamWithMember();
@@ -100,7 +100,7 @@ test('a message in a standard channel never announces a direct message', functio
     Event::assertNotDispatched(DirectMessageStarted::class);
 });
 
-test('a user may subscribe to their own user channel', function () {
+test('a user may subscribe to their own user channel', function (): void {
     useRealBroadcasterForDm();
 
     $user = User::factory()->create();
@@ -113,7 +113,7 @@ test('a user may subscribe to their own user channel', function () {
         ->assertOk();
 });
 
-test('a user cannot subscribe to another user channel', function () {
+test('a user cannot subscribe to another user channel', function (): void {
     useRealBroadcasterForDm();
 
     $user = User::factory()->create();

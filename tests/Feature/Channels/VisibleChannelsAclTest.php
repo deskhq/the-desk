@@ -43,7 +43,7 @@ function aclFixture(): array
     ];
 }
 
-it('returns exactly the channels a user has joined in the team', function () {
+it('returns exactly the channels a user has joined in the team', function (): void {
     ['user' => $user, 'team' => $team, 'visible' => $visible, 'hidden' => $hidden] = aclFixture();
 
     $ids = $user->visibleChannelIds($team)->all();
@@ -52,7 +52,7 @@ it('returns exactly the channels a user has joined in the team', function () {
         ->and($ids)->not->toContain(...$hidden);
 });
 
-it('excludes channels in other teams even when the user is a member', function () {
+it('excludes channels in other teams even when the user is a member', function (): void {
     $user = User::factory()->create();
     $team = app(CreateTeam::class)->handle($user, 'Acme');
     $otherTeam = app(CreateTeam::class)->handle($user, 'Globex');
@@ -62,7 +62,7 @@ it('excludes channels in other teams even when the user is a member', function (
     expect($user->visibleChannelIds($team)->all())->not->toContain($otherChannel->id);
 });
 
-it('excludes channels in the team the user never joined', function () {
+it('excludes channels in the team the user never joined', function (): void {
     $user = User::factory()->create();
     $team = app(CreateTeam::class)->handle($user, 'Acme');
     $stranger = User::factory()->create();

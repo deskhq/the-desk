@@ -39,7 +39,7 @@ class MarkChannelRead
         $member->update(['last_read_message_id' => $latestMessageId]);
 
         if ($user->share_read_receipts) {
-            MessageRead::dispatch($channel, UserData::fromUser($user), $latestMessageId);
+            event(new MessageRead($channel, UserData::fromUser($user), $latestMessageId));
         }
     }
 }

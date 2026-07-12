@@ -11,7 +11,7 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('channel_members', function (Blueprint $table) {
+        Schema::table('channel_members', function (Blueprint $table): void {
             // The member's unsent composer text for the channel, persisted so it
             // survives navigation, reloads and other devices. Null means no
             // pending draft (the sidebar shows no draft cue).
@@ -24,7 +24,7 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::table('channel_members', function (Blueprint $table) {
+        Schema::table('channel_members', function (Blueprint $table): void {
             $table->dropColumn('draft');
         });
     }

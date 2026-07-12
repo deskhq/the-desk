@@ -4,7 +4,7 @@ use App\Enums\TeamRole;
 use App\Models\Team;
 use App\Models\User;
 
-test('personal team returns the users personal team', function () {
+test('personal team returns the users personal team', function (): void {
     $user = User::factory()->create();
 
     $personal = $user->personalTeam();
@@ -14,7 +14,7 @@ test('personal team returns the users personal team', function () {
         ->and($personal->id)->toBe($user->currentTeam->id);
 });
 
-test('owned teams returns only teams the user owns', function () {
+test('owned teams returns only teams the user owns', function (): void {
     $user = User::factory()->create();
     $personal = $user->currentTeam;
 
@@ -31,7 +31,7 @@ test('owned teams returns only teams the user owns', function () {
         ->not->toContain($memberTeam->id);
 });
 
-test('switching to a team the user does not belong to returns false', function () {
+test('switching to a team the user does not belong to returns false', function (): void {
     $user = User::factory()->create();
     $current = $user->currentTeam;
 
@@ -41,7 +41,7 @@ test('switching to a team the user does not belong to returns false', function (
         ->and($user->refresh()->current_team_id)->toBe($current->id);
 });
 
-test('fallback team returns the first team ordered by name', function () {
+test('fallback team returns the first team ordered by name', function (): void {
     // Name the user last so their personal team never wins the ordering.
     $user = User::factory()->create(['name' => 'Zzz']);
 
@@ -55,7 +55,7 @@ test('fallback team returns the first team ordered by name', function () {
     expect($user->fallbackTeam()->id)->toBe($alpha->id);
 });
 
-test('user team dto carries the team member count', function () {
+test('user team dto carries the team member count', function (): void {
     $user = User::factory()->create();
 
     $team = Team::factory()->create();
@@ -65,7 +65,7 @@ test('user team dto carries the team member count', function () {
     expect($user->toUserTeam($team)->membersCount)->toBe(2);
 });
 
-test('fallback team can exclude a given team', function () {
+test('fallback team can exclude a given team', function (): void {
     $user = User::factory()->create(['name' => 'Zzz']);
 
     $alpha = Team::factory()->create(['name' => 'Alpha']);

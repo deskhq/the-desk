@@ -60,7 +60,7 @@ function inboxRows(User $viewer, Team $team): array
 
     test()->actingAs($viewer)
         ->get(route('channels.threads.index', ['team' => $team->slug]))
-        ->assertInertia(function (Assert $page) use (&$captured) {
+        ->assertInertia(function (Assert $page) use (&$captured): void {
             $page->component('channels/Threads');
             $captured = $page->toArray()['props']['threads']['data'];
         });
@@ -68,7 +68,7 @@ function inboxRows(User $viewer, Team $team): array
     return $captured;
 }
 
-test('the inbox lists a thread the user authored the root of', function () {
+test('the inbox lists a thread the user authored the root of', function (): void {
     [$owner, $team, $general] = inboxSetup();
     $alice = inboxMember($team, $general);
 
@@ -83,7 +83,7 @@ test('the inbox lists a thread the user authored the root of', function () {
         ->and($rows[0]['root']['threadUnread'])->toBeTrue();
 });
 
-test('the inbox lists a thread the user replied in', function () {
+test('the inbox lists a thread the user replied in', function (): void {
     [$owner, $team, $general] = inboxSetup();
     $alice = inboxMember($team, $general);
 
@@ -99,7 +99,7 @@ test('the inbox lists a thread the user replied in', function () {
         ->and($rows[0]['root']['threadUnread'])->toBeFalse();
 });
 
-test('the inbox lists a thread the user was mentioned in', function () {
+test('the inbox lists a thread the user was mentioned in', function (): void {
     [$owner, $team, $general] = inboxSetup();
     $alice = inboxMember($team, $general);
     $bob = inboxMember($team, $general);
@@ -115,7 +115,7 @@ test('the inbox lists a thread the user was mentioned in', function () {
         ->and($rows[0]['root']['threadUnread'])->toBeTrue();
 });
 
-test('the inbox excludes threads the user does not follow', function () {
+test('the inbox excludes threads the user does not follow', function (): void {
     [$owner, $team, $general] = inboxSetup();
     $alice = inboxMember($team, $general);
     $bob = inboxMember($team, $general);
@@ -127,7 +127,7 @@ test('the inbox excludes threads the user does not follow', function () {
     expect(inboxRows($bob, $team))->toBeEmpty();
 });
 
-test('the inbox excludes roots with no replies and deleted roots', function () {
+test('the inbox excludes roots with no replies and deleted roots', function (): void {
     [$owner, $team, $general] = inboxSetup();
     $alice = inboxMember($team, $general);
 
@@ -141,7 +141,7 @@ test('the inbox excludes roots with no replies and deleted roots', function () {
     expect(inboxRows($owner, $team))->toBeEmpty();
 });
 
-test('the inbox only lists threads in channels the user belongs to', function () {
+test('the inbox only lists threads in channels the user belongs to', function (): void {
     [$owner, $team, $general] = inboxSetup();
 
     // A private channel the owner is NOT a member of, with a thread they were
@@ -155,7 +155,7 @@ test('the inbox only lists threads in channels the user belongs to', function ()
     expect(inboxRows($owner, $team))->toBeEmpty();
 });
 
-test('the inbox orders threads by most recent reply first', function () {
+test('the inbox orders threads by most recent reply first', function (): void {
     [$owner, $team, $general] = inboxSetup();
     $alice = inboxMember($team, $general);
 
@@ -171,7 +171,7 @@ test('the inbox orders threads by most recent reply first', function () {
         ->and($rows[1]['root']['id'])->toBe($older->id);
 });
 
-test('a muted channel lists its threads without an unread dot', function () {
+test('a muted channel lists its threads without an unread dot', function (): void {
     [$owner, $team, $general] = inboxSetup();
     $alice = inboxMember($team, $general);
 
@@ -186,7 +186,7 @@ test('a muted channel lists its threads without an unread dot', function () {
         ->and($rows[0]['root']['threadUnread'])->toBeFalse();
 });
 
-test('opening and reading a thread clears its unread dot in the inbox', function () {
+test('opening and reading a thread clears its unread dot in the inbox', function (): void {
     [$owner, $team, $general] = inboxSetup();
     $alice = inboxMember($team, $general);
 
@@ -200,13 +200,13 @@ test('opening and reading a thread clears its unread dot in the inbox', function
     expect(inboxRows($owner, $team)[0]['root']['threadUnread'])->toBeFalse();
 });
 
-test('the inbox is empty when the user follows no threads', function () {
+test('the inbox is empty when the user follows no threads', function (): void {
     [$owner, $team, $general] = inboxSetup();
 
     expect(inboxRows($owner, $team))->toBeEmpty();
 });
 
-test('hasUnreadThreads flags an unread followed thread and clears when read', function () {
+test('hasUnreadThreads flags an unread followed thread and clears when read', function (): void {
     [$owner, $team, $general] = inboxSetup();
     $alice = inboxMember($team, $general);
 
@@ -215,16 +215,16 @@ test('hasUnreadThreads flags an unread followed thread and clears when read', fu
 
     $this->actingAs($owner)
         ->get(route('channels.threads.index', ['team' => $team->slug]))
-        ->assertInertia(fn (Assert $page) => $page->where('hasUnreadThreads', true));
+        ->assertInertia(fn (Assert $page): Assert => $page->where('hasUnreadThreads', true));
 
     app(MarkThreadRead::class)->handle($root, $owner);
 
     $this->actingAs($owner)
         ->get(route('channels.threads.index', ['team' => $team->slug]))
-        ->assertInertia(fn (Assert $page) => $page->where('hasUnreadThreads', false));
+        ->assertInertia(fn (Assert $page): Assert => $page->where('hasUnreadThreads', false));
 });
 
-test('hasUnreadThreads ignores threads the user does not follow', function () {
+test('hasUnreadThreads ignores threads the user does not follow', function (): void {
     [$owner, $team, $general] = inboxSetup();
     $alice = inboxMember($team, $general);
     $bob = inboxMember($team, $general);
@@ -234,10 +234,10 @@ test('hasUnreadThreads ignores threads the user does not follow', function () {
 
     $this->actingAs($bob)
         ->get(route('channels.threads.index', ['team' => $team->slug]))
-        ->assertInertia(fn (Assert $page) => $page->where('hasUnreadThreads', false));
+        ->assertInertia(fn (Assert $page): Assert => $page->where('hasUnreadThreads', false));
 });
 
-test('hasUnreadThreads respects channel mute', function () {
+test('hasUnreadThreads respects channel mute', function (): void {
     [$owner, $team, $general] = inboxSetup();
     $alice = inboxMember($team, $general);
 
@@ -249,5 +249,5 @@ test('hasUnreadThreads respects channel mute', function () {
 
     $this->actingAs($owner)
         ->get(route('channels.threads.index', ['team' => $team->slug]))
-        ->assertInertia(fn (Assert $page) => $page->where('hasUnreadThreads', false));
+        ->assertInertia(fn (Assert $page): Assert => $page->where('hasUnreadThreads', false));
 });

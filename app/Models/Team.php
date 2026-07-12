@@ -37,17 +37,18 @@ class Team extends Model
     /**
      * Bootstrap the model and its traits.
      */
+    #[\Override]
     protected static function boot(): void
     {
         parent::boot();
 
-        static::creating(function (Team $team) {
+        static::creating(function (Team $team): void {
             if (empty($team->slug)) {
                 $team->slug = static::generateUniqueTeamSlug($team->name);
             }
         });
 
-        static::updating(function (Team $team) {
+        static::updating(function (Team $team): void {
             if ($team->isDirty('name')) {
                 $team->slug = static::generateUniqueTeamSlug($team->name, $team->id);
             }
@@ -112,6 +113,7 @@ class Team extends Model
      *
      * @return array<string, string>
      */
+    #[\Override]
     protected function casts(): array
     {
         return [
@@ -122,6 +124,7 @@ class Team extends Model
     /**
      * Get the route key for the model.
      */
+    #[\Override]
     public function getRouteKeyName(): string
     {
         return 'slug';

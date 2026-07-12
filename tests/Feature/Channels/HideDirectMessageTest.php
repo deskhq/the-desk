@@ -32,14 +32,14 @@ function hideSidebarChannels(User $viewer, Team $team): array
 
     test()->actingAs($viewer)
         ->get(route('channels.show', ['team' => $team->slug, 'channel' => Channel::GENERAL_SLUG]))
-        ->assertInertia(function (Assert $page) use (&$channels) {
+        ->assertInertia(function (Assert $page) use (&$channels): void {
             $channels = collect($page->toArray()['props']['channels'])->keyBy('slug')->all();
         });
 
     return $channels;
 }
 
-test('hiding a direct message removes it from the sidebar', function () {
+test('hiding a direct message removes it from the sidebar', function (): void {
     $owner = User::factory()->create();
     $team = app(CreateTeam::class)->handle($owner, 'Acme');
     $other = hideTeamMember($team);
@@ -56,7 +56,7 @@ test('hiding a direct message removes it from the sidebar', function () {
     expect(hideSidebarChannels($owner, $team))->not->toHaveKey($dm->slug);
 });
 
-test('hiding an empty direct message the creator opened removes it from the sidebar', function () {
+test('hiding an empty direct message the creator opened removes it from the sidebar', function (): void {
     $owner = User::factory()->create();
     $team = app(CreateTeam::class)->handle($owner, 'Acme');
     $other = hideTeamMember($team);
@@ -73,7 +73,7 @@ test('hiding an empty direct message the creator opened removes it from the side
     expect(hideSidebarChannels($owner, $team))->not->toHaveKey($dm->slug);
 });
 
-test('a message after hiding re-surfaces the direct message with an unread badge', function () {
+test('a message after hiding re-surfaces the direct message with an unread badge', function (): void {
     $owner = User::factory()->create();
     $team = app(CreateTeam::class)->handle($owner, 'Acme');
     $other = hideTeamMember($team);
@@ -94,7 +94,7 @@ test('a message after hiding re-surfaces the direct message with an unread badge
         ->and($channels[$dm->slug]['unreadCount'])->toBe(1);
 });
 
-test('reopening a hidden direct message un-hides it', function () {
+test('reopening a hidden direct message un-hides it', function (): void {
     $owner = User::factory()->create();
     $team = app(CreateTeam::class)->handle($owner, 'Acme');
     $other = hideTeamMember($team);
@@ -113,7 +113,7 @@ test('reopening a hidden direct message un-hides it', function () {
     expect(hideSidebarChannels($owner, $team))->toHaveKey($dm->slug);
 });
 
-test('hiding is per member and does not hide the direct message for the other participant', function () {
+test('hiding is per member and does not hide the direct message for the other participant', function (): void {
     $owner = User::factory()->create();
     $team = app(CreateTeam::class)->handle($owner, 'Acme');
     $other = hideTeamMember($team);
@@ -128,7 +128,7 @@ test('hiding is per member and does not hide the direct message for the other pa
     expect(hideSidebarChannels($other, $team))->toHaveKey($dm->slug);
 });
 
-test('closing the direct message being viewed redirects home', function () {
+test('closing the direct message being viewed redirects home', function (): void {
     $owner = User::factory()->create();
     $team = app(CreateTeam::class)->handle($owner, 'Acme');
     $other = hideTeamMember($team);
@@ -143,7 +143,7 @@ test('closing the direct message being viewed redirects home', function () {
     expect(hideSidebarChannels($owner, $team))->not->toHaveKey($dm->slug);
 });
 
-test('a standard channel cannot be hidden', function () {
+test('a standard channel cannot be hidden', function (): void {
     $owner = User::factory()->create();
     $team = app(CreateTeam::class)->handle($owner, 'Acme');
     $general = $team->channels()->where('slug', Channel::GENERAL_SLUG)->firstOrFail();
@@ -153,7 +153,7 @@ test('a standard channel cannot be hidden', function () {
         ->assertForbidden();
 });
 
-test('a non-member cannot hide a direct message', function () {
+test('a non-member cannot hide a direct message', function (): void {
     $owner = User::factory()->create();
     $team = app(CreateTeam::class)->handle($owner, 'Acme');
     $other = hideTeamMember($team);

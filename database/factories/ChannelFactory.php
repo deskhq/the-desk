@@ -41,7 +41,7 @@ class ChannelFactory extends Factory
      */
     public function private(): static
     {
-        return $this->state(fn (array $attributes) => [
+        return $this->state(fn (array $attributes): array => [
             'visibility' => ChannelVisibility::Private,
         ]);
     }
@@ -51,7 +51,7 @@ class ChannelFactory extends Factory
      */
     public function archived(): static
     {
-        return $this->state(fn (array $attributes) => [
+        return $this->state(fn (array $attributes): array => [
             'archived_at' => now(),
         ]);
     }
@@ -64,7 +64,7 @@ class ChannelFactory extends Factory
      */
     public function direct(): static
     {
-        return $this->state(fn (array $attributes) => [
+        return $this->state(fn (array $attributes): array => [
             'name' => null,
             'slug' => 'dm-'.Str::lower(Str::random(12)),
             'visibility' => ChannelVisibility::Private,

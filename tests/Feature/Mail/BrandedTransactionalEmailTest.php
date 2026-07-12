@@ -5,13 +5,13 @@ use App\Mail\DataExportReady;
 use App\Models\DataExport;
 use App\Models\User;
 
-test('a user exposes their stored locale as the mail preference', function () {
+test('a user exposes their stored locale as the mail preference', function (): void {
     $user = User::factory()->make(['locale' => AppLocale::French->value]);
 
     expect($user->preferredLocale())->toBe('fr');
 });
 
-test('transactional mail carries The Desk branding without external asset requests', function () {
+test('transactional mail carries The Desk branding without external asset requests', function (): void {
     $export = DataExport::factory()->ready()->create();
 
     $html = (new DataExportReady($export))->render();
@@ -24,7 +24,7 @@ test('transactional mail carries The Desk branding without external asset reques
         ->not->toContain('<img');            // no embedded/remote images at all
 });
 
-test('the ready-export mail renders in the recipient stored locale', function () {
+test('the ready-export mail renders in the recipient stored locale', function (): void {
     $user = User::factory()->create(['locale' => AppLocale::French->value]);
     $export = DataExport::factory()->ready()->create(['user_id' => $user->id]);
 
@@ -34,7 +34,7 @@ test('the ready-export mail renders in the recipient stored locale', function ()
     $mail->assertSeeInHtml('Télécharger vos données');
 });
 
-test('the ready-export mail defaults to English for a user without a French locale', function () {
+test('the ready-export mail defaults to English for a user without a French locale', function (): void {
     $user = User::factory()->create(['locale' => AppLocale::English->value]);
     $export = DataExport::factory()->ready()->create(['user_id' => $user->id]);
 
