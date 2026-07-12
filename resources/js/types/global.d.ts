@@ -32,6 +32,7 @@ declare module '@inertiajs/core' {
             channels?: Channel[];
             teamMembers?: PersonRef[];
             channelSections?: ChannelSection[];
+            customEmojis?: Record<string, string>;
             collapsedChannelSections?: string[];
             hasUnreadThreads?: boolean;
             pendingInvitations?: DashboardInvitation[];

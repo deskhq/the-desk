@@ -10,6 +10,7 @@ use App\Http\Controllers\Settings\SessionController;
 use App\Http\Controllers\Settings\TimezoneController;
 use App\Http\Controllers\Teams\AnalyticsController;
 use App\Http\Controllers\Teams\AuditController;
+use App\Http\Controllers\Teams\CustomEmojiController;
 use App\Http\Controllers\Teams\TeamController;
 use App\Http\Controllers\Teams\TeamInvitationController;
 use App\Http\Controllers\Teams\TeamMemberController;
@@ -67,6 +68,11 @@ Route::middleware(['auth', 'verified'])->group(function (): void {
         Route::get('settings/teams/{team}/audit', [AuditController::class, 'index'])->name('teams.audit.index');
 
         Route::get('settings/teams/{team}/analytics', [AnalyticsController::class, 'index'])->name('teams.analytics.index');
+
+        Route::get('settings/teams/{team}/emojis', [CustomEmojiController::class, 'index'])->name('teams.emojis.index');
+        Route::post('settings/teams/{team}/emojis', [CustomEmojiController::class, 'store'])->name('teams.emojis.store');
+        Route::delete('settings/teams/{team}/emojis/{emoji}', [CustomEmojiController::class, 'destroy'])
+            ->name('teams.emojis.destroy');
 
         Route::get('settings/teams/{team}/members/{user}', [TeamMemberController::class, 'show'])->name('teams.members.show');
         Route::get('settings/teams/{team}/members/{user}/card', [TeamMemberController::class, 'card'])->name('teams.members.card');

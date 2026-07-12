@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Forward } from '@lucide/vue';
 import { computed } from 'vue';
+import { useCustomEmojis } from '@/composables/useCustomEmojis';
 import { renderMessageBody } from '@/lib/messageBody';
 import type { Mention } from '@/types';
 
@@ -13,10 +14,14 @@ const props = defineProps<{
     mentions: Mention[];
 }>();
 
+const { map: customEmojis } = useCustomEmojis();
+
 // The forwarded body, rendered with its own mentions; empty for a deleted
 // source, whose body is never sent to the client.
 const rendered = computed(() =>
-    props.isDeleted ? '' : renderMessageBody(props.body, props.mentions),
+    props.isDeleted
+        ? ''
+        : renderMessageBody(props.body, props.mentions, customEmojis.value),
 );
 </script>
 

@@ -30,11 +30,35 @@ class ReactionRequest extends FormRequest
     public function rules(): array
     {
         return [
-            // The literal unicode emoji character to toggle; capped so a stray
-            // payload can't bloat the row while still fitting multi-codepoint
-            // emoji (skin-tone and ZWJ sequences run several code points).
-            'emoji' => ['required', 'string', 'max:32'],
+            // Either a literal unicode emoji character or a workspace custom-emoji
+            // `:name:` shortcode. Capped at 32 so a stray payload can't bloat the
+            // row while still fitting multi-codepoint unicode (skin-tone and ZWJ
+            // sequences) and the longest `:name:` token (name ≤ 30).
+            'emoji' => ['required', 'string', 'max:32', $this->customEmojiRule()],
         ];
+    }
+
+    /**
+     * When the reaction is a `:name:` shortcode, require the custom emoji to
+     * exist in the channel's workspace; native unicode reactions pass through.
+     * This keeps a reaction from pinning a shortcode that resolves to nothing.
+     */
+    private function customEmojiRule(): callable
+    {
+        return function (string $attribute, mixed $value, callable $fail): void {
+            if (! is_string($value) || preg_match('/^:([a-z0-9]+(?:-[a-z0-9]+)*):$/', $value, $matches) !== 1) {
+                return;
+            }
+
+            $exists = $this->channel()->team
+                ->customEmojis()
+                ->where('name', $matches[1])
+                ->exists();
+
+            if (! $exists) {
+                $fail(__('That custom emoji does not exist.'));
+            }
+        };
     }
 
     /**

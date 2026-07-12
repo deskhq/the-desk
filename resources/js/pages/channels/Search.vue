@@ -9,6 +9,7 @@ import {
 import { index as search } from '@/actions/App/Http/Controllers/Channels/SearchController';
 import { Input } from '@/components/ui/input';
 import { SidebarTrigger } from '@/components/ui/sidebar';
+import { useCustomEmojis } from '@/composables/useCustomEmojis';
 import { useDebouncedPost } from '@/composables/useDebouncedPost';
 import { getInitials } from '@/composables/useInitials';
 import { formatDateTime } from '@/lib/datetime';
@@ -54,6 +55,8 @@ watch(term, (value) => {
 });
 
 const page = usePage();
+
+const { map: customEmojis } = useCustomEmojis();
 
 const viewerTimeZone = computed(
     () => page.props.auth.user.timezone ?? undefined,
@@ -174,6 +177,7 @@ function jumpHref(result: MessageSearchResult): string {
                                             renderMessageBody(
                                                 result.message.body,
                                                 result.message.mentions,
+                                                customEmojis,
                                             )
                                         "
                                     ></span>

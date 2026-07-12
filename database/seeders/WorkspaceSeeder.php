@@ -11,6 +11,7 @@ use App\Enums\AuditAction;
 use App\Enums\ChannelVisibility;
 use App\Enums\TeamRole;
 use App\Models\Channel;
+use App\Models\CustomEmoji;
 use App\Models\Message;
 use App\Models\MessageReaction;
 use App\Models\Team;
@@ -19,6 +20,7 @@ use App\Models\User;
 use App\Support\AuditRecorder;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
 /**
@@ -129,6 +131,7 @@ class WorkspaceSeeder extends Seeder
         $this->seedDeletedMessage($general, $member1);
         $this->seedMentionMessage($general, $member2, $demo);
         $this->seedReactions($generalMessages, [$demo, $admin, $member1]);
+        $this->seedCustomEmoji($acme, [$demo, $admin, $member1], $general);
 
         // Extra public channels — one with a topic, one without.
         $announcements = $this->createChannel->handle($acme, 'announcements', ChannelVisibility::Public, $demo, 'Company-wide news');
@@ -476,6 +479,42 @@ class WorkspaceSeeder extends Seeder
 
         // A lightly-reacted message: a single emoji from one other member.
         MessageReaction::factory()->for($messages[count($messages) - 5])->for($admin)->emoji('❤️')->create();
+    }
+
+    /**
+     * Seed a workspace custom-emoji registry so the picker's "Custom" strip, the
+     * registry page, and inline `:name:` rendering all have data on load. A shared
+     * placeholder image backs each row (a real upload flow writes per-emoji files);
+     * one message body and one reaction use a shortcode so both render paths show.
+     *
+     * @param  list<User>  $authors
+     */
+    private function seedCustomEmoji(Team $team, array $authors, Channel $channel): void
+    {
+        // A tiny solid PNG stands in for uploaded art in the demo.
+        $png = base64_decode('iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAKElEQVR42mNk+M9QzzCKRgUYh4hRhVEwKsCoAqNgFIyCUTAKRgEAtWkH0Y0V2GsAAAAASUVORK5CYII=');
+        $names = ['party-otter', 'shipit', 'on-fire', 'cozy-coffee'];
+
+        foreach ($names as $index => $name) {
+            $path = "custom-emoji/{$team->id}/{$name}.png";
+            Storage::disk(CustomEmoji::DISK)->put($path, $png);
+
+            $team->customEmojis()->create([
+                'created_by' => $authors[$index % count($authors)]->id,
+                'name' => $name,
+                'path' => $path,
+            ]);
+        }
+
+        // A message body and a reaction that exercise the `:name:` render paths.
+        Message::factory()->for($channel)->for($authors[1])->create([
+            'body' => 'Reminders shipped to production :shipit: huge team effort :party-otter:',
+        ]);
+
+        $reactionTarget = Message::factory()->for($channel)->for($authors[0])->create([
+            'body' => 'That deploy went great.',
+        ]);
+        MessageReaction::factory()->for($reactionTarget)->for($authors[2])->emoji(':on-fire:')->create();
     }
 
     /**

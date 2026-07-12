@@ -32,6 +32,7 @@ import { translate } from '@/lib/i18n';
 import { edit, index, update } from '@/routes/teams';
 import { index as analyticsIndex } from '@/routes/teams/analytics';
 import { index as auditIndex } from '@/routes/teams/audit';
+import { index as emojisIndex } from '@/routes/teams/emojis';
 import {
     show as showMember,
     update as updateMember,
@@ -351,6 +352,29 @@ const confirmTransferOwnership = (member: TeamMember) => {
                     </TooltipProvider>
                 </div>
             </div>
+        </div>
+
+        <!-- Custom emoji -->
+        <div class="space-y-6">
+            <Heading
+                variant="small"
+                :title="$t('Custom emoji')"
+                :description="
+                    $t(
+                        'Upload named emoji for everyone in this workspace to use in messages and reactions',
+                    )
+                "
+            />
+            <Button
+                as-child
+                variant="outline"
+                class="rounded-full"
+                data-test="manage-emoji-link"
+            >
+                <Link :href="emojisIndex(team.slug)">{{
+                    $t('Manage custom emoji')
+                }}</Link>
+            </Button>
         </div>
 
         <!-- Analytics -->

@@ -179,6 +179,7 @@ trait HasTeams
             canTransferOwnership: ! $team->is_personal && $role === TeamRole::Owner,
             canViewAudit: ! $team->is_personal && ($role?->isAtLeast(TeamRole::Admin) ?? false),
             canViewAnalytics: ! $team->is_personal && ($role?->isAtLeast(TeamRole::Admin) ?? false),
+            canManageEmojis: ! $team->is_personal && ($role?->isAtLeast(TeamRole::Admin) ?? false),
         );
     }
 

@@ -6,6 +6,8 @@ import {
     HoverCardContent,
     HoverCardTrigger,
 } from '@/components/ui/hover-card';
+import { useCustomEmojis } from '@/composables/useCustomEmojis';
+import type { CustomEmojiEntry } from '@/lib/customEmoji';
 import { hasReacted, reactionRoster } from '@/lib/reactions';
 import type { Reaction } from '@/types';
 
@@ -20,6 +22,17 @@ const props = defineProps<{
 const emit = defineEmits<{
     toggle: [emoji: string];
 }>();
+
+const { parseToken } = useCustomEmojis();
+
+/**
+ * When a reaction is a resolvable custom-emoji `:name:` token, its image entry;
+ * otherwise null (a native unicode reaction, or a revoked emoji that falls back
+ * to showing its literal `:name:`).
+ */
+function customEmoji(reaction: Reaction): CustomEmojiEntry | null {
+    return parseToken(reaction.emoji);
+}
 
 /**
  * Whether the viewer has reacted with a given emoji, driving the pill's
@@ -79,7 +92,13 @@ function toggle(emoji: string): void {
                     "
                     @click="toggle(reaction.emoji)"
                 >
-                    <span aria-hidden="true">{{ reaction.emoji }}</span>
+                    <img
+                        v-if="customEmoji(reaction)"
+                        :src="customEmoji(reaction)!.url"
+                        :alt="reaction.emoji"
+                        class="custom-emoji inline-block h-[1.15em] w-[1.15em]"
+                    />
+                    <span v-else aria-hidden="true">{{ reaction.emoji }}</span>
                     <span class="font-medium tabular-nums">{{
                         reaction.count
                     }}</span>
@@ -90,9 +109,18 @@ function toggle(emoji: string): void {
                 class="w-auto max-w-60 p-2.5"
             >
                 <div class="flex items-center gap-2.5">
-                    <span class="text-2xl leading-none" aria-hidden="true">{{
-                        reaction.emoji
-                    }}</span>
+                    <img
+                        v-if="customEmoji(reaction)"
+                        :src="customEmoji(reaction)!.url"
+                        :alt="reaction.emoji"
+                        class="custom-emoji size-6"
+                    />
+                    <span
+                        v-else
+                        class="text-2xl leading-none"
+                        aria-hidden="true"
+                        >{{ reaction.emoji }}</span
+                    >
                     <p class="text-[12.5px] leading-snug text-foreground">
                         <span class="font-medium">{{ roster(reaction) }}</span>
                         <span class="text-muted-foreground">

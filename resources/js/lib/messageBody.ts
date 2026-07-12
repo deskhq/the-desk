@@ -1,3 +1,5 @@
+import { resolveCustomEmoji, SHORTCODE_PATTERN } from '@/lib/customEmoji';
+import type { CustomEmojiMap } from '@/lib/customEmoji';
 import type { Mention } from '@/types';
 
 const HTML_ESCAPES: Record<string, string> = {
@@ -34,7 +36,8 @@ const TRAILING_PUNCTUATION = /[.,!?;:'")\]]+$/;
 export type MessageBodySegment =
     | { kind: 'html'; html: string }
     | { kind: 'link'; href: string }
-    | { kind: 'mention'; id: string; name: string };
+    | { kind: 'mention'; id: string; name: string }
+    | { kind: 'emoji'; name: string; url: string };
 
 // The highlighted-pill styling for a resolved mention, shared by the interactive
 // segment renderer and the flat-HTML {@see renderMessageBody}.
@@ -51,9 +54,53 @@ function escapeInline(text: string): string {
 }
 
 /**
- * Split a run of message text (no URLs) into ordered segments: escaped HTML runs
- * and standalone `mention` segments the timeline can wrap in a profile hover
- * card.
+ * Split a plain run of text (no mentions or URLs) into ordered segments,
+ * lifting each `:name:` shortcode that resolves in `emojiMap` into an `emoji`
+ * segment. An unresolved shortcode (e.g. a revoked emoji) is left untouched, so
+ * it renders as its literal `:name:` text — the graceful fallback.
+ */
+function pushTextRun(
+    segments: MessageBodySegment[],
+    value: string,
+    emojiMap: CustomEmojiMap,
+): void {
+    if (value === '') {
+        return;
+    }
+
+    // A fresh regex per call keeps the shared `lastIndex` from leaking between
+    // invocations of this stateful global pattern.
+    const pattern = new RegExp(SHORTCODE_PATTERN.source, 'g');
+    let lastIndex = 0;
+    let match: RegExpExecArray | null;
+
+    const pushHtml = (text: string) => {
+        if (text !== '') {
+            segments.push({ kind: 'html', html: escapeInline(text) });
+        }
+    };
+
+    while ((match = pattern.exec(value)) !== null) {
+        const url = resolveCustomEmoji(match[1], emojiMap);
+
+        // Unresolved shortcode: leave it in the text stream so it renders as the
+        // literal `:name:` (and advance past it so we don't rematch a substring).
+        if (url === null) {
+            continue;
+        }
+
+        pushHtml(value.slice(lastIndex, match.index));
+        segments.push({ kind: 'emoji', name: match[1], url });
+        lastIndex = match.index + match[0].length;
+    }
+
+    pushHtml(value.slice(lastIndex));
+}
+
+/**
+ * Split a run of message text (no URLs) into ordered segments: escaped HTML runs,
+ * standalone `mention` segments the timeline can wrap in a profile hover card,
+ * and `emoji` segments for resolved custom-emoji shortcodes.
  *
  * Only mentions whose id is present in `resolved` become a `mention` segment;
  * any other well-formed token falls back to its plain `@Name` text so a spoofed
@@ -62,6 +109,7 @@ function escapeInline(text: string): string {
 function tokenizeInlineText(
     text: string,
     resolved: Set<string>,
+    emojiMap: CustomEmojiMap,
 ): MessageBodySegment[] {
     const segments: MessageBodySegment[] = [];
     // A fresh regex per call keeps the shared `lastIndex` from leaking between
@@ -70,16 +118,10 @@ function tokenizeInlineText(
     let lastIndex = 0;
     let match: RegExpExecArray | null;
 
-    const pushText = (value: string) => {
-        if (value !== '') {
-            segments.push({ kind: 'html', html: escapeInline(value) });
-        }
-    };
-
     while ((match = pattern.exec(text)) !== null) {
         const [raw, name, id] = match;
 
-        pushText(text.slice(lastIndex, match.index));
+        pushTextRun(segments, text.slice(lastIndex, match.index), emojiMap);
 
         if (resolved.has(id)) {
             segments.push({ kind: 'mention', id, name });
@@ -90,13 +132,23 @@ function tokenizeInlineText(
         lastIndex = match.index + raw.length;
     }
 
-    pushText(text.slice(lastIndex));
+    pushTextRun(segments, text.slice(lastIndex), emojiMap);
 
     return segments;
 }
 
 function linkHtml(href: string): string {
     return `<a href="${href}" target="_blank" rel="noopener noreferrer nofollow" class="text-primary underline underline-offset-2 hover:no-underline">${href}</a>`;
+}
+
+// The shared inline-image markup for a resolved custom emoji. The url comes from
+// the trusted server-shared map and the name is regex-constrained kebab-case, so
+// both are safe to interpolate; the alt is still escaped defensively.
+const EMOJI_IMG_CLASS =
+    'custom-emoji inline-block h-[1.35em] w-[1.35em] align-text-bottom';
+
+function emojiImgHtml(name: string, url: string): string {
+    return `<img src="${escapeHtml(url)}" alt=":${escapeHtml(name)}:" class="${EMOJI_IMG_CLASS}">`;
 }
 
 /**
@@ -108,6 +160,7 @@ function linkHtml(href: string): string {
 export function tokenizeMessageBody(
     body: string,
     mentions: Mention[] = [],
+    emojiMap: CustomEmojiMap = {},
 ): MessageBodySegment[] {
     const segments: MessageBodySegment[] = [];
     const resolved = new Set(mentions.map((mention) => mention.id));
@@ -123,6 +176,7 @@ export function tokenizeMessageBody(
                 ...tokenizeInlineText(
                     body.slice(lastIndex, match.index),
                     resolved,
+                    emojiMap,
                 ),
             );
         }
@@ -142,7 +196,9 @@ export function tokenizeMessageBody(
     }
 
     if (lastIndex < body.length) {
-        segments.push(...tokenizeInlineText(body.slice(lastIndex), resolved));
+        segments.push(
+            ...tokenizeInlineText(body.slice(lastIndex), resolved, emojiMap),
+        );
     }
 
     return segments;
@@ -158,8 +214,9 @@ export function tokenizeMessageBody(
 export function renderMessageBody(
     body: string,
     mentions: Mention[] = [],
+    emojiMap: CustomEmojiMap = {},
 ): string {
-    return tokenizeMessageBody(body, mentions)
+    return tokenizeMessageBody(body, mentions, emojiMap)
         .map((segment) => {
             if (segment.kind === 'link') {
                 return linkHtml(segment.href);
@@ -167,6 +224,10 @@ export function renderMessageBody(
 
             if (segment.kind === 'mention') {
                 return mentionPillHtml(segment.name);
+            }
+
+            if (segment.kind === 'emoji') {
+                return emojiImgHtml(segment.name, segment.url);
             }
 
             return segment.html;

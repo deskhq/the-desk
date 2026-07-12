@@ -11,6 +11,8 @@ import {
     TooltipContent,
     TooltipTrigger,
 } from '@/components/ui/tooltip';
+import { useCustomEmojis } from '@/composables/useCustomEmojis';
+import type { CustomEmojiEntry } from '@/lib/customEmoji';
 
 defineProps<{
     // Optional label shown in a tooltip above the trigger on hover and keyboard
@@ -37,12 +39,26 @@ const emit = defineEmits<{
 // The popover's open state, closed after a pick.
 const open = ref(false);
 
+// The workspace's custom emoji, surfaced as a "Custom" strip above the native
+// picker. Selecting one emits its `:name:` token (the same opaque-string
+// contract as a native glyph), so reactions store it and the composer inserts it
+// with no downstream changes.
+const { list: customEmojis } = useCustomEmojis();
+
 /**
  * The picker's `select` event carries the chosen emoji as `.i`; surface it and
  * close the popover.
  */
 function onPick(payload: { i: string }): void {
     emit('select', payload.i);
+    open.value = false;
+}
+
+/**
+ * Surface a chosen custom emoji as its `:name:` shortcode token, then close.
+ */
+function onPickCustom(entry: CustomEmojiEntry): void {
+    emit('select', `:${entry.name}:`);
     open.value = false;
 }
 </script>
@@ -69,6 +85,37 @@ function onPick(payload: { i: string }): void {
                 :collision-padding="8"
                 class="emoji-picker-shell z-50 overflow-hidden rounded-2xl border bg-popover shadow-[0_10px_28px_rgba(29,26,21,0.14)] outline-none"
             >
+                <div
+                    v-if="customEmojis.length > 0"
+                    data-test="custom-emoji-strip"
+                    class="border-b border-border px-3 py-2.5"
+                >
+                    <p
+                        class="mb-1.5 text-[10.5px] font-semibold tracking-[0.1em] text-muted-foreground uppercase"
+                    >
+                        {{ $t('Custom') }}
+                    </p>
+                    <div
+                        class="grid max-h-28 grid-cols-7 gap-1 overflow-y-auto"
+                    >
+                        <button
+                            v-for="entry in customEmojis"
+                            :key="entry.name"
+                            type="button"
+                            data-test="custom-emoji-option"
+                            :title="`:${entry.name}:`"
+                            :aria-label="`:${entry.name}:`"
+                            class="flex aspect-square items-center justify-center rounded-lg hover:bg-accent"
+                            @click="onPickCustom(entry)"
+                        >
+                            <img
+                                :src="entry.url"
+                                :alt="`:${entry.name}:`"
+                                class="custom-emoji size-5"
+                            />
+                        </button>
+                    </div>
+                </div>
                 <EmojiPicker
                     :native="true"
                     :hide-search="false"

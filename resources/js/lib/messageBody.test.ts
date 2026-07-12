@@ -1,10 +1,16 @@
 import { describe, expect, it } from 'vitest';
+import type { CustomEmojiMap } from '@/lib/customEmoji';
 import { renderMessageBody, tokenizeMessageBody } from '@/lib/messageBody';
 import type { Mention } from '@/types';
 
 const alice: Mention = {
     id: 'a1b2c3d4-e5f6-7890-1234-567890abcdef',
     name: 'Alice',
+};
+
+const emojiMap: CustomEmojiMap = {
+    shipit: 'https://cdn.test/shipit.png',
+    'party-otter': 'https://cdn.test/party-otter.png',
 };
 
 describe('tokenizeMessageBody', () => {
@@ -61,6 +67,61 @@ describe('tokenizeMessageBody', () => {
             { kind: 'html', html: '@Ghost' },
         ]);
     });
+
+    it('lifts a resolved :name: shortcode into an emoji segment', () => {
+        expect(tokenizeMessageBody('ship it :shipit:', [], emojiMap)).toEqual([
+            { kind: 'html', html: 'ship it ' },
+            {
+                kind: 'emoji',
+                name: 'shipit',
+                url: 'https://cdn.test/shipit.png',
+            },
+        ]);
+    });
+
+    it('leaves an unresolved (revoked) shortcode as literal text', () => {
+        expect(tokenizeMessageBody('aw :gone: no', [], emojiMap)).toEqual([
+            { kind: 'html', html: 'aw :gone: no' },
+        ]);
+    });
+
+    it('resolves shortcodes around an unresolved one', () => {
+        expect(
+            tokenizeMessageBody('a :gone: b :shipit: c', [], emojiMap),
+        ).toEqual([
+            { kind: 'html', html: 'a :gone: b ' },
+            {
+                kind: 'emoji',
+                name: 'shipit',
+                url: 'https://cdn.test/shipit.png',
+            },
+            { kind: 'html', html: ' c' },
+        ]);
+    });
+
+    it('composes emoji with mentions in the same run', () => {
+        expect(
+            tokenizeMessageBody(
+                `:shipit: @[Alice](${alice.id})`,
+                [alice],
+                emojiMap,
+            ),
+        ).toEqual([
+            {
+                kind: 'emoji',
+                name: 'shipit',
+                url: 'https://cdn.test/shipit.png',
+            },
+            { kind: 'html', html: ' ' },
+            { kind: 'mention', id: alice.id, name: 'Alice' },
+        ]);
+    });
+
+    it('does not treat shortcodes as emoji without a map', () => {
+        expect(tokenizeMessageBody('plain :shipit: text')).toEqual([
+            { kind: 'html', html: 'plain :shipit: text' },
+        ]);
+    });
 });
 
 describe('renderMessageBody', () => {
@@ -80,5 +141,16 @@ describe('renderMessageBody', () => {
 
         expect(html).toContain('>@Alice<');
         expect(html).toContain('text-blue-700');
+    });
+
+    it('renders a resolved custom emoji as an <img>', () => {
+        const html = renderMessageBody('go :shipit:', [], emojiMap);
+
+        expect(html).toContain('<img src="https://cdn.test/shipit.png"');
+        expect(html).toContain('alt=":shipit:"');
+    });
+
+    it('leaves a revoked shortcode as literal text', () => {
+        expect(renderMessageBody('aw :gone:', [], emojiMap)).toBe('aw :gone:');
     });
 });

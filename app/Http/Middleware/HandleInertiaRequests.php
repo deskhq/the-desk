@@ -4,6 +4,7 @@ namespace App\Http\Middleware;
 
 use App\Data\ChannelData;
 use App\Data\ChannelSectionData;
+use App\Data\CustomEmojiData;
 use App\Data\MessageReminderData;
 use App\Data\UserData;
 use App\Enums\MessageReminderStatus;
@@ -92,6 +93,10 @@ class HandleInertiaRequests extends Middleware
             // people picker and the ⌘K "People" group); empty off the workspace.
             'teamMembers' => fn (): array => $this->teamMembersForSidebar($request, $user),
             'channelSections' => fn (): array => $this->channelSectionsForSidebar($request, $user),
+            // The current team's custom emoji as a flat name->url map, so message
+            // bodies and reaction pills can resolve `:name:` shortcodes to images.
+            // A revoked emoji is simply absent, so its token falls back to text.
+            'customEmojis' => fn (): array => $this->customEmojisForWorkspace($request, $user),
             'collapsedChannelSections' => fn () => $user->collapsed_channel_sections ?? [],
             'hasUnreadThreads' => fn (): bool => $this->hasUnreadThreads($request, $user),
             'pendingInvitations' => Inertia::optional(fn (): array => $user ? $this->pendingInvitationsFor($user) : []),
@@ -260,6 +265,25 @@ class HandleInertiaRequests extends Middleware
             ->get();
 
         return MessageReminderData::collect($reminders, 'array');
+    }
+
+    /**
+     * The team-in-the-URL's custom emoji as a flat `name => url` map, feeding
+     * the shortcode rendering in message bodies, reaction pills, and the picker's
+     * "Custom" section. Empty off the channel workspace, where messages (and thus
+     * the shortcode surfaces) aren't rendered.
+     *
+     * @return array<string, string>
+     */
+    protected function customEmojisForWorkspace(Request $request, ?User $user): array
+    {
+        $team = $request->route('team');
+
+        if (! $user || ! $team instanceof Team || ! $this->isWorkspaceRoute($request)) {
+            return [];
+        }
+
+        return CustomEmojiData::mapForTeam($team);
     }
 
     /**

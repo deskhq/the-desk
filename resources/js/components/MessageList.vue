@@ -23,6 +23,7 @@ import {
     HoverCardTrigger,
 } from '@/components/ui/hover-card';
 import UserHoverCard from '@/components/UserHoverCard.vue';
+import { useCustomEmojis } from '@/composables/useCustomEmojis';
 import { useInitials } from '@/composables/useInitials';
 import { useTranslations } from '@/composables/useTranslations';
 import { formatTimeOfDay } from '@/lib/datetime';
@@ -171,6 +172,8 @@ const { getInitials } = useInitials();
 
 const { t } = useTranslations();
 
+const { map: customEmojis } = useCustomEmojis();
+
 const page = usePage();
 
 // Render timestamps in the viewer's stored zone, falling back to the browser's.
@@ -190,7 +193,11 @@ function isOnline(authorId: string): boolean {
  * URL in its own element (and, when the link has been unfurled, a hover card).
  */
 function bodySegments(message: Message): MessageBodySegment[] {
-    return tokenizeMessageBody(message.body, message.mentions);
+    return tokenizeMessageBody(
+        message.body,
+        message.mentions,
+        customEmojis.value,
+    );
 }
 
 /**
@@ -534,6 +541,14 @@ function confirmDelete(): void {
                                         >@{{ segment.name }}</span
                                     >
                                 </UserHoverCard>
+                                <img
+                                    v-else-if="segment.kind === 'emoji'"
+                                    :src="segment.url"
+                                    :alt="`:${segment.name}:`"
+                                    :title="`:${segment.name}:`"
+                                    data-test="message-emoji"
+                                    class="custom-emoji inline-block h-[1.35em] w-[1.35em] align-text-bottom"
+                                />
                                 <template v-else>
                                     <HoverCard
                                         v-if="previewFor(message, segment.href)"
