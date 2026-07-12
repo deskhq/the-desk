@@ -2,12 +2,12 @@
 
 namespace App\Models;
 
-// use Illuminate\Contracts\Auth\MustVerifyEmail;
 use App\Concerns\HasTeams;
 use App\Enums\AppLocale;
 use App\Enums\ChimeSound;
 use App\Enums\TeamRole;
 use Database\Factories\UserFactory;
+use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Contracts\Translation\HasLocalePreference;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
@@ -56,18 +56,42 @@ use Illuminate\Support\Str;
  */
 #[Fillable(['name', 'email', 'pronouns', 'title', 'phone', 'timezone', 'locale', 'password', 'current_team_id', 'chime_sound', 'share_read_receipts', 'onboarding_completed_at', 'collapsed_channel_sections', 'is_tombstone'])]
 #[Hidden(['password', 'two_factor_secret', 'two_factor_recovery_codes', 'remember_token'])]
-class User extends Authenticatable implements HasLocalePreference
+class User extends Authenticatable implements HasLocalePreference, MustVerifyEmail
 {
     /** @use HasFactory<UserFactory> */
     use HasFactory, HasTeams, HasUuids, Notifiable;
 
     /**
+     * Determine if the user has verified their email address.
+     *
+     * When the operator has email verification off (the default), treat every
+     * account as verified: the `verified` middleware becomes a no-op and the
+     * Registered listener won't send a confirmation email, so flipping the
+     * EMAIL_VERIFICATION_ENABLED flag re-gates everyone instantly with no data
+     * migration. When on, the real `email_verified_at` timestamp governs.
+     */
+    #[\Override]
+    public function hasVerifiedEmail(): bool
+    {
+        if (! config('fortify.email_verification_enabled')) {
+            return true;
+        }
+
+        return ! is_null($this->email_verified_at);
+    }
+
+    /**
      * Get the recipient's preferred locale so mail and notifications render
      * in the language they chose in their settings.
+     *
+     * Falls back to the column's own default when the attribute isn't hydrated
+     * — a freshly created (not-yet-refreshed) instance carries no `locale`, and
+     * the send-on-register verification notification reads this before any
+     * reload.
      */
     public function preferredLocale(): string
     {
-        return $this->locale->value;
+        return ($this->locale ?? AppLocale::English)->value;
     }
 
     /**

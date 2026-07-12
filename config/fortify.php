@@ -150,4 +150,21 @@ return [
         Features::emailVerification(),
     ]),
 
+    /*
+    |--------------------------------------------------------------------------
+    | Email Verification Enforcement
+    |--------------------------------------------------------------------------
+    |
+    | A single deploy-time flag letting self-hosters require new accounts to
+    | confirm their email before using the app. It defaults to off, preserving
+    | today's behaviour for the hosted demo and existing deployments. The verify
+    | routes stay registered either way (so the reused verify screen keeps
+    | working); only the requirement is toggled — App\Models\User::hasVerifiedEmail()
+    | reads this flag and treats every account as verified when it is off, so the
+    | `verified` middleware and the send-on-register listener become no-ops.
+    |
+    */
+
+    'email_verification_enabled' => env('EMAIL_VERIFICATION_ENABLED', false),
+
 ];
