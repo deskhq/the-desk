@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.0.0](https://github.com/emmpaul/the-desk/compare/v0.7.0...v1.0.0) (2026-07-12)
+
+
+### chore
+
+* trigger 1.0.0 release ([#296](https://github.com/emmpaul/the-desk/issues/296)) ([c9acba0](https://github.com/emmpaul/the-desk/commit/c9acba080dded4545e95335c09b63f96093bd16b))
+
+
+### Bug Fixes
+
+* **self-hosting:** make prod use Redis for cache/session/queue ([#293](https://github.com/emmpaul/the-desk/issues/293)) ([7d7d3fe](https://github.com/emmpaul/the-desk/commit/7d7d3fe471be438ef2bd817b33dfc5d014c65dbb)), closes [#290](https://github.com/emmpaul/the-desk/issues/290)
+
 ## [0.7.0](https://github.com/emmpaul/the-desk/compare/v0.6.0...v0.7.0) (2026-07-12)
 
 
