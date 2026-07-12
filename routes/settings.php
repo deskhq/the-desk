@@ -1,5 +1,8 @@
 <?php
 
+declare(strict_types=1);
+
+use App\Http\Controllers\Settings\AppearanceController;
 use App\Http\Controllers\Settings\DataExportController;
 use App\Http\Controllers\Settings\LocaleController;
 use App\Http\Controllers\Settings\NotificationController;
@@ -45,9 +48,11 @@ Route::middleware(['auth', 'verified'])->group(function (): void {
     Route::delete('settings/sessions', [SessionController::class, 'destroyOthers'])->name('sessions.destroy-others');
     Route::delete('settings/sessions/{session}', [SessionController::class, 'destroy'])->name('sessions.destroy');
 
-    Route::inertia('settings/appearance', 'settings/Appearance')->name('appearance.edit');
+    Route::get('settings/appearance', [AppearanceController::class, 'edit'])->name('appearance.edit');
 
-    Route::get('settings/notifications', [NotificationController::class, 'edit'])->name('notifications.edit');
+    // Notification preferences now live on the combined appearance page; the old
+    // route is kept as a redirect so existing deep links keep resolving.
+    Route::get('settings/notifications', fn () => to_route('appearance.edit'))->name('notifications.edit');
     Route::patch('settings/notifications', [NotificationController::class, 'update'])->name('notifications.update');
 
     Route::patch('settings/read-receipts', [ReadReceiptsController::class, 'update'])->name('read-receipts.update');

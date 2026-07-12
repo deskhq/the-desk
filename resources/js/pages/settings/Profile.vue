@@ -3,7 +3,6 @@ import { Form, Head, usePage } from '@inertiajs/vue3';
 import { Link } from '@inertiajs/vue3';
 import { computed } from 'vue';
 import ProfileController from '@/actions/App/Http/Controllers/Settings/ProfileController';
-import DeleteUser from '@/components/DeleteUser.vue';
 import InputError from '@/components/InputError.vue';
 import SettingsSection from '@/components/SettingsSection.vue';
 import { Button } from '@/components/ui/button';
@@ -221,17 +220,6 @@ function onTimezoneSelect(value: unknown): void {
                     </SelectItem>
                 </SelectContent>
             </Select>
-        </div>
-    </SettingsSection>
-
-    <SettingsSection
-        :title="$t('Danger zone')"
-        :description="$t('Irreversible actions for your account.')"
-    >
-        <div
-            class="rounded-lg border border-destructive/30 bg-destructive/5 p-4"
-        >
-            <DeleteUser />
         </div>
     </SettingsSection>
 </template>

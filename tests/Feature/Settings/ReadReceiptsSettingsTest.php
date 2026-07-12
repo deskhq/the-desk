@@ -7,10 +7,10 @@ test('read receipt sharing can be turned off', function (): void {
 
     $this
         ->actingAs($user)
-        ->from(route('notifications.edit'))
+        ->from(route('appearance.edit'))
         ->patch(route('read-receipts.update'), ['share_read_receipts' => false])
         ->assertSessionHasNoErrors()
-        ->assertRedirect(route('notifications.edit'));
+        ->assertRedirect(route('appearance.edit'));
 
     expect($user->refresh()->share_read_receipts)->toBeFalse();
 });
@@ -31,7 +31,7 @@ test('the share_read_receipts value is required', function (): void {
 
     $this
         ->actingAs($user)
-        ->from(route('notifications.edit'))
+        ->from(route('appearance.edit'))
         ->patch(route('read-receipts.update'), [])
         ->assertSessionHasErrors('share_read_receipts');
 });

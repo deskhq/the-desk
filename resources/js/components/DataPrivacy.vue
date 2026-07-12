@@ -3,7 +3,6 @@ import { Form } from '@inertiajs/vue3';
 import { Archive, Download } from '@lucide/vue';
 import { computed } from 'vue';
 import DataExportController from '@/actions/App/Http/Controllers/Settings/DataExportController';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { useTimezone } from '@/composables/useTimezone';
 import { useTranslations } from '@/composables/useTranslations';
@@ -33,101 +32,145 @@ const requestLabel = computed(() =>
     props.dataExport ? t('Request a new export') : t('Request export'),
 );
 
-function formatExpiry(iso: string): string {
+// Ghost for the secondary "new export" link next to a ready download, outline
+// after a failure, solid brass-ink call to action when there is no export yet.
+const requestVariant = computed(() => {
+    if (isReady.value) {
+        return 'ghost';
+    }
+
+    return hasFailed.value ? 'outline' : 'default';
+});
+
+function formatDate(iso: string): string {
     return formatDateTime(iso, timezone.value ?? undefined);
 }
 </script>
 
 <template>
-    <div class="max-w-md rounded-xl border border-border bg-card/40 p-5">
-        <div class="flex gap-4">
-            <div
-                class="flex size-10 shrink-0 items-center justify-center rounded-lg border border-border bg-muted/50 text-muted-foreground"
+    <!-- Preparing: dashed card, request button held disabled until the email lands. -->
+    <div
+        v-if="isPending"
+        class="flex flex-wrap items-center gap-3.5 rounded-xl border border-dashed border-border bg-muted/20 px-4 py-3.5"
+        data-test="data-export-pending"
+    >
+        <span
+            class="inline-flex h-[22px] shrink-0 items-center rounded-full bg-accent px-2.5 text-[11px] font-semibold tracking-[0.05em] text-muted-foreground uppercase"
+        >
+            {{ $t('Preparing') }}
+        </span>
+        <span class="text-sm text-muted-foreground">
+            {{
+                $t(
+                    "Your export is being prepared. We'll email you when it's ready.",
+                )
+            }}
+        </span>
+        <Form
+            v-bind="DataExportController.store.form()"
+            :options="{ preserveScroll: true }"
+            class="ml-auto"
+            v-slot="{ processing }"
+        >
+            <Button
+                type="submit"
+                variant="ghost"
+                size="sm"
+                class="rounded-full text-muted-foreground"
+                :disabled="processing || isPending"
+                data-test="request-data-export-button"
             >
-                <Archive class="size-5" />
-            </div>
+                {{ requestLabel }}
+            </Button>
+        </Form>
+    </div>
 
-            <div class="min-w-0 flex-1 space-y-4">
-                <p class="text-sm text-pretty text-muted-foreground">
-                    {{
-                        $t(
-                            "Request an export and we'll assemble an archive of your profile, teams, messages, and security activity. It's prepared in the background — we'll email you a download link when it's ready.",
-                        )
-                    }}
+    <!-- Ready / failed / no export yet -->
+    <div
+        v-else
+        class="flex flex-wrap items-center gap-4 rounded-xl border border-border bg-card px-4 py-4 shadow-[0_2px_8px_rgba(29,26,21,0.05)] dark:shadow-none"
+        :data-test="
+            isReady
+                ? 'data-export-ready'
+                : hasFailed
+                  ? 'data-export-failed'
+                  : undefined
+        "
+    >
+        <div
+            class="flex size-11 shrink-0 items-center justify-center rounded-xl border border-brass/30 bg-brass-fill text-brass-fill-foreground"
+        >
+            <Archive class="size-[18px]" />
+        </div>
+
+        <div class="flex min-w-0 flex-1 flex-col gap-0.5">
+            <template v-if="isReady && dataExport">
+                <p class="text-sm font-semibold">
+                    {{ $t('Your export is ready') }}
                 </p>
-
-                <div
-                    v-if="isReady && dataExport"
-                    class="space-y-1.5"
-                    data-test="data-export-ready"
-                >
-                    <Button
-                        as="a"
-                        :href="downloadUrl"
-                        download
-                        class="w-full justify-center sm:w-auto sm:justify-start"
-                    >
-                        <Download class="size-4" />
-                        {{ $t('Download your data') }}
-                    </Button>
-                    <p
-                        v-if="dataExport.expiresAt"
-                        class="text-xs text-muted-foreground"
-                    >
+                <p class="text-xs text-muted-foreground">
+                    {{
+                        $t('Requested :time', {
+                            time: formatDate(dataExport.requestedAt),
+                        })
+                    }}
+                    <template v-if="dataExport.expiresAt">
+                        &middot;
                         {{
-                            $t('Link expires :time', {
-                                time: formatExpiry(dataExport.expiresAt),
+                            $t('link expires :time', {
+                                time: formatDate(dataExport.expiresAt),
                             })
                         }}
-                    </p>
-                </div>
-
-                <p
-                    v-else-if="isPending"
-                    class="flex items-center gap-2 text-sm text-muted-foreground"
-                    data-test="data-export-pending"
-                >
-                    <Badge variant="secondary">{{ $t('Preparing') }}</Badge>
-                    {{
-                        $t(
-                            "Your export is being prepared. We'll email you when it's ready.",
-                        )
-                    }}
+                    </template>
                 </p>
-
-                <p
-                    v-else-if="hasFailed"
-                    class="text-sm text-red-600 dark:text-red-400"
-                    data-test="data-export-failed"
-                >
-                    {{
-                        $t(
-                            "We couldn't prepare your last export. Please try again.",
-                        )
-                    }}
+            </template>
+            <template v-else-if="hasFailed">
+                <p class="text-sm font-semibold text-destructive">
+                    {{ $t("We couldn't prepare your last export") }}
                 </p>
+                <p class="text-xs text-muted-foreground">
+                    {{ $t('Please request a new export to try again.') }}
+                </p>
+            </template>
+            <template v-else>
+                <p class="text-sm font-semibold">
+                    {{ $t('No export ready') }}
+                </p>
+                <p class="text-xs text-muted-foreground">
+                    {{ $t("You haven't requested a data export yet.") }}
+                </p>
+            </template>
+        </div>
 
-                <div :class="dataExport ? 'border-t border-border pt-4' : ''">
-                    <Form
-                        v-bind="DataExportController.store.form()"
-                        :options="{ preserveScroll: true }"
-                        v-slot="{ processing }"
-                    >
-                        <Button
-                            type="submit"
-                            :variant="isReady ? 'ghost' : 'outline'"
-                            size="sm"
-                            :disabled="processing || isPending"
-                            data-test="request-data-export-button"
-                            :class="
-                                isReady ? '-ml-2 text-muted-foreground' : ''
-                            "
-                        >
-                            {{ requestLabel }}
-                        </Button>
-                    </Form>
-                </div>
-            </div>
+        <div class="ml-auto flex shrink-0 items-center gap-2.5">
+            <Form
+                v-bind="DataExportController.store.form()"
+                :options="{ preserveScroll: true }"
+                v-slot="{ processing }"
+            >
+                <Button
+                    type="submit"
+                    :variant="requestVariant"
+                    size="sm"
+                    class="rounded-full"
+                    :class="isReady ? 'text-muted-foreground' : ''"
+                    :disabled="processing"
+                    data-test="request-data-export-button"
+                >
+                    {{ requestLabel }}
+                </Button>
+            </Form>
+
+            <Button
+                v-if="isReady && dataExport"
+                as="a"
+                :href="downloadUrl"
+                download
+                class="h-[34px] gap-2 rounded-full px-[18px]"
+            >
+                <Download class="size-4" />
+                {{ $t('Download') }}
+            </Button>
         </div>
     </div>
 </template>
