@@ -86,44 +86,58 @@ const { isCurrentOrParentUrl } = useCurrentUrl();
 </script>
 
 <template>
-    <div class="px-2 pt-2">
-        <Link
-            :href="workspaceUrl"
-            data-test="settings-back"
-            class="flex h-8 w-full items-center gap-2 rounded-[9px] px-2.5 text-[13px] text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground"
-        >
-            <ArrowLeft class="size-[13px] shrink-0" />
-            <span>{{ $t('Back to workspace') }}</span>
-        </Link>
-    </div>
-
-    <SidebarGroup class="pt-2">
-        <div
-            class="flex h-7 items-center px-2 text-[10.5px] font-semibold tracking-[0.1em] text-muted-foreground/70 uppercase"
-        >
-            {{ $t('Settings') }}
+    <nav
+        data-test="settings-nav"
+        :aria-label="$t('Settings')"
+        class="flex min-w-0 flex-col gap-2"
+    >
+        <div class="px-2 pt-2">
+            <Link
+                :href="workspaceUrl"
+                data-test="settings-back"
+                class="flex h-8 w-full items-center gap-2 rounded-[9px] px-2.5 text-[13px] text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground"
+            >
+                <ArrowLeft class="size-[13px] shrink-0" />
+                <span>{{ $t('Back to workspace') }}</span>
+            </Link>
         </div>
-        <SidebarGroupContent>
-            <SidebarMenu>
-                <SidebarMenuItem
-                    v-for="item in navItems"
-                    :key="toUrl(item.href)"
-                >
-                    <SidebarMenuButton
-                        as-child
-                        :is-active="isCurrentOrParentUrl(item.href)"
-                        class="h-[30px] gap-2 rounded-[9px] px-2.5 text-[13px] text-muted-foreground hover:bg-sidebar-accent/60 hover:text-sidebar-foreground data-[active=true]:bg-sidebar-primary data-[active=true]:font-medium data-[active=true]:text-sidebar-primary-foreground data-[active=true]:hover:bg-sidebar-primary data-[active=true]:hover:text-sidebar-primary-foreground"
+
+        <SidebarGroup class="pt-2">
+            <div
+                class="flex h-7 items-center px-2 text-[10.5px] font-semibold tracking-[0.1em] text-muted-foreground/70 uppercase"
+            >
+                {{ $t('Settings') }}
+            </div>
+            <SidebarGroupContent>
+                <SidebarMenu>
+                    <SidebarMenuItem
+                        v-for="item in navItems"
+                        :key="toUrl(item.href)"
                     >
-                        <Link
-                            :href="item.href"
-                            :data-test="`settings-nav-${item.slug}`"
+                        <SidebarMenuButton
+                            as-child
+                            :is-active="isCurrentOrParentUrl(item.href)"
+                            class="h-[30px] gap-2 rounded-[9px] px-2.5 text-[13px] text-muted-foreground hover:bg-sidebar-accent/60 hover:text-sidebar-foreground data-[active=true]:bg-sidebar-primary data-[active=true]:font-medium data-[active=true]:text-sidebar-primary-foreground data-[active=true]:hover:bg-sidebar-primary data-[active=true]:hover:text-sidebar-primary-foreground"
                         >
-                            <component :is="item.icon" class="size-[13px]" />
-                            <span>{{ item.title }}</span>
-                        </Link>
-                    </SidebarMenuButton>
-                </SidebarMenuItem>
-            </SidebarMenu>
-        </SidebarGroupContent>
-    </SidebarGroup>
+                            <Link
+                                :href="item.href"
+                                :data-test="`settings-nav-${item.slug}`"
+                                :aria-current="
+                                    isCurrentOrParentUrl(item.href)
+                                        ? 'page'
+                                        : undefined
+                                "
+                            >
+                                <component
+                                    :is="item.icon"
+                                    class="size-[13px]"
+                                />
+                                <span>{{ item.title }}</span>
+                            </Link>
+                        </SidebarMenuButton>
+                    </SidebarMenuItem>
+                </SidebarMenu>
+            </SidebarGroupContent>
+        </SidebarGroup>
+    </nav>
 </template>

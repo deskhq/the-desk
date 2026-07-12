@@ -51,6 +51,7 @@ import QuickSwitcher from '@/components/QuickSwitcher.vue';
 import ReminderNudge from '@/components/ReminderNudge.vue';
 import RemindersDialog from '@/components/RemindersDialog.vue';
 import SettingsNav from '@/components/SettingsNav.vue';
+import { Button } from '@/components/ui/button';
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -59,6 +60,7 @@ import {
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { Input } from '@/components/ui/input';
 import {
     Sidebar,
     SidebarContent,
@@ -306,15 +308,43 @@ function onSectionReorder(): void {
     );
 }
 
+/**
+ * Focus (and optionally select) the inline sidebar input identified by its
+ * `data-test`. The rename / new-section fields render shadcn `<Input>`
+ * components, so their DOM node is resolved by selector once mounted rather
+ * than through a component template ref (which would expose the component
+ * instance, not the underlying `<input>`).
+ */
+function focusSidebarInput(dataTest: string, select = false): void {
+    const input = document.querySelector<HTMLInputElement>(
+        `[data-test="${dataTest}"]`,
+    );
+
+    input?.focus();
+
+    if (select) {
+        input?.select();
+    }
+}
+
+/**
+ * Blur the input that received the keydown so its `@blur` handler commits the
+ * value (Enter-to-confirm on the inline rename / new-section fields).
+ */
+function blurInput(event: Event): void {
+    if (event.target instanceof HTMLInputElement) {
+        event.target.blur();
+    }
+}
+
 // Creating a new section from the inline form under the "Channels" header.
 const sectionFormOpen = ref(false);
 const newSectionName = ref('');
-const sectionNameInput = ref<HTMLInputElement | null>(null);
 
 async function openSectionForm(): Promise<void> {
     sectionFormOpen.value = true;
     await nextTick();
-    sectionNameInput.value?.focus();
+    focusSidebarInput('create-section-input');
 }
 
 function cancelSectionForm(): void {
@@ -348,25 +378,17 @@ function createSection(): void {
     );
 }
 
-// Inline renaming of an existing section. The input lives inside the sections
-// v-for, so a function ref captures the single mounted instance rather than the
-// array a string ref would collect.
+// Inline renaming of an existing section. The input renders inside the sections
+// v-for, so its DOM node is resolved by its section-scoped `data-test` once
+// mounted (see focusSidebarInput).
 const renamingSectionId = ref<string | null>(null);
 const renameValue = ref('');
-const renameInput = ref<HTMLInputElement | null>(null);
-
-function setRenameInput(el: unknown): void {
-    if (el instanceof HTMLInputElement) {
-        renameInput.value = el;
-    }
-}
 
 async function startRename(section: ChannelSection): Promise<void> {
     renamingSectionId.value = section.id;
     renameValue.value = section.name;
     await nextTick();
-    renameInput.value?.focus();
-    renameInput.value?.select();
+    focusSidebarInput(`section-rename-input-${section.id}`, true);
 }
 
 function cancelRename(): void {
@@ -647,6 +669,17 @@ onMounted(() => {
         class="bg-background"
         style="--sidebar-width: calc(272px + 1.75rem)"
     >
+        <!-- The first focusable element: a skip link that jumps keyboard users
+             past the sidebar straight to the main content. Visually hidden until
+             it takes focus. -->
+        <a
+            href="#main"
+            data-test="skip-to-content"
+            class="sr-only focus-visible:not-sr-only focus-visible:absolute focus-visible:top-3 focus-visible:left-3 focus-visible:z-50 focus-visible:rounded-md focus-visible:bg-primary focus-visible:px-3 focus-visible:py-2 focus-visible:text-sm focus-visible:font-medium focus-visible:text-primary-foreground focus-visible:shadow-md focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+        >
+            {{ $t('Skip to content') }}
+        </a>
+
         <!-- The dock: a single floating card. Team switching, invite, and
              new-team fold into the workspace header (the vertical team rail is
              gone); on mobile the whole card slides in as the built-in Sheet. -->
@@ -657,10 +690,10 @@ onMounted(() => {
                 <div class="flex items-center gap-2">
                     <DropdownMenu>
                         <DropdownMenuTrigger as-child>
-                            <button
-                                type="button"
+                            <Button
+                                variant="ghost"
                                 data-test="workspace-switcher"
-                                class="-m-1 flex min-w-0 flex-1 items-center gap-2 rounded-[9px] p-1 text-left transition-colors hover:bg-sidebar-accent"
+                                class="-m-1 flex h-auto min-w-0 flex-1 items-center justify-start gap-2 rounded-[9px] p-1 text-left transition-colors hover:bg-sidebar-accent"
                             >
                                 <span
                                     class="flex size-8 shrink-0 items-center justify-center rounded-[9px] bg-sidebar-primary text-[11px] font-semibold text-sidebar-primary-foreground"
@@ -687,7 +720,7 @@ onMounted(() => {
                                         }}</span
                                     >
                                 </span>
-                            </button>
+                            </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="start" class="w-56">
                             <DropdownMenuLabel
@@ -724,32 +757,34 @@ onMounted(() => {
                         </DropdownMenuContent>
                     </DropdownMenu>
                     <div class="flex shrink-0 items-center gap-1">
-                        <button
+                        <Button
                             v-if="canInviteToCurrentTeam"
-                            type="button"
+                            variant="ghost"
+                            size="icon"
                             :title="$t('Invite people')"
                             data-test="invite-member-trigger"
                             data-tour="invite"
-                            class="flex size-6 items-center justify-center rounded-[7px] border border-sidebar-border text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground"
+                            class="size-6 rounded-[7px] border border-sidebar-border text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground"
                             @click="inviteOpen = true"
                         >
                             <UserPlus class="size-3" />
                             <span class="sr-only">{{
                                 $t('Invite people')
                             }}</span>
-                        </button>
+                        </Button>
                         <CreateTeamModal>
-                            <button
-                                type="button"
+                            <Button
+                                variant="ghost"
+                                size="icon"
                                 :title="$t('New team')"
                                 data-test="new-team-trigger"
-                                class="flex size-6 items-center justify-center rounded-[7px] border border-dashed border-sidebar-border text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground"
+                                class="size-6 rounded-[7px] border border-dashed border-sidebar-border text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground"
                             >
                                 <Plus class="size-3" />
                                 <span class="sr-only">{{
                                     $t('New team')
                                 }}</span>
-                            </button>
+                            </Button>
                         </CreateTeamModal>
                     </div>
                 </div>
@@ -757,12 +792,17 @@ onMounted(() => {
 
             <SidebarContent>
                 <SettingsNav v-if="isSettingsSection" />
-                <template v-else>
+                <nav
+                    v-else
+                    data-test="channels-nav"
+                    :aria-label="$t('Channels')"
+                    class="flex min-w-0 flex-col gap-2"
+                >
                     <div class="px-2 pt-2">
-                        <button
-                            type="button"
+                        <Button
+                            variant="ghost"
                             data-test="quick-switcher-trigger"
-                            class="flex h-8 w-full items-center gap-2 rounded-[9px] bg-muted px-2.5 text-[13px] text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground"
+                            class="flex h-8 w-full items-center justify-start gap-2 rounded-[9px] bg-muted px-2.5 text-[13px] font-normal text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground"
                             @click="quickSwitcherOpen = true"
                         >
                             <Search class="size-[13px] shrink-0" />
@@ -771,7 +811,7 @@ onMounted(() => {
                                 class="ml-auto font-mono text-[10px] font-semibold tracking-wide text-muted-foreground/70"
                                 >⌘K</kbd
                             >
-                        </button>
+                        </Button>
                     </div>
                     <!-- Starred channels, pinned above the main list; the
                              whole section is hidden until the user stars one.
@@ -779,11 +819,11 @@ onMounted(() => {
                              starred row can't be dragged into a custom section —
                              starring wins, so its move menu stays hidden. -->
                     <SidebarGroup v-if="starredList.length > 0" class="pb-0">
-                        <button
-                            type="button"
+                        <Button
+                            variant="ghost"
                             data-test="section-toggle-starred"
                             :aria-expanded="!isSectionCollapsed('starred')"
-                            class="flex h-7 w-full items-center gap-1 rounded-md px-2 text-[10.5px] font-semibold tracking-[0.1em] text-muted-foreground/70 uppercase transition-colors hover:bg-sidebar-accent/40 hover:text-sidebar-foreground"
+                            class="flex h-7 w-full items-center justify-start gap-1 rounded-md px-2 text-[10.5px] font-semibold tracking-[0.1em] text-muted-foreground/70 uppercase transition-colors hover:bg-sidebar-accent/40 hover:text-sidebar-foreground"
                             @click="toggleSection('starred')"
                         >
                             <ChevronRight
@@ -795,7 +835,7 @@ onMounted(() => {
                                 "
                             />
                             {{ $t('Starred') }}
-                        </button>
+                        </Button>
                         <SidebarGroupContent
                             v-show="!isSectionCollapsed('starred')"
                             data-test="section-content-starred"
@@ -843,8 +883,9 @@ onMounted(() => {
                                 <div
                                     class="group/section flex h-7 w-full items-center gap-1 rounded-md pr-1 pl-2 text-[10.5px] font-semibold tracking-[0.1em] text-muted-foreground/70 uppercase transition-colors hover:bg-sidebar-accent/40 hover:text-sidebar-foreground"
                                 >
-                                    <button
-                                        type="button"
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
                                         :data-test="`section-drag-${group.section.id}`"
                                         :aria-label="
                                             $t('Reorder :name', {
@@ -852,17 +893,39 @@ onMounted(() => {
                                             })
                                         "
                                         :title="$t('Drag to reorder section')"
-                                        class="section-drag-handle flex size-4 shrink-0 cursor-grab items-center justify-center rounded text-muted-foreground/50 opacity-0 transition group-hover/section:opacity-100 hover:text-sidebar-foreground active:cursor-grabbing"
+                                        class="section-drag-handle size-4 shrink-0 cursor-grab rounded text-muted-foreground/50 opacity-0 transition group-hover/section:opacity-100 hover:bg-transparent hover:text-sidebar-foreground active:cursor-grabbing"
                                     >
                                         <GripVertical class="size-3" />
-                                    </button>
-                                    <button
-                                        type="button"
+                                    </Button>
+                                    <!-- While renaming, the editor stands in for
+                                         the toggle as its sibling — never nested
+                                         inside the <button>, which would be
+                                         invalid interactive-in-interactive markup
+                                         and breaks keyboard focus. -->
+                                    <Input
+                                        v-if="
+                                            renamingSectionId ===
+                                            group.section.id
+                                        "
+                                        v-model="renameValue"
+                                        :data-test="`section-rename-input-${group.section.id}`"
+                                        class="h-auto min-w-0 flex-1 rounded-sm border-sidebar-border bg-sidebar px-1 py-0.5 text-[11px] tracking-normal text-sidebar-foreground normal-case md:text-[11px] dark:bg-sidebar"
+                                        type="text"
+                                        maxlength="50"
+                                        @keydown.enter.prevent="
+                                            blurInput($event)
+                                        "
+                                        @keydown.esc="cancelRename"
+                                        @blur="submitRename(group.section)"
+                                    />
+                                    <Button
+                                        v-else
+                                        variant="ghost"
                                         :data-test="`section-toggle-custom-${group.section.id}`"
                                         :aria-expanded="
                                             !group.section.collapsed
                                         "
-                                        class="flex min-w-0 flex-1 items-center gap-1"
+                                        class="flex h-auto min-w-0 flex-1 items-center justify-start gap-1 rounded-none p-0 text-[10.5px] font-semibold hover:bg-transparent"
                                         @click="toggleCustomSection(group)"
                                     >
                                         <ChevronRight
@@ -873,37 +936,19 @@ onMounted(() => {
                                                     : 'rotate-90'
                                             "
                                         />
-                                        <input
-                                            v-if="
-                                                renamingSectionId ===
-                                                group.section.id
-                                            "
-                                            :ref="setRenameInput"
-                                            v-model="renameValue"
-                                            :data-test="`section-rename-input-${group.section.id}`"
-                                            class="w-full min-w-0 rounded-sm border border-sidebar-border bg-sidebar px-1 py-0.5 text-[11px] tracking-normal text-sidebar-foreground normal-case focus:outline-none"
-                                            type="text"
-                                            maxlength="50"
-                                            @click.stop
-                                            @keydown.enter.prevent="
-                                                renameInput?.blur()
-                                            "
-                                            @keydown.esc="cancelRename"
-                                            @blur="submitRename(group.section)"
-                                        />
                                         <span
-                                            v-else
                                             class="truncate"
                                             @dblclick.stop="
                                                 startRename(group.section)
                                             "
                                             >{{ group.section.name }}</span
                                         >
-                                    </button>
+                                    </Button>
                                     <DropdownMenu>
                                         <DropdownMenuTrigger as-child>
-                                            <button
-                                                type="button"
+                                            <Button
+                                                variant="ghost"
+                                                size="icon"
                                                 :data-test="`section-menu-${group.section.id}`"
                                                 :aria-label="
                                                     $t('Options for :name', {
@@ -912,12 +957,12 @@ onMounted(() => {
                                                     })
                                                 "
                                                 :title="$t('Section options')"
-                                                class="flex size-5 shrink-0 items-center justify-center rounded text-muted-foreground/60 opacity-0 transition group-hover/section:opacity-100 hover:text-sidebar-foreground focus-visible:opacity-100 data-[state=open]:opacity-100"
+                                                class="size-5 shrink-0 rounded text-muted-foreground/60 opacity-0 transition group-hover/section:opacity-100 hover:bg-transparent hover:text-sidebar-foreground focus-visible:opacity-100 data-[state=open]:opacity-100"
                                             >
                                                 <MoreVertical
                                                     class="size-3.5"
                                                 />
-                                            </button>
+                                            </Button>
                                         </DropdownMenuTrigger>
                                         <DropdownMenuContent
                                             align="end"
@@ -1011,11 +1056,11 @@ onMounted(() => {
                              channels. Shares a drag group with the custom sections
                              so channels can be dragged in and out. -->
                     <SidebarGroup>
-                        <button
-                            type="button"
+                        <Button
+                            variant="ghost"
                             data-test="section-toggle-channels"
                             :aria-expanded="!isSectionCollapsed('channels')"
-                            class="flex h-7 w-full items-center gap-1 rounded-md px-2 text-[10.5px] font-semibold tracking-[0.1em] text-muted-foreground/70 uppercase transition-colors hover:bg-sidebar-accent/40 hover:text-sidebar-foreground"
+                            class="flex h-7 w-full items-center justify-start gap-1 rounded-md px-2 text-[10.5px] font-semibold tracking-[0.1em] text-muted-foreground/70 uppercase transition-colors hover:bg-sidebar-accent/40 hover:text-sidebar-foreground"
                             @click="toggleSection('channels')"
                         >
                             <ChevronRight
@@ -1027,7 +1072,7 @@ onMounted(() => {
                                 "
                             />
                             {{ $t('Channels') }}
-                        </button>
+                        </Button>
                         <CreateChannelModal
                             v-if="currentTeam"
                             :team-slug="currentTeam.slug"
@@ -1114,11 +1159,11 @@ onMounted(() => {
                         class="pb-0"
                         data-test="direct-messages-group"
                     >
-                        <button
-                            type="button"
+                        <Button
+                            variant="ghost"
                             data-test="section-toggle-direct"
                             :aria-expanded="!isSectionCollapsed('direct')"
-                            class="flex h-7 w-full items-center gap-1 rounded-md px-2 text-[10.5px] font-semibold tracking-[0.1em] text-muted-foreground/70 uppercase transition-colors hover:bg-sidebar-accent/40 hover:text-sidebar-foreground"
+                            class="flex h-7 w-full items-center justify-start gap-1 rounded-md px-2 text-[10.5px] font-semibold tracking-[0.1em] text-muted-foreground/70 uppercase transition-colors hover:bg-sidebar-accent/40 hover:text-sidebar-foreground"
                             @click="toggleSection('direct')"
                         >
                             <ChevronRight
@@ -1130,7 +1175,7 @@ onMounted(() => {
                                 "
                             />
                             {{ $t('Direct messages') }}
-                        </button>
+                        </Button>
                         <SidebarGroupAction
                             :title="$t('New message')"
                             data-test="new-dm-trigger"
@@ -1172,31 +1217,28 @@ onMounted(() => {
                     <SidebarGroup class="py-0">
                         <SidebarGroupContent>
                             <div v-if="sectionFormOpen" class="px-2">
-                                <input
-                                    ref="sectionNameInput"
+                                <Input
                                     v-model="newSectionName"
                                     data-test="create-section-input"
-                                    class="w-full rounded-md border border-sidebar-border bg-sidebar px-2 py-1 text-[13px] text-sidebar-foreground focus:outline-none"
+                                    class="h-8 w-full rounded-md border-sidebar-border bg-sidebar px-2 py-1 text-[13px] text-sidebar-foreground md:text-[13px] dark:bg-sidebar"
                                     type="text"
                                     maxlength="50"
                                     :placeholder="$t('New section name')"
-                                    @keydown.enter.prevent="
-                                        sectionNameInput?.blur()
-                                    "
+                                    @keydown.enter.prevent="blurInput($event)"
                                     @keydown.esc="cancelSectionForm"
                                     @blur="createSection"
                                 />
                             </div>
-                            <button
+                            <Button
                                 v-else
-                                type="button"
+                                variant="ghost"
                                 data-test="create-section-trigger"
-                                class="flex h-7 w-full items-center gap-1.5 rounded-md px-2 text-[12px] text-muted-foreground transition-colors hover:bg-sidebar-accent/60 hover:text-sidebar-foreground"
+                                class="flex h-7 w-full items-center justify-start gap-1.5 rounded-md px-2 text-[12px] font-normal text-muted-foreground transition-colors hover:bg-sidebar-accent/60 hover:text-sidebar-foreground"
                                 @click="openSectionForm"
                             >
                                 <FolderPlus class="size-3.5" />
                                 {{ $t('New section') }}
-                            </button>
+                            </Button>
                         </SidebarGroupContent>
                     </SidebarGroup>
 
@@ -1289,7 +1331,7 @@ onMounted(() => {
                             </SidebarMenu>
                         </SidebarGroupContent>
                     </SidebarGroup>
-                </template>
+                </nav>
             </SidebarContent>
 
             <SidebarFooter class="border-t border-sidebar-border p-2.5">
@@ -1300,7 +1342,9 @@ onMounted(() => {
         <!-- Main card: fills the screen on mobile, floats on the warm canvas
              (matching the dock) from md up. -->
         <SidebarInset
-            class="flex h-svh flex-col overflow-hidden md:my-3.5 md:mr-3.5 md:h-[calc(100svh-1.75rem)] md:rounded-[14px] md:border md:border-border md:bg-card md:shadow-sm"
+            id="main"
+            tabindex="-1"
+            class="flex h-svh flex-col overflow-hidden focus-visible:outline-none md:my-3.5 md:mr-3.5 md:h-[calc(100svh-1.75rem)] md:rounded-[14px] md:border md:border-border md:bg-card md:shadow-sm"
         >
             <slot />
         </SidebarInset>

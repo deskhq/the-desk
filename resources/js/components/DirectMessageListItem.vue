@@ -5,6 +5,7 @@ import { computed } from 'vue';
 import { toast } from 'vue-sonner';
 import { show } from '@/actions/App/Http/Controllers/Channels/ChannelController';
 import { store as hideDirectMessage } from '@/actions/App/Http/Controllers/Channels/HideDirectMessageController';
+import { Button } from '@/components/ui/button';
 import { SidebarMenuButton, SidebarMenuItem } from '@/components/ui/sidebar';
 import {
     Tooltip,
@@ -87,6 +88,7 @@ function hide(): void {
             <Link
                 :href="show({ team: teamSlug, channel: channel.slug }).url"
                 :data-test="`dm-row-${channel.slug}`"
+                :aria-current="isActive ? 'page' : undefined"
             >
                 <span class="relative size-[18px] shrink-0">
                     <!-- On the active row the button fills with the brass
@@ -105,7 +107,7 @@ function hide(): void {
                     <span
                         data-test="dm-presence-dot"
                         :data-online="online"
-                        :aria-label="online ? $t('Online') : $t('Offline')"
+                        aria-hidden="true"
                         class="absolute -right-0.5 -bottom-0.5 size-2 rounded-full ring-2"
                         :class="[
                             online
@@ -114,6 +116,12 @@ function hide(): void {
                             isActive ? 'ring-sidebar-primary' : 'ring-sidebar',
                         ]"
                     />
+                    <!-- The presence is announced through a screen-reader-only
+                         label rather than an aria-label on the role-less dot,
+                         which assistive tech ignores on a bare <span>. -->
+                    <span data-test="dm-presence-label" class="sr-only">{{
+                        online ? $t('Online') : $t('Offline')
+                    }}</span>
                 </span>
                 <span
                     class="truncate"
@@ -159,17 +167,18 @@ function hide(): void {
              separate button (outside the navigation link, so the anchor stays
              valid) overlaid on the row's right side, revealed on hover or focus;
              a solid background masks any unread badge underneath. -->
-        <button
-            type="button"
+        <Button
+            variant="ghost"
+            size="icon"
             :data-test="`dm-close-${channel.slug}`"
             :aria-label="
                 $t('Close conversation with :name', { name: displayName })
             "
             :title="$t('Close direct message')"
-            class="absolute top-1/2 right-1 z-10 flex size-5 -translate-y-1/2 items-center justify-center rounded bg-sidebar text-muted-foreground/60 opacity-0 transition group-hover/row:opacity-100 group-data-[active=true]/row:bg-sidebar-primary group-data-[active=true]/row:text-sidebar-primary-foreground/70 hover:text-sidebar-foreground group-data-[active=true]/row:hover:text-sidebar-primary-foreground focus-visible:opacity-100"
+            class="absolute top-1/2 right-1 z-10 size-5 -translate-y-1/2 rounded bg-sidebar text-muted-foreground/60 opacity-0 transition group-hover/row:opacity-100 group-data-[active=true]/row:bg-sidebar-primary group-data-[active=true]/row:text-sidebar-primary-foreground/70 hover:bg-sidebar hover:text-sidebar-foreground group-data-[active=true]/row:hover:bg-sidebar-primary group-data-[active=true]/row:hover:text-sidebar-primary-foreground focus-visible:opacity-100"
             @click="hide"
         >
             <X class="size-3.5" />
-        </button>
+        </Button>
     </SidebarMenuItem>
 </template>

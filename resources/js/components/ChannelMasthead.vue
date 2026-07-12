@@ -4,6 +4,7 @@ import { Archive, Check, EllipsisVertical, Search, Star } from '@lucide/vue';
 import type { AcceptableValue } from 'reka-ui';
 import { computed } from 'vue';
 import { index as searchMessages } from '@/actions/App/Http/Controllers/Channels/SearchController';
+import { Button } from '@/components/ui/button';
 import {
     DropdownMenu,
     DropdownMenuCheckboxItem,
@@ -235,14 +236,15 @@ const dmParticipantOnline = computed(
 
             <DropdownMenu v-if="props.canManagePreferences || props.canArchive">
                 <DropdownMenuTrigger as-child>
-                    <button
-                        type="button"
+                    <Button
+                        variant="ghost"
+                        size="icon"
                         :aria-label="$t('Channel options')"
                         data-test="channel-options"
-                        class="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
+                        class="size-auto rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
                     >
                         <EllipsisVertical class="size-4" />
-                    </button>
+                    </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" class="w-56">
                     <template v-if="props.canManagePreferences">

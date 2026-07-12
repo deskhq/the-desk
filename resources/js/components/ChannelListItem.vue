@@ -5,6 +5,7 @@ import { computed, ref } from 'vue';
 import { toast } from 'vue-sonner';
 import { show } from '@/actions/App/Http/Controllers/Channels/ChannelController';
 import { update as updateChannelStar } from '@/actions/App/Http/Controllers/Channels/ChannelStarController';
+import { Button } from '@/components/ui/button';
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -94,6 +95,9 @@ function toggleStar(): void {
                         channel: channel.slug,
                     }).url
                 "
+                :aria-current="
+                    channel.slug === activeChannelSlug ? 'page' : undefined
+                "
             >
                 <span
                     class="shrink-0 font-medium"
@@ -157,20 +161,29 @@ function toggleStar(): void {
                     <Pencil class="size-3" />
                     {{ $t('Draft') }}
                 </span>
-                <span
-                    v-else-if="channel.unreadCount > 0"
-                    data-test="unread-dot"
-                    aria-hidden="true"
-                    class="ml-auto size-1.5 rounded-full bg-brass"
-                />
+                <template v-else-if="channel.unreadCount > 0">
+                    <span
+                        data-test="unread-dot"
+                        aria-hidden="true"
+                        class="ml-auto size-1.5 rounded-full bg-brass"
+                    />
+                    <!-- The dot is decorative; the unread state is named for
+                         assistive tech through a screen-reader-only label. -->
+                    <span
+                        :data-test="`channel-unread-${channel.slug}`"
+                        class="sr-only"
+                        >{{ $t('Unread') }}</span
+                    >
+                </template>
             </Link>
         </SidebarMenuButton>
         <!-- Star toggle to the left of the channel name. A separate button
              (outside the navigation link, so the anchor stays valid) overlaid on
              the row's reserved left padding: filled amber when starred, hollow and
              dimmed otherwise, brightening on hover. -->
-        <button
-            type="button"
+        <Button
+            variant="ghost"
+            size="icon"
             :data-test="`star-toggle-${channel.slug}`"
             :data-starred="channel.starred"
             :aria-pressed="channel.starred"
@@ -180,14 +193,14 @@ function toggleStar(): void {
                     : $t('Star :channel', { channel: channel.name })
             "
             :title="channel.starred ? $t('Unstar channel') : $t('Star channel')"
-            class="absolute top-1/2 left-1 z-10 flex size-5 -translate-y-1/2 items-center justify-center rounded text-muted-foreground/60 opacity-70 transition hover:text-brass hover:opacity-100 data-[starred=true]:text-brass data-[starred=true]:opacity-100"
+            class="absolute top-1/2 left-1 z-10 size-5 -translate-y-1/2 rounded text-muted-foreground/60 opacity-70 transition hover:bg-transparent hover:text-brass hover:opacity-100 data-[starred=true]:text-brass data-[starred=true]:opacity-100"
             @click="toggleStar"
         >
             <Star
                 class="size-3.5"
                 :class="channel.starred ? 'fill-current' : ''"
             />
-        </button>
+        </Button>
         <!-- Hover controls on the right: a drag handle (the SortableJS handle for
              reordering rows) and a kebab menu to file the channel under a custom
              section. Revealed on hover or focus, and pinned open while the menu
@@ -196,22 +209,24 @@ function toggleStar(): void {
             class="absolute top-1/2 right-1 z-10 flex -translate-y-1/2 items-center gap-0.5 rounded-md bg-sidebar pl-1 opacity-0 transition group-hover/row:opacity-100 group-data-[active=true]/row:bg-sidebar-primary focus-within:opacity-100"
             :class="menuOpen ? 'opacity-100' : ''"
         >
-            <button
-                type="button"
+            <Button
+                variant="ghost"
+                size="icon"
                 :data-test="`channel-drag-handle-${channel.slug}`"
                 :aria-label="$t('Reorder :channel', { channel: channel.name })"
                 :title="$t('Drag to reorder')"
-                class="channel-drag-handle flex size-5 cursor-grab items-center justify-center rounded text-muted-foreground/60 transition group-data-[active=true]/row:text-sidebar-primary-foreground/70 hover:text-sidebar-foreground group-data-[active=true]/row:hover:text-sidebar-primary-foreground active:cursor-grabbing"
+                class="channel-drag-handle size-5 cursor-grab rounded text-muted-foreground/60 transition group-data-[active=true]/row:text-sidebar-primary-foreground/70 hover:bg-transparent hover:text-sidebar-foreground group-data-[active=true]/row:hover:text-sidebar-primary-foreground active:cursor-grabbing"
             >
                 <GripVertical class="size-3.5" />
-            </button>
+            </Button>
             <DropdownMenu
                 v-if="(sections?.length ?? 0) > 0"
                 v-model:open="menuOpen"
             >
                 <DropdownMenuTrigger as-child>
-                    <button
-                        type="button"
+                    <Button
+                        variant="ghost"
+                        size="icon"
                         :data-test="`channel-menu-${channel.slug}`"
                         :aria-label="
                             $t('Channel options for :channel', {
@@ -219,10 +234,10 @@ function toggleStar(): void {
                             })
                         "
                         :title="$t('More options')"
-                        class="flex size-5 items-center justify-center rounded text-muted-foreground/60 transition group-data-[active=true]/row:text-sidebar-primary-foreground/70 hover:text-sidebar-foreground group-data-[active=true]/row:hover:text-sidebar-primary-foreground data-[state=open]:text-sidebar-foreground"
+                        class="size-5 rounded text-muted-foreground/60 transition group-data-[active=true]/row:text-sidebar-primary-foreground/70 hover:bg-transparent hover:text-sidebar-foreground group-data-[active=true]/row:hover:text-sidebar-primary-foreground data-[state=open]:text-sidebar-foreground"
                     >
                         <MoreVertical class="size-3.5" />
-                    </button>
+                    </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" class="w-52">
                     <DropdownMenuLabel>{{ $t('Move to') }}</DropdownMenuLabel>
