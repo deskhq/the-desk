@@ -103,6 +103,21 @@ class HandleInertiaRequests extends Middleware
     }
 
     /**
+     * Whether the current request targets an in-workspace page that renders the
+     * shared sidebar.
+     *
+     * Every such route binds a `{team}`, but not all live under the `channels.`
+     * name prefix — the message search page is named `search`/`search.suggest`,
+     * so it is matched explicitly. This is the single source of truth for the
+     * sidebar-feeding shared props below; broaden it here to add a new workspace
+     * surface rather than duplicating the pattern per prop.
+     */
+    protected function isWorkspaceRoute(Request $request): bool
+    {
+        return $request->routeIs('channels.*', 'search', 'search.suggest');
+    }
+
+    /**
      * The current user's channels for the workspace sidebar, scoped to the team in the URL.
      *
      * @return array<int, ChannelData>
@@ -111,7 +126,7 @@ class HandleInertiaRequests extends Middleware
     {
         $team = $request->route('team');
 
-        if (! $user || ! $team instanceof Team || ! $request->routeIs('channels.*')) {
+        if (! $user || ! $team instanceof Team || ! $this->isWorkspaceRoute($request)) {
             return [];
         }
 
@@ -204,7 +219,7 @@ class HandleInertiaRequests extends Middleware
     {
         $team = $request->route('team');
 
-        if (! $user || ! $team instanceof Team || ! $request->routeIs('channels.*')) {
+        if (! $user || ! $team instanceof Team || ! $this->isWorkspaceRoute($request)) {
             return [];
         }
 
@@ -226,7 +241,7 @@ class HandleInertiaRequests extends Middleware
     {
         $team = $request->route('team');
 
-        if (! $user || ! $team instanceof Team || ! $request->routeIs('channels.*')) {
+        if (! $user || ! $team instanceof Team || ! $this->isWorkspaceRoute($request)) {
             return [];
         }
 
@@ -254,7 +269,7 @@ class HandleInertiaRequests extends Middleware
     {
         $team = $request->route('team');
 
-        if (! $user || ! $team instanceof Team || ! $request->routeIs('channels.*')) {
+        if (! $user || ! $team instanceof Team || ! $this->isWorkspaceRoute($request)) {
             return [];
         }
 
@@ -279,7 +294,7 @@ class HandleInertiaRequests extends Middleware
     {
         $team = $request->route('team');
 
-        if (! $user || ! $team instanceof Team || ! $request->routeIs('channels.*')) {
+        if (! $user || ! $team instanceof Team || ! $this->isWorkspaceRoute($request)) {
             return false;
         }
 

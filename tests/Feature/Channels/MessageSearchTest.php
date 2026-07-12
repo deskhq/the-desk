@@ -70,6 +70,22 @@ test('a member searches messages in their channels', function () {
         );
 });
 
+test('the search page shares the workspace sidebar props', function () {
+    [, $team, $general] = searchTeamWithGeneral();
+    $member = searchMember($team, $general, 'Ada Lovelace');
+
+    // The sidebar feeds off the same shared props as a channel page; the search
+    // route lives outside the channels.* name prefix, so it must be covered too.
+    performSearch($member, $team, '')
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('channels/Search')
+            ->has('channels', 1)
+            ->where('channels.0.slug', 'general')
+            ->has('teamMembers', 2)
+        );
+});
+
 test('search does not leak messages from channels the user is not a member of', function () {
     [$owner, $team, $general] = searchTeamWithGeneral();
     $member = searchMember($team, $general);
