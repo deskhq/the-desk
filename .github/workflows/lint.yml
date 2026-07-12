@@ -38,6 +38,9 @@ jobs:
       - name: Run Pint
         run: composer lint
 
+      - name: Run Rector
+        run: composer refactor:check
+
       - name: Format Frontend
         run: npm run format
 

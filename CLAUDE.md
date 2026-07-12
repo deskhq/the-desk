@@ -25,6 +25,7 @@ This application is a Laravel application and its main Laravel ecosystems packag
 - laravel/sail (SAIL) - v1
 - pestphp/pest (PEST) - v4
 - phpunit/phpunit (PHPUNIT) - v12
+- rector/rector (RECTOR) - v2
 - @inertiajs/vue3 (INERTIA_VUE) - v3
 - tailwindcss (TAILWINDCSS) - v4
 - vue (VUE) - v3
@@ -238,10 +239,16 @@ Vue components must have a single root element.
 - `vue-tsc` (`npm run types:check`) doesn't use those native bindings, so it can run on the host, but prefer Sail for consistency.
 - The frontend quality gate is `./vendor/bin/sail npm run lint:check`, `format:check`, `types:check`, and `build` — all four must pass before pushing. Use `sail npm run lint` / `format` (the write variants) to auto-fix violations.
 
+## Automated Refactoring (Rector)
+
+- **Rector is the automated-fix layer for structural PHP**, complementing Pint (style) and PHPStan (detection). It enforces our conventions (explicit return types, type hints, readonly, early returns, dead-code removal, PHP/Laravel modernization) by rewriting the code, and its config lives in `rector.php` (scoped to the same paths PHPStan analyzes, plus `tests/`).
+- **`composer refactor` applies fixes; `composer refactor:check` is the dry-run.** Think of `composer refactor` as the semantic counterpart to Pint's `composer lint` formatter — run it to auto-apply structural fixes before pushing.
+- **The backend gate runs Rector.** `./vendor/bin/sail composer test` now also runs `rector process --dry-run` (via `refactor:check`), and CI runs it too. A failing dry-run fails the build — run `./vendor/bin/sail composer refactor` to apply the suggested changes, review the diff, and re-run the gate before pushing.
+
 ## Code Coverage
 
 - **100% code coverage is required — this is non-negotiable.** The test suite is gated at `--min=100` (see the `test` script in `composer.json`), so any line left uncovered fails the build.
-- **Always check coverage before pushing.** Run the full gate — which also runs Pint and PHPStan — with `./vendor/bin/sail composer test` (this executes `lint:check`, `types:check`, and `php artisan test --coverage --min=100`). Do not push or open/update a PR until it reports `Total: 100.0 %`.
+- **Always check coverage before pushing.** Run the full gate — which also runs Pint, PHPStan, and Rector — with `./vendor/bin/sail composer test` (this executes `lint:check`, `types:check`, `refactor:check`, and `php artisan test --coverage --min=100`). Do not push or open/update a PR until it reports `Total: 100.0 %` with a clean Rector dry-run.
 - If new code drops coverage, add or update tests until it is back at 100%. When a line reads as uncovered even though a test exercises it (e.g. the `: null` branch of a multi-line ternary is a known PCOV line-attribution quirk), collapse it onto a single line rather than leaving the gate red.
 
 ## Reporting Bugs Found While Doing Something Else

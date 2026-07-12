@@ -20,8 +20,16 @@ composer install
 Run the quality gate before pushing:
 
 ```bash
-./vendor/bin/sail composer test        # Pint, PHPStan, and tests at 100% coverage
+./vendor/bin/sail composer test        # Pint, PHPStan, Rector (dry-run), and tests at 100% coverage
 ./vendor/bin/sail npm run lint:check    # ESLint / Prettier / vue-tsc / build
+```
+
+[Rector](https://github.com/rectorphp/rector) handles automated structural
+refactoring (the semantic counterpart to Pint's formatter). The gate runs it in
+dry-run mode; when it reports pending changes, apply them and re-run the gate:
+
+```bash
+./vendor/bin/sail composer refactor    # apply Rector's suggested refactors
 ```
 
 ## Self-Hosting with Docker
