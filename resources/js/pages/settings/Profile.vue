@@ -135,7 +135,12 @@ function onTimezoneSelect(value: unknown): void {
                 <InputError class="mt-2" :message="errors.phone" />
             </div>
 
-            <div v-if="page.props.mustVerifyEmail && !user.email_verified_at">
+            <div
+                v-if="
+                    page.props.emailVerificationEnabled &&
+                    !user.email_verified_at
+                "
+            >
                 <p class="-mt-4 text-sm text-muted-foreground">
                     {{ $t('Your email address is unverified.') }}
                     <Link

@@ -24,6 +24,7 @@ declare module '@inertiajs/core' {
             reverb: ReverbRuntimeConfig;
             auth: Auth;
             registrationEnabled: boolean;
+            emailVerificationEnabled: boolean;
             sidebarOpen: boolean;
             currentTeam: Team | null;
             teams: Team[];
