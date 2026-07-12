@@ -125,7 +125,7 @@ docker compose -f docker-compose.prod.yml up -d --build
 ```
 
 Your data persists across `down`/`up` in named volumes (`pgsql-data`,
-`the-desk-meili-<version>`, `storage-app`).
+`the-desk-meili-<version>`, `redis-data`, `storage-app`).
 
 > **Meilisearch upgrades reindex automatically.** The search index lives in a
 > version-scoped volume, so bumping `MEILISEARCH_VERSION` starts the new
@@ -172,7 +172,7 @@ step. Upgrades are just `APP_IMAGE=…:X.Y.Z`, then `pull` + `up -d` again.
 > browser-facing host defaults to your `APP_URL` host (override with
 > `REVERB_HOST_PUBLIC` only for a dedicated WebSocket subdomain).
 
-### What runs, and why no Redis
+### What runs
 
 | Service       | Role                                             |
 | ------------- | ------------------------------------------------ |
@@ -182,7 +182,11 @@ step. Upgrades are just `APP_IMAGE=…:X.Y.Z`, then `pull` + `up -d` again.
 | `scheduler`   | Scheduled tasks (`schedule:work`)                |
 | `pgsql`       | PostgreSQL database (named volume)               |
 | `meilisearch` | Full-text search index (named volume)            |
+| `redis`       | Cache, session, and queue backend (named volume) |
 
-Cache, session, and queue all use the **database** driver and broadcasting uses
-**Reverb**, so nothing resolves to Redis — there is no Redis service in the
-production stack.
+Cache, session, and queue all use the **Redis** driver
+(`CACHE_STORE`/`SESSION_DRIVER=redis`, `QUEUE_CONNECTION=redis`, with
+`REDIS_HOST=redis`), and broadcasting uses **Reverb**. The `redis` service is
+always-on and persists to the `redis-data` volume with `appendonly` enabled, so
+queued jobs survive a restart; every app process waits for it to be healthy
+before starting.
