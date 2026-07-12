@@ -239,6 +239,12 @@ Vue components must have a single root element.
 - `vue-tsc` (`npm run types:check`) doesn't use those native bindings, so it can run on the host, but prefer Sail for consistency.
 - The frontend quality gate is `./vendor/bin/sail npm run lint:check`, `format:check`, `types:check`, and `build` — all four must pass before pushing. Use `sail npm run lint` / `format` (the write variants) to auto-fix violations.
 
+## Generated TypeScript Types
+
+- **Prefer the generated `App.Data.*` / `App.Enums.*` ambient types over hand-duplicating a DTO or enum in `@/types`.** They are produced from the PHP `Data` classes and enums by `spatie/laravel-typescript-transformer` (configured in `app/Providers/TypeScriptTransformerServiceProvider.php`), so the frontend stays in lockstep with the backend shape. Example: `type CustomEmoji = App.Data.CustomEmojiData`.
+- **`resources/js/generated/generated.d.ts` is a git-ignored build artifact**, not source. Regenerate it with `./vendor/bin/sail artisan typescript:transform` after adding or changing any `Data` class or enum — otherwise `vue-tsc` fails with `TS2503: Cannot find namespace 'App'`.
+- **CI regenerates it before type-checking** (the `Generate TypeScript Types` step in `.github/workflows/tests.yml`), so a fresh checkout with no `generated.d.ts` still passes — never assume the file pre-exists.
+
 ## Automated Refactoring (Rector)
 
 - **Rector is the automated-fix layer for structural PHP**, complementing Pint (style) and PHPStan (detection). It enforces our conventions (explicit return types, type hints, readonly, early returns, dead-code removal, PHP/Laravel modernization) by rewriting the code, and its config lives in `rector.php` (scoped to the same paths PHPStan analyzes, plus `tests/`).
