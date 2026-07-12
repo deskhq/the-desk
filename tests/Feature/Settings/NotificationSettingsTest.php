@@ -4,21 +4,21 @@ use App\Enums\ChimeSound;
 use App\Models\User;
 use Inertia\Testing\AssertableInertia as Assert;
 
-test('notification settings page is displayed with the selectable chime sounds', function () {
+test('notification settings page is displayed with the selectable chime sounds', function (): void {
     $user = User::factory()->create();
 
     $this
         ->actingAs($user)
         ->get(route('notifications.edit'))
         ->assertOk()
-        ->assertInertia(fn (Assert $page) => $page
+        ->assertInertia(fn (Assert $page): Assert => $page
             ->component('settings/Notifications')
             ->has('chimeSounds', count(ChimeSound::cases()))
             ->where('chimeSounds.0', ['value' => ChimeSound::Off->value, 'label' => 'Off'])
         );
 });
 
-test('the chime sound can be updated', function () {
+test('the chime sound can be updated', function (): void {
     $user = User::factory()->create();
 
     $this
@@ -32,7 +32,7 @@ test('the chime sound can be updated', function () {
     expect($user->refresh()->chime_sound)->toBe(ChimeSound::Knock);
 });
 
-test('chimes can be disabled entirely', function () {
+test('chimes can be disabled entirely', function (): void {
     $user = User::factory()->create(['chime_sound' => ChimeSound::Ping->value]);
 
     $this
@@ -45,7 +45,7 @@ test('chimes can be disabled entirely', function () {
     expect($user->refresh()->chime_sound)->toBe(ChimeSound::Off);
 });
 
-test('an unknown chime sound is rejected', function () {
+test('an unknown chime sound is rejected', function (): void {
     $user = User::factory()->create(['chime_sound' => ChimeSound::Ping->value]);
 
     $this
@@ -60,7 +60,7 @@ test('an unknown chime sound is rejected', function () {
     expect($user->refresh()->chime_sound)->toBe(ChimeSound::Ping);
 });
 
-test('a chime sound is required', function () {
+test('a chime sound is required', function (): void {
     $user = User::factory()->create();
 
     $this
@@ -70,6 +70,6 @@ test('a chime sound is required', function () {
         ->assertSessionHasErrors('chime_sound');
 });
 
-test('guests cannot view the notification settings page', function () {
+test('guests cannot view the notification settings page', function (): void {
     $this->get(route('notifications.edit'))->assertRedirect(route('login'));
 });

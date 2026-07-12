@@ -20,7 +20,7 @@ function loginWithIntended(User $user, ?string $intended = null): TestResponse
     ]);
 }
 
-test('login with no intended URL lands on the current team general channel', function () {
+test('login with no intended URL lands on the current team general channel', function (): void {
     $user = User::factory()->create();
 
     loginWithIntended($user)->assertRedirect(
@@ -28,7 +28,7 @@ test('login with no intended URL lands on the current team general channel', fun
     );
 });
 
-test('login honours an intended URL the user can view', function () {
+test('login honours an intended URL the user can view', function (): void {
     $user = User::factory()->create();
     $channel = Channel::factory()->create([
         'team_id' => $user->currentTeam->id,
@@ -40,7 +40,7 @@ test('login honours an intended URL the user can view', function () {
     loginWithIntended($user, $intended)->assertRedirect($intended);
 });
 
-test('login honours an intended URL pointing at a team the user belongs to', function () {
+test('login honours an intended URL pointing at a team the user belongs to', function (): void {
     $user = User::factory()->create();
 
     $intended = route('channels.index', ['team' => $user->currentTeam->slug]);
@@ -48,7 +48,7 @@ test('login honours an intended URL pointing at a team the user belongs to', fun
     loginWithIntended($user, $intended)->assertRedirect($intended);
 });
 
-test('login honours a non-workspace intended URL as-is', function () {
+test('login honours a non-workspace intended URL as-is', function (): void {
     $user = User::factory()->create();
 
     $intended = route('profile.edit');
@@ -56,7 +56,7 @@ test('login honours a non-workspace intended URL as-is', function () {
     loginWithIntended($user, $intended)->assertRedirect($intended);
 });
 
-test('login falls back when the intended channel no longer exists in the team', function () {
+test('login falls back when the intended channel no longer exists in the team', function (): void {
     $user = User::factory()->create();
 
     $intended = route('channels.show', ['team' => $user->currentTeam->slug, 'channel' => 'random']);
@@ -66,7 +66,7 @@ test('login falls back when the intended channel no longer exists in the team', 
     );
 });
 
-test('login falls back when the intended team does not exist', function () {
+test('login falls back when the intended team does not exist', function (): void {
     $user = User::factory()->create();
 
     loginWithIntended($user, url('/t/does-not-exist'))->assertRedirect(
@@ -74,7 +74,7 @@ test('login falls back when the intended team does not exist', function () {
     );
 });
 
-test('login falls back when the intended team is one the user does not belong to', function () {
+test('login falls back when the intended team is one the user does not belong to', function (): void {
     $user = User::factory()->create();
     $otherTeam = Team::factory()->create();
     $otherOwner = User::factory()->create();
@@ -87,7 +87,7 @@ test('login falls back when the intended team is one the user does not belong to
     );
 });
 
-test('login falls back when the intended URL has no path', function () {
+test('login falls back when the intended URL has no path', function (): void {
     $user = User::factory()->create();
 
     loginWithIntended($user, 'http://localhost')->assertRedirect(

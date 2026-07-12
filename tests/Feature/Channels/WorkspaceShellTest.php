@@ -26,7 +26,7 @@ function reloadPendingInvitations(User $user)
     );
 }
 
-test('the removed dashboard route returns 404', function () {
+test('the removed dashboard route returns 404', function (): void {
     $user = User::factory()->create();
 
     $this->actingAs($user)
@@ -34,7 +34,7 @@ test('the removed dashboard route returns 404', function () {
         ->assertNotFound();
 });
 
-test('a logged in user lands in the #general workspace', function () {
+test('a logged in user lands in the #general workspace', function (): void {
     $user = User::factory()->create();
 
     $this->post(route('login.store'), [
@@ -54,7 +54,7 @@ test('a logged in user lands in the #general workspace', function () {
         'channel' => Channel::GENERAL_SLUG,
     ]))
         ->assertOk()
-        ->assertInertia(fn (Assert $page) => $page
+        ->assertInertia(fn (Assert $page): Assert => $page
             ->component('channels/Show')
             ->where('channel.slug', 'general')
             ->has('channels', 1)
@@ -62,7 +62,7 @@ test('a logged in user lands in the #general workspace', function () {
         );
 });
 
-test('the workspace shell shares the dock header affordances', function () {
+test('the workspace shell shares the dock header affordances', function (): void {
     $user = User::factory()->create();
 
     $this->actingAs($user)
@@ -71,7 +71,7 @@ test('the workspace shell shares the dock header affordances', function () {
             'channel' => Channel::GENERAL_SLUG,
         ]))
         ->assertOk()
-        ->assertInertia(fn (Assert $page) => $page
+        ->assertInertia(fn (Assert $page): Assert => $page
             ->where('currentTeam.membersCount', 1)
             ->where('canInviteToCurrentTeam', true)
             ->has('invitableRoles')
@@ -79,7 +79,7 @@ test('the workspace shell shares the dock header affordances', function () {
         );
 });
 
-test('login to workspace smoke: land in #general, create a channel, then browse', function () {
+test('login to workspace smoke: land in #general, create a channel, then browse', function (): void {
     $user = User::factory()->create();
     $slug = $user->currentTeam->slug;
 
@@ -99,20 +99,20 @@ test('login to workspace smoke: land in #general, create a channel, then browse'
     // The new channel is now part of the shared sidebar list.
     $this->get(route('channels.show', ['team' => $slug, 'channel' => 'marketing']))
         ->assertOk()
-        ->assertInertia(fn (Assert $page) => $page
+        ->assertInertia(fn (Assert $page): Assert => $page
             ->component('channels/Show')
             ->has('channels', 2)
         );
 
     $this->get(route('channels.browse', ['team' => $slug]))
         ->assertOk()
-        ->assertInertia(fn (Assert $page) => $page
+        ->assertInertia(fn (Assert $page): Assert => $page
             ->component('channels/Browse')
             ->has('joinableChannels')
         );
 });
 
-test('pending invitations are not eagerly shared on a full workspace load', function () {
+test('pending invitations are not eagerly shared on a full workspace load', function (): void {
     $owner = User::factory()->create();
     $invitedUser = User::factory()->create(['email' => 'invited@example.com']);
     $team = Team::factory()->create();
@@ -130,10 +130,10 @@ test('pending invitations are not eagerly shared on a full workspace load', func
             'channel' => Channel::GENERAL_SLUG,
         ]))
         ->assertOk()
-        ->assertInertia(fn (Assert $page) => $page->missing('pendingInvitations'));
+        ->assertInertia(fn (Assert $page): Assert => $page->missing('pendingInvitations'));
 });
 
-test('pending invitations are shared lazily to the workspace', function () {
+test('pending invitations are shared lazily to the workspace', function (): void {
     $owner = User::factory()->create(['name' => 'Taylor Otwell']);
     $invitedUser = User::factory()->create(['email' => 'invited@example.com']);
     $team = Team::factory()->create(['name' => 'Laravel Team']);
@@ -156,7 +156,7 @@ test('pending invitations are shared lazily to the workspace', function () {
     $response->assertJsonMissingPath('props.pendingInvitations.0.teamName');
 });
 
-test('the lazily shared invitations exclude accepted, expired, and other users invitations', function () {
+test('the lazily shared invitations exclude accepted, expired, and other users invitations', function (): void {
     $owner = User::factory()->create();
     $invitedUser = User::factory()->create(['email' => 'invited@example.com']);
     $team = Team::factory()->create();

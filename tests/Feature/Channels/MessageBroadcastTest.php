@@ -42,7 +42,7 @@ function useRealBroadcaster(): void
     require base_path('routes/channels.php');
 }
 
-test('posting a message broadcasts MessageSent on the channel private channel with the MessageData payload', function () {
+test('posting a message broadcasts MessageSent on the channel private channel with the MessageData payload', function (): void {
     Event::fake([MessageSent::class]);
 
     [$owner, $team, $general] = broadcastTeamWithGeneral();
@@ -58,7 +58,7 @@ test('posting a message broadcasts MessageSent on the channel private channel wi
 
     $message = Message::where('client_uuid', $clientUuid)->with('user')->firstOrFail();
 
-    Event::assertDispatched(MessageSent::class, function (MessageSent $event) use ($general, $message) {
+    Event::assertDispatched(MessageSent::class, function (MessageSent $event) use ($general, $message): bool {
         $target = $event->broadcastOn()[0];
 
         expect($target)->toBeInstanceOf(PrivateChannel::class)
@@ -68,7 +68,7 @@ test('posting a message broadcasts MessageSent on the channel private channel wi
     });
 });
 
-test('a resent message with the same client uuid broadcasts only once', function () {
+test('a resent message with the same client uuid broadcasts only once', function (): void {
     Event::fake([MessageSent::class]);
 
     [$owner, $team, $general] = broadcastTeamWithGeneral();
@@ -92,7 +92,7 @@ test('a resent message with the same client uuid broadcasts only once', function
     Event::assertDispatchedTimes(MessageSent::class, 1);
 });
 
-test('editing a message broadcasts MessageUpdated on the channel private channel with the MessageData payload', function () {
+test('editing a message broadcasts MessageUpdated on the channel private channel with the MessageData payload', function (): void {
     Event::fake([MessageUpdated::class]);
 
     [$owner, $team, $general] = broadcastTeamWithGeneral();
@@ -106,7 +106,7 @@ test('editing a message broadcasts MessageUpdated on the channel private channel
 
     $updated = Message::where('id', $message->id)->with('user')->firstOrFail();
 
-    Event::assertDispatched(MessageUpdated::class, function (MessageUpdated $event) use ($general, $updated) {
+    Event::assertDispatched(MessageUpdated::class, function (MessageUpdated $event) use ($general, $updated): bool {
         $target = $event->broadcastOn()[0];
 
         expect($target)->toBeInstanceOf(PrivateChannel::class)
@@ -116,7 +116,7 @@ test('editing a message broadcasts MessageUpdated on the channel private channel
     });
 });
 
-test('deleting a message broadcasts MessageDeleted as a tombstone with a blanked body', function () {
+test('deleting a message broadcasts MessageDeleted as a tombstone with a blanked body', function (): void {
     Event::fake([MessageDeleted::class]);
 
     [$owner, $team, $general] = broadcastTeamWithGeneral();
@@ -128,7 +128,7 @@ test('deleting a message broadcasts MessageDeleted as a tombstone with a blanked
         'message' => $message->id,
     ]));
 
-    Event::assertDispatched(MessageDeleted::class, function (MessageDeleted $event) use ($general) {
+    Event::assertDispatched(MessageDeleted::class, function (MessageDeleted $event) use ($general): bool {
         $target = $event->broadcastOn()[0];
         $payload = $event->broadcastWith();
 
@@ -139,7 +139,7 @@ test('deleting a message broadcasts MessageDeleted as a tombstone with a blanked
     });
 });
 
-test('a channel member is authorized to subscribe to the channel', function () {
+test('a channel member is authorized to subscribe to the channel', function (): void {
     useRealBroadcaster();
 
     [$owner, $team, $general] = broadcastTeamWithGeneral();
@@ -152,7 +152,7 @@ test('a channel member is authorized to subscribe to the channel', function () {
         ->assertOk();
 });
 
-test('a non-member cannot subscribe to the channel', function () {
+test('a non-member cannot subscribe to the channel', function (): void {
     useRealBroadcaster();
 
     [$owner, $team] = broadcastTeamWithGeneral();
@@ -171,7 +171,7 @@ test('a non-member cannot subscribe to the channel', function () {
         ->assertForbidden();
 });
 
-test('subscribing to an unknown channel is denied', function () {
+test('subscribing to an unknown channel is denied', function (): void {
     useRealBroadcaster();
 
     $user = User::factory()->create();

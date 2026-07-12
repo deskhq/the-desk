@@ -54,6 +54,6 @@ class UnfurlMessageLinks implements ShouldQueue
         }
 
         $message->loadMessageDataRelations();
-        MessageUpdated::dispatch($message->channel, MessageData::fromMessage($message));
+        event(new MessageUpdated($message->channel, MessageData::fromMessage($message)));
     }
 }

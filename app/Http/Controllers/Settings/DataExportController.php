@@ -37,7 +37,7 @@ class DataExportController extends Controller
             'status' => DataExportStatus::Pending,
         ]);
 
-        ExportUserData::dispatch($export->id);
+        dispatch(new ExportUserData($export->id));
 
         Inertia::flash('toast', ['type' => 'success', 'message' => __("Preparing your data export. We'll email you when it's ready.")]);
 

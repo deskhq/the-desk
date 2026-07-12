@@ -7,7 +7,7 @@ use App\Models\Message;
 use App\Models\User;
 use Illuminate\Support\Str;
 
-test('a channel creator can archive their channel and is redirected to #general', function () {
+test('a channel creator can archive their channel and is redirected to #general', function (): void {
     $owner = User::factory()->create();
     $team = app(CreateTeam::class)->handle($owner, 'Acme');
     $channel = Channel::factory()->for($team)->create(['created_by' => $owner->id]);
@@ -20,7 +20,7 @@ test('a channel creator can archive their channel and is redirected to #general'
     expect($channel->fresh()->isArchived())->toBeTrue();
 });
 
-test('a team admin can archive a channel they did not create', function () {
+test('a team admin can archive a channel they did not create', function (): void {
     $owner = User::factory()->create();
     $admin = User::factory()->create();
     $team = app(CreateTeam::class)->handle($owner, 'Acme');
@@ -34,7 +34,7 @@ test('a team admin can archive a channel they did not create', function () {
     expect($channel->fresh()->isArchived())->toBeTrue();
 });
 
-test('a plain member who did not create a channel cannot archive it', function () {
+test('a plain member who did not create a channel cannot archive it', function (): void {
     $owner = User::factory()->create();
     $member = User::factory()->create();
     $team = app(CreateTeam::class)->handle($owner, 'Acme');
@@ -48,7 +48,7 @@ test('a plain member who did not create a channel cannot archive it', function (
     expect($channel->fresh()->isArchived())->toBeFalse();
 });
 
-test('the #general channel cannot be archived', function () {
+test('the #general channel cannot be archived', function (): void {
     $owner = User::factory()->create();
     $team = app(CreateTeam::class)->handle($owner, 'Acme');
     $general = $team->channels()->where('slug', Channel::GENERAL_SLUG)->firstOrFail();
@@ -60,7 +60,7 @@ test('the #general channel cannot be archived', function () {
     expect($general->fresh()->isArchived())->toBeFalse();
 });
 
-test('an already-archived channel cannot be archived again', function () {
+test('an already-archived channel cannot be archived again', function (): void {
     $owner = User::factory()->create();
     $team = app(CreateTeam::class)->handle($owner, 'Acme');
     $channel = Channel::factory()->for($team)->archived()->create(['created_by' => $owner->id]);
@@ -70,7 +70,7 @@ test('an already-archived channel cannot be archived again', function () {
         ->assertForbidden();
 });
 
-test('archiving keeps the channel and its messages, only setting archived_at', function () {
+test('archiving keeps the channel and its messages, only setting archived_at', function (): void {
     $owner = User::factory()->create();
     $team = app(CreateTeam::class)->handle($owner, 'Acme');
     $channel = Channel::factory()->for($team)->create(['created_by' => $owner->id]);
@@ -83,7 +83,7 @@ test('archiving keeps the channel and its messages, only setting archived_at', f
         ->and($channel->fresh()->messages()->count())->toBe(1);
 });
 
-test('an archived channel is hidden from the active sidebar channel list', function () {
+test('an archived channel is hidden from the active sidebar channel list', function (): void {
     $owner = User::factory()->create();
     $team = app(CreateTeam::class)->handle($owner, 'Acme');
     $active = Channel::factory()->for($team)->create(['name' => 'Announcements', 'slug' => 'announcements', 'created_by' => $owner->id]);
@@ -99,7 +99,7 @@ test('an archived channel is hidden from the active sidebar channel list', funct
             ->where('channels.1.slug', Channel::GENERAL_SLUG));
 });
 
-test('the archive control is offered to a user who may archive the channel', function () {
+test('the archive control is offered to a user who may archive the channel', function (): void {
     $owner = User::factory()->create();
     $team = app(CreateTeam::class)->handle($owner, 'Acme');
     $channel = Channel::factory()->for($team)->create(['created_by' => $owner->id]);
@@ -110,7 +110,7 @@ test('the archive control is offered to a user who may archive the channel', fun
         ->assertInertia(fn ($page) => $page->where('canArchive', true));
 });
 
-test('the archive control is withheld from a user who may not archive the channel', function () {
+test('the archive control is withheld from a user who may not archive the channel', function (): void {
     $owner = User::factory()->create();
     $team = app(CreateTeam::class)->handle($owner, 'Acme');
     $general = $team->channels()->where('slug', Channel::GENERAL_SLUG)->firstOrFail();
@@ -120,7 +120,7 @@ test('the archive control is withheld from a user who may not archive the channe
         ->assertInertia(fn ($page) => $page->where('canArchive', false));
 });
 
-test('a user who cannot post to an archived channel is forbidden', function () {
+test('a user who cannot post to an archived channel is forbidden', function (): void {
     $owner = User::factory()->create();
     $team = app(CreateTeam::class)->handle($owner, 'Acme');
     $channel = Channel::factory()->for($team)->archived()->create(['created_by' => $owner->id]);

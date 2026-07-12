@@ -18,7 +18,7 @@ function attachToSharedTeam(User $user, TeamRole $role, ?Team $team = null): Tea
     return $team;
 }
 
-test('authored messages are reassigned to the deleted-user tombstone', function () {
+test('authored messages are reassigned to the deleted-user tombstone', function (): void {
     $user = User::factory()->create();
     $channel = Channel::factory()->create();
     $message = Message::factory()->create([
@@ -38,7 +38,7 @@ test('authored messages are reassigned to the deleted-user tombstone', function 
     expect($tombstone->name)->toBe('Deleted User');
 });
 
-test('the personal team is soft-deleted with the account', function () {
+test('the personal team is soft-deleted with the account', function (): void {
     $user = User::factory()->create();
     $personalTeam = $user->personalTeam();
 
@@ -50,7 +50,7 @@ test('the personal team is soft-deleted with the account', function () {
     expect(Team::withTrashed()->find($personalTeam->id)->trashed())->toBeTrue();
 });
 
-test('the sole owner of a shared team cannot delete their account', function () {
+test('the sole owner of a shared team cannot delete their account', function (): void {
     $user = User::factory()->create();
     $team = attachToSharedTeam($user, TeamRole::Owner);
 
@@ -64,7 +64,7 @@ test('the sole owner of a shared team cannot delete their account', function () 
     expect(Team::find($team->id))->not->toBeNull();
 });
 
-test('a blocked sole owner can transfer ownership then delete their account', function () {
+test('a blocked sole owner can transfer ownership then delete their account', function (): void {
     $user = User::factory()->create();
     $member = User::factory()->create();
     $team = attachToSharedTeam($user, TeamRole::Owner);
@@ -83,7 +83,7 @@ test('a blocked sole owner can transfer ownership then delete their account', fu
     expect($team->fresh()->owner()->is($member))->toBeTrue();
 });
 
-test('a co-owned shared team does not block deletion', function () {
+test('a co-owned shared team does not block deletion', function (): void {
     $user = User::factory()->create();
     $coOwner = User::factory()->create();
     $team = attachToSharedTeam($user, TeamRole::Owner);
@@ -98,7 +98,7 @@ test('a co-owned shared team does not block deletion', function () {
     expect($team->fresh()->owner()->is($coOwner))->toBeTrue();
 });
 
-test('membership of a shared team is dropped when the account is deleted', function () {
+test('membership of a shared team is dropped when the account is deleted', function (): void {
     $owner = User::factory()->create();
     $member = User::factory()->create();
     $team = attachToSharedTeam($owner, TeamRole::Owner);
@@ -113,7 +113,7 @@ test('membership of a shared team is dropped when the account is deleted', funct
     expect($team->fresh()->members()->whereKey($member->id)->exists())->toBeFalse();
 });
 
-test('the deleted-user tombstone is a reused singleton', function () {
+test('the deleted-user tombstone is a reused singleton', function (): void {
     $first = User::tombstone();
     $second = User::tombstone();
 

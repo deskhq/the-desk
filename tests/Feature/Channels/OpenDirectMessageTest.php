@@ -20,7 +20,7 @@ function dmTeamMember(Team $team): User
     return $user;
 }
 
-test('opening a direct message creates a private direct channel with both members', function () {
+test('opening a direct message creates a private direct channel with both members', function (): void {
     $owner = User::factory()->create();
     $team = app(CreateTeam::class)->handle($owner, 'Acme');
     $other = dmTeamMember($team);
@@ -42,7 +42,7 @@ test('opening a direct message creates a private direct channel with both member
         ->toBe(NotificationLevel::All);
 });
 
-test('opening a direct message redirects to the channel via its synthetic slug', function () {
+test('opening a direct message redirects to the channel via its synthetic slug', function (): void {
     $owner = User::factory()->create();
     $team = app(CreateTeam::class)->handle($owner, 'Acme');
     $other = dmTeamMember($team);
@@ -55,7 +55,7 @@ test('opening a direct message redirects to the channel via its synthetic slug',
     $response->assertRedirect(route('channels.show', ['team' => $team->slug, 'channel' => $dm->slug]));
 });
 
-test('opening a direct message twice in either direction yields the same channel', function () {
+test('opening a direct message twice in either direction yields the same channel', function (): void {
     $owner = User::factory()->create();
     $team = app(CreateTeam::class)->handle($owner, 'Acme');
     $other = dmTeamMember($team);
@@ -68,7 +68,7 @@ test('opening a direct message twice in either direction yields the same channel
     expect(Channel::where('team_id', $team->id)->where('type', ChannelType::Direct)->count())->toBe(1);
 });
 
-test('a user can open a self direct message rendering a single member', function () {
+test('a user can open a self direct message rendering a single member', function (): void {
     $owner = User::factory()->create();
     $team = app(CreateTeam::class)->handle($owner, 'Acme');
 
@@ -83,7 +83,7 @@ test('a user can open a self direct message rendering a single member', function
         ->and($dm->members()->whereKey($owner->id)->exists())->toBeTrue();
 });
 
-test('opening a self direct message twice yields the same channel', function () {
+test('opening a self direct message twice yields the same channel', function (): void {
     $owner = User::factory()->create();
     $team = app(CreateTeam::class)->handle($owner, 'Acme');
 
@@ -93,7 +93,7 @@ test('opening a self direct message twice yields the same channel', function () 
     expect(Channel::where('team_id', $team->id)->where('type', ChannelType::Direct)->count())->toBe(1);
 });
 
-test('a direct message cannot be opened with a non-team-member', function () {
+test('a direct message cannot be opened with a non-team-member', function (): void {
     $owner = User::factory()->create();
     $team = app(CreateTeam::class)->handle($owner, 'Acme');
     $outsider = User::factory()->create();
@@ -105,7 +105,7 @@ test('a direct message cannot be opened with a non-team-member', function () {
     expect(Channel::where('team_id', $team->id)->where('type', ChannelType::Direct)->exists())->toBeFalse();
 });
 
-test('opening a direct message requires an existing user', function () {
+test('opening a direct message requires an existing user', function (): void {
     $owner = User::factory()->create();
     $team = app(CreateTeam::class)->handle($owner, 'Acme');
 
@@ -114,7 +114,7 @@ test('opening a direct message requires an existing user', function () {
         ->assertSessionHasErrors('user_id');
 });
 
-test('a non-team-member cannot open a direct message in the team', function () {
+test('a non-team-member cannot open a direct message in the team', function (): void {
     $owner = User::factory()->create();
     $team = app(CreateTeam::class)->handle($owner, 'Acme');
     $outsider = User::factory()->create();
@@ -124,7 +124,7 @@ test('a non-team-member cannot open a direct message in the team', function () {
         ->assertForbidden();
 });
 
-test('a direct channel resolves through the existing channel show route', function () {
+test('a direct channel resolves through the existing channel show route', function (): void {
     $owner = User::factory()->create();
     $team = app(CreateTeam::class)->handle($owner, 'Acme');
     $other = dmTeamMember($team);
@@ -137,7 +137,7 @@ test('a direct channel resolves through the existing channel show route', functi
         ->assertOk();
 });
 
-test('a team member who is not a participant cannot view a direct message', function () {
+test('a team member who is not a participant cannot view a direct message', function (): void {
     $owner = User::factory()->create();
     $team = app(CreateTeam::class)->handle($owner, 'Acme');
     $other = dmTeamMember($team);

@@ -11,7 +11,7 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('users', function (Blueprint $table) {
+        Schema::table('users', function (Blueprint $table): void {
             // When the user finished (or dismissed) the first-run onboarding tour.
             // Null means they have never completed it, which gates the auto-starting
             // tour and the brand-new-workspace welcome empty state.
@@ -24,7 +24,7 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::table('users', function (Blueprint $table) {
+        Schema::table('users', function (Blueprint $table): void {
             $table->dropColumn('onboarding_completed_at');
         });
     }

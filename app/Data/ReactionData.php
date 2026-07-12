@@ -36,10 +36,10 @@ class ReactionData extends Data
     {
         return $message->reactions
             ->groupBy('emoji')
-            ->map(fn (Collection $group, string $emoji) => new self(
+            ->map(fn (Collection $group, string $emoji): ReactionData => new self(
                 emoji: $emoji,
                 count: $group->count(),
-                reactors: $group->map(fn (MessageReaction $reaction) => MentionData::fromUser($reaction->user))->all(),
+                reactors: $group->map(fn (MessageReaction $reaction): MentionData => MentionData::fromUser($reaction->user))->all(),
             ))
             ->values()
             ->all();

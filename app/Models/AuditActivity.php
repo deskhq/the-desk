@@ -28,6 +28,7 @@ class AuditActivity extends Activity
     /**
      * Guard against any mutation after creation so the log stays append-only.
      */
+    #[\Override]
     protected static function booted(): void
     {
         static::updating(function (): never {

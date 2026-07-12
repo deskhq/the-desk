@@ -17,10 +17,10 @@ function abortingRoute(int $status): string
     return '/'.$path;
 }
 
-test('the 404 fallback renders the branded Inertia error page', function () {
+test('the 404 fallback renders the branded Inertia error page', function (): void {
     $this->get('/this-route-does-not-exist')
         ->assertStatus(404)
-        ->assertInertia(fn (Assert $page) => $page
+        ->assertInertia(fn (Assert $page): Assert => $page
             ->component('Error')
             ->where('status', 404)
             // Shared data resolved via withSharedData() — proves the page
@@ -31,16 +31,16 @@ test('the 404 fallback renders the branded Inertia error page', function () {
         );
 });
 
-test('the common HTTP statuses each render the Inertia error page', function (int $status) {
+test('the common HTTP statuses each render the Inertia error page', function (int $status): void {
     $this->get(abortingRoute($status))
         ->assertStatus($status)
-        ->assertInertia(fn (Assert $page) => $page
+        ->assertInertia(fn (Assert $page): Assert => $page
             ->component('Error')
             ->where('status', $status)
         );
 })->with([403, 419, 429]);
 
-test('API requests still receive JSON, not the Inertia error page', function () {
+test('API requests still receive JSON, not the Inertia error page', function (): void {
     $response = $this->getJson('/this-route-does-not-exist')
         ->assertStatus(404)
         ->assertHeader('content-type', 'application/json');
@@ -49,16 +49,16 @@ test('API requests still receive JSON, not the Inertia error page', function () 
     expect($response->getContent())->not->toContain('"component":"Error"');
 });
 
-test('expectsJson requests fall through to the JSON response', function () {
+test('expectsJson requests fall through to the JSON response', function (): void {
     $this->get(abortingRoute(403), ['Accept' => 'application/json'])
         ->assertStatus(403)
         ->assertHeader('content-type', 'application/json');
 });
 
-test('the 500 fallback renders a self-contained branded Blade page', function () {
+test('the 500 fallback renders a self-contained branded Blade page', function (): void {
     config(['app.debug' => false]);
 
-    Route::middleware('web')->get('_test/boom', function () {
+    Route::middleware('web')->get('_test/boom', function (): void {
         throw new RuntimeException('boom');
     });
 
@@ -77,7 +77,7 @@ test('the 500 fallback renders a self-contained branded Blade page', function ()
         ->not->toContain('<script');
 });
 
-test('the 503 fallback renders the branded maintenance Blade page', function () {
+test('the 503 fallback renders the branded maintenance Blade page', function (): void {
     config(['app.debug' => false]);
 
     $response = $this->get(abortingRoute(503));

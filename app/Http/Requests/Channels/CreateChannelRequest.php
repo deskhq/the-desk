@@ -26,6 +26,7 @@ class CreateChannelRequest extends FormRequest
     /**
      * Normalize the channel name before validation (strip a leading # and trim).
      */
+    #[\Override]
     protected function prepareForValidation(): void
     {
         $this->merge([

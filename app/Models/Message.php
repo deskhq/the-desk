@@ -75,7 +75,7 @@ class Message extends Model
      *
      * @var list<string>
      */
-    private const MESSAGE_DATA_RELATIONS = [
+    private const array MESSAGE_DATA_RELATIONS = [
         'user',
         'mentionedUsers',
         'linkPreviews',
@@ -202,7 +202,7 @@ class Message extends Model
      */
     public function reactions(): HasMany
     {
-        return $this->hasMany(MessageReaction::class)->orderBy('created_at')->orderBy('id');
+        return $this->hasMany(MessageReaction::class)->oldest()->orderBy('id');
     }
 
     /**
@@ -211,7 +211,7 @@ class Message extends Model
      * or were @mentioned anywhere in it — the Slack-style auto-follow rule.
      * Binds the user id twice.
      */
-    private const THREAD_FOLLOWED_SQL = '(exists (
+    private const string THREAD_FOLLOWED_SQL = '(exists (
         select 1 from messages tm
         where (tm.id = messages.id or tm.thread_root_id = messages.id)
           and (
@@ -229,7 +229,7 @@ class Message extends Model
      * query gets per-channel muting for free. Binds the user id three times, then
      * the "all" notification level.
      */
-    private const THREAD_HAS_UNREAD_SQL = '(exists (
+    private const string THREAD_HAS_UNREAD_SQL = '(exists (
         select 1 from messages r
         left join thread_reads tr on tr.thread_root_id = messages.id and tr.user_id = ?
         where r.thread_root_id = messages.id
@@ -249,7 +249,7 @@ class Message extends Model
      *
      * @param  Builder<Message>  $query
      */
-    public function scopeWithThreadReadState(Builder $query, User $user): void
+    protected function scopeWithThreadReadState(Builder $query, User $user): void
     {
         $query->addSelect('messages.*')
             ->selectRaw(self::THREAD_FOLLOWED_SQL.'::int as thread_followed', [$user->id, $user->id])
@@ -264,7 +264,7 @@ class Message extends Model
      *
      * @param  Builder<Message>  $query
      */
-    public function scopeFollowedBy(Builder $query, User $user): void
+    protected function scopeFollowedBy(Builder $query, User $user): void
     {
         $query->whereRaw(self::THREAD_FOLLOWED_SQL, [$user->id, $user->id]);
     }
@@ -275,7 +275,7 @@ class Message extends Model
      *
      * @param  Builder<Message>  $query
      */
-    public function scopeWhereThreadUnreadFor(Builder $query, User $user): void
+    protected function scopeWhereThreadUnreadFor(Builder $query, User $user): void
     {
         $query->whereRaw(self::THREAD_HAS_UNREAD_SQL, [$user->id, $user->id, $user->id, NotificationLevel::All->value]);
     }
@@ -289,7 +289,7 @@ class Message extends Model
      *
      * @param  Builder<Message>  $query
      */
-    public function scopeWithMessageDataRelations(Builder $query): void
+    protected function scopeWithMessageDataRelations(Builder $query): void
     {
         $query->with(self::MESSAGE_DATA_RELATIONS);
     }
@@ -327,6 +327,7 @@ class Message extends Model
      *
      * @return array<string, string>
      */
+    #[\Override]
     protected function casts(): array
     {
         return [

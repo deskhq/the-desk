@@ -28,6 +28,7 @@ class UpdateChannelSectionRequest extends FormRequest
      * Trim a supplied section name before validation, leaving it absent when the
      * request only toggles the collapse state.
      */
+    #[\Override]
     protected function prepareForValidation(): void
     {
         if ($this->has('name')) {

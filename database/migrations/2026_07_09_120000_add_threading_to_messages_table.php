@@ -11,7 +11,7 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('messages', function (Blueprint $table) {
+        Schema::table('messages', function (Blueprint $table): void {
             // The thread this reply belongs to, pointing at the thread's root
             // message, or null for a root/normal message. Force-deleting the root
             // nulls the reference; a soft-deleted root keeps it so the thread
@@ -50,7 +50,7 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::table('messages', function (Blueprint $table) {
+        Schema::table('messages', function (Blueprint $table): void {
             $table->dropIndex(['thread_root_id', 'id']);
             $table->dropConstrainedForeignId('thread_root_id');
             $table->dropColumn(['sent_to_channel', 'reply_count', 'last_reply_at']);

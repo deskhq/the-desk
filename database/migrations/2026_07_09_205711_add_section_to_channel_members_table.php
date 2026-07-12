@@ -11,7 +11,7 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('channel_members', function (Blueprint $table) {
+        Schema::table('channel_members', function (Blueprint $table): void {
             // The custom section the member has filed this channel under, or null
             // for the default "Channels" group. Deleting the section returns the
             // channel to the default group rather than dropping the membership.
@@ -29,7 +29,7 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::table('channel_members', function (Blueprint $table) {
+        Schema::table('channel_members', function (Blueprint $table): void {
             $table->dropConstrainedForeignId('section_id');
             $table->dropColumn('position');
         });

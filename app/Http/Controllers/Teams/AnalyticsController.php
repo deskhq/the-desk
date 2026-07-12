@@ -12,7 +12,7 @@ use Inertia\Response;
 
 class AnalyticsController extends Controller
 {
-    public function __construct(private WorkspaceAnalytics $analytics) {}
+    public function __construct(private readonly WorkspaceAnalytics $analytics) {}
 
     /**
      * Show the workspace analytics dashboard for the selected time window.

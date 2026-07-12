@@ -22,7 +22,7 @@ function editTeamWithGeneral(): array
     return [$owner, $team, $general];
 }
 
-test('the author can edit their own message and edited_at is set', function () {
+test('the author can edit their own message and edited_at is set', function (): void {
     [$owner, $team, $general] = editTeamWithGeneral();
     $message = Message::factory()->for($general)->for($owner)->create(['body' => 'original']);
 
@@ -40,7 +40,7 @@ test('the author can edit their own message and edited_at is set', function () {
         ->and($message->edited_at)->not->toBeNull();
 });
 
-test('the message body is trimmed and required on edit', function () {
+test('the message body is trimmed and required on edit', function (): void {
     [$owner, $team, $general] = editTeamWithGeneral();
     $message = Message::factory()->for($general)->for($owner)->create(['body' => 'original']);
 
@@ -55,7 +55,7 @@ test('the message body is trimmed and required on edit', function () {
     expect($message->refresh()->body)->toBe('original');
 });
 
-test('a user cannot edit another members message', function () {
+test('a user cannot edit another members message', function (): void {
     [$owner, $team, $general] = editTeamWithGeneral();
     $other = User::factory()->create();
     $team->memberships()->create(['user_id' => $other->id, 'role' => TeamRole::Member]);
@@ -73,7 +73,7 @@ test('a user cannot edit another members message', function () {
     expect($message->refresh()->body)->toBe('original');
 });
 
-test('the author can delete their own message', function () {
+test('the author can delete their own message', function (): void {
     [$owner, $team, $general] = editTeamWithGeneral();
     $message = Message::factory()->for($general)->for($owner)->create();
 
@@ -88,7 +88,7 @@ test('the author can delete their own message', function () {
     expect($message->fresh()->deleted_at)->not->toBeNull();
 });
 
-test('a team admin can delete another members message', function () {
+test('a team admin can delete another members message', function (): void {
     [$owner, $team, $general] = editTeamWithGeneral();
     $admin = User::factory()->create();
     $team->memberships()->create(['user_id' => $admin->id, 'role' => TeamRole::Admin]);
@@ -106,7 +106,7 @@ test('a team admin can delete another members message', function () {
     expect($message->fresh()->deleted_at)->not->toBeNull();
 });
 
-test('a plain member cannot delete another members message', function () {
+test('a plain member cannot delete another members message', function (): void {
     [$owner, $team, $general] = editTeamWithGeneral();
     $member = User::factory()->create();
     $team->memberships()->create(['user_id' => $member->id, 'role' => TeamRole::Member]);
@@ -124,7 +124,7 @@ test('a plain member cannot delete another members message', function () {
     expect($message->fresh()->deleted_at)->toBeNull();
 });
 
-test('the channel page includes deleted messages as tombstones with a blanked body', function () {
+test('the channel page includes deleted messages as tombstones with a blanked body', function (): void {
     [$owner, $team, $general] = editTeamWithGeneral();
     Message::factory()->for($general)->for($owner)->create(['body' => 'kept']);
     $deleted = Message::factory()->for($general)->for($owner)->create(['body' => 'secret']);
@@ -132,7 +132,7 @@ test('the channel page includes deleted messages as tombstones with a blanked bo
 
     $this->actingAs($owner)
         ->get(route('channels.show', ['team' => $team->slug, 'channel' => $general->slug]))
-        ->assertInertia(fn (Assert $page) => $page
+        ->assertInertia(fn (Assert $page): Assert => $page
             ->has('messages.data', 2)
             ->where('messages.data.0.isDeleted', true)
             ->where('messages.data.0.body', '')

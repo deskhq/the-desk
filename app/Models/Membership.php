@@ -66,6 +66,7 @@ class Membership extends Pivot
      *
      * @return array<string, string>
      */
+    #[\Override]
     protected function casts(): array
     {
         return [

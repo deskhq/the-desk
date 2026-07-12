@@ -119,7 +119,7 @@ class ChannelTimelineWindow
             ->when($ceilingId, fn (Builder $query) => $query->where('id', '<=', $ceilingId))
             ->orderByDesc('id')
             ->cursorPaginate(self::MESSAGE_PAGE_SIZE)
-            ->through(fn (Message $message) => MessageData::fromMessage($message));
+            ->through(fn (Message $message): MessageData => MessageData::fromMessage($message));
     }
 
     /**
@@ -135,7 +135,7 @@ class ChannelTimelineWindow
     {
         $root = $this->resolveThreadRoot();
 
-        if ($root === null) {
+        if (! $root instanceof Message) {
             return null;
         }
 
@@ -157,14 +157,14 @@ class ChannelTimelineWindow
     {
         $root = $this->resolveThreadRoot();
 
-        $query = $root !== null
+        $query = $root instanceof Message
             ? $root->threadReplies()->withTrashed()->withMessageDataRelations()
             : Message::query()->whereRaw('1 = 0');
 
         return $query
             ->orderByDesc('id')
             ->cursorPaginate(self::THREAD_PAGE_SIZE, ['*'], 'thread_cursor')
-            ->through(fn (Message $message) => MessageData::fromMessage($message));
+            ->through(fn (Message $message): MessageData => MessageData::fromMessage($message));
     }
 
     /**

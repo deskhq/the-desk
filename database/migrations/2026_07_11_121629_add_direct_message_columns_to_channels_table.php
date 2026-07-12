@@ -11,7 +11,7 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('channels', function (Blueprint $table) {
+        Schema::table('channels', function (Blueprint $table): void {
             // Distinguishes ordinary channels from 1:1 direct messages (with
             // `group_direct` reserved for a future group-DM issue). Defaulting to
             // `standard` keeps every existing row a normal channel.
@@ -33,7 +33,7 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::table('channels', function (Blueprint $table) {
+        Schema::table('channels', function (Blueprint $table): void {
             $table->dropUnique(['team_id', 'dm_key']);
             $table->dropColumn(['type', 'dm_key']);
             $table->string('name')->nullable(false)->change();

@@ -21,7 +21,7 @@ function openDmWithNewMember(Team $team, User $owner): array
     return [app(OpenDirectMessage::class)->handle($team, $owner, $other), $owner, $other];
 }
 
-test('a channel created through the store endpoint is always a standard channel', function () {
+test('a channel created through the store endpoint is always a standard channel', function (): void {
     $owner = User::factory()->create();
     $team = app(CreateTeam::class)->handle($owner, 'Acme');
 
@@ -36,7 +36,7 @@ test('a channel created through the store endpoint is always a standard channel'
         ->and($channel->isDirect())->toBeFalse();
 });
 
-test('a direct message cannot be archived', function () {
+test('a direct message cannot be archived', function (): void {
     $owner = User::factory()->create();
     $team = app(CreateTeam::class)->handle($owner, 'Acme');
     [$dm] = openDmWithNewMember($team, $owner);
@@ -48,7 +48,7 @@ test('a direct message cannot be archived', function () {
     expect($dm->fresh()->isArchived())->toBeFalse();
 });
 
-test('direct messages are excluded from the browse directory', function () {
+test('direct messages are excluded from the browse directory', function (): void {
     $owner = User::factory()->create();
     $team = app(CreateTeam::class)->handle($owner, 'Acme');
     [$dm] = openDmWithNewMember($team, $owner);

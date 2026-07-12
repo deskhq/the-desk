@@ -88,7 +88,7 @@ class ChannelData extends Data
         $viewer = auth()->user();
         $isDirect = $channel->isDirect();
         $dmParticipant = $isDirect && $viewer instanceof User ? $channel->directParticipantFor($viewer) : null;
-        $name = $dmParticipant !== null ? $dmParticipant->name : (string) $channel->name;
+        $name = $dmParticipant instanceof User ? $dmParticipant->name : (string) $channel->name;
 
         // The timestamp the "Direct messages" sidebar group orders on: the
         // channel's latest message (populated by the sidebar query as

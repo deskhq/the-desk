@@ -21,6 +21,7 @@ use App\Models\Message;
 use App\Models\Team;
 use App\Support\AuditRecorder;
 use App\Support\ChannelTimelineWindow;
+use Illuminate\Contracts\Pagination\CursorPaginator;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -122,12 +123,12 @@ class ChannelController extends Controller
             // param, or null for a normal visit. The client opens a thread by
             // visiting `?thread=<root>`, which also drives the paginated replies
             // below; the closure returns null cheaply when no thread is requested.
-            'thread' => fn () => $window->thread(),
+            'thread' => $window->thread(...),
             // The open thread's replies, oldest last, paginated so a very long
             // thread doesn't ship in one payload. Its own cursor name keeps it
             // independent of the main timeline's, and the client's reverse
             // InfiniteScroll pages older replies in above as it scrolls up.
-            'threadReplies' => Inertia::scroll(fn () => $window->threadReplies()),
+            'threadReplies' => Inertia::scroll(fn (): CursorPaginator => $window->threadReplies()),
             // The viewer's own pending scheduled messages for this channel, soonest
             // first, feeding the composer's "Scheduled" affordance. Only pending
             // rows are listed — sent and cancelled ones drop off. The reply quote
@@ -164,7 +165,7 @@ class ChannelController extends Controller
             // scrolling up appends older pages and the client reverses for display.
             // Deleted rows are kept (withTrashed) so the client can render a
             // "message deleted" tombstone in place; MessageData blanks their body.
-            'messages' => Inertia::scroll(fn () => $window->messages()),
+            'messages' => Inertia::scroll(fn (): CursorPaginator => $window->messages()),
         ]);
     }
 

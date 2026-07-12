@@ -42,11 +42,11 @@ function prefMember(Team $team, Channel $channel, ?string $name = null): User
  */
 function prefPost(Channel $channel, User $author, ?User $mention = null): Message
 {
-    $body = $mention ? "hey @[{$mention->name}]({$mention->id})" : fake()->sentence();
+    $body = $mention instanceof User ? "hey @[{$mention->name}]({$mention->id})" : fake()->sentence();
 
     $message = Message::factory()->for($channel)->for($author)->create(['body' => $body]);
 
-    if ($mention) {
+    if ($mention instanceof User) {
         $message->mentionedUsers()->attach($mention->id);
     }
 
@@ -81,7 +81,7 @@ function updatePreferences(User $user, Team $team, Channel $channel, bool $muted
     ]), ['muted' => $muted, 'notification_level' => $level]);
 }
 
-test('joining a channel applies the default notification preferences', function () {
+test('joining a channel applies the default notification preferences', function (): void {
     [$owner, $team] = prefTeamWithGeneral();
     $channel = Channel::factory()->for($team)->create([
         'visibility' => ChannelVisibility::Public,
@@ -100,7 +100,7 @@ test('joining a channel applies the default notification preferences', function 
     ]);
 });
 
-test('a member can update their notification preferences', function () {
+test('a member can update their notification preferences', function (): void {
     [, $team, $general] = prefTeamWithGeneral();
     $member = prefMember($team, $general);
 
@@ -115,7 +115,7 @@ test('a member can update their notification preferences', function () {
     ]);
 });
 
-test('a non-member cannot update preferences for a channel', function () {
+test('a non-member cannot update preferences for a channel', function (): void {
     [$owner, $team] = prefTeamWithGeneral();
     $private = Channel::factory()->for($team)->create([
         'visibility' => ChannelVisibility::Private,
@@ -133,7 +133,7 @@ test('a non-member cannot update preferences for a channel', function () {
     ]);
 });
 
-test('the notification level must be one of the allowed values', function () {
+test('the notification level must be one of the allowed values', function (): void {
     [, $team, $general] = prefTeamWithGeneral();
     $member = prefMember($team, $general);
 
@@ -141,7 +141,7 @@ test('the notification level must be one of the allowed values', function () {
         ->assertSessionHasErrors('notification_level');
 });
 
-test('the muted flag must be a boolean', function () {
+test('the muted flag must be a boolean', function (): void {
     [, $team, $general] = prefTeamWithGeneral();
     $member = prefMember($team, $general);
 
@@ -152,7 +152,7 @@ test('the muted flag must be a boolean', function () {
         ->assertSessionHasErrors('muted');
 });
 
-test('the channel view exposes the members own preferences and the level options', function () {
+test('the channel view exposes the members own preferences and the level options', function (): void {
     [, $team, $general] = prefTeamWithGeneral();
     $member = prefMember($team, $general);
     $member->channels()->updateExistingPivot($general->id, [
@@ -177,7 +177,7 @@ test('the channel view exposes the members own preferences and the level options
         ]);
 });
 
-test('a non-member viewing a public channel cannot manage preferences and sees defaults', function () {
+test('a non-member viewing a public channel cannot manage preferences and sees defaults', function (): void {
     [$owner, $team] = prefTeamWithGeneral();
     $public = Channel::factory()->for($team)->create([
         'visibility' => ChannelVisibility::Public,
@@ -198,7 +198,7 @@ test('a non-member viewing a public channel cannot manage preferences and sees d
         ->and($props['canManagePreferences'])->toBeFalse();
 });
 
-test('the notification level and mute suppress the sidebar badges', function (bool $muted, string $level, int $expectedUnread, int $expectedMention) {
+test('the notification level and mute suppress the sidebar badges', function (bool $muted, string $level, int $expectedUnread, int $expectedMention): void {
     [$owner, $team, $general] = prefTeamWithGeneral();
     $member = prefMember($team, $general, 'Ada Lovelace');
 

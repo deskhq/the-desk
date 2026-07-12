@@ -11,8 +11,8 @@ use App\Models\Membership;
 class MembershipObserver
 {
     public function __construct(
-        private CreateChannel $createChannel,
-        private JoinChannel $joinChannel,
+        private readonly CreateChannel $createChannel,
+        private readonly JoinChannel $joinChannel,
     ) {}
 
     /**

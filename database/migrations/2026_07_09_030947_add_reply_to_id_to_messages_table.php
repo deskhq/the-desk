@@ -11,7 +11,7 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('messages', function (Blueprint $table) {
+        Schema::table('messages', function (Blueprint $table): void {
             // The parent this message quotes inline, or null for a normal
             // message. A quoted parent that is later force-deleted nulls the
             // reference; a soft-deleted parent keeps it so the client renders a
@@ -29,7 +29,7 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::table('messages', function (Blueprint $table) {
+        Schema::table('messages', function (Blueprint $table): void {
             $table->dropConstrainedForeignId('reply_to_id');
         });
     }

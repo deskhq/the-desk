@@ -68,7 +68,7 @@ class MessageReminder extends Model
      *
      * @param  Builder<MessageReminder>  $query
      */
-    public function scopePending(Builder $query): void
+    protected function scopePending(Builder $query): void
     {
         $query->where('status', MessageReminderStatus::Pending);
     }
@@ -78,7 +78,7 @@ class MessageReminder extends Model
      *
      * @param  Builder<MessageReminder>  $query
      */
-    public function scopeDue(Builder $query): void
+    protected function scopeDue(Builder $query): void
     {
         $query->pending()->where('remind_at', '<=', now());
     }
@@ -88,6 +88,7 @@ class MessageReminder extends Model
      *
      * @return array<string, string>
      */
+    #[\Override]
     protected function casts(): array
     {
         return [

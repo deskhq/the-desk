@@ -31,7 +31,7 @@ class MessageReactionFactory extends Factory
      */
     public function emoji(string $emoji): static
     {
-        return $this->state(fn (array $attributes) => [
+        return $this->state(fn (array $attributes): array => [
             'emoji' => $emoji,
         ]);
     }

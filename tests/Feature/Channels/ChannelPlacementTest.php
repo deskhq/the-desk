@@ -69,7 +69,7 @@ function placementSidebar(User $user, Team $team, Channel $channel): Collection
     return collect($response->viewData('page')['props']['channels'])->keyBy('slug');
 }
 
-test('a member can move a channel into a custom section', function () {
+test('a member can move a channel into a custom section', function (): void {
     [$owner, $team, $general] = placementTeam();
     $section = ChannelSection::factory()->for($owner)->for($team)->create();
 
@@ -89,7 +89,7 @@ test('a member can move a channel into a custom section', function () {
         ->toMatchArray(['sectionId' => $section->id, 'position' => 0]);
 });
 
-test('a member can move a channel back to the default group with a null section', function () {
+test('a member can move a channel back to the default group with a null section', function (): void {
     [$owner, $team, $general] = placementTeam();
     $section = ChannelSection::factory()->for($owner)->for($team)->create();
     $owner->channels()->updateExistingPivot($general->id, ['section_id' => $section->id]);
@@ -106,7 +106,7 @@ test('a member can move a channel back to the default group with a null section'
     ]);
 });
 
-test('a pure reorder leaves the section assignment untouched', function () {
+test('a pure reorder leaves the section assignment untouched', function (): void {
     [$owner, $team, $general] = placementTeam();
     $section = ChannelSection::factory()->for($owner)->for($team)->create();
     $owner->channels()->updateExistingPivot($general->id, ['section_id' => $section->id]);
@@ -123,7 +123,7 @@ test('a pure reorder leaves the section assignment untouched', function () {
     ]);
 });
 
-test('reordering persists channel positions and drives the sidebar order', function () {
+test('reordering persists channel positions and drives the sidebar order', function (): void {
     [$owner, $team, $general] = placementTeam();
     $alpha = placementChannel($owner, $team, 'Alpha');
     $beta = placementChannel($owner, $team, 'Beta');
@@ -141,7 +141,7 @@ test('reordering persists channel positions and drives the sidebar order', funct
     expect($order)->toBe(['beta', 'alpha', 'general']);
 });
 
-test('placement only touches the acting user own rows', function () {
+test('placement only touches the acting user own rows', function (): void {
     [$owner, $team, $general] = placementTeam();
     $member = User::factory()->create();
     $team->memberships()->create(['user_id' => $member->id, 'role' => TeamRole::Member]);
@@ -156,7 +156,7 @@ test('placement only touches the acting user own rows', function () {
     expect($general->channelMembers()->where('user_id', $member->id)->value('position'))->toBe(0);
 });
 
-test('a member cannot place a channel into another user section', function () {
+test('a member cannot place a channel into another user section', function (): void {
     [$owner, $team, $general] = placementTeam();
     $other = User::factory()->create();
     $theirs = ChannelSection::factory()->for($other)->for($team)->create();
@@ -167,7 +167,7 @@ test('a member cannot place a channel into another user section', function () {
     ])->assertSessionHasErrors('section_id');
 });
 
-test('a non-member cannot place a channel', function () {
+test('a non-member cannot place a channel', function (): void {
     [$owner, $team] = placementTeam();
     $private = Channel::factory()->for($team)->create([
         'visibility' => ChannelVisibility::Private,
@@ -181,13 +181,13 @@ test('a non-member cannot place a channel', function () {
     ])->assertForbidden();
 });
 
-test('placement requires the ordered ids payload', function () {
+test('placement requires the ordered ids payload', function (): void {
     [$owner, $team, $general] = placementTeam();
 
     placeChannel($owner, $team, $general, [])->assertSessionHasErrors('ordered_ids');
 });
 
-test('placement rejects a channel id the user does not belong to', function () {
+test('placement rejects a channel id the user does not belong to', function (): void {
     [$owner, $team, $general] = placementTeam();
     $foreign = Channel::factory()->for($team)->create();
 
@@ -196,7 +196,7 @@ test('placement rejects a channel id the user does not belong to', function () {
     ])->assertSessionHasErrors('ordered_ids.0');
 });
 
-test('a guest cannot place a channel', function () {
+test('a guest cannot place a channel', function (): void {
     [$owner, $team, $general] = placementTeam();
 
     $this->patch(route('channels.placement.update', ['team' => $team->slug, 'channel' => $general->slug]), [

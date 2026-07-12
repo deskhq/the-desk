@@ -34,7 +34,7 @@ class MessageReminderFactory extends Factory
      */
     public function due(): static
     {
-        return $this->state(fn (array $attributes) => [
+        return $this->state(fn (array $attributes): array => [
             'remind_at' => now()->subMinute(),
         ]);
     }
@@ -44,7 +44,7 @@ class MessageReminderFactory extends Factory
      */
     public function fired(): static
     {
-        return $this->state(fn (array $attributes) => [
+        return $this->state(fn (array $attributes): array => [
             'status' => MessageReminderStatus::Fired,
             'fired_at' => now(),
         ]);

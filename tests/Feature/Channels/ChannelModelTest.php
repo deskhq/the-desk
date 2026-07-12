@@ -5,7 +5,7 @@ use App\Models\Channel;
 use App\Models\ChannelMember;
 use App\Models\User;
 
-test('a channel belongs to its creator', function () {
+test('a channel belongs to its creator', function (): void {
     $creator = User::factory()->create();
     $channel = Channel::factory()->create(['created_by' => $creator->id]);
 
@@ -13,7 +13,7 @@ test('a channel belongs to its creator', function () {
         ->and($channel->creator->is($creator))->toBeTrue();
 });
 
-test('a channel member belongs to a channel and a user', function () {
+test('a channel member belongs to a channel and a user', function (): void {
     $channel = Channel::factory()->create();
     $user = User::factory()->create();
     $member = ChannelMember::factory()->create([
@@ -25,7 +25,7 @@ test('a channel member belongs to a channel and a user', function () {
         ->and($member->user->is($user))->toBeTrue();
 });
 
-test('channel visibility exposes a human label', function () {
+test('channel visibility exposes a human label', function (): void {
     expect(ChannelVisibility::Public->label())->toBe('Public')
         ->and(ChannelVisibility::Private->label())->toBe('Private');
 });

@@ -5,7 +5,7 @@ use App\Models\Team;
 use App\Models\User;
 use Inertia\Testing\AssertableInertia as Assert;
 
-test('a team member can view another member profile', function () {
+test('a team member can view another member profile', function (): void {
     $viewer = User::factory()->create();
     $member = User::factory()->create([
         'name' => 'Ada Lovelace',
@@ -23,7 +23,7 @@ test('a team member can view another member profile', function () {
     $this->actingAs($viewer)
         ->get(route('teams.members.show', [$team, $member]))
         ->assertOk()
-        ->assertInertia(fn (Assert $page) => $page
+        ->assertInertia(fn (Assert $page): Assert => $page
             ->component('teams/MemberProfile')
             ->where('team.slug', $team->slug)
             ->where('profile.id', $member->id)
@@ -40,7 +40,7 @@ test('a team member can view another member profile', function () {
         );
 });
 
-test('the profile card returns a member profile as json', function () {
+test('the profile card returns a member profile as json', function (): void {
     $viewer = User::factory()->create();
     $member = User::factory()->create([
         'name' => 'Grace Hopper',
@@ -65,7 +65,7 @@ test('the profile card returns a member profile as json', function () {
         ]);
 });
 
-test('the profile card 404s for a user outside the team', function () {
+test('the profile card 404s for a user outside the team', function (): void {
     $viewer = User::factory()->create();
     $outsider = User::factory()->create();
     $team = Team::factory()->create();
@@ -77,7 +77,7 @@ test('the profile card 404s for a user outside the team', function () {
         ->assertNotFound();
 });
 
-test('the profile card is forbidden for a non-member viewer', function () {
+test('the profile card is forbidden for a non-member viewer', function (): void {
     $outsider = User::factory()->create();
     $member = User::factory()->create();
     $team = Team::factory()->create();
@@ -89,7 +89,7 @@ test('the profile card is forbidden for a non-member viewer', function () {
         ->assertForbidden();
 });
 
-test('a member viewing their own profile is flagged as you', function () {
+test('a member viewing their own profile is flagged as you', function (): void {
     $user = User::factory()->create();
     $team = Team::factory()->create();
 
@@ -98,10 +98,10 @@ test('a member viewing their own profile is flagged as you', function () {
     $this->actingAs($user)
         ->get(route('teams.members.show', [$team, $user]))
         ->assertOk()
-        ->assertInertia(fn (Assert $page) => $page->where('profile.isYou', true));
+        ->assertInertia(fn (Assert $page): Assert => $page->where('profile.isYou', true));
 });
 
-test('viewing a user who does not belong to the team returns 404', function () {
+test('viewing a user who does not belong to the team returns 404', function (): void {
     $viewer = User::factory()->create();
     $outsider = User::factory()->create();
     $team = Team::factory()->create();
@@ -113,7 +113,7 @@ test('viewing a user who does not belong to the team returns 404', function () {
         ->assertNotFound();
 });
 
-test('a user who is not a team member cannot view profiles in that team', function () {
+test('a user who is not a team member cannot view profiles in that team', function (): void {
     $outsider = User::factory()->create();
     $member = User::factory()->create();
     $team = Team::factory()->create();
@@ -125,7 +125,7 @@ test('a user who is not a team member cannot view profiles in that team', functi
         ->assertForbidden();
 });
 
-test('guests cannot view member profiles', function () {
+test('guests cannot view member profiles', function (): void {
     $member = User::factory()->create();
     $team = Team::factory()->create();
 

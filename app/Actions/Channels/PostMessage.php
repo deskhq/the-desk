@@ -13,8 +13,8 @@ use App\Models\User;
 class PostMessage
 {
     public function __construct(
-        private SyncMentions $syncMentions,
-        private SyncLinkPreviews $syncLinkPreviews,
+        private readonly SyncMentions $syncMentions,
+        private readonly SyncLinkPreviews $syncLinkPreviews,
     ) {}
 
     /**
@@ -56,7 +56,7 @@ class PostMessage
             $this->syncMentions->handle($channel, $message);
             $this->syncLinkPreviews->handle($message);
             $message->loadMessageDataRelations();
-            MessageSent::dispatch($channel, MessageData::fromMessage($message));
+            event(new MessageSent($channel, MessageData::fromMessage($message)));
 
             $this->announceFirstDirectMessage($channel, $author);
 
@@ -89,7 +89,7 @@ class PostMessage
         $channel->members()
             ->where('users.id', '!=', $author->id)
             ->pluck('users.id')
-            ->each(fn (string $recipientId) => DirectMessageStarted::dispatch($recipientId, $channel->id));
+            ->each(fn (string $recipientId) => event(new DirectMessageStarted($recipientId, $channel->id)));
     }
 
     /**
@@ -102,6 +102,6 @@ class PostMessage
         $root->forceFill(['reply_count' => $root->reply_count + 1, 'last_reply_at' => now()])->save();
 
         $root->loadMessageDataRelations();
-        MessageUpdated::dispatch($channel, MessageData::fromMessage($root));
+        event(new MessageUpdated($channel, MessageData::fromMessage($root)));
     }
 }

@@ -12,7 +12,7 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('channels', function (Blueprint $table) {
+        Schema::create('channels', function (Blueprint $table): void {
             $table->uuid('id')->primary()->default(DB::raw('gen_random_uuid()'));
             $table->foreignUuid('team_id')->constrained()->cascadeOnDelete();
             $table->string('name');

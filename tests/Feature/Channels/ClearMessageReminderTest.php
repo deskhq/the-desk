@@ -21,7 +21,7 @@ function reminderClearTeamWithGeneral(): array
     return [$owner, $team, $general];
 }
 
-test('a user can clear one of their reminders', function () {
+test('a user can clear one of their reminders', function (): void {
     [$owner, $team, $general] = reminderClearTeamWithGeneral();
     $message = Message::factory()->for($general)->for($owner)->create();
     $reminder = MessageReminder::factory()->for($owner)->for($message)->create();
@@ -33,7 +33,7 @@ test('a user can clear one of their reminders', function () {
     expect(MessageReminder::find($reminder->id))->toBeNull();
 });
 
-test('a user cannot clear someone else reminder', function () {
+test('a user cannot clear someone else reminder', function (): void {
     [$owner, $team, $general] = reminderClearTeamWithGeneral();
     $message = Message::factory()->for($general)->for($owner)->create();
 
@@ -47,7 +47,7 @@ test('a user cannot clear someone else reminder', function () {
     expect(MessageReminder::find($reminder->id))->not->toBeNull();
 });
 
-test('a user can clear all their pending reminders in the team at once', function () {
+test('a user can clear all their pending reminders in the team at once', function (): void {
     [$owner, $team, $general] = reminderClearTeamWithGeneral();
     $message = Message::factory()->for($general)->for($owner)->create();
     $secondMessage = Message::factory()->for($general)->for($owner)->create();
@@ -64,7 +64,7 @@ test('a user can clear all their pending reminders in the team at once', functio
         ->and(MessageReminder::first()->is($fired))->toBeTrue();
 });
 
-test('clearing all leaves another team reminders untouched', function () {
+test('clearing all leaves another team reminders untouched', function (): void {
     [$owner, $team, $general] = reminderClearTeamWithGeneral();
     $message = Message::factory()->for($general)->for($owner)->create();
     MessageReminder::factory()->for($owner)->for($message)->create();

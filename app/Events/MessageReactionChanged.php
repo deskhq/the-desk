@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Events;
 
 use App\Data\MessageData;
@@ -53,7 +55,7 @@ class MessageReactionChanged implements ShouldBroadcast
     {
         return [
             'messageId' => $this->messageId,
-            'reactions' => array_map(fn (ReactionData $reaction) => $reaction->toArray(), $this->reactions),
+            'reactions' => array_map(fn (ReactionData $reaction): array => $reaction->toArray(), $this->reactions),
         ];
     }
 }

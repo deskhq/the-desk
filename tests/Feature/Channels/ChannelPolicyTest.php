@@ -5,7 +5,7 @@ use App\Enums\TeamRole;
 use App\Models\Channel;
 use App\Models\User;
 
-test('the #general channel cannot be archived by anyone', function () {
+test('the #general channel cannot be archived by anyone', function (): void {
     $owner = User::factory()->create();
     $team = app(CreateTeam::class)->handle($owner, 'Acme');
     $general = Channel::where('team_id', $team->id)->where('slug', 'general')->firstOrFail();
@@ -13,7 +13,7 @@ test('the #general channel cannot be archived by anyone', function () {
     expect($owner->can('archive', $general))->toBeFalse();
 });
 
-test('the channel creator can archive a regular channel', function () {
+test('the channel creator can archive a regular channel', function (): void {
     $creator = User::factory()->create();
     $team = app(CreateTeam::class)->handle($creator, 'Acme');
     $channel = Channel::factory()->for($team)->create([
@@ -24,7 +24,7 @@ test('the channel creator can archive a regular channel', function () {
     expect($creator->can('archive', $channel))->toBeTrue();
 });
 
-test('a plain member who did not create a channel cannot archive it', function () {
+test('a plain member who did not create a channel cannot archive it', function (): void {
     $owner = User::factory()->create();
     $member = User::factory()->create();
     $team = app(CreateTeam::class)->handle($owner, 'Acme');
@@ -38,7 +38,7 @@ test('a plain member who did not create a channel cannot archive it', function (
     expect($member->can('archive', $channel))->toBeFalse();
 });
 
-test('the #general channel cannot be deleted by anyone', function () {
+test('the #general channel cannot be deleted by anyone', function (): void {
     $owner = User::factory()->create();
     $team = app(CreateTeam::class)->handle($owner, 'Acme');
     $general = Channel::where('team_id', $team->id)->where('slug', 'general')->firstOrFail();
@@ -46,7 +46,7 @@ test('the #general channel cannot be deleted by anyone', function () {
     expect($owner->can('delete', $general))->toBeFalse();
 });
 
-test('a team admin can delete a regular channel they did not create', function () {
+test('a team admin can delete a regular channel they did not create', function (): void {
     $owner = User::factory()->create();
     $admin = User::factory()->create();
     $team = app(CreateTeam::class)->handle($owner, 'Acme');
@@ -57,7 +57,7 @@ test('a team admin can delete a regular channel they did not create', function (
     expect($admin->can('delete', $channel))->toBeTrue();
 });
 
-test('a user who is not a team member cannot archive a channel', function () {
+test('a user who is not a team member cannot archive a channel', function (): void {
     $owner = User::factory()->create();
     $outsider = User::factory()->create();
     $team = app(CreateTeam::class)->handle($owner, 'Acme');
@@ -66,7 +66,7 @@ test('a user who is not a team member cannot archive a channel', function () {
     expect($outsider->can('archive', $channel))->toBeFalse();
 });
 
-test('an already-archived channel cannot be archived again', function () {
+test('an already-archived channel cannot be archived again', function (): void {
     $creator = User::factory()->create();
     $team = app(CreateTeam::class)->handle($creator, 'Acme');
     $channel = Channel::factory()->for($team)->archived()->create(['created_by' => $creator->id]);
@@ -74,7 +74,7 @@ test('an already-archived channel cannot be archived again', function () {
     expect($creator->can('archive', $channel))->toBeFalse();
 });
 
-test('a team member can view a public channel but a non-member cannot', function () {
+test('a team member can view a public channel but a non-member cannot', function (): void {
     $owner = User::factory()->create();
     $outsider = User::factory()->create();
     $team = app(CreateTeam::class)->handle($owner, 'Acme');
@@ -84,7 +84,7 @@ test('a team member can view a public channel but a non-member cannot', function
         ->and($outsider->can('view', $general))->toBeFalse();
 });
 
-test('a private channel is only viewable by its members', function () {
+test('a private channel is only viewable by its members', function (): void {
     $owner = User::factory()->create();
     $member = User::factory()->create();
     $team = app(CreateTeam::class)->handle($owner, 'Acme');
@@ -97,7 +97,7 @@ test('a private channel is only viewable by its members', function () {
         ->and($member->can('view', $private))->toBeFalse();
 });
 
-test('any team member can create a channel but an outsider cannot', function () {
+test('any team member can create a channel but an outsider cannot', function (): void {
     $owner = User::factory()->create();
     $member = User::factory()->create();
     $outsider = User::factory()->create();
@@ -108,7 +108,7 @@ test('any team member can create a channel but an outsider cannot', function () 
         ->and($outsider->can('create', [Channel::class, $team]))->toBeFalse();
 });
 
-test('a public channel is joinable by a team member but a private one is not', function () {
+test('a public channel is joinable by a team member but a private one is not', function (): void {
     $owner = User::factory()->create();
     $team = app(CreateTeam::class)->handle($owner, 'Acme');
     $public = Channel::factory()->for($team)->create();
@@ -118,7 +118,7 @@ test('a public channel is joinable by a team member but a private one is not', f
         ->and($owner->can('join', $private))->toBeFalse();
 });
 
-test('an archived public channel is not joinable', function () {
+test('an archived public channel is not joinable', function (): void {
     $owner = User::factory()->create();
     $team = app(CreateTeam::class)->handle($owner, 'Acme');
     $archived = Channel::factory()->for($team)->archived()->create();
@@ -126,7 +126,7 @@ test('an archived public channel is not joinable', function () {
     expect($owner->can('join', $archived))->toBeFalse();
 });
 
-test('a private channel member or admin may manage its membership', function () {
+test('a private channel member or admin may manage its membership', function (): void {
     $owner = User::factory()->create();
     $channelMember = User::factory()->create();
     $admin = User::factory()->create();
@@ -146,7 +146,7 @@ test('a private channel member or admin may manage its membership', function () 
         ->and($plainMember->can('removeMember', $private))->toBeFalse();
 });
 
-test('only channel members may post a message', function () {
+test('only channel members may post a message', function (): void {
     $owner = User::factory()->create();
     $member = User::factory()->create();
     $team = app(CreateTeam::class)->handle($owner, 'Acme');
@@ -160,7 +160,7 @@ test('only channel members may post a message', function () {
         ->and($member->can('postMessage', $channel))->toBeFalse();
 });
 
-test('a channel member cannot post to an archived channel', function () {
+test('a channel member cannot post to an archived channel', function (): void {
     $owner = User::factory()->create();
     $team = app(CreateTeam::class)->handle($owner, 'Acme');
     $channel = Channel::factory()->for($team)->archived()->create();
@@ -169,7 +169,7 @@ test('a channel member cannot post to an archived channel', function () {
     expect($owner->can('postMessage', $channel))->toBeFalse();
 });
 
-test('membership cannot be managed on a public channel', function () {
+test('membership cannot be managed on a public channel', function (): void {
     $owner = User::factory()->create();
     $team = app(CreateTeam::class)->handle($owner, 'Acme');
     $public = Channel::factory()->for($team)->create();
@@ -179,7 +179,7 @@ test('membership cannot be managed on a public channel', function () {
         ->and($owner->can('removeMember', $public))->toBeFalse();
 });
 
-test('a non-team-member cannot manage a private channel membership', function () {
+test('a non-team-member cannot manage a private channel membership', function (): void {
     $owner = User::factory()->create();
     $outsider = User::factory()->create();
     $team = app(CreateTeam::class)->handle($owner, 'Acme');
@@ -189,7 +189,7 @@ test('a non-team-member cannot manage a private channel membership', function ()
         ->and($outsider->can('removeMember', $private))->toBeFalse();
 });
 
-test('the pivot-preference abilities are granted only to channel members', function (string $ability) {
+test('the pivot-preference abilities are granted only to channel members', function (string $ability): void {
     $channelMember = User::factory()->create();
     $team = app(CreateTeam::class)->handle($channelMember, 'Acme');
     $channel = Channel::factory()->for($team)->create();

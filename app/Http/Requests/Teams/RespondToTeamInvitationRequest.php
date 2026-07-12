@@ -25,6 +25,7 @@ class RespondToTeamInvitationRequest extends FormRequest
      *
      * @return array<string, mixed>
      */
+    #[\Override]
     public function validationData(): array
     {
         return array_merge(parent::validationData(), [

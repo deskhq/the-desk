@@ -13,7 +13,7 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('message_reminders', function (Blueprint $table) {
+        Schema::create('message_reminders', function (Blueprint $table): void {
             $table->uuid('id')->primary()->default(DB::raw('gen_random_uuid()'));
             $table->foreignUuid('user_id')->constrained()->cascadeOnDelete();
             $table->foreignUuid('message_id')->constrained('messages')->cascadeOnDelete();

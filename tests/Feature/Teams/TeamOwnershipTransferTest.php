@@ -4,7 +4,7 @@ use App\Enums\TeamRole;
 use App\Models\Team;
 use App\Models\User;
 
-test('an owner can transfer ownership to another member', function () {
+test('an owner can transfer ownership to another member', function (): void {
     $owner = User::factory()->create();
     $member = User::factory()->create();
     $team = Team::factory()->create();
@@ -24,7 +24,7 @@ test('an owner can transfer ownership to another member', function () {
     expect($member->fresh()->teamRole($team))->toBe(TeamRole::Owner);
 });
 
-test('the single owner invariant is preserved after a transfer', function () {
+test('the single owner invariant is preserved after a transfer', function (): void {
     $owner = User::factory()->create();
     $member = User::factory()->create();
     $team = Team::factory()->create();
@@ -42,7 +42,7 @@ test('the single owner invariant is preserved after a transfer', function () {
     expect($team->owner()->is($member))->toBeTrue();
 });
 
-test('a non owner cannot transfer ownership', function () {
+test('a non owner cannot transfer ownership', function (): void {
     $owner = User::factory()->create();
     $admin = User::factory()->create();
     $member = User::factory()->create();
@@ -63,7 +63,7 @@ test('a non owner cannot transfer ownership', function () {
     expect($owner->fresh()->teamRole($team))->toBe(TeamRole::Owner);
 });
 
-test('ownership cannot be transferred to a non member', function () {
+test('ownership cannot be transferred to a non member', function (): void {
     $owner = User::factory()->create();
     $stranger = User::factory()->create();
     $team = Team::factory()->create();
@@ -81,7 +81,7 @@ test('ownership cannot be transferred to a non member', function () {
     expect($owner->fresh()->teamRole($team))->toBe(TeamRole::Owner);
 });
 
-test('ownership cannot be transferred to yourself', function () {
+test('ownership cannot be transferred to yourself', function (): void {
     $owner = User::factory()->create();
     $team = Team::factory()->create();
 
@@ -98,7 +98,7 @@ test('ownership cannot be transferred to yourself', function () {
     expect($owner->fresh()->teamRole($team))->toBe(TeamRole::Owner);
 });
 
-test('transferring ownership requires the current password', function () {
+test('transferring ownership requires the current password', function (): void {
     $owner = User::factory()->create();
     $member = User::factory()->create();
     $team = Team::factory()->create();

@@ -2,7 +2,7 @@
 
 use App\Models\User;
 
-test('profile page is displayed', function () {
+test('profile page is displayed', function (): void {
     $user = User::factory()->create();
 
     $response = $this
@@ -12,7 +12,7 @@ test('profile page is displayed', function () {
     $response->assertOk();
 });
 
-test('profile information can be updated', function () {
+test('profile information can be updated', function (): void {
     $user = User::factory()->create();
 
     $response = $this
@@ -33,7 +33,7 @@ test('profile information can be updated', function () {
     expect($user->email_verified_at)->toBeNull();
 });
 
-test('optional profile fields can be updated', function () {
+test('optional profile fields can be updated', function (): void {
     $user = User::factory()->create();
 
     $response = $this
@@ -57,7 +57,7 @@ test('optional profile fields can be updated', function () {
     expect($user->phone)->toBe('+1 555 010 1234');
 });
 
-test('optional profile fields degrade to null when cleared', function () {
+test('optional profile fields degrade to null when cleared', function (): void {
     $user = User::factory()->create([
         'pronouns' => 'she/her',
         'title' => 'Designer',
@@ -83,7 +83,7 @@ test('optional profile fields degrade to null when cleared', function () {
     expect($user->phone)->toBeNull();
 });
 
-test('optional profile fields are rejected when too long', function () {
+test('optional profile fields are rejected when too long', function (): void {
     $user = User::factory()->create();
 
     $response = $this
@@ -99,7 +99,7 @@ test('optional profile fields are rejected when too long', function () {
     $response->assertSessionHasErrors(['pronouns', 'title', 'phone']);
 });
 
-test('email verification status is unchanged when the email address is unchanged', function () {
+test('email verification status is unchanged when the email address is unchanged', function (): void {
     $user = User::factory()->create();
 
     $response = $this
@@ -116,7 +116,7 @@ test('email verification status is unchanged when the email address is unchanged
     expect($user->refresh()->email_verified_at)->not->toBeNull();
 });
 
-test('user can delete their account', function () {
+test('user can delete their account', function (): void {
     $user = User::factory()->create();
 
     $response = $this
@@ -133,7 +133,7 @@ test('user can delete their account', function () {
     expect($user->fresh())->toBeNull();
 });
 
-test('correct password must be provided to delete account', function () {
+test('correct password must be provided to delete account', function (): void {
     $user = User::factory()->create();
 
     $response = $this

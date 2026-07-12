@@ -6,7 +6,7 @@ use App\Models\TeamInvitation;
 use App\Models\User;
 use App\Notifications\Teams\TeamInvitation as TeamInvitationNotification;
 
-beforeEach(function () {
+beforeEach(function (): void {
     $this->team = Team::factory()->create(['name' => 'Laravel Team']);
     $this->inviter = User::factory()->create(['name' => 'Taylor Otwell']);
 
@@ -17,13 +17,13 @@ beforeEach(function () {
     ]);
 });
 
-test('it is delivered over mail', function () {
+test('it is delivered over mail', function (): void {
     $notification = new TeamInvitationNotification($this->invitation);
 
     expect($notification->via(new stdClass))->toBe(['mail']);
 });
 
-test('the mail message links to the login page with the invitation code', function () {
+test('the mail message links to the login page with the invitation code', function (): void {
     $notification = new TeamInvitationNotification($this->invitation);
 
     $mail = $notification->toMail(new stdClass);
@@ -37,7 +37,7 @@ test('the mail message links to the login page with the invitation code', functi
     expect($mail->outroLines)->toContain("Didn't expect this invitation? You can safely ignore this email.");
 });
 
-test('the array representation carries the invitation context', function () {
+test('the array representation carries the invitation context', function (): void {
     $notification = new TeamInvitationNotification($this->invitation);
 
     expect($notification->toArray(new stdClass))->toBe([

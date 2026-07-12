@@ -22,7 +22,7 @@ function reminderListTeamWithGeneral(): array
     return [$owner, $team, $general];
 }
 
-test('the workspace shares the viewer pending reminders, soonest first', function () {
+test('the workspace shares the viewer pending reminders, soonest first', function (): void {
     [$owner, $team, $general] = reminderListTeamWithGeneral();
 
     $laterMessage = Message::factory()->for($general)->for($owner)->create(['body' => 'the later one']);
@@ -33,7 +33,7 @@ test('the workspace shares the viewer pending reminders, soonest first', functio
 
     $this->actingAs($owner)
         ->get(route('channels.show', ['team' => $team->slug, 'channel' => $general->slug]))
-        ->assertInertia(fn (Assert $page) => $page
+        ->assertInertia(fn (Assert $page): Assert => $page
             ->has('reminders', 2)
             ->where('reminders.0.id', $sooner->id)
             ->where('reminders.0.messageId', $soonerMessage->id)
@@ -45,7 +45,7 @@ test('the workspace shares the viewer pending reminders, soonest first', functio
         );
 });
 
-test('fired reminders are shared separately from pending ones', function () {
+test('fired reminders are shared separately from pending ones', function (): void {
     [$owner, $team, $general] = reminderListTeamWithGeneral();
 
     $pendingMessage = Message::factory()->for($general)->for($owner)->create(['body' => 'still pending']);
@@ -56,7 +56,7 @@ test('fired reminders are shared separately from pending ones', function () {
 
     $this->actingAs($owner)
         ->get(route('channels.show', ['team' => $team->slug, 'channel' => $general->slug]))
-        ->assertInertia(fn (Assert $page) => $page
+        ->assertInertia(fn (Assert $page): Assert => $page
             ->has('reminders', 1)
             ->where('reminders.0.body', 'still pending')
             ->has('firedReminders', 1)
@@ -64,7 +64,7 @@ test('fired reminders are shared separately from pending ones', function () {
         );
 });
 
-test('a reminder on a since-deleted message blanks its body but keeps the link', function () {
+test('a reminder on a since-deleted message blanks its body but keeps the link', function (): void {
     [$owner, $team, $general] = reminderListTeamWithGeneral();
 
     $message = Message::factory()->for($general)->for($owner)->create(['body' => 'secret plan']);
@@ -73,7 +73,7 @@ test('a reminder on a since-deleted message blanks its body but keeps the link',
 
     $this->actingAs($owner)
         ->get(route('channels.show', ['team' => $team->slug, 'channel' => $general->slug]))
-        ->assertInertia(fn (Assert $page) => $page
+        ->assertInertia(fn (Assert $page): Assert => $page
             ->where('reminders.0.isDeleted', true)
             ->where('reminders.0.body', '')
             ->where('reminders.0.messageId', $message->id)
@@ -81,7 +81,7 @@ test('a reminder on a since-deleted message blanks its body but keeps the link',
         );
 });
 
-test('reminders are scoped to the current team', function () {
+test('reminders are scoped to the current team', function (): void {
     [$owner, $team, $general] = reminderListTeamWithGeneral();
     $message = Message::factory()->for($general)->for($owner)->create(['body' => 'in acme']);
     MessageReminder::factory()->for($owner)->for($message)->create();
@@ -93,7 +93,7 @@ test('reminders are scoped to the current team', function () {
 
     $this->actingAs($owner)
         ->get(route('channels.show', ['team' => $team->slug, 'channel' => $general->slug]))
-        ->assertInertia(fn (Assert $page) => $page
+        ->assertInertia(fn (Assert $page): Assert => $page
             ->has('reminders', 1)
             ->where('reminders.0.body', 'in acme')
         );

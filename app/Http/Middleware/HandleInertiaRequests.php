@@ -39,6 +39,7 @@ class HandleInertiaRequests extends Middleware
      *
      * @see https://inertiajs.com/asset-versioning
      */
+    #[\Override]
     public function version(Request $request): ?string
     {
         return parent::version($request);
@@ -51,6 +52,7 @@ class HandleInertiaRequests extends Middleware
      *
      * @return array<string, mixed>
      */
+    #[\Override]
     public function share(Request $request): array
     {
         $user = $request->user();
@@ -85,20 +87,20 @@ class HandleInertiaRequests extends Middleware
                 ? $user->toTeamPermissions($user->currentTeam)->canCreateInvitation
                 : false,
             'invitableRoles' => TeamRole::assignable(),
-            'channels' => fn () => $this->channelsForSidebar($request, $user),
+            'channels' => fn (): array => $this->channelsForSidebar($request, $user),
             // The current team's members feed the DM entry points (the sidebar
             // people picker and the ⌘K "People" group); empty off the workspace.
-            'teamMembers' => fn () => $this->teamMembersForSidebar($request, $user),
-            'channelSections' => fn () => $this->channelSectionsForSidebar($request, $user),
+            'teamMembers' => fn (): array => $this->teamMembersForSidebar($request, $user),
+            'channelSections' => fn (): array => $this->channelSectionsForSidebar($request, $user),
             'collapsedChannelSections' => fn () => $user->collapsed_channel_sections ?? [],
-            'hasUnreadThreads' => fn () => $this->hasUnreadThreads($request, $user),
-            'pendingInvitations' => Inertia::optional(fn () => $user ? $this->pendingInvitationsFor($user) : []),
+            'hasUnreadThreads' => fn (): bool => $this->hasUnreadThreads($request, $user),
+            'pendingInvitations' => Inertia::optional(fn (): array => $user ? $this->pendingInvitationsFor($user) : []),
             // The viewer's still-pending reminders in this team, soonest first,
             // feeding the "Reminders" list and its sidebar count.
-            'reminders' => fn () => $this->remindersForSidebar($request, $user, MessageReminderStatus::Pending),
+            'reminders' => fn (): array => $this->remindersForSidebar($request, $user, MessageReminderStatus::Pending),
             // Reminders that have come due and await acknowledgement, driving the
             // in-app nudges; reloaded live when a MessageReminderDue signal lands.
-            'firedReminders' => fn () => $this->remindersForSidebar($request, $user, MessageReminderStatus::Fired),
+            'firedReminders' => fn (): array => $this->remindersForSidebar($request, $user, MessageReminderStatus::Fired),
         ];
     }
 
@@ -179,10 +181,14 @@ class HandleInertiaRequests extends Middleware
             if ($this->directMessageHidden($channel)) {
                 return false;
             }
+            if ($channel->getAttribute('last_message_at') !== null) {
+                return true;
+            }
+            if ($channel->created_by === $user->id) {
+                return true;
+            }
 
-            return $channel->getAttribute('last_message_at') !== null
-                || $channel->created_by === $user->id
-                || $channel->getKey() === $activeChannelId;
+            return $channel->getKey() === $activeChannelId;
         })->values();
 
         return ChannelData::collect($channels, 'array');
@@ -250,7 +256,7 @@ class HandleInertiaRequests extends Middleware
             ->where('status', $status)
             ->whereHas('message.channel', fn (Builder $query) => $query->where('team_id', $team->id))
             ->with(['message.user', 'message.channel.team'])
-            ->orderBy('remind_at')
+            ->oldest('remind_at')
             ->get();
 
         return MessageReminderData::collect($reminders, 'array');
@@ -275,8 +281,7 @@ class HandleInertiaRequests extends Middleware
 
         $sections = $user->channelSections()
             ->where('team_id', $team->id)
-            ->orderBy('position')
-            ->orderBy('created_at')
+            ->orderBy('position')->oldest()
             ->get();
 
         return ChannelSectionData::collect($sections, 'array');
@@ -347,7 +352,7 @@ class HandleInertiaRequests extends Middleware
                 ->orWhere('expires_at', '>=', now()))
             ->latest()
             ->get()
-            ->map(fn (TeamInvitation $invitation) => [
+            ->map(fn (TeamInvitation $invitation): array => [
                 'code' => $invitation->code,
                 'inviterName' => $invitation->inviter->name,
                 'team' => [

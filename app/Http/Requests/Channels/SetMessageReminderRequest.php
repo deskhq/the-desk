@@ -27,7 +27,7 @@ class SetMessageReminderRequest extends FormRequest
     {
         $message = $this->reminderMessage();
 
-        return $message !== null
+        return $message instanceof Message
             && $message->channel->team_id === $this->team()->id
             && Gate::allows('view', $message->channel);
     }
@@ -59,7 +59,7 @@ class SetMessageReminderRequest extends FormRequest
      */
     public function reminderMessage(): ?Message
     {
-        if ($this->resolvedMessage === null) {
+        if (! $this->resolvedMessage instanceof Message) {
             $this->resolvedMessage = Message::with('channel')->find((string) $this->input('message_id'));
         }
 

@@ -11,7 +11,7 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('messages', function (Blueprint $table) {
+        Schema::table('messages', function (Blueprint $table): void {
             // The message this one forwards into its channel, or null for a
             // normal message. Unlike reply_to_id, the source lives in another
             // channel (any the author belongs to). A force-deleted source nulls
@@ -30,7 +30,7 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::table('messages', function (Blueprint $table) {
+        Schema::table('messages', function (Blueprint $table): void {
             $table->dropConstrainedForeignId('forwarded_from_id');
         });
     }

@@ -35,7 +35,7 @@ function sidebarCollapsedProp(User $user, Team $team, Channel $channel): array
     return $response->viewData('page')['props']['collapsedChannelSections'];
 }
 
-test('a user can collapse a sidebar section', function () {
+test('a user can collapse a sidebar section', function (): void {
     [$owner, $team, $general] = sectionTeamWithGeneral();
 
     $this->actingAs($owner)
@@ -46,7 +46,7 @@ test('a user can collapse a sidebar section', function () {
     expect(sidebarCollapsedProp($owner, $team, $general))->toBe(['starred']);
 });
 
-test('an empty payload clears every collapsed section', function () {
+test('an empty payload clears every collapsed section', function (): void {
     [$owner, $team, $general] = sectionTeamWithGeneral();
     $owner->update(['collapsed_channel_sections' => ['starred', 'channels']]);
 
@@ -58,14 +58,14 @@ test('an empty payload clears every collapsed section', function () {
     expect(sidebarCollapsedProp($owner, $team, $general))->toBe([]);
 });
 
-test('collapsed sections default to empty for a fresh user', function () {
+test('collapsed sections default to empty for a fresh user', function (): void {
     [$owner, $team, $general] = sectionTeamWithGeneral();
 
     expect($owner->collapsed_channel_sections)->toBeNull();
     expect(sidebarCollapsedProp($owner, $team, $general))->toBe([]);
 });
 
-test('duplicate section keys are stored once', function () {
+test('duplicate section keys are stored once', function (): void {
     [$owner] = sectionTeamWithGeneral();
 
     $this->actingAs($owner)
@@ -75,7 +75,7 @@ test('duplicate section keys are stored once', function () {
     expect($owner->refresh()->collapsed_channel_sections)->toBe(['channels']);
 });
 
-test('unknown section keys are rejected', function () {
+test('unknown section keys are rejected', function (): void {
     [$owner] = sectionTeamWithGeneral();
 
     $this->actingAs($owner)
@@ -85,7 +85,7 @@ test('unknown section keys are rejected', function () {
     expect($owner->refresh()->collapsed_channel_sections)->toBeNull();
 });
 
-test('the collapsed payload must be present', function () {
+test('the collapsed payload must be present', function (): void {
     [$owner] = sectionTeamWithGeneral();
 
     $this->actingAs($owner)
@@ -93,7 +93,7 @@ test('the collapsed payload must be present', function () {
         ->assertSessionHasErrors('collapsed');
 });
 
-test('a guest cannot persist sidebar sections', function () {
+test('a guest cannot persist sidebar sections', function (): void {
     $this->patch(route('sidebar.sections.update'), ['collapsed' => ['starred']])
         ->assertRedirect(route('login'));
 });

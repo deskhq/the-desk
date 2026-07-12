@@ -5,8 +5,8 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rules\Password;
 
-test('production enforces a strong default password policy', function () {
-    $this->app->detectEnvironment(fn () => 'production');
+test('production enforces a strong default password policy', function (): void {
+    $this->app->detectEnvironment(fn (): string => 'production');
 
     try {
         (new AppServiceProvider($this->app))->boot();
@@ -21,6 +21,6 @@ test('production enforces a strong default password policy', function () {
     } finally {
         // Restore non-destructive defaults so the test database can be torn down.
         DB::prohibitDestructiveCommands(false);
-        Password::defaults(fn () => null);
+        Password::defaults(fn (): null => null);
     }
 });

@@ -78,7 +78,7 @@ class SyncLinkPreviews
         });
 
         if ($hasPending) {
-            UnfurlMessageLinks::dispatch($message->id);
+            dispatch(new UnfurlMessageLinks($message->id));
         }
     }
 

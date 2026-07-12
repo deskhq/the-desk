@@ -31,7 +31,7 @@ function fireDueReminders(): void
     app(DispatchDueMessageReminders::class)->handle();
 }
 
-test('a due reminder fires and signals its owner', function () {
+test('a due reminder fires and signals its owner', function (): void {
     Event::fake([MessageReminderDue::class]);
 
     [$owner, $team, $general] = reminderDispatchTeamWithGeneral();
@@ -45,13 +45,11 @@ test('a due reminder fires and signals its owner', function () {
     expect($reminder->status)->toBe(MessageReminderStatus::Fired)
         ->and($reminder->fired_at)->not->toBeNull();
 
-    Event::assertDispatched(MessageReminderDue::class, function (MessageReminderDue $event) use ($owner) {
-        return $event->userId === $owner->id
-            && $event->broadcastOn()[0]->name === 'private-user.'.$owner->id;
-    });
+    Event::assertDispatched(MessageReminderDue::class, fn (MessageReminderDue $event): bool => $event->userId === $owner->id
+        && $event->broadcastOn()[0]->name === 'private-user.'.$owner->id);
 });
 
-test('a reminder whose time has not arrived is left pending', function () {
+test('a reminder whose time has not arrived is left pending', function (): void {
     Event::fake([MessageReminderDue::class]);
 
     [$owner, $team, $general] = reminderDispatchTeamWithGeneral();
@@ -66,7 +64,7 @@ test('a reminder whose time has not arrived is left pending', function () {
     Event::assertNotDispatched(MessageReminderDue::class);
 });
 
-test('an already-fired reminder never fires twice', function () {
+test('an already-fired reminder never fires twice', function (): void {
     Event::fake([MessageReminderDue::class]);
 
     [$owner, $team, $general] = reminderDispatchTeamWithGeneral();

@@ -16,7 +16,7 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('activity_log', function (Blueprint $table) {
+        Schema::create('activity_log', function (Blueprint $table): void {
             $table->uuid('id')->primary()->default(DB::raw('gen_random_uuid()'));
             // Groups entries by feature; always 'audit' for this application.
             $table->string('log_name')->nullable();

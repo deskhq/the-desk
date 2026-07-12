@@ -7,7 +7,7 @@ use App\Models\User;
 use App\Notifications\Teams\TeamInvitation as TeamInvitationNotification;
 use Illuminate\Support\Facades\Notification;
 
-test('team invitations can be created', function () {
+test('team invitations can be created', function (): void {
     Notification::fake();
 
     $owner = User::factory()->create();
@@ -31,7 +31,7 @@ test('team invitations can be created', function () {
     ]);
 });
 
-test('invitation email for existing users uses login route', function () {
+test('invitation email for existing users uses login route', function (): void {
     $owner = User::factory()->create();
     $invitedUser = User::factory()->create(['email' => 'invited@example.com']);
     $team = Team::factory()->create();
@@ -50,7 +50,7 @@ test('invitation email for existing users uses login route', function () {
     $this->assertStringContainsString('workspace', implode(' ', $mail->introLines));
 });
 
-test('invitation email for unknown users uses login route', function () {
+test('invitation email for unknown users uses login route', function (): void {
     $owner = User::factory()->create();
     $team = Team::factory()->create();
 
@@ -68,7 +68,7 @@ test('invitation email for unknown users uses login route', function () {
     $this->assertStringContainsString('log in', strtolower(implode(' ', $mail->introLines)));
 });
 
-test('team invitations can be created by admins', function () {
+test('team invitations can be created by admins', function (): void {
     Notification::fake();
 
     $owner = User::factory()->create();
@@ -88,7 +88,7 @@ test('team invitations can be created by admins', function () {
     $response->assertRedirect(route('teams.edit', $team));
 });
 
-test('existing team members cannot be invited', function () {
+test('existing team members cannot be invited', function (): void {
     Notification::fake();
 
     $owner = User::factory()->create();
@@ -108,7 +108,7 @@ test('existing team members cannot be invited', function () {
     $response->assertSessionHasErrors('email');
 });
 
-test('duplicate invitations cannot be created', function () {
+test('duplicate invitations cannot be created', function (): void {
     Notification::fake();
 
     $owner = User::factory()->create();
@@ -131,7 +131,7 @@ test('duplicate invitations cannot be created', function () {
     $response->assertSessionHasErrors('email');
 });
 
-test('team invitations cannot be created by members', function () {
+test('team invitations cannot be created by members', function (): void {
     $owner = User::factory()->create();
     $member = User::factory()->create();
     $team = Team::factory()->create();
@@ -149,7 +149,7 @@ test('team invitations cannot be created by members', function () {
     $response->assertForbidden();
 });
 
-test('team invitations can be cancelled by owners', function () {
+test('team invitations can be cancelled by owners', function (): void {
     $owner = User::factory()->create();
     $team = Team::factory()->create();
 
@@ -171,7 +171,7 @@ test('team invitations can be cancelled by owners', function () {
     ]);
 });
 
-test('team invitations can be accepted', function () {
+test('team invitations can be accepted', function (): void {
     $owner = User::factory()->create();
     $invitedUser = User::factory()->create(['email' => 'invited@example.com']);
     $team = Team::factory()->create();
@@ -196,7 +196,7 @@ test('team invitations can be accepted', function () {
     expect($invitation->fresh()->accepted_at)->not->toBeNull();
 });
 
-test('team invitations can be declined by the invited user', function () {
+test('team invitations can be declined by the invited user', function (): void {
     $owner = User::factory()->create();
     $invitedUser = User::factory()->create(['email' => 'invited@example.com']);
     $team = Team::factory()->create();
@@ -220,7 +220,7 @@ test('team invitations can be declined by the invited user', function () {
     ]);
 });
 
-test('team invitations cannot be declined by uninvited user', function () {
+test('team invitations cannot be declined by uninvited user', function (): void {
     $owner = User::factory()->create();
     $uninvitedUser = User::factory()->create(['email' => 'uninvited@example.com']);
     $team = Team::factory()->create();
@@ -244,7 +244,7 @@ test('team invitations cannot be declined by uninvited user', function () {
     ]);
 });
 
-test('accepted team invitations cannot be declined', function () {
+test('accepted team invitations cannot be declined', function (): void {
     $owner = User::factory()->create();
     $invitedUser = User::factory()->create(['email' => 'invited@example.com']);
     $team = Team::factory()->create();
@@ -268,7 +268,7 @@ test('accepted team invitations cannot be declined', function () {
     ]);
 });
 
-test('team invitations cannot be accepted by uninvited user', function () {
+test('team invitations cannot be accepted by uninvited user', function (): void {
     $owner = User::factory()->create();
     $uninvitedUser = User::factory()->create(['email' => 'uninvited@example.com']);
     $team = Team::factory()->create();
@@ -290,7 +290,7 @@ test('team invitations cannot be accepted by uninvited user', function () {
     expect($uninvitedUser->fresh()->belongsToTeam($team))->toBeFalse();
 });
 
-test('expired invitations cannot be accepted', function () {
+test('expired invitations cannot be accepted', function (): void {
     $owner = User::factory()->create();
     $invitedUser = User::factory()->create(['email' => 'invited@example.com']);
     $team = Team::factory()->create();

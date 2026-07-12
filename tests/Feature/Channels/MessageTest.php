@@ -23,7 +23,7 @@ function teamWithGeneral(): array
     return [$owner, $team, $general];
 }
 
-test('a channel member can post a message', function () {
+test('a channel member can post a message', function (): void {
     [$owner, $team, $general] = teamWithGeneral();
     $clientUuid = (string) Str::uuid7();
 
@@ -42,7 +42,7 @@ test('a channel member can post a message', function () {
     ]);
 });
 
-test('the message body is trimmed and required', function () {
+test('the message body is trimmed and required', function (): void {
     [$owner, $team, $general] = teamWithGeneral();
 
     $this->actingAs($owner)
@@ -55,7 +55,7 @@ test('the message body is trimmed and required', function () {
     expect(Message::count())->toBe(0);
 });
 
-test('a team member who is not a channel member cannot post', function () {
+test('a team member who is not a channel member cannot post', function (): void {
     [$owner, $team] = teamWithGeneral();
     $stranger = User::factory()->create();
     $team->memberships()->create(['user_id' => $stranger->id, 'role' => TeamRole::Member]);
@@ -73,7 +73,7 @@ test('a team member who is not a channel member cannot post', function () {
     expect(Message::count())->toBe(0);
 });
 
-test('nobody can post to an archived channel', function () {
+test('nobody can post to an archived channel', function (): void {
     [$owner, $team] = teamWithGeneral();
     $archived = Channel::factory()->for($team)->archived()->create();
     $archived->channelMembers()->create(['user_id' => $owner->id]);
@@ -86,7 +86,7 @@ test('nobody can post to an archived channel', function () {
         ->assertForbidden();
 });
 
-test('resending a message with the same client uuid is idempotent', function () {
+test('resending a message with the same client uuid is idempotent', function (): void {
     [$owner, $team, $general] = teamWithGeneral();
     $clientUuid = (string) Str::uuid7();
 
@@ -108,7 +108,7 @@ test('resending a message with the same client uuid is idempotent', function () 
     expect(Message::where('channel_id', $general->id)->count())->toBe(1);
 });
 
-test('the channel page returns the newest 50 messages, newest first', function () {
+test('the channel page returns the newest 50 messages, newest first', function (): void {
     [$owner, $team, $general] = teamWithGeneral();
 
     // 60 messages, created oldest-to-newest so ordered ids match creation order.
@@ -118,7 +118,7 @@ test('the channel page returns the newest 50 messages, newest first', function (
 
     $this->actingAs($owner)
         ->get(route('channels.show', ['team' => $team->slug, 'channel' => $general->slug]))
-        ->assertInertia(fn (Assert $page) => $page
+        ->assertInertia(fn (Assert $page): Assert => $page
             ->component('channels/Show')
             ->has('messages.data', 50)
             ->where('messages.data.0.body', 'message 60')
@@ -128,7 +128,7 @@ test('the channel page returns the newest 50 messages, newest first', function (
         );
 });
 
-test('older messages load through the cursor', function () {
+test('older messages load through the cursor', function (): void {
     [$owner, $team, $general] = teamWithGeneral();
 
     collect(range(1, 60))->each(fn (int $i) => Message::factory()->for($general)->for($owner)->create([
@@ -139,13 +139,13 @@ test('older messages load through the cursor', function () {
 
     $cursor = null;
     $this->actingAs($owner)->get($showUrl)
-        ->assertInertia(function (Assert $page) use (&$cursor) {
+        ->assertInertia(function (Assert $page) use (&$cursor): void {
             $cursor = $page->toArray()['props']['messages']['next_cursor'];
         });
 
     $this->actingAs($owner)
         ->get($showUrl.'?'.http_build_query(['cursor' => $cursor]))
-        ->assertInertia(fn (Assert $page) => $page
+        ->assertInertia(fn (Assert $page): Assert => $page
             ->has('messages.data', 10)
             ->where('messages.data.0.body', 'message 10')
             ->where('messages.data.9.body', 'message 1')
@@ -153,12 +153,12 @@ test('older messages load through the cursor', function () {
         );
 });
 
-test('an empty channel returns no messages', function () {
+test('an empty channel returns no messages', function (): void {
     [$owner, $team, $general] = teamWithGeneral();
 
     $this->actingAs($owner)
         ->get(route('channels.show', ['team' => $team->slug, 'channel' => $general->slug]))
-        ->assertInertia(fn (Assert $page) => $page
+        ->assertInertia(fn (Assert $page): Assert => $page
             ->has('messages.data', 0)
             ->where('messages.next_cursor', null)
         );

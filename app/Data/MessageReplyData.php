@@ -3,6 +3,7 @@
 namespace App\Data;
 
 use App\Models\Message;
+use App\Models\User;
 use Spatie\LaravelData\Data;
 use Spatie\TypeScriptTransformer\Attributes\TypeScript;
 
@@ -37,7 +38,7 @@ class MessageReplyData extends Data
             body: $isDeleted ? '' : $message->body,
             authorName: $message->user->name,
             isDeleted: $isDeleted,
-            mentions: $isDeleted ? [] : $message->mentionedUsers->map(fn ($user) => MentionData::fromUser($user))->all(),
+            mentions: $isDeleted ? [] : $message->mentionedUsers->map(fn (User $user): MentionData => MentionData::fromUser($user))->all(),
         );
     }
 }

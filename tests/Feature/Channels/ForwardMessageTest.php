@@ -42,7 +42,7 @@ function forwardRoute(Team $team, Channel $source, Message $message): string
     ]);
 }
 
-test('a message can be forwarded into another channel with a note', function () {
+test('a message can be forwarded into another channel with a note', function (): void {
     [$owner, $team, $general, $target, $source] = forwardFixture();
     $clientUuid = (string) Str::uuid7();
 
@@ -63,7 +63,7 @@ test('a message can be forwarded into another channel with a note', function () 
     ]);
 });
 
-test('a message can be forwarded with no note, leaving an empty body', function () {
+test('a message can be forwarded with no note, leaving an empty body', function (): void {
     [$owner, $team, $general, $target, $source] = forwardFixture();
     $clientUuid = (string) Str::uuid7();
 
@@ -80,7 +80,7 @@ test('a message can be forwarded with no note, leaving an empty body', function 
     ]);
 });
 
-test('the target channel renders a forwarded message with source attribution', function () {
+test('the target channel renders a forwarded message with source attribution', function (): void {
     [$owner, $team, $general, $target, $source] = forwardFixture();
 
     // A mention on the source rides along in the forwarded quote's mentions.
@@ -92,7 +92,7 @@ test('the target channel renders a forwarded message with source attribution', f
 
     $this->actingAs($owner)
         ->get(route('channels.show', ['team' => $team->slug, 'channel' => $target->slug]))
-        ->assertInertia(fn (Assert $page) => $page
+        ->assertInertia(fn (Assert $page): Assert => $page
             ->where('messages.data.0.body', 'fyi')
             ->where('messages.data.0.forwardedFrom.id', $source->id)
             ->where('messages.data.0.forwardedFrom.body', 'the original')
@@ -103,7 +103,7 @@ test('the target channel renders a forwarded message with source attribution', f
         );
 });
 
-test('a message forwarded from a direct message carries a null source channel name', function () {
+test('a message forwarded from a direct message carries a null source channel name', function (): void {
     [$owner, $team, $general, $target, $source] = forwardFixture();
 
     $friend = User::factory()->create();
@@ -117,13 +117,13 @@ test('a message forwarded from a direct message carries a null source channel na
 
     $this->actingAs($owner)
         ->get(route('channels.show', ['team' => $team->slug, 'channel' => $target->slug]))
-        ->assertInertia(fn (Assert $page) => $page
+        ->assertInertia(fn (Assert $page): Assert => $page
             ->where('messages.data.0.forwardedFrom.id', $dmMessage->id)
             ->where('messages.data.0.forwardedFrom.channelName', null)
         );
 });
 
-test('a forward whose source was later deleted renders a deleted stub', function () {
+test('a forward whose source was later deleted renders a deleted stub', function (): void {
     [$owner, $team, $general, $target, $source] = forwardFixture();
 
     Message::factory()->for($target)->for($owner)->forwardedFrom($source)->create(['body' => 'fyi']);
@@ -131,14 +131,14 @@ test('a forward whose source was later deleted renders a deleted stub', function
 
     $this->actingAs($owner)
         ->get(route('channels.show', ['team' => $team->slug, 'channel' => $target->slug]))
-        ->assertInertia(fn (Assert $page) => $page
+        ->assertInertia(fn (Assert $page): Assert => $page
             ->where('messages.data.0.forwardedFrom.id', $source->id)
             ->where('messages.data.0.forwardedFrom.isDeleted', true)
             ->where('messages.data.0.forwardedFrom.body', '')
         );
 });
 
-test('a deleted forwarded message carries no source reference', function () {
+test('a deleted forwarded message carries no source reference', function (): void {
     [$owner, $team, $general, $target, $source] = forwardFixture();
 
     $forward = Message::factory()->for($target)->for($owner)->forwardedFrom($source)->create(['body' => 'fyi']);
@@ -146,13 +146,13 @@ test('a deleted forwarded message carries no source reference', function () {
 
     $this->actingAs($owner)
         ->get(route('channels.show', ['team' => $team->slug, 'channel' => $target->slug]))
-        ->assertInertia(fn (Assert $page) => $page
+        ->assertInertia(fn (Assert $page): Assert => $page
             ->where('messages.data.0.isDeleted', true)
             ->where('messages.data.0.forwardedFrom', null)
         );
 });
 
-test('forwarding broadcasts the source quote in the target channel payload', function () {
+test('forwarding broadcasts the source quote in the target channel payload', function (): void {
     Event::fake([MessageSent::class]);
 
     [$owner, $team, $general, $target, $source] = forwardFixture();
@@ -163,7 +163,7 @@ test('forwarding broadcasts the source quote in the target channel payload', fun
         'target_channel_id' => $target->id,
     ]);
 
-    Event::assertDispatched(MessageSent::class, function (MessageSent $event) use ($target, $source, $general) {
+    Event::assertDispatched(MessageSent::class, function (MessageSent $event) use ($target, $source, $general): bool {
         $payload = $event->message->toArray();
 
         return $event->channel->is($target)
@@ -173,7 +173,7 @@ test('forwarding broadcasts the source quote in the target channel payload', fun
     });
 });
 
-test('a message cannot be forwarded to a channel the user is not a member of', function () {
+test('a message cannot be forwarded to a channel the user is not a member of', function (): void {
     [$owner, $team, $general, $target, $source] = forwardFixture();
     $stranger = Channel::factory()->for($team)->create();
 
@@ -186,7 +186,7 @@ test('a message cannot be forwarded to a channel the user is not a member of', f
     expect(Message::where('channel_id', $stranger->id)->count())->toBe(0);
 });
 
-test('a message cannot be forwarded to an archived channel', function () {
+test('a message cannot be forwarded to an archived channel', function (): void {
     [$owner, $team, $general, $target, $source] = forwardFixture();
     $archived = Channel::factory()->for($team)->archived()->create();
     $archived->members()->attach($owner->id);
@@ -198,7 +198,7 @@ test('a message cannot be forwarded to an archived channel', function () {
     ])->assertInvalid(['target_channel_id']);
 });
 
-test('a message cannot be forwarded to a channel in another team', function () {
+test('a message cannot be forwarded to a channel in another team', function (): void {
     [$owner, $team, $general, $target, $source] = forwardFixture();
 
     $otherOwner = User::factory()->create();
@@ -217,7 +217,7 @@ test('a message cannot be forwarded to a channel in another team', function () {
     ])->assertInvalid(['target_channel_id']);
 });
 
-test('a user cannot forward a message from a private channel they cannot view', function () {
+test('a user cannot forward a message from a private channel they cannot view', function (): void {
     [$owner, $team, $general, $target, $source] = forwardFixture();
 
     $private = Channel::factory()->for($team)->create(['visibility' => ChannelVisibility::Private]);
@@ -234,7 +234,7 @@ test('a user cannot forward a message from a private channel they cannot view', 
     ])->assertForbidden();
 });
 
-test('a deleted source message cannot be forwarded', function () {
+test('a deleted source message cannot be forwarded', function (): void {
     [$owner, $team, $general, $target, $source] = forwardFixture();
     $source->delete();
 
@@ -245,7 +245,7 @@ test('a deleted source message cannot be forwarded', function () {
     ])->assertNotFound();
 });
 
-test('forwarding is idempotent on a resent client uuid', function () {
+test('forwarding is idempotent on a resent client uuid', function (): void {
     [$owner, $team, $general, $target, $source] = forwardFixture();
     $clientUuid = (string) Str::uuid7();
 
@@ -261,7 +261,7 @@ test('forwarding is idempotent on a resent client uuid', function () {
     expect(Message::where('client_uuid', $clientUuid)->count())->toBe(1);
 });
 
-test('a message can be forwarded into an existing direct message', function () {
+test('a message can be forwarded into an existing direct message', function (): void {
     [$owner, $team, $general, $target, $source] = forwardFixture();
 
     $friend = User::factory()->create();
@@ -284,7 +284,7 @@ test('a message can be forwarded into an existing direct message', function () {
     ]);
 });
 
-test('forwarding to a person with no existing direct message opens one', function () {
+test('forwarding to a person with no existing direct message opens one', function (): void {
     [$owner, $team, $general, $target, $source] = forwardFixture();
 
     $friend = User::factory()->create();
@@ -310,7 +310,7 @@ test('forwarding to a person with no existing direct message opens one', functio
     ]);
 });
 
-test('a message can be forwarded to yourself as a self note', function () {
+test('a message can be forwarded to yourself as a self note', function (): void {
     [$owner, $team, $general, $target, $source] = forwardFixture();
     $clientUuid = (string) Str::uuid7();
 
@@ -328,7 +328,7 @@ test('a message can be forwarded to yourself as a self note', function () {
     ]);
 });
 
-test('a message cannot be forwarded to a non-member of the team', function () {
+test('a message cannot be forwarded to a non-member of the team', function (): void {
     [$owner, $team, $general, $target, $source] = forwardFixture();
     $outsider = User::factory()->create();
 
@@ -338,7 +338,7 @@ test('a message cannot be forwarded to a non-member of the team', function () {
     ])->assertInvalid(['target_user_id']);
 });
 
-test('a forward must name either a target channel or a target user', function () {
+test('a forward must name either a target channel or a target user', function (): void {
     [$owner, $team, $general, $target, $source] = forwardFixture();
 
     $this->actingAs($owner)->post(forwardRoute($team, $general, $source), [

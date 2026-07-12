@@ -84,7 +84,7 @@ class ScheduledMessage extends Model
      *
      * @param  Builder<ScheduledMessage>  $query
      */
-    public function scopePending(Builder $query): void
+    protected function scopePending(Builder $query): void
     {
         $query->where('status', ScheduledMessageStatus::Pending);
     }
@@ -94,7 +94,7 @@ class ScheduledMessage extends Model
      *
      * @param  Builder<ScheduledMessage>  $query
      */
-    public function scopeDue(Builder $query): void
+    protected function scopeDue(Builder $query): void
     {
         $query->pending()->where('send_at', '<=', now());
     }
@@ -104,6 +104,7 @@ class ScheduledMessage extends Model
      *
      * @return array<string, string>
      */
+    #[\Override]
     protected function casts(): array
     {
         return [

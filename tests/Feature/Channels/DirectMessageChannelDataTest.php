@@ -7,14 +7,14 @@ use App\Enums\TeamRole;
 use App\Models\Channel;
 use App\Models\User;
 
-test('a standard channel has no direct participant', function () {
+test('a standard channel has no direct participant', function (): void {
     $viewer = User::factory()->create();
     $channel = Channel::factory()->create();
 
     expect($channel->directParticipantFor($viewer))->toBeNull();
 });
 
-test('a direct channel renders the other participant viewer-relatively', function () {
+test('a direct channel renders the other participant viewer-relatively', function (): void {
     $owner = User::factory()->create();
     $team = app(CreateTeam::class)->handle($owner, 'Acme');
     $other = User::factory()->create();
@@ -36,7 +36,7 @@ test('a direct channel renders the other participant viewer-relatively', functio
         ->and($otherView->dmUserId)->toBe($owner->id);
 });
 
-test('a self direct channel resolves the viewer as the participant', function () {
+test('a self direct channel resolves the viewer as the participant', function (): void {
     $owner = User::factory()->create();
     $team = app(CreateTeam::class)->handle($owner, 'Acme');
 

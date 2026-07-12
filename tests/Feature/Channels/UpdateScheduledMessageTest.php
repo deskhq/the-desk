@@ -22,7 +22,7 @@ function updateScheduledTeamWithGeneral(): array
     return [$owner, $team, $general];
 }
 
-test('the author can edit the body and send time of a pending scheduled message', function () {
+test('the author can edit the body and send time of a pending scheduled message', function (): void {
     [$owner, $team, $general] = updateScheduledTeamWithGeneral();
     $scheduled = ScheduledMessage::factory()->for($general)->for($owner)->create([
         'body' => 'first draft',
@@ -48,7 +48,7 @@ test('the author can edit the body and send time of a pending scheduled message'
         ->and($scheduled->status)->toBe(ScheduledMessageStatus::Pending);
 });
 
-test('editing rejects a non-future send time', function () {
+test('editing rejects a non-future send time', function (): void {
     [$owner, $team, $general] = updateScheduledTeamWithGeneral();
     $scheduled = ScheduledMessage::factory()->for($general)->for($owner)->create();
 
@@ -64,7 +64,7 @@ test('editing rejects a non-future send time', function () {
         ->assertInvalid(['send_at']);
 });
 
-test('editing rejects an empty body', function () {
+test('editing rejects an empty body', function (): void {
     [$owner, $team, $general] = updateScheduledTeamWithGeneral();
     $scheduled = ScheduledMessage::factory()->for($general)->for($owner)->create();
 
@@ -80,7 +80,7 @@ test('editing rejects an empty body', function () {
         ->assertInvalid(['body']);
 });
 
-test('a non-author cannot edit a scheduled message', function () {
+test('a non-author cannot edit a scheduled message', function (): void {
     [$owner, $team, $general] = updateScheduledTeamWithGeneral();
     $other = User::factory()->create();
     $team->memberships()->create(['user_id' => $other->id, 'role' => TeamRole::Member]);
@@ -100,7 +100,7 @@ test('a non-author cannot edit a scheduled message', function () {
     expect($scheduled->fresh()->body)->toBe('not yours');
 });
 
-test('an already-sent scheduled message cannot be edited', function () {
+test('an already-sent scheduled message cannot be edited', function (): void {
     [$owner, $team, $general] = updateScheduledTeamWithGeneral();
     $scheduled = ScheduledMessage::factory()->for($general)->for($owner)->sent()->create();
 
@@ -116,7 +116,7 @@ test('an already-sent scheduled message cannot be edited', function () {
         ->assertForbidden();
 });
 
-test('the author can cancel a pending scheduled message', function () {
+test('the author can cancel a pending scheduled message', function (): void {
     [$owner, $team, $general] = updateScheduledTeamWithGeneral();
     $scheduled = ScheduledMessage::factory()->for($general)->for($owner)->create();
 
@@ -134,7 +134,7 @@ test('the author can cancel a pending scheduled message', function () {
         ->and($scheduled->cancelled_at)->not->toBeNull();
 });
 
-test('a non-author cannot cancel a scheduled message', function () {
+test('a non-author cannot cancel a scheduled message', function (): void {
     [$owner, $team, $general] = updateScheduledTeamWithGeneral();
     $other = User::factory()->create();
     $team->memberships()->create(['user_id' => $other->id, 'role' => TeamRole::Member]);
@@ -151,7 +151,7 @@ test('a non-author cannot cancel a scheduled message', function () {
     expect($scheduled->fresh()->status)->toBe(ScheduledMessageStatus::Pending);
 });
 
-test('a scheduled message id from another channel is not resolvable', function () {
+test('a scheduled message id from another channel is not resolvable', function (): void {
     [$owner, $team, $general] = updateScheduledTeamWithGeneral();
     $other = Channel::factory()->for($team)->create();
     $other->channelMembers()->create(['user_id' => $owner->id]);

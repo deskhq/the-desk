@@ -12,7 +12,7 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('security_events', function (Blueprint $table) {
+        Schema::create('security_events', function (Blueprint $table): void {
             $table->uuid('id')->primary()->default(DB::raw('gen_random_uuid()'));
             $table->foreignUuid('user_id')->constrained()->cascadeOnDelete();
             // The kind of security-relevant action (see App\Enums\SecurityEventType).

@@ -10,18 +10,18 @@ use App\Models\TeamInvitation;
 use App\Models\User;
 use Database\Seeders\WorkspaceSeeder;
 
-beforeEach(function () {
+beforeEach(function (): void {
     $this->seed();
 
     $this->demo = User::where('email', WorkspaceSeeder::DEMO_EMAIL)->firstOrFail();
 });
 
-test('it seeds a verified demo user with the documented credentials', function () {
+test('it seeds a verified demo user with the documented credentials', function (): void {
     expect($this->demo->email_verified_at)->not->toBeNull()
         ->and(Hash::check('password', $this->demo->password))->toBeTrue();
 });
 
-test('the demo user owns, administers and is a plain member across shared teams', function () {
+test('the demo user owns, administers and is a plain member across shared teams', function (): void {
     $acme = Team::where('name', 'Acme Corp')->firstOrFail();
     $globex = Team::where('name', 'Globex')->firstOrFail();
     $initech = Team::where('name', 'Initech')->firstOrFail();
@@ -32,7 +32,7 @@ test('the demo user owns, administers and is a plain member across shared teams'
         ->and($this->demo->isCurrentTeam($acme))->toBeTrue();
 });
 
-test('every team role is represented in the membership table', function () {
+test('every team role is represented in the membership table', function (): void {
     $roles = DB::table('team_members')->distinct()->pluck('role')->all();
 
     foreach (TeamRole::cases() as $role) {
@@ -40,17 +40,17 @@ test('every team role is represented in the membership table', function () {
     }
 });
 
-test('it covers the unverified and two-factor user states', function () {
+test('it covers the unverified and two-factor user states', function (): void {
     expect(User::whereNull('email_verified_at')->exists())->toBeTrue()
         ->and(User::whereNotNull('two_factor_confirmed_at')->exists())->toBeTrue();
 });
 
-test('every active team has a #general channel with member rows', function () {
+test('every active team has a #general channel with member rows', function (): void {
     $teams = Team::all();
 
     expect($teams)->not->toBeEmpty();
 
-    $teams->each(function (Team $team) {
+    $teams->each(function (Team $team): void {
         $general = $team->channels()->where('slug', Channel::GENERAL_SLUG)->first();
 
         expect($general)->not->toBeNull()
@@ -58,13 +58,13 @@ test('every active team has a #general channel with member rows', function () {
     });
 });
 
-test('it seeds a soft-deleted team that still keeps its #general', function () {
+test('it seeds a soft-deleted team that still keeps its #general', function (): void {
     $ghost = Team::onlyTrashed()->firstOrFail();
 
     expect($ghost->channels()->where('slug', Channel::GENERAL_SLUG)->exists())->toBeTrue();
 });
 
-test('it seeds public, private, archived and topic-bearing channels', function () {
+test('it seeds public, private, archived and topic-bearing channels', function (): void {
     expect(Channel::where('visibility', ChannelVisibility::Public)->exists())->toBeTrue()
         ->and(Channel::where('visibility', ChannelVisibility::Private)->count())->toBeGreaterThanOrEqual(2)
         ->and(Channel::whereNotNull('archived_at')->exists())->toBeTrue()
@@ -72,7 +72,7 @@ test('it seeds public, private, archived and topic-bearing channels', function (
         ->and(Channel::whereNull('topic')->exists())->toBeTrue();
 });
 
-test('the demo user is inside some private channels but excluded from others', function () {
+test('the demo user is inside some private channels but excluded from others', function (): void {
     $memberOf = $this->demo->channels()->where('visibility', ChannelVisibility::Private)->exists();
 
     $excludedFrom = Channel::where('visibility', ChannelVisibility::Private)
@@ -83,13 +83,13 @@ test('the demo user is inside some private channels but excluded from others', f
         ->and($excludedFrom)->toBeTrue();
 });
 
-test('it backfills a busy channel to make pagination meaningful', function () {
+test('it backfills a busy channel to make pagination meaningful', function (): void {
     $busiest = Channel::withCount('messages')->orderByDesc('messages_count')->firstOrFail();
 
     expect($busiest->messages_count)->toBeGreaterThanOrEqual(50);
 });
 
-test('backfilled messages carry time-ordered ids so a newly sent message sorts newest', function () {
+test('backfilled messages carry time-ordered ids so a newly sent message sorts newest', function (): void {
     $busiest = Channel::withCount('messages')->orderByDesc('messages_count')->firstOrFail();
 
     // The timeline orders by `id DESC` and relies on ids being time-ordered
@@ -108,13 +108,13 @@ test('backfilled messages carry time-ordered ids so a newly sent message sorts n
     expect($busiest->messages()->orderByDesc('id')->value('id'))->toBe($sent->id);
 });
 
-test('it seeds edited, soft-deleted and mention-bearing messages', function () {
+test('it seeds edited, soft-deleted and mention-bearing messages', function (): void {
     expect(Message::whereNotNull('edited_at')->exists())->toBeTrue()
         ->and(Message::onlyTrashed()->exists())->toBeTrue()
         ->and(DB::table('mentions')->count())->toBeGreaterThan(0);
 });
 
-test('it varies the demo user unread state across channels', function () {
+test('it varies the demo user unread state across channels', function (): void {
     $pivots = $this->demo->channels()->get()
         ->map(fn (Channel $channel) => $channel->getRelationValue('pivot')->last_read_message_id);
 
@@ -122,19 +122,19 @@ test('it varies the demo user unread state across channels', function () {
         ->and($pivots->contains(null))->toBeTrue();
 });
 
-test('it seeds direct messages covering the self, empty and excluded shapes', function () {
+test('it seeds direct messages covering the self, empty and excluded shapes', function (): void {
     $directChannels = Channel::where('type', ChannelType::Direct)->get();
 
     // The demo participates in several DMs.
     expect($this->demo->channels()->where('type', ChannelType::Direct)->exists())->toBeTrue();
 
     // A self-DM: a single-member direct channel whose member is the demo.
-    $selfDm = $directChannels->first(fn (Channel $channel) => $channel->members()->count() === 1
+    $selfDm = $directChannels->first(fn (Channel $channel): bool => $channel->members()->count() === 1
         && $channel->members()->whereKey($this->demo->id)->exists());
     expect($selfDm)->not->toBeNull();
 
     // An empty DM the demo opened (no messages) — visible to them as the creator.
-    $emptyOwned = $directChannels->first(fn (Channel $channel) => $channel->created_by === $this->demo->id
+    $emptyOwned = $directChannels->first(fn (Channel $channel): bool => $channel->created_by === $this->demo->id
         && $channel->messages()->doesntExist());
     expect($emptyOwned)->not->toBeNull();
 
@@ -143,12 +143,12 @@ test('it seeds direct messages covering the self, empty and excluded shapes', fu
     expect($excluded)->not->toBeNull();
 });
 
-test('it seeds pending, accepted and expired invitations across roles on an admin team', function () {
+test('it seeds pending, accepted and expired invitations across roles on an admin team', function (): void {
     $acme = Team::where('name', 'Acme Corp')->firstOrFail();
     $invitations = $acme->invitations()->get();
 
-    expect($invitations->contains(fn (TeamInvitation $invitation) => $invitation->isPending()))->toBeTrue()
-        ->and($invitations->contains(fn (TeamInvitation $invitation) => $invitation->isAccepted()))->toBeTrue()
-        ->and($invitations->contains(fn (TeamInvitation $invitation) => $invitation->isExpired()))->toBeTrue()
+    expect($invitations->contains(fn (TeamInvitation $invitation): bool => $invitation->isPending()))->toBeTrue()
+        ->and($invitations->contains(fn (TeamInvitation $invitation): bool => $invitation->isAccepted()))->toBeTrue()
+        ->and($invitations->contains(fn (TeamInvitation $invitation): bool => $invitation->isExpired()))->toBeTrue()
         ->and($invitations->pluck('role')->unique()->count())->toBeGreaterThan(1);
 });

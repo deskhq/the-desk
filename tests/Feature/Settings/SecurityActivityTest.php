@@ -11,7 +11,7 @@ use Laravel\Fortify\Events\TwoFactorAuthenticationConfirmed;
 use Laravel\Fortify\Events\TwoFactorAuthenticationDisabled;
 use Laravel\Fortify\Events\TwoFactorAuthenticationEnabled;
 
-test('signing in records a security event with request context', function () {
+test('signing in records a security event with request context', function (): void {
     $user = User::factory()->create();
 
     $this->post(route('login.store'), [
@@ -28,7 +28,7 @@ test('signing in records a security event with request context', function () {
     expect($event->is_new_device)->toBeTrue();
 });
 
-test('a repeat sign in from the same device is not flagged as new', function () {
+test('a repeat sign in from the same device is not flagged as new', function (): void {
     $user = User::factory()->create();
 
     $credentials = ['email' => $user->email, 'password' => 'password'];
@@ -45,7 +45,7 @@ test('a repeat sign in from the same device is not flagged as new', function () 
     expect((clone $logins)->where('is_new_device', true)->count())->toBe(1);
 });
 
-test('signing out records a security event', function () {
+test('signing out records a security event', function (): void {
     $user = User::factory()->create();
 
     $this->actingAs($user)->post(route('logout'));
@@ -56,13 +56,13 @@ test('signing out records a security event', function () {
         ->exists())->toBeTrue();
 });
 
-test('signing out as a guest records nothing', function () {
+test('signing out as a guest records nothing', function (): void {
     event(new Logout('web', null));
 
     expect(SecurityEvent::query()->count())->toBe(0);
 });
 
-test('changing the password records a security event', function () {
+test('changing the password records a security event', function (): void {
     $user = User::factory()->create();
 
     $this->actingAs($user)
@@ -80,7 +80,7 @@ test('changing the password records a security event', function () {
         ->exists())->toBeTrue();
 });
 
-test('resetting the password records a security event', function () {
+test('resetting the password records a security event', function (): void {
     $user = User::factory()->create();
 
     event(new PasswordReset($user));
@@ -91,7 +91,7 @@ test('resetting the password records a security event', function () {
         ->exists())->toBeTrue();
 });
 
-test('two factor changes are recorded', function () {
+test('two factor changes are recorded', function (): void {
     $user = User::factory()->create();
 
     event(new TwoFactorAuthenticationEnabled($user));
@@ -112,7 +112,7 @@ test('two factor changes are recorded', function () {
     );
 });
 
-test('the security page lists recent activity newest first', function () {
+test('the security page lists recent activity newest first', function (): void {
     $user = User::factory()->create();
 
     SecurityEvent::factory()->for($user)->ofType(SecurityEventType::PasswordChanged)->create(['created_at' => now()->subMinute()]);
@@ -122,10 +122,10 @@ test('the security page lists recent activity newest first', function () {
         ->withSession(['auth.password_confirmed_at' => time()])
         ->get(route('security.edit'))
         ->assertOk()
-        ->assertInertia(fn (Assert $page) => $page
+        ->assertInertia(fn (Assert $page): Assert => $page
             ->component('settings/Security')
             ->has('securityEvents', 2)
-            ->has('securityEvents.0', fn (Assert $event) => $event
+            ->has('securityEvents.0', fn (Assert $event): Assert => $event
                 ->where('isNewDevice', true)
                 ->where('label', SecurityEventType::LoggedIn->label())
                 ->hasAll(['id', 'type', 'ipAddress', 'browser', 'platform', 'occurredAt']),
@@ -133,7 +133,7 @@ test('the security page lists recent activity newest first', function () {
         );
 });
 
-test('the activity log is scoped to the authenticated user', function () {
+test('the activity log is scoped to the authenticated user', function (): void {
     $user = User::factory()->create();
     SecurityEvent::factory()->for(User::factory())->create();
 
@@ -141,5 +141,5 @@ test('the activity log is scoped to the authenticated user', function () {
         ->withSession(['auth.password_confirmed_at' => time()])
         ->get(route('security.edit'))
         ->assertOk()
-        ->assertInertia(fn (Assert $page) => $page->where('securityEvents', []));
+        ->assertInertia(fn (Assert $page): Assert => $page->where('securityEvents', []));
 });

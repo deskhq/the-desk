@@ -55,7 +55,7 @@ function fakeFetcher(?array $result): FetchLinkPreview
         /**
          * @param  array{title: string, description: string|null, image: string|null, siteName: string|null}|null  $result
          */
-        public function __construct(private ?array $result) {}
+        public function __construct(private readonly ?array $result) {}
 
         public function handle(string $url): ?array
         {
@@ -64,7 +64,7 @@ function fakeFetcher(?array $result): FetchLinkPreview
     };
 }
 
-test('posting a message with URLs creates ordered pending previews and queues the unfurl', function () {
+test('posting a message with URLs creates ordered pending previews and queues the unfurl', function (): void {
     Bus::fake();
 
     [$owner, $team, $general] = unfurlTeam();
@@ -83,7 +83,7 @@ test('posting a message with URLs creates ordered pending previews and queues th
     Bus::assertDispatched(UnfurlMessageLinks::class);
 });
 
-test('link extraction caps at three URLs and dedupes', function () {
+test('link extraction caps at three URLs and dedupes', function (): void {
     Bus::fake();
 
     [$owner, $team, $general] = unfurlTeam();
@@ -94,7 +94,7 @@ test('link extraction caps at three URLs and dedupes', function () {
         ->toBe(['https://a.test', 'https://b.test', 'https://c.test']);
 });
 
-test('a trailing punctuation mark is not part of the extracted URL', function () {
+test('a trailing punctuation mark is not part of the extracted URL', function (): void {
     Bus::fake();
 
     [$owner, $team, $general] = unfurlTeam();
@@ -104,7 +104,7 @@ test('a trailing punctuation mark is not part of the extracted URL', function ()
     expect($message->linkPreviews()->value('url'))->toBe('https://example.com/page');
 });
 
-test('a message without URLs creates no previews and queues no job', function () {
+test('a message without URLs creates no previews and queues no job', function (): void {
     Bus::fake();
 
     [$owner, $team, $general] = unfurlTeam();
@@ -116,7 +116,7 @@ test('a message without URLs creates no previews and queues no job', function ()
     Bus::assertNotDispatched(UnfurlMessageLinks::class);
 });
 
-test('the initial MessageSent broadcast carries the pending previews', function () {
+test('the initial MessageSent broadcast carries the pending previews', function (): void {
     Bus::fake();
     Event::fake([MessageSent::class]);
 
@@ -124,7 +124,7 @@ test('the initial MessageSent broadcast carries the pending previews', function 
 
     postBody($owner, $team, $general, 'Read https://example.com now');
 
-    Event::assertDispatched(MessageSent::class, function (MessageSent $event) {
+    Event::assertDispatched(MessageSent::class, function (MessageSent $event): bool {
         $previews = $event->broadcastWith()['linkPreviews'];
 
         return count($previews) === 1
@@ -133,7 +133,7 @@ test('the initial MessageSent broadcast carries the pending previews', function 
     });
 });
 
-test('the unfurl job resolves pending previews and broadcasts the enriched message', function () {
+test('the unfurl job resolves pending previews and broadcasts the enriched message', function (): void {
     Event::fake([MessageUpdated::class]);
 
     [$owner, , $general] = unfurlTeam();
@@ -155,7 +155,7 @@ test('the unfurl job resolves pending previews and broadcasts the enriched messa
         ->and($preview->image_url)->toBe('https://example.com/i.png')
         ->and($preview->site_name)->toBe('Example');
 
-    Event::assertDispatched(MessageUpdated::class, function (MessageUpdated $event) {
+    Event::assertDispatched(MessageUpdated::class, function (MessageUpdated $event): bool {
         $previews = $event->broadcastWith()['linkPreviews'];
 
         return count($previews) === 1
@@ -164,7 +164,7 @@ test('the unfurl job resolves pending previews and broadcasts the enriched messa
     });
 });
 
-test('the unfurl job marks a preview failed when it cannot be fetched', function () {
+test('the unfurl job marks a preview failed when it cannot be fetched', function (): void {
     Event::fake([MessageUpdated::class]);
 
     [$owner, , $general] = unfurlTeam();
@@ -176,12 +176,10 @@ test('the unfurl job marks a preview failed when it cannot be fetched', function
     expect($message->linkPreviews()->value('status'))->toBe(LinkPreviewStatus::Failed);
 
     // A failed preview is dropped from the payload, so no broken card renders.
-    Event::assertDispatched(MessageUpdated::class, function (MessageUpdated $event) {
-        return $event->broadcastWith()['linkPreviews'] === [];
-    });
+    Event::assertDispatched(MessageUpdated::class, fn (MessageUpdated $event): bool => $event->broadcastWith()['linkPreviews'] === []);
 });
 
-test('the unfurl job bails quietly when the message is gone or deleted', function (bool $delete) {
+test('the unfurl job bails quietly when the message is gone or deleted', function (bool $delete): void {
     Event::fake([MessageUpdated::class]);
 
     [$owner, , $general] = unfurlTeam();
@@ -203,7 +201,7 @@ test('the unfurl job bails quietly when the message is gone or deleted', functio
     Event::assertNotDispatched(MessageUpdated::class);
 })->with([true, false]);
 
-test('the unfurl job does nothing when no previews are pending', function () {
+test('the unfurl job does nothing when no previews are pending', function (): void {
     Event::fake([MessageUpdated::class]);
 
     [$owner, , $general] = unfurlTeam();
@@ -215,7 +213,7 @@ test('the unfurl job does nothing when no previews are pending', function () {
     Event::assertNotDispatched(MessageUpdated::class);
 });
 
-test('editing a message drops previews for removed URLs and queues the new ones', function () {
+test('editing a message drops previews for removed URLs and queues the new ones', function (): void {
     Bus::fake();
 
     [$owner, $team, $general] = unfurlTeam();
@@ -232,7 +230,7 @@ test('editing a message drops previews for removed URLs and queues the new ones'
     Bus::assertDispatchedTimes(UnfurlMessageLinks::class, 2);
 });
 
-test('editing preserves an already-resolved preview and queues nothing new', function () {
+test('editing preserves an already-resolved preview and queues nothing new', function (): void {
     Bus::fake();
 
     [$owner, $team, $general] = unfurlTeam();
@@ -254,7 +252,7 @@ test('editing preserves an already-resolved preview and queues nothing new', fun
     Bus::assertDispatchedTimes(UnfurlMessageLinks::class, 1);
 });
 
-test('editing to reorder links reassigns positions without collision', function () {
+test('editing to reorder links reassigns positions without collision', function (): void {
     Bus::fake();
 
     [$owner, $team, $general] = unfurlTeam();
@@ -270,7 +268,7 @@ test('editing to reorder links reassigns positions without collision', function 
         ->toBe(['https://two.test', 'https://one.test']);
 });
 
-test('editing to remove every link clears the previews', function () {
+test('editing to remove every link clears the previews', function (): void {
     Bus::fake();
 
     [$owner, $team, $general] = unfurlTeam();
@@ -285,7 +283,7 @@ test('editing to remove every link clears the previews', function () {
     expect($message->linkPreviews()->count())->toBe(0);
 });
 
-test('a preview belongs to its message', function () {
+test('a preview belongs to its message', function (): void {
     [$owner, , $general] = unfurlTeam();
     $message = Message::factory()->for($general)->for($owner)->create();
     $preview = $message->linkPreviews()->create(['url' => 'https://example.com', 'position' => 0]);
@@ -293,7 +291,7 @@ test('a preview belongs to its message', function () {
     expect($preview->message->is($message))->toBeTrue();
 });
 
-test('a deleted message carries no link previews in its payload', function () {
+test('a deleted message carries no link previews in its payload', function (): void {
     [$owner, , $general] = unfurlTeam();
     $message = Message::factory()->for($general)->for($owner)->create();
     $message->linkPreviews()->create(['url' => 'https://example.com', 'position' => 0, 'status' => LinkPreviewStatus::Ready]);

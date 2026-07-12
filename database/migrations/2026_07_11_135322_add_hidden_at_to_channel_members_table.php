@@ -11,7 +11,7 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('channel_members', function (Blueprint $table) {
+        Schema::table('channel_members', function (Blueprint $table): void {
             // When the member closed (hid) this direct message from their sidebar.
             // A DM stays hidden only until a message arrives after this instant, so
             // a fresh reply re-surfaces it without any write on the message path.
@@ -25,7 +25,7 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::table('channel_members', function (Blueprint $table) {
+        Schema::table('channel_members', function (Blueprint $table): void {
             $table->dropColumn('hidden_at');
         });
     }

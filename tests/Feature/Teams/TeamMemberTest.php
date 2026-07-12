@@ -4,7 +4,7 @@ use App\Enums\TeamRole;
 use App\Models\Team;
 use App\Models\User;
 
-test('team member roles can be updated by owners', function () {
+test('team member roles can be updated by owners', function (): void {
     $owner = User::factory()->create();
     $member = User::factory()->create();
     $team = Team::factory()->create();
@@ -23,7 +23,7 @@ test('team member roles can be updated by owners', function () {
     expect($team->members()->where('user_id', $member->id)->first()->pivot->role->value)->toEqual(TeamRole::Admin->value);
 });
 
-test('team member roles cannot be updated by non owners', function () {
+test('team member roles cannot be updated by non owners', function (): void {
     $owner = User::factory()->create();
     $admin = User::factory()->create();
     $member = User::factory()->create();
@@ -42,7 +42,7 @@ test('team member roles cannot be updated by non owners', function () {
     $response->assertForbidden();
 });
 
-test('team members can be removed by owners', function () {
+test('team members can be removed by owners', function (): void {
     $owner = User::factory()->create();
     $member = User::factory()->create();
     $team = Team::factory()->create();
@@ -59,7 +59,7 @@ test('team members can be removed by owners', function () {
     expect($member->fresh()->belongsToTeam($team))->toBeFalse();
 });
 
-test('team members cannot be removed by non owners', function () {
+test('team members cannot be removed by non owners', function (): void {
     $owner = User::factory()->create();
     $admin = User::factory()->create();
     $member = User::factory()->create();
@@ -76,7 +76,7 @@ test('team members cannot be removed by non owners', function () {
     $response->assertForbidden();
 });
 
-test('team owner cannot be removed', function () {
+test('team owner cannot be removed', function (): void {
     $owner = User::factory()->create();
     $team = Team::factory()->create();
 
@@ -91,7 +91,7 @@ test('team owner cannot be removed', function () {
     expect($owner->fresh()->belongsToTeam($team))->toBeTrue();
 });
 
-test('team member role cannot be set to owner', function () {
+test('team member role cannot be set to owner', function (): void {
     $owner = User::factory()->create();
     $member = User::factory()->create();
     $team = Team::factory()->create();
@@ -110,7 +110,7 @@ test('team member role cannot be set to owner', function () {
     expect($team->members()->where('user_id', $member->id)->first()->pivot->role->value)->toEqual(TeamRole::Member->value);
 });
 
-test('removed member current team is set to personal team', function () {
+test('removed member current team is set to personal team', function (): void {
     $owner = User::factory()->create();
     $member = User::factory()->create();
     $personalTeam = $member->personalTeam();

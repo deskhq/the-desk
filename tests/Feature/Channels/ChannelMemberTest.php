@@ -22,7 +22,7 @@ function teamWithMember(TeamRole $role = TeamRole::Member): array
     return [$owner, $member, $team];
 }
 
-test('a private channel member can add another team member', function () {
+test('a private channel member can add another team member', function (): void {
     [$owner, $member, $team] = teamWithMember();
     $channel = Channel::factory()->for($team)->private()->create(['slug' => 'secret']);
     app(JoinChannel::class)->handle($channel, $owner);
@@ -36,7 +36,7 @@ test('a private channel member can add another team member', function () {
     expect($channel->members()->whereKey($member->id)->exists())->toBeTrue();
 });
 
-test('a team admin who is not a channel member can add a member to a private channel', function () {
+test('a team admin who is not a channel member can add a member to a private channel', function (): void {
     [$owner, $admin, $team] = teamWithMember(TeamRole::Admin);
     $target = User::factory()->create();
     $team->memberships()->create(['user_id' => $target->id, 'role' => TeamRole::Member]);
@@ -51,7 +51,7 @@ test('a team admin who is not a channel member can add a member to a private cha
     expect($channel->members()->whereKey($target->id)->exists())->toBeTrue();
 });
 
-test('a plain member who is not in the private channel cannot add members', function () {
+test('a plain member who is not in the private channel cannot add members', function (): void {
     [$owner, $member, $team] = teamWithMember();
     $target = User::factory()->create();
     $team->memberships()->create(['user_id' => $target->id, 'role' => TeamRole::Member]);
@@ -67,7 +67,7 @@ test('a plain member who is not in the private channel cannot add members', func
     expect($channel->members()->whereKey($target->id)->exists())->toBeFalse();
 });
 
-test('members cannot be managed on a public channel through the members endpoint', function () {
+test('members cannot be managed on a public channel through the members endpoint', function (): void {
     [$owner, $member, $team] = teamWithMember();
     $channel = Channel::factory()->for($team)->create(['slug' => 'marketing']);
     app(JoinChannel::class)->handle($channel, $owner);
@@ -79,7 +79,7 @@ test('members cannot be managed on a public channel through the members endpoint
         ->assertForbidden();
 });
 
-test('a user who is not a team member cannot be added to a channel', function () {
+test('a user who is not a team member cannot be added to a channel', function (): void {
     [$owner, $member, $team] = teamWithMember();
     $outsider = User::factory()->create();
     $channel = Channel::factory()->for($team)->private()->create(['slug' => 'secret']);
@@ -94,7 +94,7 @@ test('a user who is not a team member cannot be added to a channel', function ()
     expect($channel->members()->whereKey($outsider->id)->exists())->toBeFalse();
 });
 
-test('a private channel member can remove another member', function () {
+test('a private channel member can remove another member', function (): void {
     [$owner, $member, $team] = teamWithMember();
     $channel = Channel::factory()->for($team)->private()->create(['slug' => 'secret']);
     app(JoinChannel::class)->handle($channel, $owner);
@@ -109,7 +109,7 @@ test('a private channel member can remove another member', function () {
     expect($channel->members()->whereKey($member->id)->exists())->toBeFalse();
 });
 
-test('a plain non-member cannot remove members from a private channel', function () {
+test('a plain non-member cannot remove members from a private channel', function (): void {
     [$owner, $member, $team] = teamWithMember();
     $channel = Channel::factory()->for($team)->private()->create(['slug' => 'secret']);
     app(JoinChannel::class)->handle($channel, $owner);

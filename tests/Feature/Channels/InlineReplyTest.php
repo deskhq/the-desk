@@ -24,7 +24,7 @@ function replyTeamWithGeneral(): array
     return [$owner, $team, $general];
 }
 
-test('a message can reply to another message in the same channel', function () {
+test('a message can reply to another message in the same channel', function (): void {
     [$owner, $team, $general] = replyTeamWithGeneral();
     $parent = Message::factory()->for($general)->for($owner)->create(['body' => 'parent']);
     $clientUuid = (string) Str::uuid7();
@@ -44,7 +44,7 @@ test('a message can reply to another message in the same channel', function () {
     ]);
 });
 
-test('a message without a reply target persists a null reply reference', function () {
+test('a message without a reply target persists a null reply reference', function (): void {
     [$owner, $team, $general] = replyTeamWithGeneral();
     $clientUuid = (string) Str::uuid7();
 
@@ -60,7 +60,7 @@ test('a message without a reply target persists a null reply reference', functio
     ]);
 });
 
-test('the reply target must belong to the same channel', function () {
+test('the reply target must belong to the same channel', function (): void {
     [$owner, $team, $general] = replyTeamWithGeneral();
     $other = Channel::factory()->for($team)->create();
     $other->channelMembers()->create(['user_id' => $owner->id]);
@@ -77,7 +77,7 @@ test('the reply target must belong to the same channel', function () {
     expect(Message::where('channel_id', $general->id)->count())->toBe(0);
 });
 
-test('a reply cannot target a deleted message', function () {
+test('a reply cannot target a deleted message', function (): void {
     [$owner, $team, $general] = replyTeamWithGeneral();
     $parent = Message::factory()->for($general)->for($owner)->create();
     $parent->delete();
@@ -91,7 +91,7 @@ test('a reply cannot target a deleted message', function () {
         ->assertInvalid(['reply_to_id']);
 });
 
-test('a non-uuid reply target is rejected', function () {
+test('a non-uuid reply target is rejected', function (): void {
     [$owner, $team, $general] = replyTeamWithGeneral();
 
     $this->actingAs($owner)
@@ -103,14 +103,14 @@ test('a non-uuid reply target is rejected', function () {
         ->assertInvalid(['reply_to_id']);
 });
 
-test('the channel page renders a reply as a compact quote of its parent', function () {
+test('the channel page renders a reply as a compact quote of its parent', function (): void {
     [$owner, $team, $general] = replyTeamWithGeneral();
     $parent = Message::factory()->for($general)->for($owner)->create(['body' => 'the original']);
     Message::factory()->for($general)->for($owner)->replyTo($parent)->create(['body' => 'the answer']);
 
     $this->actingAs($owner)
         ->get(route('channels.show', ['team' => $team->slug, 'channel' => $general->slug]))
-        ->assertInertia(fn (Assert $page) => $page
+        ->assertInertia(fn (Assert $page): Assert => $page
             // Newest-first: the reply is data.0, its parent data.1.
             ->where('messages.data.0.body', 'the answer')
             ->where('messages.data.0.replyTo.id', $parent->id)
@@ -121,7 +121,7 @@ test('the channel page renders a reply as a compact quote of its parent', functi
         );
 });
 
-test('a reply to a deleted parent renders a deleted quote stub with a blanked body', function () {
+test('a reply to a deleted parent renders a deleted quote stub with a blanked body', function (): void {
     [$owner, $team, $general] = replyTeamWithGeneral();
     $parent = Message::factory()->for($general)->for($owner)->create(['body' => 'secret original']);
     Message::factory()->for($general)->for($owner)->replyTo($parent)->create(['body' => 'still here']);
@@ -129,7 +129,7 @@ test('a reply to a deleted parent renders a deleted quote stub with a blanked bo
 
     $this->actingAs($owner)
         ->get(route('channels.show', ['team' => $team->slug, 'channel' => $general->slug]))
-        ->assertInertia(fn (Assert $page) => $page
+        ->assertInertia(fn (Assert $page): Assert => $page
             ->where('messages.data.0.body', 'still here')
             ->where('messages.data.0.replyTo.id', $parent->id)
             ->where('messages.data.0.replyTo.isDeleted', true)
@@ -137,7 +137,7 @@ test('a reply to a deleted parent renders a deleted quote stub with a blanked bo
         );
 });
 
-test('a deleted reply carries no quote of its own', function () {
+test('a deleted reply carries no quote of its own', function (): void {
     [$owner, $team, $general] = replyTeamWithGeneral();
     $parent = Message::factory()->for($general)->for($owner)->create(['body' => 'original']);
     $reply = Message::factory()->for($general)->for($owner)->replyTo($parent)->create(['body' => 'answer']);
@@ -145,13 +145,13 @@ test('a deleted reply carries no quote of its own', function () {
 
     $this->actingAs($owner)
         ->get(route('channels.show', ['team' => $team->slug, 'channel' => $general->slug]))
-        ->assertInertia(fn (Assert $page) => $page
+        ->assertInertia(fn (Assert $page): Assert => $page
             ->where('messages.data.0.isDeleted', true)
             ->where('messages.data.0.replyTo', null)
         );
 });
 
-test('posting a reply broadcasts the parent quote in the MessageSent payload', function () {
+test('posting a reply broadcasts the parent quote in the MessageSent payload', function (): void {
     Event::fake([MessageSent::class]);
 
     [$owner, $team, $general] = replyTeamWithGeneral();
@@ -167,7 +167,7 @@ test('posting a reply broadcasts the parent quote in the MessageSent payload', f
         'reply_to_id' => $parent->id,
     ]);
 
-    Event::assertDispatched(MessageSent::class, function (MessageSent $event) use ($parent) {
+    Event::assertDispatched(MessageSent::class, function (MessageSent $event) use ($parent): bool {
         $payload = $event->message->toArray();
 
         return $payload['replyTo']['id'] === $parent->id
@@ -175,7 +175,7 @@ test('posting a reply broadcasts the parent quote in the MessageSent payload', f
     });
 });
 
-test('the reply reference survives an idempotent resend', function () {
+test('the reply reference survives an idempotent resend', function (): void {
     [$owner, $team, $general] = replyTeamWithGeneral();
     $parent = Message::factory()->for($general)->for($owner)->create();
     $clientUuid = (string) Str::uuid7();

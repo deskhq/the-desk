@@ -12,7 +12,7 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('channel_members', function (Blueprint $table) {
+        Schema::table('channel_members', function (Blueprint $table): void {
             // Per-member notification preferences for the channel. `muted` dims the
             // channel and is the strongest silence; `notification_level` tunes which
             // arrivals raise a badge (see App\Enums\NotificationLevel).
@@ -26,7 +26,7 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::table('channel_members', function (Blueprint $table) {
+        Schema::table('channel_members', function (Blueprint $table): void {
             $table->dropColumn(['muted', 'notification_level']);
         });
     }

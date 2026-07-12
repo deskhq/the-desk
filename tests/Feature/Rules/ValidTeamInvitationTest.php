@@ -11,28 +11,28 @@ function runInvitationRule(?User $user, mixed $value): ?string
 {
     $message = null;
 
-    (new ValidTeamInvitation($user))->validate('invitation', $value, function (string $failure) use (&$message) {
+    (new ValidTeamInvitation($user))->validate('invitation', $value, function (string $failure) use (&$message): void {
         $message ??= $failure;
     });
 
     return $message;
 }
 
-test('a missing invitation fails', function () {
+test('a missing invitation fails', function (): void {
     $user = User::factory()->create();
 
     expect(runInvitationRule($user, null))
         ->toBe('This invitation was sent to a different email address.');
 });
 
-test('a missing user fails', function () {
+test('a missing user fails', function (): void {
     $invitation = TeamInvitation::factory()->create();
 
     expect(runInvitationRule(null, $invitation))
         ->toBe('This invitation was sent to a different email address.');
 });
 
-test('an accepted invitation fails', function () {
+test('an accepted invitation fails', function (): void {
     $user = User::factory()->create();
     $invitation = TeamInvitation::factory()->accepted()->create(['email' => $user->email]);
 
@@ -40,7 +40,7 @@ test('an accepted invitation fails', function () {
         ->toBe('This invitation has already been accepted.');
 });
 
-test('an expired invitation fails', function () {
+test('an expired invitation fails', function (): void {
     $user = User::factory()->create();
     $invitation = TeamInvitation::factory()->expired()->create(['email' => $user->email]);
 
@@ -48,7 +48,7 @@ test('an expired invitation fails', function () {
         ->toBe('This invitation has expired.');
 });
 
-test('an invitation for another email fails', function () {
+test('an invitation for another email fails', function (): void {
     $user = User::factory()->create();
     $invitation = TeamInvitation::factory()->create(['email' => 'someone-else@example.com']);
 
@@ -56,7 +56,7 @@ test('an invitation for another email fails', function () {
         ->toBe('This invitation was sent to a different email address.');
 });
 
-test('a valid invitation passes', function () {
+test('a valid invitation passes', function (): void {
     $user = User::factory()->create();
     $invitation = TeamInvitation::factory()->create(['email' => $user->email]);
 

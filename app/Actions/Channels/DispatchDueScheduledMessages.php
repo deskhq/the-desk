@@ -8,7 +8,7 @@ use Illuminate\Support\Facades\Gate;
 
 class DispatchDueScheduledMessages
 {
-    public function __construct(private PostMessage $postMessage) {}
+    public function __construct(private readonly PostMessage $postMessage) {}
 
     /**
      * Deliver every scheduled message whose send time has arrived.

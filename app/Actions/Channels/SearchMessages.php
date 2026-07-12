@@ -12,7 +12,7 @@ class SearchMessages
     /**
      * The maximum number of message matches returned for a single search.
      */
-    private const RESULT_LIMIT = 50;
+    private const int RESULT_LIMIT = 50;
 
     /**
      * Full-text search a team's messages, ACL-filtered to the user's channels.

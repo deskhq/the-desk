@@ -165,9 +165,11 @@ class ChannelPolicy
         if (! $user->belongsToTeam($channel->team)) {
             return false;
         }
+        if ($channel->members()->whereKey($user->id)->exists()) {
+            return true;
+        }
 
-        return $channel->members()->whereKey($user->id)->exists()
-            || ($user->teamRole($channel->team)?->isAtLeast(TeamRole::Admin) ?? false);
+        return $user->teamRole($channel->team)?->isAtLeast(TeamRole::Admin) ?? false;
     }
 
     /**

@@ -53,7 +53,7 @@ class ThreadsController extends Controller
                 ->orderByDesc('last_reply_at')
                 ->orderByDesc('id')
                 ->cursorPaginate(self::PAGE_SIZE)
-                ->through(fn (Message $message) => ThreadInboxItemData::fromMessage($message))),
+                ->through(fn (Message $message): ThreadInboxItemData => ThreadInboxItemData::fromMessage($message))),
         ]);
     }
 }

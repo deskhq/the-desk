@@ -32,7 +32,7 @@ function analyticsPageMember(Team $team, TeamRole $role = TeamRole::Member): Use
     return $member;
 }
 
-test('an admin can view the analytics dashboard', function () {
+test('an admin can view the analytics dashboard', function (): void {
     [$owner, $team] = analyticsPageTeam();
     $admin = analyticsPageMember($team, TeamRole::Admin);
     $general = $team->channels()->where('slug', Channel::GENERAL_SLUG)->firstOrFail();
@@ -41,7 +41,7 @@ test('an admin can view the analytics dashboard', function () {
     $this->actingAs($admin)
         ->get(route('teams.analytics.index', $team))
         ->assertOk()
-        ->assertInertia(fn (Assert $page) => $page
+        ->assertInertia(fn (Assert $page): Assert => $page
             ->component('teams/Analytics')
             ->where('range', '30d')
             ->where('analytics.messagesSent.value', 1)
@@ -51,7 +51,7 @@ test('an admin can view the analytics dashboard', function () {
         );
 });
 
-test('the owner can view the analytics dashboard', function () {
+test('the owner can view the analytics dashboard', function (): void {
     [$owner, $team] = analyticsPageTeam();
 
     $this->actingAs($owner)
@@ -59,7 +59,7 @@ test('the owner can view the analytics dashboard', function () {
         ->assertOk();
 });
 
-test('a plain member cannot view the analytics dashboard', function () {
+test('a plain member cannot view the analytics dashboard', function (): void {
     [$owner, $team] = analyticsPageTeam();
     $member = analyticsPageMember($team);
 
@@ -68,7 +68,7 @@ test('a plain member cannot view the analytics dashboard', function () {
         ->assertForbidden();
 });
 
-test('a non member cannot view the analytics dashboard', function () {
+test('a non member cannot view the analytics dashboard', function (): void {
     [$owner, $team] = analyticsPageTeam();
     $stranger = User::factory()->create();
 
@@ -77,7 +77,7 @@ test('a non member cannot view the analytics dashboard', function () {
         ->assertForbidden();
 });
 
-test('analytics is not available for a personal team', function () {
+test('analytics is not available for a personal team', function (): void {
     $user = User::factory()->create();
     $personal = $user->personalTeam();
 
@@ -86,20 +86,20 @@ test('analytics is not available for a personal team', function () {
         ->assertForbidden();
 });
 
-test('the requested range scopes the dashboard', function () {
+test('the requested range scopes the dashboard', function (): void {
     [$owner, $team] = analyticsPageTeam();
 
     $this->actingAs($owner)
         ->get(route('teams.analytics.index', [$team, 'range' => '7d']))
         ->assertOk()
-        ->assertInertia(fn (Assert $page) => $page
+        ->assertInertia(fn (Assert $page): Assert => $page
             ->where('range', '7d')
             ->where('analytics.range', '7d')
             ->has('analytics.messagesByDay', 7)
         );
 });
 
-test('an invalid range is rejected', function () {
+test('an invalid range is rejected', function (): void {
     [$owner, $team] = analyticsPageTeam();
 
     $this->actingAs($owner)

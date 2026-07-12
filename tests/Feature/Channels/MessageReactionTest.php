@@ -38,7 +38,7 @@ function toggleReaction($actor, $team, $channel, $message, string $emoji)
     ]), ['emoji' => $emoji]);
 }
 
-test('reacting adds the reaction, and reacting again with the same emoji removes it', function () {
+test('reacting adds the reaction, and reacting again with the same emoji removes it', function (): void {
     [$owner, $team, $general] = reactionTeamWithGeneral();
     $message = Message::factory()->for($general)->for($owner)->create();
 
@@ -51,7 +51,7 @@ test('reacting adds the reaction, and reacting again with the same emoji removes
     expect(MessageReaction::where('message_id', $message->id)->exists())->toBeFalse();
 });
 
-test('a user holds at most one row per distinct emoji and can react with several emoji', function () {
+test('a user holds at most one row per distinct emoji and can react with several emoji', function (): void {
     [$owner, $team, $general] = reactionTeamWithGeneral();
     $message = Message::factory()->for($general)->for($owner)->create();
 
@@ -69,7 +69,7 @@ test('a user holds at most one row per distinct emoji and can react with several
         ->and($remaining->first()->emoji)->toBe('🎉');
 });
 
-test('a non-member of a private channel cannot react', function () {
+test('a non-member of a private channel cannot react', function (): void {
     [$owner, $team] = reactionTeamWithGeneral();
 
     $stranger = User::factory()->create();
@@ -84,7 +84,7 @@ test('a non-member of a private channel cannot react', function () {
     expect(MessageReaction::where('message_id', $message->id)->exists())->toBeFalse();
 });
 
-test('reactions cannot be added in an archived channel', function () {
+test('reactions cannot be added in an archived channel', function (): void {
     [$owner, $team, $general] = reactionTeamWithGeneral();
     $channel = Channel::factory()->for($team)->create(['archived_at' => now()]);
     $channel->channelMembers()->create(['user_id' => $owner->id]);
@@ -95,7 +95,7 @@ test('reactions cannot be added in an archived channel', function () {
     expect(MessageReaction::where('message_id', $message->id)->exists())->toBeFalse();
 });
 
-test('the emoji is required', function () {
+test('the emoji is required', function (): void {
     [$owner, $team, $general] = reactionTeamWithGeneral();
     $message = Message::factory()->for($general)->for($owner)->create();
 
@@ -106,7 +106,7 @@ test('the emoji is required', function () {
     ]), [])->assertInvalid(['emoji']);
 });
 
-test('a message aggregates its reactions per emoji with reactor sets', function () {
+test('a message aggregates its reactions per emoji with reactor sets', function (): void {
     [$owner, $team, $general] = reactionTeamWithGeneral();
     $alice = User::factory()->create(['name' => 'Alice']);
     $team->memberships()->create(['user_id' => $alice->id, 'role' => TeamRole::Member]);
@@ -131,7 +131,7 @@ test('a message aggregates its reactions per emoji with reactor sets', function 
         ->and($party->reactors[0]->name)->toBe('Alice');
 });
 
-test('toggling a reaction broadcasts MessageReactionChanged on the channel with the fresh summary', function () {
+test('toggling a reaction broadcasts MessageReactionChanged on the channel with the fresh summary', function (): void {
     Event::fake([MessageReactionChanged::class]);
 
     [$owner, $team, $general] = reactionTeamWithGeneral();
@@ -140,7 +140,7 @@ test('toggling a reaction broadcasts MessageReactionChanged on the channel with 
     // Add.
     toggleReaction($owner, $team, $general, $message, '👍');
 
-    Event::assertDispatched(MessageReactionChanged::class, function (MessageReactionChanged $event) use ($general, $message) {
+    Event::assertDispatched(MessageReactionChanged::class, function (MessageReactionChanged $event) use ($general, $message): bool {
         $target = $event->broadcastOn()[0];
         $payload = $event->broadcastWith();
 
@@ -157,10 +157,10 @@ test('toggling a reaction broadcasts MessageReactionChanged on the channel with 
     toggleReaction($owner, $team, $general, $message, '👍');
 
     Event::assertDispatchedTimes(MessageReactionChanged::class, 2);
-    Event::assertDispatched(MessageReactionChanged::class, fn (MessageReactionChanged $event) => $event->broadcastWith()['reactions'] === []);
+    Event::assertDispatched(MessageReactionChanged::class, fn (MessageReactionChanged $event): bool => $event->broadcastWith()['reactions'] === []);
 });
 
-test('deleting a message removes its reactions and emits none in the tombstone payload', function () {
+test('deleting a message removes its reactions and emits none in the tombstone payload', function (): void {
     [$owner, $team, $general] = reactionTeamWithGeneral();
     $message = Message::factory()->for($general)->for($owner)->create();
     MessageReaction::factory()->for($message)->for($owner)->emoji('👍')->create();
@@ -177,7 +177,7 @@ test('deleting a message removes its reactions and emits none in the tombstone p
     expect(MessageData::fromMessage($message)->reactions)->toBe([]);
 });
 
-test('deleting a reacting user drops their reactions via the cascade', function () {
+test('deleting a reacting user drops their reactions via the cascade', function (): void {
     [$owner, $team, $general] = reactionTeamWithGeneral();
     $alice = User::factory()->create();
     $team->memberships()->create(['user_id' => $alice->id, 'role' => TeamRole::Member]);

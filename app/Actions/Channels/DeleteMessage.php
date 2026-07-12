@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Actions\Channels;
 
 use App\Data\MessageData;
@@ -26,6 +28,6 @@ class DeleteMessage
         $message->delete();
 
         $message->loadMissing('user');
-        MessageDeleted::dispatch($channel, MessageData::fromMessage($message));
+        event(new MessageDeleted($channel, MessageData::fromMessage($message)));
     }
 }

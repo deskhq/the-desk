@@ -12,7 +12,7 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('message_link_previews', function (Blueprint $table) {
+        Schema::create('message_link_previews', function (Blueprint $table): void {
             $table->uuid('id')->primary()->default(DB::raw('gen_random_uuid()'));
             $table->foreignUuid('message_id')->constrained()->cascadeOnDelete();
             $table->text('url');

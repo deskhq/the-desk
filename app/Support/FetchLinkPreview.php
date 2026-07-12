@@ -35,7 +35,7 @@ class FetchLinkPreview
      */
     private const string FAILED = '__failed__';
 
-    public function __construct(private HostResolver $resolver) {}
+    public function __construct(private readonly HostResolver $resolver) {}
 
     /**
      * Unfurl a URL into its Open Graph preview, or null when it can't be fetched.
@@ -50,7 +50,7 @@ class FetchLinkPreview
         $result = Cache::remember(
             'link-preview:'.sha1($url),
             now()->addSeconds(self::CACHE_TTL_SECONDS),
-            fn () => $this->unfurl($url) ?? self::FAILED,
+            fn (): array|string => $this->unfurl($url) ?? self::FAILED,
         );
 
         return $result === self::FAILED ? null : $result;

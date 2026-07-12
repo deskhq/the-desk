@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Actions\Channels;
 
 use App\Data\MessageData;
@@ -10,8 +12,8 @@ use App\Models\Message;
 class EditMessage
 {
     public function __construct(
-        private SyncMentions $syncMentions,
-        private SyncLinkPreviews $syncLinkPreviews,
+        private readonly SyncMentions $syncMentions,
+        private readonly SyncLinkPreviews $syncLinkPreviews,
     ) {}
 
     /**
@@ -32,7 +34,7 @@ class EditMessage
         $this->syncLinkPreviews->handle($message);
 
         $message->loadMessageDataRelations();
-        MessageUpdated::dispatch($channel, MessageData::fromMessage($message));
+        event(new MessageUpdated($channel, MessageData::fromMessage($message)));
 
         return $message;
     }

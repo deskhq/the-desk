@@ -12,7 +12,7 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('data_exports', function (Blueprint $table) {
+        Schema::create('data_exports', function (Blueprint $table): void {
             $table->uuid('id')->primary()->default(DB::raw('gen_random_uuid()'));
             $table->foreignUuid('user_id')->constrained()->cascadeOnDelete();
             // The lifecycle state of the export (see App\Enums\DataExportStatus).

@@ -12,7 +12,7 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('thread_reads', function (Blueprint $table) {
+        Schema::create('thread_reads', function (Blueprint $table): void {
             $table->uuid('id')->primary()->default(DB::raw('gen_random_uuid()'));
             // The thread's root message. Force-deleting the root cascades this
             // pointer away; a soft-deleted root keeps its row so the thread — and
