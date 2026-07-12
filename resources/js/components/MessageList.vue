@@ -1,22 +1,12 @@
 <script setup lang="ts">
 import { usePage } from '@inertiajs/vue3';
-import {
-    AlarmClock,
-    Clock,
-    CornerUpLeft,
-    Forward,
-    MessageSquareText,
-    Pencil,
-    SmilePlus,
-    Trash2,
-} from '@lucide/vue';
+import { Clock } from '@lucide/vue';
 import { computed, nextTick, ref } from 'vue';
-import EmojiPickerPopover from '@/components/EmojiPickerPopover.vue';
 import LinkPreview from '@/components/LinkPreview.vue';
+import MessageActions from '@/components/MessageActions.vue';
 import MessageForward from '@/components/MessageForward.vue';
 import MessageQuote from '@/components/MessageQuote.vue';
 import MessageReactions from '@/components/MessageReactions.vue';
-import MessageReminderPopover from '@/components/MessageReminderPopover.vue';
 import { Button } from '@/components/ui/button';
 import {
     Dialog,
@@ -36,6 +26,8 @@ import UserHoverCard from '@/components/UserHoverCard.vue';
 import { useInitials } from '@/composables/useInitials';
 import { useTranslations } from '@/composables/useTranslations';
 import { formatTimeOfDay } from '@/lib/datetime';
+import { canReactToMessage, showsThreadSummary } from '@/lib/messageActions';
+import type { MessageActionContext } from '@/lib/messageActions';
 import { tokenizeMessageBody } from '@/lib/messageBody';
 import type { MessageBodySegment } from '@/lib/messageBody';
 import { readersForMessage } from '@/lib/readReceipts';
@@ -259,60 +251,30 @@ function isQueued(message: Message): boolean {
     return queued.value.has(message.clientUuid);
 }
 
-function isOwn(message: Message): boolean {
-    return message.user.id === props.currentUserId;
-}
-
-function canEdit(message: Message): boolean {
-    return !message.isDeleted && !isPending(message) && isOwn(message);
-}
-
-function canDelete(message: Message): boolean {
-    return (
-        !message.isDeleted &&
-        !isPending(message) &&
-        (isOwn(message) || Boolean(props.canModerate))
-    );
-}
-
-// Anyone can reply to any live message; a pending or deleted row has no stable
-// target to quote yet. Inline quoting is a main-timeline affordance — inside a
-// thread the composer answers the root, so it's suppressed.
-function canReply(message: Message): boolean {
-    return !props.inThread && !message.isDeleted && !isPending(message);
-}
-
-// Any live message can be forwarded to another channel — including from inside a
-// thread panel. A pending or deleted row has no stable target to forward yet.
-function canForward(message: Message): boolean {
-    return !message.isDeleted && !isPending(message);
+// The viewer context each per-message guard resolves against. The hover-action
+// bar (extracted to MessageActions) owns the toolbar guards; the two rules below
+// stay here because they drive non-toolbar UI — the reaction pills and the
+// thread summary — and share the same context.
+function actionContext(message: Message): MessageActionContext {
+    return {
+        currentUserId: props.currentUserId,
+        canReact: Boolean(props.canReact),
+        canModerate: Boolean(props.canModerate),
+        inThread: Boolean(props.inThread),
+        pending: isPending(message),
+    };
 }
 
 // The viewer may react to any live, confirmed message when they're a member of
-// the (non-archived) channel; a pending or deleted row has no stable target yet.
+// the (non-archived) channel; drives whether the reaction pills accept toggles.
 function canReactTo(message: Message): boolean {
-    return Boolean(props.canReact) && !message.isDeleted && !isPending(message);
-}
-
-// A reminder is personal — the viewer can set one on any live message they can
-// see, in any channel and even from inside a thread. A pending or deleted row
-// has no stable id to point back to yet.
-function canRemind(message: Message): boolean {
-    return !message.isDeleted && !isPending(message);
-}
-
-// The hover "reply in thread" action shows on live root messages in the main
-// timeline (never on replies inside a panel, nor on messages already in a thread).
-function canStartThread(message: Message): boolean {
-    return (
-        !props.inThread && canReply(message) && message.threadRootId === null
-    );
+    return canReactToMessage(message, actionContext(message));
 }
 
 // The "N replies" affordance shows on any root that has replies, even a deleted
 // one — the thread outlives its root as a tombstone.
 function showThreadSummary(message: Message): boolean {
-    return !props.inThread && message.threadReplyCount > 0;
+    return showsThreadSummary(message, actionContext(message));
 }
 
 // The message currently being edited inline, and its working draft.
@@ -728,103 +690,26 @@ function confirmDelete(): void {
                             </span>
                         </div>
 
-                        <div
-                            v-if="
-                                editingId !== message.id &&
-                                (canReactTo(message) ||
-                                    canReply(message) ||
-                                    canStartThread(message) ||
-                                    canForward(message) ||
-                                    canRemind(message) ||
-                                    canEdit(message) ||
-                                    canDelete(message))
+                        <MessageActions
+                            v-if="editingId !== message.id"
+                            :message="message"
+                            :current-user-id="props.currentUserId"
+                            :can-react="props.canReact"
+                            :can-moderate="props.canModerate"
+                            :in-thread="props.inThread"
+                            :pending="isPending(message)"
+                            :viewer-timezone="viewerTimezone"
+                            @react="(emoji) => emit('react', message, emoji)"
+                            @reply="emit('reply', message)"
+                            @forward="emit('forward', message)"
+                            @open-thread="emit('openThread', message.id)"
+                            @remind="
+                                (remindAt) => emit('remind', message, remindAt)
                             "
-                            class="absolute -top-3 right-2 hidden items-center gap-0.5 rounded-md border border-border bg-background p-0.5 shadow-sm group-hover/message:flex has-[[data-state=open]]:flex"
-                        >
-                            <EmojiPickerPopover
-                                v-if="canReactTo(message)"
-                                @select="
-                                    (emoji) => emit('react', message, emoji)
-                                "
-                            >
-                                <button
-                                    type="button"
-                                    data-test="message-react"
-                                    :aria-label="$t('Add reaction')"
-                                    class="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
-                                >
-                                    <SmilePlus class="size-3.5" />
-                                </button>
-                            </EmojiPickerPopover>
-                            <button
-                                v-if="canStartThread(message)"
-                                type="button"
-                                data-test="message-thread"
-                                :aria-label="$t('Reply in thread')"
-                                class="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
-                                @click="emit('openThread', message.id)"
-                            >
-                                <MessageSquareText class="size-3.5" />
-                            </button>
-                            <button
-                                v-if="canReply(message)"
-                                type="button"
-                                :data-test="'message-reply'"
-                                :aria-label="$t('Reply to message')"
-                                class="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
-                                @click="emit('reply', message)"
-                            >
-                                <CornerUpLeft class="size-3.5" />
-                            </button>
-                            <button
-                                v-if="canForward(message)"
-                                type="button"
-                                :data-test="'message-forward'"
-                                :aria-label="$t('Forward message')"
-                                class="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
-                                @click="emit('forward', message)"
-                            >
-                                <Forward class="size-3.5" />
-                            </button>
-                            <MessageReminderPopover
-                                v-if="canRemind(message)"
-                                :timezone="viewerTimezone"
-                                @set="
-                                    (remindAt) =>
-                                        emit('remind', message, remindAt)
-                                "
-                                @custom="emit('remindCustom', message)"
-                            >
-                                <button
-                                    type="button"
-                                    data-test="message-remind"
-                                    :aria-label="$t('Remind me about this')"
-                                    class="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground data-[state=open]:bg-muted data-[state=open]:text-foreground"
-                                >
-                                    <AlarmClock class="size-3.5" />
-                                </button>
-                            </MessageReminderPopover>
-                            <button
-                                v-if="canEdit(message)"
-                                type="button"
-                                :data-test="'message-edit'"
-                                :aria-label="$t('Edit message')"
-                                class="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
-                                @click="startEdit(message)"
-                            >
-                                <Pencil class="size-3.5" />
-                            </button>
-                            <button
-                                v-if="canDelete(message)"
-                                type="button"
-                                :data-test="'message-delete'"
-                                :aria-label="$t('Delete message')"
-                                class="rounded p-1 text-muted-foreground hover:bg-muted hover:text-destructive"
-                                @click="requestDelete(message)"
-                            >
-                                <Trash2 class="size-3.5" />
-                            </button>
-                        </div>
+                            @remind-custom="emit('remindCustom', message)"
+                            @edit="startEdit(message)"
+                            @delete="requestDelete(message)"
+                        />
                     </div>
                 </div>
             </div>

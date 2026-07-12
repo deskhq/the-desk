@@ -6,6 +6,20 @@ import {
     PopoverTrigger,
 } from 'reka-ui';
 import { defineAsyncComponent, ref } from 'vue';
+import {
+    Tooltip,
+    TooltipContent,
+    TooltipTrigger,
+} from '@/components/ui/tooltip';
+
+defineProps<{
+    // Optional label shown in a tooltip above the trigger on hover and keyboard
+    // focus. When set, the trigger is composed as Tooltip → PopoverTrigger so the
+    // one button anchors both the popover (on click) and the tooltip (on
+    // hover/focus); this requires a TooltipProvider ancestor. Consumers that
+    // don't want a tooltip omit it and get the bare trigger.
+    tooltip?: string;
+}>();
 
 // The emoji picker touches `indexedDB` at module load, which doesn't exist under
 // Node SSR, so import it lazily on the client only — its loader runs when the
@@ -35,7 +49,17 @@ function onPick(payload: { i: string }): void {
 
 <template>
     <PopoverRoot v-model:open="open">
-        <PopoverTrigger as-child>
+        <Tooltip v-if="tooltip">
+            <TooltipTrigger as-child>
+                <PopoverTrigger as-child>
+                    <slot :open="open" />
+                </PopoverTrigger>
+            </TooltipTrigger>
+            <TooltipContent side="top" :side-offset="6">
+                {{ tooltip }}
+            </TooltipContent>
+        </Tooltip>
+        <PopoverTrigger v-else as-child>
             <slot :open="open" />
         </PopoverTrigger>
         <PopoverPortal>

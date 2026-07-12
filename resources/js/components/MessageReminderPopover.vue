@@ -7,12 +7,22 @@ import {
     PopoverTrigger,
 } from 'reka-ui';
 import { computed, ref } from 'vue';
+import {
+    Tooltip,
+    TooltipContent,
+    TooltipTrigger,
+} from '@/components/ui/tooltip';
 import { reminderPresets } from '@/lib/reminderTime';
 
 const props = defineProps<{
     // The viewer's stored IANA zone; falls back to the runtime zone when null so
     // the wall-clock presets ("Tomorrow 9am") resolve in a real zone.
     timezone: string | null;
+    // Optional label shown in a tooltip above the trigger on hover and keyboard
+    // focus. When set, the trigger is composed as Tooltip → PopoverTrigger so the
+    // one button anchors both the popover (on click) and the tooltip (on
+    // hover/focus); this requires a TooltipProvider ancestor.
+    tooltip?: string;
 }>();
 
 const emit = defineEmits<{
@@ -53,7 +63,17 @@ function chooseCustom(): void {
 
 <template>
     <PopoverRoot :open="open" @update:open="onOpenChange">
-        <PopoverTrigger as-child>
+        <Tooltip v-if="props.tooltip">
+            <TooltipTrigger as-child>
+                <PopoverTrigger as-child>
+                    <slot :open="open" />
+                </PopoverTrigger>
+            </TooltipTrigger>
+            <TooltipContent side="top" :side-offset="6">
+                {{ props.tooltip }}
+            </TooltipContent>
+        </Tooltip>
+        <PopoverTrigger v-else as-child>
             <slot :open="open" />
         </PopoverTrigger>
         <PopoverPortal>
