@@ -6,6 +6,47 @@ description: Tag-based upgrades with automatic migrations and version-scoped sea
 Upgrades follow the same tag-based flow you used to install, whether you build
 from source or run the published image.
 
+## Back up first
+
+:::caution
+Migrations run automatically on start and can alter your schema irreversibly. A
+failed or interrupted upgrade can leave the database in a broken state. **Always
+take a backup before upgrading** — especially across a major version.
+:::
+
+Two things hold your durable state: the **PostgreSQL database** (all messages,
+teams, and users) and the **`storage-app`** volume (uploaded files). The
+Meilisearch index is derived data — it is rebuilt from Postgres on boot, so it
+needs no backup — and Redis holds only cache, sessions, and transient queued
+jobs.
+
+Take a logical database dump (portable across Postgres versions) and an archive
+of the uploaded files:
+
+```bash
+# Database — logical dump, gzipped
+docker compose -f docker-compose.prod.yml exec -T pgsql \
+  pg_dump -U "${DB_USERNAME:-laravel}" "${DB_DATABASE:-laravel}" \
+  | gzip > db-backup-$(date +%F).sql.gz
+
+# Uploaded files — stream a tar out of the running app container
+docker compose -f docker-compose.prod.yml exec -T app \
+  tar czf - -C /app/storage/app . > storage-app-$(date +%F).tar.gz
+```
+
+Store both files off the host. To restore into a **freshly created, empty**
+database and a running stack:
+
+```bash
+# Database
+gunzip -c db-backup-YYYY-MM-DD.sql.gz | docker compose -f docker-compose.prod.yml exec -T pgsql \
+  psql -U "${DB_USERNAME:-laravel}" "${DB_DATABASE:-laravel}"
+
+# Uploaded files
+docker compose -f docker-compose.prod.yml exec -T app \
+  tar xzf - -C /app/storage/app < storage-app-YYYY-MM-DD.tar.gz
+```
+
 ## Build-from-source
 
 Check out the newer release tag and rebuild:
