@@ -40,6 +40,7 @@ import { useChannelRealtime } from '@/composables/useChannelRealtime';
 import { useConnectionState } from '@/composables/useConnectionState';
 import { useDebouncedPost } from '@/composables/useDebouncedPost';
 import { useMessageActions } from '@/composables/useMessageActions';
+import { useMessageAnnouncer } from '@/composables/useMessageAnnouncer';
 import {
     optimisticMessage,
     useMessageStream,
@@ -239,6 +240,13 @@ const serverMessages = computed<Message[]>(() =>
 // patches, all merged over the server page and deduped by client uuid.
 const mainStream = useMessageStream(serverMessages);
 const displayMessages = mainStream.displayMessages;
+
+// Announce genuine inbound messages to screen readers via a polite live region;
+// the virtualized timeline itself can't be a `role="log"` (rows unmount).
+const { announcement } = useMessageAnnouncer({
+    messages: () => displayMessages.value,
+    currentUserId: () => currentUser.value.id,
+});
 const pendingUuids = mainStream.pendingUuids;
 
 const hasMessages = computed(() => displayMessages.value.length > 0);
@@ -740,6 +748,15 @@ function archive(): void {
             props.channel.isDirect ? mastheadTitle : `#${props.channel.name}`
         "
     />
+
+    <div
+        aria-live="polite"
+        aria-atomic="true"
+        class="sr-only"
+        data-test="message-announcer"
+    >
+        {{ announcement }}
+    </div>
 
     <div class="flex min-h-0 flex-1 overflow-hidden">
         <div class="flex min-w-0 flex-1 flex-col">

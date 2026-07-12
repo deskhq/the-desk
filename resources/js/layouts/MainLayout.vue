@@ -73,6 +73,7 @@ import {
     SidebarMenuItem,
     SidebarProvider,
 } from '@/components/ui/sidebar';
+import { Toaster } from '@/components/ui/sonner';
 import { adjacentSlug } from '@/composables/keyboardShortcuts';
 import { useChimeNotifications } from '@/composables/useChimeNotifications';
 import { useInitials } from '@/composables/useInitials';
@@ -1364,5 +1365,7 @@ onMounted(() => {
         </div>
 
         <OnboardingTour />
+
+        <Toaster />
     </SidebarProvider>
 </template>

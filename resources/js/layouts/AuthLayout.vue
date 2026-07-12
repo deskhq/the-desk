@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { Toaster } from '@/components/ui/sonner';
 import AuthLayout from '@/layouts/auth/AuthCardLayout.vue';
 
 const {
@@ -15,5 +16,6 @@ const {
 <template>
     <AuthLayout :title="title" :description="description" :icon="icon">
         <slot />
+        <Toaster />
     </AuthLayout>
 </template>
