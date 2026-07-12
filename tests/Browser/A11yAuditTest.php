@@ -2,8 +2,26 @@
 
 declare(strict_types=1);
 
+use App\Models\Message;
+
 test('the authenticated channel page has no serious accessibility violations in either theme', function (): void {
-    ['owner' => $alice] = browserTeamWithChannel();
+    ['owner' => $alice, 'member' => $bob, 'channel' => $channel] = browserTeamWithChannel();
+
+    // Seed a message so the real message timeline renders during the audit — the
+    // list/listitem roles, per-message <time>, and labelled scroll region — not
+    // just the empty state. Authored by Bob so Alice sees another member's row.
+    $message = Message::factory()->create([
+        'channel_id' => $channel->id,
+        'user_id' => $bob->id,
+        'body' => 'Hello from Bob',
+    ]);
+
+    // Mark it read so no unread divider or "New messages" jump pill renders: those
+    // affordances carry known contrast debt tracked separately, out of scope for
+    // this timeline-semantics slice, and would otherwise trip the contrast audit.
+    $alice->channels()->updateExistingPivot($channel->id, [
+        'last_read_message_id' => $message->id,
+    ]);
 
     // Runs axe-core (bundled with the browser plugin) against the real rendered
     // DOM — the guard rail this a11y effort stands up. The default level is
@@ -11,6 +29,11 @@ test('the authenticated channel page has no serious accessibility violations in 
     // failures surface here, so a clean run proves the WCAG AA contrast fixes
     // (#269) hold against the shipped theme tokens.
     $page = signInThroughBrowser($alice)
+        ->assertSee('Hello from Bob')
+        // Open the mention autocomplete so the combobox/listbox pattern (textarea
+        // role=combobox + aria-expanded, listbox, options) is audited live too.
+        ->type('@message-composer-input', '@')
+        ->assertPresent('#mention-listbox')
         ->assertNoAccessibilityIssues();
 
     // Re-audit against the dark palette. Persist 'dark' to localStorage — the

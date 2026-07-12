@@ -46,6 +46,7 @@ import {
     useMessageStream,
 } from '@/composables/useMessageStream';
 import { useScrollPin } from '@/composables/useScrollPin';
+import { useSendFailureAnnouncer } from '@/composables/useSendFailureAnnouncer';
 import { useTeamPresence } from '@/composables/useTeamPresence';
 import { useThreadPanel } from '@/composables/useThreadPanel';
 import { useTimezone } from '@/composables/useTimezone';
@@ -247,6 +248,11 @@ const { announcement } = useMessageAnnouncer({
     messages: () => displayMessages.value,
     currentUserId: () => currentUser.value.id,
 });
+
+// A failed optimistic send rolls its row back silently; this polite live region
+// announces the failure so a screen-reader user hears it, mirroring the toast.
+const { announcement: sendFailureAnnouncement, announce: announceSendFailure } =
+    useSendFailureAnnouncer();
 const pendingUuids = mainStream.pendingUuids;
 
 const hasMessages = computed(() => displayMessages.value.length > 0);
@@ -620,6 +626,7 @@ const actions = useMessageActions({
     channel: () => props.channel,
     currentUser: () => currentUser.value,
     isOnline: () => connection.isOnline.value,
+    onSendFailure: announceSendFailure,
     outbox,
     mainStream,
     threadStream,
@@ -758,6 +765,15 @@ function archive(): void {
         {{ announcement }}
     </div>
 
+    <div
+        aria-live="polite"
+        aria-atomic="true"
+        class="sr-only"
+        data-test="send-failure-announcer"
+    >
+        {{ sendFailureAnnouncement }}
+    </div>
+
     <div class="flex min-h-0 flex-1 overflow-hidden">
         <div class="flex min-w-0 flex-1 flex-col">
             <ChannelMasthead
@@ -823,9 +839,17 @@ function archive(): void {
                         </div>
                     </Transition>
 
+                    <!-- The message history is a focusable, labelled region so
+                         keyboard users can Tab to it and arrow-scroll (which
+                         remounts virtualized rows). `role="region"` gives the
+                         `aria-label` a role that supports naming; the timeline
+                         itself can't be a `role="log"` since its rows unmount. -->
                     <div
                         ref="scrollContainer"
-                        class="scrollbar-thin min-h-0 flex-1 scrollbar-thumb-border scrollbar-track-transparent overflow-y-auto overscroll-contain"
+                        tabindex="0"
+                        role="region"
+                        :aria-label="$t('Message history')"
+                        class="scrollbar-thin min-h-0 flex-1 scrollbar-thumb-border scrollbar-track-transparent overflow-y-auto overscroll-contain focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none focus-visible:ring-inset"
                         @scroll.passive="onScroll"
                     >
                         <Transition

@@ -63,6 +63,12 @@ export interface MessageActionsOptions {
     isOnline: () => boolean;
     /** The offline queue holding channel sends until the connection recovers. */
     outbox: Outbox;
+    /**
+     * Announce a send failure to assistive technology. A rolled-back optimistic
+     * row vanishes silently, so this surfaces the same message a toast shows to a
+     * screen reader via a polite live region.
+     */
+    onSendFailure?: (message: string) => void;
 }
 
 export interface MessageActions {
@@ -164,9 +170,11 @@ export function useMessageActions(
                 onError: () => {
                     // The optimistic row failed to persist; roll it back and notify.
                     options.mainStream.removePending(item.clientUuid);
-                    toast.error(
-                        t('Your message failed to send. Please try again.'),
+                    const message = t(
+                        'Your message failed to send. Please try again.',
                     );
+                    toast.error(message);
+                    options.onSendFailure?.(message);
                 },
             },
         );

@@ -381,30 +381,36 @@ function onKeydown(event: KeyboardEvent): void {
         <div class="relative">
             <ul
                 v-if="showMenu"
+                id="mention-listbox"
                 data-test="mention-menu"
+                role="listbox"
+                :aria-label="$t('Mention a teammate')"
                 class="absolute bottom-full left-0 z-10 mb-2 max-h-60 w-64 overflow-y-auto rounded-lg border border-border bg-popover p-1 shadow-md"
             >
-                <li v-for="(member, index) in suggestions" :key="member.id">
-                    <button
-                        type="button"
-                        data-test="mention-option"
-                        class="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm text-popover-foreground"
-                        :class="
-                            index === activeIndex
-                                ? 'bg-accent text-accent-foreground'
-                                : 'hover:bg-accent/60'
-                        "
-                        @mousedown.prevent="selectMember(member)"
-                        @mouseenter="activeIndex = index"
+                <li
+                    v-for="(member, index) in suggestions"
+                    :id="`mention-option-${index}`"
+                    :key="member.id"
+                    data-test="mention-option"
+                    role="option"
+                    tabindex="-1"
+                    :aria-selected="index === activeIndex"
+                    class="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm text-popover-foreground"
+                    :class="
+                        index === activeIndex
+                            ? 'bg-accent text-accent-foreground'
+                            : 'hover:bg-accent/60'
+                    "
+                    @mousedown.prevent="selectMember(member)"
+                    @mouseenter="activeIndex = index"
+                >
+                    <span
+                        class="flex size-6 shrink-0 items-center justify-center rounded-md bg-primary/10 text-[10px] font-semibold text-primary select-none"
+                        aria-hidden="true"
                     >
-                        <span
-                            class="flex size-6 shrink-0 items-center justify-center rounded-md bg-primary/10 text-[10px] font-semibold text-primary select-none"
-                            aria-hidden="true"
-                        >
-                            {{ getInitials(member.name) }}
-                        </span>
-                        <span class="truncate">{{ member.name }}</span>
-                    </button>
+                        {{ getInitials(member.name) }}
+                    </span>
+                    <span class="truncate">{{ member.name }}</span>
                 </li>
             </ul>
 
@@ -443,7 +449,15 @@ function onKeydown(event: KeyboardEvent): void {
                     v-model="body"
                     rows="1"
                     :placeholder="composerPlaceholder"
+                    :aria-label="composerPlaceholder"
                     data-test="message-composer-input"
+                    role="combobox"
+                    aria-autocomplete="list"
+                    :aria-expanded="showMenu"
+                    :aria-controls="showMenu ? 'mention-listbox' : undefined"
+                    :aria-activedescendant="
+                        showMenu ? `mention-option-${activeIndex}` : undefined
+                    "
                     autocomplete="off"
                     autocorrect="off"
                     autocapitalize="sentences"

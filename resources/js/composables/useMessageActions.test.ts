@@ -76,6 +76,7 @@ function harness(
     const clearDraft = vi.fn();
     const cancelReply = vi.fn();
     const scrollToBottom = vi.fn();
+    const onSendFailure = vi.fn();
     const activeThreadRootId: Ref<string | null> = ref(
         setup.activeThreadRootId ?? null,
     );
@@ -105,6 +106,7 @@ function harness(
             cancelDraft,
             clearDraft,
             cancelReply,
+            onSendFailure,
         });
     });
 
@@ -118,6 +120,7 @@ function harness(
         clearDraft,
         cancelReply,
         scrollToBottom,
+        onSendFailure,
         unmount: () => scope.stop(),
     };
 }
@@ -192,6 +195,18 @@ describe('useMessageActions', () => {
             optionsOf(post).onError?.();
             expect(h.mainStream.pendingUuids.value).toHaveLength(0);
             expect(toastError).toHaveBeenCalledOnce();
+        });
+
+        it('announces the failure through the live-region callback on error', () => {
+            const h = harness();
+
+            h.actions.send('doomed', []);
+            optionsOf(post).onError?.();
+
+            expect(h.onSendFailure).toHaveBeenCalledOnce();
+            expect(h.onSendFailure).toHaveBeenCalledWith(
+                expect.stringContaining('failed to send'),
+            );
         });
 
         it('queues the send while offline instead of posting', () => {

@@ -207,6 +207,17 @@ const dmParticipantOnline = computed(
                 data-test="masthead-members"
                 class="flex -space-x-1.5"
             >
+                <span class="sr-only">
+                    {{
+                        props.members.length === 1
+                            ? $t(':count member', {
+                                  count: props.members.length,
+                              })
+                            : $t(':count members', {
+                                  count: props.members.length,
+                              })
+                    }}
+                </span>
                 <span
                     v-for="member in mastheadAvatars.visible"
                     :key="member.id"

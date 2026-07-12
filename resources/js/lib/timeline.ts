@@ -1,3 +1,5 @@
+import { formatTimeOfDay } from '@/lib/datetime';
+import { translate } from '@/lib/i18n';
 import type { Message, MessageAuthor } from '@/types';
 
 // Consecutive messages from the same author within this window collapse under a
@@ -28,6 +30,22 @@ export type TimelineDivider = {
 };
 
 export type TimelineItem = TimelineGroup | TimelineDivider;
+
+/**
+ * The screen-reader accessible name for a single message row: the author's name
+ * and the message's time of day (e.g. "Alice, 10:30 AM"), so list navigation
+ * announces who said something and when without reading the body.
+ */
+export function messageAccessibleName(
+    authorName: string,
+    iso: string,
+    timeZone?: string,
+): string {
+    return translate(':author, :time', {
+        author: authorName,
+        time: formatTimeOfDay(iso, timeZone),
+    });
+}
 
 /**
  * The day bucket a timestamp falls in, as a stable string key. Uses the runner's

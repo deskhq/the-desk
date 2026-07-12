@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildTimelineItems } from '@/lib/timeline';
+import { buildTimelineItems, messageAccessibleName } from '@/lib/timeline';
 import type { Message } from '@/types';
 
 /** A message carrying just the fields the timeline grouping reads. */
@@ -105,5 +105,23 @@ describe('buildTimelineItems', () => {
         ]);
         const unread = items[2];
         expect(unread.type === 'divider' && unread.variant).toBe('unread');
+    });
+});
+
+describe('messageAccessibleName', () => {
+    // 2026-07-10 15:30 UTC, so UTC reads 3:30 PM.
+    const INSTANT = '2026-07-10T15:30:00Z';
+
+    it('composes the author name and the time of day', () => {
+        const name = messageAccessibleName('Alice', INSTANT, 'UTC');
+
+        expect(name).toContain('Alice');
+        expect(name).toContain('3:30');
+    });
+
+    it('renders the time in the given zone', () => {
+        expect(
+            messageAccessibleName('Alice', INSTANT, 'America/New_York'),
+        ).toContain('11:30');
     });
 });
