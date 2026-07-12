@@ -8,7 +8,7 @@ read this file first.
 
 If you introduce a new concept or sharpen a fuzzy one while working, **update this
 file in the same change**. Decisions that should not be re-litigated live as ADRs
-in [`docs/adr/`](docs/adr/).
+in [`dev-docs/adr/`](dev-docs/adr/).
 
 ---
 
