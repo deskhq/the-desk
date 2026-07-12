@@ -1,6 +1,6 @@
 import type { ConnectionStatus } from '@laravel/echo-vue';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { effectScope, ref } from 'vue';
+import { createRenderer, defineComponent, ref } from 'vue';
 
 const status = ref<ConnectionStatus>('connected');
 
@@ -14,20 +14,44 @@ import {
 } from '@/composables/useConnectionState';
 import type { ConnectionState } from '@/composables/useConnectionState';
 
-/** Run the composable in a disposable scope, exposing it and its teardown. */
+// A no-op custom renderer lets us mount a real component instance under Node
+// (no DOM), which is what fires the composable's `onMounted` — the hook that
+// ungates the pill so first paint matches SSR. An effectScope alone never
+// mounts, so the pill would stay blank and the reconnecting/back-online
+// assertions below could never be exercised.
+const { createApp } = createRenderer<object, object>({
+    insert: () => {},
+    remove: () => {},
+    createElement: () => ({}),
+    createText: () => ({}),
+    createComment: () => ({}),
+    setText: () => {},
+    setElementText: () => {},
+    parentNode: () => null,
+    nextSibling: () => null,
+    patchProp: () => {},
+});
+
+/** Mount the composable in a real component, exposing it and its teardown. */
 function harness(initial: ConnectionStatus = 'connected'): {
     connection: ConnectionState;
     unmount: () => void;
 } {
     status.value = initial;
-    const scope = effectScope();
     let connection!: ConnectionState;
 
-    scope.run(() => {
-        connection = useConnectionState();
-    });
+    const app = createApp(
+        defineComponent({
+            setup() {
+                connection = useConnectionState();
 
-    return { connection, unmount: () => scope.stop() };
+                return () => null;
+            },
+        }),
+    );
+    app.mount({});
+
+    return { connection, unmount: () => app.unmount() };
 }
 
 describe('useConnectionState', () => {

@@ -1,6 +1,6 @@
 import { useConnectionStatus } from '@laravel/echo-vue';
 import type { ConnectionStatus } from '@laravel/echo-vue';
-import { computed, onScopeDispose, ref, watch } from 'vue';
+import { computed, onMounted, onScopeDispose, ref, watch } from 'vue';
 import type { ComputedRef, Ref } from 'vue';
 
 /**
@@ -54,6 +54,17 @@ export function useConnectionState(): ConnectionState {
     const status = connectionStatusRef();
     const isOnline = computed(() => status.value === 'connected');
 
+    // Under SSR the status is a static "connected", so the pill renders nothing.
+    // The real client status is only known after Echo connects, which can't have
+    // happened during the first (hydration) paint — surfacing "reconnecting" then
+    // would render a pill the server didn't, a node-level hydration mismatch that
+    // desyncs the whole tree. Hold the pill blank until mounted so first paint
+    // matches SSR; the true status flows in on the next tick.
+    const mounted = ref(false);
+    onMounted(() => {
+        mounted.value = true;
+    });
+
     const showBackOnline = ref(false);
     const callbacks: Array<(event: ConnectEvent) => void> = [];
     let timer: ReturnType<typeof setTimeout> | null = null;
@@ -92,6 +103,10 @@ export function useConnectionState(): ConnectionState {
     });
 
     const pill = computed<ConnectionPill>(() => {
+        if (!mounted.value) {
+            return null;
+        }
+
         if (!isOnline.value) {
             return 'reconnecting';
         }

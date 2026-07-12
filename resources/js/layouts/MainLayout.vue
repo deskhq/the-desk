@@ -642,6 +642,7 @@ onMounted(() => {
 
 <template>
     <SidebarProvider
+        :default-open="page.props.sidebarOpen"
         class="bg-background"
         style="--sidebar-width: calc(272px + 1.75rem)"
     >

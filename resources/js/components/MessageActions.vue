@@ -135,7 +135,6 @@ const openStateClass =
             <EmojiPickerPopover
                 v-if="showReact"
                 v-slot="{ open }"
-                :tooltip="$t('Add reaction')"
                 @select="(emoji) => emit('react', emoji)"
             >
                 <button
@@ -210,7 +209,6 @@ const openStateClass =
                 v-if="showRemind"
                 v-slot="{ open }"
                 :timezone="props.viewerTimezone"
-                :tooltip="$t('Remind me about this')"
                 @set="(remindAt) => emit('remind', remindAt)"
                 @custom="emit('remindCustom')"
             >
