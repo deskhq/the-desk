@@ -32,6 +32,33 @@ dry-run mode; when it reports pending changes, apply them and re-run the gate:
 ./vendor/bin/sail composer refactor    # apply Rector's suggested refactors
 ```
 
+### Browser (E2E) realtime tests
+
+`tests/Browser` holds Pest 4 browser tests that drive real Playwright browsers
+against the app served in-process, with two clients exchanging messages over a
+live Reverb server — the realtime send/receive, typing, edit, and delete paths
+that headless feature tests can't reach. They live in a separate `browser` test
+group excluded from the coverage gate, so `composer test` never runs them (and
+they never affect the 100% coverage requirement). CI runs them in a dedicated
+`browser` job.
+
+Prerequisites (one-time, inside the Sail container):
+
+```bash
+./vendor/bin/sail npm ci                              # playwright npm package
+./vendor/bin/sail npx playwright install chromium     # the browser binary
+```
+
+Then, with Sail up (Reverb is part of `sail up -d`) and the frontend built:
+
+```bash
+./vendor/bin/sail npm run build                       # tests use the built assets
+./vendor/bin/sail composer test:browser               # or: sail bin pest tests/Browser
+```
+
+Rebuild the frontend (`npm run build`) after changing any Vue component the
+tests touch, since the in-process server serves the compiled Vite assets.
+
 ## Self-Hosting with Docker
 
 The production stack is orchestrated with `docker-compose.prod.yml`. The app is

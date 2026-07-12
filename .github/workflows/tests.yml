@@ -110,3 +110,112 @@ jobs:
 
       - name: Tests
         run: php artisan test
+
+  # Browser (E2E) realtime suite: drives real Playwright browsers against the
+  # app served in-process, with a live Reverb server so two clients exchange
+  # broadcasts over WebSockets. Kept as a separate job (no coverage/xdebug) so it
+  # never folds into the 100% coverage gate above — the `browser` group is
+  # excluded from phpunit's default suites and only runs via `pest tests/Browser`.
+  browser:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_DB: testing
+          POSTGRES_USER: laravel
+          POSTGRES_PASSWORD: password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd=pg_isready
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+
+    env:
+      DB_CONNECTION: pgsql
+      DB_HOST: 127.0.0.1
+      DB_PORT: 5432
+      DB_DATABASE: testing
+      DB_USERNAME: laravel
+      DB_PASSWORD: password
+      # Both the Reverb server and the in-process app run on this one runner, so a
+      # single 127.0.0.1 host reaches Reverb from the PHP publisher and from the
+      # browser client alike. The browser suite derives its public host/port/scheme
+      # from these same options (see useReverbForBrowserTests). Credentials are
+      # arbitrary but must match on both sides — they do, sharing this env.
+      REVERB_APP_ID: 'ci-app'
+      REVERB_APP_KEY: 'ci-app-key'
+      REVERB_APP_SECRET: 'ci-app-secret'
+      REVERB_HOST: '127.0.0.1'
+      REVERB_PORT: 8080
+      REVERB_SCHEME: http
+      # Bind the Reverb server itself to the same loopback host/port the app and
+      # browser connect to.
+      REVERB_SERVER_HOST: '127.0.0.1'
+      REVERB_SERVER_PORT: 8080
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # v2
+        with:
+          php-version: '8.5'
+          tools: composer:v2
+
+      - name: Setup Node
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install Node Dependencies
+        run: npm i
+
+      - name: Install Dependencies
+        uses: ramsey/composer-install@a8d0d959dab41457692a5e2041bd9b757a119e3f # v3.2.1
+        with:
+          composer-options: '--optimize-autoloader'
+
+      - name: Install Playwright Browser
+        run: npx playwright install --with-deps chromium
+
+      - name: Copy Environment File
+        run: cp .env.example .env
+
+      - name: Generate Application Key
+        run: php artisan key:generate
+
+      # Regenerate the git-ignored App.Data.* / App.Enums.* ambient types (see the
+      # ci job above) so the Vite build can resolve the `App` namespace.
+      - name: Generate TypeScript Types
+        run: |
+          mkdir -p resources/js/generated
+          php artisan typescript:transform
+
+      - name: Build Assets
+        run: npm run build
+
+      # Start Reverb in the background and wait for it to accept connections before
+      # the browser suite subscribes any client.
+      - name: Start Reverb
+        run: |
+          php artisan reverb:start --host=127.0.0.1 --port=8080 &
+          for i in $(seq 1 30); do
+            if nc -z 127.0.0.1 8080; then
+              echo "Reverb is up"
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "Reverb failed to start" >&2
+          exit 1
+
+      - name: Run Browser Tests
+        run: ./vendor/bin/pest tests/Browser --ci

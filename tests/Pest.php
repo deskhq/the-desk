@@ -22,6 +22,27 @@ pest()->extend(TestCase::class)
 
 /*
 |--------------------------------------------------------------------------
+| Browser (E2E) Test Case
+|--------------------------------------------------------------------------
+|
+| Browser tests drive real Playwright browsers against an in-process HTTP
+| server (see pestphp/pest-plugin-browser). They exercise the realtime Echo/
+| Reverb paths that headless feature tests cannot, so each one runs against a
+| live Reverb server. They are tagged `browser` and excluded from the default
+| coverage gate; run them with `composer test:browser` (see README).
+|
+*/
+
+pest()->extend(TestCase::class)
+    ->use(RefreshDatabase::class)
+    ->group('browser')
+    ->beforeEach(function (): void {
+        useReverbForBrowserTests();
+    })
+    ->in('Browser');
+
+/*
+|--------------------------------------------------------------------------
 | Expectations
 |--------------------------------------------------------------------------
 |
@@ -48,3 +69,5 @@ function something(): void
 {
     // ..
 }
+
+require_once __DIR__.'/Browser/Helpers.php';

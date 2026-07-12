@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use Rector\CodeQuality\Rector\Class_\InlineConstructorDefaultToPropertyRector;
 use Rector\Config\RectorConfig;
+use Rector\TypeDeclaration\Rector\ClassMethod\ReturnTypeFromStrictTypedCallRector;
 use RectorLaravel\Rector\ArrayDimFetch\EnvVariableToEnvHelperRector;
 use RectorLaravel\Rector\FuncCall\AppToResolveRector;
 use RectorLaravel\Rector\StaticCall\CarbonToDateFacadeRector;
@@ -52,4 +53,12 @@ return RectorConfig::configure()
         // Unsafe in write contexts: rewrites `unset($_ENV[...])` into
         // `unset(Env::get(...))`, which is not valid PHP.
         EnvVariableToEnvHelperRector::class,
+        // The browser plugin's fluent assertion methods declare `: Webpage` but
+        // return `$this`, which is really an `AwaitableWebpage` at runtime. Rector
+        // trusts the declared type and keeps trying to narrow the sign-in helper's
+        // (correct) `AwaitableWebpage` return to `Webpage`, which then breaks the
+        // suite. Keep the accurate runtime type here.
+        ReturnTypeFromStrictTypedCallRector::class => [
+            __DIR__.'/tests/Browser/Helpers.php',
+        ],
     ]);

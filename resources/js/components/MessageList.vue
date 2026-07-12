@@ -630,6 +630,7 @@ function confirmDelete(): void {
                                 <textarea
                                     :ref="setEditField"
                                     v-model="editDraft"
+                                    data-test="message-edit-input"
                                     rows="1"
                                     class="w-full resize-none rounded-md border border-input bg-background px-2.5 py-1.5 text-[14.5px] leading-[1.55] text-foreground outline-none focus:border-ring focus:ring-1 focus:ring-ring"
                                     @keydown.enter.exact.prevent="

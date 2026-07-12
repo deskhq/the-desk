@@ -29,6 +29,7 @@
         "eslint-plugin-import": "^2.32.0",
         "eslint-plugin-vue": "^9.32.0",
         "laravel-echo": "^2.3.7",
+        "playwright": "^1.61.1",
         "prettier": "^3.4.2",
         "prettier-plugin-tailwindcss": "^0.6.11",
         "pusher-js": "^8.5.0",
