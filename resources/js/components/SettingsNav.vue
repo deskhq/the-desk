@@ -3,7 +3,6 @@ import { Link, usePage } from '@inertiajs/vue3';
 import type { LucideIcon } from '@lucide/vue';
 import {
     ArrowLeft,
-    Bell,
     Database,
     Languages,
     Palette,
@@ -26,7 +25,6 @@ import { toUrl } from '@/lib/utils';
 import { edit as editAppearance } from '@/routes/appearance';
 import { edit as editDataPrivacy } from '@/routes/data-export';
 import { edit as editLocale } from '@/routes/locale';
-import { edit as editNotifications } from '@/routes/notifications';
 import { edit as editProfile } from '@/routes/profile';
 import { edit as editSecurity } from '@/routes/security';
 import { index as teams } from '@/routes/teams';
@@ -57,16 +55,10 @@ const navItems = computed<SettingsNavItem[]>(() => [
     },
     { title: t('Teams'), href: teams(), icon: Users, slug: 'teams' },
     {
-        title: t('Appearance'),
+        title: t('Appearance & notifications'),
         href: editAppearance(),
         icon: Palette,
         slug: 'appearance',
-    },
-    {
-        title: t('Notifications'),
-        href: editNotifications(),
-        icon: Bell,
-        slug: 'notifications',
     },
     {
         title: t('Language'),

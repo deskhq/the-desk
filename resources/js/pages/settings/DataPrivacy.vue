@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import { Head } from '@inertiajs/vue3';
 import DataPrivacy from '@/components/DataPrivacy.vue';
-import SettingsSection from '@/components/SettingsSection.vue';
+import DeleteUser from '@/components/DeleteUser.vue';
+import SettingsPane from '@/components/SettingsPane.vue';
+import SettingsPaneSection from '@/components/SettingsPaneSection.vue';
 import { translate } from '@/lib/i18n';
 import { edit } from '@/routes/data-export';
 import type { DataExport } from '@/types';
@@ -27,10 +29,31 @@ defineOptions({
 
     <h1 class="sr-only">{{ $t('Data & privacy') }}</h1>
 
-    <SettingsSection
+    <SettingsPane
         :title="$t('Data & privacy')"
-        :description="$t('Download a copy of your personal data')"
+        :description="$t('Take your data with you, or remove it entirely')"
     >
-        <DataPrivacy :data-export="dataExport" />
-    </SettingsSection>
+        <SettingsPaneSection
+            :title="$t('Export your data')"
+            :description="
+                $t(
+                    'An archive of your profile, teams, messages, and security activity — prepared in the background, with a download link sent by email.',
+                )
+            "
+        >
+            <DataPrivacy :data-export="dataExport" />
+        </SettingsPaneSection>
+
+        <SettingsPaneSection
+            :title="$t('Delete account')"
+            :description="
+                $t(
+                    'Permanently remove your account and all of its data. This cannot be undone.',
+                )
+            "
+            destructive
+        >
+            <DeleteUser />
+        </SettingsPaneSection>
+    </SettingsPane>
 </template>

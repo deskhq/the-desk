@@ -4,18 +4,27 @@ use App\Enums\ChimeSound;
 use App\Models\User;
 use Inertia\Testing\AssertableInertia as Assert;
 
-test('notification settings page is displayed with the selectable chime sounds', function (): void {
+test('the appearance & notifications page is displayed with the selectable chime sounds', function (): void {
+    $user = User::factory()->create();
+
+    $this
+        ->actingAs($user)
+        ->get(route('appearance.edit'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page): Assert => $page
+            ->component('settings/Appearance')
+            ->has('chimeSounds', count(ChimeSound::cases()))
+            ->where('chimeSounds.0', ['value' => ChimeSound::Off->value, 'label' => 'Off'])
+        );
+});
+
+test('the legacy notifications route redirects to the appearance page', function (): void {
     $user = User::factory()->create();
 
     $this
         ->actingAs($user)
         ->get(route('notifications.edit'))
-        ->assertOk()
-        ->assertInertia(fn (Assert $page): Assert => $page
-            ->component('settings/Notifications')
-            ->has('chimeSounds', count(ChimeSound::cases()))
-            ->where('chimeSounds.0', ['value' => ChimeSound::Off->value, 'label' => 'Off'])
-        );
+        ->assertRedirect(route('appearance.edit'));
 });
 
 test('the chime sound can be updated', function (): void {
@@ -27,7 +36,7 @@ test('the chime sound can be updated', function (): void {
             'chime_sound' => ChimeSound::Knock->value,
         ])
         ->assertSessionHasNoErrors()
-        ->assertRedirect(route('notifications.edit'));
+        ->assertRedirect(route('appearance.edit'));
 
     expect($user->refresh()->chime_sound)->toBe(ChimeSound::Knock);
 });
@@ -50,12 +59,12 @@ test('an unknown chime sound is rejected', function (): void {
 
     $this
         ->actingAs($user)
-        ->from(route('notifications.edit'))
+        ->from(route('appearance.edit'))
         ->patch(route('notifications.update'), [
             'chime_sound' => 'foghorn',
         ])
         ->assertSessionHasErrors('chime_sound')
-        ->assertRedirect(route('notifications.edit'));
+        ->assertRedirect(route('appearance.edit'));
 
     expect($user->refresh()->chime_sound)->toBe(ChimeSound::Ping);
 });
@@ -65,11 +74,15 @@ test('a chime sound is required', function (): void {
 
     $this
         ->actingAs($user)
-        ->from(route('notifications.edit'))
+        ->from(route('appearance.edit'))
         ->patch(route('notifications.update'), [])
         ->assertSessionHasErrors('chime_sound');
 });
 
-test('guests cannot view the notification settings page', function (): void {
+test('guests cannot view the appearance & notifications page', function (): void {
+    $this->get(route('appearance.edit'))->assertRedirect(route('login'));
+});
+
+test('guests are redirected from the legacy notifications route', function (): void {
     $this->get(route('notifications.edit'))->assertRedirect(route('login'));
 });

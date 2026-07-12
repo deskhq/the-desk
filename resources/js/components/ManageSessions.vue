@@ -1,11 +1,10 @@
 <script setup lang="ts">
 import { Form } from '@inertiajs/vue3';
 import { Monitor, Smartphone } from '@lucide/vue';
-import { computed, useTemplateRef } from 'vue';
+import { useTemplateRef } from 'vue';
 import SessionController from '@/actions/App/Http/Controllers/Settings/SessionController';
 import InputError from '@/components/InputError.vue';
 import PasswordInput from '@/components/PasswordInput.vue';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
     Dialog,
@@ -30,11 +29,6 @@ const props = defineProps<Props>();
 
 const { timezone } = useTimezone();
 const revokeInput = useTemplateRef('revokeInput');
-const revokeOthersInput = useTemplateRef('revokeOthersInput');
-
-const hasOtherSessions = computed(() =>
-    props.sessions.some((session) => !session.isCurrentDevice),
-);
 
 function isMobile(platform: string): boolean {
     return platform === 'iOS' || platform === 'Android';
@@ -46,189 +40,134 @@ function lastActive(iso: string): string {
 </script>
 
 <template>
-    <div class="space-y-4">
-        <ul class="space-y-3" role="list" data-test="sessions-list">
-            <li
-                v-for="session in props.sessions"
-                :key="session.id"
-                class="flex items-center gap-4 rounded-lg border border-border p-4"
-                :data-test="`session-${session.id}`"
+    <ul class="flex flex-col gap-2" data-test="sessions-list">
+        <li
+            v-for="session in props.sessions"
+            :key="session.id"
+            class="flex items-center gap-3.5 rounded-xl border px-4 py-3"
+            :class="
+                session.isCurrentDevice
+                    ? 'border-brass bg-brass-fill'
+                    : 'border-border bg-card shadow-[0_2px_8px_rgba(29,26,21,0.05)] dark:shadow-none'
+            "
+            :data-test="`session-${session.id}`"
+        >
+            <div
+                class="flex size-[38px] shrink-0 items-center justify-center rounded-[10px] border"
+                :class="
+                    session.isCurrentDevice
+                        ? 'border-brass/30 bg-brass-fill text-brass-fill-foreground'
+                        : 'border-transparent bg-accent text-muted-foreground'
+                "
             >
                 <component
                     :is="isMobile(session.platform) ? Smartphone : Monitor"
-                    class="size-5 shrink-0 text-muted-foreground"
+                    class="size-4"
                 />
+            </div>
 
-                <div class="min-w-0 flex-1 space-y-0.5">
-                    <div class="flex items-center gap-2">
-                        <p class="truncate text-sm font-medium">
-                            {{
-                                $t(':browser on :platform', {
-                                    browser: session.browser,
-                                    platform: session.platform,
-                                })
-                            }}
-                        </p>
-                        <Badge
-                            v-if="session.isCurrentDevice"
-                            variant="secondary"
-                            data-test="current-device-badge"
-                        >
-                            {{ $t('This device') }}
-                        </Badge>
-                    </div>
-                    <p class="truncate text-xs text-muted-foreground">
-                        {{ session.ipAddress ?? $t('Unknown IP') }} &middot;
+            <div class="flex min-w-0 flex-col gap-px">
+                <p class="flex items-center gap-2 text-sm font-semibold">
+                    <span class="truncate">
                         {{
-                            $t('Last active :time', {
-                                time: lastActive(session.lastActive),
+                            $t(':browser on :platform', {
+                                browser: session.browser,
+                                platform: session.platform,
                             })
                         }}
-                    </p>
-                </div>
+                    </span>
+                    <span
+                        v-if="session.isCurrentDevice"
+                        class="inline-flex h-[19px] shrink-0 items-center rounded-full border border-brass/30 bg-brass-fill px-2.5 text-[10.5px] font-semibold tracking-[0.05em] text-brass-fill-foreground uppercase"
+                        data-test="current-device-badge"
+                    >
+                        {{ $t('This device') }}
+                    </span>
+                </p>
+                <p class="truncate text-xs text-muted-foreground">
+                    {{ session.ipAddress ?? $t('Unknown IP') }} &middot;
+                    {{
+                        session.isCurrentDevice
+                            ? $t('Active now')
+                            : $t('Last active :time', {
+                                  time: lastActive(session.lastActive),
+                              })
+                    }}
+                </p>
+            </div>
 
-                <Dialog v-if="!session.isCurrentDevice">
-                    <DialogTrigger as-child>
-                        <Button
-                            variant="ghost"
-                            size="sm"
-                            :data-test="`revoke-session-${session.id}`"
-                        >
-                            {{ $t('Revoke') }}
-                        </Button>
-                    </DialogTrigger>
-                    <DialogContent>
-                        <Form
-                            v-bind="SessionController.destroy.form(session.id)"
-                            reset-on-success
-                            @error="() => revokeInput?.focus()"
-                            :options="{ preserveScroll: true }"
-                            class="space-y-6"
-                            v-slot="{ errors, processing, reset, clearErrors }"
-                        >
-                            <DialogHeader class="space-y-3">
-                                <DialogTitle>{{
-                                    $t('Revoke this session?')
-                                }}</DialogTitle>
-                                <DialogDescription>
-                                    {{
-                                        $t(
-                                            'The device signed in with this session will be logged out. Enter your password to confirm.',
-                                        )
-                                    }}
-                                </DialogDescription>
-                            </DialogHeader>
+            <Dialog v-if="!session.isCurrentDevice">
+                <DialogTrigger as-child>
+                    <Button
+                        variant="ghost"
+                        class="ml-auto h-[30px] rounded-full px-3.5 text-xs font-semibold text-muted-foreground hover:bg-accent hover:text-foreground"
+                        :data-test="`revoke-session-${session.id}`"
+                    >
+                        {{ $t('Revoke') }}
+                    </Button>
+                </DialogTrigger>
+                <DialogContent>
+                    <Form
+                        v-bind="SessionController.destroy.form(session.id)"
+                        reset-on-success
+                        @error="() => revokeInput?.focus()"
+                        :options="{ preserveScroll: true }"
+                        class="space-y-6"
+                        v-slot="{ errors, processing, reset, clearErrors }"
+                    >
+                        <DialogHeader class="space-y-3">
+                            <DialogTitle>{{
+                                $t('Revoke this session?')
+                            }}</DialogTitle>
+                            <DialogDescription>
+                                {{
+                                    $t(
+                                        'The device signed in with this session will be logged out. Enter your password to confirm.',
+                                    )
+                                }}
+                            </DialogDescription>
+                        </DialogHeader>
 
-                            <div class="grid gap-2">
-                                <Label for="revoke_password" class="sr-only">
-                                    {{ $t('Password') }}
-                                </Label>
-                                <PasswordInput
-                                    id="revoke_password"
-                                    name="password"
-                                    ref="revokeInput"
-                                    :placeholder="$t('Password')"
-                                />
-                                <InputError :message="errors.password" />
-                            </div>
+                        <div class="grid gap-2">
+                            <Label for="revoke_password" class="sr-only">
+                                {{ $t('Password') }}
+                            </Label>
+                            <PasswordInput
+                                id="revoke_password"
+                                name="password"
+                                ref="revokeInput"
+                                :placeholder="$t('Password')"
+                            />
+                            <InputError :message="errors.password" />
+                        </div>
 
-                            <DialogFooter class="gap-2">
-                                <DialogClose as-child>
-                                    <Button
-                                        variant="secondary"
-                                        @click="
-                                            () => {
-                                                clearErrors();
-                                                reset();
-                                            }
-                                        "
-                                    >
-                                        {{ $t('Cancel') }}
-                                    </Button>
-                                </DialogClose>
-
+                        <DialogFooter class="gap-2">
+                            <DialogClose as-child>
                                 <Button
-                                    type="submit"
-                                    variant="destructive"
-                                    :disabled="processing"
-                                    :data-test="`confirm-revoke-${session.id}`"
+                                    variant="secondary"
+                                    @click="
+                                        () => {
+                                            clearErrors();
+                                            reset();
+                                        }
+                                    "
                                 >
-                                    {{ $t('Revoke') }}
+                                    {{ $t('Cancel') }}
                                 </Button>
-                            </DialogFooter>
-                        </Form>
-                    </DialogContent>
-                </Dialog>
-            </li>
-        </ul>
+                            </DialogClose>
 
-        <Dialog v-if="hasOtherSessions">
-            <DialogTrigger as-child>
-                <Button variant="outline" data-test="revoke-others-button">
-                    {{ $t('Log out other devices') }}
-                </Button>
-            </DialogTrigger>
-            <DialogContent>
-                <Form
-                    v-bind="SessionController.destroyOthers.form()"
-                    reset-on-success
-                    @error="() => revokeOthersInput?.focus()"
-                    :options="{ preserveScroll: true }"
-                    class="space-y-6"
-                    v-slot="{ errors, processing, reset, clearErrors }"
-                >
-                    <DialogHeader class="space-y-3">
-                        <DialogTitle>{{
-                            $t('Log out other devices?')
-                        }}</DialogTitle>
-                        <DialogDescription>
-                            {{
-                                $t(
-                                    'This logs out every session except the one you are using now. Enter your password to confirm.',
-                                )
-                            }}
-                        </DialogDescription>
-                    </DialogHeader>
-
-                    <div class="grid gap-2">
-                        <Label for="revoke_others_password" class="sr-only">
-                            {{ $t('Password') }}
-                        </Label>
-                        <PasswordInput
-                            id="revoke_others_password"
-                            name="password"
-                            ref="revokeOthersInput"
-                            :placeholder="$t('Password')"
-                        />
-                        <InputError :message="errors.password" />
-                    </div>
-
-                    <DialogFooter class="gap-2">
-                        <DialogClose as-child>
                             <Button
-                                variant="secondary"
-                                @click="
-                                    () => {
-                                        clearErrors();
-                                        reset();
-                                    }
-                                "
+                                type="submit"
+                                variant="destructive"
+                                :disabled="processing"
+                                :data-test="`confirm-revoke-${session.id}`"
                             >
-                                {{ $t('Cancel') }}
+                                {{ $t('Revoke') }}
                             </Button>
-                        </DialogClose>
-
-                        <Button
-                            type="submit"
-                            variant="destructive"
-                            :disabled="processing"
-                            data-test="confirm-revoke-others"
-                        >
-                            {{ $t('Log out other devices') }}
-                        </Button>
-                    </DialogFooter>
-                </Form>
-            </DialogContent>
-        </Dialog>
-    </div>
+                        </DialogFooter>
+                    </Form>
+                </DialogContent>
+            </Dialog>
+        </li>
+    </ul>
 </template>

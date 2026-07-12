@@ -21,19 +21,7 @@ const passwordInput = useTemplateRef('passwordInput');
 </script>
 
 <template>
-    <div class="space-y-3">
-        <div>
-            <h3 class="font-serif text-[17px] font-semibold text-destructive">
-                {{ $t('Delete account') }}
-            </h3>
-            <p class="mt-1 text-sm text-muted-foreground">
-                {{
-                    $t(
-                        'Permanently remove your account and all of its data. This cannot be undone.',
-                    )
-                }}
-            </p>
-        </div>
+    <div>
         <Dialog>
             <DialogTrigger as-child>
                 <Button
