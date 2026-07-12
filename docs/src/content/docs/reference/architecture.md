@@ -39,6 +39,11 @@ Cache, session, and the queue all use the **Redis** driver
 `REDIS_HOST=redis`). Broadcasting uses **Reverb**. Redis persists to a named
 volume with `appendonly` enabled, so queued jobs survive a restart.
 
+The **Active sessions** panel (Security settings) — listing signed-in devices
+and revoking them — is backed by an owned per-user session index kept in the
+cache, so it works under the default Redis session driver with no need to switch
+`SESSION_DRIVER` to `database`.
+
 ## Persistent volumes
 
 | Volume                        | Contents                          |

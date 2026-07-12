@@ -10,8 +10,8 @@ use App\Http\Requests\Settings\PasswordUpdateRequest;
 use App\Http\Requests\Settings\TwoFactorAuthenticationRequest;
 use App\Models\SecurityEvent;
 use App\Support\SecurityEventRecorder;
+use App\Support\SessionRegistry;
 use Illuminate\Http\RedirectResponse;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rules\Password;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -26,11 +26,11 @@ class SecurityController extends Controller
     /**
      * Show the user's security settings page.
      */
-    public function edit(TwoFactorAuthenticationRequest $request): Response
+    public function edit(TwoFactorAuthenticationRequest $request, SessionRegistry $registry): Response
     {
         $props = [
             'passwordRules' => Password::defaults()->toPasswordRulesString(),
-            'sessions' => $this->activeSessions($request),
+            'sessions' => $this->activeSessions($request, $registry),
             'securityEvents' => $this->recentSecurityEvents($request),
         ];
 
@@ -57,15 +57,12 @@ class SecurityController extends Controller
      *
      * @return array<int, SessionData>
      */
-    private function activeSessions(TwoFactorAuthenticationRequest $request): array
+    private function activeSessions(TwoFactorAuthenticationRequest $request, SessionRegistry $registry): array
     {
         $currentSessionId = $request->session()->getId();
 
-        return DB::table('sessions')
-            ->where('user_id', $request->user()->id)
-            ->orderByDesc('last_activity')
-            ->get()
-            ->map(fn (\stdClass $session): SessionData => SessionData::fromSession($session, $currentSessionId))
+        return collect($registry->all($request->user()->id))
+            ->map(fn (array $session): SessionData => SessionData::fromRegistry($session, $currentSessionId))
             ->sortByDesc('isCurrentDevice')
             ->values()
             ->all();

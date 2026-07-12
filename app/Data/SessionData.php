@@ -2,6 +2,7 @@
 
 namespace App\Data;
 
+use App\Support\SessionRegistry;
 use App\Support\UserAgentParser;
 use Illuminate\Support\Carbon;
 use Spatie\LaravelData\Data;
@@ -20,19 +21,21 @@ class SessionData extends Data
     ) {}
 
     /**
-     * Build the DTO from a raw `sessions` table row.
+     * Build the DTO from a {@see SessionRegistry} index entry.
+     *
+     * @param  array{id: string, ip_address: ?string, user_agent: ?string, last_activity: int}  $session
      */
-    public static function fromSession(\stdClass $session, string $currentSessionId): self
+    public static function fromRegistry(array $session, string $currentSessionId): self
     {
-        $agent = UserAgentParser::parse($session->user_agent);
+        $agent = UserAgentParser::parse($session['user_agent']);
 
         return new self(
-            id: $session->id,
-            ipAddress: $session->ip_address,
+            id: $session['id'],
+            ipAddress: $session['ip_address'],
             browser: $agent['browser'],
             platform: $agent['platform'],
-            lastActive: Carbon::createFromTimestamp((int) $session->last_activity)->toIso8601String(),
-            isCurrentDevice: $session->id === $currentSessionId,
+            lastActive: Carbon::createFromTimestamp($session['last_activity'])->toIso8601String(),
+            isCurrentDevice: $session['id'] === $currentSessionId,
         );
     }
 }

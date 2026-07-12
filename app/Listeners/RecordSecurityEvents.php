@@ -4,6 +4,7 @@ namespace App\Listeners;
 
 use App\Enums\SecurityEventType;
 use App\Support\SecurityEventRecorder;
+use App\Support\SessionRegistry;
 use Illuminate\Auth\Events\Login;
 use Illuminate\Auth\Events\Logout;
 use Illuminate\Auth\Events\PasswordReset;
@@ -20,7 +21,10 @@ use Laravel\Fortify\Events\TwoFactorAuthenticationEnabled;
  */
 class RecordSecurityEvents
 {
-    public function __construct(private readonly SecurityEventRecorder $recorder) {}
+    public function __construct(
+        private readonly SecurityEventRecorder $recorder,
+        private readonly SessionRegistry $registry,
+    ) {}
 
     /**
      * Handle a successful sign in.
@@ -38,6 +42,8 @@ class RecordSecurityEvents
         if ($event->user === null) {
             return;
         }
+
+        $this->registry->forget((string) $event->user->getAuthIdentifier(), session()->getId());
 
         $this->recorder->record($event->user, SecurityEventType::LoggedOut);
     }
