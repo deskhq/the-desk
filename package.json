@@ -44,6 +44,7 @@
         "@inertiajs/vite": "^3.0.0",
         "@inertiajs/vue3": "^3.0.0",
         "@lucide/vue": "^1.24.0",
+        "@tanstack/vue-virtual": "^3.13.31",
         "@unovis/ts": "^1.6.7",
         "@unovis/vue": "^1.6.7",
         "@vueuse/core": "^12.8.2",

@@ -52,7 +52,14 @@ import { useTranslations } from '@/composables/useTranslations';
 import { useTypingIndicator } from '@/composables/useTypingIndicator';
 import type { TypingUser } from '@/composables/useTypingIndicator';
 import { useUnreadDivider } from '@/composables/useUnreadDivider';
+import { formatDayLabel } from '@/lib/datetime';
 import { createOutbox } from '@/lib/outbox';
+import { buildTimelineItems } from '@/lib/timeline';
+import {
+    shouldShowUnreadJump,
+    timelineItemIndexForMessage,
+    unreadDividerIndex,
+} from '@/lib/virtualTimeline';
 import type {
     Channel,
     ChannelReader,
@@ -157,6 +164,59 @@ const canModerate = computed(() =>
 
 const scrollContainer = ref<HTMLElement | null>(null);
 
+// The windowed timeline exposes `scrollToIndex` so off-screen jump targets can be
+// brought into view; Inertia's `<InfiniteScroll>` (driven manually) exposes the
+// older-page fetch. Both are read through template refs.
+const messageListRef = ref<{
+    scrollToIndex: (
+        index: number,
+        align?: 'auto' | 'start' | 'center' | 'end',
+    ) => void;
+} | null>(null);
+
+const infiniteScrollRef = ref<{
+    fetchNext: () => void;
+    hasNext: () => boolean;
+} | null>(null);
+
+// The virtualizer's visible render-item window, surfaced by `MessageList` so the
+// unread-jump pill can be derived without a DOM `IntersectionObserver`.
+const timelineRange = ref<{ startIndex: number; endIndex: number } | null>(
+    null,
+);
+
+// True while an older page is being fetched, gating the virtualizer's top-load
+// trigger so a burst of range updates can't stack duplicate requests. Cleared
+// once the merged page grows (older rows have landed).
+const loadingOlder = ref(false);
+
+// In reverse mode, older history is the paginator's *next* page (the server
+// returns messages newest-first), so "load older" maps to fetchNext/hasNext.
+const hasOlder = (): boolean => infiniteScrollRef.value?.hasNext() ?? false;
+
+const isLoadingOlder = (): boolean => loadingOlder.value;
+
+/**
+ * Fetch the next older page through Inertia's merge engine. The virtualizer
+ * decides *when* (the reader nears the top of loaded history); Inertia handles
+ * the cursor request, prepend, and scroll positioning.
+ */
+function loadOlderMessages(): void {
+    if (loadingOlder.value || !hasOlder()) {
+        return;
+    }
+
+    loadingOlder.value = true;
+    infiniteScrollRef.value?.fetchNext();
+}
+
+watch(
+    () => props.messages?.data?.length ?? 0,
+    () => {
+        loadingOlder.value = false;
+    },
+);
+
 // Shared scroll/pin bookkeeping: the pinned-to-newest flag, the "N new messages"
 // count while scrolled up, and the smooth jump back to the bottom. The thread
 // panel runs its own instance of the same composable.
@@ -182,6 +242,14 @@ const displayMessages = mainStream.displayMessages;
 const pendingUuids = mainStream.pendingUuids;
 
 const hasMessages = computed(() => displayMessages.value.length > 0);
+
+// The same grouped render list the virtualized `MessageList` builds, recomputed
+// here so index-based affordances (jump-to-message, the unread boundary) can map
+// a message or divider to the render-item index the virtualizer scrolls to. Pure
+// and cheap; `unreadDividerId` is resolved lazily by the composable below.
+const timelineItems = computed(() =>
+    buildTimelineItems(displayMessages.value, unreadDividerId.value ?? null),
+);
 
 // Focus the channel composer — from the empty-state welcome's "Post your first
 // message" card, or a profile hover card dropping in a mention.
@@ -219,6 +287,15 @@ const highlightedMessageId = ref<string | null>(null);
 let highlightTimer: ReturnType<typeof setTimeout> | null = null;
 
 function jumpToMessage(id: string): void {
+    // Bring the target's render item into the window first — with windowing its
+    // element may not exist yet to scroll to — then refine and highlight once the
+    // row mounts. A missing index (target not loaded) still highlights on arrival.
+    const index = timelineItemIndexForMessage(timelineItems.value, id);
+
+    if (index >= 0) {
+        messageListRef.value?.scrollToIndex(index, 'center');
+    }
+
     nextTick(() => {
         document
             .getElementById(`message-${id}`)
@@ -240,12 +317,76 @@ function jumpToMessage(id: string): void {
 // on each channel switch, and hide the jump pill once it scrolls into view —
 // lives in this composable. It reads the server page (not the live-merged list)
 // so the boundary is immune to the order per-channel state resets on a switch.
-const { unreadDividerId, showJumpToUnread, scrollToUnread } = useUnreadDivider({
+const { unreadDividerId } = useUnreadDivider({
     channelId: () => props.channel.id,
     scrollContainer,
     messages: () => serverMessages.value,
     lastReadMessageId: () => props.lastReadMessageId ?? null,
     currentUserId: () => currentUser.value.id,
+});
+
+// The unread boundary's render-item index, or -1 when there's none.
+const unreadIndex = computed(() => unreadDividerIndex(timelineItems.value));
+
+// Show the floating "New messages" pill while the unread boundary sits above the
+// virtualizer's window. Windowing drops the off-screen divider from the DOM, so
+// this replaces the old IntersectionObserver with pure range math. Before the
+// first range lands the view is pinned to the bottom, so an existing boundary is
+// necessarily above it.
+const showJumpToUnread = computed(() => {
+    const range = timelineRange.value;
+
+    if (!range) {
+        return unreadIndex.value >= 0;
+    }
+
+    return shouldShowUnreadJump(
+        unreadIndex.value,
+        range.startIndex,
+        range.endIndex,
+    );
+});
+
+// Scroll the unread boundary to the top of the viewport via the virtualizer,
+// bringing it on screen even when it wasn't rendered.
+function scrollToUnread(): void {
+    if (unreadIndex.value >= 0) {
+        messageListRef.value?.scrollToIndex(unreadIndex.value, 'start');
+    }
+}
+
+// The day the topmost visible row falls in, driving the floating sticky date
+// chip while the reader is scrolled up into history (design 1a). Reads the first
+// dated render item at or after the window's top — a group's lead timestamp or a
+// day divider's own ISO.
+const stickyDayLabel = computed<string | null>(() => {
+    const range = timelineRange.value;
+    const items = timelineItems.value;
+
+    if (!range || items.length === 0) {
+        return null;
+    }
+
+    for (
+        let i = Math.min(range.startIndex, items.length - 1);
+        i < items.length;
+        i += 1
+    ) {
+        const item = items[i];
+
+        // A day boundary already sits at the top of the window, shown inline —
+        // the chip would just duplicate it (e.g. scrolled to the very top), so
+        // suppress it until the divider scrolls off and a group leads instead.
+        if (item.type === 'divider' && item.variant === 'day') {
+            return null;
+        }
+
+        if (item.type === 'group') {
+            return formatDayLabel(item.leadCreatedAt);
+        }
+    }
+
+    return null;
 });
 
 function channelName(id: string): string {
@@ -321,6 +462,10 @@ onMounted(() => {
 
     if (props.jumpToMessageId) {
         jumpToMessage(props.jumpToMessageId);
+    } else {
+        // Land on the newest message. The windowed timeline sizes from height
+        // estimates first, so defer past the initial measure before pinning.
+        nextTick(() => scrollToBottom());
     }
 
     // Reopen a deep-linked thread resolved from the `?thread=` param on load.
@@ -640,18 +785,71 @@ function archive(): void {
                         </button>
                     </Transition>
 
+                    <Transition
+                        enter-active-class="transition duration-150 ease-out"
+                        enter-from-class="-translate-y-1 opacity-0"
+                        enter-to-class="translate-y-0 opacity-100"
+                        leave-active-class="transition duration-100 ease-in"
+                        leave-from-class="translate-y-0 opacity-100"
+                        leave-to-class="-translate-y-1 opacity-0"
+                    >
+                        <div
+                            v-if="
+                                !pinnedToBottom &&
+                                stickyDayLabel &&
+                                !showJumpToUnread
+                            "
+                            data-test="sticky-date"
+                            class="pointer-events-none absolute top-2.5 left-1/2 z-10 inline-flex h-[26px] -translate-x-1/2 items-center rounded-full bg-card px-3.5 text-[11.5px] font-semibold text-muted-foreground shadow-md ring-1 ring-border"
+                        >
+                            {{ stickyDayLabel }}
+                        </div>
+                    </Transition>
+
                     <div
                         ref="scrollContainer"
                         class="scrollbar-thin min-h-0 flex-1 scrollbar-thumb-border scrollbar-track-transparent overflow-y-auto overscroll-contain"
                         @scroll.passive="onScroll"
                     >
+                        <Transition
+                            enter-active-class="transition duration-150 ease-out"
+                            enter-from-class="opacity-0"
+                            enter-to-class="opacity-100"
+                            leave-active-class="transition duration-100 ease-in"
+                            leave-from-class="opacity-100"
+                            leave-to-class="opacity-0"
+                        >
+                            <div
+                                v-if="loadingOlder"
+                                data-test="loading-older"
+                                class="pointer-events-none absolute inset-x-0 top-2 z-10 flex justify-center"
+                            >
+                                <span
+                                    class="inline-flex items-center gap-2 rounded-full bg-card px-3 py-1 text-[12px] text-muted-foreground shadow-sm ring-1 ring-border"
+                                >
+                                    <span
+                                        aria-hidden="true"
+                                        class="size-3 animate-spin rounded-full border-2 border-border border-t-foreground"
+                                    />
+                                    {{ $t('Loading earlier messages…') }}
+                                </span>
+                            </div>
+                        </Transition>
+
                         <InfiniteScroll
                             v-if="hasMessages"
+                            ref="infiniteScrollRef"
                             data="messages"
                             reverse
+                            manual
                             preserve-url
                         >
                             <MessageList
+                                ref="messageListRef"
+                                virtualize
+                                :scroll-element="scrollContainer"
+                                :has-older="hasOlder"
+                                :is-loading-older="isLoadingOlder"
                                 :messages="displayMessages"
                                 :team-slug="props.team.slug"
                                 :pending-uuids="pendingUuids"
@@ -674,6 +872,8 @@ function archive(): void {
                                 @open-thread="openThread"
                                 @jump="jumpToMessage"
                                 @mention="mentionInChannel"
+                                @load-older="loadOlderMessages"
+                                @range-change="timelineRange = $event"
                             />
                         </InfiniteScroll>
 
@@ -688,12 +888,12 @@ function archive(): void {
                     </div>
 
                     <Transition
-                        enter-active-class="transition duration-150 ease-out"
-                        enter-from-class="translate-y-1 opacity-0"
-                        enter-to-class="translate-y-0 opacity-100"
-                        leave-active-class="transition duration-100 ease-in"
-                        leave-from-class="translate-y-0 opacity-100"
-                        leave-to-class="translate-y-1 opacity-0"
+                        enter-active-class="transition duration-200 ease-out"
+                        enter-from-class="translate-y-3 scale-95 opacity-0"
+                        enter-to-class="translate-y-0 scale-100 opacity-100"
+                        leave-active-class="transition duration-150 ease-in"
+                        leave-from-class="translate-y-0 scale-100 opacity-100"
+                        leave-to-class="translate-y-3 scale-95 opacity-0"
                     >
                         <button
                             v-if="!pinnedToBottom"
@@ -708,15 +908,14 @@ function archive(): void {
                                       )
                                     : $t('Jump to latest message')
                             "
-                            class="absolute right-4 bottom-4 z-10 inline-flex items-center gap-1.5 rounded-full shadow-md transition-colors"
+                            class="absolute right-4 bottom-4 z-10 inline-flex h-[38px] items-center gap-2 rounded-full px-[18px] text-[12.5px] font-semibold shadow-lg transition-colors hover:opacity-90"
                             :class="
                                 newMessageCount > 0
-                                    ? 'bg-primary px-3 py-1.5 text-[12px] font-semibold text-primary-foreground hover:opacity-90'
-                                    : 'size-9 justify-center bg-card text-muted-foreground ring-1 ring-border hover:bg-muted hover:text-foreground'
+                                    ? 'bg-brass text-brass-foreground'
+                                    : 'bg-foreground text-background'
                             "
                             @click="scrollToBottom(true)"
                         >
-                            <ChevronDown class="size-4 shrink-0" />
                             <span v-if="newMessageCount > 0">
                                 {{
                                     newMessageCount === 1
@@ -728,6 +927,11 @@ function archive(): void {
                                           })
                                 }}
                             </span>
+                            <span v-else>{{ $t('Jump to present') }}</span>
+                            <ChevronDown
+                                class="size-[13px] shrink-0"
+                                :class="newMessageCount > 0 ? '' : 'text-brass'"
+                            />
                         </button>
                     </Transition>
                 </div>

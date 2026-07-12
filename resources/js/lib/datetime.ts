@@ -6,7 +6,7 @@
  * user's language.
  */
 
-import { i18n } from './i18n';
+import { i18n, translate } from './i18n';
 
 /**
  * Format an ISO timestamp as a time of day (e.g. "3:45 PM").
@@ -63,6 +63,37 @@ export function formatMonthLabel(
 ): string {
     return new Date(date).toLocaleDateString(locale, {
         month: 'short',
+    });
+}
+
+/**
+ * A day-boundary label for a timeline divider or the sticky date chip: "Today"
+ * or "Yesterday" for the two most recent days (translated), otherwise the full
+ * weekday, month, and day — with the year only when it differs from this year.
+ */
+export function formatDayLabel(
+    iso: string,
+    locale: string = i18n.locale,
+): string {
+    const date = new Date(iso);
+    const today = new Date();
+    const yesterday = new Date();
+    yesterday.setDate(today.getDate() - 1);
+
+    if (date.toDateString() === today.toDateString()) {
+        return translate('Today');
+    }
+
+    if (date.toDateString() === yesterday.toDateString()) {
+        return translate('Yesterday');
+    }
+
+    return date.toLocaleDateString(locale, {
+        weekday: 'long',
+        month: 'long',
+        day: 'numeric',
+        year:
+            date.getFullYear() === today.getFullYear() ? undefined : 'numeric',
     });
 }
 

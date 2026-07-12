@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { usePage } from '@inertiajs/vue3';
 import { Clock } from '@lucide/vue';
-import { computed, nextTick, ref } from 'vue';
+import { computed, nextTick, onMounted, ref, watch } from 'vue';
 import LinkPreview from '@/components/LinkPreview.vue';
 import MessageActions from '@/components/MessageActions.vue';
 import MessageForward from '@/components/MessageForward.vue';
@@ -25,15 +25,17 @@ import {
 import UserHoverCard from '@/components/UserHoverCard.vue';
 import { useCustomEmojis } from '@/composables/useCustomEmojis';
 import { useInitials } from '@/composables/useInitials';
+import { useTimelineVirtualizer } from '@/composables/useTimelineVirtualizer';
 import { useTranslations } from '@/composables/useTranslations';
-import { formatTimeOfDay } from '@/lib/datetime';
+import { formatDayLabel, formatTimeOfDay } from '@/lib/datetime';
 import { canReactToMessage, showsThreadSummary } from '@/lib/messageActions';
 import type { MessageActionContext } from '@/lib/messageActions';
 import { tokenizeMessageBody } from '@/lib/messageBody';
 import type { MessageBodySegment } from '@/lib/messageBody';
 import { readersForMessage } from '@/lib/readReceipts';
 import { buildTimelineItems } from '@/lib/timeline';
-import type { TimelineGroup } from '@/lib/timeline';
+import type { TimelineGroup, TimelineItem } from '@/lib/timeline';
+import { shouldRenderSkeleton } from '@/lib/virtualTimeline';
 import type {
     ChannelReader,
     Mention,
@@ -69,6 +71,18 @@ const props = defineProps<{
     // Read positions of channel members who share read receipts, driving the
     // "Seen by" affordance under the newest message. Omitted inside a thread.
     readers?: ChannelReader[];
+    // Opt into windowed (virtualized) rendering. The main channel timeline sets
+    // this so only on-screen rows mount; the thread panel leaves it off and
+    // renders the full list.
+    virtualize?: boolean;
+    // The parent-owned scroll container the virtualizer drives. Required when
+    // `virtualize` is set; the virtualizer reads its scroll offset and height.
+    scrollElement?: HTMLElement | null;
+    // Whether older history remains to fetch, and whether a fetch is already in
+    // flight — read by the virtualizer to gate its top-load trigger. Supplied by
+    // the parent, which owns Inertia's `<InfiniteScroll>` merge engine.
+    hasOlder?: () => boolean;
+    isLoadingOlder?: () => boolean;
 }>();
 
 const emit = defineEmits<{
@@ -82,6 +96,11 @@ const emit = defineEmits<{
     openThread: [messageId: string];
     jump: [messageId: string];
     mention: [member: { id: string; name: string }];
+    // The reader has scrolled near the top of the loaded history: fetch older.
+    loadOlder: [];
+    // The virtualizer's visible render-item window changed, so the parent can
+    // recompute position-dependent affordances (the unread-jump pill).
+    rangeChange: [range: { startIndex: number; endIndex: number }];
 }>();
 
 // The viewer's stored zone, feeding the reminder popover's wall-clock presets.
@@ -212,29 +231,6 @@ function previewFor(
     return message.linkPreviews.find((preview) => preview.url === href);
 }
 
-function dividerLabel(iso: string): string {
-    const date = new Date(iso);
-    const today = new Date();
-    const yesterday = new Date();
-    yesterday.setDate(today.getDate() - 1);
-
-    if (date.toDateString() === today.toDateString()) {
-        return t('Today');
-    }
-
-    if (date.toDateString() === yesterday.toDateString()) {
-        return t('Yesterday');
-    }
-
-    return date.toLocaleDateString(undefined, {
-        weekday: 'long',
-        month: 'long',
-        day: 'numeric',
-        year:
-            date.getFullYear() === today.getFullYear() ? undefined : 'numeric',
-    });
-}
-
 function formatTime(iso: string): string {
     return formatTimeOfDay(iso, viewerTimeZone.value);
 }
@@ -245,6 +241,119 @@ function formatTime(iso: string): string {
 const renderItems = computed(() =>
     buildTimelineItems(props.messages, props.unreadDividerId ?? null),
 );
+
+// Windowed rendering. Only the main channel timeline opts in (`virtualize`); the
+// thread panel leaves the virtualizer idle (count 0) and renders every row. The
+// virtualizer drives the parent's scroll container, keeping its real
+// `scrollHeight`/`scrollTop` so the shared pin-to-bottom math is untouched.
+// Windowing is client-only: the virtualizer needs a live scroll element and
+// measured heights, neither of which exist during SSR. Rendering the full list
+// on the server (and through first hydration) keeps server and client markup
+// identical, then we switch to the window once mounted — a post-hydration
+// re-render, not a mismatch.
+const isMounted = ref(false);
+
+onMounted(() => {
+    isMounted.value = true;
+});
+
+const virtualizeActive = computed(
+    () => props.virtualize === true && isMounted.value,
+);
+
+const {
+    virtualRows,
+    totalSize,
+    isScrolling,
+    range,
+    scrollToIndex,
+    measureRow,
+} = useTimelineVirtualizer({
+    scrollElement: computed(() => props.scrollElement ?? null),
+    count: computed(() =>
+        virtualizeActive.value ? renderItems.value.length : 0,
+    ),
+    hasOlder: () => props.hasOlder?.() ?? false,
+    isLoadingOlder: () => props.isLoadingOlder?.() ?? false,
+    loadOlder: () => emit('loadOlder'),
+});
+
+/** One rendered row: a render item plus its absolute offset when windowed. */
+type RenderRow = {
+    item: TimelineItem;
+    index: number;
+    offsetTop: number | null;
+};
+
+// The rows to render: the full list when the thread panel renders it flat, or
+// just the virtualizer's window (each carrying its absolute offset) for the main
+// timeline.
+const renderRows = computed<RenderRow[]>(() => {
+    if (!virtualizeActive.value) {
+        return renderItems.value.map((item, index) => ({
+            item,
+            index,
+            offsetTop: null,
+        }));
+    }
+
+    return virtualRows.value.map((row) => ({
+        item: renderItems.value[row.index],
+        index: row.index,
+        offsetTop: row.start,
+    }));
+});
+
+// Render items whose height the virtualizer has already settled. A row is
+// recorded once scrolling stops, so a fast scrub shows height-stable skeletons
+// for rows it hasn't paused on, and they materialize the instant it settles.
+const settledKeys = ref<Set<string>>(new Set());
+
+watch(isScrolling, (scrolling) => {
+    if (scrolling) {
+        return;
+    }
+
+    for (const row of virtualRows.value) {
+        const item = renderItems.value[row.index];
+
+        if (item) {
+            settledKeys.value.add(item.key);
+        }
+    }
+});
+
+/**
+ * Whether a windowed group row should show its skeleton placeholder rather than
+ * its full content: only mid-scrub, and only before the row has settled.
+ */
+function showsSkeleton(item: TimelineItem): boolean {
+    return (
+        virtualizeActive.value &&
+        item.type === 'group' &&
+        shouldRenderSkeleton(isScrolling.value, settledKeys.value.has(item.key))
+    );
+}
+
+// Surface the visible window so the parent can drive the unread-jump pill.
+watch(
+    () =>
+        range.value
+            ? `${range.value.startIndex}:${range.value.endIndex}`
+            : null,
+    () => {
+        if (range.value) {
+            emit('rangeChange', {
+                startIndex: range.value.startIndex,
+                endIndex: range.value.endIndex,
+            });
+        }
+    },
+);
+
+// Let the parent bring an off-screen row (a jump target, the unread boundary)
+// into the window: with windowing the element may not exist to `scrollIntoView`.
+defineExpose({ scrollToIndex });
 
 const pending = computed(() => new Set(props.pendingUuids ?? []));
 
@@ -341,390 +450,452 @@ function confirmDelete(): void {
 
 <template>
     <div class="px-5 pt-4 pb-2">
-        <div v-for="item in renderItems" :key="item.key" class="contents">
+        <div
+            :class="virtualizeActive ? 'relative w-full' : 'contents'"
+            :style="virtualizeActive ? { height: `${totalSize}px` } : undefined"
+        >
             <div
-                v-if="item.type === 'divider' && item.variant === 'unread'"
-                id="unread-divider"
-                data-test="unread-divider"
-                class="my-4 flex items-center gap-3"
+                v-for="{ item, index, offsetTop } in renderRows"
+                :key="item.key"
+                :ref="virtualizeActive ? measureRow : undefined"
+                :data-index="index"
+                :class="virtualizeActive ? '' : 'contents'"
+                :style="
+                    virtualizeActive
+                        ? {
+                              position: 'absolute',
+                              top: '0',
+                              left: '0',
+                              width: '100%',
+                              transform: `translateY(${offsetTop}px)`,
+                          }
+                        : undefined
+                "
             >
-                <span
-                    aria-hidden="true"
-                    class="h-px flex-1 bg-gradient-to-r from-transparent to-brass-border"
-                />
-                <span class="font-serif text-[13px] text-brass-border italic">
-                    {{ $t('new') }}
-                </span>
-                <span
-                    aria-hidden="true"
-                    class="h-px flex-1 bg-gradient-to-r from-brass-border to-transparent"
-                />
-            </div>
-
-            <div
-                v-else-if="item.type === 'divider'"
-                class="my-4 flex items-center gap-3"
-            >
-                <span aria-hidden="true" class="h-px flex-1 bg-border" />
-                <span
-                    class="font-serif text-[13px] text-muted-foreground italic"
-                >
-                    {{ dividerLabel(item.iso!) }}
-                </span>
-                <span aria-hidden="true" class="h-px flex-1 bg-border" />
-            </div>
-
-            <div v-else class="mt-[18px] flex">
                 <div
-                    class="flex w-16 shrink-0 flex-col items-center gap-1 pt-0.5"
+                    v-if="showsSkeleton(item)"
+                    data-test="message-skeleton"
+                    aria-hidden="true"
+                    class="mt-[18px] flex gap-3"
+                    :style="{ minHeight: '56px' }"
                 >
-                    <UserHoverCard
-                        :team-slug="props.teamSlug"
-                        :user-id="item.author.id"
-                        :name="item.author.name"
-                        :online="isOnline(item.author.id)"
-                        @mention="(member) => emit('mention', member)"
-                    >
-                        <div class="relative size-[34px] cursor-pointer">
-                            <div
-                                class="flex size-[34px] items-center justify-center rounded-full bg-primary/10 text-[11px] font-semibold text-primary select-none"
-                                aria-hidden="true"
-                            >
-                                {{ getInitials(item.author.name) }}
-                            </div>
-                            <span
-                                data-test="presence-dot"
-                                :data-online="isOnline(item.author.id)"
-                                :aria-label="
-                                    isOnline(item.author.id)
-                                        ? $t('Online')
-                                        : $t('Offline')
-                                "
-                                class="absolute right-0 bottom-0 size-2.5 rounded-full ring-2 ring-card"
-                                :class="
-                                    isOnline(item.author.id)
-                                        ? 'bg-emerald-500'
-                                        : 'bg-muted-foreground/60'
-                                "
-                            />
-                        </div>
-                    </UserHoverCard>
-                    <span
-                        class="font-mono text-[9.5px] text-muted-foreground/70"
-                        >{{ formatTime(item.leadCreatedAt) }}</span
-                    >
+                    <div class="size-[34px] shrink-0 rounded-full bg-muted" />
+                    <div class="flex flex-1 flex-col gap-2 pt-1">
+                        <div class="h-3 w-40 rounded bg-muted" />
+                        <div class="h-3 w-[60%] rounded bg-muted" />
+                    </div>
                 </div>
+
                 <div
-                    class="min-w-0 flex-1 pl-[18px]"
-                    :class="
-                        isThreadRoot(item)
-                            ? 'border-l-2 border-brass'
-                            : 'border-l border-border'
+                    v-else-if="
+                        item.type === 'divider' && item.variant === 'unread'
                     "
+                    id="unread-divider"
+                    data-test="unread-divider"
+                    class="my-4 flex items-center gap-3"
                 >
-                    <UserHoverCard
-                        :team-slug="props.teamSlug"
-                        :user-id="item.author.id"
-                        :name="item.author.name"
-                        :online="isOnline(item.author.id)"
-                        @mention="(member) => emit('mention', member)"
+                    <span
+                        aria-hidden="true"
+                        class="h-px flex-1 bg-gradient-to-r from-transparent to-brass-border"
+                    />
+                    <span
+                        class="font-serif text-[13px] text-brass-border italic"
                     >
-                        <span
-                            class="cursor-pointer text-[14px] font-semibold text-foreground hover:underline"
-                            >{{ item.author.name }}</span
-                        >
-                    </UserHoverCard>
+                        {{ $t('new') }}
+                    </span>
+                    <span
+                        aria-hidden="true"
+                        class="h-px flex-1 bg-gradient-to-r from-brass-border to-transparent"
+                    />
+                </div>
+
+                <div
+                    v-else-if="item.type === 'divider'"
+                    class="my-4 flex items-center gap-3"
+                >
+                    <span aria-hidden="true" class="h-px flex-1 bg-border" />
+                    <span
+                        class="font-serif text-[13px] text-muted-foreground italic"
+                    >
+                        {{ formatDayLabel(item.iso!) }}
+                    </span>
+                    <span aria-hidden="true" class="h-px flex-1 bg-border" />
+                </div>
+
+                <div v-else class="mt-[18px] flex">
                     <div
-                        v-for="(message, index) in item.messages"
-                        :id="`message-${message.id}`"
-                        :key="message.id"
-                        class="group/message relative -mx-2 rounded-md px-2 transition-colors duration-1000 hover:bg-muted/40"
-                        :class="[
-                            index === 0 ? 'mt-0.5' : 'mt-1.5',
-                            message.id === props.highlightMessageId
-                                ? 'bg-primary/10'
-                                : '',
-                            message.id === props.activeThreadRootId
-                                ? 'bg-primary/5'
-                                : '',
-                        ]"
+                        class="flex w-16 shrink-0 flex-col items-center gap-1 pt-0.5"
                     >
-                        <button
-                            v-if="
-                                message.replyTo &&
-                                !message.isDeleted &&
-                                editingId !== message.id
-                            "
-                            type="button"
-                            data-test="message-quote"
-                            class="mt-0.5 flex max-w-full items-center rounded pr-1 text-left hover:opacity-80"
-                            @click="emit('jump', message.replyTo.id)"
+                        <UserHoverCard
+                            :team-slug="props.teamSlug"
+                            :user-id="item.author.id"
+                            :name="item.author.name"
+                            :online="isOnline(item.author.id)"
+                            @mention="(member) => emit('mention', member)"
                         >
-                            <MessageQuote
-                                :author-name="message.replyTo.authorName"
-                                :body="message.replyTo.body"
-                                :is-deleted="message.replyTo.isDeleted"
-                            />
-                        </button>
-
-                        <p
-                            v-if="message.isDeleted"
-                            :data-test="'message-tombstone'"
-                            class="py-0.5 font-serif text-[13.5px] text-muted-foreground/70 italic"
-                        >
-                            {{ $t('This message was deleted') }}
-                        </p>
-
-                        <div
-                            v-else-if="editingId === message.id"
-                            class="py-0.5"
-                        >
-                            <textarea
-                                :ref="setEditField"
-                                v-model="editDraft"
-                                rows="1"
-                                class="w-full resize-none rounded-md border border-input bg-background px-2.5 py-1.5 text-[14.5px] leading-[1.55] text-foreground outline-none focus:border-ring focus:ring-1 focus:ring-ring"
-                                @keydown.enter.exact.prevent="saveEdit(message)"
-                                @keydown.esc.prevent="cancelEdit"
-                            ></textarea>
-                            <div
-                                class="mt-1 flex items-center gap-2 text-[11.5px] text-muted-foreground"
-                            >
-                                <button
-                                    type="button"
-                                    class="rounded bg-primary px-2 py-1 font-medium text-primary-foreground hover:bg-primary/90"
-                                    @click="saveEdit(message)"
+                            <div class="relative size-[34px] cursor-pointer">
+                                <div
+                                    class="flex size-[34px] items-center justify-center rounded-full bg-primary/10 text-[11px] font-semibold text-primary select-none"
+                                    aria-hidden="true"
                                 >
-                                    {{ $t('Save') }}
-                                </button>
-                                <button
-                                    type="button"
-                                    class="rounded border border-border px-2 py-1 font-medium text-foreground hover:bg-muted"
-                                    @click="cancelEdit"
-                                >
-                                    {{ $t('Cancel') }}
-                                </button>
-                                <span>{{
-                                    $t('Enter to save · Esc to cancel')
-                                }}</span>
-                            </div>
-                        </div>
-
-                        <p
-                            v-else-if="message.body !== ''"
-                            :data-test="'message-body'"
-                            class="py-0.5 text-[14.5px] leading-[1.55] break-words whitespace-pre-wrap text-foreground/90"
-                            :class="isPending(message) ? 'opacity-60' : ''"
-                        >
-                            <template
-                                v-for="(segment, index) in bodySegments(
-                                    message,
-                                )"
-                                :key="index"
-                            >
+                                    {{ getInitials(item.author.name) }}
+                                </div>
                                 <span
-                                    v-if="segment.kind === 'html'"
-                                    v-html="segment.html"
-                                ></span>
-                                <UserHoverCard
-                                    v-else-if="segment.kind === 'mention'"
-                                    :team-slug="props.teamSlug"
-                                    :user-id="segment.id"
-                                    :name="segment.name"
-                                    @mention="
-                                        (member) => emit('mention', member)
+                                    data-test="presence-dot"
+                                    :data-online="isOnline(item.author.id)"
+                                    :aria-label="
+                                        isOnline(item.author.id)
+                                            ? $t('Online')
+                                            : $t('Offline')
                                     "
-                                >
-                                    <span
-                                        data-test="message-mention"
-                                        class="cursor-pointer border-b-[1.5px] border-brass font-medium text-foreground hover:border-brass-border"
-                                        >@{{ segment.name }}</span
-                                    >
-                                </UserHoverCard>
-                                <img
-                                    v-else-if="segment.kind === 'emoji'"
-                                    :src="segment.url"
-                                    :alt="`:${segment.name}:`"
-                                    :title="`:${segment.name}:`"
-                                    data-test="message-emoji"
-                                    class="custom-emoji inline-block h-[1.35em] w-[1.35em] align-text-bottom"
+                                    class="absolute right-0 bottom-0 size-2.5 rounded-full ring-2 ring-card"
+                                    :class="
+                                        isOnline(item.author.id)
+                                            ? 'bg-emerald-500'
+                                            : 'bg-muted-foreground/60'
+                                    "
                                 />
-                                <template v-else>
-                                    <HoverCard
-                                        v-if="previewFor(message, segment.href)"
-                                        :open-delay="200"
-                                        :close-delay="100"
-                                    >
-                                        <HoverCardTrigger as-child>
-                                            <a
-                                                :href="segment.href"
-                                                target="_blank"
-                                                rel="noopener noreferrer nofollow"
-                                                data-test="message-link"
-                                                class="text-primary underline underline-offset-2 hover:no-underline"
-                                                >{{ segment.href }}</a
-                                            >
-                                        </HoverCardTrigger>
-                                        <HoverCardContent
-                                            data-test="link-preview-card"
-                                            class="w-80 overflow-hidden p-0"
-                                        >
-                                            <LinkPreview
-                                                :preview="
-                                                    previewFor(
-                                                        message,
-                                                        segment.href,
-                                                    )!
-                                                "
-                                            />
-                                        </HoverCardContent>
-                                    </HoverCard>
-                                    <a
-                                        v-else
-                                        :href="segment.href"
-                                        target="_blank"
-                                        rel="noopener noreferrer nofollow"
-                                        data-test="message-link"
-                                        class="text-primary underline underline-offset-2 hover:no-underline"
-                                        >{{ segment.href }}</a
-                                    >
-                                </template>
-                            </template>
-                            <span
-                                v-if="message.editedAt"
-                                :data-test="'message-edited'"
-                                class="ml-1 align-baseline text-[11px] text-muted-foreground/70 select-none"
-                                >{{ $t('(edited)') }}</span
-                            >
-                        </p>
-
+                            </div>
+                        </UserHoverCard>
                         <span
-                            v-if="isQueued(message)"
-                            data-test="message-queued"
-                            class="mt-0.5 inline-flex items-center gap-1 text-[11px] font-semibold text-muted-foreground select-none"
+                            class="font-mono text-[9.5px] text-muted-foreground/70"
+                            >{{ formatTime(item.leadCreatedAt) }}</span
                         >
-                            <Clock class="size-3" />
-                            {{ $t('Queued — will send on reconnect') }}
-                        </span>
-
-                        <MessageForward
-                            v-if="
-                                message.forwardedFrom &&
-                                !message.isDeleted &&
-                                editingId !== message.id
-                            "
-                            data-test="forwarded-message"
-                            :author-name="message.forwardedFrom.authorName"
-                            :channel-name="message.forwardedFrom.channelName"
-                            :body="message.forwardedFrom.body"
-                            :is-deleted="message.forwardedFrom.isDeleted"
-                            :mentions="message.forwardedFrom.mentions"
-                        />
-
-                        <MessageReactions
-                            v-if="
-                                !message.isDeleted && editingId !== message.id
-                            "
-                            :reactions="message.reactions"
-                            :current-user-id="props.currentUserId"
-                            :can-react="canReactTo(message)"
-                            @toggle="(emoji) => emit('react', message, emoji)"
-                        />
-
+                    </div>
+                    <div
+                        class="min-w-0 flex-1 pl-[18px]"
+                        :class="
+                            isThreadRoot(item)
+                                ? 'border-l-2 border-brass'
+                                : 'border-l border-border'
+                        "
+                    >
+                        <UserHoverCard
+                            :team-slug="props.teamSlug"
+                            :user-id="item.author.id"
+                            :name="item.author.name"
+                            :online="isOnline(item.author.id)"
+                            @mention="(member) => emit('mention', member)"
+                        >
+                            <span
+                                class="cursor-pointer text-[14px] font-semibold text-foreground hover:underline"
+                                >{{ item.author.name }}</span
+                            >
+                        </UserHoverCard>
                         <div
-                            v-if="showThreadSummary(message)"
-                            class="mt-1.5 flex flex-wrap items-center gap-2"
+                            v-for="(message, index) in item.messages"
+                            :id="`message-${message.id}`"
+                            :key="message.id"
+                            class="group/message relative -mx-2 rounded-md px-2 transition-colors duration-1000 hover:bg-muted/40"
+                            :class="[
+                                index === 0 ? 'mt-0.5' : 'mt-1.5',
+                                message.id === props.highlightMessageId
+                                    ? 'bg-primary/10'
+                                    : '',
+                                message.id === props.activeThreadRootId
+                                    ? 'bg-primary/5'
+                                    : '',
+                            ]"
                         >
                             <button
-                                type="button"
-                                data-test="thread-summary"
-                                :aria-label="
-                                    message.threadReplyCount === 1
-                                        ? $t('View thread, :count reply', {
-                                              count: message.threadReplyCount,
-                                          })
-                                        : $t('View thread, :count replies', {
-                                              count: message.threadReplyCount,
-                                          })
+                                v-if="
+                                    message.replyTo &&
+                                    !message.isDeleted &&
+                                    editingId !== message.id
                                 "
-                                class="inline-flex items-center gap-2 rounded-full border border-border bg-card px-2.5 py-1 text-left transition-colors hover:bg-muted/50"
-                                @click="emit('openThread', message.id)"
+                                type="button"
+                                data-test="message-quote"
+                                class="mt-0.5 flex max-w-full items-center rounded pr-1 text-left hover:opacity-80"
+                                @click="emit('jump', message.replyTo.id)"
                             >
-                                <span class="flex -space-x-1">
-                                    <span
-                                        v-for="participant in threadAvatars(
-                                            message,
-                                        )"
-                                        :key="participant.id"
-                                        class="flex size-4 items-center justify-center rounded-full bg-primary/10 text-[8px] font-semibold text-primary ring-2 ring-card select-none"
-                                        aria-hidden="true"
-                                    >
-                                        {{ getInitials(participant.name) }}
-                                    </span>
-                                    <span
-                                        v-if="
-                                            extraThreadParticipants(message) > 0
-                                        "
-                                        class="flex size-4 items-center justify-center rounded-full bg-muted text-[8px] font-semibold text-muted-foreground ring-2 ring-card select-none"
-                                        aria-hidden="true"
-                                    >
-                                        +{{ extraThreadParticipants(message) }}
-                                    </span>
-                                </span>
-                                <span
-                                    v-if="message.threadUnread"
-                                    data-test="thread-unread-dot"
-                                    :aria-label="$t('Unread replies')"
-                                    class="size-2 shrink-0 rounded-full bg-rose-500"
-                                ></span>
-                                <span
-                                    class="text-[12px] font-semibold text-foreground"
-                                >
-                                    {{
-                                        message.threadReplyCount === 1
-                                            ? $t(':count reply', {
-                                                  count: message.threadReplyCount,
-                                              })
-                                            : $t(':count replies', {
-                                                  count: message.threadReplyCount,
-                                              })
-                                    }}
-                                </span>
-                                <span
-                                    aria-hidden="true"
-                                    class="text-[12px] text-muted-foreground"
-                                    >→</span
-                                >
+                                <MessageQuote
+                                    :author-name="message.replyTo.authorName"
+                                    :body="message.replyTo.body"
+                                    :is-deleted="message.replyTo.isDeleted"
+                                />
                             </button>
-                            <span
-                                v-if="message.threadLastReplyAt"
-                                class="text-[11.5px] text-muted-foreground"
-                            >
-                                {{ $t('Last reply') }}
-                                {{ formatTime(message.threadLastReplyAt) }}
-                            </span>
-                        </div>
 
-                        <MessageActions
-                            v-if="editingId !== message.id"
-                            :message="message"
-                            :current-user-id="props.currentUserId"
-                            :can-react="props.canReact"
-                            :can-moderate="props.canModerate"
-                            :in-thread="props.inThread"
-                            :pending="isPending(message)"
-                            :viewer-timezone="viewerTimezone"
-                            @react="(emoji) => emit('react', message, emoji)"
-                            @reply="emit('reply', message)"
-                            @forward="emit('forward', message)"
-                            @open-thread="emit('openThread', message.id)"
-                            @remind="
-                                (remindAt) => emit('remind', message, remindAt)
-                            "
-                            @remind-custom="emit('remindCustom', message)"
-                            @edit="startEdit(message)"
-                            @delete="requestDelete(message)"
-                        />
+                            <p
+                                v-if="message.isDeleted"
+                                :data-test="'message-tombstone'"
+                                class="py-0.5 font-serif text-[13.5px] text-muted-foreground/70 italic"
+                            >
+                                {{ $t('This message was deleted') }}
+                            </p>
+
+                            <div
+                                v-else-if="editingId === message.id"
+                                class="py-0.5"
+                            >
+                                <textarea
+                                    :ref="setEditField"
+                                    v-model="editDraft"
+                                    rows="1"
+                                    class="w-full resize-none rounded-md border border-input bg-background px-2.5 py-1.5 text-[14.5px] leading-[1.55] text-foreground outline-none focus:border-ring focus:ring-1 focus:ring-ring"
+                                    @keydown.enter.exact.prevent="
+                                        saveEdit(message)
+                                    "
+                                    @keydown.esc.prevent="cancelEdit"
+                                ></textarea>
+                                <div
+                                    class="mt-1 flex items-center gap-2 text-[11.5px] text-muted-foreground"
+                                >
+                                    <button
+                                        type="button"
+                                        class="rounded bg-primary px-2 py-1 font-medium text-primary-foreground hover:bg-primary/90"
+                                        @click="saveEdit(message)"
+                                    >
+                                        {{ $t('Save') }}
+                                    </button>
+                                    <button
+                                        type="button"
+                                        class="rounded border border-border px-2 py-1 font-medium text-foreground hover:bg-muted"
+                                        @click="cancelEdit"
+                                    >
+                                        {{ $t('Cancel') }}
+                                    </button>
+                                    <span>{{
+                                        $t('Enter to save · Esc to cancel')
+                                    }}</span>
+                                </div>
+                            </div>
+
+                            <p
+                                v-else-if="message.body !== ''"
+                                :data-test="'message-body'"
+                                class="py-0.5 text-[14.5px] leading-[1.55] break-words whitespace-pre-wrap text-foreground/90"
+                                :class="isPending(message) ? 'opacity-60' : ''"
+                            >
+                                <template
+                                    v-for="(segment, index) in bodySegments(
+                                        message,
+                                    )"
+                                    :key="index"
+                                >
+                                    <span
+                                        v-if="segment.kind === 'html'"
+                                        v-html="segment.html"
+                                    ></span>
+                                    <UserHoverCard
+                                        v-else-if="segment.kind === 'mention'"
+                                        :team-slug="props.teamSlug"
+                                        :user-id="segment.id"
+                                        :name="segment.name"
+                                        @mention="
+                                            (member) => emit('mention', member)
+                                        "
+                                    >
+                                        <span
+                                            data-test="message-mention"
+                                            class="cursor-pointer border-b-[1.5px] border-brass font-medium text-foreground hover:border-brass-border"
+                                            >@{{ segment.name }}</span
+                                        >
+                                    </UserHoverCard>
+                                    <img
+                                        v-else-if="segment.kind === 'emoji'"
+                                        :src="segment.url"
+                                        :alt="`:${segment.name}:`"
+                                        :title="`:${segment.name}:`"
+                                        data-test="message-emoji"
+                                        class="custom-emoji inline-block h-[1.35em] w-[1.35em] align-text-bottom"
+                                    />
+                                    <template v-else>
+                                        <HoverCard
+                                            v-if="
+                                                previewFor(
+                                                    message,
+                                                    segment.href,
+                                                )
+                                            "
+                                            :open-delay="200"
+                                            :close-delay="100"
+                                        >
+                                            <HoverCardTrigger as-child>
+                                                <a
+                                                    :href="segment.href"
+                                                    target="_blank"
+                                                    rel="noopener noreferrer nofollow"
+                                                    data-test="message-link"
+                                                    class="text-primary underline underline-offset-2 hover:no-underline"
+                                                    >{{ segment.href }}</a
+                                                >
+                                            </HoverCardTrigger>
+                                            <HoverCardContent
+                                                data-test="link-preview-card"
+                                                class="w-80 overflow-hidden p-0"
+                                            >
+                                                <LinkPreview
+                                                    :preview="
+                                                        previewFor(
+                                                            message,
+                                                            segment.href,
+                                                        )!
+                                                    "
+                                                />
+                                            </HoverCardContent>
+                                        </HoverCard>
+                                        <a
+                                            v-else
+                                            :href="segment.href"
+                                            target="_blank"
+                                            rel="noopener noreferrer nofollow"
+                                            data-test="message-link"
+                                            class="text-primary underline underline-offset-2 hover:no-underline"
+                                            >{{ segment.href }}</a
+                                        >
+                                    </template>
+                                </template>
+                                <span
+                                    v-if="message.editedAt"
+                                    :data-test="'message-edited'"
+                                    class="ml-1 align-baseline text-[11px] text-muted-foreground/70 select-none"
+                                    >{{ $t('(edited)') }}</span
+                                >
+                            </p>
+
+                            <span
+                                v-if="isQueued(message)"
+                                data-test="message-queued"
+                                class="mt-0.5 inline-flex items-center gap-1 text-[11px] font-semibold text-muted-foreground select-none"
+                            >
+                                <Clock class="size-3" />
+                                {{ $t('Queued — will send on reconnect') }}
+                            </span>
+
+                            <MessageForward
+                                v-if="
+                                    message.forwardedFrom &&
+                                    !message.isDeleted &&
+                                    editingId !== message.id
+                                "
+                                data-test="forwarded-message"
+                                :author-name="message.forwardedFrom.authorName"
+                                :channel-name="
+                                    message.forwardedFrom.channelName
+                                "
+                                :body="message.forwardedFrom.body"
+                                :is-deleted="message.forwardedFrom.isDeleted"
+                                :mentions="message.forwardedFrom.mentions"
+                            />
+
+                            <MessageReactions
+                                v-if="
+                                    !message.isDeleted &&
+                                    editingId !== message.id
+                                "
+                                :reactions="message.reactions"
+                                :current-user-id="props.currentUserId"
+                                :can-react="canReactTo(message)"
+                                @toggle="
+                                    (emoji) => emit('react', message, emoji)
+                                "
+                            />
+
+                            <div
+                                v-if="showThreadSummary(message)"
+                                class="mt-1.5 flex flex-wrap items-center gap-2"
+                            >
+                                <button
+                                    type="button"
+                                    data-test="thread-summary"
+                                    :aria-label="
+                                        message.threadReplyCount === 1
+                                            ? $t('View thread, :count reply', {
+                                                  count: message.threadReplyCount,
+                                              })
+                                            : $t(
+                                                  'View thread, :count replies',
+                                                  {
+                                                      count: message.threadReplyCount,
+                                                  },
+                                              )
+                                    "
+                                    class="inline-flex items-center gap-2 rounded-full border border-border bg-card px-2.5 py-1 text-left transition-colors hover:bg-muted/50"
+                                    @click="emit('openThread', message.id)"
+                                >
+                                    <span class="flex -space-x-1">
+                                        <span
+                                            v-for="participant in threadAvatars(
+                                                message,
+                                            )"
+                                            :key="participant.id"
+                                            class="flex size-4 items-center justify-center rounded-full bg-primary/10 text-[8px] font-semibold text-primary ring-2 ring-card select-none"
+                                            aria-hidden="true"
+                                        >
+                                            {{ getInitials(participant.name) }}
+                                        </span>
+                                        <span
+                                            v-if="
+                                                extraThreadParticipants(
+                                                    message,
+                                                ) > 0
+                                            "
+                                            class="flex size-4 items-center justify-center rounded-full bg-muted text-[8px] font-semibold text-muted-foreground ring-2 ring-card select-none"
+                                            aria-hidden="true"
+                                        >
+                                            +{{
+                                                extraThreadParticipants(message)
+                                            }}
+                                        </span>
+                                    </span>
+                                    <span
+                                        v-if="message.threadUnread"
+                                        data-test="thread-unread-dot"
+                                        :aria-label="$t('Unread replies')"
+                                        class="size-2 shrink-0 rounded-full bg-rose-500"
+                                    ></span>
+                                    <span
+                                        class="text-[12px] font-semibold text-foreground"
+                                    >
+                                        {{
+                                            message.threadReplyCount === 1
+                                                ? $t(':count reply', {
+                                                      count: message.threadReplyCount,
+                                                  })
+                                                : $t(':count replies', {
+                                                      count: message.threadReplyCount,
+                                                  })
+                                        }}
+                                    </span>
+                                    <span
+                                        aria-hidden="true"
+                                        class="text-[12px] text-muted-foreground"
+                                        >→</span
+                                    >
+                                </button>
+                                <span
+                                    v-if="message.threadLastReplyAt"
+                                    class="text-[11.5px] text-muted-foreground"
+                                >
+                                    {{ $t('Last reply') }}
+                                    {{ formatTime(message.threadLastReplyAt) }}
+                                </span>
+                            </div>
+
+                            <MessageActions
+                                v-if="editingId !== message.id"
+                                :message="message"
+                                :current-user-id="props.currentUserId"
+                                :can-react="props.canReact"
+                                :can-moderate="props.canModerate"
+                                :in-thread="props.inThread"
+                                :pending="isPending(message)"
+                                :viewer-timezone="viewerTimezone"
+                                @react="
+                                    (emoji) => emit('react', message, emoji)
+                                "
+                                @reply="emit('reply', message)"
+                                @forward="emit('forward', message)"
+                                @open-thread="emit('openThread', message.id)"
+                                @remind="
+                                    (remindAt) =>
+                                        emit('remind', message, remindAt)
+                                "
+                                @remind-custom="emit('remindCustom', message)"
+                                @edit="startEdit(message)"
+                                @delete="requestDelete(message)"
+                            />
+                        </div>
                     </div>
                 </div>
             </div>
