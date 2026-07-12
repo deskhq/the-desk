@@ -72,10 +72,12 @@ RUN npm run build
 # -----------------------------------------------------------------------------
 FROM dunglas/frankenphp:1-php${PHP_VERSION}-alpine AS runtime
 
-# pdo_pgsql: Postgres. pcntl/posix: queue worker + Reverb signal handling.
+# pdo_pgsql: Postgres. redis: phpredis client for the cache/session/queue drivers.
+# pcntl/posix: queue worker + Reverb signal handling.
 # intl/zip/opcache: framework recommendations + performance.
 RUN install-php-extensions \
         pdo_pgsql \
+        redis \
         pcntl \
         posix \
         intl \
