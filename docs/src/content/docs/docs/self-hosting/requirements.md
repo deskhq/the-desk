@@ -19,7 +19,7 @@ Before you install The Desk, make sure your host meets these requirements.
 - Your proxy must **forward WebSocket upgrade requests** to the `reverb` service,
   so real-time features (new messages, typing, presence) work.
 
-See [Reverse proxy & TLS](/self-hosting/reverse-proxy/) for concrete proxy
+See [Reverse proxy & TLS](/docs/self-hosting/reverse-proxy/) for concrete proxy
 configuration.
 
 ## Mail
@@ -27,11 +27,11 @@ configuration.
 The Desk sends transactional email (workspace invitations, and — if you enable
 it — email verification), so you need **working SMTP credentials**. Invitations
 are the main dependency out of the box; email verification is
-[off by default](/reference/feature-toggles/#email-verification) but requires
+[off by default](/docs/reference/feature-toggles/#email-verification) but requires
 working SMTP once you turn it on.
 
 ## Resources
 
 The Desk is modest to run. A small VPS (2 vCPU / 2 GB RAM) comfortably hosts a
 team; scale up as your message volume and search index grow. The full list of
-services and what each one does is in the [Architecture reference](/reference/architecture/).
+services and what each one does is in the [Architecture reference](/docs/reference/architecture/).

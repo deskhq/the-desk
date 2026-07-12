@@ -6,11 +6,11 @@ description: Configure your instance through .env — app URL, mail, and the bro
 Every setting is read from `.env` at **runtime**, so changing a value and
 restarting the affected containers applies it — no rebuild is needed. This page
 covers the settings you must set by hand after running `./docker/gen-secrets.sh`
-(which handles the [required secrets](/self-hosting/installation/#required-secrets)).
+(which handles the [required secrets](/docs/self-hosting/installation/#required-secrets)).
 
 For the full list of variables, see the
-[Environment variables reference](/reference/environment-variables/). For
-on/off feature switches, see [Feature toggles](/reference/feature-toggles/).
+[Environment variables reference](/docs/reference/environment-variables/). For
+on/off feature switches, see [Feature toggles](/docs/reference/feature-toggles/).
 
 ## Application
 
@@ -26,7 +26,7 @@ runtime, which is why one published image works for any host.
 ## Mail (SMTP)
 
 The Desk sends workspace invitations (and email verification, if you
-[enable it](/reference/feature-toggles/#email-verification)), so SMTP must work.
+[enable it](/docs/reference/feature-toggles/#email-verification)), so SMTP must work.
 Set the `MAIL_*` variables to your provider's credentials:
 
 ```dotenv
@@ -62,14 +62,14 @@ These are read at runtime, so a restart applies changes — no rebuild.
 :::caution
 Your reverse proxy **must forward WebSocket upgrade requests** to the `reverb`
 service, or real-time features silently stop working. See
-[Reverse proxy & TLS](/self-hosting/reverse-proxy/).
+[Reverse proxy & TLS](/docs/self-hosting/reverse-proxy/).
 :::
 
 ## Search (Meilisearch)
 
 `MEILISEARCH_KEY` is a required secret (generated for you). `MEILISEARCH_VERSION`
 pins both the image tag and the version-scoped data volume — see
-[Upgrading](/self-hosting/upgrading/#search-reindexing) for why that matters.
+[Upgrading](/docs/self-hosting/upgrading/#search-reindexing) for why that matters.
 
 ## Applying changes
 

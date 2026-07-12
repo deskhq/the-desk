@@ -5,7 +5,7 @@ description: Reference for the .env variables that matter when self-hosting The 
 
 Every setting is read from `.env` at **runtime**. This reference covers the
 variables that matter when self-hosting. On/off feature switches have their own
-page: [Feature toggles](/reference/feature-toggles/).
+page: [Feature toggles](/docs/reference/feature-toggles/).
 
 :::note
 Run `./docker/gen-secrets.sh` to generate the required secrets — it fills
@@ -57,7 +57,7 @@ The stack **refuses to start** without these (no defaults):
 | Variable                   | Default  | Notes                                                    |
 | -------------------------- | -------- | -------------------------------------------------------- |
 | `MEILISEARCH_KEY`          | —        | Required secret (master key).                            |
-| `MEILISEARCH_VERSION`      | `v1.49`  | Pins the image tag **and** the version-scoped data volume. See [Upgrading](/self-hosting/upgrading/#search-reindexing). |
+| `MEILISEARCH_VERSION`      | `v1.49`  | Pins the image tag **and** the version-scoped data volume. See [Upgrading](/docs/self-hosting/upgrading/#search-reindexing). |
 | `MEILISEARCH_NO_ANALYTICS` | `true`   | Disable Meilisearch usage analytics.                     |
 
 ## Reverb — server-facing (container)
@@ -76,7 +76,7 @@ How the containers reach Reverb. Defaults are correct for the bundled stack.
 ## Reverb — browser-facing (public)
 
 How the **browser** reaches Reverb through your TLS proxy. Set these for
-production — see [Configuration](/self-hosting/configuration/#reverb-websockets--mind-the-browser-vs-server-split).
+production — see [Configuration](/docs/self-hosting/configuration/#reverb-websockets--mind-the-browser-vs-server-split).
 
 | Variable               | Set to        | Notes                                             |
 | ---------------------- | ------------- | ------------------------------------------------- |
@@ -88,7 +88,7 @@ production — see [Configuration](/self-hosting/configuration/#reverb-websocket
 
 | Variable                     | Default | See                                            |
 | ---------------------------- | ------- | ---------------------------------------------- |
-| `REGISTRATION_ENABLED`       | `true`  | [Feature toggles → Open registration](/reference/feature-toggles/#open-registration) |
-| `EMAIL_VERIFICATION_ENABLED` | `false` | [Feature toggles → Email verification](/reference/feature-toggles/#email-verification) |
-| `ACTIVITYLOG_ENABLED`        | `true`  | [Feature toggles → Activity logging](/reference/feature-toggles/#activity-logging) |
-| `REVERB_SCALING_ENABLED`     | `false` | [Feature toggles → Advanced Reverb](/reference/feature-toggles/#advanced-reverb-options) |
+| `REGISTRATION_ENABLED`       | `true`  | [Feature toggles → Open registration](/docs/reference/feature-toggles/#open-registration) |
+| `EMAIL_VERIFICATION_ENABLED` | `false` | [Feature toggles → Email verification](/docs/reference/feature-toggles/#email-verification) |
+| `ACTIVITYLOG_ENABLED`        | `true`  | [Feature toggles → Activity logging](/docs/reference/feature-toggles/#activity-logging) |
+| `REVERB_SCALING_ENABLED`     | `false` | [Feature toggles → Advanced Reverb](/docs/reference/feature-toggles/#advanced-reverb-options) |

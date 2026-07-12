@@ -18,7 +18,7 @@ There are **two supported ways** to get the app image, both driven by the same
   the repo, check out a tag, and `--build`.
 
 :::note
-Make sure you meet the [requirements](/self-hosting/requirements/) first — Docker
+Make sure you meet the [requirements](/docs/self-hosting/requirements/) first — Docker
 24+, a domain, a TLS reverse proxy, and working SMTP.
 :::
 
@@ -47,7 +47,7 @@ docker compose -f docker-compose.prod.yml up -d
 
 `docker compose pull` fetches the prebuilt image; `up -d` runs it without a build
 step. Upgrades are just `APP_IMAGE=…:X.Y.Z`, then `pull` + `up -d` again — see
-[Upgrading](/self-hosting/upgrading/).
+[Upgrading](/docs/self-hosting/upgrading/).
 
 ## Option B — Build from source
 
@@ -92,5 +92,5 @@ docker run --rm dunglas/frankenphp:1-php8.5-alpine \
   php -r "echo 'base64:'.base64_encode(random_bytes(32)).PHP_EOL;"
 ```
 
-Next, tune your instance in [Configuration](/self-hosting/configuration/), then
-[create the first user and workspace](/self-hosting/first-user/).
+Next, tune your instance in [Configuration](/docs/self-hosting/configuration/), then
+[create the first user and workspace](/docs/self-hosting/first-user/).

@@ -54,5 +54,5 @@ cache, so it works under the default Redis session driver with no need to switch
 | `storage-app`                 | Uploaded files                     |
 
 These survive `docker compose down` / `up`. See
-[Upgrading](/self-hosting/upgrading/) for how the version-scoped Meilisearch
+[Upgrading](/docs/self-hosting/upgrading/) for how the version-scoped Meilisearch
 volume behaves across upgrades.

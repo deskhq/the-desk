@@ -23,7 +23,7 @@ links are hidden. Existing users and email invitations still work.
 
 :::tip
 Create your own account **before** turning registration off, then invite everyone
-else. See [First user & workspace](/self-hosting/first-user/#locking-down-registration).
+else. See [First user & workspace](/docs/self-hosting/first-user/#locking-down-registration).
 :::
 
 ## Email verification
@@ -37,7 +37,7 @@ logs the new user straight in, and every account is treated as verified.
 
 Set `EMAIL_VERIFICATION_ENABLED=true` to require confirmation. New accounts must
 click the verification link before they can use the app, so your
-[SMTP settings](/self-hosting/configuration/#mail-smtp) **must work** or new users
+[SMTP settings](/docs/self-hosting/configuration/#mail-smtp) **must work** or new users
 will be stuck.
 
 :::caution

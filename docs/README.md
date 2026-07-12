@@ -6,8 +6,13 @@ main repo under `docs/` but is a **self-contained project** with its own
 `package.json` and `node_modules` — completely isolated from the Laravel/Vite
 application and its quality gates.
 
-Content lives in `src/content/docs/`; site config (title, sidebar, edit links)
-is in `astro.config.mjs`.
+The site has two parts:
+
+- **Marketing landing page** at `/` — a standalone Astro page (not Starlight) in
+  `src/pages/index.astro`, with its own self-contained styles.
+- **Documentation** under `/docs` — Starlight pages. Content lives in
+  `src/content/docs/docs/`; site config (title, sidebar, edit links) is in
+  `astro.config.mjs`.
 
 ## Local development
 

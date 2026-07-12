@@ -15,7 +15,7 @@ The single hard requirement beyond normal HTTPS termination is that your proxy
 real-time updates (new messages, typing indicators, presence) never arrive.
 
 Make sure the browser-facing Reverb settings match your proxy — see
-[Configuration](/self-hosting/configuration/#reverb-websockets--mind-the-browser-vs-server-split).
+[Configuration](/docs/self-hosting/configuration/#reverb-websockets--mind-the-browser-vs-server-split).
 
 ## Caddy
 

@@ -22,25 +22,25 @@ export default defineConfig({
 			sidebar: [
 				{
 					label: 'Start Here',
-					items: [{ label: 'Introduction', slug: 'index' }],
+					items: [{ label: 'Introduction', slug: 'docs' }],
 				},
 				{
 					label: 'Self-Hosting',
 					items: [
-						{ label: 'Requirements', slug: 'self-hosting/requirements' },
-						{ label: 'Installation', slug: 'self-hosting/installation' },
-						{ label: 'Configuration', slug: 'self-hosting/configuration' },
-						{ label: 'Reverse proxy & TLS', slug: 'self-hosting/reverse-proxy' },
-						{ label: 'First user & workspace', slug: 'self-hosting/first-user' },
-						{ label: 'Upgrading', slug: 'self-hosting/upgrading' },
+						{ label: 'Requirements', slug: 'docs/self-hosting/requirements' },
+						{ label: 'Installation', slug: 'docs/self-hosting/installation' },
+						{ label: 'Configuration', slug: 'docs/self-hosting/configuration' },
+						{ label: 'Reverse proxy & TLS', slug: 'docs/self-hosting/reverse-proxy' },
+						{ label: 'First user & workspace', slug: 'docs/self-hosting/first-user' },
+						{ label: 'Upgrading', slug: 'docs/self-hosting/upgrading' },
 					],
 				},
 				{
 					label: 'Reference',
 					items: [
-						{ label: 'Architecture', slug: 'reference/architecture' },
-						{ label: 'Feature toggles', slug: 'reference/feature-toggles' },
-						{ label: 'Environment variables', slug: 'reference/environment-variables' },
+						{ label: 'Architecture', slug: 'docs/reference/architecture' },
+						{ label: 'Feature toggles', slug: 'docs/reference/feature-toggles' },
+						{ label: 'Environment variables', slug: 'docs/reference/environment-variables' },
 					],
 				},
 			],
