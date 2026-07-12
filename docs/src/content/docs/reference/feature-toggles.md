@@ -26,6 +26,26 @@ Create your own account **before** turning registration off, then invite everyon
 else. See [First user & workspace](/self-hosting/first-user/#locking-down-registration).
 :::
 
+## Email verification
+
+| Variable                     | Default | Effect                                                       |
+| ---------------------------- | ------- | ------------------------------------------------------------ |
+| `EMAIL_VERIFICATION_ENABLED` | `false` | Require new accounts to confirm their email before using the app. |
+
+A single deploy-time flag for self-hosters. It defaults to **off**: registration
+logs the new user straight in, and every account is treated as verified.
+
+Set `EMAIL_VERIFICATION_ENABLED=true` to require confirmation. New accounts must
+click the verification link before they can use the app, so your
+[SMTP settings](/self-hosting/configuration/#mail-smtp) **must work** or new users
+will be stuck.
+
+:::caution
+Turning the flag on **re-gates existing accounts** that have no verified email on
+their next request — they'll be prompted to verify. The verify routes are always
+registered, so flipping the flag takes effect immediately with no data migration.
+:::
+
 ## Activity logging
 
 The Desk records an activity log (audit trail) of notable actions.

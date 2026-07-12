@@ -24,9 +24,11 @@ configuration.
 
 ## Mail
 
-The Desk sends transactional email (email verification, workspace invitations),
-so you need **working SMTP credentials**. Without them, new users cannot verify
-their address and sign-in flows that depend on email will not complete.
+The Desk sends transactional email (workspace invitations, and — if you enable
+it — email verification), so you need **working SMTP credentials**. Invitations
+are the main dependency out of the box; email verification is
+[off by default](/reference/feature-toggles/#email-verification) but requires
+working SMTP once you turn it on.
 
 ## Resources
 

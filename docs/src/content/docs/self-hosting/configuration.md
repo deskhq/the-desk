@@ -25,7 +25,8 @@ runtime, which is why one published image works for any host.
 
 ## Mail (SMTP)
 
-The Desk sends email verification and workspace invitations, so SMTP must work.
+The Desk sends workspace invitations (and email verification, if you
+[enable it](/reference/feature-toggles/#email-verification)), so SMTP must work.
 Set the `MAIL_*` variables to your provider's credentials:
 
 ```dotenv

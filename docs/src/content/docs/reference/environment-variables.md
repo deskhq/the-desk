@@ -86,8 +86,9 @@ production — see [Configuration](/self-hosting/configuration/#reverb-websocket
 
 ## Feature toggles
 
-| Variable               | Default | See                                            |
-| ---------------------- | ------- | ---------------------------------------------- |
-| `REGISTRATION_ENABLED` | `true`  | [Feature toggles → Open registration](/reference/feature-toggles/#open-registration) |
-| `ACTIVITYLOG_ENABLED`  | `true`  | [Feature toggles → Activity logging](/reference/feature-toggles/#activity-logging) |
-| `REVERB_SCALING_ENABLED` | `false` | [Feature toggles → Advanced Reverb](/reference/feature-toggles/#advanced-reverb-options) |
+| Variable                     | Default | See                                            |
+| ---------------------------- | ------- | ---------------------------------------------- |
+| `REGISTRATION_ENABLED`       | `true`  | [Feature toggles → Open registration](/reference/feature-toggles/#open-registration) |
+| `EMAIL_VERIFICATION_ENABLED` | `false` | [Feature toggles → Email verification](/reference/feature-toggles/#email-verification) |
+| `ACTIVITYLOG_ENABLED`        | `true`  | [Feature toggles → Activity logging](/reference/feature-toggles/#activity-logging) |
+| `REVERB_SCALING_ENABLED`     | `false` | [Feature toggles → Advanced Reverb](/reference/feature-toggles/#advanced-reverb-options) |
