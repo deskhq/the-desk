@@ -40,6 +40,7 @@ function message(overrides: Partial<Message> = {}): Message {
         isDeleted: false,
         mentions: [],
         linkPreviews: [],
+        attachments: [],
         reactions: [],
         pin: null,
         replyTo: null,

@@ -95,6 +95,9 @@ Route::middleware(['auth', 'verified', EnsureTeamMembership::class])->group(func
     Route::get('t/{team}/c/{channel}/attachments/{attachment}/download', [AttachmentController::class, 'download'])
         ->scopeBindings()
         ->name('channels.attachments.download');
+    Route::get('t/{team}/c/{channel}/attachments/{attachment}/thumbnail', [AttachmentController::class, 'thumbnail'])
+        ->scopeBindings()
+        ->name('channels.attachments.thumbnail');
     Route::post('t/{team}/c/{channel}/scheduled-messages', [ScheduledMessageController::class, 'store'])
         ->scopeBindings()
         ->name('channels.scheduled-messages.store');

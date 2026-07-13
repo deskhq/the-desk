@@ -52,4 +52,20 @@ return [
         'aspx', 'dll', 'so',
     ],
 
+    /*
+    | The Intervention Image driver used to strip EXIF metadata and generate
+    | thumbnails for uploaded raster images. `imagick` (default) handles more
+    | formats and strips metadata more precisely; `gd` is a fallback for hosts
+    | without the Imagick PHP extension (GD drops metadata on re-encode anyway).
+    | The bundled production image ships both extensions.
+    */
+    'image_driver' => env('ATTACHMENT_IMAGE_DRIVER', 'imagick'),
+
+    /*
+    | The longest-edge size (px) a generated thumbnail is scaled down to fit.
+    | Images are only ever scaled down, never up. Sized for a 2x timeline grid
+    | tile; the lightbox always serves the full original.
+    */
+    'thumbnail_max_px' => (int) env('ATTACHMENT_THUMBNAIL_MAX_PX', 720),
+
 ];

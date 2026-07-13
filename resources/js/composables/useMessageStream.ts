@@ -238,6 +238,9 @@ export function optimisticMessage(params: {
         // Previews resolve server-side; the echo replaces this optimistic copy
         // with one carrying any pending skeletons.
         linkPreviews: [],
+        // The server echo carries the claimed attachments; the optimistic copy
+        // starts empty and is replaced when it arrives.
+        attachments: [],
         // A just-sent message has no reactions yet.
         reactions: [],
         // A just-sent message isn't pinned.

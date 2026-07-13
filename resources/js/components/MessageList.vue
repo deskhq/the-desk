@@ -4,6 +4,7 @@ import { Clock, Pin } from '@lucide/vue';
 import { computed, nextTick, onMounted, ref, watch } from 'vue';
 import LinkPreview from '@/components/LinkPreview.vue';
 import MessageActions from '@/components/MessageActions.vue';
+import MessageAttachments from '@/components/MessageAttachments.vue';
 import MessageForward from '@/components/MessageForward.vue';
 import MessageQuote from '@/components/MessageQuote.vue';
 import MessageReactions from '@/components/MessageReactions.vue';
@@ -869,6 +870,17 @@ function confirmDelete(): void {
                                         >{{ $t('(edited)') }}</span
                                     >
                                 </p>
+
+                                <MessageAttachments
+                                    v-if="
+                                        message.attachments.length > 0 &&
+                                        !message.isDeleted &&
+                                        editingId !== message.id
+                                    "
+                                    :attachments="message.attachments"
+                                    :author-name="message.user.name"
+                                    :created-at="message.createdAt"
+                                />
 
                                 <span
                                     v-if="isQueued(message)"

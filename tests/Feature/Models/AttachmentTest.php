@@ -17,6 +17,21 @@ test('the url accessor resolves the authorized download route', function (): voi
     ]));
 });
 
+test('the thumb url accessor resolves the authorized thumbnail route when a thumbnail exists', function (): void {
+    $channel = Channel::factory()->create();
+    $attachment = Attachment::factory()->for($channel)->withThumbnail()->create();
+
+    expect($attachment->thumb_url)->toBe(route('channels.attachments.thumbnail', [
+        'team' => $channel->team->slug,
+        'channel' => $channel->slug,
+        'attachment' => $attachment->id,
+    ]));
+});
+
+test('the thumb url accessor is null when no thumbnail was generated', function (): void {
+    expect(Attachment::factory()->create()->thumbUrl)->toBeNull();
+});
+
 test('an attachment resolves its uploader, channel, and claiming message', function (): void {
     $message = Message::factory()->create();
     $attachment = Attachment::factory()->for($message->user)->attachedTo($message)->create();
@@ -63,6 +78,20 @@ test('force-deleting an attachment removes its blob from disk', function (): voi
     $attachment->forceDelete();
 
     Storage::disk('local')->assertMissing($path);
+});
+
+test('force-deleting an attachment removes its thumbnail blob too', function (): void {
+    Storage::fake('local');
+    $path = UploadedFile::fake()->image('photo.png')->store('attachments/x', 'local');
+    $thumb = UploadedFile::fake()->image('thumb.png')->store('attachments/x/thumbnails', 'local');
+
+    $attachment = Attachment::factory()->create(['disk' => 'local', 'path' => $path, 'thumb_path' => $thumb]);
+    Storage::disk('local')->assertExists($thumb);
+
+    $attachment->forceDelete();
+
+    Storage::disk('local')->assertMissing($path);
+    Storage::disk('local')->assertMissing($thumb);
 });
 
 test('soft-deleting an attachment keeps its blob on disk', function (): void {

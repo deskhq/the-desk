@@ -104,6 +104,16 @@ Files and images members attach to messages.
 | `ATTACHMENT_MAX_PER_MESSAGE`   | `10`    | Most files that can ride a single message.                            |
 | `ATTACHMENT_PENDING_TTL_HOURS` | `24`    | How long an uploaded-but-never-sent file is kept before it is swept.  |
 | `ATTACHMENT_DISK`              | `local` | Private disk files are stored on. Point at a configured S3 disk for bucket storage. |
+| `ATTACHMENT_IMAGE_DRIVER`      | `imagick` | Image library used to strip EXIF metadata and build thumbnails: `imagick` or `gd`. |
+| `ATTACHMENT_THUMBNAIL_MAX_PX`  | `720`   | Longest edge, in pixels, of a generated image thumbnail. Images are only scaled down. |
+
+:::note[Image processing needs a PHP image extension]
+Uploaded images have their EXIF metadata stripped (so photo GPS never leaks) and a thumbnail
+generated for the timeline. This needs one of the **Imagick** or **GD** PHP extensions — the bundled
+production image ships both. `ATTACHMENT_IMAGE_DRIVER` picks which one to use (`imagick` by default,
+`gd` as a fallback for hosts without Imagick). If neither extension is installed, images are still
+served, but un-stripped and without thumbnails.
+:::
 
 :::caution[Raising the size limit needs matching server limits]
 `ATTACHMENT_MAX_SIZE_MB` only controls the app's own validation, which runs **after** the whole

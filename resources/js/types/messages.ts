@@ -1,3 +1,5 @@
+import type { AttachmentData } from '@/types/attachments';
+
 export type MessageAuthor = {
     id: string;
     name: string;
@@ -144,6 +146,14 @@ export type Message = {
      * queued unfurl broadcasts the resolved card in place.
      */
     linkPreviews: MessagePreview[];
+    /**
+     * Files attached to this message (mirrors the `MessageData` DTO's
+     * `attachments`), in `attachment_ids[]` order. Empty for a message with no
+     * attachments and always empty on a tombstone. Images render inline (single,
+     * grid, or with a "+N" overflow tile); everything else, SVG included, renders
+     * as a download card.
+     */
+    attachments: AttachmentData[];
     replyTo: MessageReply | null;
     /**
      * A compact quote of the message this one forwards into the channel, or null

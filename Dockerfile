@@ -75,6 +75,9 @@ FROM dunglas/frankenphp:1-php${PHP_VERSION}-alpine AS runtime
 # pdo_pgsql: Postgres. redis: phpredis client for the cache/session/queue drivers.
 # pcntl/posix: queue worker + Reverb signal handling.
 # intl/zip/opcache: framework recommendations + performance.
+# gd/imagick: image processing for attachments (Intervention Image, installed via
+# Composer) — EXIF-stripping and thumbnail generation. Imagick is the default
+# driver (ATTACHMENT_IMAGE_DRIVER); GD is the fallback.
 RUN install-php-extensions \
         pdo_pgsql \
         redis \
@@ -83,6 +86,8 @@ RUN install-php-extensions \
         intl \
         zip \
         opcache \
+        gd \
+        imagick \
     && apk add --no-cache curl
 
 # Production PHP/OPcache tuning.
