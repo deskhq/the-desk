@@ -1,0 +1,25 @@
+name: Documentation issue
+description: Report something wrong, unclear, or missing in the docs.
+title: "docs: "
+labels: ["documentation", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        The operator/self-hosting docs live at
+        [the-desk.emmanuelpaul.com/docs](https://the-desk.emmanuelpaul.com/docs/).
+  - type: input
+    id: page
+    attributes:
+      label: Which page?
+      description: The URL or file path of the page with the problem.
+      placeholder: "https://the-desk.emmanuelpaul.com/docs/self-hosting/installation/"
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: What's wrong or missing?
+      description: What's incorrect, unclear, or absent — and what would be correct.
+    validations:
+      required: true
