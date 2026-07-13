@@ -55,9 +55,9 @@ return [
     /*
     | The Intervention Image driver used to strip EXIF metadata and generate
     | thumbnails for uploaded raster images. `imagick` (default) handles more
-    | formats and strips metadata more precisely; `gd` is a fallback for hosts
-    | without the Imagick PHP extension (GD drops metadata on re-encode anyway).
-    | The bundled production image ships both extensions.
+    | formats and strips metadata more precisely; `gd` is the alternative (it
+    | drops metadata on re-encode anyway). Both extensions are required (see
+    | composer.json) and shipped in the bundled production image.
     */
     'image_driver' => env('ATTACHMENT_IMAGE_DRIVER', 'imagick'),
 

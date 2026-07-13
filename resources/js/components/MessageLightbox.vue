@@ -21,6 +21,8 @@ const props = defineProps<{
     startIndex: number;
     authorName: string;
     createdAt: string;
+    // The viewer's configured timezone, matching the timeline's formatting.
+    viewerTimeZone?: string;
 }>();
 
 const emit = defineEmits<{
@@ -45,7 +47,10 @@ watch(
 const activeImage = computed<AttachmentData>(() => props.images[current.value]);
 
 const meta = computed(() => {
-    const parts = [props.authorName, formatTimeOfDay(props.createdAt)];
+    const parts = [
+        props.authorName,
+        formatTimeOfDay(props.createdAt, props.viewerTimeZone),
+    ];
 
     if (activeImage.value.width && activeImage.value.height) {
         parts.push(`${activeImage.value.width}×${activeImage.value.height}`);

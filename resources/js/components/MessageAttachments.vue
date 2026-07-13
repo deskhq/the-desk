@@ -17,6 +17,9 @@ const props = defineProps<{
     attachments: AttachmentData[];
     authorName: string;
     createdAt: string;
+    // The viewer's configured timezone, so the lightbox's timestamp matches the
+    // timeline. Undefined falls back to the browser's local zone.
+    viewerTimeZone?: string;
 }>();
 
 const { t } = useTranslations();
@@ -27,7 +30,10 @@ const files = computed(() => partitioned.value.files);
 const tiles = computed(() => imageGridTiles(images.value));
 const gridColumns = computed(() => imageGridColumns(images.value.length));
 const singleBox = computed(() =>
-    singleImageSize(images.value[0].width, images.value[0].height),
+    singleImageSize(
+        images.value[0]?.width ?? null,
+        images.value[0]?.height ?? null,
+    ),
 );
 
 const lightboxOpen = ref(false);
@@ -164,6 +170,7 @@ function isSvg(attachment: AttachmentData): boolean {
             :start-index="lightboxIndex"
             :author-name="authorName"
             :created-at="createdAt"
+            :viewer-time-zone="viewerTimeZone"
         />
     </div>
 </template>

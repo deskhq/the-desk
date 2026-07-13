@@ -109,10 +109,9 @@ Files and images members attach to messages.
 
 :::note[Image processing needs a PHP image extension]
 Uploaded images have their EXIF metadata stripped (so photo GPS never leaks) and a thumbnail
-generated for the timeline. This needs one of the **Imagick** or **GD** PHP extensions — the bundled
-production image ships both. `ATTACHMENT_IMAGE_DRIVER` picks which one to use (`imagick` by default,
-`gd` as a fallback for hosts without Imagick). If neither extension is installed, images are still
-served, but un-stripped and without thumbnails.
+generated for the timeline. This needs the **Imagick** and **GD** PHP extensions — both are declared
+in `composer.json` and shipped in the bundled production image. `ATTACHMENT_IMAGE_DRIVER` selects
+which one processes images: `imagick` by default, `gd` as an alternative.
 :::
 
 :::caution[Raising the size limit needs matching server limits]

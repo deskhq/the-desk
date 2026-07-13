@@ -29,13 +29,18 @@ COPY composer.json composer.lock ./
 
 # --no-scripts: the post-autoload-dump `artisan package:discover` boots the full
 # app, which is deferred to the runtime entrypoint (config:cache) instead.
+# --ignore-platform-req=ext-gd/ext-imagick: this dependency stage only resolves
+# and downloads packages; the image extensions are installed in the runtime stage
+# (which does the actual image processing), so the platform check is skipped here.
 RUN composer install \
         --no-dev \
         --no-scripts \
         --no-autoloader \
         --prefer-dist \
         --no-interaction \
-        --no-progress
+        --no-progress \
+        --ignore-platform-req=ext-gd \
+        --ignore-platform-req=ext-imagick
 
 # Add the source and build an authoritative, optimized autoloader.
 COPY . .

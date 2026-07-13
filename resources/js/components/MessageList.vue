@@ -880,6 +880,7 @@ function confirmDelete(): void {
                                     :attachments="message.attachments"
                                     :author-name="message.user.name"
                                     :created-at="message.createdAt"
+                                    :viewer-time-zone="viewerTimeZone"
                                 />
 
                                 <span

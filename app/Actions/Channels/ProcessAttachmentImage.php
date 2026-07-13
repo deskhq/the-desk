@@ -35,34 +35,37 @@ class ProcessAttachmentImage
 
         $disk = Storage::disk($attachment->disk);
 
+        // The whole pipeline is guarded: a file that cannot be decoded, encoded,
+        // or written (an unsupported/corrupt image, or a disk hiccup) is left as
+        // uploaded with no thumbnail rather than failing the upload.
         try {
             $image = $this->manager()->decodeBinary($disk->get($attachment->path));
+
+            $this->stripMetadata($image);
+
+            // Rewrite the original without its metadata (EXIF/GPS/XMP), keeping
+            // the format and near-original quality; the lightbox serves it inline.
+            $disk->put($attachment->path, (string) $image->encode(new AutoEncoder(quality: 90)));
+
+            $width = $image->width();
+            $height = $image->height();
+
+            // Downscale the same (already stripped) image into the thumbnail.
+            $max = (int) config('attachments.thumbnail_max_px');
+            $image->scaleDown(width: $max, height: $max);
+
+            $thumbPath = $this->thumbnailPath($attachment->path);
+            $disk->put($thumbPath, (string) $image->encode(new AutoEncoder(quality: 80)));
+
+            $attachment->forceFill([
+                'thumb_path' => $thumbPath,
+                'width' => $width,
+                'height' => $height,
+                'size_bytes' => $disk->size($attachment->path),
+            ])->save();
         } catch (Throwable) {
             return;
         }
-
-        $this->stripMetadata($image);
-
-        // Rewrite the original without its metadata (EXIF/GPS/XMP), keeping the
-        // format and near-original quality; the lightbox serves this file inline.
-        $disk->put($attachment->path, (string) $image->encode(new AutoEncoder(quality: 90)));
-
-        $width = $image->width();
-        $height = $image->height();
-
-        // Downscale the same (already stripped) image into the timeline thumbnail.
-        $max = (int) config('attachments.thumbnail_max_px');
-        $image->scaleDown(width: $max, height: $max);
-
-        $thumbPath = $this->thumbnailPath($attachment->path);
-        $disk->put($thumbPath, (string) $image->encode(new AutoEncoder(quality: 80)));
-
-        $attachment->forceFill([
-            'thumb_path' => $thumbPath,
-            'width' => $width,
-            'height' => $height,
-            'size_bytes' => $disk->size($attachment->path),
-        ])->save();
     }
 
     /**

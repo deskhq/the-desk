@@ -10,6 +10,8 @@
     "license": "MIT",
     "require": {
         "php": "^8.3",
+        "ext-gd": "*",
+        "ext-imagick": "*",
         "inertiajs/inertia-laravel": "^3.0",
         "intervention/image": "^4.2",
         "laravel/chisel": "^0.1.0",
