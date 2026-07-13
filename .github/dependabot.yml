@@ -4,6 +4,12 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
+    # `deps` is our changelog type for dependency bumps: release-please folds it
+    # into the release's Dependencies section, and it satisfies commitlint's
+    # type-enum. Without a prefix, dependabot's default subjects aren't
+    # Conventional Commits and would fail the commitlint check.
+    commit-message:
+      prefix: "deps"
     cooldown:
       default-days: 5
     groups:
