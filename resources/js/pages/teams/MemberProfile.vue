@@ -2,7 +2,7 @@
 import { Head } from '@inertiajs/vue3';
 import { computed, onMounted, onUnmounted, ref } from 'vue';
 import Heading from '@/components/Heading.vue';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { useInitials } from '@/composables/useInitials';
 import { formatLocalTime } from '@/lib/datetime';
@@ -87,6 +87,11 @@ const localTime = computed(() =>
             class="flex items-start gap-4 rounded-lg border bg-card p-6 shadow-[0_2px_8px_rgba(29,26,21,0.05)]"
         >
             <Avatar class="h-16 w-16 text-lg">
+                <AvatarImage
+                    v-if="profile.avatar"
+                    :src="profile.avatar"
+                    :alt="profile.name"
+                />
                 <AvatarFallback>{{ getInitials(profile.name) }}</AvatarFallback>
             </Avatar>
 

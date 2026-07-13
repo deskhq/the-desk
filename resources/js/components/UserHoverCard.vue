@@ -2,7 +2,7 @@
 import { Link } from '@inertiajs/vue3';
 import { AtSign, MessageSquare, UserRound } from '@lucide/vue';
 import { ref } from 'vue';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -84,6 +84,11 @@ function onMessage(): void {
                 <div class="flex items-start gap-3">
                     <div class="relative size-12 shrink-0">
                         <Avatar class="size-12 text-base">
+                            <AvatarImage
+                                v-if="profile?.avatar"
+                                :src="profile.avatar"
+                                :alt="profile?.name ?? name"
+                            />
                             <AvatarFallback>{{
                                 getInitials(profile?.name ?? name)
                             }}</AvatarFallback>

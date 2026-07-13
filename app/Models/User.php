@@ -6,11 +6,14 @@ use App\Concerns\HasTeams;
 use App\Enums\AppLocale;
 use App\Enums\ChimeSound;
 use App\Enums\TeamRole;
+use App\Support\Gravatar;
 use Database\Factories\UserFactory;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Contracts\Translation\HasLocalePreference;
+use Illuminate\Database\Eloquent\Attributes\Appends;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -27,6 +30,7 @@ use Illuminate\Support\Str;
  * @property string $id
  * @property string $name
  * @property string $email
+ * @property string|null $avatar_url
  * @property string|null $pronouns
  * @property string|null $title
  * @property string|null $phone
@@ -46,6 +50,7 @@ use Illuminate\Support\Str;
  * @property array<int, string>|null $collapsed_channel_sections
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
+ * @property-read string|null $avatar
  * @property-read Team|null $currentTeam
  * @property-read Collection<int, Team> $ownedTeams
  * @property-read Collection<int, Membership> $teamMemberships
@@ -54,8 +59,9 @@ use Illuminate\Support\Str;
  * @property-read Collection<int, ChannelSection> $channelSections
  * @property-read Collection<int, DataExport> $dataExports
  */
-#[Fillable(['name', 'email', 'pronouns', 'title', 'phone', 'timezone', 'locale', 'password', 'current_team_id', 'chime_sound', 'share_read_receipts', 'onboarding_completed_at', 'collapsed_channel_sections', 'is_tombstone'])]
-#[Hidden(['password', 'two_factor_secret', 'two_factor_recovery_codes', 'remember_token'])]
+#[Appends(['avatar'])]
+#[Fillable(['name', 'email', 'avatar_url', 'pronouns', 'title', 'phone', 'timezone', 'locale', 'password', 'current_team_id', 'chime_sound', 'share_read_receipts', 'onboarding_completed_at', 'collapsed_channel_sections', 'is_tombstone'])]
+#[Hidden(['password', 'two_factor_secret', 'two_factor_recovery_codes', 'remember_token', 'avatar_url'])]
 class User extends Authenticatable implements HasLocalePreference, MustVerifyEmail
 {
     /** @use HasFactory<UserFactory> */
@@ -78,6 +84,24 @@ class User extends Authenticatable implements HasLocalePreference, MustVerifyEma
         }
 
         return ! is_null($this->email_verified_at);
+    }
+
+    /**
+     * The user's resolved avatar URL.
+     *
+     * The single source of truth for avatar resolution: every surface that
+     * serialises a user (nav, team members, message authors, hover cards, read
+     * receipts) reads this. An explicit `avatar_url` (an uploaded image, or the
+     * demo seeder's generated identicons) wins; otherwise it derives from the
+     * email's Gravatar. Null when there is no stored URL and Gravatar is
+     * disabled, and — with the `404` default — a user without a Gravatar yields
+     * a URL that 404s so the frontend cleanly falls back to its initials avatar.
+     *
+     * @return Attribute<covariant string|null, never>
+     */
+    protected function avatar(): Attribute
+    {
+        return Attribute::get(fn (): ?string => $this->avatar_url ?? Gravatar::url($this->email));
     }
 
     /**

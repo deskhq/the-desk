@@ -7,6 +7,7 @@ import MessageActions from '@/components/MessageActions.vue';
 import MessageForward from '@/components/MessageForward.vue';
 import MessageQuote from '@/components/MessageQuote.vue';
 import MessageReactions from '@/components/MessageReactions.vue';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import {
     Dialog,
@@ -574,12 +575,21 @@ function confirmDelete(): void {
                             @mention="(member) => emit('mention', member)"
                         >
                             <div class="relative size-8.5 cursor-pointer">
-                                <div
-                                    class="flex size-8.5 items-center justify-center rounded-full bg-primary/10 text-[11px] font-semibold text-primary select-none"
+                                <Avatar
+                                    class="size-8.5 text-[11px]"
                                     aria-hidden="true"
                                 >
-                                    {{ getInitials(item.author.name) }}
-                                </div>
+                                    <AvatarImage
+                                        v-if="item.author.avatar"
+                                        :src="item.author.avatar"
+                                        :alt="item.author.name"
+                                    />
+                                    <AvatarFallback
+                                        class="bg-primary/10 font-semibold text-primary"
+                                    >
+                                        {{ getInitials(item.author.name) }}
+                                    </AvatarFallback>
+                                </Avatar>
                                 <!-- Presence is announced once per author group
                                      via the sr-only text beside the name below,
                                      so this repeated dot is decorative to AT. -->
@@ -929,20 +939,29 @@ function confirmDelete(): void {
                                         @click="emit('openThread', message.id)"
                                     >
                                         <span class="flex -space-x-1">
-                                            <span
+                                            <Avatar
                                                 v-for="participant in threadAvatars(
                                                     message,
                                                 )"
                                                 :key="participant.id"
-                                                class="flex size-4 items-center justify-center rounded-full bg-primary/10 text-[8px] font-semibold text-primary ring-2 ring-card select-none"
+                                                class="size-4 text-[8px] ring-2 ring-card"
                                                 aria-hidden="true"
                                             >
-                                                {{
-                                                    getInitials(
-                                                        participant.name,
-                                                    )
-                                                }}
-                                            </span>
+                                                <AvatarImage
+                                                    v-if="participant.avatar"
+                                                    :src="participant.avatar"
+                                                    :alt="participant.name"
+                                                />
+                                                <AvatarFallback
+                                                    class="bg-primary/10 font-semibold text-primary"
+                                                >
+                                                    {{
+                                                        getInitials(
+                                                            participant.name,
+                                                        )
+                                                    }}
+                                                </AvatarFallback>
+                                            </Avatar>
                                             <span
                                                 v-if="
                                                     extraThreadParticipants(
@@ -1044,14 +1063,23 @@ function confirmDelete(): void {
                 {{ $t('Seen by') }}
             </span>
             <span class="flex -space-x-1">
-                <span
+                <Avatar
                     v-for="reader in seenByAvatars"
                     :key="reader.id"
-                    class="flex size-4 items-center justify-center rounded-full bg-primary/10 text-[8px] font-semibold text-primary ring-2 ring-card select-none"
+                    class="size-4 text-[8px] ring-2 ring-card"
                     aria-hidden="true"
                 >
-                    {{ getInitials(reader.name) }}
-                </span>
+                    <AvatarImage
+                        v-if="reader.avatar"
+                        :src="reader.avatar"
+                        :alt="reader.name"
+                    />
+                    <AvatarFallback
+                        class="bg-primary/10 font-semibold text-primary"
+                    >
+                        {{ getInitials(reader.name) }}
+                    </AvatarFallback>
+                </Avatar>
                 <span
                     v-if="extraSeenBy > 0"
                     class="flex size-4 items-center justify-center rounded-full bg-muted text-[8px] font-semibold text-muted-foreground ring-2 ring-card select-none"

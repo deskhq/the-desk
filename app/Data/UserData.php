@@ -12,6 +12,7 @@ class UserData extends Data
     public function __construct(
         public string $id,
         public string $name,
+        public ?string $avatar = null,
     ) {}
 
     /**
@@ -22,6 +23,7 @@ class UserData extends Data
         return new self(
             id: $user->id,
             name: $user->name,
+            avatar: $user->avatar,
         );
     }
 }

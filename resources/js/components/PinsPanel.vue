@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Pin, X } from '@lucide/vue';
 import { onBeforeUnmount, onMounted } from 'vue';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useInitials } from '@/composables/useInitials';
 import { formatDateTime } from '@/lib/datetime';
 import { messageBodyPreview } from '@/lib/messageBody';
@@ -154,11 +155,22 @@ onBeforeUnmount(() => document.removeEventListener('keydown', onKeydown));
 
                         <!-- Message block: avatar, author, time, clamped body. -->
                         <span class="flex gap-2.5">
-                            <span
-                                class="flex size-7 shrink-0 items-center justify-center rounded-[9px] bg-primary/10 text-[9.5px] font-semibold text-primary select-none"
+                            <Avatar
+                                class="size-7 shrink-0 rounded-[9px] text-[9.5px]"
                                 aria-hidden="true"
-                                >{{ getInitials(message.user.name) }}</span
                             >
+                                <AvatarImage
+                                    v-if="message.user.avatar"
+                                    :src="message.user.avatar"
+                                    :alt="message.user.name"
+                                />
+                                <AvatarFallback
+                                    class="rounded-[9px] bg-primary/10 font-semibold text-primary"
+                                    >{{
+                                        getInitials(message.user.name)
+                                    }}</AvatarFallback
+                                >
+                            </Avatar>
                             <span class="flex min-w-0 flex-col gap-0.5">
                                 <span class="flex items-baseline gap-1.5">
                                     <span
