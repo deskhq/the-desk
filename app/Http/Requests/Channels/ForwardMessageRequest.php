@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Channels;
 
 use App\Models\Channel;
+use App\Models\Message;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Gate;
@@ -15,12 +16,14 @@ class ForwardMessageRequest extends FormRequest
      *
      * Forwarding is gated on being able to see the source message: the route
      * scopes the message to the source channel, so viewing that channel is
-     * enough. Authorization to post into the chosen target channel is enforced
-     * separately by the `target_channel_id` rule.
+     * enough. An inert system notice can't be forwarded. Authorization to post
+     * into the chosen target channel is enforced separately by the
+     * `target_channel_id` rule.
      */
     public function authorize(): bool
     {
-        return Gate::allows('view', $this->sourceChannel());
+        return Gate::allows('view', $this->sourceChannel())
+            && ! $this->message()->isSystem();
     }
 
     /**
@@ -81,6 +84,18 @@ class ForwardMessageRequest extends FormRequest
         abort_if(! $channel instanceof Channel, 404);
 
         return $channel;
+    }
+
+    /**
+     * Get the source message being forwarded.
+     */
+    public function message(): Message
+    {
+        $message = $this->route('message');
+
+        abort_if(! $message instanceof Message, 404);
+
+        return $message;
     }
 
     /**

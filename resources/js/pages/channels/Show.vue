@@ -19,6 +19,7 @@ import ChannelEmptyState from '@/components/ChannelEmptyState.vue';
 import ChannelMasthead from '@/components/ChannelMasthead.vue';
 import ForwardMessageDialog from '@/components/ForwardMessageDialog.vue';
 import JoinChannelBar from '@/components/JoinChannelBar.vue';
+import LeaveChannelModal from '@/components/LeaveChannelModal.vue';
 import MessageComposer from '@/components/MessageComposer.vue';
 import MessageList from '@/components/MessageList.vue';
 import ScheduledMessagesDialog from '@/components/ScheduledMessagesDialog.vue';
@@ -83,6 +84,9 @@ const props = defineProps<{
     members: Mention[];
     canArchive: boolean;
     canManagePreferences: boolean;
+    // Whether the viewer may leave the channel (a member of a standard channel
+    // that isn't #general); drives the "Leave channel" menu item and modal.
+    canLeave: boolean;
     // Whether the viewer may react (member of a non-archived channel); read-only
     // reaction pills still render for a non-member browsing a public channel.
     canReact: boolean;
@@ -737,6 +741,9 @@ function confirmCustomReminder(remindAt: string): void {
 // Drives the archive confirmation dialog opened from the channel header menu.
 const confirmingArchive = ref(false);
 
+// Drives the leave-channel confirmation modal opened from the header menu.
+const confirmingLeave = ref(false);
+
 function archive(): void {
     confirmingArchive.value = false;
 
@@ -790,6 +797,7 @@ function archive(): void {
                 :title="mastheadTitle"
                 :can-manage-preferences="props.canManagePreferences"
                 :can-archive="props.canArchive"
+                :can-leave="props.canLeave"
                 :notification-levels="props.notificationLevels"
                 :starred="starred"
                 :muted="muted"
@@ -800,6 +808,7 @@ function archive(): void {
                 @notification-level-change="onNotificationLevelChange"
                 @mute-change="onMuteChange"
                 @archive="confirmingArchive = true"
+                @leave="confirmingLeave = true"
             />
 
             <div class="relative flex min-h-0 flex-1 flex-col">
@@ -1173,4 +1182,10 @@ function archive(): void {
             </DialogFooter>
         </DialogContent>
     </Dialog>
+
+    <LeaveChannelModal
+        v-model:open="confirmingLeave"
+        :channel="props.channel"
+        :team-slug="props.team.slug"
+    />
 </template>

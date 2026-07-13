@@ -18,7 +18,12 @@ function message(
     name: string,
     createdAt: string,
 ): Message {
-    return { id, user: { id: userId, name }, createdAt } as unknown as Message;
+    return {
+        id,
+        user: { id: userId, name },
+        createdAt,
+        type: 'standard',
+    } as unknown as Message;
 }
 
 const DAY_1_NOON = '2026-07-10T12:00:00.000Z';

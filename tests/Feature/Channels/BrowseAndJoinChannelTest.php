@@ -2,8 +2,11 @@
 
 use App\Actions\Channels\JoinChannel;
 use App\Actions\Teams\CreateTeam;
+use App\Enums\MessageType;
+use App\Events\MessageSent;
 use App\Models\Channel;
 use App\Models\User;
+use Illuminate\Support\Facades\Event;
 use Inertia\Testing\AssertableInertia as Assert;
 
 test('browsing lists joinable public channels only', function (): void {
@@ -61,6 +64,44 @@ test('joining a channel is idempotent', function (): void {
         ->assertRedirect();
 
     expect($channel->channelMembers()->where('user_id', $user->id)->count())->toBe(1);
+});
+
+test('joining a channel posts a member_joined system notice authored by the joiner', function (): void {
+    $user = User::factory()->create();
+    $team = app(CreateTeam::class)->handle($user, 'Acme');
+    $channel = Channel::factory()->for($team)->create(['slug' => 'marketing']);
+
+    app(JoinChannel::class)->handle($channel, $user);
+
+    $notice = $channel->messages()->firstOrFail();
+
+    expect($notice->type)->toBe(MessageType::MemberJoined)
+        ->and($notice->user_id)->toBe($user->id)
+        ->and($notice->body)->toBe('');
+});
+
+test('re-joining a channel posts no second notice', function (): void {
+    $user = User::factory()->create();
+    $team = app(CreateTeam::class)->handle($user, 'Acme');
+    $channel = Channel::factory()->for($team)->create(['slug' => 'marketing']);
+
+    app(JoinChannel::class)->handle($channel, $user);
+    app(JoinChannel::class)->handle($channel, $user);
+
+    expect($channel->messages()->where('type', MessageType::MemberJoined)->count())->toBe(1);
+});
+
+test('the join notice broadcasts MessageSent so it appears live', function (): void {
+    Event::fake([MessageSent::class]);
+
+    $user = User::factory()->create();
+    $team = app(CreateTeam::class)->handle($user, 'Acme');
+    $channel = Channel::factory()->for($team)->create(['slug' => 'marketing']);
+
+    app(JoinChannel::class)->handle($channel, $user);
+
+    Event::assertDispatched(MessageSent::class, fn (MessageSent $event): bool => $event->channel->is($channel)
+        && $event->message->type === MessageType::MemberJoined);
 });
 
 test('a private channel cannot be joined by browsing', function (): void {

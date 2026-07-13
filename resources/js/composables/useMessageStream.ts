@@ -211,6 +211,8 @@ export function optimisticMessage(params: {
         id: params.clientUuid,
         clientUuid: params.clientUuid,
         body: params.body,
+        // An optimistic send is always a normal user message.
+        type: 'standard',
         user: params.author,
         createdAt: new Date().toISOString(),
         editedAt: null,

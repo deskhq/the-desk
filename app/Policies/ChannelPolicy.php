@@ -123,6 +123,23 @@ class ChannelPolicy
     }
 
     /**
+     * Determine whether the user can leave the channel themselves.
+     *
+     * A member may leave any standard channel except the protected #general.
+     * Direct messages are closed (hidden), not left — see {@see hide()} — so a DM
+     * is never leavable. The last member of a private channel may still leave; we
+     * accept orphaning it (only a team Admin+ can then repopulate or archive it).
+     */
+    public function leave(User $user, Channel $channel): bool
+    {
+        if ($channel->isGeneral() || $channel->isDirect()) {
+            return false;
+        }
+
+        return $this->isMember($user, $channel);
+    }
+
+    /**
      * Determine whether the user can add members to the channel.
      *
      * Private channel membership is managed by existing channel members or by

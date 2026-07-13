@@ -22,7 +22,7 @@ class FakeIntersectionObserver {
 
 /** A message with just the fields the divider decision reads. */
 function message(id: string, userId: string): Message {
-    return { id, user: { id: userId } } as unknown as Message;
+    return { id, user: { id: userId }, type: 'standard' } as unknown as Message;
 }
 
 function withScope(options: {

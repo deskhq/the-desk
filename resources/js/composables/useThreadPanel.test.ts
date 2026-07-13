@@ -20,6 +20,7 @@ function message(overrides: Partial<Message> = {}): Message {
         id: 'root-1',
         clientUuid: 'uuid-root',
         body: 'the root',
+        type: 'standard',
         user: { id: 'peer', name: 'Peer' },
         createdAt: '2024-01-01T00:00:00.000Z',
         editedAt: null,

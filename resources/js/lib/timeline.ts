@@ -1,5 +1,6 @@
 import { formatTimeOfDay } from '@/lib/datetime';
 import { translate } from '@/lib/i18n';
+import { isSystemMessage } from '@/lib/messageActions';
 import type { Message, MessageAuthor } from '@/types';
 
 // Consecutive messages from the same author within this window collapse under a
@@ -29,7 +30,19 @@ export type TimelineDivider = {
     iso?: string;
 };
 
-export type TimelineItem = TimelineGroup | TimelineDivider;
+/**
+ * A system notice (a member joined/left line) rendered on its own row as a
+ * centered, inert line rather than an author-grouped chat bubble. It always
+ * breaks the surrounding author run so it can never be folded into a group.
+ */
+export type TimelineSystemNotice = {
+    type: 'system';
+    key: string;
+    message: Message;
+};
+
+export type TimelineItem =
+    TimelineGroup | TimelineDivider | TimelineSystemNotice;
 
 /**
  * The screen-reader accessible name for a single message row: the author's name
@@ -86,6 +99,19 @@ export function buildTimelineItems(
                 iso: message.createdAt,
             });
             currentDay = messageDay;
+        }
+
+        // A system notice renders as its own centered, inert row: it breaks the
+        // author run on both sides so it is never folded into a bubble group.
+        if (isSystemMessage(message)) {
+            items.push({
+                type: 'system',
+                key: `system-${message.id}`,
+                message,
+            });
+            currentGroup = null;
+            lastCreatedAt = message.createdAt;
+            continue;
         }
 
         const isUnreadBoundary =

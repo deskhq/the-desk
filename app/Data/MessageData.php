@@ -3,6 +3,7 @@
 namespace App\Data;
 
 use App\Enums\LinkPreviewStatus;
+use App\Enums\MessageType;
 use App\Models\Message;
 use App\Models\MessageLinkPreview;
 use App\Models\User;
@@ -22,6 +23,7 @@ class MessageData extends Data
         public string $id,
         public string $clientUuid,
         public string $body,
+        public MessageType $type,
         public UserData $user,
         public string $createdAt,
         public ?string $editedAt,
@@ -77,6 +79,7 @@ class MessageData extends Data
             id: $message->id,
             clientUuid: $message->client_uuid,
             body: $isDeleted ? '' : $message->body,
+            type: $message->type,
             user: UserData::fromUser($message->user),
             createdAt: $message->created_at->toIso8601String(),
             editedAt: $message->edited_at?->toIso8601String(),

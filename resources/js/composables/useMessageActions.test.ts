@@ -33,6 +33,7 @@ function message(overrides: Partial<Message> = {}): Message {
         id: 'm1',
         clientUuid: 'uuid-1',
         body: 'hello',
+        type: 'standard',
         user: { id: 'peer', name: 'Peer' },
         createdAt: '2024-01-01T00:00:00.000Z',
         editedAt: null,

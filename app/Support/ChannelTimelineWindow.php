@@ -3,6 +3,7 @@
 namespace App\Support;
 
 use App\Data\MessageData;
+use App\Enums\MessageType;
 use App\Http\Controllers\Channels\ChannelController;
 use App\Models\Channel;
 use App\Models\Message;
@@ -222,6 +223,9 @@ class ChannelTimelineWindow
 
         $firstUnreadId = $this->mainTimeline()
             ->where('id', '>', $this->lastReadMessageId)
+            // The "New messages" boundary sits at the first unread user message;
+            // ambient system notices never open the boundary.
+            ->where('type', MessageType::Standard->value)
             ->orderBy('id')
             ->value('id');
 

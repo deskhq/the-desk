@@ -1,6 +1,13 @@
 <script setup lang="ts">
 import { Link } from '@inertiajs/vue3';
-import { Archive, Check, EllipsisVertical, Search, Star } from '@lucide/vue';
+import {
+    Archive,
+    Check,
+    EllipsisVertical,
+    LogOut,
+    Search,
+    Star,
+} from '@lucide/vue';
 import type { AcceptableValue } from 'reka-ui';
 import { computed } from 'vue';
 import { index as searchMessages } from '@/actions/App/Http/Controllers/Channels/SearchController';
@@ -46,6 +53,9 @@ const props = defineProps<{
     title: string;
     canManagePreferences: boolean;
     canArchive: boolean;
+    // Whether the viewer may leave the channel — a member of a standard channel
+    // that isn't #general. Drives the "Leave channel" menu item.
+    canLeave: boolean;
     notificationLevels: NotificationLevelOption[];
     starred: boolean;
     muted: boolean;
@@ -62,6 +72,7 @@ const emit = defineEmits<{
     notificationLevelChange: [value: AcceptableValue];
     muteChange: [value: boolean];
     archive: [];
+    leave: [];
 }>();
 
 // How many member avatars the masthead shows before collapsing the rest into a
@@ -245,7 +256,13 @@ const dmParticipantOnline = computed(
                 <Search class="size-4" />
             </Link>
 
-            <DropdownMenu v-if="props.canManagePreferences || props.canArchive">
+            <DropdownMenu
+                v-if="
+                    props.canManagePreferences ||
+                    props.canArchive ||
+                    props.canLeave
+                "
+            >
                 <DropdownMenuTrigger as-child>
                     <Button
                         variant="ghost"
@@ -331,6 +348,21 @@ const dmParticipantOnline = computed(
                         >
                             <Archive class="size-4" />
                             {{ $t('Archive channel') }}
+                        </DropdownMenuItem>
+                    </template>
+                    <template v-if="props.canLeave">
+                        <DropdownMenuSeparator
+                            v-if="
+                                props.canManagePreferences || props.canArchive
+                            "
+                        />
+                        <DropdownMenuItem
+                            data-test="leave-channel"
+                            class="text-destructive focus:text-destructive"
+                            @select="emit('leave')"
+                        >
+                            <LogOut class="size-4" />
+                            {{ $t('Leave channel') }}
                         </DropdownMenuItem>
                     </template>
                 </DropdownMenuContent>

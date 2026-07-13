@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { unreadDividerMessageId } from '@/lib/unreadDivider';
+import type { MessageType } from '@/types';
 
 /**
  * A time-ordered, uuid-shaped id for a given sequence number. Zero-padded to a
@@ -11,10 +12,18 @@ function id(seq: number): string {
 }
 
 /**
- * A minimal message row for boundary computation: only the id and author matter.
+ * A minimal message row for boundary computation: the id, author, and kind.
  */
-function message(messageId: string, userId: string) {
-    return { id: messageId, user: { id: userId, name: `User ${userId}` } };
+function message(
+    messageId: string,
+    userId: string,
+    type: MessageType = 'standard',
+) {
+    return {
+        id: messageId,
+        user: { id: userId, name: `User ${userId}` },
+        type,
+    };
 }
 
 const ME = 'me';
@@ -76,6 +85,27 @@ describe('unreadDividerMessageId', () => {
         ];
 
         expect(unreadDividerMessageId(messages, id(1), ME)).toBe(id(2));
+    });
+
+    it('skips ambient system notices when placing the boundary', () => {
+        const messages = [
+            message(id(1), PEER),
+            // A peer's "member joined" notice sitting first after the pointer must
+            // not open the boundary — it's ambient, so the line lands on 3.
+            message(id(2), PEER, 'member_joined'),
+            message(id(3), PEER),
+        ];
+
+        expect(unreadDividerMessageId(messages, id(1), ME)).toBe(id(3));
+    });
+
+    it('returns null when the only unread rows are system notices', () => {
+        const messages = [
+            message(id(1), PEER),
+            message(id(2), PEER, 'member_left'),
+        ];
+
+        expect(unreadDividerMessageId(messages, id(1), ME)).toBeNull();
     });
 
     it('returns null for an empty channel', () => {

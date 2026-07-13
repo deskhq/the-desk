@@ -1,3 +1,4 @@
+import { isSystemMessage } from '@/lib/messageActions';
 import type { Message } from '@/types';
 
 /**
@@ -19,7 +20,7 @@ import type { Message } from '@/types';
  * rather than moved by later traffic.
  */
 export function unreadDividerMessageId(
-    messages: Pick<Message, 'id' | 'user'>[],
+    messages: Pick<Message, 'id' | 'user' | 'type'>[],
     lastReadMessageId: string | null,
     currentUserId: string,
 ): string | null {
@@ -31,6 +32,11 @@ export function unreadDividerMessageId(
         }
 
         if (message.user.id === currentUserId) {
+            continue;
+        }
+
+        // Ambient system notices never open the "New messages" boundary.
+        if (isSystemMessage(message)) {
             continue;
         }
 

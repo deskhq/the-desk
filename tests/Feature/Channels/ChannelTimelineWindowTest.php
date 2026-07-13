@@ -2,6 +2,7 @@
 
 use App\Actions\Teams\CreateTeam;
 use App\Data\MessageData;
+use App\Enums\MessageType;
 use App\Models\Channel;
 use App\Models\Message;
 use App\Models\Team;
@@ -48,6 +49,29 @@ function bodiesOf(ChannelTimelineWindow $window): array
         ->map(fn (MessageData $message): string => $message->body)
         ->all();
 }
+
+it('renders system notices in the timeline but never as the unread boundary', function (): void {
+    ['user' => $user, 'general' => $general] = windowFixture();
+    $messages = windowMessages($general, $user, 3);
+    $notice = Message::factory()->for($general)->for($user)->memberLeft()->create();
+
+    // Read through message 3; the only thing after it is the ambient notice, so
+    // the boundary never opens and the window stays at newest — yet the notice
+    // still loads into the page so the timeline can render it.
+    $window = new ChannelTimelineWindow(
+        channel: $general,
+        viewer: $user,
+        lastReadMessageId: $messages[2]->id,
+    );
+
+    expect($window->ceilingId())->toBeNull();
+
+    $types = collect($window->messages()->items())
+        ->map(fn (MessageData $message): MessageType => $message->type);
+
+    expect($types)->toContain(MessageType::MemberLeft)
+        ->and($window->messages()->items()[0]->id)->toBe($notice->id);
+});
 
 it('opens at newest with no ceiling on a never-read channel', function (): void {
     ['user' => $user, 'general' => $general] = windowFixture();

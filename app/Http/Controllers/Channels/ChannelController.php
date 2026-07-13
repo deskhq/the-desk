@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Channels;
 use App\Actions\Channels\ArchiveChannel;
 use App\Actions\Channels\CreateChannel;
 use App\Actions\Channels\JoinChannel;
+use App\Actions\Channels\LeaveChannel;
 use App\Actions\Channels\MarkChannelRead;
 use App\Actions\Channels\MarkThreadRead;
 use App\Data\ChannelData;
@@ -106,6 +107,9 @@ class ChannelController extends Controller
             // Gates the notification settings menu; only a member of the channel
             // has preferences to manage.
             'canManagePreferences' => Gate::allows('updatePreference', $channel),
+            // Gates the "Leave channel" menu item + modal; a member of a standard
+            // channel that isn't #general may leave.
+            'canLeave' => Gate::allows('leave', $channel),
             // Gates the reaction affordances; only a member of a non-archived
             // channel may react, matching the server-side `postMessage` rule.
             'canReact' => Gate::allows('postMessage', $channel),
@@ -210,6 +214,25 @@ class ChannelController extends Controller
         Inertia::flash('toast', ['type' => 'success', 'message' => __('Joined #:channel.', ['channel' => $channel->name])]);
 
         return to_route('channels.show', ['team' => $team->slug, 'channel' => $channel->slug]);
+    }
+
+    /**
+     * Leave a channel and redirect to the team's #general channel.
+     *
+     * The policy rejects leaving #general and direct messages, so reaching here
+     * always represents a member leaving a standard channel. #general always
+     * exists and the leaver is always a member of it, so it is a uniform,
+     * predictable place to land after leaving any channel.
+     */
+    public function leave(Request $request, Team $team, Channel $channel, LeaveChannel $leaveChannel): RedirectResponse
+    {
+        Gate::authorize('leave', $channel);
+
+        $leaveChannel->handle($channel, $request->user());
+
+        Inertia::flash('toast', ['type' => 'success', 'message' => __('Left #:channel.', ['channel' => $channel->name])]);
+
+        return to_route('channels.show', ['team' => $team->slug, 'channel' => Channel::GENERAL_SLUG]);
     }
 
     /**

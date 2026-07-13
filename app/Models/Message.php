@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Data\MessageData;
+use App\Enums\MessageType;
 use App\Enums\NotificationLevel;
 use Database\Factories\MessageFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
@@ -30,6 +31,7 @@ use Laravel\Scout\Searchable;
  * @property int $reply_count
  * @property Carbon|null $last_reply_at
  * @property string $body
+ * @property MessageType $type
  * @property Carbon|null $edited_at
  * @property Carbon|null $deleted_at
  * @property Carbon|null $created_at
@@ -43,7 +45,7 @@ use Laravel\Scout\Searchable;
  * @property-read Collection<int, User> $mentionedUsers
  * @property-read Collection<int, MessageReaction> $reactions
  */
-#[Fillable(['channel_id', 'user_id', 'client_uuid', 'reply_to_id', 'forwarded_from_id', 'thread_root_id', 'sent_to_channel', 'body', 'edited_at'])]
+#[Fillable(['channel_id', 'user_id', 'client_uuid', 'reply_to_id', 'forwarded_from_id', 'thread_root_id', 'sent_to_channel', 'body', 'type', 'edited_at'])]
 class Message extends Model
 {
     /** @use HasFactory<MessageFactory> */
@@ -60,6 +62,7 @@ class Message extends Model
     protected $attributes = [
         'sent_to_channel' => false,
         'reply_count' => 0,
+        'type' => MessageType::Standard->value,
     ];
 
     /**
@@ -335,6 +338,7 @@ class Message extends Model
             'last_reply_at' => 'datetime',
             'sent_to_channel' => 'bool',
             'reply_count' => 'int',
+            'type' => MessageType::class,
         ];
     }
 
@@ -359,10 +363,20 @@ class Message extends Model
     }
 
     /**
-     * Keep soft-deleted messages out of the search index.
+     * Keep soft-deleted messages and inert system notices out of the search index.
      */
     public function shouldBeSearchable(): bool
     {
-        return ! $this->trashed();
+        return ! $this->trashed() && ! $this->isSystem();
+    }
+
+    /**
+     * Whether this row is an inert system notice (a member joined/left line)
+     * rather than a user-authored message. Every message-interaction path guards
+     * against it, and the unread / mention badges skip it.
+     */
+    public function isSystem(): bool
+    {
+        return $this->type->isSystem();
     }
 }

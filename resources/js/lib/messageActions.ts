@@ -1,6 +1,16 @@
 import type { Message } from '@/types';
 
 /**
+ * Whether the message is an inert system notice (a member joined/left line)
+ * rather than a user-authored message. System notices carry no interactions, so
+ * every action guard below treats them as non-actionable, and the timeline
+ * renders them as a centered line instead of a chat bubble.
+ */
+export function isSystemMessage(message: Pick<Message, 'type'>): boolean {
+    return message.type !== 'standard';
+}
+
+/**
  * The viewer context the per-message action guards resolve against: who the
  * viewer is, what the channel lets them do, whether they're reading inside a
  * thread panel, and whether this specific row is still an in-flight optimistic
@@ -36,7 +46,7 @@ function isActionable(
     message: Message,
     context: MessageActionContext,
 ): boolean {
-    return !message.isDeleted && !context.pending;
+    return !message.isDeleted && !context.pending && !isSystemMessage(message);
 }
 
 /**
@@ -127,7 +137,11 @@ export function showsThreadSummary(
     message: Message,
     context: MessageActionContext,
 ): boolean {
-    return !context.inThread && message.threadReplyCount > 0;
+    return (
+        !context.inThread &&
+        !isSystemMessage(message) &&
+        message.threadReplyCount > 0
+    );
 }
 
 /**

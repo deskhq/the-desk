@@ -8,6 +8,7 @@ use App\Data\CustomEmojiData;
 use App\Data\MessageReminderData;
 use App\Data\UserData;
 use App\Enums\MessageReminderStatus;
+use App\Enums\MessageType;
 use App\Enums\TeamRole;
 use App\Models\Channel;
 use App\Models\Message;
@@ -358,6 +359,10 @@ class HandleInertiaRequests extends Middleware
             ->selectRaw('count(*)')
             ->whereColumn('messages.channel_id', 'channels.id')
             ->where('messages.user_id', '!=', $user->id)
+            // System notices (member joined / left) are ambient: they never
+            // advance the unread badge or raise a mention, so they are excluded
+            // from both the unread and mention counts.
+            ->where('messages.type', MessageType::Standard->value)
             ->where(fn (Builder $query) => $query
                 ->whereNull('channel_members.last_read_message_id')
                 ->orWhereColumn('messages.id', '>', 'channel_members.last_read_message_id'));

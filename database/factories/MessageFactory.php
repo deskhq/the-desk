@@ -2,6 +2,7 @@
 
 namespace Database\Factories;
 
+use App\Enums\MessageType;
 use App\Models\Channel;
 use App\Models\Message;
 use App\Models\User;
@@ -24,8 +25,40 @@ class MessageFactory extends Factory
             'user_id' => User::factory(),
             'client_uuid' => fake()->uuid(),
             'body' => fake()->realText(120),
+            'type' => MessageType::Standard,
             'edited_at' => null,
         ];
+    }
+
+    /**
+     * Indicate that the message is a "member joined" system notice: an inert,
+     * bodyless row whose author is the joiner it records.
+     */
+    public function memberJoined(): static
+    {
+        return $this->system(MessageType::MemberJoined);
+    }
+
+    /**
+     * Indicate that the message is a "member left" system notice: an inert,
+     * bodyless row whose author is the leaver it records.
+     */
+    public function memberLeft(): static
+    {
+        return $this->system(MessageType::MemberLeft);
+    }
+
+    /**
+     * Indicate that the message is a system notice of the given type — a centered,
+     * inert timeline line that carries no body (the client renders it from the
+     * type and actor), mirroring how the real join/leave paths post one.
+     */
+    public function system(MessageType $type): static
+    {
+        return $this->state(fn (array $attributes): array => [
+            'type' => $type,
+            'body' => '',
+        ]);
     }
 
     /**

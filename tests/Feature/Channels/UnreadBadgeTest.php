@@ -122,6 +122,21 @@ test('soft-deleted messages are excluded from the unread count', function (): vo
     expect(sidebarChannel($member, $team, $general)['unreadCount'])->toBe(1);
 });
 
+test('system notices are ambient and never advance the unread or mention badge', function (): void {
+    [$owner, $team, $general] = unreadTeamWithGeneral();
+    $member = unreadChannelMember($team, $general, 'Ada Lovelace');
+
+    $read = unreadPost($general, $owner);
+    markReadUpTo($member, $general, $read);
+
+    // Peers joining and leaving after the read pointer must not badge the channel.
+    Message::factory()->for($general)->for($owner)->memberJoined()->create();
+    Message::factory()->for($general)->for($owner)->memberLeft()->create();
+
+    expect(sidebarChannel($member, $team, $general))
+        ->toMatchArray(['unreadCount' => 0, 'mentionCount' => 0]);
+});
+
 test('the mention count only counts unread messages that mention the user', function (): void {
     [$owner, $team, $general] = unreadTeamWithGeneral();
     $member = unreadChannelMember($team, $general, 'Grace Hopper');

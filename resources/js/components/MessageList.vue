@@ -235,6 +235,18 @@ function formatTime(iso: string): string {
     return formatTimeOfDay(iso, viewerTimeZone.value);
 }
 
+/**
+ * The localized line for a system notice, rendered from its type and author in
+ * the viewer's own locale — the row stores no rendered English.
+ */
+function systemNoticeText(message: Message): string {
+    const name = message.user.name;
+
+    return message.type === 'member_left'
+        ? t(':name left the channel', { name })
+        : t(':name joined the channel', { name });
+}
+
 // The grouped, divider-interleaved render list. The grouping and boundary logic
 // lives in a pure, unit-tested helper; the day label is formatted here so it
 // stays relative to the viewer's "today".
@@ -523,6 +535,22 @@ function confirmDelete(): void {
                         {{ formatDayLabel(item.iso!) }}
                     </span>
                     <span aria-hidden="true" class="h-px flex-1 bg-border" />
+                </div>
+
+                <!-- A system notice (member joined / left): a centered, inert
+                     line with no avatar, author bubble, or hover actions. -->
+                <div
+                    v-else-if="item.type === 'system'"
+                    :id="`message-${item.message.id}`"
+                    data-test="system-notice"
+                    :data-system-type="item.message.type"
+                    class="my-2 flex justify-center"
+                >
+                    <span
+                        class="rounded-full bg-muted/60 px-3 py-1 text-center text-[12px] text-muted-foreground"
+                    >
+                        {{ systemNoticeText(item.message) }}
+                    </span>
                 </div>
 
                 <div v-else class="mt-4.5 flex">

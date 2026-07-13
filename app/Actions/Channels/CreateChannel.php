@@ -34,7 +34,9 @@ class CreateChannel
                 'created_by' => $creator->id,
             ]);
 
-            $this->joinChannel->handle($channel, $creator);
+            // The creator seeds the channel rather than joining it, so no
+            // "member joined" notice is posted for them.
+            $this->joinChannel->handle($channel, $creator, announce: false);
 
             return $channel;
         });

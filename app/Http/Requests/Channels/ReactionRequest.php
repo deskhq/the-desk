@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Channels;
 
 use App\Models\Channel;
+use App\Models\Message;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Gate;
@@ -15,11 +16,12 @@ class ReactionRequest extends FormRequest
      * Reacting reuses the `postMessage` rule: only a member of the (non-archived)
      * channel may react, so an archived channel stays read-only for reactions too.
      * The route scopes `{message}` to the channel and excludes soft-deleted rows,
-     * so a tombstone can't be reacted to.
+     * so a tombstone can't be reacted to; an inert system notice is rejected here.
      */
     public function authorize(): bool
     {
-        return Gate::allows('postMessage', $this->channel());
+        return Gate::allows('postMessage', $this->channel())
+            && ! $this->message()->isSystem();
     }
 
     /**
@@ -71,5 +73,17 @@ class ReactionRequest extends FormRequest
         abort_if(! $channel instanceof Channel, 404);
 
         return $channel;
+    }
+
+    /**
+     * Get the message the reaction is being toggled on.
+     */
+    public function message(): Message
+    {
+        $message = $this->route('message');
+
+        abort_if(! $message instanceof Message, 404);
+
+        return $message;
     }
 }

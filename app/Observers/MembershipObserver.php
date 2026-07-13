@@ -40,6 +40,9 @@ class MembershipObserver
             return;
         }
 
-        $this->joinChannel->handle($general, $membership->user);
+        // Team onboarding, not a channel join: joining #general on team join is
+        // structural, so it posts no "member joined" notice (which would badge
+        // #general for every new workspace member).
+        $this->joinChannel->handle($general, $membership->user, announce: false);
     }
 }

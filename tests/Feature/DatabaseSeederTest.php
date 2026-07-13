@@ -2,6 +2,7 @@
 
 use App\Enums\ChannelType;
 use App\Enums\ChannelVisibility;
+use App\Enums\MessageType;
 use App\Enums\TeamRole;
 use App\Models\Channel;
 use App\Models\Message;
@@ -112,6 +113,31 @@ test('it seeds edited, soft-deleted and mention-bearing messages', function (): 
     expect(Message::whereNotNull('edited_at')->exists())->toBeTrue()
         ->and(Message::onlyTrashed()->exists())->toBeTrue()
         ->and(DB::table('mentions')->count())->toBeGreaterThan(0);
+});
+
+test('it seeds join and leave system notices in the demo landing channel', function (): void {
+    $acme = Team::where('name', 'Acme Corp')->firstOrFail();
+    $general = $acme->channels()->where('slug', Channel::GENERAL_SLUG)->firstOrFail();
+
+    expect($general->messages()->where('type', MessageType::MemberJoined)->exists())->toBeTrue()
+        ->and($general->messages()->where('type', MessageType::MemberLeft)->exists())->toBeTrue();
+});
+
+test('seeded system notices stay ambient — they never badge the demo landing channel', function (): void {
+    $acme = Team::where('name', 'Acme Corp')->firstOrFail();
+    $announcements = $acme->channels()->where('slug', 'announcements')->firstOrFail();
+
+    // Announcements is seeded as fully caught up: the demo read through the join
+    // notice that now lands as its newest row, so no unread badge remains.
+    $response = $this->actingAs($this->demo)->get(route('channels.show', [
+        'team' => $acme->slug,
+        'channel' => $announcements->slug,
+    ]))->assertOk();
+
+    $entry = collect($response->viewData('page')['props']['channels'])
+        ->firstWhere('slug', 'announcements');
+
+    expect($entry['unreadCount'])->toBe(0);
 });
 
 test('it varies the demo user unread state across channels', function (): void {

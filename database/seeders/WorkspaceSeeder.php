@@ -4,6 +4,7 @@ namespace Database\Seeders;
 
 use App\Actions\Channels\CreateChannel;
 use App\Actions\Channels\JoinChannel;
+use App\Actions\Channels\LeaveChannel;
 use App\Actions\Channels\OpenDirectMessage;
 use App\Actions\Channels\SyncMentions;
 use App\Actions\Teams\CreateTeam;
@@ -44,6 +45,7 @@ class WorkspaceSeeder extends Seeder
         private readonly CreateTeam $createTeam,
         private readonly CreateChannel $createChannel,
         private readonly JoinChannel $joinChannel,
+        private readonly LeaveChannel $leaveChannel,
         private readonly OpenDirectMessage $openDirectMessage,
         private readonly SyncMentions $syncMentions,
         private readonly AuditRecorder $auditRecorder,
@@ -132,14 +134,26 @@ class WorkspaceSeeder extends Seeder
         $this->seedMentionMessage($general, $member2, $demo);
         $this->seedReactions($generalMessages, [$demo, $admin, $member1]);
         $this->seedCustomEmoji($acme, [$demo, $admin, $member1], $general);
+        // A join and a leave system notice as the newest #general rows, so the
+        // centered inert notice rendering has data on load. System notices are
+        // ambient, so these do not disturb the unread fixtures set below.
+        $this->seedSystemNotices($general, joiner: $member1, leaver: $member2);
 
-        // Extra public channels — one with a topic, one without.
+        // Extra public channels — one with a topic, one without. The join is
+        // posted after the back-dated conversation so its "member joined" notice
+        // (now emitted by JoinChannel) lands as the newest row rather than ahead
+        // of the history, keeping each channel's read/unread fixtures consistent.
         $announcements = $this->createChannel->handle($acme, 'announcements', ChannelVisibility::Public, $demo, 'Company-wide news');
         $random = $this->createChannel->handle($acme, 'random', ChannelVisibility::Public, $member1);
-        $this->joinChannel->handle($announcements, $admin);
-        $this->joinChannel->handle($random, $demo);
         $this->seedMessages($announcements, [$demo, $admin], 8);
         $this->seedMessages($random, [$member1, $member2], 5);
+        $this->joinChannel->handle($announcements, $admin);
+        $this->joinChannel->handle($random, $demo);
+        // Exercise the leave domain path too: a member joins #random and then
+        // leaves it, so a real "member joined"/"member left" pair is recorded
+        // through the actions the feature uses.
+        $this->joinChannel->handle($random, $member2);
+        $this->leaveChannel->handle($random, $member2);
 
         // Private channel the demo is a member of (with a topic).
         $leadership = Channel::factory()->for($acme)->private()->create([
@@ -358,8 +372,8 @@ class WorkspaceSeeder extends Seeder
         $globex->members()->attach($member, ['role' => TeamRole::Member->value]);
 
         $engineering = $this->createChannel->handle($globex, 'engineering', ChannelVisibility::Public, $owner, 'Ship it');
-        $this->joinChannel->handle($engineering, $demo);
         $this->seedMessages($engineering, [$owner, $demo, $member], 12);
+        $this->joinChannel->handle($engineering, $demo);
 
         // The demo is an Admin here too, so give Globex a real history for its
         // analytics dashboard.
@@ -515,6 +529,19 @@ class WorkspaceSeeder extends Seeder
             'body' => 'That deploy went great.',
         ]);
         MessageReaction::factory()->for($reactionTarget)->for($authors[2])->emoji(':on-fire:')->create();
+    }
+
+    /**
+     * Seed a "member joined" and a "member left" system notice as the channel's
+     * newest rows, so the centered, inert system-notice rendering has data on
+     * load. The `system` factory states mirror the real join/leave paths (an
+     * empty-bodied row whose author is the actor); being ambient, they neither
+     * badge the channel nor shift the surrounding unread fixtures.
+     */
+    private function seedSystemNotices(Channel $channel, User $joiner, User $leaver): void
+    {
+        Message::factory()->for($channel)->for($joiner)->memberJoined()->create();
+        Message::factory()->for($channel)->for($leaver)->memberLeft()->create();
     }
 
     /**

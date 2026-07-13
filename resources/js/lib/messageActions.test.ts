@@ -8,6 +8,7 @@ import {
     canReplyToMessage,
     canStartThreadFromMessage,
     hasAnyMessageAction,
+    isSystemMessage,
     showsThreadSummary,
 } from '@/lib/messageActions';
 import type { MessageActionContext } from '@/lib/messageActions';
@@ -19,6 +20,7 @@ function message(overrides: Partial<Message> = {}): Message {
         id: 'm1',
         clientUuid: 'uuid-1',
         body: 'hello',
+        type: 'standard',
         user: { id: 'peer', name: 'Peer' },
         createdAt: '2024-01-01T00:00:00.000Z',
         editedAt: null,
@@ -207,6 +209,40 @@ describe('messageActions guards', () => {
                     context({ inThread: true }),
                 ),
             ).toBe(false);
+        });
+    });
+
+    describe('isSystemMessage', () => {
+        it('is true for a member joined/left notice and false for a standard message', () => {
+            expect(isSystemMessage(message())).toBe(false);
+            expect(isSystemMessage(message({ type: 'member_joined' }))).toBe(
+                true,
+            );
+            expect(isSystemMessage(message({ type: 'member_left' }))).toBe(
+                true,
+            );
+        });
+    });
+
+    describe('system notices are inert', () => {
+        it('exposes no interaction, even to the author or a moderator', () => {
+            // The recorded actor authors the notice, yet nothing acts on it.
+            const notice = message({
+                type: 'member_left',
+                user: { id: 'me', name: 'Me' },
+                threadReplyCount: 2,
+            });
+            const moderator = context({ canModerate: true });
+
+            expect(canEditMessage(notice, context())).toBe(false);
+            expect(canDeleteMessage(notice, moderator)).toBe(false);
+            expect(canReplyToMessage(notice, context())).toBe(false);
+            expect(canForwardMessage(notice, context())).toBe(false);
+            expect(canReactToMessage(notice, context())).toBe(false);
+            expect(canRemindAboutMessage(notice, context())).toBe(false);
+            expect(canStartThreadFromMessage(notice, context())).toBe(false);
+            expect(showsThreadSummary(notice, context())).toBe(false);
+            expect(hasAnyMessageAction(notice, moderator)).toBe(false);
         });
     });
 

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { buildTimelineItems, messageAccessibleName } from '@/lib/timeline';
-import type { Message } from '@/types';
+import type { Message, MessageType } from '@/types';
 
 /** A message carrying just the fields the timeline grouping reads. */
 function message(
@@ -8,8 +8,14 @@ function message(
     userId: string,
     name: string,
     createdAt: string,
+    type: MessageType = 'standard',
 ): Message {
-    return { id, user: { id: userId, name }, createdAt } as unknown as Message;
+    return {
+        id,
+        user: { id: userId, name },
+        createdAt,
+        type,
+    } as unknown as Message;
 }
 
 // Noon timestamps keep day boundaries unambiguous regardless of the runner's
@@ -105,6 +111,34 @@ describe('buildTimelineItems', () => {
         ]);
         const unread = items[2];
         expect(unread.type === 'divider' && unread.variant).toBe('unread');
+    });
+
+    it('renders a system notice as its own centered row, breaking the surrounding group', () => {
+        const items = buildTimelineItems(
+            [
+                message('m1', 'u1', 'Maya', DAY_1_NOON),
+                message(
+                    'm2',
+                    'u1',
+                    'Maya',
+                    minutesLater(DAY_1_NOON, 1),
+                    'member_left',
+                ),
+                message('m3', 'u1', 'Maya', minutesLater(DAY_1_NOON, 2)),
+            ],
+            null,
+        );
+
+        // day divider, group[m1], system[m2], group[m3] — the notice never folds
+        // into Maya's run even though every row shares her author and window.
+        expect(items.map((item) => item.type)).toEqual([
+            'divider',
+            'group',
+            'system',
+            'group',
+        ]);
+        const notice = items[2];
+        expect(notice.type === 'system' && notice.message.id).toBe('m2');
     });
 });
 

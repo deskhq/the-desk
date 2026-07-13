@@ -4,6 +4,14 @@ export type MessageAuthor = {
 };
 
 /**
+ * A message's kind (mirrors the `MessageType` enum). `standard` is an ordinary
+ * user-authored message; `member_joined` / `member_left` are inert system
+ * notices the timeline renders as centered, localized lines rather than chat
+ * bubbles, and which never carry interactions or advance unread badges.
+ */
+export type MessageType = 'standard' | 'member_joined' | 'member_left';
+
+/**
  * A team member referenced by an `@mention` in a message body. Mirrors the
  * `MentionData` DTO and rides on every MessageData payload.
  */
@@ -88,6 +96,12 @@ export type Message = {
     id: string;
     clientUuid: string;
     body: string;
+    /**
+     * The message kind. `standard` for a normal user message; a `member_joined`
+     * or `member_left` system notice renders as a centered, inert timeline line
+     * (from the `type` and author) and is guarded out of every interaction path.
+     */
+    type: MessageType;
     user: MessageAuthor;
     createdAt: string;
     editedAt: string | null;
