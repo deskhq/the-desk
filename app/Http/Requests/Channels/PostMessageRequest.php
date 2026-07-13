@@ -39,8 +39,17 @@ class PostMessageRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'body' => ['required', 'string', 'max:8000'],
+            // Body and attachments are jointly required: a message must carry at
+            // least one of the two, but neither alone is mandatory (an image-only
+            // message has no body). The body stays capped when present.
+            'body' => ['nullable', 'required_without:attachment_ids', 'string', 'max:8000'],
             'client_uuid' => ['required', 'uuid'],
+            // The pending attachments this send claims. Ownership, channel, and
+            // claimable state are verified transactionally in PostMessage (a
+            // legitimate client_uuid retry re-sends the same ids after they are
+            // already attached, so "must be pending" can't live here).
+            'attachment_ids' => ['nullable', 'array', 'required_without:body', 'max:'.(int) config('attachments.max_per_message')],
+            'attachment_ids.*' => ['uuid', 'exists:attachments,id'],
             // An inline reply must quote a live (non-deleted) user message that
             // belongs to this same channel; a cross-channel, deleted, or inert
             // system-notice target is rejected rather than silently dropped.

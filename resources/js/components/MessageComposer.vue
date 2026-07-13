@@ -1,11 +1,22 @@
 <script setup lang="ts">
-import { ArrowUp, CalendarClock, Pencil, Plus, X } from '@lucide/vue';
+import {
+    ArrowUp,
+    CalendarClock,
+    CircleAlert,
+    FileText,
+    Pencil,
+    Plus,
+    X,
+} from '@lucide/vue';
 import { computed, nextTick, onMounted, ref, watch } from 'vue';
+import { store as storeAttachment } from '@/actions/App/Http/Controllers/Channels/AttachmentController';
 import MessageQuote from '@/components/MessageQuote.vue';
 import ScheduleMessageDialog from '@/components/ScheduleMessageDialog.vue';
 import { Button } from '@/components/ui/button';
+import { useAttachmentUploads } from '@/composables/useAttachmentUploads';
 import { useInitials } from '@/composables/useInitials';
 import { useTranslations } from '@/composables/useTranslations';
+import { formatFileSize } from '@/lib/attachments';
 import {
     isComposerEditTrigger,
     resolveComposerEditTarget,
@@ -36,10 +47,25 @@ const props = defineProps<{
     // Client uuids of the viewer's in-flight optimistic sends; those rows have
     // no stable id yet and are skipped when resolving the edit target.
     pendingUuids?: string[];
+    // The team and channel slugs the composer posts to. Both are required to
+    // enable attachments: files pre-upload to this channel's endpoint, so
+    // without them the "Add attachment" button stays disabled (e.g. the thread
+    // composer, which does not carry a channel slug).
+    teamSlug?: string;
+    channelSlug?: string;
+    // The per-file and per-message attachment caps, pre-checked client-side for
+    // instant feedback (the server re-enforces both).
+    maxAttachmentSizeMb?: number;
+    maxAttachmentsPerMessage?: number;
 }>();
 
 const emit = defineEmits<{
-    send: [body: string, mentions: Mention[], sendToChannel?: boolean];
+    send: [
+        body: string,
+        mentions: Mention[],
+        sendToChannel: boolean,
+        attachmentIds: string[],
+    ];
     typing: [];
     cancelReply: [];
     // The composer body changed (typed, restored-then-edited, or cleared on
@@ -93,6 +119,83 @@ watch(body, (value) => {
 
 // In a thread composer, whether the reply is also surfaced in the main timeline.
 const sendToChannel = ref(false);
+
+// Attachments are enabled only when the composer knows its channel: files
+// pre-upload to that channel's endpoint. The thread composer omits the slug, so
+// its "Add attachment" button stays disabled (thread attachments are a separate
+// epic child).
+const attachmentsEnabled = computed(
+    () => Boolean(props.teamSlug) && Boolean(props.channelSlug),
+);
+
+// The pre-send attachment tray: files upload immediately on pick/paste/drop,
+// each row tracking its own progress; the send later claims the finished ids.
+const uploads = useAttachmentUploads({
+    endpoint: () =>
+        storeAttachment({
+            team: props.teamSlug ?? '',
+            channel: props.channelSlug ?? '',
+        }).url,
+    maxSizeMb: () => props.maxAttachmentSizeMb ?? 25,
+    maxPerMessage: () => props.maxAttachmentsPerMessage ?? 10,
+});
+
+const trayItems = computed(() => uploads.items.value);
+const showTray = computed(
+    () => attachmentsEnabled.value && trayItems.value.length > 0,
+);
+
+// A send is allowed once nothing is mid-upload or failed and there is something
+// to send (body text or at least one finished attachment). Body is optional
+// when the tray carries a ready attachment.
+const canSubmit = computed(() => {
+    if (uploads.isUploading.value || uploads.hasFailed.value) {
+        return false;
+    }
+
+    return body.value.trim() !== '' || uploads.attachmentIds.value.length > 0;
+});
+
+// The hidden native file input the "Add attachment" button proxies to.
+const fileInput = ref<HTMLInputElement | null>(null);
+
+function openFilePicker(): void {
+    fileInput.value?.click();
+}
+
+function onFilesPicked(event: Event): void {
+    const input = event.target as HTMLInputElement;
+
+    if (input.files) {
+        uploads.addFiles(input.files);
+    }
+
+    // Reset so re-picking the same file fires `change` again.
+    input.value = '';
+}
+
+// Pasting image data (a screenshot) or files into the composer stages them in
+// the tray instead of dropping raw bytes into the text.
+function onPaste(event: ClipboardEvent): void {
+    if (!attachmentsEnabled.value) {
+        return;
+    }
+
+    const files = Array.from(event.clipboardData?.files ?? []);
+
+    if (files.length > 0) {
+        event.preventDefault();
+        uploads.addFiles(files);
+    }
+}
+
+// Stage externally-provided files (the channel pane's drag-and-drop overlay
+// forwards its drop here). Exposed below.
+function addFiles(files: FileList | File[]): void {
+    if (attachmentsEnabled.value) {
+        uploads.addFiles(files);
+    }
+}
 
 const composerPlaceholder = computed(
     () =>
@@ -315,7 +418,7 @@ function focusFromCard(event: MouseEvent): void {
     el.setSelectionRange(end, end);
 }
 
-defineExpose({ insertMention, focus });
+defineExpose({ insertMention, focus, addFiles });
 
 // Clear the composer after the text has been handed off (an immediate send or a
 // scheduled one), flagging the wipe so it doesn't re-persist as a draft.
@@ -328,13 +431,20 @@ function clearAfterHandoff(): void {
 }
 
 function submit(): void {
-    const trimmed = body.value.trim();
-
-    if (trimmed === '') {
+    if (!canSubmit.value) {
         return;
     }
 
-    emit('send', trimmed, collectMentions(trimmed), sendToChannel.value);
+    const trimmed = body.value.trim();
+
+    emit(
+        'send',
+        trimmed,
+        collectMentions(trimmed),
+        sendToChannel.value,
+        uploads.attachmentIds.value,
+    );
+    uploads.clear();
     clearAfterHandoff();
 }
 
@@ -632,9 +742,11 @@ function onKeydown(event: KeyboardEvent): void {
 
             <!-- Floating pill: input on the left, ghost tool icons and the ink
                  send circle tucked to the right. Grows upward as the textarea
-                 wraps, with the tools pinned to the bottom edge. -->
+                 wraps, with the tools pinned to the bottom edge. An attachment
+                 tray, when present, sits inside the pill above the input row so
+                 the pill stretches to fit rather than overlaying the text. -->
             <div
-                class="flex items-end gap-2.5 rounded-[26px] border bg-card py-2 pr-2 pl-4.5 shadow-[0_3px_12px_rgba(29,26,21,0.08)] dark:shadow-[0_3px_12px_rgba(0,0,0,0.3)]"
+                class="flex flex-col overflow-hidden rounded-[26px] border bg-card shadow-[0_3px_12px_rgba(29,26,21,0.08)] dark:shadow-[0_3px_12px_rgba(0,0,0,0.3)]"
                 :class="
                     editingMessage
                         ? 'border-brass ring-[3px] ring-brass/20'
@@ -642,88 +754,252 @@ function onKeydown(event: KeyboardEvent): void {
                 "
                 @mousedown="focusFromCard"
             >
-                <textarea
-                    ref="textarea"
-                    v-model="body"
-                    rows="1"
-                    :placeholder="composerPlaceholder"
-                    :aria-label="composerPlaceholder"
-                    data-test="message-composer-input"
-                    role="combobox"
-                    aria-autocomplete="list"
-                    :aria-expanded="showMenu"
-                    :aria-controls="showMenu ? 'mention-listbox' : undefined"
-                    :aria-activedescendant="
-                        showMenu ? `mention-option-${activeIndex}` : undefined
-                    "
-                    autocomplete="off"
-                    autocorrect="off"
-                    autocapitalize="sentences"
-                    spellcheck="true"
-                    data-1p-ignore
-                    data-lpignore="true"
-                    data-bwignore
-                    data-form-type="other"
-                    class="max-h-[200px] min-w-0 flex-1 resize-none self-center bg-transparent py-1 text-sm text-foreground outline-none placeholder:text-muted-foreground"
-                    @input="(resize(), refreshSuggestions(), emit('typing'))"
-                    @click="refreshSuggestions"
-                    @keydown="onKeydown"
-                ></textarea>
-                <!-- Edit mode swaps the compose tools for explicit save/cancel
-                     actions; Enter/Esc still drive them from the keyboard. -->
-                <template v-if="editingMessage">
-                    <Button
-                        variant="ghost"
-                        size="sm"
-                        data-test="message-composer-edit-cancel"
-                        class="h-8.5 shrink-0 rounded-full px-3.5 text-[12.5px] font-semibold text-muted-foreground"
-                        @click="exitEditMode"
-                    >
-                        {{ $t('Cancel') }}
-                    </Button>
-                    <Button
-                        size="sm"
-                        data-test="message-composer-edit-save"
-                        class="h-8.5 shrink-0 rounded-full px-4 text-[12.5px] font-semibold"
-                        @click="saveEdit"
-                    >
-                        {{ $t('Save edit') }}
-                    </Button>
-                </template>
-                <template v-else>
-                    <Button
-                        variant="ghost"
-                        size="icon"
-                        disabled
-                        class="size-7 shrink-0 rounded-full text-muted-foreground"
-                        :aria-label="$t('Add attachment')"
-                    >
-                        <Plus class="size-3.5" />
-                    </Button>
-                    <Button
-                        v-if="props.allowSchedule"
-                        variant="ghost"
-                        size="icon"
-                        :disabled="body.trim() === ''"
-                        data-test="message-composer-schedule"
-                        class="size-7 shrink-0 rounded-full text-muted-foreground"
-                        :aria-label="$t('Schedule for later')"
-                        :title="$t('Schedule for later')"
-                        @click="openSchedule"
-                    >
-                        <CalendarClock class="size-3.5" />
-                    </Button>
-                    <Button
-                        size="icon"
-                        :disabled="body.trim() === ''"
-                        data-test="message-composer-send"
-                        class="size-8.5 shrink-0 rounded-full bg-primary text-brass hover:bg-primary/90"
-                        :aria-label="$t('Send message')"
-                        @click="submit"
-                    >
-                        <ArrowUp class="size-3.75" :stroke-width="2.2" />
-                    </Button>
-                </template>
+                <!-- Pre-send attachment tray. Row order is the send order
+                     (attachment_ids[]). Removing a row is immediate — the upload
+                     is pre-send, so there is nothing to undo. -->
+                <div
+                    v-if="showTray"
+                    data-test="composer-attachment-tray"
+                    class="flex flex-wrap gap-2.5 px-4 pt-3.5 pb-1"
+                >
+                    <template v-for="item in trayItems" :key="item.localId">
+                        <!-- Failed upload: a retryable chip. Nothing was
+                             persisted; it blocks send until retried or removed. -->
+                        <div
+                            v-if="item.status === 'failed'"
+                            data-test="composer-attachment"
+                            data-status="failed"
+                            class="relative flex h-19 min-w-50 items-center gap-2.5 rounded-xl border border-destructive/40 bg-destructive/10 px-3"
+                        >
+                            <span
+                                class="flex size-9.5 shrink-0 items-center justify-center rounded-[10px] bg-destructive/15 text-destructive"
+                            >
+                                <CircleAlert class="size-4.5" />
+                            </span>
+                            <span class="flex min-w-0 flex-1 flex-col gap-0.5">
+                                <span
+                                    class="truncate text-[12.5px] font-semibold text-foreground"
+                                >
+                                    {{ item.name }}
+                                </span>
+                                <span class="text-[11px] text-destructive">
+                                    {{ $t('Upload failed') }} ·
+                                    <!-- eslint-disable-next-line local/no-raw-button -- inline text retry action -->
+                                    <button
+                                        type="button"
+                                        data-test="composer-attachment-retry"
+                                        class="underline hover:no-underline"
+                                        @click="uploads.retry(item.localId)"
+                                    >
+                                        {{ $t('Retry') }}
+                                    </button>
+                                </span>
+                            </span>
+                            <!-- eslint-disable-next-line local/no-raw-button -- bespoke tray chip dismiss -->
+                            <button
+                                type="button"
+                                data-test="composer-attachment-remove"
+                                :aria-label="$t('Remove attachment')"
+                                class="shrink-0 rounded-full p-1 text-muted-foreground hover:text-foreground"
+                                @click="uploads.remove(item.localId)"
+                            >
+                                <X class="size-3" />
+                            </button>
+                        </div>
+
+                        <!-- Image preview thumbnail (never SVG). -->
+                        <div
+                            v-else-if="item.isImage"
+                            data-test="composer-attachment"
+                            :data-status="item.status"
+                            class="group relative size-19 overflow-hidden rounded-xl border border-input bg-muted"
+                        >
+                            <img
+                                v-if="item.previewUrl"
+                                :src="item.previewUrl"
+                                alt=""
+                                class="size-full object-cover"
+                            />
+                            <div
+                                v-if="item.status === 'uploading'"
+                                class="absolute inset-0 bg-foreground/25"
+                            ></div>
+                            <div
+                                v-if="item.status === 'uploading'"
+                                class="absolute inset-x-1.5 bottom-1.5 h-0.75 overflow-hidden rounded-full bg-background/40"
+                            >
+                                <div
+                                    class="h-full rounded-full bg-brass"
+                                    :style="{ width: `${item.progress}%` }"
+                                ></div>
+                            </div>
+                            <!-- eslint-disable-next-line local/no-raw-button -- bespoke tray chip dismiss -->
+                            <button
+                                type="button"
+                                data-test="composer-attachment-remove"
+                                :aria-label="$t('Remove attachment')"
+                                class="absolute top-1 right-1 flex size-5.5 items-center justify-center rounded-full bg-foreground/80 text-background opacity-0 transition-opacity group-hover:opacity-100 focus:opacity-100"
+                                @click="uploads.remove(item.localId)"
+                            >
+                                <X class="size-2.75" />
+                            </button>
+                        </div>
+
+                        <!-- Non-image file chip (uploading or done). -->
+                        <div
+                            v-else
+                            data-test="composer-attachment"
+                            :data-status="item.status"
+                            class="group relative flex h-19 min-w-52 items-center gap-2.5 rounded-xl border border-input bg-muted px-3"
+                        >
+                            <span
+                                class="flex size-9.5 shrink-0 items-center justify-center rounded-[10px] bg-background text-muted-foreground"
+                            >
+                                <FileText class="size-4.5" />
+                            </span>
+                            <span class="flex min-w-0 flex-1 flex-col gap-1">
+                                <span
+                                    class="truncate text-[12.5px] font-semibold text-foreground"
+                                >
+                                    {{ item.name }}
+                                </span>
+                                <span
+                                    class="text-[11px] text-muted-foreground tabular-nums"
+                                >
+                                    {{ formatFileSize(item.sizeBytes)
+                                    }}<template
+                                        v-if="item.status === 'uploading'"
+                                    >
+                                        · {{ item.progress }}%</template
+                                    >
+                                </span>
+                                <div
+                                    v-if="item.status === 'uploading'"
+                                    class="h-0.75 overflow-hidden rounded-full bg-border"
+                                >
+                                    <div
+                                        class="h-full rounded-full bg-brass"
+                                        :style="{ width: `${item.progress}%` }"
+                                    ></div>
+                                </div>
+                            </span>
+                            <!-- eslint-disable-next-line local/no-raw-button -- bespoke tray chip dismiss -->
+                            <button
+                                type="button"
+                                data-test="composer-attachment-remove"
+                                :aria-label="$t('Remove attachment')"
+                                class="shrink-0 rounded-full p-1 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 hover:text-foreground focus:opacity-100"
+                                @click="uploads.remove(item.localId)"
+                            >
+                                <X class="size-3" />
+                            </button>
+                        </div>
+                    </template>
+                </div>
+
+                <!-- Input row -->
+                <div class="flex items-end gap-2.5 py-2 pr-2 pl-4.5">
+                    <textarea
+                        ref="textarea"
+                        v-model="body"
+                        rows="1"
+                        :placeholder="composerPlaceholder"
+                        :aria-label="composerPlaceholder"
+                        data-test="message-composer-input"
+                        role="combobox"
+                        aria-autocomplete="list"
+                        :aria-expanded="showMenu"
+                        :aria-controls="
+                            showMenu ? 'mention-listbox' : undefined
+                        "
+                        :aria-activedescendant="
+                            showMenu
+                                ? `mention-option-${activeIndex}`
+                                : undefined
+                        "
+                        autocomplete="off"
+                        autocorrect="off"
+                        autocapitalize="sentences"
+                        spellcheck="true"
+                        data-1p-ignore
+                        data-lpignore="true"
+                        data-bwignore
+                        data-form-type="other"
+                        class="max-h-[200px] min-w-0 flex-1 resize-none self-center bg-transparent py-1 text-sm text-foreground outline-none placeholder:text-muted-foreground"
+                        @input="
+                            (resize(), refreshSuggestions(), emit('typing'))
+                        "
+                        @paste="onPaste"
+                        @click="refreshSuggestions"
+                        @keydown="onKeydown"
+                    ></textarea>
+                    <!-- Edit mode swaps the compose tools for explicit
+                         save/cancel actions; Enter/Esc still drive them from the
+                         keyboard. -->
+                    <template v-if="editingMessage">
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            data-test="message-composer-edit-cancel"
+                            class="h-8.5 shrink-0 rounded-full px-3.5 text-[12.5px] font-semibold text-muted-foreground"
+                            @click="exitEditMode"
+                        >
+                            {{ $t('Cancel') }}
+                        </Button>
+                        <Button
+                            size="sm"
+                            data-test="message-composer-edit-save"
+                            class="h-8.5 shrink-0 rounded-full px-4 text-[12.5px] font-semibold"
+                            @click="saveEdit"
+                        >
+                            {{ $t('Save edit') }}
+                        </Button>
+                    </template>
+                    <template v-else>
+                        <input
+                            ref="fileInput"
+                            type="file"
+                            multiple
+                            class="hidden"
+                            data-test="composer-file-input"
+                            @change="onFilesPicked"
+                        />
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            :disabled="!attachmentsEnabled"
+                            data-test="message-composer-attach"
+                            class="size-7 shrink-0 rounded-full text-muted-foreground"
+                            :aria-label="$t('Add attachment')"
+                            @click="openFilePicker"
+                        >
+                            <Plus class="size-3.5" />
+                        </Button>
+                        <Button
+                            v-if="props.allowSchedule"
+                            variant="ghost"
+                            size="icon"
+                            :disabled="body.trim() === ''"
+                            data-test="message-composer-schedule"
+                            class="size-7 shrink-0 rounded-full text-muted-foreground"
+                            :aria-label="$t('Schedule for later')"
+                            :title="$t('Schedule for later')"
+                            @click="openSchedule"
+                        >
+                            <CalendarClock class="size-3.5" />
+                        </Button>
+                        <Button
+                            size="icon"
+                            :disabled="!canSubmit"
+                            data-test="message-composer-send"
+                            class="size-8.5 shrink-0 rounded-full bg-primary text-brass hover:bg-primary/90"
+                            :aria-label="$t('Send message')"
+                            @click="submit"
+                        >
+                            <ArrowUp class="size-3.75" :stroke-width="2.2" />
+                        </Button>
+                    </template>
+                </div>
             </div>
 
             <label

@@ -12,6 +12,12 @@ export interface OutboxItem {
     clientUuid: string;
     body: string;
     replyToId: string | null;
+    /**
+     * The ids of the pre-uploaded attachments this send claims, in tray order.
+     * Absent on rows persisted before attachments existed, so it is normalised
+     * to an empty array on rehydration.
+     */
+    attachmentIds: string[];
 }
 
 /** The slice of the Web Storage API the outbox needs; injectable for tests. */
@@ -71,6 +77,21 @@ function isOutboxItem(value: unknown): value is OutboxItem {
 }
 
 /**
+ * Coerce a rehydrated item to the current shape, defaulting `attachmentIds` for
+ * rows persisted before the field existed and dropping any non-string ids.
+ */
+function normalizeOutboxItem(item: OutboxItem): OutboxItem {
+    const ids = (item as { attachmentIds?: unknown }).attachmentIds;
+
+    return {
+        ...item,
+        attachmentIds: Array.isArray(ids)
+            ? ids.filter((id): id is string => typeof id === 'string')
+            : [],
+    };
+}
+
+/**
  * An in-memory, per-channel queue of outgoing messages that could not be sent
  * because the realtime connection dropped. Deduped by the client-generated uuid
  * so a double-enqueue (e.g. a resend attempt) never queues the same message
@@ -101,7 +122,9 @@ export function createOutbox(options: OutboxOptions = {}): Outbox {
 
             const parsed: unknown = JSON.parse(raw);
 
-            return Array.isArray(parsed) ? parsed.filter(isOutboxItem) : [];
+            return Array.isArray(parsed)
+                ? parsed.filter(isOutboxItem).map(normalizeOutboxItem)
+                : [];
         } catch {
             return [];
         }

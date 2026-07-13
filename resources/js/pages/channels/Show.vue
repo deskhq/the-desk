@@ -1,7 +1,13 @@
 <script setup lang="ts">
 import { Head, InfiniteScroll, router, usePage } from '@inertiajs/vue3';
 import { echo } from '@laravel/echo-vue';
-import { ArrowUp, CalendarClock, ChevronDown, WifiOff } from '@lucide/vue';
+import {
+    ArrowUp,
+    CalendarClock,
+    ChevronDown,
+    Upload,
+    WifiOff,
+} from '@lucide/vue';
 import {
     computed,
     nextTick,
@@ -600,6 +606,86 @@ function mentionInChannel(member: { id: string; name: string }): void {
     channelComposer.value?.insertMention(member);
 }
 
+// Whole-pane drag-and-drop: dropping files anywhere over the channel content
+// stages them in the composer tray. A depth counter tracks nested
+// dragenter/dragleave so the brass overlay doesn't flicker as the pointer
+// crosses child elements. Only meaningful where the composer itself is shown.
+const isDraggingFiles = ref(false);
+let dragDepth = 0;
+
+function canDropAttachments(): boolean {
+    return props.isMember && !props.channel.isArchived;
+}
+
+/** Whether a drag actually carries files (vs. selected text or an element). */
+function dragCarriesFiles(event: DragEvent): boolean {
+    return Array.from(event.dataTransfer?.types ?? []).includes('Files');
+}
+
+function onPaneDragEnter(event: DragEvent): void {
+    if (!canDropAttachments() || !dragCarriesFiles(event)) {
+        return;
+    }
+
+    dragDepth += 1;
+    isDraggingFiles.value = true;
+}
+
+function onPaneDragOver(event: DragEvent): void {
+    if (!dragCarriesFiles(event)) {
+        return;
+    }
+
+    // Claim every file drag so the browser never navigates to the dropped file,
+    // even where we won't accept it (archived channel, non-member).
+    event.preventDefault();
+
+    if (!canDropAttachments()) {
+        return;
+    }
+
+    // Show the copy cursor only where the drop will actually be staged.
+    if (event.dataTransfer) {
+        event.dataTransfer.dropEffect = 'copy';
+    }
+}
+
+function onPaneDragLeave(): void {
+    if (!isDraggingFiles.value) {
+        return;
+    }
+
+    dragDepth -= 1;
+
+    if (dragDepth <= 0) {
+        dragDepth = 0;
+        isDraggingFiles.value = false;
+    }
+}
+
+function onPaneDrop(event: DragEvent): void {
+    dragDepth = 0;
+    isDraggingFiles.value = false;
+
+    if (!dragCarriesFiles(event)) {
+        return;
+    }
+
+    // Prevent the browser navigating to the dropped file for every file drag,
+    // then only stage the files where the channel actually accepts them.
+    event.preventDefault();
+
+    if (!canDropAttachments()) {
+        return;
+    }
+
+    const files = Array.from(event.dataTransfer?.files ?? []);
+
+    if (files.length > 0) {
+        channelComposer.value?.addFiles(files);
+    }
+}
+
 // The message being forwarded and whether the forward dialog is open. The dialog
 // picks a target channel (from the sidebar list — the channels the viewer can
 // post to) and an optional note.
@@ -871,7 +957,45 @@ function archive(): void {
                 @unpin="(message) => unpinMessage(message)"
             />
 
-            <div class="relative flex min-h-0 flex-1 flex-col">
+            <!-- eslint-disable-next-line vuejs-accessibility/no-static-element-interactions -- the pane is a file drop zone; keyboard users attach via the composer's Add-attachment button -->
+            <div
+                class="relative flex min-h-0 flex-1 flex-col"
+                @dragenter="onPaneDragEnter"
+                @dragover="onPaneDragOver"
+                @dragleave="onPaneDragLeave"
+                @drop="onPaneDrop"
+            >
+                <!-- Whole-pane drop target: dropping files anywhere over the
+                     channel stages them in the composer. Pointer-events-none so
+                     the drop lands on the pane's own handler, not the overlay. -->
+                <div
+                    v-if="isDraggingFiles && canDropAttachments()"
+                    data-test="channel-drop-overlay"
+                    class="pointer-events-none absolute inset-2.5 z-20 flex flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed border-brass bg-card/75 backdrop-blur-[2px]"
+                >
+                    <span
+                        class="flex size-14 items-center justify-center rounded-full bg-foreground text-brass"
+                    >
+                        <Upload class="size-6" />
+                    </span>
+                    <span
+                        class="font-serif text-2xl font-semibold text-foreground"
+                    >
+                        {{
+                            $t('Drop to attach to #:channel', {
+                                channel: props.channel.name,
+                            })
+                        }}
+                    </span>
+                    <span class="text-[13px] text-muted-foreground">
+                        {{
+                            $t('Up to :count files · :size MB each', {
+                                count: page.props.attachments.maxPerMessage,
+                                size: page.props.attachments.maxSizeMb,
+                            })
+                        }}
+                    </span>
+                </div>
                 <div class="relative flex min-h-0 flex-1 flex-col">
                     <Transition
                         enter-active-class="transition duration-150 ease-out"
@@ -1150,9 +1274,20 @@ function archive(): void {
                         :messages="displayMessages"
                         :current-user-id="currentUser.id"
                         :pending-uuids="pendingUuids"
+                        :team-slug="props.team.slug"
+                        :channel-slug="props.channel.slug"
+                        :max-attachment-size-mb="
+                            page.props.attachments.maxSizeMb
+                        "
+                        :max-attachments-per-message="
+                            page.props.attachments.maxPerMessage
+                        "
                         allow-schedule
                         :timezone="timezone"
-                        @send="send"
+                        @send="
+                            (body, mentions, _sendToChannel, attachmentIds) =>
+                                send(body, mentions, attachmentIds)
+                        "
                         @schedule="scheduleMessage"
                         @typing="onTyping"
                         @cancel-reply="cancelReply"

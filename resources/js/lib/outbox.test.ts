@@ -21,6 +21,7 @@ function item(overrides: Partial<OutboxItem> = {}): OutboxItem {
         clientUuid: 'uuid-1',
         body: 'hello',
         replyToId: null,
+        attachmentIds: [],
         ...overrides,
     };
 }
@@ -148,6 +149,32 @@ describe('createOutbox', () => {
                 clientUuid: 'a',
                 body: 'saved',
             });
+
+            scope.stop();
+        });
+
+        it('defaults attachmentIds for rows persisted before the field existed', () => {
+            const storage = fakeStorage({
+                // A legacy row (no attachmentIds) and one with a stray non-string id.
+                'outbox:c1': JSON.stringify([
+                    { clientUuid: 'a', body: 'legacy', replyToId: null },
+                    {
+                        clientUuid: 'b',
+                        body: 'mixed',
+                        replyToId: null,
+                        attachmentIds: ['att-1', 7],
+                    },
+                ]),
+            });
+            const scope = effectScope();
+            let outbox!: Outbox;
+
+            scope.run(() => {
+                outbox = createOutbox({ storageKey: 'outbox:c1', storage });
+            });
+
+            expect(outbox.items.value[0].attachmentIds).toEqual([]);
+            expect(outbox.items.value[1].attachmentIds).toEqual(['att-1']);
 
             scope.stop();
         });

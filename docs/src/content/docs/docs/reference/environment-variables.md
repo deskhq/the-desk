@@ -93,3 +93,37 @@ production — see [Configuration](/docs/self-hosting/configuration/#reverb-webs
 | `GRAVATAR_ENABLED`           | `true`  | [Feature toggles → Gravatar avatars](/docs/reference/feature-toggles/#gravatar-avatars) |
 | `ACTIVITYLOG_ENABLED`        | `true`  | [Feature toggles → Activity logging](/docs/reference/feature-toggles/#activity-logging) |
 | `REVERB_SCALING_ENABLED`     | `false` | [Feature toggles → Advanced Reverb](/docs/reference/feature-toggles/#advanced-reverb-options) |
+
+## Attachments
+
+Files and images members attach to messages.
+
+| Variable                       | Default | Notes                                                                 |
+| ------------------------------ | ------- | --------------------------------------------------------------------- |
+| `ATTACHMENT_MAX_SIZE_MB`       | `25`    | Largest single file a member can upload, in megabytes.                |
+| `ATTACHMENT_MAX_PER_MESSAGE`   | `10`    | Most files that can ride a single message.                            |
+| `ATTACHMENT_PENDING_TTL_HOURS` | `24`    | How long an uploaded-but-never-sent file is kept before it is swept.  |
+| `ATTACHMENT_DISK`              | `local` | Private disk files are stored on. Point at a configured S3 disk for bucket storage. |
+| `ATTACHMENT_IMAGE_DRIVER`      | `imagick` | Image library used to strip EXIF metadata and build thumbnails: `imagick` or `gd`. |
+| `ATTACHMENT_THUMBNAIL_MAX_PX`  | `720`   | Longest edge, in pixels, of a generated image thumbnail. Images are only scaled down. |
+
+:::note[Image processing needs a PHP image extension]
+Uploaded images have their EXIF metadata stripped (so photo GPS never leaks) and a thumbnail
+generated for the timeline. This needs the **Imagick** and **GD** PHP extensions — both are declared
+in `composer.json` and shipped in the bundled production image. `ATTACHMENT_IMAGE_DRIVER` selects
+which one processes images: `imagick` by default, `gd` as an alternative.
+:::
+
+:::caution[Raising the size limit needs matching server limits]
+`ATTACHMENT_MAX_SIZE_MB` only controls the app's own validation, which runs **after** the whole
+file has been received. To actually accept larger uploads you must also raise these — and give them a
+little headroom above the cap, since multipart form encoding adds overhead on
+top of the raw file (this matters most for `post_max_size`, which bounds the
+whole request body, not just the file):
+
+- PHP's `upload_max_filesize` **and** `post_max_size`, and
+- any reverse-proxy body-size limit in front of the app (for nginx, `client_max_body_size`).
+
+If these are lower than `ATTACHMENT_MAX_SIZE_MB`, large uploads are rejected by the server or proxy
+before the app ever sees them. See [Reverse proxy](/docs/self-hosting/reverse-proxy/).
+:::

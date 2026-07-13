@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Actions\Channels\DispatchDueMessageReminders;
 use App\Actions\Channels\DispatchDueScheduledMessages;
+use App\Actions\Channels\PurgeExpiredAttachments;
 use App\Models\TeamInvitation;
 use Illuminate\Support\Facades\Schedule;
 
@@ -25,3 +26,9 @@ Schedule::call(fn (DispatchDueMessageReminders $dispatch) => $dispatch->handle()
     ->everyMinute()
     ->withoutOverlapping()
     ->description('Fire due message reminders');
+
+Schedule::call(fn (PurgeExpiredAttachments $purge): int => $purge->handle())
+    ->name('purge-expired-pending-attachments')
+    ->hourly()
+    ->withoutOverlapping()
+    ->description('Purge pending attachments never claimed by a message');

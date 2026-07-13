@@ -81,6 +81,14 @@ class HandleInertiaRequests extends Middleware
             // imply a verification step that can't happen (e.g. the profile
             // "resend verification email" affordance).
             'emailVerificationEnabled' => (bool) config('fortify.email_verification_enabled'),
+            // The per-file and per-message attachment caps, so the composer can
+            // reject an oversized or over-count drop client-side for instant
+            // feedback. The upload and send endpoints re-enforce them as the
+            // source of truth (see config/attachments.php).
+            'attachments' => [
+                'maxSizeMb' => (int) config('attachments.max_size_mb'),
+                'maxPerMessage' => (int) config('attachments.max_per_message'),
+            ],
             'auth' => [
                 'user' => $user,
             ],
