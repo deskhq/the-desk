@@ -5,6 +5,7 @@ import {
     Check,
     EllipsisVertical,
     LogOut,
+    Pin,
     Search,
     Star,
 } from '@lucide/vue';
@@ -59,6 +60,9 @@ const props = defineProps<{
     notificationLevels: NotificationLevelOption[];
     starred: boolean;
     muted: boolean;
+    // The channel's pinned-message count, driving the pins button's badge. Kept
+    // live from the `MessagePinned` broadcast by the page.
+    pinCount: number;
     notificationLevel: NotificationLevel;
     // A compact header cue for a non-default notification state, or null.
     notificationStatus: NotificationIndicator | null;
@@ -73,6 +77,7 @@ const emit = defineEmits<{
     muteChange: [value: boolean];
     archive: [];
     leave: [];
+    openPins: [];
 }>();
 
 // How many member avatars the masthead shows before collapsing the rest into a
@@ -246,6 +251,38 @@ const dmParticipantOnline = computed(
                     +{{ mastheadAvatars.overflow }}
                 </span>
             </span>
+
+            <!-- Pins: opens the pinned-messages popover. The pin glyph fills brass
+                 only when the channel has pins (marking pinned-ness); the inline
+                 count rides beside it. The button itself stays neutral like the
+                 Search and options controls. -->
+            <Tooltip>
+                <TooltipTrigger as-child>
+                    <button
+                        type="button"
+                        data-test="masthead-pins"
+                        :aria-label="$t('Pinned messages')"
+                        class="inline-flex items-center gap-1 rounded px-1 py-1 text-muted-foreground hover:bg-muted hover:text-foreground"
+                        @click="emit('openPins')"
+                    >
+                        <Pin
+                            class="size-4"
+                            :class="
+                                props.pinCount > 0
+                                    ? 'fill-brass text-brass'
+                                    : ''
+                            "
+                        />
+                        <span
+                            v-if="props.pinCount > 0"
+                            data-test="masthead-pins-count"
+                            class="text-[12px] font-semibold tabular-nums"
+                            >{{ props.pinCount }}</span
+                        >
+                    </button>
+                </TooltipTrigger>
+                <TooltipContent>{{ $t('Pinned messages') }}</TooltipContent>
+            </Tooltip>
 
             <Link
                 :href="searchMessages(props.teamSlug).url"

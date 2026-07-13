@@ -92,6 +92,17 @@ export type Reaction = {
     reactors: Mention[];
 };
 
+/**
+ * A message's pin to its channel. Mirrors the `PinData` DTO: who pinned it (id +
+ * name, for the "Pinned by :name" attribution) and when. Null on an unpinned
+ * message and always null on a tombstone. Patched live in place from the
+ * `MessagePinned` broadcast.
+ */
+export type MessagePin = {
+    pinnedBy: Mention;
+    pinnedAt: string;
+};
+
 export type Message = {
     id: string;
     clientUuid: string;
@@ -113,6 +124,13 @@ export type Message = {
      * empty on a tombstone. Patched live in place from `MessageReactionChanged`.
      */
     reactions: Reaction[];
+    /**
+     * This message's pin to its channel (mirrors the `MessageData` DTO's `pin`),
+     * or null when it isn't pinned. Drives the timeline's "Pinned by :name"
+     * indicator and the pin/unpin toolbar state. Patched live from `MessagePinned`
+     * and always null on a tombstone.
+     */
+    pin: MessagePin | null;
     /**
      * Open Graph preview cards for the URLs in the body (mirrors the
      * `MessageData` DTO's `linkPreviews`), in order of appearance. Empty when the

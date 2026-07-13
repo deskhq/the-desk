@@ -31,6 +31,7 @@ class MessageData extends Data
         public array $mentions,
         public array $linkPreviews,
         public array $reactions,
+        public ?PinData $pin,
         public ?MessageReplyData $replyTo,
         public ?MessageForwardData $forwardedFrom,
         public ?string $threadRootId,
@@ -93,6 +94,9 @@ class MessageData extends Data
             // A tombstone carries no reactions; DeleteMessage also hard-deletes
             // the rows, so a deleted message aggregates to an empty set either way.
             reactions: $isDeleted ? [] : ReactionData::forMessage($message),
+            // A tombstone carries no pin; DeleteMessage also removes the pin row,
+            // so a deleted message resolves to null either way.
+            pin: ! $isDeleted && $message->pin !== null ? PinData::fromPin($message->pin) : null,
             replyTo: ! $isDeleted && $message->replyTo !== null
                 ? MessageReplyData::fromMessage($message->replyTo)
                 : null,

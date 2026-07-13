@@ -72,6 +72,7 @@ export function resolveComposerEditTarget(
             // Editability ignores these, but the shared context shape requires
             // them; only `pending` and the ownership/liveness checks matter.
             canReact: false,
+            canPin: false,
             canModerate: false,
             inThread: false,
             pending: pending.has(message.clientUuid),

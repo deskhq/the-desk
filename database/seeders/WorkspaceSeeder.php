@@ -14,6 +14,7 @@ use App\Enums\TeamRole;
 use App\Models\Channel;
 use App\Models\CustomEmoji;
 use App\Models\Message;
+use App\Models\MessagePin;
 use App\Models\MessageReaction;
 use App\Models\Team;
 use App\Models\TeamInvitation;
@@ -133,6 +134,7 @@ class WorkspaceSeeder extends Seeder
         $this->seedDeletedMessage($general, $member1);
         $this->seedMentionMessage($general, $member2, $demo);
         $this->seedReactions($generalMessages, [$demo, $admin, $member1]);
+        $this->seedPins($general, $generalMessages, $admin);
         $this->seedCustomEmoji($acme, [$demo, $admin, $member1], $general);
         // A join and a leave system notice as the newest #general rows, so the
         // centered inert notice rendering has data on load. System notices are
@@ -493,6 +495,25 @@ class WorkspaceSeeder extends Seeder
 
         // A lightly-reacted message: a single emoji from one other member.
         MessageReaction::factory()->for($messages[count($messages) - 5])->for($admin)->emoji('❤️')->create();
+    }
+
+    /**
+     * Pin a couple of #general messages so the masthead pins button, its count
+     * badge, and the pins popover have data on load, and pinned rows show the
+     * "Pinned by" indicator in the timeline. One of them is also the reactions
+     * fixture's popular message, so a pinned row carries pills too.
+     *
+     * @param  list<Message>  $messages
+     */
+    private function seedPins(Channel $channel, array $messages, User $pinner): void
+    {
+        if (count($messages) < 10) {
+            return;
+        }
+
+        foreach ([$messages[count($messages) - 2], $messages[count($messages) - 8]] as $message) {
+            MessagePin::factory()->for($message)->for($channel)->for($pinner, 'pinnedBy')->create();
+        }
     }
 
     /**

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { usePage } from '@inertiajs/vue3';
-import { Clock } from '@lucide/vue';
+import { Clock, Pin } from '@lucide/vue';
 import { computed, nextTick, onMounted, ref, watch } from 'vue';
 import LinkPreview from '@/components/LinkPreview.vue';
 import MessageActions from '@/components/MessageActions.vue';
@@ -58,6 +58,9 @@ const props = defineProps<{
     // Whether the viewer may add/remove reactions (member of a non-archived
     // channel); existing reaction pills still render read-only when false.
     canReact?: boolean;
+    // Whether the viewer may pin/unpin messages (member of a non-archived
+    // channel); the "Pinned by" indicator still renders read-only when false.
+    canPin?: boolean;
     onlineIds?: Set<string>;
     highlightMessageId?: string | null;
     // The message the "New messages" divider sits above — the first unread on
@@ -94,6 +97,8 @@ const emit = defineEmits<{
     reply: [message: Message];
     forward: [message: Message];
     react: [message: Message, emoji: string];
+    pin: [message: Message];
+    unpin: [message: Message];
     remind: [message: Message, remindAt: string];
     remindCustom: [message: Message];
     openThread: [messageId: string];
@@ -390,6 +395,7 @@ function actionContext(message: Message): MessageActionContext {
     return {
         currentUserId: props.currentUserId,
         canReact: Boolean(props.canReact),
+        canPin: Boolean(props.canPin),
         canModerate: Boolean(props.canModerate),
         inThread: Boolean(props.inThread),
         pending: isPending(message),
@@ -658,6 +664,25 @@ function confirmDelete(): void {
                                     class="pointer-events-none absolute top-1.5 -left-13 font-mono text-[9.5px] text-muted-foreground opacity-0 transition-opacity group-hover/message:opacity-100"
                                     >{{ formatTime(message.createdAt) }}</time
                                 >
+
+                                <!-- Pinned indicator: renders whenever the
+                                 message is pinned, in the same slot as the
+                                 "edited" treatment above the body. Brass marks
+                                 pinned-ness; the content column is already
+                                 indented, so it aligns to the text column. -->
+                                <div
+                                    v-if="message.pin"
+                                    data-test="message-pinned-indicator"
+                                    class="flex items-center gap-1.5 pt-0.5 text-[11px] text-muted-foreground"
+                                >
+                                    <Pin class="size-3 fill-brass text-brass" />
+                                    <span>{{
+                                        $t('Pinned by :name', {
+                                            name: message.pin.pinnedBy.name,
+                                        })
+                                    }}</span>
+                                </div>
+
                                 <button
                                     v-if="
                                         message.replyTo &&
@@ -972,6 +997,7 @@ function confirmDelete(): void {
                                     :message="message"
                                     :current-user-id="props.currentUserId"
                                     :can-react="props.canReact"
+                                    :can-pin="props.canPin"
                                     :can-moderate="props.canModerate"
                                     :in-thread="props.inThread"
                                     :pending="isPending(message)"
@@ -981,6 +1007,8 @@ function confirmDelete(): void {
                                     "
                                     @reply="emit('reply', message)"
                                     @forward="emit('forward', message)"
+                                    @pin="emit('pin', message)"
+                                    @unpin="emit('unpin', message)"
                                     @open-thread="
                                         emit('openThread', message.id)
                                     "

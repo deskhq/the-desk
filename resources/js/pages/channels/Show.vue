@@ -22,6 +22,7 @@ import JoinChannelBar from '@/components/JoinChannelBar.vue';
 import LeaveChannelModal from '@/components/LeaveChannelModal.vue';
 import MessageComposer from '@/components/MessageComposer.vue';
 import MessageList from '@/components/MessageList.vue';
+import PinsPanel from '@/components/PinsPanel.vue';
 import ScheduledMessagesDialog from '@/components/ScheduledMessagesDialog.vue';
 import ScheduleMessageDialog from '@/components/ScheduleMessageDialog.vue';
 import ThreadPanel from '@/components/ThreadPanel.vue';
@@ -95,6 +96,13 @@ const props = defineProps<{
     isMember: boolean;
     // The channel's member count, surfaced in the join bar for a non-member.
     memberCount: number;
+    // The channel's pinned-message count, driving the masthead badge on first
+    // load; kept live from the MessagePinned broadcast thereafter.
+    pinCount: number;
+    // The channel's pinned messages, most-recently-pinned first, feeding the pins
+    // popover. Refreshed via a partial reload when the panel opens or a pin
+    // changes; each row is a full Message (its `pin` carries the attribution).
+    pins: Message[];
     notificationLevels: NotificationLevelOption[];
     jumpToMessageId?: string | null;
     // The viewer's read pointer at load time, used to place the "New messages"
@@ -459,6 +467,35 @@ const {
     channelSlug: () => props.channel.slug,
 });
 
+// The channel-level pin count driving the masthead badge, and the pins popover
+// state. The count is seeded from the server, resynced on partial reloads and
+// channel switches (the prop watch below), and patched live by the MessagePinned
+// broadcast; the pins list itself rides the `pins` prop, refreshed whenever the
+// panel opens or a pin changes.
+const pinCount = ref(props.pinCount);
+watch(
+    () => props.pinCount,
+    (count) => {
+        pinCount.value = count;
+    },
+);
+
+const pinsPanelOpen = ref(false);
+
+// Open the pins popover, pulling the freshest pins first — another member may
+// have pinned or unpinned since this page loaded, and the count badge and list
+// should agree with the server on open.
+function openPinsPanel(): void {
+    pinsPanelOpen.value = true;
+    router.reload({ only: ['pins', 'pinCount'] });
+}
+
+// Jump to a pinned message from the panel, closing the popover on the way.
+function jumpToPin(id: string): void {
+    pinsPanelOpen.value = false;
+    jumpToMessage(id);
+}
+
 // The active channel's Echo subscribe/route/teardown lives in this composable: it
 // moves the subscription as the open channel changes and routes each broadcast
 // into the two streams. `Show.vue` only supplies the state it reconciles against.
@@ -476,6 +513,9 @@ useChannelRealtime({
     typing,
     markRead,
     markThreadRead,
+    updatePinCount: (count: number) => {
+        pinCount.value = count;
+    },
 });
 
 onMounted(() => {
@@ -519,6 +559,7 @@ watch(
         resetScrollPin();
         replyTarget.value = null;
         typing.reset();
+        pinsPanelOpen.value = false;
         seedReaders();
         markRead();
     },
@@ -659,6 +700,8 @@ const {
     editMessage,
     deleteMessage,
     reactToMessage,
+    pinMessage,
+    unpinMessage,
     sendThreadReply,
     scheduleMessage,
     updateScheduled,
@@ -792,7 +835,7 @@ function archive(): void {
     </div>
 
     <div class="flex min-h-0 flex-1 overflow-hidden">
-        <div class="flex min-w-0 flex-1 flex-col">
+        <div class="relative flex min-w-0 flex-1 flex-col">
             <ChannelMasthead
                 :channel="props.channel"
                 :team-slug="props.team.slug"
@@ -805,6 +848,7 @@ function archive(): void {
                 :notification-levels="props.notificationLevels"
                 :starred="starred"
                 :muted="muted"
+                :pin-count="pinCount"
                 :notification-level="notificationLevel"
                 :notification-status="notificationStatus"
                 :connection-pill="connection.pill.value"
@@ -813,6 +857,18 @@ function archive(): void {
                 @mute-change="onMuteChange"
                 @archive="confirmingArchive = true"
                 @leave="confirmingLeave = true"
+                @open-pins="openPinsPanel"
+            />
+
+            <PinsPanel
+                v-if="pinsPanelOpen"
+                :pins="props.pins"
+                :pin-count="pinCount"
+                :can-pin="props.canReact"
+                :viewer-timezone="timezone"
+                @close="pinsPanelOpen = false"
+                @jump="jumpToPin"
+                @unpin="(message) => unpinMessage(message)"
             />
 
             <div class="relative flex min-h-0 flex-1 flex-col">
@@ -917,6 +973,7 @@ function archive(): void {
                                 :current-user-id="currentUser.id"
                                 :can-moderate="canModerate"
                                 :can-react="props.canReact"
+                                :can-pin="props.canReact"
                                 :online-ids="onlineIds"
                                 :readers="channelReadersList"
                                 :highlight-message-id="highlightedMessageId"
@@ -928,6 +985,8 @@ function archive(): void {
                                 @reply="startReply"
                                 @forward="openForward"
                                 @react="reactToMessage"
+                                @pin="pinMessage"
+                                @unpin="unpinMessage"
                                 @remind="remindWith"
                                 @remind-custom="openCustomReminder"
                                 @open-thread="openThread"
@@ -1120,6 +1179,7 @@ function archive(): void {
                 :current-user-id="currentUser.id"
                 :can-moderate="canModerate"
                 :can-react="props.canReact"
+                :can-pin="props.canReact"
                 :online-ids="onlineIds"
                 :loading="threadLoading"
                 :read-only="props.channel.isArchived"
@@ -1129,6 +1189,8 @@ function archive(): void {
                 @delete="deleteMessage"
                 @forward="openForward"
                 @react="reactToMessage"
+                @pin="pinMessage"
+                @unpin="unpinMessage"
                 @remind="remindWith"
                 @remind-custom="openCustomReminder"
                 @typing="onTyping"

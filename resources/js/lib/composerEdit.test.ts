@@ -20,6 +20,7 @@ function message(overrides: Partial<Message> = {}): Message {
         mentions: [],
         linkPreviews: [],
         reactions: [],
+        pin: null,
         replyTo: null,
         forwardedFrom: null,
         threadRootId: null,

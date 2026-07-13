@@ -10,6 +10,7 @@ use App\Actions\Channels\MarkChannelRead;
 use App\Actions\Channels\MarkThreadRead;
 use App\Data\ChannelData;
 use App\Data\ChannelReaderData;
+use App\Data\MessageData;
 use App\Data\ScheduledMessageData;
 use App\Data\UserData;
 use App\Enums\AuditAction;
@@ -120,6 +121,23 @@ class ChannelController extends Controller
             // The channel's member count, surfaced in the join call-to-action so a
             // non-member sees how many teammates are already in the channel.
             'memberCount' => $channel->channelMembers()->count(),
+            // The channel's pin count, driving the masthead's pins-button badge on
+            // first load; later pins/unpins patch it live over MessagePinned.
+            'pinCount' => $channel->pins()->count(),
+            // The channel's pinned messages, most-recently-pinned first, feeding
+            // the pins popover. Each row is a full MessageData (its own `pin`
+            // carries the "Pinned by :name" attribution), so the panel reuses the
+            // same rendering as the timeline. Bounded by the 100-pin cap.
+            'pins' => MessageData::collect(
+                Message::query()
+                    ->withMessageDataRelations()
+                    ->join('message_pins', 'message_pins.message_id', '=', 'messages.id')
+                    ->where('message_pins.channel_id', $channel->id)
+                    ->orderByDesc('message_pins.created_at')
+                    ->orderByDesc('message_pins.id')
+                    ->select('messages.*')
+                    ->get()
+            ),
             // Selectable notification levels for the settings menu.
             'notificationLevels' => NotificationLevel::options(),
             // The message the client should scroll to and highlight on load, or

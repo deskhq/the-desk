@@ -22,6 +22,7 @@ const props = defineProps<{
     currentUserId: string;
     canModerate?: boolean;
     canReact?: boolean;
+    canPin?: boolean;
     onlineIds?: Set<string>;
     loading?: boolean;
     readOnly?: boolean;
@@ -34,6 +35,8 @@ const emit = defineEmits<{
     delete: [message: Message];
     forward: [message: Message];
     react: [message: Message, emoji: string];
+    pin: [message: Message];
+    unpin: [message: Message];
     remind: [message: Message, remindAt: string];
     remindCustom: [message: Message];
     typing: [];
@@ -185,6 +188,7 @@ watch(
                         :current-user-id="props.currentUserId"
                         :can-moderate="props.canModerate"
                         :can-react="props.canReact"
+                        :can-pin="props.canPin"
                         :online-ids="props.onlineIds"
                         :editing-message-id="editingMessageId"
                         in-thread
@@ -194,6 +198,8 @@ watch(
                         @react="
                             (message, emoji) => emit('react', message, emoji)
                         "
+                        @pin="(message) => emit('pin', message)"
+                        @unpin="(message) => emit('unpin', message)"
                         @remind="
                             (message, remindAt) =>
                                 emit('remind', message, remindAt)

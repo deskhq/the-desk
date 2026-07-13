@@ -3,6 +3,7 @@ import {
     canDeleteMessage,
     canEditMessage,
     canForwardMessage,
+    canPinMessage,
     canReactToMessage,
     canRemindAboutMessage,
     canReplyToMessage,
@@ -28,6 +29,7 @@ function message(overrides: Partial<Message> = {}): Message {
         mentions: [],
         linkPreviews: [],
         reactions: [],
+        pin: null,
         replyTo: null,
         forwardedFrom: null,
         threadRootId: null,
@@ -48,6 +50,7 @@ function context(
     return {
         currentUserId: 'me',
         canReact: true,
+        canPin: true,
         canModerate: false,
         inThread: false,
         pending: false,
@@ -150,6 +153,33 @@ describe('messageActions guards', () => {
             expect(
                 canReactToMessage(message({ isDeleted: true }), context()),
             ).toBe(false);
+        });
+    });
+
+    describe('canPinMessage', () => {
+        it('requires pin permission on a live message', () => {
+            expect(canPinMessage(message(), context())).toBe(true);
+            expect(canPinMessage(message(), context({ canPin: false }))).toBe(
+                false,
+            );
+            expect(canPinMessage(message({ isDeleted: true }), context())).toBe(
+                false,
+            );
+        });
+
+        it('is allowed both when unpinned and already pinned (shared toggle)', () => {
+            expect(canPinMessage(message({ pin: null }), context())).toBe(true);
+            expect(
+                canPinMessage(
+                    message({
+                        pin: {
+                            pinnedBy: { id: 'u1', name: 'Ada' },
+                            pinnedAt: '2026-01-01T00:00:00Z',
+                        },
+                    }),
+                    context(),
+                ),
+            ).toBe(true);
         });
     });
 

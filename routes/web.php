@@ -12,6 +12,7 @@ use App\Http\Controllers\Channels\ForwardMessageController;
 use App\Http\Controllers\Channels\HideDirectMessageController;
 use App\Http\Controllers\Channels\MessageController;
 use App\Http\Controllers\Channels\MessageReminderController;
+use App\Http\Controllers\Channels\PinController;
 use App\Http\Controllers\Channels\ReactionController;
 use App\Http\Controllers\Channels\ScheduledMessageController;
 use App\Http\Controllers\Channels\SearchController;
@@ -105,6 +106,12 @@ Route::middleware(['auth', 'verified', EnsureTeamMembership::class])->group(func
     Route::post('t/{team}/c/{channel}/messages/{message}/reactions', [ReactionController::class, 'store'])
         ->scopeBindings()
         ->name('channels.messages.reactions.store');
+    Route::post('t/{team}/c/{channel}/messages/{message}/pin', [PinController::class, 'store'])
+        ->scopeBindings()
+        ->name('channels.messages.pin.store');
+    Route::delete('t/{team}/c/{channel}/messages/{message}/pin', [PinController::class, 'destroy'])
+        ->scopeBindings()
+        ->name('channels.messages.pin.destroy');
     Route::post('t/{team}/c/{channel}/members', [ChannelMemberController::class, 'store'])
         ->scopeBindings()
         ->name('channels.members.store');

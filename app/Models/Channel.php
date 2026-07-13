@@ -141,6 +141,20 @@ class Channel extends Model
     }
 
     /**
+     * Get the channel's pinned-message rows, most-recently-pinned first.
+     *
+     * Denormalized onto `channel_id`, so the pin count and the pins panel query
+     * never join through `messages`. Ordered by when each pin was created so the
+     * panel lists the freshest pins on top.
+     *
+     * @return HasMany<MessagePin, $this>
+     */
+    public function pins(): HasMany
+    {
+        return $this->hasMany(MessagePin::class)->latest()->orderBy('id');
+    }
+
+    /**
      * Get the users who are members of the channel.
      *
      * @return BelongsToMany<User, $this>

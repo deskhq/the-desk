@@ -1,6 +1,12 @@
 import { computed, ref, watch } from 'vue';
 import type { ComputedRef, Ref } from 'vue';
-import type { Mention, Message, MessageForward, Reaction } from '@/types';
+import type {
+    Mention,
+    Message,
+    MessageForward,
+    MessagePin,
+    Reaction,
+} from '@/types';
 
 /**
  * The reactive merge engine behind a message list.
@@ -145,6 +151,16 @@ export function useMessageStream(
         patchThreadState(id, { reactions });
     }
 
+    /**
+     * Replace a rendered message's pin in place, found by its message id (the id
+     * the `MessagePinned` broadcast carries). Used to raise or drop the "Pinned
+     * by" indicator live as a message is pinned or unpinned, keeping every other
+     * field of the rendered copy intact.
+     */
+    function patchPin(id: string, pin: MessagePin | null): void {
+        patchThreadState(id, { pin });
+    }
+
     function getPatch(clientUuid: string): Message | undefined {
         return patches.value.get(clientUuid);
     }
@@ -183,6 +199,7 @@ export function useMessageStream(
         applyPatch,
         patchThreadState,
         patchReactions,
+        patchPin,
         getPatch,
         restorePatch,
         addPending,
@@ -223,6 +240,8 @@ export function optimisticMessage(params: {
         linkPreviews: [],
         // A just-sent message has no reactions yet.
         reactions: [],
+        // A just-sent message isn't pinned.
+        pin: null,
         replyTo: target
             ? {
                   id: target.id,

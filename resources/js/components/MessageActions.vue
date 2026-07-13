@@ -5,6 +5,7 @@ import {
     Forward,
     MessageSquareText,
     Pencil,
+    Pin,
     SmilePlus,
     Trash2,
 } from '@lucide/vue';
@@ -21,6 +22,7 @@ import {
     canDeleteMessage,
     canEditMessage,
     canForwardMessage,
+    canPinMessage,
     canReactToMessage,
     canRemindAboutMessage,
     canReplyToMessage,
@@ -35,6 +37,8 @@ const props = defineProps<{
     currentUserId: string;
     // Whether the viewer may add/remove reactions (member of a live channel).
     canReact?: boolean;
+    // Whether the viewer may pin/unpin messages (member of a non-archived channel).
+    canPin?: boolean;
     // Whether the viewer may moderate others' messages (delete them).
     canModerate?: boolean;
     // Rendered inside a thread panel: suppresses the reply/thread affordances.
@@ -49,6 +53,8 @@ const emit = defineEmits<{
     react: [emoji: string];
     reply: [];
     forward: [];
+    pin: [];
+    unpin: [];
     openThread: [];
     remind: [remindAt: string];
     remindCustom: [];
@@ -59,6 +65,7 @@ const emit = defineEmits<{
 const context = computed<MessageActionContext>(() => ({
     currentUserId: props.currentUserId,
     canReact: props.canReact ?? false,
+    canPin: props.canPin ?? false,
     canModerate: props.canModerate ?? false,
     inThread: props.inThread ?? false,
     pending: props.pending ?? false,
@@ -76,6 +83,9 @@ const showReply = computed(() =>
 const showForward = computed(() =>
     canForwardMessage(props.message, context.value),
 );
+const showPin = computed(() => canPinMessage(props.message, context.value));
+// The button toggles: a pinned message offers Unpin, an unpinned one offers Pin.
+const isPinned = computed(() => props.message.pin !== null);
 const showRemind = computed(() =>
     canRemindAboutMessage(props.message, context.value),
 );
@@ -93,6 +103,7 @@ const showDivider = computed(
     () =>
         (showReact.value || showStartThread.value || showReply.value) &&
         (showForward.value ||
+            showPin.value ||
             showRemind.value ||
             showEdit.value ||
             showDelete.value),
@@ -202,6 +213,34 @@ const openStateClass =
                 </TooltipTrigger>
                 <TooltipContent side="top" :side-offset="6">
                     {{ $t('Forward message') }}
+                </TooltipContent>
+            </Tooltip>
+
+            <Tooltip v-if="showPin">
+                <TooltipTrigger as-child>
+                    <button
+                        type="button"
+                        data-test="message-pin"
+                        :aria-label="
+                            isPinned
+                                ? $t('Unpin from channel')
+                                : $t('Pin to channel')
+                        "
+                        :class="iconButtonClass"
+                        @click="isPinned ? emit('unpin') : emit('pin')"
+                    >
+                        <Pin
+                            class="size-3.5"
+                            :class="isPinned ? 'fill-brass text-brass' : ''"
+                        />
+                    </button>
+                </TooltipTrigger>
+                <TooltipContent side="top" :side-offset="6">
+                    {{
+                        isPinned
+                            ? $t('Unpin from channel')
+                            : $t('Pin to channel')
+                    }}
                 </TooltipContent>
             </Tooltip>
 

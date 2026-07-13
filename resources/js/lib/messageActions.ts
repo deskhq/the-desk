@@ -22,6 +22,9 @@ export type MessageActionContext = {
     currentUserId: string;
     // Whether the viewer may add/remove reactions (member of a live channel).
     canReact: boolean;
+    // Whether the viewer may pin/unpin messages (member of a non-archived
+    // channel). Pinning is a shared toggle — any member may unpin any pin.
+    canPin: boolean;
     // Whether the viewer may moderate others' messages (delete them).
     canModerate: boolean;
     // Rendered inside a thread panel: suppresses the reply/thread affordances.
@@ -107,6 +110,19 @@ export function canReactToMessage(
 }
 
 /**
+ * The viewer may pin or unpin any live message when they're a member of the
+ * (non-archived) channel. Both directions share this one gate — pinning is a
+ * shared toggle, so any member may unpin a pin another member created. The
+ * button's label/icon reflects the message's current `pin` state.
+ */
+export function canPinMessage(
+    message: Message,
+    context: MessageActionContext,
+): boolean {
+    return context.canPin && isActionable(message, context);
+}
+
+/**
  * A reminder is personal — the viewer can set one on any live message they can
  * see, in any channel and even from inside a thread.
  */
@@ -157,6 +173,7 @@ export function hasAnyMessageAction(
         canReplyToMessage(message, context) ||
         canStartThreadFromMessage(message, context) ||
         canForwardMessage(message, context) ||
+        canPinMessage(message, context) ||
         canRemindAboutMessage(message, context) ||
         canEditMessage(message, context) ||
         canDeleteMessage(message, context)

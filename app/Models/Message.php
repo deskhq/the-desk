@@ -15,6 +15,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Carbon;
 use Laravel\Scout\Searchable;
@@ -44,6 +45,7 @@ use Laravel\Scout\Searchable;
  * @property-read Collection<int, User> $threadParticipants
  * @property-read Collection<int, User> $mentionedUsers
  * @property-read Collection<int, MessageReaction> $reactions
+ * @property-read MessagePin|null $pin
  */
 #[Fillable(['channel_id', 'user_id', 'client_uuid', 'reply_to_id', 'forwarded_from_id', 'thread_root_id', 'sent_to_channel', 'body', 'type', 'edited_at'])]
 class Message extends Model
@@ -83,6 +85,7 @@ class Message extends Model
         'mentionedUsers',
         'linkPreviews',
         'reactions.user',
+        'pin.pinnedBy',
         'replyTo.user',
         'replyTo.mentionedUsers',
         'forwardedFrom.user',
@@ -206,6 +209,20 @@ class Message extends Model
     public function reactions(): HasMany
     {
         return $this->hasMany(MessageReaction::class)->oldest()->orderBy('id');
+    }
+
+    /**
+     * Get this message's pin to its channel, if any.
+     *
+     * At most one pin exists per message (enforced by the table's unique
+     * constraint), so this is a HasOne. The `pinnedBy` user is eager-loaded with
+     * the message payload so the "Pinned by :name" attribution avoids an N+1.
+     *
+     * @return HasOne<MessagePin, $this>
+     */
+    public function pin(): HasOne
+    {
+        return $this->hasOne(MessagePin::class);
     }
 
     /**

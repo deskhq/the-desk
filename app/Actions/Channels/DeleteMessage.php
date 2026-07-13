@@ -11,6 +11,8 @@ use App\Models\Message;
 
 class DeleteMessage
 {
+    public function __construct(private readonly UnpinMessage $unpinMessage) {}
+
     /**
      * Soft-delete a message and broadcast the tombstone.
      *
@@ -24,6 +26,11 @@ class DeleteMessage
         // so drop the reactions explicitly — a tombstone shows none, and they
         // would otherwise linger unreachable behind the deleted message.
         $message->reactions()->delete();
+
+        // Likewise auto-remove any pin (a tombstone can't stay pinned) and
+        // broadcast the unpin, so the masthead count and any open pins panel
+        // update live. A no-op when the message wasn't pinned.
+        $this->unpinMessage->handle($channel, $message);
 
         $message->delete();
 

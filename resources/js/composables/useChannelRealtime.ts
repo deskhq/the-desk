@@ -8,7 +8,13 @@ import type {
 } from '@/composables/useTypingIndicator';
 import { createChannelFleet } from '@/lib/channelFleet';
 import { placeIncomingMessage } from '@/lib/messagePlacement';
-import type { ChannelReader, Message, MessageAuthor, Reaction } from '@/types';
+import type {
+    ChannelReader,
+    Mention,
+    Message,
+    MessageAuthor,
+    Reaction,
+} from '@/types';
 
 type MessageStream = ReturnType<typeof useMessageStream>;
 type TypingIndicator = ReturnType<typeof useTypingIndicator>;
@@ -40,6 +46,8 @@ export interface ChannelRealtimeOptions {
     markRead: () => void;
     /** Advance the open thread's read pointer. */
     markThreadRead: () => void;
+    /** Update the channel-level pin count driving the masthead badge. */
+    updatePinCount: (count: number) => void;
 }
 
 /** The Echo private-channel name a channel id broadcasts on. */
@@ -140,6 +148,32 @@ export function useChannelRealtime(options: ChannelRealtimeOptions): void {
                             event.messageId,
                             event.reactions,
                         );
+                    },
+                )
+                .listen(
+                    'MessagePinned',
+                    (event: {
+                        messageId: string;
+                        pinned: boolean;
+                        pinnedBy: Mention | null;
+                        pinCount: number;
+                    }) => {
+                        // Raise or drop the "Pinned by" indicator on whichever
+                        // timeline renders the message (no-op elsewhere). The
+                        // broadcast omits the pin timestamp — the indicator shows
+                        // only the pinner — so approximate it with the receive
+                        // time; the pins panel reads its own server prop.
+                        const pin =
+                            event.pinned && event.pinnedBy !== null
+                                ? {
+                                      pinnedBy: event.pinnedBy,
+                                      pinnedAt: new Date().toISOString(),
+                                  }
+                                : null;
+                        options.mainStream.patchPin(event.messageId, pin);
+                        options.threadStream.patchPin(event.messageId, pin);
+                        // Keep the masthead's count badge current for everyone.
+                        options.updatePinCount(event.pinCount);
                     },
                 )
                 .listen(
