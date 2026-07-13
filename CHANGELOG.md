@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.2.0](https://github.com/emmpaul/the-desk/compare/v1.1.0...v1.2.0) (2026-07-13)
+
+
+### Features
+
+* attachments foundation (schema, upload, serve, claim-on-send, GC) ([#341](https://github.com/emmpaul/the-desk/issues/341)) ([6118fd4](https://github.com/emmpaul/the-desk/commit/6118fd446677ab9b3554a2a235affd0f1f4231da))
+* derive user avatars from Gravatar ([#329](https://github.com/emmpaul/the-desk/issues/329)) ([1527170](https://github.com/emmpaul/the-desk/commit/1527170e610eac111db4e7fa82aaf29ab21e9da1))
+
+
+### Dependencies
+
+* update npm dependencies to latest majors ([#338](https://github.com/emmpaul/the-desk/issues/338)) ([02aee28](https://github.com/emmpaul/the-desk/commit/02aee2849273dc9ef4043328eb3ce4733822c203))
+
 ## [1.1.0](https://github.com/emmpaul/the-desk/compare/v1.0.0...v1.1.0) (2026-07-13)
 
 
