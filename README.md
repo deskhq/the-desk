@@ -26,6 +26,10 @@
   <a href="LICENSE">MIT&nbsp;License</a>
 </p>
 
+<p align="center">
+  <img src=".github/screenshot-app.png" alt="The Desk: a channel timeline with threads, reactions, and direct messages" width="900">
+</p>
+
 ## Self-hosting
 
 The Desk ships as a single Docker Compose stack with a prebuilt image — one

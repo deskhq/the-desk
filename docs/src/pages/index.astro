@@ -208,6 +208,26 @@ const jsonLd = {
 			</div>
 		</section>
 
+		<!-- ============================ SHOWCASE ============================ -->
+		<section class="showcase">
+			<div class="wrap">
+				<div class="section-head showcase-head">
+					<span class="eyebrow eyebrow--gold">See it in action</span>
+					<h2 class="serif section-title showcase-title">Your whole workspace, quietly in one&nbsp;place</h2>
+					<p class="section-lede">Channels, threads, reactions, and direct messages: the real app, not a mockup.</p>
+				</div>
+				<div class="showcase-frame">
+					<img
+						src="/screenshot-app.png"
+						alt="The Desk workspace: the #design channel with a threaded conversation, reactions, and the channel sidebar"
+						width="1440"
+						height="900"
+						loading="lazy"
+					/>
+				</div>
+			</div>
+		</section>
+
 		<!-- ============================ POWERED BY ============================ -->
 		<section class="powered">
 			<div class="wrap powered-grid">
@@ -1002,6 +1022,45 @@ const jsonLd = {
 				font-size: 12px;
 				line-height: 1.45;
 				color: var(--ink);
+			}
+
+			/* showcase */
+			.showcase {
+				background: var(--card-soft);
+				border-bottom: 1px solid var(--line);
+			}
+			.showcase .wrap {
+				padding-top: 76px;
+				padding-bottom: 76px;
+				display: flex;
+				flex-direction: column;
+				align-items: center;
+				gap: 40px;
+			}
+			.showcase-head {
+				align-items: center;
+				text-align: center;
+				max-width: 680px;
+			}
+			.showcase-title {
+				text-wrap: balance;
+			}
+			.showcase-frame {
+				width: 100%;
+				max-width: 1040px;
+				margin: 0 auto;
+				align-self: center;
+				border: 1px solid #d8d4ca;
+				border-radius: 16px;
+				overflow: hidden;
+				background: var(--card);
+				box-shadow: 0 24px 60px rgba(60, 55, 40, 0.12);
+			}
+			.showcase-frame img {
+				display: block;
+				width: 100%;
+				height: auto;
+				margin: 0 auto;
 			}
 
 			/* powered by */
