@@ -216,6 +216,15 @@ Vue components must have a single root element.
 
 <!-- Custom project guidance below is preserved across `boost:update` runs. -->
 
+## Commits & PR titles — Conventional Commits drive the release (non-negotiable)
+
+- **Releases are automated by release-please** (`.github/workflows/release-please.yml`, config in `release-please-config.json`). On every push to `master` it parses **Conventional Commit** prefixes to compute the next version and generate `CHANGELOG.md`. Never hand-edit `CHANGELOG.md`, `VERSION`, or `.release-please-manifest.json` — release-please owns them.
+- **The repo merges PRs by squash only, and the squash commit subject is the PR title** (`squash_merge_commit_title = PR_TITLE`). So **the PR title _is_ the commit release-please reads** — it MUST be a valid Conventional Commit (`type: imperative subject`, lower-case type, no trailing period), e.g. `feat: edit last message from the composer with ↑`. A PR titled like a sentence ("Edit last message…") is **silently dropped from the changelog and the version bump** — this is the #1 mistake here.
+- **Changelog-relevant types** (from `release-please-config.json`): `feat` → Features (minor bump), `fix` → Bug Fixes (patch), `perf` → Performance, `refactor` → Code Refactoring. A breaking change (`feat!:` / `fix!:`, or a `BREAKING CHANGE:` footer) forces a major bump. Other Conventional types are allowed (`docs`, `test`, `chore`, `ci`, `build`, `style`) but **do not appear in the changelog and do not bump the version** — only use them for PRs that genuinely ship no user-facing feature/fix.
+- **Keep individual commit messages Conventional too.** `commitlint` (config-conventional) runs on every PR and validates the PR's commits — but note it does **not** validate the PR title, so a PR can pass CI yet still land a non-Conventional squash subject. The PR title is the one that reaches release-please, so it is the one that must be right.
+- **Branch names are cosmetic** (release-please ignores them). Mirror the type if you like (`feat/…`, `fix/…`), but never rely on the branch name for the changelog — set the PR title.
+- **When opening a PR with `gh pr create`, always pass a Conventional-Commit `--title`** and reference the issue in the body (`Closes #NNN`).
+
 ## Implementing Issues (TDD)
 
 - **Always activate the `tdd` skill when implementing an issue or building a feature.** Drive the work test-first (red → green → refactor): write a failing test that captures the acceptance criterion, make it pass with the minimal change, then refactor. This pairs with the non-negotiable 100% coverage gate below.
