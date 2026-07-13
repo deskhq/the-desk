@@ -12,15 +12,19 @@ use Illuminate\Http\UploadedFile;
 
 class UploadAttachment
 {
+    public function __construct(private readonly ProcessAttachmentImage $processImage) {}
+
     /**
      * Store an uploaded file and register it as a pending attachment.
      *
      * The blob lands on the configured (private) disk under a per-channel prefix.
      * Image dimensions are read straight from the upload with the built-in
-     * getimagesize() (no image library, matching the custom-emoji approach) and
-     * left null for non-images. The row is owned by the uploader and channel only
-     * — it carries no message until a send claims it — and returns with its
-     * channel + team loaded so the caller can build the download URL N+1-free.
+     * getimagesize(), left null for non-images. Raster images are then processed
+     * synchronously — EXIF stripped in place and a thumbnail generated — so no
+     * un-stripped original is ever served and the timeline thumbnail is ready.
+     * The row is owned by the uploader and channel only — it carries no message
+     * until a send claims it — and returns with its channel + team loaded so the
+     * caller can build the download URL N+1-free.
      */
     public function handle(Channel $channel, User $uploader, UploadedFile $file): Attachment
     {
@@ -41,6 +45,8 @@ class UploadAttachment
             'height' => $height,
             'status' => AttachmentStatus::Pending,
         ]);
+
+        $this->processImage->handle($attachment);
 
         $attachment->setRelation('channel', $channel->loadMissing('team'));
 

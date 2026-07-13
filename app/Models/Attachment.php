@@ -26,16 +26,18 @@ use Illuminate\Support\Facades\Storage;
  * @property int $size_bytes
  * @property int|null $width
  * @property int|null $height
+ * @property string|null $thumb_path
  * @property AttachmentStatus $status
  * @property Carbon|null $deleted_at
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  * @property-read string $url
+ * @property-read string|null $thumb_url
  * @property-read Message|null $message
  * @property-read User $user
  * @property-read Channel $channel
  */
-#[Fillable(['message_id', 'user_id', 'channel_id', 'disk', 'path', 'original_filename', 'mime_type', 'size_bytes', 'width', 'height', 'status'])]
+#[Fillable(['message_id', 'user_id', 'channel_id', 'disk', 'path', 'original_filename', 'mime_type', 'size_bytes', 'width', 'height', 'thumb_path', 'status'])]
 class Attachment extends Model
 {
     /** @use HasFactory<AttachmentFactory> */
@@ -51,16 +53,22 @@ class Attachment extends Model
     public const array NON_INLINE_IMAGE_MIMES = ['image/svg+xml'];
 
     /**
-     * Delete the underlying blob when the row is force-deleted. A soft delete
-     * keeps the file (the serve policy already denies access to a soft-deleted
+     * Delete the underlying blob(s) when the row is force-deleted. A soft delete
+     * keeps the files (the serve policy already denies access to a soft-deleted
      * message), so only a force-delete — the pending-orphan GC, or a message
-     * being permanently removed — reclaims storage.
+     * being permanently removed — reclaims storage. The generated thumbnail, when
+     * present, is removed alongside the original.
      */
     #[\Override]
     protected static function booted(): void
     {
         static::forceDeleted(function (Attachment $attachment): void {
-            Storage::disk($attachment->disk)->delete($attachment->path);
+            $disk = Storage::disk($attachment->disk);
+            $disk->delete($attachment->path);
+
+            if ($attachment->thumb_path !== null) {
+                $disk->delete($attachment->thumb_path);
+            }
         });
     }
 
@@ -127,6 +135,19 @@ class Attachment extends Model
             'channel' => $this->channel->slug,
             'attachment' => $this->id,
         ]));
+    }
+
+    /**
+     * The authorized thumbnail URL, or null when no thumbnail was generated (SVG
+     * and every non-image type). Routes through the serve endpoint like {@see
+     * url()} so the private-channel policy still gates it; the timeline grid reads
+     * it and the lightbox falls back to the full-resolution {@see url()}.
+     *
+     * @return Attribute<covariant string|null, never>
+     */
+    protected function thumbUrl(): Attribute
+    {
+        return Attribute::get(fn (): ?string => $this->thumb_path === null ? null : route('channels.attachments.thumbnail', ['team' => $this->channel->team->slug, 'channel' => $this->channel->slug, 'attachment' => $this->id]));
     }
 
     /**

@@ -62,6 +62,16 @@ class AttachmentFactory extends Factory
     }
 
     /**
+     * Indicate the image attachment has a generated thumbnail on disk.
+     */
+    public function withThumbnail(): static
+    {
+        return $this->state(fn (array $attributes): array => [
+            'thumb_path' => 'attachments/'.fake()->uuid().'/thumbnails/'.fake()->uuid().'.png',
+        ]);
+    }
+
+    /**
      * Indicate the attachment has been claimed by (attached to) a message.
      */
     public function attachedTo(Message $message): static

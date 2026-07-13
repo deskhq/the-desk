@@ -53,8 +53,12 @@ test('a channel member can pre-upload a file, storing a pending attachment', fun
 
     Storage::disk('local')->assertExists($attachment->path);
     $response->assertJsonPath('id', $attachment->id)
-        ->assertJsonPath('isImage', true)
-        ->assertJsonPath('thumbUrl', null);
+        ->assertJsonPath('isImage', true);
+
+    // The image is processed inline: a thumbnail is generated and surfaced.
+    expect($attachment->thumb_path)->not->toBeNull();
+    Storage::disk('local')->assertExists($attachment->thumb_path);
+    expect($response->json('thumbUrl'))->not->toBeNull();
 });
 
 test('a non-image upload stores no dimensions', function (): void {

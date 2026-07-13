@@ -22,8 +22,9 @@ class AttachmentData extends Data
         // The authorized download URL (never a filesystem URL); images are served
         // inline, everything else as a download.
         public string $url,
-        // The thumbnail URL, always null for now — server-side thumbnail
-        // generation lands in the timeline-rendering child.
+        // The authorized thumbnail URL for the timeline grid, or null when no
+        // thumbnail was generated (SVG and every non-image type); the client then
+        // falls back to the full-resolution `url`.
         public ?string $thumbUrl,
     ) {}
 
@@ -45,7 +46,7 @@ class AttachmentData extends Data
             height: $attachment->height,
             isImage: $attachment->isImage(),
             url: $attachment->url,
-            thumbUrl: null,
+            thumbUrl: $attachment->thumb_url,
         );
     }
 }

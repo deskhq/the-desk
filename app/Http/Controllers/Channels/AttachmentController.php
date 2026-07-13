@@ -62,4 +62,32 @@ class AttachmentController extends Controller
             $attachment->isImage() ? 'inline' : 'attachment',
         );
     }
+
+    /**
+     * Stream an attachment's generated thumbnail inline to an authorized member.
+     *
+     * Authorization mirrors {@see download()} — a denied view is a 404, never a
+     * 403 — and the route scopes `$attachment` to `$channel`. A file with no
+     * thumbnail (SVG, non-image, or one whose generation was skipped) 404s, so
+     * the client falls back to the original.
+     */
+    public function thumbnail(Request $request, Team $team, Channel $channel, Attachment $attachment): StreamedResponse
+    {
+        abort_unless(Gate::forUser($request->user())->allows('view', $attachment), 404);
+        abort_if($attachment->thumb_path === null, 404);
+
+        $disk = Storage::disk($attachment->disk);
+
+        abort_unless($disk->exists($attachment->thumb_path), 404);
+
+        return $disk->response(
+            $attachment->thumb_path,
+            $attachment->original_filename,
+            [
+                'Content-Type' => $attachment->mime_type,
+                'X-Content-Type-Options' => 'nosniff',
+            ],
+            'inline',
+        );
+    }
 }
