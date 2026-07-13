@@ -1,0 +1,72 @@
+name: Bug report
+description: Report something that is broken or behaving incorrectly.
+title: "bug: "
+labels: ["bug", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report a bug! Please fill in the fields
+        below so it can be reproduced. For security vulnerabilities, do **not**
+        open a public issue — see the security link on the New Issue page.
+  - type: checkboxes
+    id: preflight
+    attributes:
+      label: Before you start
+      options:
+        - label: I searched [existing issues](https://github.com/emmpaul/the-desk/issues?q=is%3Aissue) and this isn't a duplicate.
+          required: true
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: A clear description of the bug, and what you expected instead.
+      placeholder: When I …, I expected …, but instead …
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: Exact steps so someone else can trigger the same behaviour.
+      placeholder: |
+        1. Go to …
+        2. Click …
+        3. See the error
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: The Desk version or image tag (e.g. `1.0.0`, `edge`), or the commit if built from source.
+      placeholder: "1.0.0"
+    validations:
+      required: true
+  - type: dropdown
+    id: deployment
+    attributes:
+      label: How are you running it?
+      options:
+        - Published image (ghcr.io/emmpaul/the-desk)
+        - Build from source (docker-compose.prod.yml)
+        - Local development (Laravel Sail)
+        - Not sure
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Browser & OS
+      description: Where you saw the bug (browser + version, and host OS if relevant).
+      placeholder: "Firefox 141 on Ubuntu 24.04"
+    validations:
+      required: false
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant logs, errors, or screenshots
+      description: Container logs, browser console errors, or screenshots. This is automatically formatted as code.
+      render: shell
+    validations:
+      required: false
