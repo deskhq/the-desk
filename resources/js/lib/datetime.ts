@@ -98,6 +98,58 @@ export function formatDayLabel(
 }
 
 /**
+ * The relative-time divisions, finest first: `amount` is how many of the current
+ * unit make up the next one up, so dividing the running duration by each amount
+ * in turn climbs from minutes to years. The loop stops at the first unit the
+ * magnitude fits inside, yielding the coarsest whole-number phrase ("2 days
+ * ago", not "48 hours ago"). The final `Infinity` amount catches everything
+ * older, so the loop always returns.
+ */
+const RELATIVE_TIME_DIVISIONS: ReadonlyArray<{
+    amount: number;
+    unit: Intl.RelativeTimeFormatUnit;
+}> = [
+    { amount: 60, unit: 'minute' },
+    { amount: 24, unit: 'hour' },
+    { amount: 7, unit: 'day' },
+    { amount: 4.34524, unit: 'week' },
+    { amount: 12, unit: 'month' },
+    { amount: Number.POSITIVE_INFINITY, unit: 'year' },
+];
+
+/**
+ * Format an ISO timestamp as a coarse, locale-aware relative time (e.g. "2 days
+ * ago", "5 hours ago", "just now"). Uses `Intl.RelativeTimeFormat` so the phrase
+ * and pluralization follow the active locale. `now` is injectable for testing.
+ */
+export function formatRelativeTime(
+    iso: string,
+    locale: string = i18n.locale,
+    now: Date = new Date(),
+): string {
+    const elapsedSeconds = (new Date(iso).getTime() - now.getTime()) / 1000;
+
+    if (Math.abs(elapsedSeconds) < 60) {
+        return translate('just now');
+    }
+
+    const formatter = new Intl.RelativeTimeFormat(locale, { numeric: 'auto' });
+    let duration = elapsedSeconds / 60;
+
+    for (const { amount, unit } of RELATIVE_TIME_DIVISIONS) {
+        if (Math.abs(duration) < amount) {
+            return formatter.format(Math.round(duration), unit);
+        }
+
+        duration /= amount;
+    }
+
+    // Unreachable: the final division's amount is Infinity, so the loop above
+    // always returns before falling through.
+    return translate('just now');
+}
+
+/**
  * A person's current wall-clock time (e.g. "3:45 PM") in their time zone, or
  * null when the zone is unknown or not a valid IANA identifier.
  */

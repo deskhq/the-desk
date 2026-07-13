@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { formatDateTime, formatLocalTime, formatTimeOfDay } from './datetime';
+import {
+    formatDateTime,
+    formatLocalTime,
+    formatRelativeTime,
+    formatTimeOfDay,
+} from './datetime';
 import { formatNumber } from './numbers';
 
 // A fixed instant: 2026-07-10 15:30 UTC. July is DST in the US, so New York
@@ -64,5 +69,43 @@ describe('formatLocalTime', () => {
         expect(
             formatLocalTime('Mars/Olympus_Mons', new Date(INSTANT)),
         ).toBeNull();
+    });
+});
+
+describe('formatRelativeTime', () => {
+    const now = new Date(INSTANT);
+    const ago = (seconds: number): string =>
+        new Date(now.getTime() - seconds * 1000).toISOString();
+
+    it('reads as "just now" under a minute', () => {
+        expect(formatRelativeTime(ago(30), 'en', now)).toBe('just now');
+    });
+
+    it('picks the coarsest whole unit', () => {
+        expect(formatRelativeTime(ago(5 * 3600), 'en', now)).toBe(
+            '5 hours ago',
+        );
+        expect(formatRelativeTime(ago(2 * 86400), 'en', now)).toBe(
+            '2 days ago',
+        );
+        expect(formatRelativeTime(ago(3 * 604800), 'en', now)).toBe(
+            '3 weeks ago',
+        );
+        expect(formatRelativeTime(ago(2 * 2629800), 'en', now)).toBe(
+            '2 months ago',
+        );
+        expect(formatRelativeTime(ago(2 * 31557600), 'en', now)).toBe(
+            '2 years ago',
+        );
+    });
+
+    it('uses numeric "auto" phrasing for the nearest units', () => {
+        expect(formatRelativeTime(ago(86400), 'en', now)).toBe('yesterday');
+    });
+
+    it('localizes the phrase', () => {
+        // French renders -3 days as "il y a 3 jours" (‑2 would collapse to the
+        // word "avant-hier"), so a mid-range value exercises the translation.
+        expect(formatRelativeTime(ago(3 * 86400), 'fr', now)).toContain('jour');
     });
 });

@@ -58,6 +58,7 @@ class TeamController extends Controller
                 'name' => $team->name,
                 'slug' => $team->slug,
                 'isPersonal' => $team->is_personal,
+                'role' => $user->teamRole($team)?->value,
             ],
             'members' => $team->members()->get()->map(function (User $member): array {
                 /** @var Membership $membership */

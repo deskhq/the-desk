@@ -1,16 +1,26 @@
 <script setup lang="ts">
-import { Form, Head, Link, router } from '@inertiajs/vue3';
-import { ChevronDown, Crown, Mail, Send, UserPlus, X } from '@lucide/vue';
+import { Form, Head, Link, router, usePage } from '@inertiajs/vue3';
+import {
+    ChartColumn,
+    Check,
+    ChevronDown,
+    ChevronRight,
+    Crown,
+    Mail,
+    ScrollText,
+    Send,
+    SmilePlus,
+    UserPlus,
+    X,
+} from '@lucide/vue';
 import { computed, ref } from 'vue';
 import CancelInvitationModal from '@/components/CancelInvitationModal.vue';
 import DeleteTeamModal from '@/components/DeleteTeamModal.vue';
-import FormField from '@/components/FormField.vue';
-import Heading from '@/components/Heading.vue';
+import InputError from '@/components/InputError.vue';
 import InviteMemberModal from '@/components/InviteMemberModal.vue';
 import RemoveMemberModal from '@/components/RemoveMemberModal.vue';
 import TransferOwnershipModal from '@/components/TransferOwnershipModal.vue';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
     DropdownMenu,
@@ -27,6 +37,7 @@ import {
 } from '@/components/ui/tooltip';
 import { useInitials } from '@/composables/useInitials';
 import { useTranslations } from '@/composables/useTranslations';
+import { formatRelativeTime } from '@/lib/datetime';
 import { translate } from '@/lib/i18n';
 import { edit, index, update } from '@/routes/teams';
 import { index as analyticsIndex } from '@/routes/teams/analytics';
@@ -43,6 +54,7 @@ import type {
     TeamInvitation,
     TeamMember,
     TeamPermissions,
+    TeamRole,
 } from '@/types';
 
 type Props = {
@@ -73,6 +85,9 @@ defineOptions({
 const { getInitials } = useInitials();
 const { t } = useTranslations();
 
+const page = usePage();
+const currentUserId = computed(() => String(page.props.auth.user.id));
+
 const inviteDialogOpen = ref(false);
 const deleteDialogOpen = ref(false);
 const removeMemberDialogOpen = ref(false);
@@ -87,6 +102,27 @@ const pageTitle = computed(() =>
         ? t('Edit :name', { name: props.team.name })
         : t('View :name', { name: props.team.name }),
 );
+
+const isOwner = computed(() => props.team.role === 'owner');
+
+const isCurrentUser = (member: TeamMember): boolean =>
+    String(member.id) === currentUserId.value;
+
+/**
+ * The one-line description of what each assignable role can do, shown under the
+ * role name inside the role dropdown. Keyed by role so the copy stays with the
+ * permission it describes.
+ */
+const roleDescription = (role: TeamRole): string => {
+    switch (role) {
+        case 'admin':
+            return t('Can manage members, channels, and invitations');
+        case 'member':
+            return t('Can read and post in channels they belong to');
+        default:
+            return '';
+    }
+};
 
 const updateMemberRole = (member: TeamMember, newRole: string) => {
     router.visit(updateMember([props.team.slug, member.id]), {
@@ -120,38 +156,80 @@ const confirmTransferOwnership = (member: TeamMember) => {
 <template>
     <Head :title="pageTitle" />
 
-    <h1 class="sr-only">{{ pageTitle }}</h1>
+    <div>
+        <!-- Page header -->
+        <header class="border-b border-border pb-6">
+            <nav
+                class="flex items-center gap-1.5 text-xs text-muted-foreground"
+                :aria-label="$t('breadcrumb')"
+            >
+                <Link :href="index()" class="hover:text-foreground">
+                    {{ $t('Teams') }}
+                </Link>
+                <ChevronRight class="h-3 w-3 opacity-60" />
+                <span class="font-medium text-foreground/70">{{
+                    team.name
+                }}</span>
+            </nav>
 
-    <div class="flex flex-col space-y-10">
-        <!-- Team Name Section -->
-        <div v-if="permissions.canUpdateTeam" class="space-y-6">
-            <Heading
-                variant="small"
-                :title="$t('Team settings')"
-                :description="$t('Update your team name and settings')"
-            />
+            <div class="mt-2 flex flex-wrap items-end gap-3">
+                <div class="min-w-0">
+                    <h1
+                        class="font-serif text-3xl font-semibold tracking-tight"
+                    >
+                        {{ team.name }}
+                    </h1>
+                    <p class="mt-1 text-sm text-muted-foreground">
+                        {{
+                            $t(
+                                "Manage this team's name, members, and ownership",
+                            )
+                        }}
+                    </p>
+                </div>
+
+                <span
+                    v-if="isOwner"
+                    class="ml-auto inline-flex items-center gap-1.5 rounded-full border border-brass-border bg-brass-fill px-3 py-1 text-[11px] font-semibold tracking-wide text-brass-fill-foreground uppercase"
+                >
+                    <Crown class="h-3 w-3 text-brass" />
+                    {{ $t('You own this team') }}
+                </span>
+            </div>
+        </header>
+
+        <!-- Team name -->
+        <section
+            v-if="permissions.canUpdateTeam"
+            class="border-b border-border py-6"
+        >
+            <div class="mb-4">
+                <h2 class="font-serif text-lg font-semibold">
+                    {{ $t('Team name') }}
+                </h2>
+                <p class="mt-0.5 text-sm text-muted-foreground">
+                    {{ $t('Shown in the team switcher and on invitations') }}
+                </p>
+            </div>
 
             <Form
                 v-bind="update.form(team.slug)"
-                class="space-y-6"
                 v-slot="{ errors, processing }"
             >
-                <FormField
-                    id="name"
-                    :label="$t('Team name')"
-                    :error="errors.name"
-                    v-slot="{ id }"
-                >
-                    <Input
-                        :id="id"
-                        name="name"
-                        data-test="team-name-input"
-                        :default-value="team.name"
-                        required
-                    />
-                </FormField>
+                <div class="flex flex-wrap items-start gap-3">
+                    <div class="w-full max-w-sm">
+                        <Input
+                            id="name"
+                            name="name"
+                            data-test="team-name-input"
+                            :default-value="team.name"
+                            :aria-label="$t('Team name')"
+                            class="rounded-lg"
+                            required
+                        />
+                        <InputError :message="errors.name" />
+                    </div>
 
-                <div class="flex items-center gap-4">
                     <Button
                         type="submit"
                         class="rounded-full px-6"
@@ -162,28 +240,30 @@ const confirmTransferOwnership = (member: TeamMember) => {
                     </Button>
                 </div>
             </Form>
-        </div>
+        </section>
 
-        <div v-else class="space-y-6">
-            <Heading variant="small" :title="team.name" />
-        </div>
-
-        <!-- Members Section -->
-        <div class="space-y-6">
-            <div class="flex items-center justify-between">
-                <Heading
-                    variant="small"
-                    :title="$t('Team members')"
-                    :description="
-                        permissions.canCreateInvitation
-                            ? $t('Manage who belongs to this team')
-                            : ''
-                    "
-                />
+        <!-- Team members -->
+        <section class="border-b border-border py-6">
+            <div class="mb-4 flex flex-wrap items-start gap-3">
+                <div class="min-w-0">
+                    <h2 class="font-serif text-lg font-semibold">
+                        {{ $t('Team members') }}
+                        <span class="font-normal text-muted-foreground"
+                            >&middot; {{ members.length }}</span
+                        >
+                    </h2>
+                    <p class="mt-0.5 text-sm text-muted-foreground">
+                        {{
+                            $t(
+                                'Manage who belongs to this team and what they can do',
+                            )
+                        }}
+                    </p>
+                </div>
 
                 <Button
                     v-if="permissions.canCreateInvitation"
-                    class="rounded-full"
+                    class="ml-auto rounded-full"
                     data-test="invite-member-button"
                     @click="inviteDialogOpen = true"
                 >
@@ -191,73 +271,102 @@ const confirmTransferOwnership = (member: TeamMember) => {
                 </Button>
             </div>
 
-            <div class="space-y-3">
+            <div class="flex flex-col gap-2">
                 <div
                     v-for="member in members"
                     :key="member.id"
                     data-test="member-row"
-                    class="flex items-center justify-between rounded-lg border bg-card p-4 shadow-[0_2px_8px_rgba(29,26,21,0.05)]"
+                    class="flex flex-wrap items-center gap-4 rounded-xl border border-border bg-card p-3.5 shadow-[0_2px_8px_rgba(29,26,21,0.05)]"
                 >
-                    <div class="flex items-center gap-4">
-                        <Avatar class="h-10 w-10">
-                            <AvatarImage
-                                v-if="member.avatar"
-                                :src="member.avatar"
-                                :alt="member.name"
-                            />
-                            <AvatarFallback>{{
-                                getInitials(member.name)
-                            }}</AvatarFallback>
-                        </Avatar>
-                        <div>
-                            <Link
-                                :href="showMember([team.slug, member.id])"
-                                class="font-semibold underline-offset-4 hover:underline"
-                                data-test="member-profile-link"
+                    <Avatar class="h-10 w-10 shrink-0">
+                        <AvatarImage
+                            v-if="member.avatar"
+                            :src="member.avatar"
+                            :alt="member.name"
+                        />
+                        <AvatarFallback
+                            :class="
+                                member.role === 'owner'
+                                    ? 'bg-primary text-primary-foreground'
+                                    : 'bg-muted text-muted-foreground'
+                            "
+                            class="text-xs font-semibold"
+                            >{{ getInitials(member.name) }}</AvatarFallback
+                        >
+                    </Avatar>
+
+                    <div class="min-w-0">
+                        <Link
+                            :href="showMember([team.slug, member.id])"
+                            class="font-semibold underline-offset-4 hover:underline"
+                            data-test="member-profile-link"
+                        >
+                            {{ member.name }}
+                            <span
+                                v-if="isCurrentUser(member)"
+                                class="text-sm font-medium text-muted-foreground"
+                                >{{ $t('(you)') }}</span
                             >
-                                {{ member.name }}
-                            </Link>
-                            <div class="text-sm text-muted-foreground">
-                                {{ member.email }}
-                            </div>
+                        </Link>
+                        <div class="truncate text-sm text-muted-foreground">
+                            {{ member.email }}
                         </div>
                     </div>
 
-                    <div class="flex items-center gap-2">
-                        <DropdownMenu
-                            v-if="
-                                member.role !== 'owner' &&
-                                permissions.canUpdateMember
-                            "
+                    <div class="ml-auto flex items-center gap-1.5">
+                        <span
+                            v-if="member.role === 'owner'"
+                            class="inline-flex items-center gap-1.5 rounded-full border border-brass-border bg-brass-fill px-3 py-1 text-xs font-semibold text-brass-fill-foreground"
                         >
+                            <Crown class="h-3 w-3 text-brass" />
+                            {{ member.role_label }}
+                        </span>
+
+                        <DropdownMenu v-else-if="permissions.canUpdateMember">
                             <DropdownMenuTrigger as-child>
                                 <Button
                                     data-test="member-role-trigger"
                                     variant="outline"
                                     size="sm"
+                                    class="rounded-full"
                                 >
                                     {{ member.role_label }}
                                     <ChevronDown
-                                        class="ml-2 h-4 w-4 opacity-50"
+                                        class="ml-1 h-3.5 w-3.5 opacity-50"
                                     />
                                 </Button>
                             </DropdownMenuTrigger>
-                            <DropdownMenuContent>
+                            <DropdownMenuContent align="end" class="w-64">
                                 <DropdownMenuItem
                                     v-for="role in availableRoles"
                                     :key="role.value"
                                     data-test="member-role-option"
+                                    class="flex-col items-start gap-0.5"
                                     @click="
                                         updateMemberRole(member, role.value)
                                     "
                                 >
-                                    {{ role.label }}
+                                    <span
+                                        class="flex w-full items-center gap-1.5 font-medium"
+                                    >
+                                        {{ role.label }}
+                                        <Check
+                                            v-if="member.role === role.value"
+                                            class="ml-auto h-3.5 w-3.5 text-brass"
+                                        />
+                                    </span>
+                                    <span class="text-xs text-muted-foreground">
+                                        {{ roleDescription(role.value) }}
+                                    </span>
                                 </DropdownMenuItem>
                             </DropdownMenuContent>
                         </DropdownMenu>
-                        <Badge v-else variant="secondary">
+                        <span
+                            v-else
+                            class="rounded-full border border-border px-3 py-1 text-xs font-semibold"
+                        >
                             {{ member.role_label }}
-                        </Badge>
+                        </span>
 
                         <TooltipProvider
                             v-if="
@@ -270,7 +379,8 @@ const confirmTransferOwnership = (member: TeamMember) => {
                                     <Button
                                         data-test="member-transfer-ownership-button"
                                         variant="ghost"
-                                        size="sm"
+                                        size="icon"
+                                        class="rounded-full text-muted-foreground"
                                         @click="
                                             confirmTransferOwnership(member)
                                         "
@@ -295,7 +405,8 @@ const confirmTransferOwnership = (member: TeamMember) => {
                                     <Button
                                         data-test="member-remove-button"
                                         variant="ghost"
-                                        size="sm"
+                                        size="icon"
+                                        class="rounded-full text-muted-foreground"
                                         @click="confirmRemoveMember(member)"
                                     >
                                         <X class="h-4 w-4" />
@@ -309,57 +420,71 @@ const confirmTransferOwnership = (member: TeamMember) => {
                     </div>
                 </div>
             </div>
-        </div>
+        </section>
 
-        <!-- Pending Invitations Section -->
-        <div v-if="invitations.length > 0" class="space-y-6">
-            <Heading
-                variant="small"
-                :title="$t('Pending invitations')"
-                :description="$t('Invitations that haven\'t been accepted yet')"
-            />
+        <!-- Pending invitations -->
+        <section
+            v-if="invitations.length > 0"
+            class="border-b border-border py-6"
+        >
+            <div class="mb-4">
+                <h2 class="font-serif text-lg font-semibold">
+                    {{ $t('Pending invitations') }}
+                    <span class="font-normal text-muted-foreground"
+                        >&middot; {{ invitations.length }}</span
+                    >
+                </h2>
+                <p class="mt-0.5 text-sm text-muted-foreground">
+                    {{
+                        $t(
+                            'Sent but not yet accepted. They expire after 3 days',
+                        )
+                    }}
+                </p>
+            </div>
 
-            <div class="space-y-3">
+            <div class="flex flex-col gap-2">
                 <div
                     v-for="invitation in invitations"
                     :key="invitation.code"
                     data-test="invitation-row"
-                    class="flex items-center justify-between rounded-lg border bg-card p-4 shadow-[0_2px_8px_rgba(29,26,21,0.05)]"
+                    class="flex flex-wrap items-center gap-4 rounded-xl border border-dashed border-border bg-muted/30 p-3.5"
                 >
-                    <div class="flex items-center gap-4">
+                    <div
+                        class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-muted"
+                    >
+                        <Mail class="h-5 w-5 text-muted-foreground" />
+                    </div>
+
+                    <div class="min-w-0">
                         <div
-                            class="flex h-10 w-10 items-center justify-center rounded-full bg-muted"
+                            class="truncate font-semibold text-muted-foreground"
                         >
-                            <Mail class="h-5 w-5 text-muted-foreground" />
+                            {{ invitation.email }}
                         </div>
-                        <div>
-                            <div class="font-semibold">
-                                {{ invitation.email }}
-                            </div>
-                            <div class="text-sm text-muted-foreground">
-                                {{ invitation.role_label }}
-                            </div>
+                        <div class="text-sm text-muted-foreground">
+                            {{
+                                $t('Invited as :role · :time', {
+                                    role: invitation.role_label,
+                                    time: formatRelativeTime(
+                                        invitation.created_at,
+                                    ),
+                                })
+                            }}
                         </div>
                     </div>
 
-                    <div class="flex items-center gap-1">
-                        <TooltipProvider v-if="permissions.canCreateInvitation">
-                            <Tooltip>
-                                <TooltipTrigger as-child>
-                                    <Button
-                                        data-test="invitation-resend-button"
-                                        variant="ghost"
-                                        size="sm"
-                                        @click="resendInvitation(invitation)"
-                                    >
-                                        <Send class="h-4 w-4" />
-                                    </Button>
-                                </TooltipTrigger>
-                                <TooltipContent>
-                                    <p>{{ $t('Resend') }}</p>
-                                </TooltipContent>
-                            </Tooltip>
-                        </TooltipProvider>
+                    <div class="ml-auto flex items-center gap-1.5">
+                        <Button
+                            v-if="permissions.canCreateInvitation"
+                            data-test="invitation-resend-button"
+                            variant="outline"
+                            size="sm"
+                            class="rounded-full"
+                            @click="resendInvitation(invitation)"
+                        >
+                            <Send class="h-3.5 w-3.5" /> {{ $t('Resend') }}
+                        </Button>
 
                         <TooltipProvider v-if="permissions.canCancelInvitation">
                             <Tooltip>
@@ -367,7 +492,8 @@ const confirmTransferOwnership = (member: TeamMember) => {
                                     <Button
                                         data-test="invitation-cancel-button"
                                         variant="ghost"
-                                        size="sm"
+                                        size="icon"
+                                        class="rounded-full text-muted-foreground"
                                         @click="
                                             confirmCancelInvitation(invitation)
                                         "
@@ -383,87 +509,107 @@ const confirmTransferOwnership = (member: TeamMember) => {
                     </div>
                 </div>
             </div>
-        </div>
+        </section>
 
-        <!-- Custom emoji -->
-        <div class="space-y-6">
-            <Heading
-                variant="small"
-                :title="$t('Custom emoji')"
-                :description="
-                    $t(
-                        'Upload named emoji for everyone in this workspace to use in messages and reactions',
-                    )
-                "
-            />
-            <Button
-                as-child
-                variant="outline"
-                class="rounded-full"
-                data-test="manage-emoji-link"
-            >
-                <Link :href="emojisIndex(team.slug)">{{
-                    $t('Manage custom emoji')
-                }}</Link>
-            </Button>
-        </div>
-
-        <!-- Analytics -->
-        <div v-if="permissions.canViewAnalytics" class="space-y-6">
-            <Heading
-                variant="small"
-                :title="$t('Analytics')"
-                :description="
-                    $t(
-                        'See activity, growth, and the busiest channels in this workspace',
-                    )
-                "
-            />
-            <Button
-                as-child
-                variant="outline"
-                class="rounded-full"
-                data-test="view-analytics-link"
-            >
-                <Link :href="analyticsIndex(team.slug)">{{
-                    $t('View analytics')
-                }}</Link>
-            </Button>
-        </div>
-
-        <!-- Audit Log -->
-        <div v-if="permissions.canViewAudit" class="space-y-6">
-            <Heading
-                variant="small"
-                :title="$t('Audit log')"
-                :description="
-                    $t('Review moderation and admin actions in this workspace')
-                "
-            />
-            <Button
-                as-child
-                variant="outline"
-                class="rounded-full"
-                data-test="view-audit-log-link"
-            >
-                <Link :href="auditIndex(team.slug)">{{
-                    $t('View audit log')
-                }}</Link>
-            </Button>
-        </div>
-
-        <!-- Danger Zone -->
-        <div
-            v-if="permissions.canDeleteTeam && !team.isPersonal"
-            class="space-y-3"
+        <!-- Custom emoji + admin links -->
+        <section
+            v-if="permissions.canViewAnalytics || permissions.canViewAudit"
+            class="border-b border-border py-6"
         >
-            <div>
-                <h3
-                    class="font-serif text-[17px] font-semibold text-destructive"
+            <div class="grid gap-3 sm:grid-cols-2">
+                <Link
+                    :href="emojisIndex(team.slug)"
+                    data-test="manage-emoji-link"
+                    class="flex items-center gap-3 rounded-xl border border-border bg-card p-4 transition-colors hover:border-brass-border"
                 >
+                    <SmilePlus class="h-4 w-4 shrink-0 text-brass" />
+                    <div class="min-w-0">
+                        <div class="text-sm font-semibold">
+                            {{ $t('Custom emoji') }}
+                        </div>
+                        <div class="truncate text-xs text-muted-foreground">
+                            {{ $t('Named emoji for messages and reactions') }}
+                        </div>
+                    </div>
+                    <ChevronRight
+                        class="ml-auto h-3.5 w-3.5 shrink-0 text-muted-foreground"
+                    />
+                </Link>
+
+                <Link
+                    v-if="permissions.canViewAnalytics"
+                    :href="analyticsIndex(team.slug)"
+                    data-test="view-analytics-link"
+                    class="flex items-center gap-3 rounded-xl border border-border bg-card p-4 transition-colors hover:border-brass-border"
+                >
+                    <ChartColumn class="h-4 w-4 shrink-0 text-brass" />
+                    <div class="min-w-0">
+                        <div class="text-sm font-semibold">
+                            {{ $t('Analytics') }}
+                        </div>
+                        <div class="truncate text-xs text-muted-foreground">
+                            {{ $t('Activity, growth, busiest channels') }}
+                        </div>
+                    </div>
+                    <ChevronRight
+                        class="ml-auto h-3.5 w-3.5 shrink-0 text-muted-foreground"
+                    />
+                </Link>
+
+                <Link
+                    v-if="permissions.canViewAudit"
+                    :href="auditIndex(team.slug)"
+                    data-test="view-audit-log-link"
+                    class="flex items-center gap-3 rounded-xl border border-border bg-card p-4 transition-colors hover:border-brass-border"
+                >
+                    <ScrollText class="h-4 w-4 shrink-0 text-brass" />
+                    <div class="min-w-0">
+                        <div class="text-sm font-semibold">
+                            {{ $t('Audit log') }}
+                        </div>
+                        <div class="truncate text-xs text-muted-foreground">
+                            {{ $t('Moderation and admin actions') }}
+                        </div>
+                    </div>
+                    <ChevronRight
+                        class="ml-auto h-3.5 w-3.5 shrink-0 text-muted-foreground"
+                    />
+                </Link>
+            </div>
+        </section>
+
+        <!-- Emoji-only fallback for members without admin links -->
+        <section v-else class="border-b border-border py-6">
+            <Link
+                :href="emojisIndex(team.slug)"
+                data-test="manage-emoji-link"
+                class="flex items-center gap-3 rounded-xl border border-border bg-card p-4 transition-colors hover:border-brass-border sm:max-w-sm"
+            >
+                <SmilePlus class="h-4 w-4 shrink-0 text-brass" />
+                <div class="min-w-0">
+                    <div class="text-sm font-semibold">
+                        {{ $t('Custom emoji') }}
+                    </div>
+                    <div class="truncate text-xs text-muted-foreground">
+                        {{ $t('Named emoji for messages and reactions') }}
+                    </div>
+                </div>
+                <ChevronRight
+                    class="ml-auto h-3.5 w-3.5 shrink-0 text-muted-foreground"
+                />
+            </Link>
+        </section>
+
+        <!-- Danger zone -->
+        <section
+            v-if="permissions.canDeleteTeam && !team.isPersonal"
+            class="py-6"
+        >
+            <div class="mb-3">
+                <h2 class="font-serif text-lg font-semibold text-destructive">
                     {{ $t('Delete team') }}
-                </h3>
-                <p class="mt-1 text-sm text-muted-foreground">
+                </h2>
+                <p class="mt-0.5 max-w-xl text-sm text-muted-foreground">
                     {{
                         $t(
                             'Permanently delete this team and all of its data. This cannot be undone.',
@@ -478,7 +624,7 @@ const confirmTransferOwnership = (member: TeamMember) => {
                 @click="deleteDialogOpen = true"
                 >{{ $t('Delete team…') }}</Button
             >
-        </div>
+        </section>
     </div>
 
     <InviteMemberModal
