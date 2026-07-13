@@ -39,13 +39,13 @@ const options = [
                 <!-- Light -->
                 <div
                     v-if="value === 'light'"
-                    class="flex h-[84px] gap-1.5 bg-[#e7e4dd] p-2.5"
+                    class="flex h-21 gap-1.5 bg-[#e7e4dd] p-2.5"
                 >
                     <div
                         class="w-[26%] rounded-md border border-[#e3dfd5] bg-[#fbfaf7]"
                     />
                     <div
-                        class="flex flex-1 flex-col gap-1 rounded-md border border-[#e3dfd5] bg-[#fbfaf7] p-[7px]"
+                        class="flex flex-1 flex-col gap-1 rounded-md border border-[#e3dfd5] bg-[#fbfaf7] p-1.75"
                     >
                         <div class="h-1.5 w-[55%] rounded-full bg-[#d8d2c2]" />
                         <div class="h-1.5 w-[80%] rounded-full bg-[#eeeade]" />
@@ -56,13 +56,13 @@ const options = [
                 <!-- Dark -->
                 <div
                     v-else-if="value === 'dark'"
-                    class="flex h-[84px] gap-1.5 bg-[#12100c] p-2.5"
+                    class="flex h-21 gap-1.5 bg-[#12100c] p-2.5"
                 >
                     <div
                         class="w-[26%] rounded-md border border-[#2e2a21] bg-[#1e1b15]"
                     />
                     <div
-                        class="flex flex-1 flex-col gap-1 rounded-md border border-[#2e2a21] bg-[#1e1b15] p-[7px]"
+                        class="flex flex-1 flex-col gap-1 rounded-md border border-[#2e2a21] bg-[#1e1b15] p-1.75"
                     >
                         <div class="h-1.5 w-[55%] rounded-full bg-[#4a4436]" />
                         <div class="h-1.5 w-[80%] rounded-full bg-[#2e2a21]" />
@@ -73,7 +73,7 @@ const options = [
                 <!-- System -->
                 <div
                     v-else
-                    class="flex h-[84px] gap-1.5 p-2.5"
+                    class="flex h-21 gap-1.5 p-2.5"
                     style="
                         background: linear-gradient(
                             105deg,

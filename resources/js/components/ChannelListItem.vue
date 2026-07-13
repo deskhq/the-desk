@@ -142,7 +142,7 @@ function toggleStar(): void {
                 <span
                     v-if="channel.mentionCount > 0"
                     data-test="mention-badge"
-                    class="ml-auto flex h-[17px] min-w-[18px] items-center justify-center rounded-full bg-brass px-1.5 text-[10px] font-bold text-brass-foreground tabular-nums"
+                    class="ml-auto flex h-4.25 min-w-4.5 items-center justify-center rounded-full bg-brass px-1.5 text-[10px] font-bold text-brass-foreground tabular-nums"
                     :aria-label="
                         $t(':count unread mentions', {
                             count: channel.mentionCount,

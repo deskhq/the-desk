@@ -39,8 +39,8 @@ const name = page.props.name;
                         v-else
                         class="flex size-11 items-center justify-center rounded-full border border-brass/30 bg-brass-fill text-brass-fill-foreground"
                     >
-                        <Lock v-if="icon === 'lock'" class="size-[18px]" />
-                        <Mail v-else class="size-[18px]" />
+                        <Lock v-if="icon === 'lock'" class="size-4.5" />
+                        <Mail v-else class="size-4.5" />
                     </span>
 
                     <h1

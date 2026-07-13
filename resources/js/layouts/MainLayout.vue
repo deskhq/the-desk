@@ -805,7 +805,7 @@ onMounted(() => {
                             class="flex h-8 w-full items-center justify-start gap-2 rounded-[9px] bg-muted px-2.5 text-[13px] font-normal text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground"
                             @click="quickSwitcherOpen = true"
                         >
-                            <Search class="size-[13px] shrink-0" />
+                            <Search class="size-3.25 shrink-0" />
                             <span>{{ $t('Jump to…') }}</span>
                             <kbd
                                 class="ml-auto font-mono text-[10px] font-semibold tracking-wide text-muted-foreground"
@@ -1083,7 +1083,7 @@ onMounted(() => {
                                 data-tour="create-channel"
                                 class="top-2 size-5 rounded-md text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
                             >
-                                <Plus class="size-[13px]" />
+                                <Plus class="size-3.25" />
                                 <span class="sr-only">{{
                                     $t('Create channel')
                                 }}</span>
@@ -1182,7 +1182,7 @@ onMounted(() => {
                             class="top-2 size-5 rounded-md text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
                             @click="newDmOpen = true"
                         >
-                            <Plus class="size-[13px]" />
+                            <Plus class="size-3.25" />
                             <span class="sr-only">{{ $t('New message') }}</span>
                         </SidebarGroupAction>
                         <SidebarGroupContent
@@ -1250,7 +1250,7 @@ onMounted(() => {
                                 <SidebarMenuItem>
                                     <SidebarMenuButton
                                         as-child
-                                        class="h-[30px] gap-2 rounded-[9px] px-2.5 text-[13px] text-muted-foreground hover:bg-sidebar-accent/60"
+                                        class="h-7.5 gap-2 rounded-[9px] px-2.5 text-[13px] text-muted-foreground hover:bg-sidebar-accent/60"
                                     >
                                         <Link
                                             v-if="currentTeam"
@@ -1260,9 +1260,7 @@ onMounted(() => {
                                             "
                                             data-test="threads-inbox"
                                         >
-                                            <MessagesSquare
-                                                class="size-[13px]"
-                                            />
+                                            <MessagesSquare class="size-3.25" />
                                             <span>{{ $t('Threads') }}</span>
                                             <span
                                                 v-if="hasUnreadThreads"
@@ -1276,10 +1274,10 @@ onMounted(() => {
                                 <SidebarMenuItem>
                                     <SidebarMenuButton
                                         data-test="reminders-trigger"
-                                        class="h-[30px] gap-2 rounded-[9px] px-2.5 text-[13px] text-muted-foreground hover:bg-sidebar-accent/60"
+                                        class="h-7.5 gap-2 rounded-[9px] px-2.5 text-[13px] text-muted-foreground hover:bg-sidebar-accent/60"
                                         @click="remindersDialogOpen = true"
                                     >
-                                        <AlarmClock class="size-[13px]" />
+                                        <AlarmClock class="size-3.25" />
                                         <span>{{ $t('Reminders') }}</span>
                                         <span
                                             v-if="reminders.length > 0"
@@ -1292,7 +1290,7 @@ onMounted(() => {
                                 <SidebarMenuItem>
                                     <SidebarMenuButton
                                         as-child
-                                        class="h-[30px] gap-2 rounded-[9px] px-2.5 text-[13px] text-muted-foreground hover:bg-sidebar-accent/60"
+                                        class="h-7.5 gap-2 rounded-[9px] px-2.5 text-[13px] text-muted-foreground hover:bg-sidebar-accent/60"
                                     >
                                         <Link
                                             v-if="currentTeam"
@@ -1303,7 +1301,7 @@ onMounted(() => {
                                             data-test="search-messages"
                                         >
                                             <MessageSquareText
-                                                class="size-[13px]"
+                                                class="size-3.25"
                                             />
                                             <span>{{
                                                 $t('Search messages')
@@ -1314,14 +1312,14 @@ onMounted(() => {
                                 <SidebarMenuItem>
                                     <SidebarMenuButton
                                         as-child
-                                        class="h-[30px] gap-2 rounded-[9px] px-2.5 text-[13px] text-muted-foreground hover:bg-sidebar-accent/60"
+                                        class="h-7.5 gap-2 rounded-[9px] px-2.5 text-[13px] text-muted-foreground hover:bg-sidebar-accent/60"
                                     >
                                         <Link
                                             v-if="currentTeam"
                                             :href="browse(currentTeam.slug).url"
                                             data-test="browse-channels"
                                         >
-                                            <Search class="size-[13px]" />
+                                            <Search class="size-3.25" />
                                             <span>{{
                                                 $t('Browse channels')
                                             }}</span>

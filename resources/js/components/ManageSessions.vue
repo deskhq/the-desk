@@ -53,7 +53,7 @@ function lastActive(iso: string): string {
             :data-test="`session-${session.id}`"
         >
             <div
-                class="flex size-[38px] shrink-0 items-center justify-center rounded-[10px] border"
+                class="flex size-9.5 shrink-0 items-center justify-center rounded-[10px] border"
                 :class="
                     session.isCurrentDevice
                         ? 'border-brass/30 bg-brass-fill text-brass-fill-foreground'
@@ -78,7 +78,7 @@ function lastActive(iso: string): string {
                     </span>
                     <span
                         v-if="session.isCurrentDevice"
-                        class="inline-flex h-[19px] shrink-0 items-center rounded-full border border-brass/30 bg-brass-fill px-2.5 text-[10.5px] font-semibold tracking-[0.05em] text-brass-fill-foreground uppercase"
+                        class="inline-flex h-4.75 shrink-0 items-center rounded-full border border-brass/30 bg-brass-fill px-2.5 text-[10.5px] font-semibold tracking-[0.05em] text-brass-fill-foreground uppercase"
                         data-test="current-device-badge"
                     >
                         {{ $t('This device') }}
@@ -100,7 +100,7 @@ function lastActive(iso: string): string {
                 <DialogTrigger as-child>
                     <Button
                         variant="ghost"
-                        class="ml-auto h-[30px] rounded-full px-3.5 text-xs font-semibold text-muted-foreground hover:bg-accent hover:text-foreground"
+                        class="ml-auto h-7.5 rounded-full px-3.5 text-xs font-semibold text-muted-foreground hover:bg-accent hover:text-foreground"
                         :data-test="`revoke-session-${session.id}`"
                     >
                         {{ $t('Revoke') }}

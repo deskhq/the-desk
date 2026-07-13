@@ -55,7 +55,7 @@ function formatDate(iso: string): string {
         data-test="data-export-pending"
     >
         <span
-            class="inline-flex h-[22px] shrink-0 items-center rounded-full bg-accent px-2.5 text-[11px] font-semibold tracking-[0.05em] text-muted-foreground uppercase"
+            class="inline-flex h-5.5 shrink-0 items-center rounded-full bg-accent px-2.5 text-[11px] font-semibold tracking-[0.05em] text-muted-foreground uppercase"
         >
             {{ $t('Preparing') }}
         </span>
@@ -100,7 +100,7 @@ function formatDate(iso: string): string {
         <div
             class="flex size-11 shrink-0 items-center justify-center rounded-xl border border-brass/30 bg-brass-fill text-brass-fill-foreground"
         >
-            <Archive class="size-[18px]" />
+            <Archive class="size-4.5" />
         </div>
 
         <div class="flex min-w-0 flex-1 flex-col gap-0.5">
@@ -166,7 +166,7 @@ function formatDate(iso: string): string {
                 as="a"
                 :href="downloadUrl"
                 download
-                class="h-[34px] gap-2 rounded-full px-[18px]"
+                class="h-8.5 gap-2 rounded-full px-4.5"
             >
                 <Download class="size-4" />
                 {{ $t('Download') }}

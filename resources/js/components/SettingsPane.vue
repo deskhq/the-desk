@@ -16,7 +16,7 @@ defineProps<{
     <section
         class="w-full max-w-3xl rounded-2xl border border-border bg-card px-6 py-7 shadow-[0_2px_8px_rgba(60,55,40,0.06)] sm:px-10 sm:py-8 dark:shadow-none"
     >
-        <header class="flex flex-col gap-1 border-b border-border pb-[18px]">
+        <header class="flex flex-col gap-1 border-b border-border pb-4.5">
             <h2
                 class="font-serif text-[28px] leading-tight font-semibold tracking-tight"
             >

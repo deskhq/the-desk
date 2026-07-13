@@ -77,7 +77,7 @@ const { shareReadReceipts, updateShareReadReceipts } = useReadReceipts();
                     type="button"
                     :aria-pressed="selected === option.value"
                     @click="choose(option.value)"
-                    class="inline-flex h-[30px] items-center rounded-full border px-3.5 text-[12.5px] transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                    class="inline-flex h-7.5 items-center rounded-full border px-3.5 text-[12.5px] transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
                     :class="
                         selected === option.value
                             ? 'border-brass bg-brass-fill font-semibold text-foreground'
@@ -92,7 +92,7 @@ const { shareReadReceipts, updateShareReadReceipts } = useReadReceipts();
                     :disabled="selected === 'off'"
                     data-test="preview-chime"
                     @click="preview(selected)"
-                    class="ml-1 inline-flex h-[30px] items-center gap-1.5 rounded-full border border-border bg-card px-3.5 text-xs font-semibold text-muted-foreground transition-colors hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50"
+                    class="ml-1 inline-flex h-7.5 items-center gap-1.5 rounded-full border border-border bg-card px-3.5 text-xs font-semibold text-muted-foreground transition-colors hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50"
                 >
                     <Play class="size-3 fill-current" />
                     {{ $t('Preview') }}

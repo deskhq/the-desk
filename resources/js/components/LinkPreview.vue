@@ -34,7 +34,7 @@ const siteLabel = computed(
             loading="lazy"
             class="w-full"
         />
-        <div class="px-[15px] py-[13px]">
+        <div class="px-3.75 py-3.25">
             <p
                 class="truncate text-[10px] font-semibold tracking-[0.08em] text-muted-foreground uppercase"
             >

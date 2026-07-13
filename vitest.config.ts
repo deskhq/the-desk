@@ -4,7 +4,10 @@ import { defineConfig } from 'vitest/config';
 export default defineConfig({
     test: {
         environment: 'node',
-        include: ['resources/js/**/*.test.ts'],
+        include: [
+            'resources/js/**/*.test.ts',
+            'eslint-rules/**/*.test.ts',
+        ],
     },
     resolve: {
         alias: {

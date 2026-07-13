@@ -122,11 +122,11 @@ const getStartedUrl = computed(() =>
         <div class="mx-auto w-full max-w-[1280px] px-6 pt-16 pb-6 sm:px-8">
             <div
                 aria-hidden="true"
-                class="flex gap-3 overflow-hidden rounded-[18px] border border-border bg-muted p-3 shadow-[0_40px_80px_-24px_rgba(29,26,21,0.28),0_4px_16px_rgba(29,26,21,0.08)] lg:h-[640px]"
+                class="flex gap-3 overflow-hidden rounded-[18px] border border-border bg-muted p-3 shadow-[0_40px_80px_-24px_rgba(29,26,21,0.28),0_4px_16px_rgba(29,26,21,0.08)] lg:h-160"
             >
                 <!-- Sidebar -->
                 <div
-                    class="hidden w-[236px] shrink-0 flex-col overflow-hidden rounded-xl border border-border bg-sidebar shadow-[0_2px_8px_rgba(29,26,21,0.05)] lg:flex"
+                    class="hidden w-59 shrink-0 flex-col overflow-hidden rounded-xl border border-border bg-sidebar shadow-[0_2px_8px_rgba(29,26,21,0.05)] lg:flex"
                 >
                     <div class="border-b border-border px-3 pt-3 pb-2.5">
                         <div class="flex items-center gap-2">
@@ -181,7 +181,7 @@ const getStartedUrl = computed(() =>
                                 <span class="text-muted-foreground">#</span
                                 >announcements
                                 <span
-                                    class="ml-auto flex h-4 min-w-[17px] items-center justify-center rounded-full bg-brass px-1.5 text-[9.5px] font-bold text-brass-foreground"
+                                    class="ml-auto flex h-4 min-w-4.25 items-center justify-center rounded-full bg-brass px-1.5 text-[9.5px] font-bold text-brass-foreground"
                                     >3</span
                                 >
                             </div>
@@ -253,7 +253,7 @@ const getStartedUrl = computed(() =>
                     class="flex min-w-0 flex-1 flex-col overflow-hidden rounded-xl border border-border bg-card shadow-[0_2px_8px_rgba(29,26,21,0.05)]"
                 >
                     <div
-                        class="flex items-end gap-4 border-b border-border px-6 pt-[18px] pb-3"
+                        class="flex items-end gap-4 border-b border-border px-6 pt-4.5 pb-3"
                     >
                         <div class="min-w-0 flex-1">
                             <div
@@ -267,19 +267,19 @@ const getStartedUrl = computed(() =>
                         </div>
                         <div class="flex pb-0.5">
                             <span
-                                class="flex size-[22px] items-center justify-center rounded-full bg-accent text-[8px] font-bold text-foreground/70 ring-2 ring-card"
+                                class="flex size-5.5 items-center justify-center rounded-full bg-accent text-[8px] font-bold text-foreground/70 ring-2 ring-card"
                                 >MC</span
                             >
                             <span
-                                class="-ml-1.5 flex size-[22px] items-center justify-center rounded-full bg-muted text-[8px] font-bold text-foreground/70 ring-2 ring-card"
+                                class="-ml-1.5 flex size-5.5 items-center justify-center rounded-full bg-muted text-[8px] font-bold text-foreground/70 ring-2 ring-card"
                                 >JW</span
                             >
                             <span
-                                class="-ml-1.5 flex size-[22px] items-center justify-center rounded-full bg-accent text-[8px] font-bold text-foreground/70 ring-2 ring-card"
+                                class="-ml-1.5 flex size-5.5 items-center justify-center rounded-full bg-accent text-[8px] font-bold text-foreground/70 ring-2 ring-card"
                                 >PN</span
                             >
                             <span
-                                class="-ml-1.5 flex size-[22px] items-center justify-center rounded-full bg-muted text-[8px] font-bold text-muted-foreground ring-2 ring-card"
+                                class="-ml-1.5 flex size-5.5 items-center justify-center rounded-full bg-muted text-[8px] font-bold text-muted-foreground ring-2 ring-card"
                                 >+9</span
                             >
                         </div>
@@ -293,9 +293,9 @@ const getStartedUrl = computed(() =>
                             <div
                                 class="flex w-14 shrink-0 flex-col items-center gap-1 pt-0.5"
                             >
-                                <div class="relative size-[30px]">
+                                <div class="relative size-7.5">
                                     <div
-                                        class="flex size-[30px] items-center justify-center rounded-full bg-accent text-[10px] font-bold text-foreground/70"
+                                        class="flex size-7.5 items-center justify-center rounded-full bg-accent text-[10px] font-bold text-foreground/70"
                                     >
                                         MC
                                     </div>
@@ -344,11 +344,11 @@ const getStartedUrl = computed(() =>
                                     >
                                         <span class="flex">
                                             <span
-                                                class="flex size-[15px] items-center justify-center rounded-full bg-muted text-[6.5px] font-bold text-foreground/70 ring-[1.5px] ring-card"
+                                                class="flex size-3.75 items-center justify-center rounded-full bg-muted text-[6.5px] font-bold text-foreground/70 ring-[1.5px] ring-card"
                                                 >JW</span
                                             >
                                             <span
-                                                class="-ml-1 flex size-[15px] items-center justify-center rounded-full bg-accent text-[6.5px] font-bold text-foreground/70 ring-[1.5px] ring-card"
+                                                class="-ml-1 flex size-3.75 items-center justify-center rounded-full bg-accent text-[6.5px] font-bold text-foreground/70 ring-[1.5px] ring-card"
                                                 >PN</span
                                             >
                                         </span>
@@ -378,7 +378,7 @@ const getStartedUrl = computed(() =>
                                 class="flex w-14 shrink-0 flex-col items-center gap-1 pt-0.5"
                             >
                                 <div
-                                    class="flex size-[30px] items-center justify-center rounded-full bg-muted text-[10px] font-bold text-foreground/70"
+                                    class="flex size-7.5 items-center justify-center rounded-full bg-muted text-[10px] font-bold text-foreground/70"
                                 >
                                     JW
                                 </div>
@@ -414,11 +414,11 @@ const getStartedUrl = computed(() =>
                             >
                             <span class="flex">
                                 <span
-                                    class="flex size-[15px] items-center justify-center rounded-full bg-accent text-[7px] font-bold text-foreground/70 ring-[1.5px] ring-card"
+                                    class="flex size-3.75 items-center justify-center rounded-full bg-accent text-[7px] font-bold text-foreground/70 ring-[1.5px] ring-card"
                                     >PN</span
                                 >
                                 <span
-                                    class="-ml-1 flex size-[15px] items-center justify-center rounded-full bg-muted text-[7px] font-bold text-foreground/70 ring-[1.5px] ring-card"
+                                    class="-ml-1 flex size-3.75 items-center justify-center rounded-full bg-muted text-[7px] font-bold text-foreground/70 ring-[1.5px] ring-card"
                                     >JW</span
                                 >
                             </span>
@@ -454,7 +454,7 @@ const getStartedUrl = computed(() =>
                                 >+</span
                             >
                             <span
-                                class="flex size-[31px] items-center justify-center rounded-full bg-primary text-brass"
+                                class="flex size-7.75 items-center justify-center rounded-full bg-primary text-brass"
                                 >&uarr;</span
                             >
                         </div>
@@ -463,7 +463,7 @@ const getStartedUrl = computed(() =>
 
                 <!-- Thread -->
                 <div
-                    class="hidden w-[308px] shrink-0 flex-col overflow-hidden rounded-xl border border-border bg-sidebar shadow-[0_2px_8px_rgba(29,26,21,0.05)] xl:flex"
+                    class="hidden w-77 shrink-0 flex-col overflow-hidden rounded-xl border border-border bg-sidebar shadow-[0_2px_8px_rgba(29,26,21,0.05)] xl:flex"
                 >
                     <div
                         class="flex items-center gap-2 border-b border-border px-4 pt-3.5 pb-3"
@@ -505,7 +505,7 @@ const getStartedUrl = computed(() =>
 
                         <div class="mt-3.5 flex gap-2.5">
                             <div
-                                class="flex size-[26px] shrink-0 items-center justify-center rounded-full bg-muted text-[9px] font-bold text-foreground/70"
+                                class="flex size-6.5 shrink-0 items-center justify-center rounded-full bg-muted text-[9px] font-bold text-foreground/70"
                             >
                                 JW
                             </div>
@@ -530,7 +530,7 @@ const getStartedUrl = computed(() =>
 
                         <div class="mt-3 flex gap-2.5">
                             <div
-                                class="flex size-[26px] shrink-0 items-center justify-center rounded-full bg-accent text-[9px] font-bold text-foreground/70"
+                                class="flex size-6.5 shrink-0 items-center justify-center rounded-full bg-accent text-[9px] font-bold text-foreground/70"
                             >
                                 PN
                             </div>
@@ -566,7 +566,7 @@ const getStartedUrl = computed(() =>
                                 >Reply&hellip;</span
                             >
                             <span
-                                class="flex size-[26px] items-center justify-center rounded-full bg-muted text-muted-foreground"
+                                class="flex size-6.5 items-center justify-center rounded-full bg-muted text-muted-foreground"
                                 >&uarr;</span
                             >
                         </div>

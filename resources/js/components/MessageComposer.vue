@@ -441,7 +441,7 @@ function onKeydown(event: KeyboardEvent): void {
                  send circle tucked to the right. Grows upward as the textarea
                  wraps, with the tools pinned to the bottom edge. -->
             <div
-                class="flex items-end gap-2.5 rounded-[26px] border border-input bg-card py-2 pr-2 pl-[18px] shadow-[0_3px_12px_rgba(29,26,21,0.08)] focus-within:border-ring focus-within:ring-[3px] focus-within:ring-ring/20 dark:shadow-[0_3px_12px_rgba(0,0,0,0.3)]"
+                class="flex items-end gap-2.5 rounded-[26px] border border-input bg-card py-2 pr-2 pl-4.5 shadow-[0_3px_12px_rgba(29,26,21,0.08)] focus-within:border-ring focus-within:ring-[3px] focus-within:ring-ring/20 dark:shadow-[0_3px_12px_rgba(0,0,0,0.3)]"
                 @mousedown="focusFromCard"
             >
                 <textarea
@@ -497,11 +497,11 @@ function onKeydown(event: KeyboardEvent): void {
                     size="icon"
                     :disabled="body.trim() === ''"
                     data-test="message-composer-send"
-                    class="size-[34px] shrink-0 rounded-full bg-primary text-brass hover:bg-primary/90"
+                    class="size-8.5 shrink-0 rounded-full bg-primary text-brass hover:bg-primary/90"
                     :aria-label="$t('Send message')"
                     @click="submit"
                 >
-                    <ArrowUp class="size-[15px]" :stroke-width="2.2" />
+                    <ArrowUp class="size-3.75" :stroke-width="2.2" />
                 </Button>
             </div>
 

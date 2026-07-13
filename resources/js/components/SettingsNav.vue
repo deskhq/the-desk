@@ -89,7 +89,7 @@ const { isCurrentOrParentUrl } = useCurrentUrl();
                 data-test="settings-back"
                 class="flex h-8 w-full items-center gap-2 rounded-[9px] px-2.5 text-[13px] text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground"
             >
-                <ArrowLeft class="size-[13px] shrink-0" />
+                <ArrowLeft class="size-3.25 shrink-0" />
                 <span>{{ $t('Back to workspace') }}</span>
             </Link>
         </div>
@@ -109,7 +109,7 @@ const { isCurrentOrParentUrl } = useCurrentUrl();
                         <SidebarMenuButton
                             as-child
                             :is-active="isCurrentOrParentUrl(item.href)"
-                            class="h-[30px] gap-2 rounded-[9px] px-2.5 text-[13px] text-muted-foreground hover:bg-sidebar-accent/60 hover:text-sidebar-foreground data-[active=true]:bg-sidebar-primary data-[active=true]:font-medium data-[active=true]:text-sidebar-primary-foreground data-[active=true]:hover:bg-sidebar-primary data-[active=true]:hover:text-sidebar-primary-foreground"
+                            class="h-7.5 gap-2 rounded-[9px] px-2.5 text-[13px] text-muted-foreground hover:bg-sidebar-accent/60 hover:text-sidebar-foreground data-[active=true]:bg-sidebar-primary data-[active=true]:font-medium data-[active=true]:text-sidebar-primary-foreground data-[active=true]:hover:bg-sidebar-primary data-[active=true]:hover:text-sidebar-primary-foreground"
                         >
                             <Link
                                 :href="item.href"
@@ -120,10 +120,7 @@ const { isCurrentOrParentUrl } = useCurrentUrl();
                                         : undefined
                                 "
                             >
-                                <component
-                                    :is="item.icon"
-                                    class="size-[13px]"
-                                />
+                                <component :is="item.icon" class="size-3.25" />
                                 <span>{{ item.title }}</span>
                             </Link>
                         </SidebarMenuButton>

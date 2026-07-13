@@ -115,7 +115,7 @@ const { open: openOnboardingTour } = useOnboardingTour();
                     <span
                         class="flex size-9 shrink-0 items-center justify-center rounded-[11px] bg-brass-fill text-brass-fill-foreground"
                     >
-                        <UserPlus class="size-[17px]" />
+                        <UserPlus class="size-4.25" />
                     </span>
                     <span class="flex flex-1 flex-col">
                         <span
@@ -141,7 +141,7 @@ const { open: openOnboardingTour } = useOnboardingTour();
                     <span
                         class="flex size-9 shrink-0 items-center justify-center rounded-[11px] bg-brass-fill text-brass-fill-foreground"
                     >
-                        <Send class="size-[16px]" />
+                        <Send class="size-4" />
                     </span>
                     <span class="flex flex-1 flex-col">
                         <span

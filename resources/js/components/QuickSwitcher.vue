@@ -151,7 +151,7 @@ function openReminders(): void {
                 <CommandItem
                     value="action:reminders"
                     data-test="quick-switcher-reminders"
-                    class="group h-[38px] gap-2 rounded-lg px-2.5 data-[highlighted]:bg-primary data-[highlighted]:text-primary-foreground"
+                    class="group h-9.5 gap-2 rounded-lg px-2.5 data-[highlighted]:bg-primary data-[highlighted]:text-primary-foreground"
                     @select="openReminders"
                 >
                     <AlarmClock
@@ -175,7 +175,7 @@ function openReminders(): void {
                     :key="channel.id"
                     :value="`channel:${channel.id}`"
                     data-test="quick-switcher-channel"
-                    class="group h-[38px] gap-2 rounded-lg px-2.5 data-[highlighted]:bg-primary data-[highlighted]:text-primary-foreground"
+                    class="group h-9.5 gap-2 rounded-lg px-2.5 data-[highlighted]:bg-primary data-[highlighted]:text-primary-foreground"
                     @select="selectChannel(channel)"
                 >
                     <span
@@ -201,7 +201,7 @@ function openReminders(): void {
                     :key="person.id"
                     :value="`person:${person.id}`"
                     data-test="quick-switcher-person"
-                    class="group h-[38px] gap-2 rounded-lg px-2.5 data-[highlighted]:bg-primary data-[highlighted]:text-primary-foreground"
+                    class="group h-9.5 gap-2 rounded-lg px-2.5 data-[highlighted]:bg-primary data-[highlighted]:text-primary-foreground"
                     @select="selectPerson(person.id)"
                 >
                     <span

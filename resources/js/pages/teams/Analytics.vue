@@ -380,12 +380,12 @@ function channelColor(indexInList: number): string {
             </div>
             <div
                 v-if="!chartsReady"
-                class="h-[220px] w-full animate-pulse rounded-lg bg-muted/40"
+                class="h-55 w-full animate-pulse rounded-lg bg-muted/40"
             ></div>
             <ChartContainer
                 v-else
                 :config="messagesConfig"
-                class="h-[220px] w-full"
+                class="h-55 w-full"
                 data-test="analytics-messages-chart"
             >
                 <VisXYContainer
@@ -549,12 +549,12 @@ function channelColor(indexInList: number): string {
             </div>
             <div
                 v-if="!chartsReady"
-                class="h-[200px] w-full animate-pulse rounded-lg bg-muted/40"
+                class="h-50 w-full animate-pulse rounded-lg bg-muted/40"
             ></div>
             <ChartContainer
                 v-else
                 :config="membersConfig"
-                class="h-[200px] w-full"
+                class="h-50 w-full"
                 data-test="analytics-growth-chart"
             >
                 <VisXYContainer

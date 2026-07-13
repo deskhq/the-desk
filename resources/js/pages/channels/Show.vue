@@ -833,7 +833,7 @@ function archive(): void {
                                 !showJumpToUnread
                             "
                             data-test="sticky-date"
-                            class="pointer-events-none absolute top-2.5 left-1/2 z-10 inline-flex h-[26px] -translate-x-1/2 items-center rounded-full bg-card px-3.5 text-[11.5px] font-semibold text-muted-foreground shadow-md ring-1 ring-border"
+                            class="pointer-events-none absolute top-2.5 left-1/2 z-10 inline-flex h-6.5 -translate-x-1/2 items-center rounded-full bg-card px-3.5 text-[11.5px] font-semibold text-muted-foreground shadow-md ring-1 ring-border"
                         >
                             {{ stickyDayLabel }}
                         </div>
@@ -949,7 +949,7 @@ function archive(): void {
                                       )
                                     : $t('Jump to latest message')
                             "
-                            class="absolute right-4 bottom-4 z-10 inline-flex h-[38px] items-center gap-2 rounded-full px-[18px] text-[12.5px] font-semibold shadow-lg transition-colors hover:opacity-90"
+                            class="absolute right-4 bottom-4 z-10 inline-flex h-9.5 items-center gap-2 rounded-full px-4.5 text-[12.5px] font-semibold shadow-lg transition-colors hover:opacity-90"
                             :class="
                                 newMessageCount > 0
                                     ? 'bg-brass text-brass-foreground'
@@ -970,7 +970,7 @@ function archive(): void {
                             </span>
                             <span v-else>{{ $t('Jump to present') }}</span>
                             <ChevronDown
-                                class="size-[13px] shrink-0"
+                                class="size-3.25 shrink-0"
                                 :class="newMessageCount > 0 ? '' : 'text-brass'"
                             />
                         </button>

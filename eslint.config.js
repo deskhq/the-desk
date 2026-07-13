@@ -4,6 +4,7 @@ import prettier from 'eslint-config-prettier/flat';
 import importPlugin from 'eslint-plugin-import';
 import vue from 'eslint-plugin-vue';
 import vuejsAccessibility from 'eslint-plugin-vuejs-accessibility';
+import noArbitraryTailwindSpacing from './eslint-rules/no-arbitrary-tailwind-spacing.js';
 
 const controlStatements = [
     'if',
@@ -29,6 +30,11 @@ export default defineConfigWithVueTs(
     {
         plugins: {
             import: importPlugin,
+            local: {
+                rules: {
+                    'no-arbitrary-tailwind-spacing': noArbitraryTailwindSpacing,
+                },
+            },
         },
         settings: {
             'import/resolver': {
@@ -60,6 +66,11 @@ export default defineConfigWithVueTs(
                 'error',
                 'prefer-top-level',
             ],
+            // Surface arbitrary `[Npx]` spacing utilities that have an exact
+            // Tailwind scale equivalent (e.g. `size-[38px]` -> `size-9.5`).
+            // `warn` (visible, auto-fixable via `npm run lint`) so the gate stays
+            // green while the existing occurrences are burned down over time.
+            'local/no-arbitrary-tailwind-spacing': 'warn',
         },
     },
     {
@@ -80,8 +91,8 @@ export default defineConfigWithVueTs(
         // The rules below already have pre-existing violations across the shell that
         // the a11y remediation slices burn down; they are `warn` (visible, tracked)
         // until then, at which point each is flipped back to `error`:
-        //   - form-control-has-label / label-has-for: mostly false positives against
-        //     shadcn `<Label>` / reka-ui form composition (the control association is
+        //   - form-control-has-label: mostly false positives against shadcn
+        //     `<Label>` / reka-ui form composition (the control association is
         //     established at runtime, invisible to static analysis) mixed with a few
         //     real gaps (e.g. the composer textarea) — see #268.
         //   - tabindex-no-positive / no-static-element-interactions /
@@ -92,13 +103,39 @@ export default defineConfigWithVueTs(
         //     alongside the focus-management work (#267).
         rules: {
             'vuejs-accessibility/form-control-has-label': 'warn',
-            'vuejs-accessibility/label-has-for': 'warn',
+            // Our labels associate their control via `for`/`id` across custom
+            // wrapper components (`<Label for>` + `<PasswordInput id>` /
+            // `<Input id>` / …), which the default `{ every: ['nesting', 'id'] }`
+            // requirement can't see. Accept either an `id` association or a nested
+            // control (registering our control wrappers so nesting is recognised),
+            // which clears the false positives and restores the rule at `error`.
+            'vuejs-accessibility/label-has-for': [
+                'error',
+                {
+                    required: { some: ['nesting', 'id'] },
+                    controlComponents: [
+                        'Input',
+                        'PasswordInput',
+                        'Checkbox',
+                        'NativeSelect',
+                        'SelectTrigger',
+                    ],
+                },
+            ],
             'vuejs-accessibility/tabindex-no-positive': 'warn',
             'vuejs-accessibility/no-autofocus': 'warn',
             'vuejs-accessibility/no-redundant-roles': 'warn',
             'vuejs-accessibility/no-static-element-interactions': 'warn',
             'vuejs-accessibility/aria-unsupported-elements': 'warn',
             'vuejs-accessibility/mouse-events-have-key-events': 'warn',
+        },
+    },
+    {
+        // The rule's own tests embed arbitrary `[Npx]` utilities as fixtures;
+        // don't let the rule rewrite them.
+        files: ['eslint-rules/**/*.test.ts'],
+        rules: {
+            'local/no-arbitrary-tailwind-spacing': 'off',
         },
     },
     {

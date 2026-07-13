@@ -51,7 +51,7 @@ const hasAvatar = computed(() => !!user.avatar && user.avatar !== '');
                             </Avatar>
                             <span
                                 aria-hidden="true"
-                                class="absolute -right-0.5 -bottom-0.5 size-[9px] rounded-full border-2 border-sidebar-accent bg-emerald-600"
+                                class="absolute -right-0.5 -bottom-0.5 size-2.25 rounded-full border-2 border-sidebar-accent bg-emerald-600"
                             />
                         </span>
                         <span class="grid flex-1 text-left leading-tight">
@@ -66,7 +66,7 @@ const hasAvatar = computed(() => !!user.avatar && user.avatar !== '');
                             >
                         </span>
                         <ChevronsUpDown
-                            class="ml-auto size-[13px] text-muted-foreground"
+                            class="ml-auto size-3.25 text-muted-foreground"
                         />
                     </SidebarMenuButton>
                 </DropdownMenuTrigger>

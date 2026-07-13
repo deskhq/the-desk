@@ -71,7 +71,7 @@ function selectPerson(id: string): void {
                     :key="person.id"
                     :value="`person:${person.id}`"
                     data-test="new-dm-person"
-                    class="group h-[38px] gap-2 rounded-lg px-2.5 data-[highlighted]:bg-primary data-[highlighted]:text-primary-foreground"
+                    class="group h-9.5 gap-2 rounded-lg px-2.5 data-[highlighted]:bg-primary data-[highlighted]:text-primary-foreground"
                     @select="selectPerson(person.id)"
                 >
                     <span

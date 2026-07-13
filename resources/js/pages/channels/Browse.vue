@@ -87,7 +87,7 @@ const props = defineProps<{
                 <li
                     v-for="channel in props.joinableChannels"
                     :key="channel.id"
-                    class="group flex items-center justify-between gap-4 border-b border-border/60 px-1 py-[13px] transition-colors last:border-0 hover:bg-muted/40"
+                    class="group flex items-center justify-between gap-4 border-b border-border/60 px-1 py-3.25 transition-colors last:border-0 hover:bg-muted/40"
                 >
                     <div class="flex min-w-0 flex-col gap-px">
                         <span class="text-[14px] font-semibold text-foreground">
@@ -116,7 +116,7 @@ const props = defineProps<{
                             type="submit"
                             variant="outline"
                             size="sm"
-                            class="h-[30px] rounded-full border-primary bg-transparent px-4 text-[12.5px] font-semibold text-primary group-hover:border-primary group-hover:bg-primary group-hover:text-primary-foreground hover:border-primary hover:bg-primary hover:text-primary-foreground"
+                            class="h-7.5 rounded-full border-primary bg-transparent px-4 text-[12.5px] font-semibold text-primary group-hover:border-primary group-hover:bg-primary group-hover:text-primary-foreground hover:border-primary hover:bg-primary hover:text-primary-foreground"
                             >{{ $t('Join') }}</Button
                         >
                     </Form>

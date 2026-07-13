@@ -103,11 +103,11 @@ const showDivider = computed(
 // for keyboard users, and a reserved transparent border so the brass open-state
 // below never shifts the layout (border-box keeps the footprint fixed).
 const iconButtonClass =
-    'inline-flex h-7 w-[30px] items-center justify-center rounded-md border border-transparent text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none';
+    'inline-flex h-7 w-7.5 items-center justify-center rounded-md border border-transparent text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none';
 
 // Delete recolors to the destructive token on hover instead of neutral.
 const deleteButtonClass =
-    'inline-flex h-7 w-[30px] items-center justify-center rounded-md border border-transparent text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none';
+    'inline-flex h-7 w-7.5 items-center justify-center rounded-md border border-transparent text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none';
 
 // The persistent "open" state for a button anchoring a popover (react / remind):
 // brass carries the meaning that a menu is attached here, per the design's

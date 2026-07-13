@@ -476,10 +476,10 @@ function confirmDelete(): void {
                     v-if="showsSkeleton(item)"
                     data-test="message-skeleton"
                     aria-hidden="true"
-                    class="mt-[18px] flex gap-3"
+                    class="mt-4.5 flex gap-3"
                     :style="{ minHeight: '56px' }"
                 >
-                    <div class="size-[34px] shrink-0 rounded-full bg-muted" />
+                    <div class="size-8.5 shrink-0 rounded-full bg-muted" />
                     <div class="flex flex-1 flex-col gap-2 pt-1">
                         <div class="h-3 w-40 rounded bg-muted" />
                         <div class="h-3 w-[60%] rounded bg-muted" />
@@ -525,7 +525,7 @@ function confirmDelete(): void {
                     <span aria-hidden="true" class="h-px flex-1 bg-border" />
                 </div>
 
-                <div v-else class="mt-[18px] flex">
+                <div v-else class="mt-4.5 flex">
                     <div
                         class="flex w-16 shrink-0 flex-col items-center gap-1 pt-0.5"
                     >
@@ -536,9 +536,9 @@ function confirmDelete(): void {
                             :online="isOnline(item.author.id)"
                             @mention="(member) => emit('mention', member)"
                         >
-                            <div class="relative size-[34px] cursor-pointer">
+                            <div class="relative size-8.5 cursor-pointer">
                                 <div
-                                    class="flex size-[34px] items-center justify-center rounded-full bg-primary/10 text-[11px] font-semibold text-primary select-none"
+                                    class="flex size-8.5 items-center justify-center rounded-full bg-primary/10 text-[11px] font-semibold text-primary select-none"
                                     aria-hidden="true"
                                 >
                                     {{ getInitials(item.author.name) }}
@@ -565,7 +565,7 @@ function confirmDelete(): void {
                         >
                     </div>
                     <div
-                        class="min-w-0 flex-1 pl-[18px]"
+                        class="min-w-0 flex-1 pl-4.5"
                         :class="
                             isThreadRoot(item)
                                 ? 'border-l-2 border-brass'
@@ -621,7 +621,7 @@ function confirmDelete(): void {
                                 <time
                                     :datetime="message.createdAt"
                                     aria-hidden="true"
-                                    class="pointer-events-none absolute top-1.5 -left-[52px] font-mono text-[9.5px] text-muted-foreground opacity-0 transition-opacity group-hover/message:opacity-100"
+                                    class="pointer-events-none absolute top-1.5 -left-13 font-mono text-[9.5px] text-muted-foreground opacity-0 transition-opacity group-hover/message:opacity-100"
                                     >{{ formatTime(message.createdAt) }}</time
                                 >
                                 <button

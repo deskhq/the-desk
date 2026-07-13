@@ -90,12 +90,12 @@ function hide(): void {
                 :data-test="`dm-row-${channel.slug}`"
                 :aria-current="isActive ? 'page' : undefined"
             >
-                <span class="relative size-[18px] shrink-0">
+                <span class="relative size-4.5 shrink-0">
                     <!-- On the active row the button fills with the brass
                          primary, so the avatar switches to a light-on-dark
                          treatment to stay legible instead of washing out. -->
                     <span
-                        class="flex size-[18px] items-center justify-center rounded-full text-[8px] font-semibold select-none"
+                        class="flex size-4.5 items-center justify-center rounded-full text-[8px] font-semibold select-none"
                         :class="
                             isActive
                                 ? 'bg-sidebar-primary-foreground/25 text-sidebar-primary-foreground'
@@ -153,7 +153,7 @@ function hide(): void {
                 <span
                     v-if="channel.unreadCount > 0"
                     data-test="dm-unread-badge"
-                    class="ml-auto flex h-[17px] min-w-[18px] items-center justify-center rounded-full bg-brass px-1.5 text-[10px] font-bold text-brass-foreground tabular-nums"
+                    class="ml-auto flex h-4.25 min-w-4.5 items-center justify-center rounded-full bg-brass px-1.5 text-[10px] font-bold text-brass-foreground tabular-nums"
                     :aria-label="
                         $t(':count unread messages', {
                             count: channel.unreadCount,

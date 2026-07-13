@@ -127,6 +127,7 @@ function submit(): void {
 
             <div>
                 <label
+                    for="forward-destination"
                     class="mb-1 block text-[12px] font-medium text-muted-foreground"
                 >
                     {{ $t('Destination') }}
@@ -136,6 +137,7 @@ function submit(): void {
                 >
                     <Search class="size-4 shrink-0 opacity-50" />
                     <input
+                        id="forward-destination"
                         v-model="query"
                         type="text"
                         :placeholder="$t('Search channels and people…')"
@@ -242,6 +244,7 @@ function submit(): void {
 
             <div>
                 <label
+                    for="forward-note"
                     class="mb-1 block text-[12px] font-medium text-muted-foreground"
                 >
                     {{ $t('Add a note') }}
@@ -250,6 +253,7 @@ function submit(): void {
                     }}</span>
                 </label>
                 <textarea
+                    id="forward-note"
                     v-model="note"
                     rows="2"
                     :placeholder="$t('Say something about this…')"

@@ -106,7 +106,7 @@ function jumpHref(result: MessageSearchResult): string {
                     :placeholder="$t('Search messages')"
                     :aria-label="$t('Search messages')"
                     autofocus
-                    class="h-[38px] rounded-[10px] bg-muted/40 pl-9"
+                    class="h-9.5 rounded-[10px] bg-muted/40 pl-9"
                 />
             </div>
 

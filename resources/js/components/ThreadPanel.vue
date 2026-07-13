@@ -108,7 +108,7 @@ watch(
         class="flex w-full min-w-0 shrink-0 flex-col overflow-hidden border-l border-border md:m-3.5 md:w-96 md:rounded-[14px] md:border md:border-border md:bg-sidebar md:shadow-sm"
     >
         <header
-            class="flex shrink-0 items-start gap-2 border-b border-border px-[18px] pt-4 pb-3"
+            class="flex shrink-0 items-start gap-2 border-b border-border px-4.5 pt-4 pb-3"
         >
             <div class="min-w-0 flex-1">
                 <h2
@@ -134,7 +134,7 @@ watch(
                 type="button"
                 data-test="thread-close"
                 :aria-label="$t('Close thread')"
-                class="flex size-[26px] shrink-0 items-center justify-center rounded-lg border border-border text-muted-foreground hover:bg-muted hover:text-foreground"
+                class="flex size-6.5 shrink-0 items-center justify-center rounded-lg border border-border text-muted-foreground hover:bg-muted hover:text-foreground"
                 @click="emit('close')"
             >
                 <X class="size-3.5" />
