@@ -25,7 +25,7 @@ Never run bare `npm` on the host for the app: `node_modules` is Linux-only in th
 
 1. **Clean working tree.** If there are uncommitted changes, stop and say so. Do **not** stash.
 2. **Fresh baseline.** `git checkout master && git pull`, then branch off up-to-date `master`:
-   `git checkout -b chore/deps-<yyyy-mm-dd-or-topic>`. A dep refresh must sit on the newest `master`, not on an in-flight feature branch.
+   `git checkout -b deps/<yyyy-mm-dd-or-topic>`. A dep refresh must sit on the newest `master`, not on an in-flight feature branch.
 3. **Sail is up.** If the containers aren't running, print `./vendor/bin/sail up -d` and halt — don't start containers yourself.
 
 ## In-range refresh (default flow)
@@ -94,13 +94,12 @@ If clearing an advisory needs a major, surface it and let the user decide.
 
 ## Deliverable
 
-On green, capture the work but **stop before pushing** — pushing/PRing is a separate, outward step.
+On green, commit the work and **open a PR** — the flow runs all the way through to an open deps PR.
 
 - **One commit per ecosystem** (independently revertable; squash merge flattens them anyway):
-  - `chore(deps): update composer dependencies`
-  - `chore(deps): update npm dependencies`
-- `chore(deps):` is a valid Conventional Commit but release-please **ignores** it — no changelog entry, no version bump. That's correct for dep bumps.
+  - `deps(composer): update composer dependencies`
+  - `deps(npm): update npm dependencies`
+- `deps` is our **changelog type for dependency bumps**. release-please folds it into the release's **Dependencies** section, and commitlint's `type-enum` allows it. It is **non-bumping**: a deps-only PR never cuts a release on its own — it rides along into the next `feat`/`fix` release. Never fall back to `chore(deps):` — that type is invisible to the changelog.
 - Never add a `Co-Authored-By` trailer or any Claude/Anthropic attribution.
+- **Open one combined PR** covering both ecosystems, titled `deps: update composer and npm dependencies` (squash merge makes the PR title the single changelog line under Dependencies). Hand off to the `open-pr` skill to open it, or `gh pr create` directly with that Conventional title. Reference any issues filed in the body.
 - Report a concise **before → after** summary of what moved (package, old version, new version), plus the audit results and any issues filed.
-
-To open a PR afterwards, hand off to the `open-pr` skill.
