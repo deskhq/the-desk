@@ -37,7 +37,11 @@ export default defineConfig({
 			sidebar: [
 				{
 					label: 'Start Here',
-					items: [{ label: 'Introduction', slug: 'docs' }],
+					items: [
+						{ label: 'Introduction', slug: 'docs' },
+						{ label: 'The Desk vs Slack, Mattermost & Rocket.Chat', slug: 'docs/comparison' },
+						{ label: 'FAQ', slug: 'docs/faq' },
+					],
 				},
 				{
 					label: 'Self-Hosting',
