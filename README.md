@@ -13,6 +13,12 @@
 </p>
 
 <p align="center">
+  <a href="https://github.com/emmpaul/the-desk/actions/workflows/tests.yml"><img src="https://img.shields.io/github/actions/workflow/status/emmpaul/the-desk/tests.yml?branch=master&label=tests" alt="Tests"></a>
+  <a href="https://github.com/emmpaul/the-desk/releases"><img src="https://img.shields.io/github/v/release/emmpaul/the-desk?color=c9a35c" alt="Latest release"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/github/license/emmpaul/the-desk?color=c9a35c" alt="License: MIT"></a>
+</p>
+
+<p align="center">
   <a href="https://the-desk.emmanuelpaul.com">Website</a> ·
   <a href="https://the-desk.emmanuelpaul.com/docs/">Docs</a> ·
   <a href="https://the-desk.emmanuelpaul.com/docs/self-hosting/installation/">Install</a> ·
