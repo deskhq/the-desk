@@ -62,7 +62,37 @@ gh pr view <n> --json title --jq .title
 
 Ask yourself: does it start with a valid `type` (or `type!`) then `: `? Would release-please file it under the right section? If not, fix it now with `gh pr edit <n> --title "…"` — and remember GitHub appends ` (#<n>)` to the squash subject at merge time, which is fine.
 
+## After opening — the CodeRabbit review pass
+
+This repo runs **CodeRabbit** (free Pro on public repos; config in `.coderabbit.yaml`). When you open a PR **inside a live session**, don't stop at "PR opened" — wait for CodeRabbit's review, then apply the fixes worth applying. CodeRabbit auto-reviews every non-draft PR and posts a review authored by `coderabbitai[bot]` a few minutes after the push (and again after each new commit).
+
+**Watch for the review** (poll; it usually lands within ~2-5 min):
+
+```bash
+# Returns a coderabbitai[bot] review once it has finished; empty until then.
+gh pr view <n> --json reviews \
+  --jq '.reviews[] | select(.author.login=="coderabbitai") | .submittedAt' | tail -1
+```
+
+Prefer the `Monitor` tool with an until-condition over a busy `sleep` loop. Also pull the actionable inline comments once it's in:
+
+```bash
+gh api repos/{owner}/{repo}/pulls/<n>/comments \
+  --jq '.[] | select(.user.login=="coderabbitai[bot]") | {path, line, body}'
+```
+
+**Judge, then apply** — you decide, this is not a blind auto-apply:
+
+1. Read each finding (inline comments + the review summary + any "🤖 Prompt for AI Agents" block).
+2. Apply the ones that are correct and safe. **Skip** false positives, and skip anything that conflicts with `CLAUDE.md` (e.g. a suggestion to hardcode copy instead of `$t`/`__()`, to drop a type hint, to bypass Sail, or to touch a release-please-owned file). When you skip, note why.
+3. Re-run the gate before pushing — backend `./vendor/bin/sail composer test`, frontend `lint:check`/`format:check`/`types:check`/`build`. A CodeRabbit fix still has to clear our 100% coverage + Rector/PHPStan/Pint bars.
+4. `git push` the fixes. CodeRabbit re-reviews the new commit; repeat until it has nothing actionable (or only nits you've consciously declined).
+5. Report to the user what you applied and what you skipped (with reasons).
+
+Note the **pre-merge title check**: CodeRabbit is configured to flag a PR title that isn't a valid Conventional Commit (`mode: error` in `.coderabbit.yaml`) — a second net under the one rule above.
+
 ## Never
 
 - Hand-edit `CHANGELOG.md`, `VERSION`, or `.release-please-manifest.json` — release-please owns them.
 - Rely on the branch name or an individual commit message to carry the changelog entry — only the PR title reaches release-please on a squash merge.
+- Blindly apply every CodeRabbit suggestion. It produces false positives; a suggestion that fights `CLAUDE.md` loses.
