@@ -1,0 +1,97 @@
+# yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
+# CodeRabbit configuration for The Desk.
+# Free Pro reviews on this public repo. Tuned to the conventions in CLAUDE.md so
+# suggestions reinforce our standards instead of fighting them.
+language: en-US
+
+# Global voice for every review. Keep it aligned with project-wide preferences.
+tone_instructions: >-
+  Be concise and specific. Never use em dashes in any prose you write; use commas,
+  parentheses, or separate sentences instead.
+
+reviews:
+  # Balanced signal-to-noise: surface real issues, skip nitpicks.
+  profile: chill
+  # Don't gate merges on CodeRabbit; our CI (composer test + frontend gate) is the gate.
+  request_changes_workflow: false
+  high_level_summary: true
+  review_status: true
+  poem: false
+  # Emit a "Prompt for AI Agents" block on inline comments so an agent (Claude Code)
+  # can act on findings directly.
+  enable_prompt_for_ai_agents: true
+
+  auto_review:
+    enabled: true
+    drafts: false
+
+  # Skip generated, vendored and lock artifacts.
+  path_filters:
+    - "!resources/js/generated/**"
+    - "!lang/**"
+    - "!**/*.lock"
+    - "!composer.lock"
+    - "!package-lock.json"
+    - "!CHANGELOG.md"
+    - "!.release-please-manifest.json"
+
+  # Enforce the single rule that most often bites this repo: the PR title becomes the
+  # squash commit release-please parses, so it MUST be a valid Conventional Commit.
+  pre_merge_checks:
+    title:
+      mode: error
+      requirements: >-
+        The PR title MUST be a valid Conventional Commit: "type: imperative subject"
+        (or "type(scope): subject", or "type!: subject" for a breaking change). Type
+        must be lower-case and one of feat, fix, perf, refactor, docs, test, chore, ci,
+        build, style. No trailing period, aim for <= 70 characters. This repo squash-merges
+        with the PR title as the commit subject, and release-please parses it: a user-facing
+        capability must be "feat", a bug fix "fix", or it is silently dropped from CHANGELOG.md
+        and the version bump. Flag any title that reads like a plain sentence.
+
+  path_instructions:
+    - path: "**/*.php"
+      instructions: >-
+        Follow the PHP conventions in CLAUDE.md: always use curly braces for control
+        structures; use constructor property promotion; declare explicit return types and
+        parameter type hints; prefer PHPDoc blocks over inline comments with array-shape
+        types; TitleCase enum keys. This repo requires 100% test coverage (gated at --min=100),
+        so flag any new production code path that lacks a corresponding test. All Node/PHP
+        tooling runs through Sail (./vendor/bin/sail ...), never bare npm on the host.
+    - path: "resources/js/**/*.{vue,ts}"
+      instructions: >-
+        Never hardcode user-facing copy. Template strings must go through the global $t
+        helper; <script setup> uses useTranslations()'s t(); module scope uses translate()
+        from @/lib/i18n. Interpolate with Laravel-style :token placeholders. Do NOT wrap
+        non-visible strings (data-test, route names, CSS classes) in $t. Format dates/numbers
+        via @/lib/datetime and @/lib/numbers, never a hardcoded locale. Prefer the generated
+        ambient App.Data.* / App.Enums.* types over hand-duplicated DTOs/enums. Vue components
+        must have a single root element.
+    - path: "app/**/*.php"
+      instructions: >-
+        Wrap user-facing strings (flash messages, mailables, notifications) in __(). Any new
+        translation key must also be added to lang/fr.json.
+    - path: "tests/**/*.php"
+      instructions: >-
+        Pest tests. Use model factories and their custom states rather than manual setup.
+        Prefer feature tests. Do not weaken assertions just to pass.
+    - path: "docs/**"
+      instructions: >-
+        This is the public Starlight self-hosting docs site, isolated from the app gates.
+        Operator-facing changes (new/changed .env or config settings, install/upgrade/proxy
+        steps, production stack) must be reflected here. Source facts from config/*.php,
+        .env.example, and docker-compose.prod.yml, not memory.
+
+  tools:
+    # Let CodeRabbit read our existing CI check results instead of re-running its own.
+    github-checks:
+      enabled: true
+    # We already run larastan (level max) and our own ESLint in CI; disable CodeRabbit's
+    # duplicates so it doesn't report against a different config.
+    phpstan:
+      enabled: false
+    eslint:
+      enabled: false
+
+chat:
+  auto_reply: true
