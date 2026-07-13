@@ -16,7 +16,7 @@
 
 x-app: &app
   # Defaults to the local build tag (build-from-source). Set APP_IMAGE to the
-  # published image — e.g. APP_IMAGE=ghcr.io/emmpaul/the-desk:0.4.0 — to run the
+  # published image — e.g. APP_IMAGE=ghcr.io/emmpaul/the-desk:1.0.0 — to run the
   # prebuilt turnkey image instead: `docker compose -f docker-compose.prod.yml pull`
   # then `up -d`, no build step. Browser Reverb settings are read at runtime, so
   # one published image works for any host.

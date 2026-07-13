@@ -1,19 +1,34 @@
 // @ts-check
 import { defineConfig } from 'astro/config';
 import starlight from '@astrojs/starlight';
+import sitemap from '@astrojs/sitemap';
+
+// Public URL the site is served from. Used for canonical links, the sitemap,
+// and social-card (Open Graph / Twitter) URLs. Update this if the site moves.
+const site = 'https://the-desk.emmanuelpaul.com';
+const ogImage = `${site}/og-image.png`;
 
 // https://astro.build/config
 export default defineConfig({
-	// Public URL the site is served from. Used for the sitemap and canonical
-	// links. Update this to your Cloudflare Pages URL (or custom domain).
-	site: 'https://the-desk.pages.dev',
+	site,
 	integrations: [
+		sitemap(),
 		starlight({
 			title: 'The Desk',
 			description:
 				'Self-hosting and operator documentation for The Desk — a real-time, self-hostable team chat application.',
 			social: [
 				{ icon: 'github', label: 'GitHub', href: 'https://github.com/emmpaul/the-desk' },
+			],
+			// Site-wide social-card + canonical tags for every documentation page.
+			head: [
+				{ tag: 'link', attrs: { rel: 'apple-touch-icon', href: '/apple-touch-icon.png' } },
+				{ tag: 'meta', attrs: { property: 'og:type', content: 'website' } },
+				{ tag: 'meta', attrs: { property: 'og:image', content: ogImage } },
+				{ tag: 'meta', attrs: { property: 'og:image:width', content: '1200' } },
+				{ tag: 'meta', attrs: { property: 'og:image:height', content: '630' } },
+				{ tag: 'meta', attrs: { name: 'twitter:card', content: 'summary_large_image' } },
+				{ tag: 'meta', attrs: { name: 'twitter:image', content: ogImage } },
 			],
 			// "Edit this page" links point at the file on the default branch.
 			editLink: {
@@ -22,7 +37,11 @@ export default defineConfig({
 			sidebar: [
 				{
 					label: 'Start Here',
-					items: [{ label: 'Introduction', slug: 'docs' }],
+					items: [
+						{ label: 'Introduction', slug: 'docs' },
+						{ label: 'The Desk vs Slack, Mattermost & Rocket.Chat', slug: 'docs/comparison' },
+						{ label: 'FAQ', slug: 'docs/faq' },
+					],
 				},
 				{
 					label: 'Self-Hosting',

@@ -1,11 +1,29 @@
 ---
 // Standalone marketing landing page for The Desk.
 // Not a Starlight page — the documentation lives under /docs.
+const site = 'https://the-desk.emmanuelpaul.com';
 const github = 'https://github.com/emmpaul/the-desk';
 const installGuide = '/docs/self-hosting/installation/';
+const releaseTag = '1.0.0';
 const title = 'The Desk — Self-hosted team chat that lives on your own server';
 const description =
 	'The Desk is a calm, fast, open-source team chat app you host yourself: channels, threads, reminders, scheduled messages. One container, your hardware, your data.';
+const ogImage = `${site}/og-image.png`;
+
+// Rich-result structured data: a free, self-hostable web application.
+const jsonLd = {
+	'@context': 'https://schema.org',
+	'@type': 'SoftwareApplication',
+	name: 'The Desk',
+	description,
+	url: `${site}/`,
+	applicationCategory: 'CommunicationApplication',
+	operatingSystem: 'Docker / Linux',
+	license: 'https://opensource.org/licenses/MIT',
+	softwareVersion: releaseTag,
+	offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
+	author: { '@type': 'Person', name: 'Emmanuel Paul' },
+};
 ---
 
 <!doctype html>
@@ -16,10 +34,20 @@ const description =
 		<title>{title}</title>
 		<meta name="description" content={description} />
 		<link rel="icon" href="/favicon.svg" type="image/svg+xml" />
-		<link rel="canonical" href="https://the-desk.pages.dev/" />
+		<link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+		<link rel="canonical" href={`${site}/`} />
 		<meta property="og:type" content="website" />
+		<meta property="og:url" content={`${site}/`} />
 		<meta property="og:title" content={title} />
 		<meta property="og:description" content={description} />
+		<meta property="og:image" content={ogImage} />
+		<meta property="og:image:width" content="1200" />
+		<meta property="og:image:height" content="630" />
+		<meta name="twitter:card" content="summary_large_image" />
+		<meta name="twitter:title" content={title} />
+		<meta name="twitter:description" content={description} />
+		<meta name="twitter:image" content={ogImage} />
+		<script type="application/ld+json" set:html={JSON.stringify(jsonLd)} />
 		<link rel="preconnect" href="https://fonts.googleapis.com" />
 		<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous" />
 		<link
@@ -321,7 +349,7 @@ const description =
 						<div><span class="prompt">$</span> git clone github.com/emmpaul/the-desk &amp;&amp; cd the-desk</div>
 						<div><span class="prompt">$</span> ./docker/gen-secrets.sh <span class="prompt"># fills APP_KEY, DB, Reverb keys</span></div>
 						<div><span class="prompt">$</span> docker compose -f docker-compose.prod.yml up -d</div>
-						<div class="dim">Pulling ghcr.io/emmpaul/the-desk:0.4.0… done</div>
+						<div class="dim">Pulling ghcr.io/emmpaul/the-desk:{releaseTag}… done</div>
 						<div class="dim">Running migrations… done</div>
 						<div><span class="ok">✓</span> The Desk is live at <span class="ok">https://desk.your-domain.com</span></div>
 						<div class="cursor-line"><span class="prompt">$</span> <span class="cursor"></span></div>
