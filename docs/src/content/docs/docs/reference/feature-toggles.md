@@ -46,6 +46,25 @@ their next request — they'll be prompted to verify. The verify routes are alwa
 registered, so flipping the flag takes effect immediately with no data migration.
 :::
 
+## Gravatar avatars
+
+User avatars are derived from [Gravatar](https://gravatar.com) using the MD5 hash
+of each user's email address (so the raw address never appears in the URL). A user
+without a Gravatar falls back cleanly to their initials.
+
+| Variable            | Default                            | Effect                                                              |
+| ------------------- | ---------------------------------- | ------------------------------------------------------------------ |
+| `GRAVATAR_ENABLED`  | `true`                             | Derive avatars from Gravatar. Set `false` for **initials only** and no outbound requests to gravatar.com. |
+| `GRAVATAR_URL`      | `https://www.gravatar.com/avatar`  | The Gravatar endpoint. Point it at a mirror to avoid gravatar.com. |
+| `GRAVATAR_SIZE`     | `200`                              | Requested square image size, in pixels.                            |
+| `GRAVATAR_DEFAULT`  | `404`                              | The `d=` fallback. `404` is what makes users without a Gravatar fall back to initials; `mp`, `identicon`, or a URL are alternatives. |
+
+:::tip
+Turning `GRAVATAR_ENABLED=false` is the privacy-conscious choice if you don't want
+your instance making per-user requests to gravatar.com — everyone then shows their
+initials.
+:::
+
 ## Activity logging
 
 The Desk records an activity log (audit trail) of notable actions.

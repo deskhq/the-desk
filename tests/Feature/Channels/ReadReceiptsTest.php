@@ -141,7 +141,7 @@ test('MessageRead broadcasts on the channel private channel with the reader and 
 
     expect($event->broadcastOn())->toEqual([new PrivateChannel('channel.'.$general->id)]);
     expect($event->broadcastWith())->toEqual([
-        'reader' => ['id' => $owner->id, 'name' => $owner->name],
+        'reader' => ['id' => $owner->id, 'name' => $owner->name, 'avatar' => $owner->avatar],
         'lastReadMessageId' => $message->id,
     ]);
 });

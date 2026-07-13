@@ -12,6 +12,7 @@ import {
 import type { AcceptableValue } from 'reka-ui';
 import { computed } from 'vue';
 import { index as searchMessages } from '@/actions/App/Http/Controllers/Channels/SearchController';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import {
     DropdownMenu,
@@ -234,15 +235,24 @@ const dmParticipantOnline = computed(
                               })
                     }}
                 </span>
-                <span
+                <Avatar
                     v-for="member in mastheadAvatars.visible"
                     :key="member.id"
-                    class="flex size-6 items-center justify-center rounded-full bg-primary/10 text-[9px] font-semibold text-primary ring-2 ring-card select-none"
+                    class="size-6 text-[9px] ring-2 ring-card"
                     :title="member.name"
                     aria-hidden="true"
                 >
-                    {{ getInitials(member.name) }}
-                </span>
+                    <AvatarImage
+                        v-if="member.avatar"
+                        :src="member.avatar"
+                        :alt="member.name"
+                    />
+                    <AvatarFallback
+                        class="bg-primary/10 font-semibold text-primary"
+                    >
+                        {{ getInitials(member.name) }}
+                    </AvatarFallback>
+                </Avatar>
                 <span
                     v-if="mastheadAvatars.overflow > 0"
                     class="flex size-6 items-center justify-center rounded-full bg-muted text-[9px] font-semibold text-muted-foreground ring-2 ring-card select-none"

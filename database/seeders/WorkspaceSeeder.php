@@ -20,6 +20,8 @@ use App\Models\Team;
 use App\Models\TeamInvitation;
 use App\Models\User;
 use App\Support\AuditRecorder;
+use App\Support\Gravatar;
+use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -79,31 +81,47 @@ class WorkspaceSeeder extends Seeder
      */
     private function seedUsers(): array
     {
-        $demo = User::factory()->create([
-            'name' => 'Demo User',
-            'email' => self::DEMO_EMAIL,
-        ]);
+        $demo = $this->seedUser(['name' => 'Demo User', 'email' => self::DEMO_EMAIL]);
 
-        User::factory()->unverified()->create([
-            'name' => 'Uma Unverified',
-            'email' => 'unverified@example.com',
-        ]);
+        $this->seedUser(
+            ['name' => 'Uma Unverified', 'email' => 'unverified@example.com'],
+            User::factory()->unverified(),
+        );
 
-        $twoFactor = User::factory()->withTwoFactor()->create([
-            'name' => 'Tina Twofactor',
-            'email' => 'twofactor@example.com',
-        ]);
+        $twoFactor = $this->seedUser(
+            ['name' => 'Tina Twofactor', 'email' => 'twofactor@example.com'],
+            User::factory()->withTwoFactor(),
+        );
 
         return [
             'demo' => $demo,
-            'admin' => User::factory()->create(['name' => 'Alice Admin']),
-            'member1' => User::factory()->create(['name' => 'Bob Builder']),
-            'member2' => User::factory()->create(['name' => 'Carol Danvers']),
+            'admin' => $this->seedUser(['name' => 'Alice Admin', 'email' => 'alice@example.com']),
+            'member1' => $this->seedUser(['name' => 'Bob Builder', 'email' => 'bob@example.com']),
+            'member2' => $this->seedUser(['name' => 'Carol Danvers', 'email' => 'carol@example.com']),
             'twoFactor' => $twoFactor,
-            'globexOwner' => User::factory()->create(['name' => 'Grace Globex']),
-            'initechOwner' => User::factory()->create(['name' => 'Ivan Initech']),
-            'ghostOwner' => User::factory()->create(['name' => 'Nate Nolonger']),
+            'globexOwner' => $this->seedUser(['name' => 'Grace Globex', 'email' => 'grace@example.com']),
+            'initechOwner' => $this->seedUser(['name' => 'Ivan Initech', 'email' => 'ivan@example.com']),
+            'ghostOwner' => $this->seedUser(['name' => 'Nate Nolonger', 'email' => 'nate@example.com']),
         ];
+    }
+
+    /**
+     * Create a demo user with a generated Gravatar identicon for its avatar.
+     *
+     * Production derives avatars from real Gravatars (falling back to initials),
+     * but the fixture emails have none, so the seeder stores an `identicon` URL
+     * per user — a distinct, deterministic picture — to show the avatar surfaces
+     * populated across the demo.
+     *
+     * @param  array{name: string, email: string}  $attributes
+     * @param  Factory<User>|null  $factory
+     */
+    private function seedUser(array $attributes, ?Factory $factory = null): User
+    {
+        return ($factory ?? User::factory())->createOne([
+            ...$attributes,
+            'avatar_url' => Gravatar::url($attributes['email'], 'identicon'),
+        ]);
     }
 
     /**

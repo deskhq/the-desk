@@ -29,6 +29,7 @@ export type UserProfile = {
     id: string;
     name: string;
     email: string;
+    avatar: string | null;
     pronouns: string | null;
     title: string | null;
     phone: string | null;

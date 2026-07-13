@@ -155,7 +155,7 @@ test('the mention payload rides the broadcast MessageData', function (): void {
     $message = Message::where('client_uuid', $clientUuid)->firstOrFail();
     $payload = MessageData::fromMessage($message->load(['user', 'mentionedUsers']))->toArray();
 
-    expect($payload['mentions'])->toBe([['id' => $mentioned->id, 'name' => 'Alan Turing']]);
+    expect($payload['mentions'])->toBe([['id' => $mentioned->id, 'name' => 'Alan Turing', 'avatar' => $mentioned->avatar]]);
 });
 
 test('a deleted message blanks its mentions in the tombstone payload', function (): void {
