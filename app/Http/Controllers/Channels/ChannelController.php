@@ -109,6 +109,13 @@ class ChannelController extends Controller
             // Gates the reaction affordances; only a member of a non-archived
             // channel may react, matching the server-side `postMessage` rule.
             'canReact' => Gate::allows('postMessage', $channel),
+            // Whether the viewer already belongs to the channel. A non-member can
+            // reach a public channel by URL and read it, but the composer is
+            // replaced by a "Join channel" call-to-action until they join.
+            'isMember' => $membership !== null,
+            // The channel's member count, surfaced in the join call-to-action so a
+            // non-member sees how many teammates are already in the channel.
+            'memberCount' => $channel->channelMembers()->count(),
             // Selectable notification levels for the settings menu.
             'notificationLevels' => NotificationLevel::options(),
             // The message the client should scroll to and highlight on load, or

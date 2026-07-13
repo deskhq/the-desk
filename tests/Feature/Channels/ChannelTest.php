@@ -1,6 +1,7 @@
 <?php
 
 use App\Actions\Channels\CreateChannel;
+use App\Actions\Channels\JoinChannel;
 use App\Actions\Teams\CreateTeam;
 use App\Enums\ChannelVisibility;
 use App\Enums\TeamRole;
@@ -89,6 +90,56 @@ test('a bare team URL redirects to the #general channel', function (): void {
     $this->actingAs($user)
         ->get(route('channels.index', ['team' => $team->slug]))
         ->assertRedirect(route('channels.show', ['team' => $team->slug, 'channel' => 'general']));
+});
+
+test('a member viewing a public channel is marked isMember with the channel member count', function (): void {
+    $user = User::factory()->create();
+    $team = app(CreateTeam::class)->handle($user, 'Acme');
+    $general = Channel::where('team_id', $team->id)->where('slug', 'general')->firstOrFail();
+
+    $this->actingAs($user)
+        ->get(route('channels.show', ['team' => $team->slug, 'channel' => $general->slug]))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page): Assert => $page
+            ->where('isMember', true)
+            ->where('memberCount', 1)
+        );
+});
+
+test('a non-member viewing a public channel is marked not isMember so the join CTA renders', function (): void {
+    $owner = User::factory()->create();
+    $viewer = User::factory()->create();
+    $team = app(CreateTeam::class)->handle($owner, 'Acme');
+    $team->memberships()->create(['user_id' => $viewer->id, 'role' => TeamRole::Member]);
+
+    $channel = Channel::factory()->for($team)->create(['name' => 'Design', 'slug' => 'design']);
+    app(JoinChannel::class)->handle($channel, $owner);
+
+    $this->actingAs($viewer)
+        ->get(route('channels.show', ['team' => $team->slug, 'channel' => $channel->slug]))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page): Assert => $page
+            ->component('channels/Show')
+            ->where('isMember', false)
+            ->where('memberCount', 1)
+        );
+});
+
+test('joining a public channel from its view adds membership and makes the composer available', function (): void {
+    $owner = User::factory()->create();
+    $viewer = User::factory()->create();
+    $team = app(CreateTeam::class)->handle($owner, 'Acme');
+    $team->memberships()->create(['user_id' => $viewer->id, 'role' => TeamRole::Member]);
+
+    $channel = Channel::factory()->for($team)->create(['slug' => 'design']);
+
+    $this->actingAs($viewer)
+        ->post(route('channels.join', ['team' => $team->slug, 'channel' => $channel->slug]))
+        ->assertRedirect(route('channels.show', ['team' => $team->slug, 'channel' => 'design']));
+
+    $this->actingAs($viewer)
+        ->get(route('channels.show', ['team' => $team->slug, 'channel' => $channel->slug]))
+        ->assertInertia(fn (Assert $page): Assert => $page->where('isMember', true));
 });
 
 test('a user who is not a team member cannot view the team\'s channels', function (): void {

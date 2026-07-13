@@ -18,6 +18,7 @@ import {
 import ChannelEmptyState from '@/components/ChannelEmptyState.vue';
 import ChannelMasthead from '@/components/ChannelMasthead.vue';
 import ForwardMessageDialog from '@/components/ForwardMessageDialog.vue';
+import JoinChannelBar from '@/components/JoinChannelBar.vue';
 import MessageComposer from '@/components/MessageComposer.vue';
 import MessageList from '@/components/MessageList.vue';
 import ScheduledMessagesDialog from '@/components/ScheduledMessagesDialog.vue';
@@ -85,6 +86,11 @@ const props = defineProps<{
     // Whether the viewer may react (member of a non-archived channel); read-only
     // reaction pills still render for a non-member browsing a public channel.
     canReact: boolean;
+    // Whether the viewer already belongs to the channel. A non-member viewing a
+    // public channel by URL sees a "Join channel" bar in place of the composer.
+    isMember: boolean;
+    // The channel's member count, surfaced in the join bar for a non-member.
+    memberCount: number;
     notificationLevels: NotificationLevelOption[];
     jumpToMessageId?: string | null;
     // The viewer's read pointer at load time, used to place the "New messages"
@@ -988,6 +994,18 @@ function archive(): void {
                         )
                     }}
                 </div>
+
+                <!-- A non-member reached this public channel by URL: the timeline
+                     is read-only and the composer is replaced by a "Join channel"
+                     bar in the same slot. Joining reloads the page as a member,
+                     rendering the normal composer in its place. -->
+                <JoinChannelBar
+                    v-else-if="!props.isMember"
+                    :team-slug="props.team.slug"
+                    :channel-name="props.channel.name"
+                    :channel-slug="props.channel.slug"
+                    :member-count="props.memberCount"
+                />
 
                 <template v-else>
                     <!-- Offline queue banner: the socket is down and the viewer's
