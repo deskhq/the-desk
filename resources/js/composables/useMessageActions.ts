@@ -76,8 +76,12 @@ export interface MessageActionsOptions {
 }
 
 export interface MessageActions {
-    /** Send a message, optimistically, rolling the row back on error. */
-    send: (body: string, mentions: Mention[]) => void;
+    /**
+     * Send a message, optimistically, rolling the row back on error. Any
+     * `attachmentIds` (pre-uploaded in the composer) are claimed by the message
+     * in the same store request, in tray order.
+     */
+    send: (body: string, mentions: Mention[], attachmentIds?: string[]) => void;
     /** Post every queued send, in order, then drop each from the queue. */
     flushOutbox: () => void;
     /** Save an edit, optimistically, rolling the patch back on error. */
@@ -162,6 +166,7 @@ export function useMessageActions(
         clientUuid: string;
         body: string;
         replyToId: string | null;
+        attachmentIds: string[];
     }): void {
         router.post(
             storeMessage({
@@ -172,6 +177,7 @@ export function useMessageActions(
                 body: item.body,
                 client_uuid: item.clientUuid,
                 reply_to_id: item.replyToId,
+                attachment_ids: item.attachmentIds,
             },
             {
                 preserveScroll: true,
@@ -188,7 +194,11 @@ export function useMessageActions(
         );
     }
 
-    function send(body: string, mentions: Mention[]): void {
+    function send(
+        body: string,
+        mentions: Mention[],
+        attachmentIds: string[] = [],
+    ): void {
         // Sending clears the draft server-side, so drop any debounced save still
         // in flight; otherwise it would re-persist the just-sent text.
         options.cancelDraft();
@@ -213,7 +223,7 @@ export function useMessageActions(
         nextTick(() => options.scrollToBottom());
 
         if (options.isOnline()) {
-            postMessage({ clientUuid, body, replyToId });
+            postMessage({ clientUuid, body, replyToId, attachmentIds });
 
             return;
         }
@@ -222,7 +232,7 @@ export function useMessageActions(
         // when the connection recovers, rather than failing it outright. Clear the
         // saved draft now, since the store endpoint that normally does so won't be
         // reached until flush — otherwise a refresh would repopulate the composer.
-        options.outbox.enqueue({ clientUuid, body, replyToId });
+        options.outbox.enqueue({ clientUuid, body, replyToId, attachmentIds });
         options.clearDraft();
     }
 

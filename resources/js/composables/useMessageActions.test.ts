@@ -188,6 +188,32 @@ describe('useMessageActions', () => {
             expect(h.scrollToBottom).toHaveBeenCalled();
         });
 
+        it('claims uploaded attachment ids in the store payload, in tray order', () => {
+            const h = harness();
+
+            h.actions.send('with files', [], ['att-1', 'att-2']);
+
+            expect(payloadOf(post)).toMatchObject({
+                body: 'with files',
+                attachment_ids: ['att-1', 'att-2'],
+            });
+        });
+
+        it('carries attachment ids through the offline queue and its later flush', () => {
+            const h = harness({ isOnline: false });
+
+            // An attachment-only send (empty body) queued offline.
+            h.actions.send('', [], ['att-9']);
+            expect(h.outbox.items.value[0]).toMatchObject({
+                attachmentIds: ['att-9'],
+            });
+
+            h.actions.flushOutbox();
+            expect(payloadOf(post)).toMatchObject({
+                attachment_ids: ['att-9'],
+            });
+        });
+
         it('rolls the optimistic row back and toasts on error', () => {
             const h = harness();
 
