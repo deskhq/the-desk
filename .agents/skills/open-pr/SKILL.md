@@ -16,6 +16,28 @@ The repo **merges by squash only**, and `squash_merge_commit_title = PR_TITLE` (
 3. **Companion updates done** where the change requires them: `lang/fr.json` for new user-facing copy, `docs/` for operator-facing changes, tests for every change.
 4. **Branch pushed**: `git push -u origin <branch>`.
 
+## Pre-flight — local CodeRabbit review (CLI)
+
+Before you open the PR, run a **local** CodeRabbit review and fix what's worth fixing, so the PR opens clean. The CLI (`coderabbit`, alias `cr`; installed at `~/.local/bin` — ensure it's on PATH with `export PATH="$HOME/.local/bin:$PATH"`) reviews your local diff and, unlike the GitHub app on this OSS repo, respects the working-tree `.coderabbit.yaml` immediately.
+
+Review this branch's changes against `master`, emitting structured findings:
+
+```bash
+coderabbit review --agent --base master
+```
+
+- `--agent` emits findings meant for you to act on; `--type all` (default) covers committed + uncommitted. Add `-c CLAUDE.md` to feed conventions as extra instructions if a review looks off. `--light` is a faster, lower-context pass.
+- If auth has expired it will say so — the **user** must run `coderabbit auth login` (interactive browser); you cannot complete it. Surface that and pause.
+- Free OSS tier is **rate-limited**; if you hit a limit, note it and lean on the app's PR review instead.
+
+**Judge, then apply** — you decide, this is not blind auto-apply:
+
+1. Read each finding.
+2. Apply the correct, safe ones. **Skip** false positives and anything that conflicts with `CLAUDE.md` (e.g. hardcoding copy instead of `$t`/`__()`, dropping a type hint, bypassing Sail, touching a release-please-owned file). Note why you skipped.
+3. Re-run the gate after fixes — backend `./vendor/bin/sail composer test`, frontend `lint:check`/`format:check`/`types:check`/`build`. A CodeRabbit fix still has to clear 100% coverage + Rector/PHPStan/Pint.
+4. Re-run `coderabbit review --agent --base master` until it's clean or only nits you've consciously declined remain.
+5. Then commit, push, and open the PR. Report to the user what you applied and what you skipped (with reasons).
+
 ## The PR title — a valid Conventional Commit
 
 Format: `type: imperative subject` — lowercase `type`, a colon-space, a concise imperative subject, **no trailing period**, aim for ≤ ~70 chars. Optional scope: `type(scope): …`. No Claude/Co-Authored-By attribution anywhere (see the global `CLAUDE.md`).
@@ -62,34 +84,12 @@ gh pr view <n> --json title --jq .title
 
 Ask yourself: does it start with a valid `type` (or `type!`) then `: `? Would release-please file it under the right section? If not, fix it now with `gh pr edit <n> --title "…"` — and remember GitHub appends ` (#<n>)` to the squash subject at merge time, which is fine.
 
-## After opening — the CodeRabbit review pass
+## After opening — CodeRabbit app backstop
 
-This repo runs **CodeRabbit** (free Pro on public repos; config in `.coderabbit.yaml`). When you open a PR **inside a live session**, don't stop at "PR opened" — wait for CodeRabbit's review, then apply the fixes worth applying. CodeRabbit auto-reviews every non-draft PR and posts a review authored by `coderabbitai[bot]` a few minutes after the push (and again after each new commit).
+The **CodeRabbit GitHub app** still auto-reviews every PR as an always-on backstop (config in `.coderabbit.yaml`) and enforces the Conventional-Commit **pre-merge title check** (`mode: error`) — a second net under the one rule above. You do **not** need to poll it in-session: the local CLI pass (see "Pre-flight" above) is the primary review loop, and it already ran before the PR opened. Two things worth knowing:
 
-**Watch for the review** (poll; it usually lands within ~2-5 min):
-
-```bash
-# Returns a coderabbitai[bot] review once it has finished; empty until then.
-gh pr view <n> --json reviews \
-  --jq '.reviews[] | select(.author.login=="coderabbitai") | .submittedAt' | tail -1
-```
-
-Prefer the `Monitor` tool with an until-condition over a busy `sleep` loop. Also pull the actionable inline comments once it's in:
-
-```bash
-gh api repos/{owner}/{repo}/pulls/<n>/comments \
-  --jq '.[] | select(.user.login=="coderabbitai[bot]") | {path, line, body}'
-```
-
-**Judge, then apply** — you decide, this is not a blind auto-apply:
-
-1. Read each finding (inline comments + the review summary + any "🤖 Prompt for AI Agents" block).
-2. Apply the ones that are correct and safe. **Skip** false positives, and skip anything that conflicts with `CLAUDE.md` (e.g. a suggestion to hardcode copy instead of `$t`/`__()`, to drop a type hint, to bypass Sail, or to touch a release-please-owned file). When you skip, note why.
-3. Re-run the gate before pushing — backend `./vendor/bin/sail composer test`, frontend `lint:check`/`format:check`/`types:check`/`build`. A CodeRabbit fix still has to clear our 100% coverage + Rector/PHPStan/Pint bars.
-4. `git push` the fixes. CodeRabbit re-reviews the new commit; repeat until it has nothing actionable (or only nits you've consciously declined).
-5. Report to the user what you applied and what you skipped (with reasons).
-
-Note the **pre-merge title check**: CodeRabbit is configured to flag a PR title that isn't a valid Conventional Commit (`mode: error` in `.coderabbit.yaml`) — a second net under the one rule above.
+- On this **OSS repo the app only loads `.coderabbit.yaml` from the base branch** (`master`) for security, so config changes take effect only after they merge — the app cannot be config-tested on a PR. The CLI has no such restriction; it reads the working-tree config.
+- If the app later flags something genuinely real on the PR that the CLI missed, apply it with the same judgment (skip false positives / anything fighting `CLAUDE.md`), re-run the gate, and push.
 
 ## Never
 
