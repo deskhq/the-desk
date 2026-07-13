@@ -128,6 +128,12 @@ describe('matchShortcut', () => {
     it('returns null when nothing matches', () => {
         expect(matchShortcut(keydown({ key: 'z' }))).toBeNull();
     });
+
+    it('never dispatches a display-only shortcut', () => {
+        // A bare ArrowUp is documented (edit last message) but composer-local,
+        // so the global dispatcher must not claim it.
+        expect(matchShortcut(keydown({ key: 'ArrowUp' }))).toBeNull();
+    });
 });
 
 describe('isEditableTarget', () => {
@@ -237,12 +243,23 @@ describe('shortcutsByCategory', () => {
 
         expect(groups.map((group) => group.category)).toEqual([
             'Navigation',
+            'Composer',
             'Help',
         ]);
         expect(groups[0].shortcuts.map((shortcut) => shortcut.id)).toEqual([
             'quick-switcher',
             'previous-channel',
             'next-channel',
+        ]);
+    });
+
+    it('lists the composer-local edit shortcut for discoverability', () => {
+        const composer = shortcutsByCategory().find(
+            (group) => group.category === 'Composer',
+        );
+
+        expect(composer?.shortcuts.map((shortcut) => shortcut.id)).toEqual([
+            'edit-last-message',
         ]);
     });
 });

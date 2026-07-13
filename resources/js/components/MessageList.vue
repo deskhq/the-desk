@@ -68,6 +68,9 @@ const props = defineProps<{
     inThread?: boolean;
     // The root of the currently-open thread, highlighted in the main timeline.
     activeThreadRootId?: string | null;
+    // The message currently being edited from the composer, brass-highlighted so
+    // the edit target is unmistakable while the composer holds its text.
+    editingMessageId?: string | null;
     // Read positions of channel members who share read receipts, driving the
     // "Seen by" affordance under the newest message. Omitted inside a thread.
     readers?: ChannelReader[];
@@ -638,6 +641,9 @@ function confirmDelete(): void {
                                         : '',
                                     message.id === props.activeThreadRootId
                                         ? 'bg-primary/5'
+                                        : '',
+                                    message.id === props.editingMessageId
+                                        ? 'bg-brass-fill'
                                         : '',
                                 ]"
                             >

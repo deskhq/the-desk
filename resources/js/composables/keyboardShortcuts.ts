@@ -4,7 +4,11 @@
  * so a shortcut can never appear in one without the other.
  */
 export type ShortcutId =
-    'quick-switcher' | 'previous-channel' | 'next-channel' | 'show-shortcuts';
+    | 'quick-switcher'
+    | 'previous-channel'
+    | 'next-channel'
+    | 'edit-last-message'
+    | 'show-shortcuts';
 
 /**
  * How a {@link KeyboardEvent} is matched to a shortcut. `mod` means the
@@ -26,6 +30,13 @@ export interface ShortcutDefinition {
     /** Display tokens for the help modal, e.g. `['⌘', 'K']`. */
     keys: string[];
     match: ShortcutMatch;
+    /**
+     * Documentation-only entries are listed in the help modal but never
+     * dispatched globally — the shortcut is handled locally elsewhere (the
+     * composer's own ArrowUp handler owns "edit last message"), so the global
+     * dispatcher must not claim the bare keypress.
+     */
+    displayOnly?: boolean;
 }
 
 /**
@@ -58,6 +69,15 @@ export const SHORTCUTS: readonly ShortcutDefinition[] = [
         description: 'Next channel',
         keys: ['⌥', '↓'],
         match: { key: 'ArrowDown', alt: true },
+    },
+    {
+        id: 'edit-last-message',
+        category: 'Composer',
+        description: 'Edit your last message',
+        keys: ['↑'],
+        // Handled locally by the composer, so it is never dispatched globally.
+        match: { key: 'ArrowUp' },
+        displayOnly: true,
     },
     {
         id: 'show-shortcuts',
@@ -129,8 +149,10 @@ export function matchShortcut(
     shortcuts: readonly ShortcutDefinition[] = SHORTCUTS,
 ): ShortcutDefinition | null {
     return (
-        shortcuts.find((shortcut) =>
-            eventMatchesShortcut(event, shortcut.match),
+        shortcuts.find(
+            (shortcut) =>
+                !shortcut.displayOnly &&
+                eventMatchesShortcut(event, shortcut.match),
         ) ?? null
     );
 }

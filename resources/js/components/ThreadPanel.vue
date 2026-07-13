@@ -71,6 +71,10 @@ function mentionInThread(member: { id: string; name: string }): void {
     threadComposer.value?.insertMention(member);
 }
 
+// The reply the thread composer is editing in place (via the ↑ shortcut), or
+// null. Highlights the target row in the thread while editing.
+const editingMessageId = ref<string | null>(null);
+
 // The id of the newest reply currently shown, so a reply appended at the bottom
 // (which should follow the reader or raise the count) can be told apart from
 // older replies paging in at the top, which must leave the viewport anchored.
@@ -182,6 +186,7 @@ watch(
                         :can-moderate="props.canModerate"
                         :can-react="props.canReact"
                         :online-ids="props.onlineIds"
+                        :editing-message-id="editingMessageId"
                         in-thread
                         @edit="(message, body) => emit('edit', message, body)"
                         @delete="(message) => emit('delete', message)"
@@ -253,6 +258,9 @@ watch(
             :channel-name="props.channelName"
             :members="props.members"
             :placeholder="$t('Reply…')"
+            :messages="props.messages"
+            :current-user-id="props.currentUserId"
+            :pending-uuids="props.pendingUuids"
             allow-send-to-channel
             autofocus
             @send="
@@ -260,6 +268,8 @@ watch(
                     emit('send', body, mentions, sendToChannel)
             "
             @typing="emit('typing')"
+            @edit="(message, body) => emit('edit', message, body)"
+            @editing-change="editingMessageId = $event"
         />
     </aside>
 </template>

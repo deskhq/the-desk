@@ -539,6 +539,10 @@ onBeforeUnmount(() => {
 // The message the composer is currently quoting, or null for a normal send.
 const replyTarget = ref<Message | null>(null);
 
+// The id of the message the main composer is editing in place (via the ↑
+// shortcut), or null. Highlights the target row in the timeline while editing.
+const composerEditingId = ref<string | null>(null);
+
 function startReply(message: Message): void {
     replyTarget.value = message;
 }
@@ -918,6 +922,7 @@ function archive(): void {
                                 :highlight-message-id="highlightedMessageId"
                                 :unread-divider-id="unreadDividerId"
                                 :active-thread-root-id="activeThreadRootId"
+                                :editing-message-id="composerEditingId"
                                 @edit="editMessage"
                                 @delete="deleteMessage"
                                 @reply="startReply"
@@ -1079,6 +1084,9 @@ function archive(): void {
                         :members="mentionableMembers"
                         :reply-target="replyTarget"
                         :initial-body="props.channel.draft ?? ''"
+                        :messages="displayMessages"
+                        :current-user-id="currentUser.id"
+                        :pending-uuids="pendingUuids"
                         allow-schedule
                         :timezone="timezone"
                         @send="send"
@@ -1086,6 +1094,8 @@ function archive(): void {
                         @typing="onTyping"
                         @cancel-reply="cancelReply"
                         @draft-change="onDraftChange"
+                        @edit="editMessage"
+                        @editing-change="composerEditingId = $event"
                     />
                 </template>
             </div>
