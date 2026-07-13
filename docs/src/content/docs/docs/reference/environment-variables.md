@@ -93,3 +93,25 @@ production — see [Configuration](/docs/self-hosting/configuration/#reverb-webs
 | `GRAVATAR_ENABLED`           | `true`  | [Feature toggles → Gravatar avatars](/docs/reference/feature-toggles/#gravatar-avatars) |
 | `ACTIVITYLOG_ENABLED`        | `true`  | [Feature toggles → Activity logging](/docs/reference/feature-toggles/#activity-logging) |
 | `REVERB_SCALING_ENABLED`     | `false` | [Feature toggles → Advanced Reverb](/docs/reference/feature-toggles/#advanced-reverb-options) |
+
+## Attachments
+
+Files and images members attach to messages.
+
+| Variable                       | Default | Notes                                                                 |
+| ------------------------------ | ------- | --------------------------------------------------------------------- |
+| `ATTACHMENT_MAX_SIZE_MB`       | `25`    | Largest single file a member can upload, in megabytes.                |
+| `ATTACHMENT_MAX_PER_MESSAGE`   | `10`    | Most files that can ride a single message.                            |
+| `ATTACHMENT_PENDING_TTL_HOURS` | `24`    | How long an uploaded-but-never-sent file is kept before it is swept.  |
+
+:::caution[Raising the size limit needs matching server limits]
+`ATTACHMENT_MAX_SIZE_MB` only controls the app's own validation, which runs **after** the whole
+file has been received. To actually accept larger uploads you must also raise, to at least the same
+size:
+
+- PHP's `upload_max_filesize` **and** `post_max_size`, and
+- any reverse-proxy body-size limit in front of the app (for nginx, `client_max_body_size`).
+
+If these are lower than `ATTACHMENT_MAX_SIZE_MB`, large uploads are rejected by the server or proxy
+before the app ever sees them. See [Reverse proxy](/docs/self-hosting/reverse-proxy/).
+:::

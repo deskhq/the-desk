@@ -1,6 +1,7 @@
 <?php
 
 use App\Data\MessageData;
+use App\Models\Attachment;
 use App\Models\Channel;
 use App\Models\Message;
 use App\Models\MessageReaction;
@@ -36,6 +37,7 @@ function decoratedMessage(): string
     $root->mentionedUsers()->attach($mentioned->id);
     $root->linkPreviews()->create(['url' => 'https://example.com', 'position' => 0]);
     MessageReaction::factory()->for($root, 'message')->for($reactor, 'user')->create();
+    Attachment::factory()->for($author)->attachedTo($root)->create();
 
     Message::factory()->for($channel)->for($replier, 'user')->inThread($root)->create();
 
@@ -61,5 +63,6 @@ it('builds MessageData with no follow-up queries when loaded through the scope',
         ->and($data->mentions)->toHaveCount(1)
         ->and($data->linkPreviews)->toHaveCount(1)
         ->and($data->reactions)->toHaveCount(1)
+        ->and($data->attachments)->toHaveCount(1)
         ->and($data->threadParticipants)->not->toBeEmpty();
 });

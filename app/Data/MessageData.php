@@ -4,6 +4,7 @@ namespace App\Data;
 
 use App\Enums\LinkPreviewStatus;
 use App\Enums\MessageType;
+use App\Models\Attachment;
 use App\Models\Message;
 use App\Models\MessageLinkPreview;
 use App\Models\User;
@@ -17,6 +18,7 @@ class MessageData extends Data
      * @param  array<int, MentionData>  $mentions
      * @param  array<int, LinkPreviewData>  $linkPreviews
      * @param  array<int, ReactionData>  $reactions
+     * @param  array<int, AttachmentData>  $attachments
      * @param  array<int, MentionData>  $threadParticipants
      */
     public function __construct(
@@ -31,6 +33,7 @@ class MessageData extends Data
         public array $mentions,
         public array $linkPreviews,
         public array $reactions,
+        public array $attachments,
         public ?PinData $pin,
         public ?MessageReplyData $replyTo,
         public ?MessageForwardData $forwardedFrom,
@@ -94,6 +97,9 @@ class MessageData extends Data
             // A tombstone carries no reactions; DeleteMessage also hard-deletes
             // the rows, so a deleted message aggregates to an empty set either way.
             reactions: $isDeleted ? [] : ReactionData::forMessage($message),
+            // A tombstone hides its files just as it hides its body; the rows
+            // survive (removed only on force-delete) but never reach the client.
+            attachments: $isDeleted ? [] : $message->attachments->map(fn (Attachment $attachment): AttachmentData => AttachmentData::fromAttachment($attachment))->all(),
             // A tombstone carries no pin; DeleteMessage also removes the pin row,
             // so a deleted message resolves to null either way.
             pin: ! $isDeleted && $message->pin !== null ? PinData::fromPin($message->pin) : null,

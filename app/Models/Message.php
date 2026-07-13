@@ -46,6 +46,7 @@ use Laravel\Scout\Searchable;
  * @property-read Collection<int, User> $mentionedUsers
  * @property-read Collection<int, MessageReaction> $reactions
  * @property-read MessagePin|null $pin
+ * @property-read Collection<int, Attachment> $attachments
  */
 #[Fillable(['channel_id', 'user_id', 'client_uuid', 'reply_to_id', 'forwarded_from_id', 'thread_root_id', 'sent_to_channel', 'body', 'type', 'edited_at'])]
 class Message extends Model
@@ -92,6 +93,9 @@ class Message extends Model
         'forwardedFrom.channel',
         'forwardedFrom.mentionedUsers',
         'threadParticipants',
+        // The channel + team are pulled through so each attachment can build its
+        // authorized download URL without an N+1 (see Attachment::url()).
+        'attachments.channel.team',
     ];
 
     /**
@@ -223,6 +227,19 @@ class Message extends Model
     public function pin(): HasOne
     {
         return $this->hasOne(MessagePin::class);
+    }
+
+    /**
+     * Get the files attached to this message, in upload order.
+     *
+     * Only claimed (attached) rows belong to a message; pending uploads carry no
+     * `message_id`. Ordered by creation so the client renders a stable gallery.
+     *
+     * @return HasMany<Attachment, $this>
+     */
+    public function attachments(): HasMany
+    {
+        return $this->hasMany(Attachment::class)->oldest()->orderBy('id');
     }
 
     /**

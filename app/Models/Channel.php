@@ -131,6 +131,19 @@ class Channel extends Model
     }
 
     /**
+     * Get the file attachments uploaded to the channel (both pending uploads and
+     * those claimed by a message). Denormalized onto `channel_id` so the serve
+     * route can scope-bind an attachment to its channel without joining through
+     * `messages`.
+     *
+     * @return HasMany<Attachment, $this>
+     */
+    public function attachments(): HasMany
+    {
+        return $this->hasMany(Attachment::class);
+    }
+
+    /**
      * Get the messages scheduled for future delivery to the channel.
      *
      * @return HasMany<ScheduledMessage, $this>

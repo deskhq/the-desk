@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Channels\AttachmentController;
 use App\Http\Controllers\Channels\ChannelController;
 use App\Http\Controllers\Channels\ChannelDraftController;
 use App\Http\Controllers\Channels\ChannelMemberController;
@@ -88,6 +89,12 @@ Route::middleware(['auth', 'verified', EnsureTeamMembership::class])->group(func
     Route::post('t/{team}/c/{channel}/messages/{message}/forward', [ForwardMessageController::class, 'store'])
         ->scopeBindings()
         ->name('channels.messages.forward');
+    Route::post('t/{team}/c/{channel}/attachments', [AttachmentController::class, 'store'])
+        ->scopeBindings()
+        ->name('channels.attachments.store');
+    Route::get('t/{team}/c/{channel}/attachments/{attachment}/download', [AttachmentController::class, 'download'])
+        ->scopeBindings()
+        ->name('channels.attachments.download');
     Route::post('t/{team}/c/{channel}/scheduled-messages', [ScheduledMessageController::class, 'store'])
         ->scopeBindings()
         ->name('channels.scheduled-messages.store');
