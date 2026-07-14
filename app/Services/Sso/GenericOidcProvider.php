@@ -2,6 +2,9 @@
 
 namespace App\Services\Sso;
 
+use App\Exceptions\Sso\InvalidIdTokenException;
+use Firebase\JWT\JWK;
+use Firebase\JWT\JWT;
 use Illuminate\Support\Facades\Cache;
 use Laravel\Socialite\Two\AbstractProvider;
 use Laravel\Socialite\Two\ProviderInterface;
@@ -14,8 +17,15 @@ use Laravel\Socialite\Two\User;
  * discovery document (`.well-known/openid-configuration`), so a single env
  * configuration works against any conformant OIDC provider (Okta, Microsoft
  * Entra ID, Google Workspace, Auth0, Keycloak, …). Socialite performs the OAuth2
- * authorization-code exchange; user claims are read from the userinfo endpoint,
- * so there is no id_token/JWT verification to hand-roll.
+ * authorization-code exchange; user claims are read from the userinfo endpoint.
+ *
+ * As defence-in-depth, when the token response carries an id_token it is
+ * validated (signature via the provider JWKS, issuer, audience, expiry) and its
+ * subject must match the UserInfo subject before the claims are trusted — see
+ * {@see self::validateIdToken()}. This is optional (config `sso.oidc
+ * .validate_id_token`) because a conformant provider need not return an id_token
+ * at all, in which case UserInfo-over-TLS with a confidential client remains the
+ * trust anchor.
  */
 class GenericOidcProvider extends AbstractProvider implements ProviderInterface
 {
@@ -71,9 +81,8 @@ class GenericOidcProvider extends AbstractProvider implements ProviderInterface
      * Claims come from the UserInfo endpoint, called over TLS with the access
      * token obtained via the authorization-code exchange (a confidential client
      * authenticating with its secret, state-protected by Socialite). This is the
-     * same model Socialite's built-in providers use and keeps us free of
-     * hand-rolled id_token/JWT verification, as the issue requires. Strict
-     * id_token signature + subject validation is a possible future hardening.
+     * same model Socialite's built-in providers use; {@see self::userInstance()}
+     * additionally cross-checks a returned id_token against these claims.
      *
      * @return array<string, mixed>
      */
@@ -103,6 +112,82 @@ class GenericOidcProvider extends AbstractProvider implements ProviderInterface
             'email' => $user['email'] ?? null,
             'avatar' => $user['picture'] ?? null,
         ]);
+    }
+
+    /**
+     * {@inheritdoc}
+     *
+     * Validate the id_token (when present) before the mapped user is built, so a
+     * token whose subject, issuer, or audience disagrees with the exchange — or
+     * whose signature does not verify against the provider JWKS — aborts the
+     * sign-in rather than trusting the UserInfo claims.
+     *
+     * @param  array<string, mixed>  $response
+     * @param  array<string, mixed>  $user
+     */
+    #[\Override]
+    protected function userInstance(array $response, array $user): User
+    {
+        $this->validateIdToken($response, $user);
+
+        return parent::userInstance($response, $user);
+    }
+
+    /**
+     * Cross-check a returned id_token against the exchange and UserInfo claims.
+     *
+     * Skipped entirely when disabled by config or when the provider returns no
+     * id_token (UserInfo-over-TLS then remains the trust anchor). Otherwise the
+     * token's signature is verified against the provider JWKS and its standard
+     * claims (issuer, audience, expiry) are checked, and its `sub` must equal the
+     * UserInfo subject — defeating a misbehaving or compromised UserInfo response
+     * that returns a different account than the one the IdP actually signed for.
+     *
+     * @param  array<string, mixed>  $response
+     * @param  array<string, mixed>  $user
+     */
+    protected function validateIdToken(array $response, array $user): void
+    {
+        if (! config('sso.oidc.validate_id_token', true)) {
+            return;
+        }
+
+        $idToken = $response['id_token'] ?? null;
+
+        if (! is_string($idToken) || $idToken === '') {
+            return;
+        }
+
+        // Verifies the signature against the JWKS and rejects an expired token.
+        $claims = JWT::decode($idToken, JWK::parseKeySet($this->jwks(), 'RS256'));
+
+        // Fail closed: OIDC discovery is required to publish `issuer`, so an
+        // absent expected issuer means a malformed/compromised document and the
+        // token's issuer cannot be trusted — reject rather than skip the check.
+        $expectedIssuer = $this->discovery()['issuer'] ?? null;
+
+        throw_unless(filled($expectedIssuer) && ($claims->iss ?? null) === $expectedIssuer, InvalidIdTokenException::class, 'The id_token issuer does not match the provider.');
+
+        throw_unless(in_array($this->clientId, (array) ($claims->aud ?? []), true), InvalidIdTokenException::class, 'The id_token audience does not include this client.');
+
+        throw_if(($claims->sub ?? null) !== ($user['sub'] ?? null), InvalidIdTokenException::class, 'The id_token subject does not match the UserInfo subject.');
+    }
+
+    /**
+     * Fetch and cache the provider's JSON Web Key Set for id_token verification.
+     *
+     * Cached for an hour alongside the discovery document; providers publish
+     * signing keys under a stable `jwks_uri` and rotate them infrequently.
+     *
+     * @return array<string, mixed>
+     */
+    protected function jwks(): array
+    {
+        return Cache::remember(
+            'sso.oidc.jwks:'.$this->discoveryUrl,
+            now()->addHour(),
+            fn (): array => json_decode((string) $this->getHttpClient()->get($this->discovery()['jwks_uri'])->getBody(), true),
+        );
     }
 
     /**

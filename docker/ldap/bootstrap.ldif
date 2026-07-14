@@ -1,0 +1,45 @@
+# Dev-only directory seed for the local `ldap` service (compose.yaml).
+#
+# osixia/openldap auto-creates the base DN (dc=the-desk,dc=local) and the admin
+# account (cn=admin,dc=the-desk,dc=local) from LDAP_DOMAIN/LDAP_ADMIN_PASSWORD.
+# This file adds an organisational unit and four test users so the LDAP/AD bind
+# + JIT-provisioning flow (#120) can be exercised locally. Each user signs in
+# with their email (the default `username` attribute is `mail`) and the password
+# `password`. Their stable identity is the operational `entryUUID` attribute
+# OpenLDAP assigns automatically, so set LDAP_ATTR_GUID=entryuuid locally.
+
+dn: ou=people,dc=the-desk,dc=local
+objectClass: organizationalUnit
+ou: people
+
+dn: uid=ldap1,ou=people,dc=the-desk,dc=local
+objectClass: inetOrgPerson
+cn: LDAP User One
+sn: One
+uid: ldap1
+mail: ldap1@the-desk.local
+userPassword: password
+
+dn: uid=ldap2,ou=people,dc=the-desk,dc=local
+objectClass: inetOrgPerson
+cn: LDAP User Two
+sn: Two
+uid: ldap2
+mail: ldap2@the-desk.local
+userPassword: password
+
+dn: uid=ldap3,ou=people,dc=the-desk,dc=local
+objectClass: inetOrgPerson
+cn: LDAP User Three
+sn: Three
+uid: ldap3
+mail: ldap3@the-desk.local
+userPassword: password
+
+dn: uid=ldap4,ou=people,dc=the-desk,dc=local
+objectClass: inetOrgPerson
+cn: LDAP User Four
+sn: Four
+uid: ldap4
+mail: ldap4@the-desk.local
+userPassword: password

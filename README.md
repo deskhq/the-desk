@@ -92,6 +92,43 @@ Then, with Sail up (Reverb is part of `sail up -d`) and the frontend built:
 Rebuild the frontend (`npm run build`) after changing any Vue component the
 tests touch, since the in-process server serves the compiled Vite assets.
 
+### Local SSO providers (OIDC & LDAP)
+
+Two opt-in dev containers let you exercise the single sign-on flows against real
+providers locally, without registering an app at an external IdP. They sit
+behind the `sso` compose profile, so a plain `sail up` never starts them. Enable
+them by setting `COMPOSE_PROFILES=sso` in your `.env` (or `sail up --profile
+sso`), then uncomment the matching dev values in `.env.example`:
+
+- **OIDC** — a mock provider ([soluto/oidc-server-mock](https://github.com/Soluto/oidc-server-mock))
+  seeded with `oidc1@the-desk.local` … `oidc4@the-desk.local` (password
+  `password`) and a pre-registered `the-desk-dev` client. It's reached as
+  `oidc:8081` from both the browser and the app container so the derived issuer
+  stays consistent, so add one line to your host's `/etc/hosts` once:
+
+  ```
+  127.0.0.1 oidc
+  ```
+
+  Then set `SSO_OIDC_ISSUER=http://oidc:8081`, `SSO_OIDC_CLIENT_ID=the-desk-dev`,
+  `SSO_OIDC_CLIENT_SECRET=the-desk-dev-secret` and use "Sign in with SSO".
+
+- **LDAP** — an OpenLDAP directory ([osixia/openldap](https://github.com/osixia/docker-openldap))
+  seeded with `ldap1@the-desk.local` … `ldap4@the-desk.local` (password
+  `password`) under `dc=the-desk,dc=local`. Uncomment the dev block in
+  `.env.example`:
+
+  ```
+  LDAP_HOST=ldap
+  LDAP_PORT=389
+  LDAP_BASE_DN="dc=the-desk,dc=local"
+  LDAP_USERNAME="cn=admin,dc=the-desk,dc=local"
+  LDAP_PASSWORD=adminpassword
+  LDAP_ATTR_GUID=entryuuid   # OpenLDAP's stable id, not AD's objectGUID
+  ```
+
+  Then sign in through the normal login form with a seeded email.
+
 ## Self-Hosting with Docker
 
 The production stack is orchestrated with `docker-compose.prod.yml`. The app is

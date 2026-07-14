@@ -143,6 +143,116 @@ services:
             - '${FORWARD_MAILPIT_DASHBOARD_PORT:-8025}:8025'
         networks:
             - sail
+    # Opt-in identity providers for exercising the SSO flows locally (#356/#357).
+    # Guarded by the `sso` compose profile so a default `sail up` never starts
+    # them: enable with COMPOSE_PROFILES=sso in .env, or `sail up --profile sso`.
+    ldap:
+        image: 'osixia/openldap:1.5.0'
+        profiles:
+            - sso
+        command:
+            - '--copy-service'
+        environment:
+            LDAP_ORGANISATION: 'The Desk'
+            LDAP_DOMAIN: 'the-desk.local'
+            LDAP_ADMIN_PASSWORD: '${LDAP_ADMIN_PASSWORD:-adminpassword}'
+        ports:
+            - '${FORWARD_LDAP_PORT:-389}:389'
+        volumes:
+            - 'sail-ldap:/var/lib/ldap'
+            - 'sail-ldap-config:/etc/ldap/slapd.d'
+            - './docker/ldap/bootstrap.ldif:/container/service/slapd/assets/config/bootstrap/ldif/custom/50-the-desk.ldif'
+        networks:
+            - sail
+    # Mock OpenID Connect provider (soluto/oidc-server-mock): config-driven, no
+    # DB, serves a real discovery document. Reached as `oidc:8081` from BOTH the
+    # browser and the app container so the derived issuer stays consistent — add
+    # `127.0.0.1 oidc` to your host's /etc/hosts once (see .env.example). If you
+    # change FORWARD_OIDC_PORT, keep SSO_OIDC_ISSUER and /etc/hosts in step.
+    oidc:
+        image: 'ghcr.io/soluto/oidc-server-mock:0.8.6'
+        # Pinned + amd64: the `latest` tag fails to boot on arm64 (assembly load
+        # error) and floats the underlying IdentityServer build; this tag is a
+        # known-good .NET image that runs under emulation on Apple Silicon.
+        platform: 'linux/amd64'
+        profiles:
+            - sso
+        environment:
+            ASPNETCORE_ENVIRONMENT: 'Development'
+            ASPNETCORE_URLS: 'http://+:8081'
+            SERVER_OPTIONS_INLINE: |
+                {
+                    "AccessTokenJwtType": "JWT",
+                    "Discovery": { "ShowKeySet": true },
+                    "Authentication": {
+                        "CookieSameSiteMode": "Lax",
+                        "CheckSessionCookieSameSiteMode": "Lax"
+                    }
+                }
+            LOGIN_OPTIONS_INLINE: |
+                { "AllowRememberLogin": false }
+            CLIENTS_CONFIGURATION_INLINE: |
+                [
+                    {
+                        "ClientId": "the-desk-dev",
+                        "ClientSecrets": ["the-desk-dev-secret"],
+                        "Description": "The Desk local dev",
+                        "AllowedGrantTypes": ["authorization_code"],
+                        "RequirePkce": false,
+                        "RequireClientSecret": true,
+                        "AllowedScopes": ["openid", "profile", "email"],
+                        "RedirectUris": ["http://localhost/auth/oidc/callback"],
+                        "IdentityTokenLifetime": 3600,
+                        "AccessTokenLifetime": 3600
+                    }
+                ]
+            USERS_CONFIGURATION_INLINE: |
+                [
+                    {
+                        "SubjectId": "oidc1",
+                        "Username": "oidc1@the-desk.local",
+                        "Password": "password",
+                        "Claims": [
+                            { "Type": "name", "Value": "OIDC User One", "ValueType": "string" },
+                            { "Type": "email", "Value": "oidc1@the-desk.local", "ValueType": "string" },
+                            { "Type": "email_verified", "Value": "true", "ValueType": "boolean" }
+                        ]
+                    },
+                    {
+                        "SubjectId": "oidc2",
+                        "Username": "oidc2@the-desk.local",
+                        "Password": "password",
+                        "Claims": [
+                            { "Type": "name", "Value": "OIDC User Two", "ValueType": "string" },
+                            { "Type": "email", "Value": "oidc2@the-desk.local", "ValueType": "string" },
+                            { "Type": "email_verified", "Value": "true", "ValueType": "boolean" }
+                        ]
+                    },
+                    {
+                        "SubjectId": "oidc3",
+                        "Username": "oidc3@the-desk.local",
+                        "Password": "password",
+                        "Claims": [
+                            { "Type": "name", "Value": "OIDC User Three", "ValueType": "string" },
+                            { "Type": "email", "Value": "oidc3@the-desk.local", "ValueType": "string" },
+                            { "Type": "email_verified", "Value": "true", "ValueType": "boolean" }
+                        ]
+                    },
+                    {
+                        "SubjectId": "oidc4",
+                        "Username": "oidc4@the-desk.local",
+                        "Password": "password",
+                        "Claims": [
+                            { "Type": "name", "Value": "OIDC User Four", "ValueType": "string" },
+                            { "Type": "email", "Value": "oidc4@the-desk.local", "ValueType": "string" },
+                            { "Type": "email_verified", "Value": "true", "ValueType": "boolean" }
+                        ]
+                    }
+                ]
+        ports:
+            - '${FORWARD_OIDC_PORT:-8081}:8081'
+        networks:
+            - sail
 networks:
     sail:
         driver: bridge
@@ -152,4 +262,8 @@ volumes:
     sail-redis:
         driver: local
     sail-meilisearch:
+        driver: local
+    sail-ldap:
+        driver: local
+    sail-ldap-config:
         driver: local
