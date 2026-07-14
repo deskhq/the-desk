@@ -9,10 +9,12 @@ import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Separator } from '@/components/ui/separator';
 import { translate } from '@/lib/i18n';
 import { register } from '@/routes';
 import { store } from '@/routes/login';
 import { request } from '@/routes/password';
+import { redirect as oidcRedirect } from '@/routes/sso/oidc';
 import type { TeamInvitationContext } from '@/types';
 
 defineOptions({
@@ -41,7 +43,34 @@ defineProps<{
             action="Log in"
         />
 
+        <!-- Single sign-on entry point, shown only when an OIDC provider is
+        configured. A full-page navigation (native anchor) hands off to the IdP;
+        an Inertia visit would break the OAuth redirect. -->
+        <div
+            v-if="$page.props.sso.oidcEnabled"
+            class="flex flex-col gap-6"
+        >
+            <Button
+                as-child
+                variant="outline"
+                class="w-full rounded-full"
+                data-test="sso-login-button"
+            >
+                <a :href="oidcRedirect.url()">{{ $t('Sign in with SSO') }}</a>
+            </Button>
+
+            <div
+                v-if="$page.props.sso.passwordLoginEnabled"
+                class="flex items-center gap-3 text-xs text-muted-foreground uppercase"
+            >
+                <Separator class="flex-1" />
+                <span>{{ $t('Or continue with email') }}</span>
+                <Separator class="flex-1" />
+            </div>
+        </div>
+
         <Form
+            v-if="$page.props.sso.passwordLoginEnabled"
             v-bind="store.form()"
             :reset-on-success="['password']"
             v-slot="{ errors, processing }"

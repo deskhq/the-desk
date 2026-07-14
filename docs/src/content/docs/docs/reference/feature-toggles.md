@@ -46,6 +46,24 @@ their next request — they'll be prompted to verify. The verify routes are alwa
 registered, so flipping the flag takes effect immediately with no data migration.
 :::
 
+## SSO-only mode
+
+| Variable        | Default | Effect                                                                 |
+| --------------- | ------- | --------------------------------------------------------------------- |
+| `AUTH_SSO_ONLY` | `false` | Route **all** access through your identity provider.                  |
+
+Single sign-on ([OpenID Connect](/docs/reference/environment-variables/#single-sign-on-openid-connect))
+sits **alongside** password login by default, so a break-glass password account
+keeps working during an IdP outage. Set `AUTH_SSO_ONLY=true` to funnel everyone
+through the directory instead: Fortify **registration** and **password login** are
+disabled, and the login page shows only the "Sign in with SSO" button.
+
+:::caution
+With `AUTH_SSO_ONLY=true` there is no password fallback — if your IdP is
+unreachable, no one can sign in. Only turn it on once SSO is verified working,
+and keep a way to flip it back (edit `.env` and restart the stack).
+:::
+
 ## Gravatar avatars
 
 User avatars are derived from [Gravatar](https://gravatar.com) using the MD5 hash

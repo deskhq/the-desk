@@ -4,6 +4,13 @@ declare(strict_types=1);
 
 use Laravel\Fortify\Features;
 
+// SSO-only enforcement only bites when a provider is actually configured (see
+// config/sso.php), so a stray AUTH_SSO_ONLY can never disable both directory and
+// password sign-in and lock everyone out.
+$ssoEnforced = env('AUTH_SSO_ONLY', false)
+    && filled(env('SSO_OIDC_CLIENT_ID'))
+    && filled(env('SSO_OIDC_ISSUER'));
+
 return [
 
     /*
@@ -145,7 +152,10 @@ return [
     */
 
     'features' => array_filter([
-        env('REGISTRATION_ENABLED', true) ? Features::registration() : null,
+        // Self-service registration is on by default, but disabled whenever the
+        // operator closes public sign-ups (REGISTRATION_ENABLED=false) or routes
+        // all access through a configured directory (AUTH_SSO_ONLY=true).
+        (env('REGISTRATION_ENABLED', true) && ! $ssoEnforced) ? Features::registration() : null,
         Features::resetPasswords(),
         Features::emailVerification(),
     ]),

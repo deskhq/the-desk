@@ -241,4 +241,14 @@ class User extends Authenticatable implements HasLocalePreference, MustVerifyEma
     {
         return $this->hasMany(DataExport::class)->latest();
     }
+
+    /**
+     * Get the user's linked external directory identities (OIDC, LDAP, SCIM).
+     *
+     * @return HasMany<SsoIdentity, $this>
+     */
+    public function ssoIdentities(): HasMany
+    {
+        return $this->hasMany(SsoIdentity::class);
+    }
 }
