@@ -30,6 +30,10 @@ const processing = ref(false);
 // invite; a public channel can simply be re-joined from the browse view.
 const isPrivate = computed(() => props.channel.visibility === 'private');
 
+// A group DM leaves the sidebar and posts a "left the conversation" note for the
+// others; it reads as leaving a conversation, not a named channel.
+const isDirect = computed(() => props.channel.isDirect);
+
 const leaveChannel = () => {
     router.post(
         leaveChannelAction({
@@ -51,10 +55,19 @@ const leaveChannel = () => {
         <DialogContent>
             <DialogHeader>
                 <DialogTitle>{{
-                    $t('Leave #:channel', { channel: props.channel.name })
+                    isDirect
+                        ? $t('Leave this conversation?')
+                        : $t('Leave #:channel', { channel: props.channel.name })
                 }}</DialogTitle>
                 <DialogDescription>
-                    <template v-if="isPrivate">
+                    <template v-if="isDirect">
+                        {{
+                            $t(
+                                'You’ll stop receiving new messages and the conversation leaves your sidebar. The others keep the full history, and a note tells them you left. You can be re-added any time.',
+                            )
+                        }}
+                    </template>
+                    <template v-else-if="isPrivate">
                         {{
                             $t(
                                 'This channel is private, so re-joining requires an invite from a member.',
@@ -82,7 +95,11 @@ const leaveChannel = () => {
                     :disabled="processing"
                     @click="leaveChannel"
                 >
-                    {{ $t('Leave channel') }}
+                    {{
+                        isDirect
+                            ? $t('Leave conversation')
+                            : $t('Leave channel')
+                    }}
                 </Button>
             </DialogFooter>
         </DialogContent>

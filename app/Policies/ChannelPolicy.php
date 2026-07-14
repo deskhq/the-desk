@@ -88,11 +88,12 @@ class ChannelPolicy
      *
      * Only direct messages are hidable — a standard channel leaves the sidebar by
      * archiving, not per-member hiding — and only a member has a pivot row to
-     * stamp. Each member only ever touches their own row.
+     * stamp. Each member only ever touches their own row. This covers group DMs
+     * too: closing hides the row without leaving, distinct from {@see leave()}.
      */
     public function hide(User $user, Channel $channel): bool
     {
-        return $channel->isDirect() && $this->isMember($user, $channel);
+        return $channel->isDirectMessage() && $this->isMember($user, $channel);
     }
 
     /**
@@ -125,10 +126,12 @@ class ChannelPolicy
     /**
      * Determine whether the user can leave the channel themselves.
      *
-     * A member may leave any standard channel except the protected #general.
-     * Direct messages are closed (hidden), not left — see {@see hide()} — so a DM
-     * is never leavable. The last member of a private channel may still leave; we
-     * accept orphaning it (only a team Admin+ can then repopulate or archive it).
+     * A member may leave any standard channel except the protected #general, and
+     * may leave a group direct message (the others keep the history and a system
+     * notice records the departure). A 1:1 direct message is closed (hidden), not
+     * left — see {@see hide()} — so it is never leavable. The last member of a
+     * private channel may still leave; we accept orphaning it (only a team Admin+
+     * can then repopulate or archive it).
      */
     public function leave(User $user, Channel $channel): bool
     {
@@ -148,6 +151,19 @@ class ChannelPolicy
     public function addMember(User $user, Channel $channel): bool
     {
         return $this->managesMembership($user, $channel);
+    }
+
+    /**
+     * Determine whether the user can add people to a direct message.
+     *
+     * Any participant of a DM may pull more teammates in; the add-people flow
+     * opens-or-creates the conversation for the resulting member set (a 1:1 grows
+     * into a group, a group grows further, an identical set is reused), so it
+     * never mutates an unrelated channel. Only a member of the DM may do so.
+     */
+    public function addPeople(User $user, Channel $channel): bool
+    {
+        return $channel->isDirectMessage() && $this->isMember($user, $channel);
     }
 
     /**
@@ -199,7 +215,7 @@ class ChannelPolicy
     {
         // Direct messages are never archived — they have no archive affordance and
         // are managed only through the open-or-create flow.
-        if ($channel->isGeneral() || $channel->isArchived() || $channel->isDirect()) {
+        if ($channel->isGeneral() || $channel->isArchived() || $channel->isDirectMessage()) {
             return false;
         }
 

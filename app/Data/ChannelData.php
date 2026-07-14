@@ -30,7 +30,10 @@ class ChannelData extends Data
         public ?string $sectionId = null,
         public int $position = 0,
         public bool $isDirect = false,
+        public bool $isGroupDirect = false,
         public ?string $dmUserId = null,
+        /** @var array<int, UserData>|null */
+        public ?array $dmParticipants = null,
         public ?string $lastActivityAt = null,
     ) {}
 
@@ -81,14 +84,46 @@ class ChannelData extends Data
 
         $position = (int) ($channel->getAttribute('position') ?? 0);
 
-        // DMs have no stored name; they render viewer-relative — the current user
-        // sees the other participant (themselves, labelled "You" by the client, in
-        // a self-DM). `dmUserId` lets the sidebar key presence and the avatar off
-        // that participant. Standard channels keep their own `name`.
+        // DMs have no stored name; they render viewer-relative. A 1:1 shows the
+        // other participant (themselves, labelled "You" by the client, in a
+        // self-DM), keyed for presence + avatar by `dmUserId`. A group DM shows
+        // the other participants as an avatar stack + a comma/ampersand-joined
+        // name the client formats from `dmParticipants`; `name` carries a
+        // full-name join as an accessible fallback. Standard channels keep their
+        // own `name`.
         $viewer = auth()->user();
-        $isDirect = $channel->isDirect();
-        $dmParticipant = $isDirect && $viewer instanceof User ? $channel->directParticipantFor($viewer) : null;
-        $name = $dmParticipant instanceof User ? $dmParticipant->name : (string) $channel->name;
+        $isDirectMessage = $channel->isDirectMessage();
+        $isGroupDirect = $channel->isGroupDirect();
+
+        $dmParticipant = $channel->isDirect() && $viewer instanceof User ? $channel->directParticipantFor($viewer) : null;
+
+        // `dmParticipants` is populated for every DM (the client keys its avatar
+        // stack, participant name, and same-member-set dedup off it): a group
+        // loads its other members; a 1:1 reuses the already-resolved
+        // participant (empty for a self-DM, whose only member is the viewer).
+        $participants = null;
+        if ($isGroupDirect && $viewer instanceof User) {
+            $participants = $channel->members()
+                ->where('users.id', '!=', $viewer->id)
+                ->orderBy('name')
+                ->get()
+                ->map(fn (User $member): UserData => UserData::fromUser($member))
+                ->all();
+        } elseif ($dmParticipant instanceof User) {
+            // A non-null participant implies a signed-in viewer (the ternary
+            // above), so a self-DM is the participant being the viewer.
+            $participants = $dmParticipant->id === $viewer->id
+                ? []
+                : [UserData::fromUser($dmParticipant)];
+        }
+
+        if ($dmParticipant instanceof User) {
+            $name = $dmParticipant->name;
+        } elseif ($isGroupDirect) {
+            $name = collect($participants)->pluck('name')->join(', ');
+        } else {
+            $name = (string) $channel->name;
+        }
 
         // The timestamp the "Direct messages" sidebar group orders on: the
         // channel's latest message (populated by the sidebar query as
@@ -114,8 +149,10 @@ class ChannelData extends Data
             starred: $starred,
             sectionId: $sectionId,
             position: $position,
-            isDirect: $isDirect,
+            isDirect: $isDirectMessage,
+            isGroupDirect: $isGroupDirect,
             dmUserId: $dmParticipant?->id,
+            dmParticipants: $participants,
             lastActivityAt: $lastActivityAt,
         );
     }

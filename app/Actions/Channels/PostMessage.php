@@ -171,7 +171,7 @@ class PostMessage
      */
     private function announceFirstDirectMessage(Channel $channel, User $author): void
     {
-        if (! $channel->isDirect() || $channel->messages()->count() !== 1) {
+        if (! $channel->isDirectMessage() || $channel->messages()->count() !== 1) {
             return;
         }
 

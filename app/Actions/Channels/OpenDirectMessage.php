@@ -25,18 +25,40 @@ class OpenDirectMessage
      */
     public function handle(Team $team, User $initiator, User $target): Channel
     {
-        $participantIds = $this->participantIds($initiator, $target);
-        $dmKey = $participantIds->implode(':');
+        return $this->openForUsers($team, $initiator, collect([$target]));
+    }
 
-        return DB::transaction(function () use ($team, $initiator, $dmKey, $participantIds) {
+    /**
+     * Find or create the direct message spanning the initiator and the given
+     * participants — a 1:1 when the set is one or two people, a group DM (3+).
+     *
+     * The full participant set (initiator included) is sorted and, for a group,
+     * hashed into a canonical `dm_key` — a `g:`-prefixed SHA-256, distinct from
+     * the raw colon-joined key a 1:1 uses so the two formats never collide and
+     * existing 1:1 keys keep resolving unchanged. The same member set therefore
+     * always maps to the same key regardless of who opens it or in what order, so
+     * the `unique(team_id, dm_key)` index dedupes the conversation.
+     *
+     * Re-opening an existing conversation restores it for everyone in the target
+     * set: the initiator's membership is un-hidden and any participant who had
+     * left is re-added, so "add someone back" and "reuse the same set" both land
+     * in the one canonical channel with its history intact.
+     *
+     * @param  Collection<int, User>  $participants
+     */
+    public function openForUsers(Team $team, User $initiator, Collection $participants): Channel
+    {
+        $participantIds = $this->participantIds($initiator, $participants);
+        $isGroup = $participantIds->count() > 2;
+        $dmKey = $isGroup
+            ? 'g:'.hash('sha256', $participantIds->implode(':'))
+            : $participantIds->implode(':');
+
+        return DB::transaction(function () use ($team, $initiator, $dmKey, $participantIds, $isGroup): Channel {
             $existing = $team->channels()->where('dm_key', $dmKey)->first();
 
             if ($existing !== null) {
-                // Reopening a DM the initiator had closed brings it back to their
-                // sidebar, even before any new message arrives.
-                $existing->channelMembers()
-                    ->where('user_id', $initiator->id)
-                    ->update(['hidden_at' => null]);
+                $this->restoreMembers($existing, $initiator, $participantIds);
 
                 return $existing;
             }
@@ -45,7 +67,7 @@ class OpenDirectMessage
                 'name' => null,
                 'slug' => 'dm-'.Str::lower(Str::random(12)),
                 'visibility' => ChannelVisibility::Private,
-                'type' => ChannelType::Direct,
+                'type' => $isGroup ? ChannelType::GroupDirect : ChannelType::Direct,
                 'dm_key' => $dmKey,
                 'created_by' => $initiator->id,
             ]);
@@ -62,15 +84,45 @@ class OpenDirectMessage
     }
 
     /**
+     * Bring an existing conversation back for the target participant set.
+     *
+     * Re-creates a membership (at the default notification level) for anyone in
+     * the set who is not currently a member — a participant who had left, or the
+     * newcomers of an add-people flow — and clears the initiator's `hidden_at` so
+     * a conversation they had closed returns to their sidebar even before a new
+     * message arrives.
+     *
+     * @param  Collection<int, string>  $participantIds
+     */
+    private function restoreMembers(Channel $channel, User $initiator, Collection $participantIds): void
+    {
+        $current = $channel->channelMembers()->pluck('user_id');
+
+        foreach ($participantIds->diff($current) as $userId) {
+            $channel->channelMembers()->create([
+                'user_id' => $userId,
+                'notification_level' => NotificationLevel::All,
+            ]);
+        }
+
+        $channel->channelMembers()
+            ->where('user_id', $initiator->id)
+            ->update(['hidden_at' => null]);
+    }
+
+    /**
      * The DM's participant UUIDs, de-duplicated and sorted for a canonical key.
      *
-     * A self-DM (initiator === target) collapses to a single UUID.
+     * A self-DM (only the initiator) collapses to a single UUID.
      *
+     * @param  Collection<int, User>  $participants
      * @return Collection<int, string>
      */
-    private function participantIds(User $initiator, User $target): Collection
+    private function participantIds(User $initiator, Collection $participants): Collection
     {
-        return collect([$initiator->id, $target->id])
+        return $participants
+            ->merge([$initiator])
+            ->pluck('id')
             ->unique()
             ->sort()
             ->values();

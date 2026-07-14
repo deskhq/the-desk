@@ -58,6 +58,9 @@ const props = defineProps<{
     // renders a "Queued — will send on reconnect" marker until it flushes.
     queuedUuids?: string[];
     currentUserId: string;
+    // Whether the timeline belongs to a direct message, so a "member left" notice
+    // reads "left the conversation" rather than "left the channel".
+    isDirect?: boolean;
     canModerate?: boolean;
     // Whether the viewer may add/remove reactions (member of a non-archived
     // channel); existing reaction pills still render read-only when false.
@@ -254,8 +257,14 @@ function formatTime(iso: string): string {
 function systemNoticeText(message: Message): string {
     const name = message.user.name;
 
-    return message.type === 'member_left'
-        ? t(':name left the channel', { name })
+    if (message.type === 'member_left') {
+        return props.isDirect
+            ? t(':name left the conversation', { name })
+            : t(':name left the channel', { name });
+    }
+
+    return props.isDirect
+        ? t(':name joined the conversation', { name })
         : t(':name joined the channel', { name });
 }
 
