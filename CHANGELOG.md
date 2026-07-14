@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.4.2](https://github.com/emmpaul/the-desk/compare/v1.4.1...v1.4.2) (2026-07-14)
+
+
+### Bug Fixes
+
+* render the login page immediately after logout ([#380](https://github.com/emmpaul/the-desk/issues/380)) ([3dba29f](https://github.com/emmpaul/the-desk/commit/3dba29f448fb36318b9f06f6e8bf44b3ec8efb09))
+
 ## [1.4.1](https://github.com/emmpaul/the-desk/compare/v1.4.0...v1.4.1) (2026-07-14)
 
 
