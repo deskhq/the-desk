@@ -53,7 +53,7 @@ Check out the newer release tag and rebuild:
 
 ```bash
 git fetch --tags
-git checkout v1.2.0 # x-release-please-version         (the desired release tag)
+git checkout v1.2.1 # x-release-please-version         (the desired release tag)
 docker compose -f docker-compose.prod.yml down
 docker compose -f docker-compose.prod.yml up -d --build
 # migrations run automatically via the entrypoint
@@ -64,7 +64,7 @@ docker compose -f docker-compose.prod.yml up -d --build
 Point `APP_IMAGE` at the new tag, then pull and restart:
 
 ```bash
-sed -i 's|^APP_IMAGE=.*|APP_IMAGE=ghcr.io/emmpaul/the-desk:1.2.0|' .env # x-release-please-version
+sed -i 's|^APP_IMAGE=.*|APP_IMAGE=ghcr.io/emmpaul/the-desk:1.2.1|' .env # x-release-please-version
 docker compose -f docker-compose.prod.yml pull
 docker compose -f docker-compose.prod.yml up -d
 ```
