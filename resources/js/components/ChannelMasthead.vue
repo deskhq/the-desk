@@ -8,6 +8,7 @@ import {
     Pin,
     Search,
     Star,
+    UserPlus,
 } from '@lucide/vue';
 import type { AcceptableValue } from 'reka-ui';
 import { computed } from 'vue';
@@ -56,8 +57,11 @@ const props = defineProps<{
     canManagePreferences: boolean;
     canArchive: boolean;
     // Whether the viewer may leave the channel — a member of a standard channel
-    // that isn't #general. Drives the "Leave channel" menu item.
+    // that isn't #general, or of a group DM. Drives the "Leave" menu item.
     canLeave: boolean;
+    // Whether the viewer may add people to this DM (a member of any DM). Drives
+    // the masthead's "Add people" button.
+    canAddPeople: boolean;
     notificationLevels: NotificationLevelOption[];
     starred: boolean;
     muted: boolean;
@@ -78,6 +82,7 @@ const emit = defineEmits<{
     muteChange: [value: boolean];
     archive: [];
     leave: [];
+    addPeople: [];
     openPins: [];
 }>();
 
@@ -90,13 +95,24 @@ const mastheadAvatars = computed(() =>
     memberAvatarStack(props.members, MAX_MASTHEAD_AVATARS),
 );
 
-// A DM renders viewer-relative: the other participant's presence dot follows the
-// team roster. A DM is a fixed pair, so the "who's in the channel" facepile is
+// A 1:1 DM renders viewer-relative: the other participant's presence dot follows
+// the team roster. A DM is a fixed set, so the "who's in the channel" facepile is
 // meaningless and hidden.
 const dmParticipantOnline = computed(
     () =>
         props.channel.dmUserId != null &&
         props.onlineIds.has(props.channel.dmUserId),
+);
+
+// A group DM shows an avatar stack of its participants beside the title, in
+// place of the single 1:1 avatar.
+const groupParticipantAvatars = computed(() =>
+    memberAvatarStack(props.channel.dmParticipants ?? [], MAX_MASTHEAD_AVATARS),
+);
+
+// The group's participant count, including the viewer, for the subtitle.
+const groupParticipantCount = computed(
+    () => (props.channel.dmParticipants?.length ?? 0) + 1,
 );
 </script>
 
@@ -112,11 +128,30 @@ const dmParticipantOnline = computed(
             <h1
                 class="flex items-center gap-2 truncate font-serif text-[32px] leading-none font-semibold tracking-[-0.02em] text-foreground"
             >
-                <!-- A DM shows the participant's avatar + presence dot instead of
-                     the channel "#"; the name is already viewer-relative (self
-                     reads "You"). -->
+                <!-- A group DM shows an avatar stack of its participants; a 1:1
+                     shows the other participant's avatar + presence dot; a
+                     standard channel shows the "#". The name is already
+                     viewer-relative (self reads "You"). -->
                 <span
-                    v-if="props.channel.isDirect"
+                    v-if="props.channel.isGroupDirect"
+                    data-test="masthead-group-avatars"
+                    class="flex shrink-0"
+                    aria-hidden="true"
+                >
+                    <span
+                        v-for="member in groupParticipantAvatars.visible"
+                        :key="member.id"
+                        class="-ml-2.5 flex size-7 items-center justify-center rounded-full bg-primary/10 text-[10px] font-semibold text-primary ring-2 ring-card select-none first:ml-0"
+                        >{{ getInitials(member.name) }}</span
+                    >
+                    <span
+                        v-if="groupParticipantAvatars.overflow > 0"
+                        class="-ml-2.5 flex size-7 items-center justify-center rounded-full bg-muted text-[10px] font-semibold text-muted-foreground ring-2 ring-card select-none"
+                        >+{{ groupParticipantAvatars.overflow }}</span
+                    >
+                </span>
+                <span
+                    v-else-if="props.channel.isDirect"
                     data-test="masthead-dm-avatar"
                     class="relative inline-flex size-7 shrink-0"
                 >
@@ -163,6 +198,20 @@ const dmParticipantOnline = computed(
                     }}</TooltipContent>
                 </Tooltip>
             </h1>
+
+            <!-- A group DM's subtitle names how many people are in the
+                 conversation, the viewer included. -->
+            <p
+                v-if="props.channel.isGroupDirect"
+                data-test="masthead-group-count"
+                class="mt-1 text-[13px] text-muted-foreground"
+            >
+                {{
+                    $t(':count participants, including you', {
+                        count: groupParticipantCount,
+                    })
+                }}
+            </p>
 
             <div
                 v-if="props.channel.isArchived || props.channel.topic"
@@ -261,6 +310,21 @@ const dmParticipantOnline = computed(
                     +{{ mastheadAvatars.overflow }}
                 </span>
             </span>
+
+            <!-- Add people: opens the picker that grows this DM into (or reuses)
+                 a group conversation. Only shown to a member of a DM. -->
+            <Button
+                v-if="props.canAddPeople"
+                variant="outline"
+                size="sm"
+                type="button"
+                data-test="masthead-add-people"
+                class="h-8 gap-1.5 rounded-full px-4 text-[12.5px] font-semibold"
+                @click="emit('addPeople')"
+            >
+                <UserPlus class="size-3.5" />
+                {{ $t('Add people') }}
+            </Button>
 
             <!-- Pins: opens the pinned-messages popover. The pin glyph fills brass
                  only when the channel has pins (marking pinned-ness); the inline
@@ -411,7 +475,11 @@ const dmParticipantOnline = computed(
                             @select="emit('leave')"
                         >
                             <LogOut class="size-4" />
-                            {{ $t('Leave channel') }}
+                            {{
+                                props.channel.isDirect
+                                    ? $t('Leave conversation')
+                                    : $t('Leave channel')
+                            }}
                         </DropdownMenuItem>
                     </template>
                 </DropdownMenuContent>

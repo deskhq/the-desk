@@ -14,6 +14,8 @@ import {
 } from '@/components/ui/tooltip';
 import { useInitials } from '@/composables/useInitials';
 import { useTranslations } from '@/composables/useTranslations';
+import { groupDmSidebarName } from '@/lib/groupDm';
+import { memberAvatarStack } from '@/lib/memberAvatars';
 import { notificationIndicator } from '@/lib/notificationIndicator';
 import type { Channel } from '@/types/channels';
 
@@ -30,12 +32,27 @@ const props = defineProps<{
 const { getInitials } = useInitials();
 const { t } = useTranslations();
 
-// The viewer-relative name comes pre-resolved on the channel (the other
-// participant, or the viewer themselves for a self-DM); only the self-DM label
-// is localized on the client.
-const displayName = computed(() =>
-    props.isSelf ? t('You') : props.channel.name,
+// How many participant avatars a group row stacks before a "+N" overflow chip.
+const MAX_ROW_AVATARS = 3;
+
+const isGroup = computed(() => props.channel.isGroupDirect);
+
+// A group renders an avatar stack keyed on its participants; a 1:1 renders the
+// single other participant with a presence dot.
+const avatarStack = computed(() =>
+    memberAvatarStack(props.channel.dmParticipants ?? [], MAX_ROW_AVATARS),
 );
+
+// The viewer-relative name. A 1:1 name comes pre-resolved on the channel (the
+// other participant, self-DM localized to "You"); a group joins its
+// participants' first names with a "+N" overflow.
+const displayName = computed(() => {
+    if (isGroup.value) {
+        return groupDmSidebarName(props.channel.dmParticipants ?? []);
+    }
+
+    return props.isSelf ? t('You') : props.channel.name;
+});
 
 const isActive = computed(() => props.channel.slug === props.activeChannelSlug);
 
@@ -90,7 +107,37 @@ function hide(): void {
                 :data-test="`dm-row-${channel.slug}`"
                 :aria-current="isActive ? 'page' : undefined"
             >
-                <span class="relative size-4.5 shrink-0">
+                <!-- A group DM stacks its participants' avatars; a 1:1 shows the
+                     single other participant with a presence dot. -->
+                <span
+                    v-if="isGroup"
+                    data-test="dm-avatar-stack"
+                    class="flex shrink-0"
+                    aria-hidden="true"
+                >
+                    <span
+                        v-for="member in avatarStack.visible"
+                        :key="member.id"
+                        class="-ml-1.5 flex size-4.5 items-center justify-center rounded-full text-[8px] font-semibold ring-2 select-none first:ml-0"
+                        :class="
+                            isActive
+                                ? 'bg-sidebar-primary-foreground/25 text-sidebar-primary-foreground ring-sidebar-primary'
+                                : 'bg-primary/10 text-primary ring-sidebar'
+                        "
+                        >{{ getInitials(member.name) }}</span
+                    >
+                    <span
+                        v-if="avatarStack.overflow > 0"
+                        class="-ml-1.5 flex size-4.5 items-center justify-center rounded-full text-[7.5px] font-semibold ring-2 select-none"
+                        :class="
+                            isActive
+                                ? 'bg-sidebar-primary-foreground/25 text-sidebar-primary-foreground ring-sidebar-primary'
+                                : 'bg-muted text-muted-foreground ring-sidebar'
+                        "
+                        >+{{ avatarStack.overflow }}</span
+                    >
+                </span>
+                <span v-else class="relative size-4.5 shrink-0">
                     <!-- On the active row the button fills with the brass
                          primary, so the avatar switches to a light-on-dark
                          treatment to stay legible instead of washing out. -->

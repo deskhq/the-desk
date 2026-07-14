@@ -193,7 +193,7 @@ class HandleInertiaRequests extends Middleware
         $activeChannelId = $activeChannel instanceof Channel ? $activeChannel->getKey() : null;
 
         $channels = $channels->filter(function (Channel $channel) use ($user, $activeChannelId): bool {
-            if (! $channel->isDirect()) {
+            if (! $channel->isDirectMessage()) {
                 return true;
             }
 

@@ -176,7 +176,7 @@ class ChannelController extends Controller
             // isn't in the conversation would never reach them (this generalizes
             // to group DMs, whatever their member count).
             'members' => UserData::collect(
-                ($channel->isDirect() ? $channel->members() : $team->members())
+                ($channel->isDirectMessage() ? $channel->members() : $team->members())
                     ->orderBy('name')
                     ->get()
             ),
@@ -237,10 +237,11 @@ class ChannelController extends Controller
     /**
      * Leave a channel and redirect to the team's #general channel.
      *
-     * The policy rejects leaving #general and direct messages, so reaching here
-     * always represents a member leaving a standard channel. #general always
-     * exists and the leaver is always a member of it, so it is a uniform,
-     * predictable place to land after leaving any channel.
+     * The policy rejects leaving #general and 1:1 direct messages (those are
+     * closed, not left), so reaching here is a member leaving a standard channel
+     * or a group direct message. Either way {@see LeaveChannel} drops the pivot
+     * and records a "member left" notice. #general always exists and the leaver
+     * is always a member of it, so it is a uniform place to land afterwards.
      */
     public function leave(Request $request, Team $team, Channel $channel, LeaveChannel $leaveChannel): RedirectResponse
     {
@@ -248,7 +249,13 @@ class ChannelController extends Controller
 
         $leaveChannel->handle($channel, $request->user());
 
-        Inertia::flash('toast', ['type' => 'success', 'message' => __('Left #:channel.', ['channel' => $channel->name])]);
+        // A group direct message has no name, so it gets a conversation-worded
+        // confirmation; a standard channel names itself.
+        $message = $channel->isDirectMessage()
+            ? __('You left the conversation.')
+            : __('Left #:channel.', ['channel' => $channel->name]);
+
+        Inertia::flash('toast', ['type' => 'success', 'message' => $message]);
 
         return to_route('channels.show', ['team' => $team->slug, 'channel' => Channel::GENERAL_SLUG]);
     }

@@ -5,6 +5,7 @@ import { computed, ref } from 'vue';
 import CreateChannelModal from '@/components/CreateChannelModal.vue';
 import InviteMemberModal from '@/components/InviteMemberModal.vue';
 import { useOnboardingTour } from '@/composables/useOnboardingTour';
+import { groupDmMastheadName } from '@/lib/groupDm';
 import type { Channel } from '@/types';
 
 const props = defineProps<{
@@ -41,6 +42,14 @@ const invitableRoles = computed(() => page.props.invitableRoles ?? []);
 const currentTeamForInvite = computed(() => page.props.currentTeam);
 
 const { open: openOnboardingTour } = useOnboardingTour();
+
+// The viewer-relative conversation name for the DM empty state: a group joins
+// its participants ("Jonas, Ana & Tomas"), a 1:1 uses the pre-resolved name.
+const conversationName = computed(() =>
+    props.channel.isGroupDirect
+        ? groupDmMastheadName(props.channel.dmParticipants ?? [])
+        : props.channel.name,
+);
 </script>
 
 <template>
@@ -196,7 +205,7 @@ const { open: openOnboardingTour } = useOnboardingTour();
                             ? $t('This is your space — jot anything down.')
                             : $t(
                                   'This is the start of your conversation with :name.',
-                                  { name: props.channel.name },
+                                  { name: conversationName },
                               )
                         : $t('Be the first to say something in #:channel.', {
                               channel: props.channel.name,

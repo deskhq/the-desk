@@ -28,7 +28,9 @@ function channel(overrides: Partial<Channel> = {}): Channel {
         sectionId: null,
         position: 0,
         isDirect: false,
+        isGroupDirect: false,
         dmUserId: null,
+        dmParticipants: null,
         lastActivityAt: null,
         ...overrides,
     };

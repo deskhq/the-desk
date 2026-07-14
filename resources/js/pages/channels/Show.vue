@@ -21,6 +21,7 @@ import {
     archive as archiveChannel,
     read as markChannelRead,
 } from '@/actions/App/Http/Controllers/Channels/ChannelController';
+import AddDirectMessagePeopleModal from '@/components/AddDirectMessagePeopleModal.vue';
 import ChannelEmptyState from '@/components/ChannelEmptyState.vue';
 import ChannelMasthead from '@/components/ChannelMasthead.vue';
 import ForwardMessageDialog from '@/components/ForwardMessageDialog.vue';
@@ -64,6 +65,7 @@ import { useTypingIndicator } from '@/composables/useTypingIndicator';
 import type { TypingUser } from '@/composables/useTypingIndicator';
 import { useUnreadDivider } from '@/composables/useUnreadDivider';
 import { formatDayLabel } from '@/lib/datetime';
+import { groupDmMastheadName } from '@/lib/groupDm';
 import { createOutbox } from '@/lib/outbox';
 import { buildTimelineItems } from '@/lib/timeline';
 import {
@@ -171,16 +173,36 @@ const mentionableMembers = computed(() =>
 );
 
 // A direct message renders viewer-relative: no "#", the other participant's
-// name (the viewer's own self-DM reads "You"). Drives the `<Head>` title, the
-// masthead, and the empty state's viewer-relative copy; the masthead owns the DM
-// presence dot and member facepile itself.
+// name (the viewer's own self-DM reads "You"), or a group's participant-joined
+// name. Drives the `<Head>` title, the masthead, and the empty state's
+// viewer-relative copy; the masthead owns the DM avatar and facepile itself.
 const isSelfDm = computed(
     () =>
         props.channel.isDirect &&
         props.channel.dmUserId === currentUser.value.id,
 );
-const mastheadTitle = computed(() =>
-    isSelfDm.value ? t('You') : props.channel.name,
+const mastheadTitle = computed(() => {
+    if (props.channel.isGroupDirect) {
+        return (
+            groupDmMastheadName(props.channel.dmParticipants ?? []) ||
+            t('Group conversation')
+        );
+    }
+
+    return isSelfDm.value ? t('You') : props.channel.name;
+});
+
+// The viewer may add people to any DM they belong to; grows a 1:1 into a group
+// or a group further. Drives the masthead's "Add people" button and its modal.
+const canAddPeople = computed(() => props.channel.isDirect && props.isMember);
+const addingPeople = ref(false);
+
+// A DM's composer addresses the conversation by its participant name rather than
+// a "#channel", so its placeholder overrides the composer's channel default.
+const composerPlaceholder = computed(() =>
+    props.channel.isDirect
+        ? t('Message :name', { name: mastheadTitle.value })
+        : undefined,
 );
 
 // A team Admin+ may delete anyone's message in the channel (moderation).
@@ -938,6 +960,7 @@ function archive(): void {
                 :can-manage-preferences="props.canManagePreferences"
                 :can-archive="props.canArchive"
                 :can-leave="props.canLeave"
+                :can-add-people="canAddPeople"
                 :notification-levels="props.notificationLevels"
                 :starred="starred"
                 :muted="muted"
@@ -950,6 +973,7 @@ function archive(): void {
                 @mute-change="onMuteChange"
                 @archive="confirmingArchive = true"
                 @leave="confirmingLeave = true"
+                @add-people="addingPeople = true"
                 @open-pins="openPinsPanel"
             />
 
@@ -1104,6 +1128,7 @@ function archive(): void {
                                 :pending-uuids="pendingUuids"
                                 :queued-uuids="queuedUuids"
                                 :current-user-id="currentUser.id"
+                                :is-direct="props.channel.isDirect"
                                 :can-moderate="canModerate"
                                 :can-react="props.canReact"
                                 :can-pin="props.canReact"
@@ -1276,6 +1301,7 @@ function archive(): void {
                         :key="props.channel.id"
                         data-tour="composer"
                         :channel-name="props.channel.name"
+                        :placeholder="composerPlaceholder"
                         :members="mentionableMembers"
                         :reply-target="replyTarget"
                         :initial-body="props.channel.draft ?? ''"
@@ -1406,5 +1432,13 @@ function archive(): void {
         v-model:open="confirmingLeave"
         :channel="props.channel"
         :team-slug="props.team.slug"
+    />
+
+    <AddDirectMessagePeopleModal
+        v-if="props.channel.isDirect"
+        v-model:open="addingPeople"
+        :channel="props.channel"
+        :team-slug="props.team.slug"
+        :current-user-id="currentUser.id"
     />
 </template>

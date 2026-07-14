@@ -66,6 +66,30 @@ class Channel extends Model
     }
 
     /**
+     * Determine whether the channel is a group direct message (3+ participants).
+     */
+    public function isGroupDirect(): bool
+    {
+        return $this->type === ChannelType::GroupDirect;
+    }
+
+    /**
+     * Determine whether the channel is any kind of direct message — a 1:1 or a
+     * group conversation. This is the DM-vs-standard distinction the sidebar
+     * grouping, mention scoping, and the hide / archive / leave rules key on;
+     * {@see isDirect()} narrows that to the 1:1 case where a single "other
+     * participant" is meaningful.
+     */
+    public function isDirectMessage(): bool
+    {
+        if ($this->isDirect()) {
+            return true;
+        }
+
+        return $this->isGroupDirect();
+    }
+
+    /**
      * Resolve the DM participant to display to the given viewer.
      *
      * DMs render viewer-relative: in a two-person DM the viewer sees the other
