@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.4.1](https://github.com/emmpaul/the-desk/compare/v1.4.0...v1.4.1) (2026-07-14)
+
+
+### Bug Fixes
+
+* close button overlaps DM unread badge on hover ([#369](https://github.com/emmpaul/the-desk/issues/369)) ([88eab09](https://github.com/emmpaul/the-desk/commit/88eab092232e2e721f683f7025bc7c23d3469074)), closes [#355](https://github.com/emmpaul/the-desk/issues/355)
+
 ## [1.4.0](https://github.com/emmpaul/the-desk/compare/v1.3.0...v1.4.0) (2026-07-14)
 
 
