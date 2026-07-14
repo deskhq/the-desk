@@ -161,9 +161,12 @@ class GenericOidcProvider extends AbstractProvider implements ProviderInterface
         // Verifies the signature against the JWKS and rejects an expired token.
         $claims = JWT::decode($idToken, JWK::parseKeySet($this->jwks(), 'RS256'));
 
+        // Fail closed: OIDC discovery is required to publish `issuer`, so an
+        // absent expected issuer means a malformed/compromised document and the
+        // token's issuer cannot be trusted — reject rather than skip the check.
         $expectedIssuer = $this->discovery()['issuer'] ?? null;
 
-        throw_if(filled($expectedIssuer) && ($claims->iss ?? null) !== $expectedIssuer, InvalidIdTokenException::class, 'The id_token issuer does not match the provider.');
+        throw_unless(filled($expectedIssuer) && ($claims->iss ?? null) === $expectedIssuer, InvalidIdTokenException::class, 'The id_token issuer does not match the provider.');
 
         throw_unless(in_array($this->clientId, (array) ($claims->aud ?? []), true), InvalidIdTokenException::class, 'The id_token audience does not include this client.');
 

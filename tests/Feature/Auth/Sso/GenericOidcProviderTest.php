@@ -136,6 +136,31 @@ test('an id_token from a foreign issuer is rejected', function (): void {
     $provider->stateless()->user();
 })->throws(InvalidIdTokenException::class);
 
+test('an id_token is rejected when discovery publishes no issuer to verify against', function (): void {
+    [$privatePem, $jwks, $kid] = oidcSigningKey();
+    $idToken = oidcIdToken([], $privatePem, $kid);
+
+    // A discovery document missing the required `issuer` field: the id_token's
+    // issuer cannot be verified, so validation must fail closed rather than skip.
+    $discoveryWithoutIssuer = new Response(200, [], (string) json_encode([
+        'authorization_endpoint' => 'https://idp.test/authorize',
+        'token_endpoint' => 'https://idp.test/token',
+        'userinfo_endpoint' => 'https://idp.test/userinfo',
+        'jwks_uri' => 'https://idp.test/jwks',
+    ]));
+
+    $provider = oidcProvider(new MockHandler([
+        $discoveryWithoutIssuer,
+        oidcTokenResponse($idToken),
+        oidcUserInfoResponse(),
+        new Response(200, [], (string) json_encode($jwks)),
+    ]));
+
+    request()->merge(['code' => 'auth-code']);
+
+    $provider->stateless()->user();
+})->throws(InvalidIdTokenException::class);
+
 test('an id_token minted for another audience is rejected', function (): void {
     [$privatePem, $jwks, $kid] = oidcSigningKey();
     $idToken = oidcIdToken(['aud' => 'some-other-client'], $privatePem, $kid);
