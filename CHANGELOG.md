@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.3.0](https://github.com/emmpaul/the-desk/compare/v1.2.2...v1.3.0) (2026-07-14)
+
+
+### Features
+
+* group direct messages (3+ participants) ([#353](https://github.com/emmpaul/the-desk/issues/353)) ([282aaad](https://github.com/emmpaul/the-desk/commit/282aaad80bfaa4b21ea7e35ad6a21df38b667461))
+* inline rich-text formatting for messages (bold, italic, strike, code) ([#352](https://github.com/emmpaul/the-desk/issues/352)) ([abe079f](https://github.com/emmpaul/the-desk/commit/abe079f4b4230d2fd5a1072e93bfe58c517f73c2))
+
 ## [1.2.2](https://github.com/emmpaul/the-desk/compare/v1.2.1...v1.2.2) (2026-07-14)
 
 

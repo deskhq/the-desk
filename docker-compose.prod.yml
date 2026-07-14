@@ -20,7 +20,7 @@ x-app: &app
   # `docker compose -f docker-compose.prod.yml pull` then `up -d`, no build step.
   # Browser Reverb settings are read at runtime, so one published image works for
   # any host. Example pin:
-  #   APP_IMAGE=ghcr.io/emmpaul/the-desk:1.2.2 # x-release-please-version
+  #   APP_IMAGE=ghcr.io/emmpaul/the-desk:1.3.0 # x-release-please-version
   image: ${APP_IMAGE:-the-desk:latest}
   build:
     context: .
