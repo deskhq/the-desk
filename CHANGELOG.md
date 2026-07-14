@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.2.2](https://github.com/emmpaul/the-desk/compare/v1.2.1...v1.2.2) (2026-07-14)
+
+
+### Bug Fixes
+
+* jump to present reliably reaches the newest message on the virtualized timeline ([#350](https://github.com/emmpaul/the-desk/issues/350)) ([35012b8](https://github.com/emmpaul/the-desk/commit/35012b82a7b7c07beeff1790c15099d56c4f46cc))
+
 ## [1.2.1](https://github.com/emmpaul/the-desk/compare/v1.2.0...v1.2.1) (2026-07-14)
 
 
