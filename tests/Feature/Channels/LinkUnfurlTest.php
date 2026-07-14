@@ -104,6 +104,19 @@ test('a trailing punctuation mark is not part of the extracted URL', function ()
     expect($message->linkPreviews()->value('url'))->toBe('https://example.com/page');
 });
 
+test('a URL inside inline code is not unfurled', function (): void {
+    Bus::fake();
+
+    [$owner, $team, $general] = unfurlTeam();
+
+    // Matches the client: a URL inside `code` renders inert, so it must not
+    // unfurl. The bare URL outside the span still does.
+    $message = postBody($owner, $team, $general, 'run `curl https://inside.test` then https://outside.test');
+
+    expect($message->linkPreviews()->pluck('url')->all())
+        ->toBe(['https://outside.test']);
+});
+
 test('a message without URLs creates no previews and queues no job', function (): void {
     Bus::fake();
 

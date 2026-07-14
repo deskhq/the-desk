@@ -5,6 +5,7 @@ namespace App\Actions\Channels;
 use App\Models\Channel;
 use App\Models\Message;
 use App\Models\User;
+use App\Support\InlineMarkdown;
 
 class SyncMentions
 {
@@ -36,7 +37,9 @@ class SyncMentions
      */
     private function resolveMemberIds(Channel $channel, string $body): array
     {
-        preg_match_all(self::TOKEN_PATTERN, $body, $matches);
+        // A mention token inside an inline `code` span renders inert on the
+        // client, so it must not notify either; mask code spans before matching.
+        preg_match_all(self::TOKEN_PATTERN, InlineMarkdown::maskInlineCode($body), $matches);
 
         $ids = array_unique($matches[1]);
 

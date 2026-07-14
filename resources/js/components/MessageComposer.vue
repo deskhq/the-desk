@@ -1,11 +1,15 @@
 <script setup lang="ts">
 import {
     ArrowUp,
+    Bold,
     CalendarClock,
     CircleAlert,
+    Code,
     FileText,
+    Italic,
     Pencil,
     Plus,
+    Strikethrough,
     X,
 } from '@lucide/vue';
 import { computed, nextTick, onMounted, ref, watch } from 'vue';
@@ -13,6 +17,12 @@ import { store as storeAttachment } from '@/actions/App/Http/Controllers/Channel
 import MessageQuote from '@/components/MessageQuote.vue';
 import ScheduleMessageDialog from '@/components/ScheduleMessageDialog.vue';
 import { Button } from '@/components/ui/button';
+import {
+    Tooltip,
+    TooltipContent,
+    TooltipProvider,
+    TooltipTrigger,
+} from '@/components/ui/tooltip';
 import { useAttachmentUploads } from '@/composables/useAttachmentUploads';
 import { useInitials } from '@/composables/useInitials';
 import { useTranslations } from '@/composables/useTranslations';
@@ -22,6 +32,7 @@ import {
     resolveComposerEditTarget,
 } from '@/lib/composerEdit';
 import { isInteractiveComposerTarget } from '@/lib/composerFocus';
+import { toggleInlineMark } from '@/lib/composerFormat';
 import type { Mention, Message } from '@/types';
 
 const props = defineProps<{
@@ -355,6 +366,105 @@ function resize(): void {
     el.style.height = `${Math.min(el.scrollHeight, 200)}px`;
 }
 
+// The platform's primary modifier, for the format tooltips' shortcut hints.
+// Falls back to Ctrl off-Mac (and during SSR, where `navigator` is absent).
+const isMac =
+    typeof navigator !== 'undefined' &&
+    /Mac|iPhone|iPad/.test(navigator.platform);
+const modLabel = isMac ? '⌘' : 'Ctrl+';
+const shiftLabel = isMac ? '⇧' : 'Shift+';
+
+/**
+ * The four inline-format controls, each pairing its Markdown marker with the
+ * icon, accessible label, and shortcut hint shown in its tooltip. Driven by the
+ * toolbar buttons and the keyboard shortcuts alike.
+ */
+const formatActions = computed(() => [
+    { marker: '**', icon: Bold, label: t('Bold'), shortcut: `${modLabel}B` },
+    { marker: '*', icon: Italic, label: t('Italic'), shortcut: `${modLabel}I` },
+    {
+        marker: '~~',
+        icon: Strikethrough,
+        label: t('Strikethrough'),
+        shortcut: `${modLabel}${shiftLabel}X`,
+    },
+    {
+        marker: '`',
+        icon: Code,
+        label: t('Inline code'),
+        shortcut: `${modLabel}E`,
+    },
+]);
+
+/**
+ * Wrap (or unwrap) the current textarea selection in a Markdown marker, then
+ * restore focus and the resulting selection so the field stays ready to type.
+ * Shared by the toolbar buttons and the keyboard shortcuts.
+ */
+function applyFormat(marker: string): void {
+    const el = textarea.value;
+
+    if (!el) {
+        return;
+    }
+
+    const result = toggleInlineMark(
+        body.value,
+        el.selectionStart,
+        el.selectionEnd,
+        marker,
+    );
+
+    body.value = result.value;
+
+    nextTick(() => {
+        const field = textarea.value;
+
+        if (field) {
+            field.focus();
+            field.setSelectionRange(result.selectionStart, result.selectionEnd);
+        }
+
+        resize();
+    });
+}
+
+/**
+ * Handle the format keyboard shortcuts (⌘/Ctrl+B/I/E and ⌘/Ctrl+Shift+X),
+ * returning true when one fired so the caller stops further key handling. The
+ * chosen keys avoid every existing composer binding.
+ */
+function tryFormatShortcut(event: KeyboardEvent): boolean {
+    if (!(event.metaKey || event.ctrlKey) || event.altKey) {
+        return false;
+    }
+
+    const key = event.key.toLowerCase();
+
+    const marker =
+        key === 'b' && !event.shiftKey
+            ? '**'
+            : key === 'i' && !event.shiftKey
+              ? '*'
+              : key === 'e' && !event.shiftKey
+                ? '`'
+                : key === 'x' && event.shiftKey
+                  ? '~~'
+                  : null;
+
+    if (marker === null) {
+        return false;
+    }
+
+    event.preventDefault();
+    // Claim the key before it bubbles to window-level shortcuts (⌘/Ctrl+B also
+    // toggles the sidebar), so formatting in the composer never fires those too.
+    event.stopPropagation();
+    applyFormat(marker);
+
+    return true;
+}
+
 /**
  * Insert a mention token at the caret (or the end), keeping a space separator
  * from preceding text. Exposed so a profile hover card can drop a mention into
@@ -595,6 +705,13 @@ function onKeydown(event: KeyboardEvent): void {
 
             return;
         }
+    }
+
+    // Format shortcuts wrap the selection. Placed after the mention menu's key
+    // handling so its arrow/Enter/Escape keep priority while it is open; the
+    // chosen keys (B/I/E, ⇧X) never collide with it or Enter-to-send.
+    if (tryFormatShortcut(event)) {
+        return;
     }
 
     // With the mention menu closed, Escape leaves edit mode (restoring the empty
@@ -964,6 +1081,56 @@ function onKeydown(event: KeyboardEvent): void {
                             data-test="composer-file-input"
                             @change="onFilesPicked"
                         />
+                        <!-- Inline-format cluster: wraps the current selection in
+                             Markdown markers, mirrored by the keyboard shortcuts.
+                             mousedown is prevented so the textarea keeps focus and
+                             its selection survives the click. -->
+                        <TooltipProvider
+                            :delay-duration="300"
+                            :skip-delay-duration="150"
+                        >
+                            <div
+                                class="flex shrink-0 items-center gap-0.5"
+                                data-test="composer-format-cluster"
+                            >
+                                <Tooltip
+                                    v-for="action in formatActions"
+                                    :key="action.marker"
+                                >
+                                    <TooltipTrigger as-child>
+                                        <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            :data-test="`message-composer-format-${action.marker}`"
+                                            class="size-7 shrink-0 rounded-full text-muted-foreground"
+                                            :aria-label="action.label"
+                                            @mousedown.prevent
+                                            @click="applyFormat(action.marker)"
+                                        >
+                                            <component
+                                                :is="action.icon"
+                                                class="size-3.5"
+                                            />
+                                        </Button>
+                                    </TooltipTrigger>
+                                    <TooltipContent
+                                        side="top"
+                                        :side-offset="6"
+                                        class="flex items-center gap-2"
+                                    >
+                                        {{ action.label }}
+                                        <span
+                                            class="rounded bg-muted px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground"
+                                            >{{ action.shortcut }}</span
+                                        >
+                                    </TooltipContent>
+                                </Tooltip>
+                            </div>
+                        </TooltipProvider>
+                        <span
+                            class="mx-0.5 h-5 w-px shrink-0 self-center bg-border"
+                            aria-hidden="true"
+                        ></span>
                         <Button
                             variant="ghost"
                             size="icon"
