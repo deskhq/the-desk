@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Ldap\DirectoryUser;
+use Firebase\JWT\JWT;
 use GuzzleHttp\Handler\MockHandler;
 use GuzzleHttp\HandlerStack;
 use GuzzleHttp\Psr7\Response;
@@ -16,10 +17,54 @@ use LdapRecord\Testing\ConnectionFake;
 function oidcDiscoveryResponse(): Response
 {
     return new Response(200, [], (string) json_encode([
+        'issuer' => 'https://idp.test',
         'authorization_endpoint' => 'https://idp.test/authorize',
         'token_endpoint' => 'https://idp.test/token',
         'userinfo_endpoint' => 'https://idp.test/userinfo',
+        'jwks_uri' => 'https://idp.test/jwks',
     ]));
+}
+
+/**
+ * A fresh RSA keypair plus the public JWK modulus/exponent, for minting and
+ * verifying id_tokens offline. Returns [privatePem, jwks, kid].
+ *
+ * @return array{0: string, 1: array<string, mixed>, 2: string}
+ */
+function oidcSigningKey(string $kid = 'test-key'): array
+{
+    $resource = openssl_pkey_new(['private_key_bits' => 2048, 'private_key_type' => OPENSSL_KEYTYPE_RSA]);
+    openssl_pkey_export($resource, $privatePem);
+    $details = openssl_pkey_get_details($resource);
+
+    $base64Url = fn (string $bytes): string => rtrim(strtr(base64_encode($bytes), '+/', '-_'), '=');
+
+    $jwks = ['keys' => [[
+        'kty' => 'RSA',
+        'alg' => 'RS256',
+        'use' => 'sig',
+        'kid' => $kid,
+        'n' => $base64Url($details['rsa']['n']),
+        'e' => $base64Url($details['rsa']['e']),
+    ]]];
+
+    return [$privatePem, $jwks, $kid];
+}
+
+/**
+ * Sign an OIDC id_token with the given RSA private key.
+ *
+ * @param  array<string, mixed>  $claims
+ */
+function oidcIdToken(array $claims, string $privatePem, string $kid = 'test-key'): string
+{
+    return JWT::encode(array_merge([
+        'iss' => 'https://idp.test',
+        'aud' => 'client-id',
+        'sub' => 'subject-999',
+        'iat' => time(),
+        'exp' => time() + 3600,
+    ], $claims), $privatePem, 'RS256', $kid);
 }
 
 /**

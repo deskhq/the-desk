@@ -63,10 +63,18 @@ return [
     | on the login page (shown only when a provider is configured). The provider
     | credentials themselves live in the `oidc` block of config/services.php.
     |
+    | `validate_id_token` adds defence-in-depth: when the token response carries
+    | an id_token, its signature (via the provider JWKS), issuer, audience, and
+    | expiry are verified and its subject must match the UserInfo subject before
+    | the claims are trusted. On by default; disable only if a non-conformant
+    | provider returns an id_token that cannot be validated (UserInfo-over-TLS
+    | with a confidential client then remains the trust anchor).
+    |
     */
 
     'oidc' => [
         'enabled' => $oidcConfigured,
+        'validate_id_token' => (bool) env('SSO_OIDC_VALIDATE_ID_TOKEN', true),
     ],
 
     /*
