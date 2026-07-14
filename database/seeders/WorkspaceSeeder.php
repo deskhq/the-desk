@@ -151,6 +151,7 @@ class WorkspaceSeeder extends Seeder
         $this->seedEditedMessage($general, $admin);
         $this->seedDeletedMessage($general, $member1);
         $this->seedMentionMessage($general, $member2, $demo);
+        $this->seedRichTextMessages($general, $admin, $demo);
         $this->seedReactions($generalMessages, [$demo, $admin, $member1]);
         $this->seedPins($general, $generalMessages, $admin);
         $this->seedCustomEmoji($acme, [$demo, $admin, $member1], $general);
@@ -614,6 +615,31 @@ class WorkspaceSeeder extends Seeder
         ]);
 
         $this->syncMentions->handle($channel, $message);
+    }
+
+    /**
+     * Seed messages exercising the inline rich-text marks (bold, italic,
+     * strikethrough, inline code) so the timeline renderer has formatted content
+     * on load: a plain formatted line, a mark composed around a real mention
+     * alongside an inline-code span, and a `code` span that keeps an @-token and
+     * URL inside it inert. The mention is reconciled through `SyncMentions`,
+     * which shares the inline-code carve-out with the client renderer.
+     */
+    private function seedRichTextMessages(Channel $channel, User $author, User $mentioned): void
+    {
+        Message::factory()->for($channel)->for($author)->create([
+            'body' => 'Ship checklist is **done** — ~~Friday~~ *Thursday* is the new review date.',
+        ]);
+
+        $formatted = Message::factory()->for($channel)->for($author)->create([
+            'body' => "**Heads up** @[{$mentioned->name}]({$mentioned->id}) — run `make lint` before the merge, notes at https://the-desk.app/runbook",
+        ]);
+
+        $this->syncMentions->handle($channel, $formatted);
+
+        Message::factory()->for($channel)->for($author)->create([
+            'body' => 'The template literally contains `@[Ana](7) pinged via https://hooks.dev/x` — nothing resolves inside the backticks.',
+        ]);
     }
 
     /**

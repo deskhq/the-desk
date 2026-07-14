@@ -5,6 +5,7 @@ namespace App\Actions\Channels;
 use App\Enums\LinkPreviewStatus;
 use App\Jobs\UnfurlMessageLinks;
 use App\Models\Message;
+use App\Support\InlineMarkdown;
 use Illuminate\Support\Facades\DB;
 
 class SyncLinkPreviews
@@ -90,7 +91,9 @@ class SyncLinkPreviews
      */
     private function extractUrls(string $body): array
     {
-        preg_match_all(self::URL_PATTERN, $body, $matches);
+        // A URL inside an inline `code` span renders inert on the client (no
+        // autolink), so it must not unfurl either; mask code spans first.
+        preg_match_all(self::URL_PATTERN, InlineMarkdown::maskInlineCode($body), $matches);
 
         $urls = [];
 

@@ -98,6 +98,26 @@ test('a user mentioned twice in one message is persisted once', function (): voi
     expect(Message::firstOrFail()->mentionedUsers)->toHaveCount(1);
 });
 
+test('a mention token inside inline code does not notify', function (): void {
+    [$owner, $team, $general] = mentionTeamWithGeneral();
+    $inCode = teamMember($team, 'Code Only');
+    $real = teamMember($team, 'Real Ping');
+
+    // Matches the client: a `@[Name](id)` token inside a `code` span renders
+    // inert, so it must not create a mention. The one outside the span still does.
+    $this->actingAs($owner)
+        ->post(route('channels.messages.store', ['team' => $team->slug, 'channel' => $general->slug]), [
+            'body' => 'ignore `'.mentionToken($inCode).'` but ping '.mentionToken($real),
+            'client_uuid' => (string) Str::uuid7(),
+        ])
+        ->assertRedirect();
+
+    $mentioned = Message::firstOrFail()->mentionedUsers;
+
+    expect($mentioned)->toHaveCount(1)
+        ->and($mentioned->first()->id)->toBe($real->id);
+});
+
 test('editing a message re-syncs mentions: adds new and removes stale', function (): void {
     [$owner, $team, $general] = mentionTeamWithGeneral();
     $first = teamMember($team, 'First Person');
