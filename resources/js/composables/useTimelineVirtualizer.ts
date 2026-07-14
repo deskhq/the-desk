@@ -41,6 +41,11 @@ export function useTimelineVirtualizer(options: {
     hasOlder: () => boolean;
     isLoadingOlder: () => boolean;
     loadOlder: () => void;
+    // True while the consumer is deliberately pinning the view to the newest
+    // message (a jump-to-present). Upward size-change anchoring is suppressed
+    // during it so a row measured above the viewport can't drift the view up
+    // while we settle on the bottom.
+    isPinning?: () => boolean;
 }) {
     const virtualizer = useVirtualizer(
         computed(() => ({
@@ -50,8 +55,11 @@ export function useTimelineVirtualizer(options: {
             overscan: OVERSCAN,
             // Keep the viewport visually stable when a row above it is measured
             // (its real height replaces the estimate): shift the scroll offset
-            // so history doesn't jump under a reader scrolled into the past.
+            // so history doesn't jump under a reader scrolled into the past. Off
+            // while pinning to the bottom, where we want to follow the newest
+            // message rather than anchor an upper row.
             shouldAdjustScrollPositionOnItemSizeChange: (item: VirtualItem) =>
+                !(options.isPinning?.() ?? false) &&
                 item.start < (options.scrollElement.value?.scrollTop ?? 0),
         })),
     );

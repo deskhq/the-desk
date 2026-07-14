@@ -1053,6 +1053,7 @@ function archive(): void {
                          itself can't be a `role="log"` since its rows unmount. -->
                     <div
                         ref="scrollContainer"
+                        data-test="message-history"
                         tabindex="0"
                         role="region"
                         :aria-label="$t('Message history')"
