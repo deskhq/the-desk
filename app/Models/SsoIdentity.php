@@ -12,9 +12,10 @@ use Illuminate\Support\Carbon;
 
 /**
  * A user's stable identity at an external directory (IdP). The `provider`
- * namespaces the identifier ('oidc', later 'ldap'/'scim') and `provider_id`
- * holds the directory's stable subject (OIDC `sub`, LDAP `objectGUID`, …), so a
- * login survives the user's email changing at the IdP.
+ * namespaces the identifier ('ldap', 'scim', or 'oidc:{issuer}' — the OIDC
+ * issuer is folded in because a `sub` is only unique within its issuer) and
+ * `provider_id` holds the directory's stable subject (OIDC `sub`, LDAP
+ * `objectGUID`, …), so a login survives the user's email changing at the IdP.
  *
  * @property string $id
  * @property string $user_id
