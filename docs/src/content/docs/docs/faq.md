@@ -59,7 +59,7 @@ the near-term roadmap; if you need those now, see the
 ## Does it support SSO, OIDC, or LDAP?
 
 Not today — single sign-on and directory-managed users are on the roadmap but not
-available in v1.2.0. If your organization requires them now, a larger platform is <!-- x-release-please-version -->
+available in v1.2.1. If your organization requires them now, a larger platform is <!-- x-release-please-version -->
 the safer choice for the moment. See the [comparison](/docs/comparison/).
 
 ## How do upgrades work?
