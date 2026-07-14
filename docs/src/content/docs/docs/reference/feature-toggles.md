@@ -50,17 +50,23 @@ registered, so flipping the flag takes effect immediately with no data migration
 
 | Variable        | Default | Effect                                                                 |
 | --------------- | ------- | --------------------------------------------------------------------- |
-| `AUTH_SSO_ONLY` | `false` | Route **all** access through your identity provider.                  |
+| `AUTH_SSO_ONLY` | `false` | Route **all** access through single sign-on.                          |
 
-Single sign-on ([OpenID Connect](/docs/reference/environment-variables/#single-sign-on-openid-connect))
+Single sign-on — [OpenID Connect](/docs/reference/environment-variables/#single-sign-on-openid-connect)
+or [LDAP / Active Directory](/docs/reference/environment-variables/#single-sign-on-ldap--active-directory) —
 sits **alongside** password login by default, so a break-glass password account
-keeps working during an IdP outage. Set `AUTH_SSO_ONLY=true` to funnel everyone
-through the directory instead: Fortify **registration** and **password login** are
-disabled, and the login page shows only the "Sign in with SSO" button.
+keeps working during an outage. Set `AUTH_SSO_ONLY=true` to funnel everyone
+through the directory instead: Fortify **registration** and the **local-password
+login** are disabled. (LDAP bind auth uses the same login form, so it keeps
+working — only the local-password path is blocked.)
+
+`AUTH_SSO_ONLY` only takes effect once a provider (OIDC **or** LDAP) is actually
+configured, so a stray flag can never lock everyone out of an instance with no
+working SSO.
 
 :::caution
-With `AUTH_SSO_ONLY=true` there is no password fallback — if your IdP is
-unreachable, no one can sign in. Only turn it on once SSO is verified working,
+With `AUTH_SSO_ONLY=true` there is no local-password fallback — if your directory
+is unreachable, no one can sign in. Only turn it on once SSO is verified working,
 and keep a way to flip it back (edit `.env` and restart the stack).
 :::
 

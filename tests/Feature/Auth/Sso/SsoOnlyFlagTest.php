@@ -46,6 +46,29 @@ test('password login still works when sso-only mode is off', function (): void {
     $this->assertAuthenticated();
 });
 
+test('sso-only enforcement also engages when only an LDAP directory is configured', function (): void {
+    $this->reloadWithEnv([
+        'AUTH_SSO_ONLY' => true,
+        'REGISTRATION_ENABLED' => true,
+        'LDAP_HOST' => 'ldap.test',
+        'LDAP_BASE_DN' => 'dc=the-desk,dc=local',
+    ]);
+
+    expect(config('sso.enforced'))->toBeTrue();
+
+    // Registration is closed and the password login POST reaches the directory
+    // bind callback (not a 404) so LDAP sign-in still works.
+    $this->get('/register')->assertNotFound();
+    $this->post('/register', [
+        'name' => 'Test User',
+        'email' => 'test@example.com',
+        'password' => 'password',
+        'password_confirmation' => 'password',
+    ])->assertNotFound();
+
+    $this->assertGuest();
+});
+
 test('sso-only mode has no effect when no provider is configured, so no one is locked out', function (): void {
     // AUTH_SSO_ONLY on but no OIDC provider: enforcement must not engage, or the
     // instance would disable every sign-in path.
