@@ -8,11 +8,42 @@ use Laravel\Fortify\Features;
 
 abstract class TestCase extends BaseTestCase
 {
+    /**
+     * Original values of env vars overridden via reloadWithEnv(), captured so
+     * they can be restored in teardown. A value of false means "was unset".
+     *
+     * @var array<string, string|false>
+     */
+    private array $originalEnv = [];
+
     protected function skipUnlessFortifyHas(string $feature, ?string $message = null): void
     {
         if (! Features::enabled($feature)) {
             $this->markTestSkipped($message ?? "Fortify feature [{$feature}] is not enabled.");
         }
+    }
+
+    /**
+     * Restore any env vars a test overrode via reloadWithEnv(), so a value set
+     * by one test never contaminates the next.
+     */
+    #[\Override]
+    protected function tearDown(): void
+    {
+        foreach ($this->originalEnv as $key => $original) {
+            if ($original === false) {
+                putenv($key);
+                unset($_ENV[$key], $_SERVER[$key]);
+            } else {
+                putenv("{$key}={$original}");
+                $_ENV[$key] = $original;
+                $_SERVER[$key] = $original;
+            }
+        }
+
+        $this->originalEnv = [];
+
+        parent::tearDown();
     }
 
     /**
@@ -24,11 +55,33 @@ abstract class TestCase extends BaseTestCase
      */
     protected function reloadWithRegistrationEnabled(bool $enabled): void
     {
-        $value = $enabled ? 'true' : 'false';
+        $this->reloadWithEnv(['REGISTRATION_ENABLED' => $enabled]);
+    }
 
-        putenv("REGISTRATION_ENABLED={$value}");
-        $_ENV['REGISTRATION_ENABLED'] = $value;
-        $_SERVER['REGISTRATION_ENABLED'] = $value;
+    /**
+     * Reboot the application with the given environment variables in place.
+     *
+     * Boot-time decisions (which Fortify routes to register, the SSO-only
+     * enforcement) read these before the app boots, so the value has to be set
+     * and the app refreshed rather than overridden at runtime with `config()`.
+     *
+     * @param  array<string, bool|int|string>  $vars
+     */
+    protected function reloadWithEnv(array $vars): void
+    {
+        foreach ($vars as $key => $value) {
+            // Capture the pre-existing value once, so teardown restores the
+            // original (or unsets it) rather than leaking this override.
+            if (! array_key_exists($key, $this->originalEnv)) {
+                $this->originalEnv[$key] = getenv($key);
+            }
+
+            $string = is_bool($value) ? ($value ? 'true' : 'false') : (string) $value;
+
+            putenv("{$key}={$string}");
+            $_ENV[$key] = $string;
+            $_SERVER[$key] = $string;
+        }
 
         // Reset the memoized env repository so its immutable "already loaded"
         // guard is cleared. Without this, a value baked into .env at first boot

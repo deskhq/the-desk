@@ -71,6 +71,25 @@ service, or real-time features silently stop working. See
 pins both the image tag and the version-scoped data volume — see
 [Upgrading](/docs/self-hosting/upgrading/#search-reindexing) for why that matters.
 
+## Single sign-on (OpenID Connect)
+
+To let members sign in through your identity provider (Okta, Microsoft Entra ID,
+Google Workspace, Auth0, Keycloak, …), register an OAuth application there with
+the redirect URI `https://your-host/auth/oidc/callback`, then set:
+
+```bash
+SSO_OIDC_ISSUER=https://your-idp.example.com
+SSO_OIDC_CLIENT_ID=your-client-id
+SSO_OIDC_CLIENT_SECRET=your-client-secret
+```
+
+A "Sign in with SSO" button appears on the login page. The first login
+just-in-time provisions the account into the default team as a Member (matched to
+an existing user by verified email). For the full list of options — default team,
+scopes, and routing **all** access through the directory with `AUTH_SSO_ONLY` —
+see [Environment variables → Single sign-on](/docs/reference/environment-variables/#single-sign-on-openid-connect)
+and [Feature toggles → SSO-only mode](/docs/reference/feature-toggles/#sso-only-mode).
+
 ## Applying changes
 
 After editing `.env`, restart the stack to pick up the new values:

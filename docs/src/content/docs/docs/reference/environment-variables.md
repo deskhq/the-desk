@@ -93,6 +93,28 @@ production — see [Configuration](/docs/self-hosting/configuration/#reverb-webs
 | `GRAVATAR_ENABLED`           | `true`  | [Feature toggles → Gravatar avatars](/docs/reference/feature-toggles/#gravatar-avatars) |
 | `ACTIVITYLOG_ENABLED`        | `true`  | [Feature toggles → Activity logging](/docs/reference/feature-toggles/#activity-logging) |
 | `REVERB_SCALING_ENABLED`     | `false` | [Feature toggles → Advanced Reverb](/docs/reference/feature-toggles/#advanced-reverb-options) |
+| `AUTH_SSO_ONLY`              | `false` | [Feature toggles → SSO-only mode](/docs/reference/feature-toggles/#sso-only-mode) |
+
+## Single sign-on (OpenID Connect)
+
+Let members authenticate through your identity provider (Okta, Microsoft Entra
+ID, Google Workspace, Auth0, Keycloak, …). The app reads the provider's discovery
+document at `{issuer}/.well-known/openid-configuration` to find its endpoints, so
+only the issuer, client id, and secret are required. The first SSO login
+**just-in-time provisions** the account — matched to an existing user by verified
+email, otherwise created — into the default team as a **Member**. Leave
+`SSO_OIDC_CLIENT_ID` / `SSO_OIDC_ISSUER` blank to keep SSO off (no button shown).
+
+| Variable                 | Default                          | Notes                                                                     |
+| ------------------------ | -------------------------------- | ------------------------------------------------------------------------- |
+| `SSO_OIDC_ISSUER`        | *(blank)*                        | Your provider's issuer URL. Discovery is read from `{issuer}/.well-known/openid-configuration`. |
+| `SSO_OIDC_CLIENT_ID`     | *(blank)*                        | The OAuth client id registered at your provider.                          |
+| `SSO_OIDC_CLIENT_SECRET` | *(blank)*                        | The client secret.                                                        |
+| `SSO_OIDC_REDIRECT_URI`  | `${APP_URL}/auth/oidc/callback`  | Callback URI; must match what you register at the IdP.                     |
+| `SSO_OIDC_DISCOVERY_URL` | *(derived from issuer)*          | Override only if discovery is not at the standard well-known path.         |
+| `SSO_OIDC_SCOPES`        | `openid profile email`           | Space-separated OIDC scopes to request.                                   |
+| `SSO_DEFAULT_TEAM_ID`    | *(sole team)*                    | Team new SSO users join as a Member. Blank uses the sole team when there is exactly one; otherwise the account gets its own workspace. |
+| `AUTH_SSO_ONLY`          | `false`                          | Route **all** access through the directory. See [SSO-only mode](/docs/reference/feature-toggles/#sso-only-mode). |
 
 ## Attachments
 

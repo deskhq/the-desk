@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Auth\Sso\OidcController;
 use App\Http\Controllers\Channels\AttachmentController;
 use App\Http\Controllers\Channels\ChannelController;
 use App\Http\Controllers\Channels\ChannelDraftController;
@@ -27,6 +28,13 @@ use App\Http\Middleware\EnsureTeamMembership;
 use Illuminate\Support\Facades\Route;
 
 Route::inertia('/', 'Welcome')->name('home');
+
+// OpenID Connect single sign-on. The routes are always registered (so Wayfinder
+// can generate them and the login page can link to them); the controller 404s
+// when no provider is configured, and the login page hides the entry point to
+// match. A full-page GET redirect (not an Inertia visit) hands off to the IdP.
+Route::get('auth/oidc/redirect', [OidcController::class, 'redirect'])->name('sso.oidc.redirect');
+Route::get('auth/oidc/callback', [OidcController::class, 'callback'])->name('sso.oidc.callback');
 
 Route::get('locales/{locale}.json', [LocaleCatalogController::class, 'show'])
     ->where('locale', '[a-z]{2}')

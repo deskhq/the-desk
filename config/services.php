@@ -37,4 +37,22 @@ return [
         ],
     ],
 
+    // Generic OpenID Connect provider (Okta, Microsoft Entra ID, Google
+    // Workspace, Auth0, Keycloak, …). Socialite resolves the driver named
+    // "oidc" from this block; App\Providers\SsoServiceProvider reads the issuer's
+    // discovery document to find the authorize/token/userinfo endpoints. Set
+    // `discovery_url` only when the provider does not publish it at the standard
+    // `{issuer}/.well-known/openid-configuration` path.
+    'oidc' => [
+        'client_id' => env('SSO_OIDC_CLIENT_ID'),
+        'client_secret' => env('SSO_OIDC_CLIENT_SECRET'),
+        // A relative default is resolved by Socialite to an absolute URL against
+        // APP_URL (SocialiteManager::formatRedirectUrl), so it matches the
+        // callback the IdP is configured with as long as APP_URL is correct.
+        'redirect' => env('SSO_OIDC_REDIRECT_URI', '/auth/oidc/callback'),
+        'issuer' => env('SSO_OIDC_ISSUER'),
+        'discovery_url' => env('SSO_OIDC_DISCOVERY_URL'),
+        'scopes' => env('SSO_OIDC_SCOPES'),
+    ],
+
 ];

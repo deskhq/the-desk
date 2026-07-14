@@ -81,6 +81,15 @@ class HandleInertiaRequests extends Middleware
             // imply a verification step that can't happen (e.g. the profile
             // "resend verification email" affordance).
             'emailVerificationEnabled' => (bool) config('fortify.email_verification_enabled'),
+            // Single sign-on state for the login page: whether to show the
+            // "Sign in with SSO" entry point (an OIDC provider is configured),
+            // and whether the password form still applies (off only when SSO
+            // enforcement is active — AUTH_SSO_ONLY with a configured provider —
+            // where the password login POST is blocked too).
+            'sso' => [
+                'oidcEnabled' => (bool) config('sso.oidc.enabled'),
+                'passwordLoginEnabled' => ! config('sso.enforced'),
+            ],
             // The per-file and per-message attachment caps, so the composer can
             // reject an oversized or over-count drop client-side for instant
             // feedback. The upload and send endpoints re-enforce them as the
