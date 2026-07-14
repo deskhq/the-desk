@@ -668,11 +668,22 @@ function confirmDelete(): void {
                                  gutter on hover, and hidden from AT since the
                                  row's accessible name already carries the time.
                                  The `<time datetime>` keeps the row machine-
-                                 readable regardless of the hover styling. -->
+                                 readable regardless of the hover styling.
+                                 Only non-lead rows (index > 0) reveal it on
+                                 hover — the lead row already shows the group
+                                 time above, so revealing this here would stack a
+                                 duplicate on top of it. The lead's <time> stays
+                                 present but never fades in, so its machine-
+                                 readable value is unchanged. -->
                                 <time
                                     :datetime="message.createdAt"
                                     aria-hidden="true"
-                                    class="pointer-events-none absolute top-1.5 -left-13 font-mono text-[9.5px] text-muted-foreground opacity-0 transition-opacity group-hover/message:opacity-100"
+                                    class="pointer-events-none absolute top-1.5 -left-10.75 -translate-x-1/2 font-mono text-[9.5px] text-muted-foreground opacity-0 transition-opacity"
+                                    :class="
+                                        index > 0
+                                            ? 'group-hover/message:opacity-100'
+                                            : ''
+                                    "
                                     >{{ formatTime(message.createdAt) }}</time
                                 >
 
