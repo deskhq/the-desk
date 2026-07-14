@@ -72,7 +72,11 @@ class OidcController extends Controller
      * issuer into the key (`oidc:{issuer}`) keeps two issuers that mint the same
      * `sub` from ever resolving to the same account. The trailing slash is
      * normalised away so `https://idp` and `https://idp/` are one issuer, not two.
-     * The issuer is always present here: OIDC is only enabled when it is set.
+     *
+     * The issuer is always present here: this action 404s unless
+     * `config('sso.oidc.enabled')`, which config/sso.php only sets true when
+     * `SSO_OIDC_ISSUER` is filled — so the key can never collapse to a bare
+     * `oidc:` that would reintroduce the cross-issuer collision.
      */
     private function providerKey(): string
     {
