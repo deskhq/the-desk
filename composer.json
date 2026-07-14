@@ -12,6 +12,7 @@
         "php": "^8.3",
         "ext-gd": "*",
         "ext-imagick": "*",
+        "directorytree/ldaprecord-laravel": "^4.0",
         "inertiajs/inertia-laravel": "^3.0",
         "intervention/image": "^4.2",
         "laravel/chisel": "^0.1.0",

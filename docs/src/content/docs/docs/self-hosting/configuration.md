@@ -90,6 +90,42 @@ scopes, and routing **all** access through the directory with `AUTH_SSO_ONLY` �
 see [Environment variables → Single sign-on](/docs/reference/environment-variables/#single-sign-on-openid-connect)
 and [Feature toggles → SSO-only mode](/docs/reference/feature-toggles/#sso-only-mode).
 
+## Single sign-on (LDAP / Active Directory)
+
+To authenticate members against an on-prem LDAP or Active Directory server, point
+the app at your directory and a read-only service (bind) account:
+
+```bash
+LDAP_HOST=ldap.example.com
+LDAP_PORT=389
+LDAP_BASE_DN="dc=example,dc=com"
+LDAP_USERNAME="cn=readonly,dc=example,dc=com"
+LDAP_PASSWORD=your-service-account-password
+# Encrypt the connection in production:
+LDAP_TLS=true          # LDAPS (usually port 636)
+# LDAP_STARTTLS=true   # or upgrade a plain connection instead
+```
+
+Members then sign in with their directory credentials on the normal login form
+(the app **binds** to verify them — no browser redirect). The first login
+just-in-time provisions the account into the default team as a Member, matched to
+an existing user by the directory's **mail** attribute and keyed by its stable
+**objectGUID**; the mapped display name syncs on every login.
+
+By default members sign in with their **email** and the display name comes from
+`cn`. If your directory uses different attributes — for example Active Directory
+where users log in with `sAMAccountName` — remap them:
+
+```bash
+LDAP_ATTR_USERNAME=samaccountname   # what members type on the login form
+LDAP_ATTR_NAME=displayname          # attribute used as the app display name
+LDAP_ATTR_GUID=objectguid           # objectguid (AD) or entryuuid (OpenLDAP)
+```
+
+See [Environment variables → Single sign-on (LDAP)](/docs/reference/environment-variables/#single-sign-on-ldap--active-directory)
+for every attribute mapping, and [Feature toggles → SSO-only mode](/docs/reference/feature-toggles/#sso-only-mode)
+to require directory login.
+
 ## Applying changes
 
 After editing `.env`, restart the stack to pick up the new values:

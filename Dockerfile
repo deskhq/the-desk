@@ -29,9 +29,10 @@ COPY composer.json composer.lock ./
 
 # --no-scripts: the post-autoload-dump `artisan package:discover` boots the full
 # app, which is deferred to the runtime entrypoint (config:cache) instead.
-# --ignore-platform-req=ext-gd/ext-imagick: this dependency stage only resolves
-# and downloads packages; the image extensions are installed in the runtime stage
-# (which does the actual image processing), so the platform check is skipped here.
+# --ignore-platform-req=ext-gd/ext-imagick/ext-ldap: this dependency stage only
+# resolves and downloads packages; those extensions are installed in the runtime
+# stage (image processing, LDAP directory auth), so the platform check is skipped
+# here.
 RUN composer install \
         --no-dev \
         --no-scripts \
@@ -40,7 +41,8 @@ RUN composer install \
         --no-interaction \
         --no-progress \
         --ignore-platform-req=ext-gd \
-        --ignore-platform-req=ext-imagick
+        --ignore-platform-req=ext-imagick \
+        --ignore-platform-req=ext-ldap
 
 # Add the source and build an authoritative, optimized autoloader.
 COPY . .
@@ -83,6 +85,8 @@ FROM dunglas/frankenphp:1-php${PHP_VERSION}-alpine AS runtime
 # gd/imagick: image processing for attachments (Intervention Image, installed via
 # Composer) — EXIF-stripping and thumbnail generation. Imagick is the default
 # driver (ATTACHMENT_IMAGE_DRIVER); GD is the fallback.
+# ldap: directory bind authentication (LdapRecord); required by the package even
+# when LDAP is not configured, since the extension is a hard dependency.
 RUN install-php-extensions \
         pdo_pgsql \
         redis \
@@ -93,6 +97,7 @@ RUN install-php-extensions \
         opcache \
         gd \
         imagick \
+        ldap \
     && apk add --no-cache curl
 
 # Production PHP/OPcache tuning.

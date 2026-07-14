@@ -103,3 +103,38 @@ test('a provisioned user with no name falls back to their email', function (): v
 
     expect($user->name)->toBe('jordan@example.com');
 });
+
+test('syncName refreshes the display name of an email-matched user from the directory', function (): void {
+    $existing = User::factory()->create(['email' => 'jordan@example.com', 'name' => 'Old Name']);
+
+    $user = app(ProvisionSsoUser::class)->handle('ldap', 'guid-1', 'jordan@example.com', 'Jordan Rivers', syncName: true);
+
+    expect($user->id)->toBe($existing->id)
+        ->and($existing->fresh()->name)->toBe('Jordan Rivers');
+});
+
+test('syncName refreshes the display name of an identity-matched user on a return login', function (): void {
+    $existing = User::factory()->create(['name' => 'Old Name']);
+    SsoIdentity::factory()->provider('ldap')->for($existing)->create(['provider_id' => 'guid-1']);
+
+    app(ProvisionSsoUser::class)->handle('ldap', 'guid-1', 'someone@example.com', 'Jordan Rivers', syncName: true);
+
+    expect($existing->fresh()->name)->toBe('Jordan Rivers');
+});
+
+test('syncName leaves the name untouched when the directory supplies no name', function (): void {
+    $existing = User::factory()->create(['name' => 'Kept Name']);
+    SsoIdentity::factory()->provider('ldap')->for($existing)->create(['provider_id' => 'guid-1']);
+
+    app(ProvisionSsoUser::class)->handle('ldap', 'guid-1', 'someone@example.com', null, syncName: true);
+
+    expect($existing->fresh()->name)->toBe('Kept Name');
+});
+
+test('without syncName an existing matched user keeps their current name', function (): void {
+    $existing = User::factory()->create(['email' => 'jordan@example.com', 'name' => 'Kept Name']);
+
+    app(ProvisionSsoUser::class)->handle('oidc', 'sub-123', 'jordan@example.com', 'Jordan Rivers');
+
+    expect($existing->fresh()->name)->toBe('Kept Name');
+});

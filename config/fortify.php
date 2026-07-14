@@ -6,10 +6,12 @@ use Laravel\Fortify\Features;
 
 // SSO-only enforcement only bites when a provider is actually configured (see
 // config/sso.php), so a stray AUTH_SSO_ONLY can never disable both directory and
-// password sign-in and lock everyone out.
-$ssoEnforced = env('AUTH_SSO_ONLY', false)
-    && filled(env('SSO_OIDC_CLIENT_ID'))
-    && filled(env('SSO_OIDC_ISSUER'));
+// password sign-in and lock everyone out. A configured provider is either OIDC
+// (issuer + client id) or an LDAP directory (host + base DN); this mirrors the
+// `sso.enforced` computation so the registration gate below stays in lockstep.
+$oidcConfigured = filled(env('SSO_OIDC_CLIENT_ID')) && filled(env('SSO_OIDC_ISSUER'));
+$ldapConfigured = filled(env('LDAP_HOST')) && filled(env('LDAP_BASE_DN'));
+$ssoEnforced = env('AUTH_SSO_ONLY', false) && ($oidcConfigured || $ldapConfigured);
 
 return [
 

@@ -28,10 +28,16 @@ class ProvisionSsoUser
      * the subject for next time; (3) else a new account is JIT-provisioned. New
      * accounts have no local password, are treated as email-verified (the IdP
      * verified them), and land in the default team as a Member.
+     *
+     * When $syncName is set, the mapped display name is refreshed from the
+     * directory on every login for an already-existing account (a blank name is
+     * ignored rather than wiping the current one). Directories that push
+     * attributes on each bind — LDAP/AD — opt in; a JIT-created account already
+     * carries the supplied name, so only the returning-user paths need it.
      */
-    public function handle(string $provider, string $providerId, string $email, ?string $name): User
+    public function handle(string $provider, string $providerId, string $email, ?string $name, bool $syncName = false): User
     {
-        return DB::transaction(function () use ($provider, $providerId, $email, $name): User {
+        return DB::transaction(function () use ($provider, $providerId, $email, $name, $syncName): User {
             $email = strtolower($email);
 
             $identity = SsoIdentity::query()
@@ -40,12 +46,17 @@ class ProvisionSsoUser
                 ->first();
 
             if ($identity) {
-                return $identity->user;
+                $user = $identity->user;
+                $this->syncName($user, $name, $syncName);
+
+                return $user;
             }
 
             $user = User::query()->whereRaw('lower(email) = ?', [$email])->first();
 
-            if (! $user) {
+            if ($user) {
+                $this->syncName($user, $name, $syncName);
+            } else {
                 $user = $this->provisionUser($email, $name);
             }
 
@@ -56,6 +67,21 @@ class ProvisionSsoUser
 
             return $user;
         });
+    }
+
+    /**
+     * Refresh an existing user's display name from the directory when opted in.
+     *
+     * A blank directory name is ignored so a sparsely populated entry never wipes
+     * a name the user already has.
+     */
+    private function syncName(User $user, ?string $name, bool $syncName): void
+    {
+        if (! $syncName || $name === null || $name === '') {
+            return;
+        }
+
+        $user->forceFill(['name' => $name])->save();
     }
 
     /**

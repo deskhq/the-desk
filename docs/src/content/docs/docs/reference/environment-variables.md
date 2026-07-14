@@ -113,8 +113,40 @@ email, otherwise created — into the default team as a **Member**. Leave
 | `SSO_OIDC_REDIRECT_URI`  | `${APP_URL}/auth/oidc/callback`  | Callback URI; must match what you register at the IdP.                     |
 | `SSO_OIDC_DISCOVERY_URL` | *(derived from issuer)*          | Override only if discovery is not at the standard well-known path.         |
 | `SSO_OIDC_SCOPES`        | `openid profile email`           | Space-separated OIDC scopes to request.                                   |
-| `SSO_DEFAULT_TEAM_ID`    | *(sole team)*                    | Team new SSO users join as a Member. Blank uses the sole team when there is exactly one; otherwise the account gets its own workspace. |
-| `AUTH_SSO_ONLY`          | `false`                          | Route **all** access through the directory. See [SSO-only mode](/docs/reference/feature-toggles/#sso-only-mode). |
+| `SSO_DEFAULT_TEAM_ID`    | *(sole team)*                    | Team new SSO users join as a Member. Blank uses the sole team when there is exactly one; otherwise the account gets its own workspace. Shared with LDAP. |
+| `AUTH_SSO_ONLY`          | `false`                          | Route **all** access through SSO (OIDC or LDAP). See [SSO-only mode](/docs/reference/feature-toggles/#sso-only-mode). |
+
+## Single sign-on (LDAP / Active Directory)
+
+Authenticate members against an on-prem **LDAP / Active Directory** directory.
+Unlike OIDC's browser redirect, users enter their directory credentials in the
+app's own login form and the app **binds** to the directory to verify them. On a
+successful bind the entry is matched to an app user by its **mail** attribute,
+keyed by its stable **objectGUID**, and — like OIDC — **just-in-time provisioned**
+into the default team as a **Member** with a verified email. The mapped display
+name is **synced on every login**. Leave `LDAP_HOST` / `LDAP_BASE_DN` blank to keep
+LDAP off.
+
+Directory login sits alongside the local password form by default, so a
+break-glass password account survives a directory outage. `AUTH_SSO_ONLY=true`
+engages once LDAP is configured too, disabling the local-password path while still
+allowing the directory bind.
+
+| Variable             | Default                       | Notes                                                                                             |
+| -------------------- | ----------------------------- | ------------------------------------------------------------------------------------------------- |
+| `LDAP_HOST`          | *(blank)*                     | Directory host. Blank (with `LDAP_BASE_DN`) keeps LDAP off.                                        |
+| `LDAP_PORT`          | `389`                         | `389` for plain/STARTTLS, `636` for LDAPS.                                                         |
+| `LDAP_BASE_DN`       | *(blank)*                     | Base DN searched for the user, e.g. `dc=example,dc=com`.                                           |
+| `LDAP_USERNAME`      | *(blank)*                     | DN of the service (bind) account used to search before binding as the user.                       |
+| `LDAP_PASSWORD`      | *(blank)*                     | Password for the service account.                                                                 |
+| `LDAP_TLS`           | `false`                       | Use LDAPS (encrypted transport, usually port 636).                                                |
+| `LDAP_STARTTLS`      | `false`                       | Upgrade a plain connection with STARTTLS.                                                          |
+| `LDAP_TIMEOUT`       | `5`                           | Connection timeout in seconds.                                                                     |
+| `LDAP_ATTR_USERNAME` | `mail`                        | Directory attribute matched against the login form value. Set to e.g. `samaccountname` to sign in with a directory username instead of email. |
+| `LDAP_ATTR_MAIL`     | `mail`                        | Directory attribute used as the app email (how users are matched/linked).                         |
+| `LDAP_ATTR_NAME`     | `cn`                          | Directory attribute synced to the app display name on every login.                                |
+| `LDAP_ATTR_GUID`     | `objectguid`                  | Stable identity attribute. `objectguid` for Active Directory, `entryuuid` for OpenLDAP.           |
+| `LDAP_CONNECTION`    | `default`                     | Name of the connection in `config/ldap.php` to use.                                               |
 
 ## Attachments
 

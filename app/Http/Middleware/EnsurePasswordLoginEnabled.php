@@ -17,11 +17,22 @@ class EnsurePasswordLoginEnabled
      * still renders the "Sign in with SSO" entry point — so only the credential
      * POST (`login.store`) is short-circuited.
      *
+     * LDAP is the exception: its bind auth runs *through* this same login POST,
+     * so blanket-blocking it would block directory sign-in. When LDAP is enabled
+     * the POST is allowed through and the custom Fortify authenticateUsing
+     * callback enforces the split — directory bind allowed, local password
+     * rejected. So the POST is only short-circuited here for OIDC-only
+     * enforcement, where nothing legitimate posts to it.
+     *
      * @param  Closure(Request): (Response)  $next
      */
     public function handle(Request $request, Closure $next): Response
     {
-        abort_if(config('sso.enforced') && $request->routeIs('login.store'), 404);
+        $blocked = config('sso.enforced')
+            && ! config('sso.ldap.enabled')
+            && $request->routeIs('login.store');
+
+        abort_if($blocked, 404);
 
         return $next($request);
     }

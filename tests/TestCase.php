@@ -5,6 +5,7 @@ namespace Tests;
 use Illuminate\Foundation\Testing\TestCase as BaseTestCase;
 use Illuminate\Support\Env;
 use Laravel\Fortify\Features;
+use Laravel\Fortify\Fortify;
 
 abstract class TestCase extends BaseTestCase
 {
@@ -42,6 +43,12 @@ abstract class TestCase extends BaseTestCase
         }
 
         $this->originalEnv = [];
+
+        // The LDAP directory-bind path registers a custom Fortify auth callback
+        // (FortifyServiceProvider::configureLdapAuthentication). It lives on a
+        // static, so booting a later test without LDAP would otherwise inherit
+        // the previous test's callback; clear it so each test starts clean.
+        Fortify::$authenticateUsingCallback = null;
 
         parent::tearDown();
     }
