@@ -32,5 +32,30 @@
         <env name="PULSE_ENABLED" value="false"/>
         <env name="TELESCOPE_ENABLED" value="false"/>
         <env name="NIGHTWATCH_ENABLED" value="false"/>
+        <!--
+            Keep the SSO/LDAP feature tests hermetic. A developer running the
+            `sso` dev-container profile has real LDAP_*/SSO_* values in their
+            .env; without these pins that ambient config leaks into the test
+            environment (config('sso.ldap.enabled') reads true, the GUID maps to
+            `entryuuid`, etc.) and the suite fails locally while CI (booting from
+            .env.example) stays green. Toggle/credential/provider keys pin to
+            empty so no provider is "configured" by default; the attribute keys
+            pin to their config defaults so directory entries created without
+            them (relying on the emulator's auto-assigned objectguid) still bind.
+        -->
+        <env name="AUTH_SSO_ONLY" value="false"/>
+        <env name="LDAP_CONNECTION" value="default"/>
+        <env name="LDAP_HOST" value=""/>
+        <env name="LDAP_BASE_DN" value=""/>
+        <env name="LDAP_USERNAME" value=""/>
+        <env name="LDAP_PASSWORD" value=""/>
+        <env name="LDAP_ATTR_USERNAME" value="mail"/>
+        <env name="LDAP_ATTR_MAIL" value="mail"/>
+        <env name="LDAP_ATTR_NAME" value="cn"/>
+        <env name="LDAP_ATTR_GUID" value="objectguid"/>
+        <env name="SSO_OIDC_CLIENT_ID" value=""/>
+        <env name="SSO_OIDC_ISSUER" value=""/>
+        <env name="SSO_DEFAULT_TEAM_ID" value=""/>
+        <env name="SCIM_TOKEN" value=""/>
     </php>
 </phpunit>
