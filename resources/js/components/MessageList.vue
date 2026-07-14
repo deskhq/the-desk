@@ -2,6 +2,7 @@
 import { usePage } from '@inertiajs/vue3';
 import { Clock, Pin } from '@lucide/vue';
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
+import InlineMarks from '@/components/InlineMarks.vue';
 import LinkPreview from '@/components/LinkPreview.vue';
 import MessageActions from '@/components/MessageActions.vue';
 import MessageAttachments from '@/components/MessageAttachments.vue';
@@ -940,33 +941,44 @@ function confirmDelete(): void {
                                             v-if="segment.kind === 'html'"
                                             v-html="segment.html"
                                         ></span>
-                                        <UserHoverCard
+                                        <InlineMarks
                                             v-else-if="
                                                 segment.kind === 'mention'
                                             "
-                                            :team-slug="props.teamSlug"
-                                            :user-id="segment.id"
-                                            :name="segment.name"
-                                            @mention="
-                                                (member) =>
-                                                    emit('mention', member)
-                                            "
+                                            :marks="segment.marks"
                                         >
-                                            <span
-                                                data-test="message-mention"
-                                                class="cursor-pointer border-b-[1.5px] border-brass font-medium text-foreground hover:border-brass-border"
-                                                >@{{ segment.name }}</span
+                                            <UserHoverCard
+                                                :team-slug="props.teamSlug"
+                                                :user-id="segment.id"
+                                                :name="segment.name"
+                                                @mention="
+                                                    (member) =>
+                                                        emit('mention', member)
+                                                "
                                             >
-                                        </UserHoverCard>
-                                        <img
+                                                <span
+                                                    data-test="message-mention"
+                                                    class="cursor-pointer border-b-[1.5px] border-brass font-medium text-foreground hover:border-brass-border"
+                                                    >@{{ segment.name }}</span
+                                                >
+                                            </UserHoverCard>
+                                        </InlineMarks>
+                                        <InlineMarks
                                             v-else-if="segment.kind === 'emoji'"
-                                            :src="segment.url"
-                                            :alt="`:${segment.name}:`"
-                                            :title="`:${segment.name}:`"
-                                            data-test="message-emoji"
-                                            class="custom-emoji inline-block h-[1.35em] w-[1.35em] align-text-bottom"
-                                        />
-                                        <template v-else>
+                                            :marks="segment.marks"
+                                        >
+                                            <img
+                                                :src="segment.url"
+                                                :alt="`:${segment.name}:`"
+                                                :title="`:${segment.name}:`"
+                                                data-test="message-emoji"
+                                                class="custom-emoji inline-block h-[1.35em] w-[1.35em] align-text-bottom"
+                                            />
+                                        </InlineMarks>
+                                        <InlineMarks
+                                            v-else
+                                            :marks="segment.marks"
+                                        >
                                             <HoverCard
                                                 v-if="
                                                     previewFor(
@@ -1010,7 +1022,7 @@ function confirmDelete(): void {
                                                 class="text-primary underline underline-offset-2 hover:no-underline"
                                                 >{{ segment.href }}</a
                                             >
-                                        </template>
+                                        </InlineMarks>
                                     </template>
                                     <span
                                         v-if="message.editedAt"

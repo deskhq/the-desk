@@ -1,6 +1,13 @@
+// @vitest-environment jsdom
+// DOMPurify (the sanitize boundary in messageBody.ts) needs a DOM; jsdom gives
+// this file a `window` so sanitization runs exactly as it does in the browser.
 import { describe, expect, it } from 'vitest';
 import type { CustomEmojiMap } from '@/lib/customEmoji';
-import { renderMessageBody, tokenizeMessageBody } from '@/lib/messageBody';
+import {
+    messageBodyPreview,
+    renderMessageBody,
+    tokenizeMessageBody,
+} from '@/lib/messageBody';
 import type { Mention } from '@/types';
 
 const alice: Mention = {
@@ -152,5 +159,162 @@ describe('renderMessageBody', () => {
 
     it('leaves a revoked shortcode as literal text', () => {
         expect(renderMessageBody('aw :gone:', [], emojiMap)).toBe('aw :gone:');
+    });
+});
+
+describe('inline formatting marks', () => {
+    it('renders **bold** as a <strong> run', () => {
+        expect(renderMessageBody('a **b** c')).toBe('a <strong>b</strong> c');
+    });
+
+    it('renders *italic* and _italic_ as <em> runs', () => {
+        expect(renderMessageBody('a *b* _c_')).toBe('a <em>b</em> <em>c</em>');
+    });
+
+    it('renders ~~strike~~ as a <del> run', () => {
+        expect(renderMessageBody('a ~~b~~ c')).toBe('a <del>b</del> c');
+    });
+
+    it('renders `code` as a <code> run', () => {
+        expect(renderMessageBody('a `b` c')).toBe('a <code>b</code> c');
+    });
+
+    it('nests marks, outermost first', () => {
+        expect(renderMessageBody('**_x_**')).toBe(
+            '<strong><em>x</em></strong>',
+        );
+    });
+
+    it('escapes html inside a formatted run', () => {
+        expect(renderMessageBody('**<b>**')).toBe('<strong>&lt;b&gt;</strong>');
+    });
+
+    it('marks compose around a resolved mention on the interactive path', () => {
+        expect(
+            tokenizeMessageBody(`**@[Alice](${alice.id})**`, [alice]),
+        ).toEqual([
+            { kind: 'mention', id: alice.id, name: 'Alice', marks: ['strong'] },
+        ]);
+    });
+
+    it('renders a bold mention pill wrapped in <strong>', () => {
+        const html = renderMessageBody(`**@[Alice](${alice.id})**`, [alice]);
+
+        expect(html).toContain('<strong><span');
+        expect(html).toContain('>@Alice<');
+        expect(html).toContain('</span></strong>');
+    });
+
+    it('bolds a bare URL link', () => {
+        const html = renderMessageBody('**https://example.com**');
+
+        expect(html).toBe(
+            '<strong><a href="https://example.com" target="_blank" rel="noopener noreferrer nofollow" class="text-primary underline underline-offset-2 hover:no-underline">https://example.com</a></strong>',
+        );
+    });
+});
+
+describe('inline code suppresses inner parsing', () => {
+    it('does not resolve a mention inside inline code', () => {
+        expect(
+            tokenizeMessageBody(`\`@[Alice](${alice.id})\``, [alice]),
+        ).toEqual([
+            { kind: 'html', html: `<code>@[Alice](${alice.id})</code>` },
+        ]);
+    });
+
+    it('does not autolink a URL inside inline code', () => {
+        expect(tokenizeMessageBody('`see https://example.com`')).toEqual([
+            {
+                kind: 'html',
+                html: '<code>see https://example.com</code>',
+            },
+        ]);
+    });
+
+    it('does not resolve an emoji shortcode inside inline code', () => {
+        expect(tokenizeMessageBody('`:shipit:`', [], emojiMap)).toEqual([
+            { kind: 'html', html: '<code>:shipit:</code>' },
+        ]);
+    });
+});
+
+describe('malformed markup degrades to literal text', () => {
+    it('leaves an unbalanced ** as literal characters', () => {
+        expect(renderMessageBody('a ** b')).toBe('a ** b');
+    });
+
+    it('leaves a lone backtick as a literal character', () => {
+        expect(renderMessageBody('a `b')).toBe('a `b');
+    });
+
+    it('never uses [text] as the anchor label for a markdown-style link', () => {
+        const html = renderMessageBody('[text](http://evil.test)');
+
+        // The `[text](…)` label stays literal; only the bare URL inside is
+        // autolinked, and its anchor text is the URL itself — never `text`.
+        expect(html).toContain('[text](<a href="http://evil.test"');
+        expect(html).toContain('>http://evil.test</a>)');
+        expect(html).not.toContain('>text</a>');
+    });
+});
+
+describe('DOMPurify sanitization boundary', () => {
+    it('escapes an attacker-authored <img onerror> to inert text', () => {
+        const html = renderMessageBody('<img src=x onerror=alert(1)>');
+
+        // No live <img> tag survives; the payload is inert escaped text.
+        expect(html).not.toContain('<img');
+        expect(html).toBe('&lt;img src=x onerror=alert(1)&gt;');
+    });
+
+    it('escapes a <script> payload to inert text', () => {
+        const html = renderMessageBody('<script>alert(1)</script>');
+
+        expect(html).not.toContain('<script');
+        expect(html).toBe('&lt;script&gt;alert(1)&lt;/script&gt;');
+    });
+
+    it('never emits a link (and no javascript: href) from [x](url)', () => {
+        const html = renderMessageBody('**[x](javascript:alert(1))**');
+
+        // The Markdown link rule is disabled, so this stays literal text
+        // wrapped by the mark — no anchor tag, no live scheme, ever.
+        expect(html).not.toContain('<a ');
+        expect(html).not.toContain('href=');
+        expect(html).toBe('<strong>[x](javascript:alert(1))</strong>');
+    });
+
+    it('escapes a quote in a bare URL so it cannot break out of the href', () => {
+        const html = renderMessageBody(
+            'see https://x.com/"onmouseover=alert(1)',
+        );
+
+        // A URL runs to the next whitespace, so it can carry a `"`. The quote is
+        // escaped inside the attribute value — no live event handler is injected
+        // onto the anchor, which is the guarantee on the DOM-less SSR path where
+        // DOMPurify is skipped.
+        expect(html).not.toMatch(/<a[^>]*\sonmouseover=/i);
+        expect(html).toContain(
+            'href="https://x.com/&quot;onmouseover=alert(1"',
+        );
+    });
+});
+
+describe('messageBodyPreview', () => {
+    it('strips inline mark syntax to clean text', () => {
+        expect(messageBodyPreview('a **b** _c_ ~~d~~')).toBe('a b c d');
+    });
+
+    it('keeps inline code content as literal text', () => {
+        expect(messageBodyPreview('run `npm test` now')).toBe(
+            'run npm test now',
+        );
+    });
+
+    it('still collapses a mention token to @Name', () => {
+        expect(messageBodyPreview(`hi **@[Alice](${alice.id})**`)).toBe(
+            'hi @Alice',
+        );
     });
 });

@@ -1,3 +1,5 @@
+import DOMPurify from 'dompurify';
+import MarkdownIt from 'markdown-it';
 import { resolveCustomEmoji, SHORTCODE_PATTERN } from '@/lib/customEmoji';
 import type { CustomEmojiMap } from '@/lib/customEmoji';
 import type { Mention } from '@/types';
@@ -27,17 +29,87 @@ const URL_PATTERN = /\bhttps?:\/\/[^\s]+/gi;
 const TRAILING_PUNCTUATION = /[.,!?;:'")\]]+$/;
 
 /**
- * A parsed piece of a message body: either a run of safe HTML (escaped text with
- * mention pills and `<br>` line breaks) or a bare URL. Splitting the body this
- * way lets the timeline render each link as a real element it can hang an
- * interactive affordance (the unfurl hover card) off of, which a single
- * `v-html` string can't support.
+ * The restricted inline Markdown parser. Built from the `zero` preset (every
+ * rule off) with only the three inline mark rules re-enabled, so it recognises
+ * `**bold**`/`*italic*`/`_italic_`, `~~strike~~`, and `` `code` `` and nothing
+ * else. Crucially the `link`/`image` rules stay off, so `[text](url)` is never
+ * interpreted as a link (which would collide with the `@[Name](id)` mention
+ * token) and no arbitrary link authoring leaks in. We use it only as a
+ * tokenizer: its text runs still flow through our own mention/emoji/URL
+ * tokenizer below, and we build every tag ourselves — the parser never emits
+ * HTML.
+ */
+const markdown = new MarkdownIt('zero').enable([
+    'emphasis',
+    'strikethrough',
+    'backticks',
+]);
+
+/**
+ * The inline marks that can wrap a segment, ordered outermost-first. Inline code
+ * is handled separately (it is baked into an `html` segment because it also
+ * suppresses inner parsing), so it is not part of this set.
+ */
+export type InlineMark = 'strong' | 'em' | 'del';
+
+const MARK_TAG: Record<InlineMark, string> = {
+    strong: 'strong',
+    em: 'em',
+    del: 'del',
+};
+
+/** Wrap a run of HTML in the given marks, outermost mark first. */
+function wrapMarks(inner: string, marks: InlineMark[]): string {
+    let html = inner;
+
+    for (let index = marks.length - 1; index >= 0; index -= 1) {
+        const tag = MARK_TAG[marks[index]];
+        html = `<${tag}>${html}</${tag}>`;
+    }
+
+    return html;
+}
+
+// The fixed allowlist DOMPurify sanitizes emitted HTML against — the formatting
+// scaffold plus the mention/emoji/link markup this module builds. This is the
+// XSS trust boundary: every HTML string we hand to a `v-html`/rendered surface
+// passes through {@see sanitize} first, so an attacker-authored tag or
+// `javascript:` URL that somehow reached the output could never survive it.
+const SANITIZE_CONFIG = {
+    ALLOWED_TAGS: ['strong', 'em', 'del', 'code', 'br', 'span', 'a', 'img'],
+    ALLOWED_ATTR: ['class', 'href', 'target', 'rel', 'src', 'alt', 'title'],
+};
+
+/**
+ * Sanitize a run of emitted HTML against the fixed allowlist. In a browser (or
+ * jsdom test) DOMPurify strips anything off-allowlist. A DOM-less SSR pass has
+ * no `window` for DOMPurify to run against, so it is skipped there — still safe
+ * because every string reaching here is built from escaped text and a closed set
+ * of tags we author ourselves, and the client re-sanitizes on hydration.
+ */
+function sanitize(html: string): string {
+    if (typeof window === 'undefined') {
+        return html;
+    }
+
+    return DOMPurify.sanitize(html, SANITIZE_CONFIG);
+}
+
+/**
+ * A parsed piece of a message body: a run of safe HTML (escaped text with
+ * formatting marks, mention pills, and `<br>` line breaks), or a mention,
+ * emoji, or bare URL lifted out as its own interactive segment. Splitting the
+ * body this way lets the timeline render each link/mention as a real element it
+ * can hang an interactive affordance (the unfurl hover card, the profile card)
+ * off of, which a single `v-html` string can't support. The interactive
+ * segments carry the inline marks wrapping them so formatting composes around
+ * them (e.g. a bold mention).
  */
 export type MessageBodySegment =
     | { kind: 'html'; html: string }
-    | { kind: 'link'; href: string }
-    | { kind: 'mention'; id: string; name: string }
-    | { kind: 'emoji'; name: string; url: string };
+    | { kind: 'link'; href: string; marks?: InlineMark[] }
+    | { kind: 'mention'; id: string; name: string; marks?: InlineMark[] }
+    | { kind: 'emoji'; name: string; url: string; marks?: InlineMark[] };
 
 // The highlighted-pill styling for a resolved mention, shared by the interactive
 // segment renderer and the flat-HTML {@see renderMessageBody}.
@@ -54,91 +126,203 @@ function escapeInline(text: string): string {
 }
 
 /**
- * Split a plain run of text (no mentions or URLs) into ordered segments,
- * lifting each `:name:` shortcode that resolves in `emojiMap` into an `emoji`
- * segment. An unresolved shortcode (e.g. a revoked emoji) is left untouched, so
- * it renders as its literal `:name:` text — the graceful fallback.
+ * Tokenize a run of plain text (a single mark context — the same marks apply to
+ * all of it) into ordered segments: escaped-and-sanitized HTML runs carrying the
+ * marks baked in, plus `link`/`mention`/`emoji` interactive segments carrying
+ * the marks as data so the caller can wrap them. This is where mentions, custom
+ * emoji, and bare URLs stay first-class, exactly as before formatting existed —
+ * the marks simply compose around them.
  */
-function pushTextRun(
-    segments: MessageBodySegment[],
-    value: string,
-    emojiMap: CustomEmojiMap,
-): void {
-    if (value === '') {
-        return;
-    }
-
-    // A fresh regex per call keeps the shared `lastIndex` from leaking between
-    // invocations of this stateful global pattern.
-    const pattern = new RegExp(SHORTCODE_PATTERN.source, 'g');
-    let lastIndex = 0;
-    let match: RegExpExecArray | null;
-
-    const pushHtml = (text: string) => {
-        if (text !== '') {
-            segments.push({ kind: 'html', html: escapeInline(text) });
-        }
-    };
-
-    while ((match = pattern.exec(value)) !== null) {
-        const url = resolveCustomEmoji(match[1], emojiMap);
-
-        // Unresolved shortcode: leave it in the text stream so it renders as the
-        // literal `:name:` (and advance past it so we don't rematch a substring).
-        if (url === null) {
-            continue;
-        }
-
-        pushHtml(value.slice(lastIndex, match.index));
-        segments.push({ kind: 'emoji', name: match[1], url });
-        lastIndex = match.index + match[0].length;
-    }
-
-    pushHtml(value.slice(lastIndex));
-}
-
-/**
- * Split a run of message text (no URLs) into ordered segments: escaped HTML runs,
- * standalone `mention` segments the timeline can wrap in a profile hover card,
- * and `emoji` segments for resolved custom-emoji shortcodes.
- *
- * Only mentions whose id is present in `resolved` become a `mention` segment;
- * any other well-formed token falls back to its plain `@Name` text so a spoofed
- * token for a non-member can never masquerade as a resolved mention.
- */
-function tokenizeInlineText(
+function tokenizeTextRun(
     text: string,
+    marks: InlineMark[],
     resolved: Set<string>,
     emojiMap: CustomEmojiMap,
 ): MessageBodySegment[] {
     const segments: MessageBodySegment[] = [];
-    // A fresh regex per call keeps the shared `lastIndex` from leaking between
-    // invocations of this stateful global pattern.
-    const pattern = new RegExp(MENTION_PATTERN.source, 'g');
+
+    const pushHtml = (value: string): void => {
+        if (value !== '') {
+            segments.push({
+                kind: 'html',
+                html: sanitize(wrapMarks(escapeInline(value), marks)),
+            });
+        }
+    };
+
+    const withMarks = <T extends object>(segment: T): T => {
+        return marks.length > 0 ? { ...segment, marks: [...marks] } : segment;
+    };
+
+    // Emoji shortcodes inside a run that already has no URL or mention.
+    const pushEmojiRun = (value: string): void => {
+        if (value === '') {
+            return;
+        }
+
+        const pattern = new RegExp(SHORTCODE_PATTERN.source, 'g');
+        let lastIndex = 0;
+        let match: RegExpExecArray | null;
+
+        while ((match = pattern.exec(value)) !== null) {
+            const url = resolveCustomEmoji(match[1], emojiMap);
+
+            // Unresolved shortcode: leave it in the text stream so it renders as
+            // the literal `:name:` (the graceful fallback).
+            if (url === null) {
+                continue;
+            }
+
+            pushHtml(value.slice(lastIndex, match.index));
+            segments.push(withMarks({ kind: 'emoji', name: match[1], url }));
+            lastIndex = match.index + match[0].length;
+        }
+
+        pushHtml(value.slice(lastIndex));
+    };
+
+    // Mentions within a run that has no URL. Only ids present in `resolved`
+    // become interactive; any other well-formed token falls back to plain
+    // `@Name` text so a spoofed token can never masquerade as a real mention.
+    const pushInline = (chunk: string): void => {
+        const pattern = new RegExp(MENTION_PATTERN.source, 'g');
+        let lastIndex = 0;
+        let match: RegExpExecArray | null;
+
+        while ((match = pattern.exec(chunk)) !== null) {
+            const [raw, name, id] = match;
+
+            pushEmojiRun(chunk.slice(lastIndex, match.index));
+
+            if (resolved.has(id)) {
+                segments.push(withMarks({ kind: 'mention', id, name }));
+            } else {
+                pushHtml(`@${name}`);
+            }
+
+            lastIndex = match.index + raw.length;
+        }
+
+        pushEmojiRun(chunk.slice(lastIndex));
+    };
+
+    // Split URLs out first, then resolve mentions/emoji within the gaps —
+    // mirroring the autolink rule the server unfurls by.
+    const pattern = new RegExp(URL_PATTERN.source, 'gi');
     let lastIndex = 0;
     let match: RegExpExecArray | null;
 
     while ((match = pattern.exec(text)) !== null) {
-        const [raw, name, id] = match;
+        if (match.index > lastIndex) {
+            pushInline(text.slice(lastIndex, match.index));
+        }
 
-        pushTextRun(segments, text.slice(lastIndex, match.index), emojiMap);
+        const raw = match[0];
+        const trailing = raw.match(TRAILING_PUNCTUATION)?.[0] ?? '';
+        segments.push(
+            withMarks({
+                kind: 'link',
+                href: raw.slice(0, raw.length - trailing.length),
+            }),
+        );
 
-        if (resolved.has(id)) {
-            segments.push({ kind: 'mention', id, name });
-        } else {
-            segments.push({ kind: 'html', html: `@${escapeHtml(name)}` });
+        if (trailing !== '') {
+            pushHtml(trailing);
         }
 
         lastIndex = match.index + raw.length;
     }
 
-    pushTextRun(segments, text.slice(lastIndex), emojiMap);
+    if (lastIndex < text.length) {
+        pushInline(text.slice(lastIndex));
+    }
+
+    return segments;
+}
+
+/**
+ * Build the `html` segment for an inline `` `code` `` span. Its content renders
+ * literally — no mention, emoji, or URL inside it resolves — so it never flows
+ * through {@see tokenizeTextRun}; the text is escaped as-is and wrapped in
+ * `<code>` plus any marks the code span itself sits inside.
+ */
+function codeSegment(content: string, marks: InlineMark[]): MessageBodySegment {
+    const inner = `<code>${escapeInline(content)}</code>`;
+
+    return { kind: 'html', html: sanitize(wrapMarks(inner, marks)) };
+}
+
+/**
+ * Split a raw message body into ordered segments, applying the inline Markdown
+ * marks (`**bold**`, `*italic*`/`_italic_`, `~~strike~~`, `` `code` ``) around
+ * the existing mention/emoji/URL segments. The Markdown parser is used only as
+ * a tokenizer to find the mark boundaries; the text between marks still flows
+ * through {@see tokenizeTextRun}, and inline code suppresses inner parsing.
+ */
+export function tokenizeMessageBody(
+    body: string,
+    mentions: Mention[] = [],
+    emojiMap: CustomEmojiMap = {},
+): MessageBodySegment[] {
+    const resolved = new Set(mentions.map((mention) => mention.id));
+    const segments: MessageBodySegment[] = [];
+    const tokens = markdown.parseInline(body, {})[0]?.children ?? [];
+
+    // The active marks, pushed/popped as the parser opens and closes them. A
+    // text run is flushed on every boundary so each segment carries exactly the
+    // marks in force over it.
+    const marks: InlineMark[] = [];
+    let buffer = '';
+
+    const flush = (): void => {
+        if (buffer !== '') {
+            segments.push(
+                ...tokenizeTextRun(buffer, marks, resolved, emojiMap),
+            );
+            buffer = '';
+        }
+    };
+
+    for (const token of tokens) {
+        if (token.type === 'text') {
+            buffer += token.content;
+        } else if (token.type === 'strong_open') {
+            flush();
+            marks.push('strong');
+        } else if (token.type === 'strong_close') {
+            flush();
+            marks.pop();
+        } else if (token.type === 'em_open') {
+            flush();
+            marks.push('em');
+        } else if (token.type === 'em_close') {
+            flush();
+            marks.pop();
+        } else if (token.type === 's_open') {
+            flush();
+            marks.push('del');
+        } else if (token.type === 's_close') {
+            flush();
+            marks.pop();
+        } else if (token.type === 'code_inline') {
+            flush();
+            segments.push(codeSegment(token.content, marks));
+        }
+    }
+
+    flush();
 
     return segments;
 }
 
 function linkHtml(href: string): string {
-    return `<a href="${href}" target="_blank" rel="noopener noreferrer nofollow" class="text-primary underline underline-offset-2 hover:no-underline">${href}</a>`;
+    // A bare URL runs to the next whitespace, so it can carry a `"` that would
+    // otherwise break out of the attribute (and inject markup) on the DOM-less
+    // SSR path where DOMPurify is skipped. Escape it for the attribute and the
+    // visible text, matching mentionPillHtml/emojiImgHtml.
+    const safe = escapeHtml(href);
+
+    return `<a href="${safe}" target="_blank" rel="noopener noreferrer nofollow" class="text-primary underline underline-offset-2 hover:no-underline">${safe}</a>`;
 }
 
 // The shared inline-image markup for a resolved custom emoji. The url comes from
@@ -152,97 +336,64 @@ function emojiImgHtml(name: string, url: string): string {
 }
 
 /**
- * Split a raw message body into ordered HTML and link segments. Text between
- * URLs (carrying mentions and newlines) becomes escaped HTML; each bare URL
- * becomes a `link` segment with any trailing prose punctuation split back out
- * as its own HTML segment, mirroring the autolink rule the server unfurls by.
- */
-export function tokenizeMessageBody(
-    body: string,
-    mentions: Mention[] = [],
-    emojiMap: CustomEmojiMap = {},
-): MessageBodySegment[] {
-    const segments: MessageBodySegment[] = [];
-    const resolved = new Set(mentions.map((mention) => mention.id));
-    // A fresh regex per call keeps the shared `lastIndex` from leaking between
-    // invocations of this stateful global pattern.
-    const pattern = new RegExp(URL_PATTERN.source, 'gi');
-    let lastIndex = 0;
-    let match: RegExpExecArray | null;
-
-    while ((match = pattern.exec(body)) !== null) {
-        if (match.index > lastIndex) {
-            segments.push(
-                ...tokenizeInlineText(
-                    body.slice(lastIndex, match.index),
-                    resolved,
-                    emojiMap,
-                ),
-            );
-        }
-
-        const raw = match[0];
-        const trailing = raw.match(TRAILING_PUNCTUATION)?.[0] ?? '';
-        segments.push({
-            kind: 'link',
-            href: raw.slice(0, raw.length - trailing.length),
-        });
-
-        if (trailing !== '') {
-            segments.push({ kind: 'html', html: escapeHtml(trailing) });
-        }
-
-        lastIndex = match.index + raw.length;
-    }
-
-    if (lastIndex < body.length) {
-        segments.push(
-            ...tokenizeInlineText(body.slice(lastIndex), resolved, emojiMap),
-        );
-    }
-
-    return segments;
-}
-
-/**
- * Render a raw message body into safe HTML with mention pills, autolinked bare
- * URLs, and newlines preserved as `<br>`. Intended for `v-html` where an
- * interactive per-link affordance isn't needed (compact reply/forward quotes);
- * the main timeline renders {@see tokenizeMessageBody} instead so it can wrap
- * links in a hover card.
+ * Render a raw message body into safe HTML with inline formatting, mention
+ * pills, autolinked bare URLs, and newlines preserved as `<br>`. Intended for
+ * `v-html` where an interactive per-link affordance isn't needed (compact
+ * reply/forward quotes, quick-switcher, search results); the main timeline
+ * renders {@see tokenizeMessageBody} instead so it can wrap links in a hover
+ * card. The assembled HTML passes through DOMPurify one final time.
  */
 export function renderMessageBody(
     body: string,
     mentions: Mention[] = [],
     emojiMap: CustomEmojiMap = {},
 ): string {
-    return tokenizeMessageBody(body, mentions, emojiMap)
+    const html = tokenizeMessageBody(body, mentions, emojiMap)
         .map((segment) => {
             if (segment.kind === 'link') {
-                return linkHtml(segment.href);
+                return wrapMarks(linkHtml(segment.href), segment.marks ?? []);
             }
 
             if (segment.kind === 'mention') {
-                return mentionPillHtml(segment.name);
+                return wrapMarks(
+                    mentionPillHtml(segment.name),
+                    segment.marks ?? [],
+                );
             }
 
             if (segment.kind === 'emoji') {
-                return emojiImgHtml(segment.name, segment.url);
+                return wrapMarks(
+                    emojiImgHtml(segment.name, segment.url),
+                    segment.marks ?? [],
+                );
             }
 
             return segment.html;
         })
         .join('');
+
+    return sanitize(html);
 }
 
 /**
  * Flatten a raw message body to a single line of plain text for a compact quote
- * preview: mention tokens collapse to their `@Name` text and runs of whitespace
- * (including newlines) become single spaces. Returned as plain text, never HTML,
- * so it is safe to render inside an interactive quote without markup injection.
+ * preview: inline Markdown syntax is stripped (marks removed, inline-code
+ * content kept literal), mention tokens collapse to their `@Name` text, and runs
+ * of whitespace (including newlines) become single spaces. Returned as plain
+ * text, never HTML, so it is safe to render inside an interactive quote without
+ * markup injection.
  */
 export function messageBodyPreview(body: string): string {
-    return body
+    const tokens = markdown.parseInline(body, {})[0]?.children ?? [];
+    let text = '';
+
+    for (const token of tokens) {
+        if (token.type === 'text' || token.type === 'code_inline') {
+            text += token.content;
+        }
+    }
+
+    return text
         .replace(MENTION_PATTERN, (_match, name: string) => `@${name}`)
         .replace(/\s+/g, ' ')
         .trim();
