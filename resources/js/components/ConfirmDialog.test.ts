@@ -82,6 +82,11 @@ vi.mock('@/components/ui/dialog', async () => {
                 );
             });
 
+            // reka's DialogRoot hands `{ open, close }` to its default slot;
+            // ConfirmDialog closes on success through `close`, so the stub must
+            // expose it too.
+            const close = () => emit('update:open', false);
+
             return () =>
                 h(
                     'div',
@@ -90,7 +95,7 @@ vi.mock('@/components/ui/dialog', async () => {
                         'data-stub': 'Dialog',
                         'data-open': String(props.open),
                     },
-                    slots.default?.(),
+                    slots.default?.({ open: props.open, close }),
                 );
         },
     });
@@ -295,8 +300,8 @@ describe('ConfirmDialog', () => {
         expect(neutral()?.className).toContain('bg-primary');
     });
 
-    it('renders the trigger slot through a DialogTrigger for the self-contained family', () => {
-        const { container } = mount(
+    it('renders the trigger slot through a DialogTrigger and closes it on success', () => {
+        const { container, openHandler } = mount(
             {
                 title: 'Log out other devices?',
                 confirmLabel: 'Log out other devices',
@@ -320,6 +325,13 @@ describe('ConfirmDialog', () => {
         expect(
             trigger?.querySelector('[data-test="revoke-others-button"]'),
         ).not.toBeNull();
+
+        // A successful submit closes through reka's `close`, so the self-contained
+        // family (which has no `open` listener) still dismisses.
+        container
+            .querySelector('[data-stub="form"]')!
+            .dispatchEvent(new Event('trigger-success'));
+        expect(openHandler).toHaveBeenCalledWith(false);
     });
 
     it('accepts a custom cancel label', () => {

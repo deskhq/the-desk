@@ -119,7 +119,11 @@ const focusFirstInput = () => {
 </script>
 
 <template>
-    <Dialog v-bind="dialogBindings" @update:open="handleOpenChange">
+    <Dialog
+        v-bind="dialogBindings"
+        v-slot="{ close }"
+        @update:open="handleOpenChange"
+    >
         <DialogTrigger v-if="hasTrigger" as-child>
             <slot name="trigger" />
         </DialogTrigger>
@@ -134,7 +138,7 @@ const focusFirstInput = () => {
                 class="space-y-6"
                 v-slot="{ errors, processing }"
                 @error="focusFirstInput"
-                @success="handleOpenChange(false)"
+                @success="close"
             >
                 <DialogHeader class="space-y-3">
                     <DialogTitle>{{ title }}</DialogTitle>
@@ -149,7 +153,7 @@ const focusFirstInput = () => {
 
                 <DialogFooter class="gap-2">
                     <DialogClose as-child>
-                        <Button variant="secondary">
+                        <Button type="button" variant="secondary">
                             {{ cancelLabel ?? $t('Cancel') }}
                         </Button>
                     </DialogClose>
@@ -176,7 +180,7 @@ const focusFirstInput = () => {
 
                 <DialogFooter class="gap-2">
                     <DialogClose as-child>
-                        <Button variant="secondary">
+                        <Button type="button" variant="secondary">
                             {{ cancelLabel ?? $t('Cancel') }}
                         </Button>
                     </DialogClose>
