@@ -26,8 +26,11 @@ test('a direct channel renders the other participant viewer-relatively', functio
     $ownerView = ChannelData::fromChannel($dm->fresh());
 
     expect($ownerView->isDirect)->toBeTrue()
+        ->and($ownerView->isGroupDirect)->toBeFalse()
         ->and($ownerView->name)->toBe($other->name)
-        ->and($ownerView->dmUserId)->toBe($other->id);
+        ->and($ownerView->dmUserId)->toBe($other->id)
+        ->and($ownerView->dmParticipants)->toHaveCount(1)
+        ->and($ownerView->dmParticipants[0]->id)->toBe($other->id);
 
     $this->actingAs($other);
     $otherView = ChannelData::fromChannel($dm->fresh());
@@ -47,5 +50,6 @@ test('a self direct channel resolves the viewer as the participant', function ()
 
     expect($view->isDirect)->toBeTrue()
         ->and($view->name)->toBe($owner->name)
-        ->and($view->dmUserId)->toBe($owner->id);
+        ->and($view->dmUserId)->toBe($owner->id)
+        ->and($view->dmParticipants)->toBe([]);
 });

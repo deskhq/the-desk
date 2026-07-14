@@ -97,6 +97,10 @@ class ChannelData extends Data
 
         $dmParticipant = $channel->isDirect() && $viewer instanceof User ? $channel->directParticipantFor($viewer) : null;
 
+        // `dmParticipants` is populated for every DM (the client keys its avatar
+        // stack, participant name, and same-member-set dedup off it): a group
+        // loads its other members; a 1:1 reuses the already-resolved
+        // participant (empty for a self-DM, whose only member is the viewer).
         $participants = null;
         if ($isGroupDirect && $viewer instanceof User) {
             $participants = $channel->members()
@@ -105,11 +109,17 @@ class ChannelData extends Data
                 ->get()
                 ->map(fn (User $member): UserData => UserData::fromUser($member))
                 ->all();
+        } elseif ($dmParticipant instanceof User) {
+            // A non-null participant implies a signed-in viewer (the ternary
+            // above), so a self-DM is the participant being the viewer.
+            $participants = $dmParticipant->id === $viewer->id
+                ? []
+                : [UserData::fromUser($dmParticipant)];
         }
 
         if ($dmParticipant instanceof User) {
             $name = $dmParticipant->name;
-        } elseif ($participants !== null) {
+        } elseif ($isGroupDirect) {
             $name = collect($participants)->pluck('name')->join(', ');
         } else {
             $name = (string) $channel->name;

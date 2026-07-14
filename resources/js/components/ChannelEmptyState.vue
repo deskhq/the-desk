@@ -5,6 +5,7 @@ import { computed, ref } from 'vue';
 import CreateChannelModal from '@/components/CreateChannelModal.vue';
 import InviteMemberModal from '@/components/InviteMemberModal.vue';
 import { useOnboardingTour } from '@/composables/useOnboardingTour';
+import { useTranslations } from '@/composables/useTranslations';
 import { groupDmMastheadName } from '@/lib/groupDm';
 import type { Channel } from '@/types';
 
@@ -21,6 +22,8 @@ const emit = defineEmits<{
 }>();
 
 const page = usePage();
+
+const { t } = useTranslations();
 
 // The brand-new-workspace welcome replaces the plain "no messages" empty state on
 // a fresh #general for a user who has not yet completed onboarding — the reachable
@@ -44,10 +47,12 @@ const currentTeamForInvite = computed(() => page.props.currentTeam);
 const { open: openOnboardingTour } = useOnboardingTour();
 
 // The viewer-relative conversation name for the DM empty state: a group joins
-// its participants ("Jonas, Ana & Tomas"), a 1:1 uses the pre-resolved name.
+// its participants ("Jonas, Ana & Tomas"), a 1:1 uses the pre-resolved name. A
+// group whose other members have all left falls back to a generic label.
 const conversationName = computed(() =>
     props.channel.isGroupDirect
-        ? groupDmMastheadName(props.channel.dmParticipants ?? [])
+        ? groupDmMastheadName(props.channel.dmParticipants ?? []) ||
+          t('Group conversation')
         : props.channel.name,
 );
 </script>

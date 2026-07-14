@@ -595,6 +595,9 @@ watch(
         replyTarget.value = null;
         typing.reset();
         pinsPanelOpen.value = false;
+        // Close the add-people modal so a switch to another conversation never
+        // carries it over onto the wrong DM.
+        addingPeople.value = false;
         seedReaders();
         markRead();
     },

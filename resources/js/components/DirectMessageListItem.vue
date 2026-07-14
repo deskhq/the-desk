@@ -48,7 +48,10 @@ const avatarStack = computed(() =>
 // participants' first names with a "+N" overflow.
 const displayName = computed(() => {
     if (isGroup.value) {
-        return groupDmSidebarName(props.channel.dmParticipants ?? []);
+        return (
+            groupDmSidebarName(props.channel.dmParticipants ?? []) ||
+            t('Group conversation')
+        );
     }
 
     return props.isSelf ? t('You') : props.channel.name;

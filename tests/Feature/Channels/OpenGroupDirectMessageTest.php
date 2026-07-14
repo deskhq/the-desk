@@ -83,7 +83,9 @@ test('opening a group direct message with an existing set re-adds a member who l
 
     app(OpenDirectMessage::class)->openForUsers($team, $owner, $others);
 
-    expect($channel->fresh()->members()->whereKey($left->id)->exists())->toBeTrue();
+    expect($channel->fresh()->members()->whereKey($left->id)->exists())->toBeTrue()
+        ->and($channel->channelMembers()->where('user_id', $left->id)->value('notification_level'))
+        ->toBe(NotificationLevel::All);
 });
 
 test('opening a group direct message un-hides it for the initiator', function (): void {
