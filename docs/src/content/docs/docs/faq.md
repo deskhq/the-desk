@@ -52,14 +52,14 @@ there's no dedicated iOS/Android app or mobile push notifications today.
 
 ## Does it support file attachments, voice, or video?
 
-**File & image attachments** are in active development but not shipped as of
-v1.0.0. **Voice and video calls** are not on the near-term roadmap. If you need
-those now, see the [comparison page](/docs/comparison/).
+**File & image attachments** are supported. **Voice and video calls** are not on
+the near-term roadmap; if you need those now, see the
+[comparison page](/docs/comparison/).
 
 ## Does it support SSO, OIDC, or LDAP?
 
 Not today — single sign-on and directory-managed users are on the roadmap but not
-available in v1.0.0. If your organization requires them now, a larger platform is
+available in v1.2.0. If your organization requires them now, a larger platform is <!-- x-release-please-version -->
 the safer choice for the moment. See the [comparison](/docs/comparison/).
 
 ## How do upgrades work?
