@@ -34,13 +34,13 @@ build time — the same image works for any operator's host with no rebuild.
 # 1. Grab the compose file, env template, and secret generator from a release tag.
 git clone git@github.com:emmpaul/the-desk.git
 cd the-desk
-git fetch --tags && git checkout v1.2.0 # x-release-please-version   (the desired release tag)
+git fetch --tags && git checkout v1.2.1 # x-release-please-version   (the desired release tag)
 
 # 2. Generate .env secrets, then edit APP_URL, mail, and REVERB_*_PUBLIC.
 ./docker/gen-secrets.sh
 
 # 3. Run the published image instead of building. Pin the version to the tag.
-echo 'APP_IMAGE=ghcr.io/emmpaul/the-desk:1.2.0' >> .env # x-release-please-version
+echo 'APP_IMAGE=ghcr.io/emmpaul/the-desk:1.2.1' >> .env # x-release-please-version
 docker compose -f docker-compose.prod.yml pull
 docker compose -f docker-compose.prod.yml up -d
 ```
@@ -56,7 +56,7 @@ step. Upgrades are just `APP_IMAGE=…:X.Y.Z`, then `pull` + `up -d` again — s
 git clone git@github.com:emmpaul/the-desk.git
 cd the-desk
 git fetch --tags
-git checkout v1.2.0 # x-release-please-version         (the desired release tag)
+git checkout v1.2.1 # x-release-please-version         (the desired release tag)
 
 # 2. Generate .env with all required secrets filled in.
 #    Creates .env from the template and fills APP_KEY, DB_PASSWORD,

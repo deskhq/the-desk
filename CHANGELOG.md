@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.2.1](https://github.com/emmpaul/the-desk/compare/v1.2.0...v1.2.1) (2026-07-14)
+
+
+### Bug Fixes
+
+* lead message hover no longer duplicates the group timestamp ([#348](https://github.com/emmpaul/the-desk/issues/348)) ([fc1bff0](https://github.com/emmpaul/the-desk/commit/fc1bff091abe2b181ce56d1711c4af5536e6a85d)), closes [#339](https://github.com/emmpaul/the-desk/issues/339)
+
 ## [1.2.0](https://github.com/emmpaul/the-desk/compare/v1.1.0...v1.2.0) (2026-07-13)
 
 
