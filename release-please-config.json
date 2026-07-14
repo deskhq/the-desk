@@ -9,6 +9,14 @@
         { "type": "perf", "section": "Performance" },
         { "type": "refactor", "section": "Code Refactoring" },
         { "type": "deps", "section": "Dependencies" }
+      ],
+      "extra-files": [
+        { "type": "generic", "path": "README.md" },
+        { "type": "generic", "path": "docker-compose.prod.yml" },
+        { "type": "generic", "path": "docs/src/content/docs/docs/comparison.md" },
+        { "type": "generic", "path": "docs/src/content/docs/docs/faq.md" },
+        { "type": "generic", "path": "docs/src/content/docs/docs/self-hosting/installation.md" },
+        { "type": "generic", "path": "docs/src/content/docs/docs/self-hosting/upgrading.md" }
       ]
     }
   }

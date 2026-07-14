@@ -43,10 +43,9 @@ established self-hosted alternatives. The Desk is the newcomer optimizing for
 
 ## When The Desk is *not* the right fit (yet)
 
-Being honest saves you a wasted afternoon. As of **v1.0.0**, The Desk does **not**
+Being honest saves you a wasted afternoon. As of **v1.2.0**, The Desk does **not** <!-- x-release-please-version -->
 have:
 
-- **File & image attachments** — in active development, not shipped yet.
 - **Voice or video calls** — not planned for the near term.
 - **SSO / OIDC / LDAP / SCIM** — on the roadmap, not available today. If your org
   *requires* directory-managed logins now, Mattermost or Rocket.Chat are the
