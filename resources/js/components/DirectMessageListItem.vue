@@ -193,11 +193,15 @@ function hide(): void {
                     <TooltipContent>{{ $t(indicator.label) }}</TooltipContent>
                 </Tooltip>
                 <!-- DMs badge on plain unread count (never mention-weighted): a
-                     numeric pill when there is anything unread. -->
+                     numeric pill when there is anything unread. It fades out
+                     while the row is hovered or the close button is focused, so
+                     the ✕ that slides over the right edge fully replaces it
+                     (the pill can be wider than the button's mask on multi-digit
+                     counts, so masking alone would leave it peeking out). -->
                 <span
                     v-if="channel.unreadCount > 0"
                     data-test="dm-unread-badge"
-                    class="ml-auto flex h-4.25 min-w-4.5 items-center justify-center rounded-full bg-brass px-1.5 text-[10px] font-bold text-brass-foreground tabular-nums"
+                    class="ml-auto flex h-4.25 min-w-4.5 items-center justify-center rounded-full bg-brass px-1.5 text-[10px] font-bold text-brass-foreground tabular-nums transition-opacity group-hover/row:opacity-0 group-has-[button:focus-visible]/row:opacity-0"
                     :aria-label="
                         $t(':count unread messages', {
                             count: channel.unreadCount,
@@ -210,7 +214,10 @@ function hide(): void {
         <!-- Hover control: a close button that hides this DM from the sidebar. A
              separate button (outside the navigation link, so the anchor stays
              valid) overlaid on the row's right side, revealed on hover or focus;
-             a solid background masks any unread badge underneath. -->
+             a solid background masks any unread badge underneath. It shares the
+             row's `pr-2.5` right inset (right-2.5) so the ✕ is anchored to the
+             same right edge the unread pill sits on and reads as replacing it in
+             place, rather than sliding in offset. -->
         <Button
             variant="ghost"
             size="icon"
@@ -219,7 +226,7 @@ function hide(): void {
                 $t('Close conversation with :name', { name: displayName })
             "
             :title="$t('Close direct message')"
-            class="absolute top-1/2 right-1 z-10 size-5 -translate-y-1/2 rounded bg-sidebar text-muted-foreground/60 opacity-0 transition group-hover/row:opacity-100 group-data-[active=true]/row:bg-sidebar-primary group-data-[active=true]/row:text-sidebar-primary-foreground/70 hover:bg-sidebar hover:text-sidebar-foreground group-data-[active=true]/row:hover:bg-sidebar-primary group-data-[active=true]/row:hover:text-sidebar-primary-foreground focus-visible:opacity-100"
+            class="absolute top-1/2 right-2.5 z-10 size-5 -translate-y-1/2 rounded bg-sidebar text-muted-foreground/60 opacity-0 transition group-hover/row:opacity-100 group-data-[active=true]/row:bg-sidebar-primary group-data-[active=true]/row:text-sidebar-primary-foreground/70 hover:bg-sidebar hover:text-sidebar-foreground group-data-[active=true]/row:hover:bg-sidebar-primary group-data-[active=true]/row:hover:text-sidebar-primary-foreground focus-visible:opacity-100"
             @click="hide"
         >
             <X class="size-3.5" />
