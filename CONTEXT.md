@@ -104,8 +104,11 @@ built; build them once, then reuse.
   used by mark-read, mark-thread-read, and draft persistence.
 - **`ScrollableMessageList`** _(planned)_ — the scroll container + `useScrollPin` +
   "jump to latest / N new" pill, shared by the channel view and the thread panel.
-- **`ConfirmDialog`** _(planned)_ — one confirmation-dialog module the
-  leave/remove/cancel/delete/transfer/archive modals become thin call-sites of.
+- **`ConfirmDialog`** — one confirmation-dialog module the
+  leave/remove/cancel/delete/transfer modals are thin call-sites of. A small
+  interface (`submit: { visit } | { form }`, `#trigger`/`#description`/`#body`
+  slots) hides the shared skeleton, the pending/disable wiring, close-on-success,
+  focus-on-error, and clean-form-on-reopen.
 
 ---
 
