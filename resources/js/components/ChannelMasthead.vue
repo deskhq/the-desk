@@ -13,6 +13,7 @@ import {
 import type { AcceptableValue } from 'reka-ui';
 import { computed } from 'vue';
 import { index as searchMessages } from '@/actions/App/Http/Controllers/Channels/SearchController';
+import AvatarStack from '@/components/AvatarStack.vue';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import {
@@ -104,12 +105,6 @@ const dmParticipantOnline = computed(
         props.onlineIds.has(props.channel.dmUserId),
 );
 
-// A group DM shows an avatar stack of its participants beside the title, in
-// place of the single 1:1 avatar.
-const groupParticipantAvatars = computed(() =>
-    memberAvatarStack(props.channel.dmParticipants ?? [], MAX_MASTHEAD_AVATARS),
-);
-
 // The group's participant count, including the viewer, for the subtitle.
 const groupParticipantCount = computed(
     () => (props.channel.dmParticipants?.length ?? 0) + 1,
@@ -132,24 +127,14 @@ const groupParticipantCount = computed(
                      shows the other participant's avatar + presence dot; a
                      standard channel shows the "#". The name is already
                      viewer-relative (self reads "You"). -->
-                <span
+                <AvatarStack
                     v-if="props.channel.isGroupDirect"
                     data-test="masthead-group-avatars"
-                    class="flex shrink-0"
-                    aria-hidden="true"
-                >
-                    <span
-                        v-for="member in groupParticipantAvatars.visible"
-                        :key="member.id"
-                        class="-ml-2.5 flex size-7 items-center justify-center rounded-full bg-primary/10 text-[10px] font-semibold text-primary ring-2 ring-card select-none first:ml-0"
-                        >{{ getInitials(member.name) }}</span
-                    >
-                    <span
-                        v-if="groupParticipantAvatars.overflow > 0"
-                        class="-ml-2.5 flex size-7 items-center justify-center rounded-full bg-muted text-[10px] font-semibold text-muted-foreground ring-2 ring-card select-none"
-                        >+{{ groupParticipantAvatars.overflow }}</span
-                    >
-                </span>
+                    :members="props.channel.dmParticipants ?? []"
+                    :max="MAX_MASTHEAD_AVATARS"
+                    size="md"
+                    ring-class="ring-card"
+                />
                 <span
                     v-else-if="props.channel.isDirect"
                     data-test="masthead-dm-avatar"
