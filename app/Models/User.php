@@ -47,6 +47,7 @@ use Illuminate\Support\Str;
  * @property bool $share_read_receipts
  * @property Carbon|null $onboarding_completed_at
  * @property bool $is_tombstone
+ * @property Carbon|null $deactivated_at
  * @property array<int, string>|null $collapsed_channel_sections
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
@@ -134,6 +135,7 @@ class User extends Authenticatable implements HasLocalePreference, MustVerifyEma
             'share_read_receipts' => 'boolean',
             'onboarding_completed_at' => 'datetime',
             'is_tombstone' => 'boolean',
+            'deactivated_at' => 'datetime',
             'collapsed_channel_sections' => 'array',
         ];
     }
@@ -250,5 +252,17 @@ class User extends Authenticatable implements HasLocalePreference, MustVerifyEma
     public function ssoIdentities(): HasMany
     {
         return $this->hasMany(SsoIdentity::class);
+    }
+
+    /**
+     * Whether the account has been deactivated (directory-pushed deprovisioning).
+     *
+     * A deactivated account is tombstoned rather than deleted: its history stays
+     * intact but access is revoked (see App\Http\Middleware\EnsureUserIsActive and
+     * App\Actions\Sso\SetSsoUserActivation). Reactivation clears `deactivated_at`.
+     */
+    public function isDeactivated(): bool
+    {
+        return $this->deactivated_at !== null;
     }
 }

@@ -12,6 +12,11 @@ $oidcConfigured = filled(env('SSO_OIDC_CLIENT_ID')) && filled(env('SSO_OIDC_ISSU
 // login path and SSO-only enforcement.
 $ldapConfigured = filled(env('LDAP_HOST')) && filled(env('LDAP_BASE_DN'));
 
+// Whether SCIM provisioning is wired up: the endpoint only functions with a
+// bearer token to authenticate the identity provider, so its presence is what
+// mounts (and guards) the SCIM routes.
+$scimConfigured = filled(env('SCIM_TOKEN'));
+
 return [
 
     /*
@@ -92,6 +97,31 @@ return [
             'name' => env('LDAP_ATTR_NAME', 'cn'),
             'guid' => env('LDAP_ATTR_GUID', 'objectguid'),
         ],
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | SCIM 2.0 provisioning
+    |--------------------------------------------------------------------------
+    |
+    | A bearer-token REST API the corporate IdP (Okta, Entra ID, OneLogin, …)
+    | pushes user create / update / deactivate events to, so directory removals
+    | become automatic account deactivation here. Unlike OIDC/LDAP it is not a
+    | login path: the IdP authenticates with `SCIM_TOKEN` and every request is
+    | rejected without it (App\Http\Middleware\EnsureScimBearerToken).
+    |
+    | `enabled` mounts the endpoints only when a token is set — an unauthenticated
+    | provisioning API is never exposed by accident. `path` is the route *prefix*
+    | (default `/scim`); the package mounts the versioned resources beneath it, so
+    | with the default the IdP's base URL is `${APP_URL}/scim/v2` and users live at
+    | `/scim/v2/Users`.
+    |
+    */
+
+    'scim' => [
+        'enabled' => $scimConfigured,
+        'token' => env('SCIM_TOKEN'),
+        'path' => env('SCIM_BASE_PATH', '/scim'),
     ],
 
 ];

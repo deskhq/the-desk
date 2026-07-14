@@ -126,6 +126,45 @@ See [Environment variables → Single sign-on (LDAP)](/docs/reference/environmen
 for every attribute mapping, and [Feature toggles → SSO-only mode](/docs/reference/feature-toggles/#sso-only-mode)
 to require directory login.
 
+## Directory provisioning (SCIM 2.0)
+
+The sign-on options above provision an account the first time someone logs in. To
+also have accounts **deactivated automatically** when someone is removed from the
+directory, enable the **SCIM 2.0** endpoint and let your identity provider push
+lifecycle changes to it. Set a bearer token:
+
+```bash
+SCIM_TOKEN=a-long-random-secret   # blank keeps the endpoint off
+# SCIM_BASE_PATH=/scim            # change the base path if you need to
+```
+
+Then, in your IdP's provisioning settings, point it at:
+
+```
+SCIM base URL:  https://your-desk.example.com/scim/v2
+Auth:           HTTP header — Authorization: Bearer a-long-random-secret
+```
+
+The IdP then keeps accounts in sync automatically:
+
+- **Create** matches an existing account by email or provisions a new one into the
+  default team as a Member — the same rules as OIDC/LDAP.
+- **Deactivate** (`active: false`, or a `DELETE`) **tombstones** the account: its
+  sessions end immediately and it can no longer sign in, but its messages and
+  history are kept rather than hard-deleted.
+- **Reactivate** (`active: true`) restores access.
+
+Members are matched on `userName`, which should be their email.
+
+:::caution
+The token is a full provisioning credential — anyone with it can create and
+deactivate accounts. Keep it secret, only expose SCIM over HTTPS, and rotate it if
+it leaks. Leaving `SCIM_TOKEN` blank means the endpoint does not exist at all.
+:::
+
+See [Environment variables → Directory provisioning (SCIM 2.0)](/docs/reference/environment-variables/#directory-provisioning-scim-20)
+for the full reference.
+
 ## Applying changes
 
 After editing `.env`, restart the stack to pick up the new values:

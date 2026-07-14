@@ -694,6 +694,7 @@
   "You're offline. 1 message is queued and will send automatically.": "Vous êtes hors ligne. 1 message est en file d’attente et sera envoyé automatiquement.",
   "You're offline. :count messages are queued and will send automatically.": "Vous êtes hors ligne. :count messages sont en file d’attente et seront envoyés automatiquement.",
   "You've been invited to join :teamName": "Vous avez été invité à rejoindre :teamName",
+  "Your account has been deactivated. Please contact your administrator.": "Votre compte a été désactivé. Veuillez contacter votre administrateur.",
   "Your data export is ready": "Votre export de données est prêt",
   "Your edit failed to save. Please try again.": "Votre modification n’a pas pu être enregistrée. Veuillez réessayer.",
   "Your email address is unverified.": "Votre adresse e-mail n’est pas vérifiée.",

@@ -70,6 +70,27 @@ is unreachable, no one can sign in. Only turn it on once SSO is verified working
 and keep a way to flip it back (edit `.env` and restart the stack).
 :::
 
+## Directory provisioning (SCIM 2.0)
+
+| Variable     | Default   | Effect                                                        |
+| ------------ | --------- | ------------------------------------------------------------- |
+| `SCIM_TOKEN` | *(blank)* | Mounts a bearer-token SCIM 2.0 endpoint for the IdP to push to. |
+
+Setting `SCIM_TOKEN` turns on the **SCIM 2.0** provisioning endpoint at
+`${APP_URL}/scim/v2`, letting your identity provider (Okta, Entra ID, …) create,
+update, and **deactivate** accounts automatically as directory membership changes.
+A deactivation **tombstones** the account — access is revoked and sessions end,
+but history is retained — and it can be reversed by a later `active: true`. Leave
+`SCIM_TOKEN` blank and the endpoint is not mounted at all.
+
+See [Environment variables → Directory provisioning (SCIM 2.0)](/docs/reference/environment-variables/#directory-provisioning-scim-20)
+for the full setup.
+
+:::caution
+The token is a full provisioning credential — treat it like a password, serve
+SCIM over HTTPS only, and rotate it if it leaks.
+:::
+
 ## Gravatar avatars
 
 User avatars are derived from [Gravatar](https://gravatar.com) using the MD5 hash

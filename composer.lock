@@ -4,8 +4,69 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "c891d41a1c9ddc942bff49c3da017c5f",
+    "content-hash": "5508162af344f5f7fe80a1672fcce374",
     "packages": [
+        {
+            "name": "arietimmerman/laravel-scim-server",
+            "version": "v1.5.1",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/limosa-io/laravel-scim-server.git",
+                "reference": "f4182bc138e51f73dd892d68b328dc09635cf3ac"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/limosa-io/laravel-scim-server/zipball/f4182bc138e51f73dd892d68b328dc09635cf3ac",
+                "reference": "f4182bc138e51f73dd892d68b328dc09635cf3ac",
+                "shasum": ""
+            },
+            "require": {
+                "illuminate/console": "^10.0|^11.0|^12.0|^13.0",
+                "illuminate/database": "^10.0|^11.0|^12.0|^13.0",
+                "illuminate/support": "^10.0|^11.0|^12.0|^13.0",
+                "php": "^8.1"
+            },
+            "require-dev": {
+                "friendsofphp/php-cs-fixer": "^3.66",
+                "laravel/legacy-factories": "^1.4.2",
+                "orchestra/testbench": "^6.0|^7.0|^8.0|^9.0|^10.0|^11.0"
+            },
+            "type": "library",
+            "extra": {
+                "laravel": {
+                    "aliases": {
+                        "SCIMServerHelper": "ArieTimmerman\\Laravel\\SCIMServer\\Helper"
+                    },
+                    "providers": [
+                        "ArieTimmerman\\Laravel\\SCIMServer\\ServiceProvider"
+                    ]
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "ArieTimmerman\\Laravel\\SCIMServer\\": "src/"
+                },
+                "classmap": [
+                    "database/migrations"
+                ]
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Arie Timmerman",
+                    "email": "arietimmerman@gmail.com"
+                }
+            ],
+            "description": "Laravel Package for creating a SCIM server",
+            "support": {
+                "issues": "https://github.com/limosa-io/laravel-scim-server/issues",
+                "source": "https://github.com/limosa-io/laravel-scim-server/tree/v1.5.1"
+            },
+            "time": "2026-04-23T05:29:48+00:00"
+        },
         {
             "name": "bacon/bacon-qr-code",
             "version": "v3.1.1",

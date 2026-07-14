@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Support;
 
+use App\Http\Middleware\TrackActiveSession;
 use Illuminate\Contracts\Cache\Repository as Cache;
 
 /**
@@ -99,6 +100,24 @@ class SessionRegistry
 
         if ($removed > 0) {
             $this->save($userId, $sessions);
+        }
+
+        return $removed;
+    }
+
+    /**
+     * Revoke every session for the user, returning the number removed.
+     *
+     * Used when an account is deactivated (directory deprovisioning): dropping
+     * the whole index logs the user out of every device on their next request
+     * via {@see TrackActiveSession}.
+     */
+    public function flush(string $userId): int
+    {
+        $removed = count($this->load($userId));
+
+        if ($removed > 0) {
+            $this->cache->forget($this->key($userId));
         }
 
         return $removed;

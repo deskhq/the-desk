@@ -148,6 +148,32 @@ allowing the directory bind.
 | `LDAP_ATTR_GUID`     | `objectguid`                  | Stable identity attribute. `objectguid` for Active Directory, `entryuuid` for OpenLDAP.           |
 | `LDAP_CONNECTION`    | `default`                     | Name of the connection in `config/ldap.php` to use.                                               |
 
+## Directory provisioning (SCIM 2.0)
+
+Let your identity provider (Okta, Entra ID, OneLogin, …) **push** user lifecycle
+changes over **SCIM 2.0**, so removing someone from the directory automatically
+deactivates their account here. This is separate from the login paths above: it
+is a bearer-token REST API the IdP calls, not a form users sign in through.
+
+Point your IdP at `${APP_URL}/scim/v2` and authenticate it with `SCIM_TOKEN`.
+**Creates** match or just-in-time provision the user through the same rules as
+OIDC/LDAP (email match or create, default team as **Member**). **Deactivations**
+(`active: false` or `DELETE`) **tombstone** the account — access is revoked and
+every session ends, but history is kept, not hard-deleted — and a later
+`active: true` **reactivates** it. Leave `SCIM_TOKEN` blank to keep the endpoint
+off (it is not mounted at all without a token).
+
+| Variable         | Default  | Notes                                                                                          |
+| ---------------- | -------- | ---------------------------------------------------------------------------------------------- |
+| `SCIM_TOKEN`     | *(blank)* | Bearer token the IdP presents on every SCIM request. Blank keeps the endpoint off. Use a long random secret. |
+| `SCIM_BASE_PATH` | `/scim`  | Route **prefix** the SCIM API mounts under; the versioned resources sit beneath it. With the default, the IdP base URL is `${APP_URL}/scim/v2` and users live at `/scim/v2/Users`. |
+
+:::caution
+`SCIM_TOKEN` is a full provisioning credential — anyone holding it can create and
+deactivate accounts. Keep it secret, serve SCIM over HTTPS only, and rotate it if
+it leaks.
+:::
+
 ## Attachments
 
 Files and images members attach to messages.

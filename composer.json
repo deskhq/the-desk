@@ -12,6 +12,7 @@
         "php": "^8.3",
         "ext-gd": "*",
         "ext-imagick": "*",
+        "arietimmerman/laravel-scim-server": "^1.5",
         "directorytree/ldaprecord-laravel": "^4.0",
         "inertiajs/inertia-laravel": "^3.0",
         "intervention/image": "^4.2",
