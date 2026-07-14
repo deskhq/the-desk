@@ -49,7 +49,7 @@ class OidcController extends Controller
                 return $this->failed();
             }
 
-            $user = $provisionSsoUser->handle('oidc', (string) $subject, $email, $oidcUser->getName());
+            $user = $provisionSsoUser->handle($this->providerKey(), (string) $subject, $email, $oidcUser->getName());
         } catch (Throwable $e) {
             // Report before the friendly redirect so ops can tell a denied grant
             // from an IdP outage or a provisioning bug — otherwise every failure
@@ -63,6 +63,20 @@ class OidcController extends Controller
         $request->session()->regenerate();
 
         return redirect()->intended(config('fortify.home'));
+    }
+
+    /**
+     * The provider key an OIDC identity is stored under, namespaced by issuer.
+     *
+     * An OIDC `sub` is only unique *within* an issuer, so folding the configured
+     * issuer into the key (`oidc:{issuer}`) keeps two issuers that mint the same
+     * `sub` from ever resolving to the same account. The trailing slash is
+     * normalised away so `https://idp` and `https://idp/` are one issuer, not two.
+     * The issuer is always present here: OIDC is only enabled when it is set.
+     */
+    private function providerKey(): string
+    {
+        return 'oidc:'.rtrim((string) config('services.oidc.issuer'), '/');
     }
 
     /**

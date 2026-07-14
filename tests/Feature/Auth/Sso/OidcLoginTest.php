@@ -42,7 +42,7 @@ test('the callback route is hidden when oidc is not configured', function (): vo
 });
 
 test('a first-time callback just-in-time provisions and logs in the user', function (): void {
-    config(['sso.oidc.enabled' => true]);
+    config(['sso.oidc.enabled' => true, 'services.oidc.issuer' => 'https://idp.test']);
     $team = Team::factory()->create();
     Socialite::fake('oidc', fakeOidcUser());
 
@@ -56,14 +56,14 @@ test('a first-time callback just-in-time provisions and logs in the user', funct
         ->and($user->teamRole($team))->toBe(TeamRole::Member);
 
     $this->assertDatabaseHas('sso_identities', [
-        'provider' => 'oidc',
+        'provider' => 'oidc:https://idp.test',
         'provider_id' => 'sub-1',
         'user_id' => $user->id,
     ]);
 });
 
 test('a callback for an existing email links that account rather than duplicating it', function (): void {
-    config(['sso.oidc.enabled' => true]);
+    config(['sso.oidc.enabled' => true, 'services.oidc.issuer' => 'https://idp.test']);
     $existing = User::factory()->create(['email' => 'ada@example.com']);
     Socialite::fake('oidc', fakeOidcUser());
 
@@ -73,9 +73,37 @@ test('a callback for an existing email links that account rather than duplicatin
         ->and(User::query()->where('email', 'ada@example.com')->count())->toBe(1);
 
     $this->assertDatabaseHas('sso_identities', [
-        'provider' => 'oidc',
+        'provider' => 'oidc:https://idp.test',
         'provider_id' => 'sub-1',
         'user_id' => $existing->id,
+    ]);
+});
+
+test('identities are namespaced by issuer so the same subject at two issuers never collides', function (): void {
+    config(['sso.oidc.enabled' => true, 'services.oidc.issuer' => 'https://idp-a.test']);
+    Socialite::fake('oidc', fakeOidcUser(email: 'alice@example.com', id: 'shared-sub'));
+    $this->get(route('sso.oidc.callback'));
+    $alice = auth()->user();
+
+    // The trailing slash is normalised away, so it can never mint a second
+    // identity for what is really the same configured issuer.
+    config(['services.oidc.issuer' => 'https://idp-b.test/']);
+    Socialite::fake('oidc', fakeOidcUser(email: 'bob@example.com', id: 'shared-sub'));
+    $this->get(route('sso.oidc.callback'));
+    $bob = auth()->user();
+
+    expect($bob->id)->not->toBe($alice->id)
+        ->and(User::query()->count())->toBe(2);
+
+    $this->assertDatabaseHas('sso_identities', [
+        'provider' => 'oidc:https://idp-a.test',
+        'provider_id' => 'shared-sub',
+        'user_id' => $alice->id,
+    ]);
+    $this->assertDatabaseHas('sso_identities', [
+        'provider' => 'oidc:https://idp-b.test',
+        'provider_id' => 'shared-sub',
+        'user_id' => $bob->id,
     ]);
 });
 

@@ -1,10 +1,37 @@
 <?php
 
+use App\Exceptions\Sso\InvalidIdTokenException;
 use App\Services\Sso\GenericOidcProvider;
+use Firebase\JWT\SignatureInvalidException;
 use GuzzleHttp\Handler\MockHandler;
 use GuzzleHttp\HandlerStack;
 use GuzzleHttp\Psr7\Response;
 use Illuminate\Support\Facades\Cache;
+
+/**
+ * The token response an IdP returns, carrying the given id_token alongside the
+ * access token used to call UserInfo.
+ */
+function oidcTokenResponse(string $idToken): Response
+{
+    return new Response(200, [], (string) json_encode([
+        'access_token' => 'access-123',
+        'id_token' => $idToken,
+        'expires_in' => 3600,
+    ]));
+}
+
+/**
+ * The UserInfo response for the fixed test subject.
+ */
+function oidcUserInfoResponse(string $sub = 'subject-999'): Response
+{
+    return new Response(200, [], (string) json_encode([
+        'sub' => $sub,
+        'name' => 'Dana Fox',
+        'email' => 'dana@example.com',
+    ]));
+}
 
 /**
  * Build the provider wired to a Guzzle mock handler so the OIDC discovery,
@@ -57,4 +84,118 @@ test('the callback resolves the user from the token and userinfo endpoints', fun
         ->and($user->getEmail())->toBe('dana@example.com')
         ->and($user->getAvatar())->toBe('https://idp.test/dana.png')
         ->and($user->token)->toBe('access-123');
+});
+
+test('a valid id_token whose subject matches userinfo is accepted', function (): void {
+    [$privatePem, $jwks, $kid] = oidcSigningKey();
+    $idToken = oidcIdToken(['sub' => 'subject-999'], $privatePem, $kid);
+
+    $provider = oidcProvider(new MockHandler([
+        oidcDiscoveryResponse(),
+        oidcTokenResponse($idToken),
+        oidcUserInfoResponse('subject-999'),
+        new Response(200, [], (string) json_encode($jwks)),
+    ]));
+
+    request()->merge(['code' => 'auth-code']);
+
+    expect($provider->stateless()->user()->getId())->toBe('subject-999');
+});
+
+test('an id_token whose subject disagrees with userinfo is rejected', function (): void {
+    [$privatePem, $jwks, $kid] = oidcSigningKey();
+    // A well-formed, correctly signed token — but minted for a different subject
+    // than the one UserInfo reports: the exact compromise this guards against.
+    $idToken = oidcIdToken(['sub' => 'attacker-subject'], $privatePem, $kid);
+
+    $provider = oidcProvider(new MockHandler([
+        oidcDiscoveryResponse(),
+        oidcTokenResponse($idToken),
+        oidcUserInfoResponse('subject-999'),
+        new Response(200, [], (string) json_encode($jwks)),
+    ]));
+
+    request()->merge(['code' => 'auth-code']);
+
+    $provider->stateless()->user();
+})->throws(InvalidIdTokenException::class);
+
+test('an id_token from a foreign issuer is rejected', function (): void {
+    [$privatePem, $jwks, $kid] = oidcSigningKey();
+    $idToken = oidcIdToken(['iss' => 'https://evil.test'], $privatePem, $kid);
+
+    $provider = oidcProvider(new MockHandler([
+        oidcDiscoveryResponse(),
+        oidcTokenResponse($idToken),
+        oidcUserInfoResponse(),
+        new Response(200, [], (string) json_encode($jwks)),
+    ]));
+
+    request()->merge(['code' => 'auth-code']);
+
+    $provider->stateless()->user();
+})->throws(InvalidIdTokenException::class);
+
+test('an id_token minted for another audience is rejected', function (): void {
+    [$privatePem, $jwks, $kid] = oidcSigningKey();
+    $idToken = oidcIdToken(['aud' => 'some-other-client'], $privatePem, $kid);
+
+    $provider = oidcProvider(new MockHandler([
+        oidcDiscoveryResponse(),
+        oidcTokenResponse($idToken),
+        oidcUserInfoResponse(),
+        new Response(200, [], (string) json_encode($jwks)),
+    ]));
+
+    request()->merge(['code' => 'auth-code']);
+
+    $provider->stateless()->user();
+})->throws(InvalidIdTokenException::class);
+
+test('an id_token not signed by the provider key is rejected', function (): void {
+    [, $jwks, $kid] = oidcSigningKey();
+    [$attackerPem] = oidcSigningKey();
+    // Signed with a key the provider's JWKS does not vouch for.
+    $idToken = oidcIdToken([], $attackerPem, $kid);
+
+    $provider = oidcProvider(new MockHandler([
+        oidcDiscoveryResponse(),
+        oidcTokenResponse($idToken),
+        oidcUserInfoResponse(),
+        new Response(200, [], (string) json_encode($jwks)),
+    ]));
+
+    request()->merge(['code' => 'auth-code']);
+
+    $provider->stateless()->user();
+})->throws(SignatureInvalidException::class);
+
+test('id_token validation is skipped when the token response omits it', function (): void {
+    $provider = oidcProvider(new MockHandler([
+        oidcDiscoveryResponse(),
+        new Response(200, [], (string) json_encode(['access_token' => 'access-123', 'expires_in' => 3600])),
+        oidcUserInfoResponse('subject-999'),
+    ]));
+
+    request()->merge(['code' => 'auth-code']);
+
+    expect($provider->stateless()->user()->getId())->toBe('subject-999');
+});
+
+test('id_token validation can be turned off, trusting userinfo alone', function (): void {
+    config(['sso.oidc.validate_id_token' => false]);
+
+    [$privatePem] = oidcSigningKey();
+    // A token that would fail validation is ignored entirely when disabled.
+    $idToken = oidcIdToken(['sub' => 'attacker-subject'], $privatePem);
+
+    $provider = oidcProvider(new MockHandler([
+        oidcDiscoveryResponse(),
+        oidcTokenResponse($idToken),
+        oidcUserInfoResponse('subject-999'),
+    ]));
+
+    request()->merge(['code' => 'auth-code']);
+
+    expect($provider->stateless()->user()->getId())->toBe('subject-999');
 });
