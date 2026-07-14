@@ -86,7 +86,31 @@ test('users can logout', function (): void {
     $response = $this->actingAs($user)->post(route('logout'));
 
     $this->assertGuest();
-    $response->assertRedirect(route('home'));
+    $response->assertRedirect(route('login'));
+});
+
+test('logout answers an Inertia request with a full-page redirect to login', function (): void {
+    $user = User::factory()->create();
+
+    $response = $this->actingAs($user)
+        ->withHeader('X-Inertia', 'true')
+        ->post(route('logout'));
+
+    $this->assertGuest();
+    // Inertia turns a location redirect into a 409 the client follows as a hard
+    // visit, so the whole app reloads onto the login page from a clean slate.
+    $response->assertStatus(409);
+    $response->assertHeader('X-Inertia-Location', route('login'));
+});
+
+test('logout returns no content for a JSON client', function (): void {
+    $user = User::factory()->create();
+
+    $response = $this->actingAs($user)
+        ->postJson(route('logout'));
+
+    $this->assertGuest();
+    $response->assertNoContent();
 });
 
 test('users are rate limited', function (): void {
