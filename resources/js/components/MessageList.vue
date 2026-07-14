@@ -382,7 +382,6 @@ watch(isScrolling, (scrolling) => {
 // passes it grows the list, so the target keeps moving. `finalizeJump` follows
 // the animation to the bottom, then briefly glues the view there frame by frame
 // so late measurements settle without a visible bounce.
-const JUMP_STALL_FRAMES = 2;
 const JUMP_GLUE_FRAMES = 12;
 const JUMP_MAX_FRAMES = 180;
 let jumpRaf: number | null = null;
@@ -390,11 +389,14 @@ let jumpRaf: number | null = null;
 /**
  * Drive an in-flight jump-to-present all the way to the newest message.
  *
- * Phase one follows the (possibly smooth) scroll: leave it alone while it's
- * still moving, and if it stalls short — the skeleton-height estimate left a
- * gap — snap the rest. Once the bottom is reached, phase two pins `scrollTop` to
- * the end for a handful of frames so a row measured late (taller or shorter than
- * its estimate) can't drift the view up or leave it short: each correction lands
+ * Phase one follows the scroll: while the virtualizer reports it's still
+ * scrolling the (possibly smooth) animation is running, so leave it be; only
+ * once it has stopped short — stalled on a skeleton-height estimate rather than
+ * the real bottom — snap the residual gap. Gating on the scrolling flag means an
+ * explicit `smooth` jump keeps animating instead of being force-converted to an
+ * instant snap. Once the bottom is reached, phase two pins `scrollTop` to the
+ * end for a handful of frames so a row measured late (taller or shorter than its
+ * estimate) can't drift the view up or leave it short: each correction lands
  * before paint, so the settle is invisible rather than a bounce (#347). Bounded
  * by a frame budget so a list that never settles can't spin forever.
  */
@@ -404,8 +406,6 @@ function finalizeJump(): void {
     }
 
     let reachedBottom = false;
-    let lastTop = -1;
-    let stallFrames = 0;
     let glueFrames = 0;
     let frames = 0;
 
@@ -424,17 +424,10 @@ function finalizeJump(): void {
         if (!reachedBottom) {
             if (isAtBottom()) {
                 reachedBottom = true;
-            } else {
-                // Still short: either the scroll is animating (offset moving) or
-                // it has stalled on a skeleton-height estimate, in which case
-                // snap the residual gap and let it re-measure.
-                stallFrames = el.scrollTop === lastTop ? stallFrames + 1 : 0;
-                lastTop = el.scrollTop;
-
-                if (stallFrames >= JUMP_STALL_FRAMES) {
-                    scrollToEnd('auto');
-                    stallFrames = 0;
-                }
+            } else if (!isScrolling.value) {
+                // The scroll stopped short of the newest message; snap the gap
+                // and let the newly measured rows re-target.
+                scrollToEnd('auto');
             }
         } else {
             // Glue to the bottom so late row measurements settle invisibly.
