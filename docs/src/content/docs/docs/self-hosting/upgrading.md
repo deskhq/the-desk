@@ -6,6 +6,21 @@ description: Tag-based upgrades with automatic migrations and version-scoped sea
 Upgrades follow the same tag-based flow you used to install, whether you build
 from source or run the published image.
 
+## These docs track the in-development version
+
+This site is published from `master` on every change, so it always describes the
+latest development version of The Desk. The Docker image you run, however, only
+changes when a release is tagged: the versioned and `latest` images are published
+by the release automation on each `v*` tag, while `master` only moves the rolling
+`edge` tag.
+
+That means a feature can be documented here before it appears in any released
+image. The site-wide banner names the **latest released version**; anything
+documented but not yet in that release is coming in a future one. Check the
+[CHANGELOG](https://github.com/emmpaul/the-desk/blob/master/CHANGELOG.md) to
+confirm which release a given feature shipped in, and pin your `APP_IMAGE` (or
+checkout tag) to a released version rather than `edge` for a stable deployment.
+
 ## Back up first
 
 :::caution
