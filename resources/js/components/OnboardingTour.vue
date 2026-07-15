@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { FocusScope } from 'reka-ui';
 import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue';
 import { Button } from '@/components/ui/button';
 import { useOnboardingTour } from '@/composables/useOnboardingTour';
@@ -120,6 +121,7 @@ onBeforeUnmount(() => {
         data-test="onboarding-tour"
         role="dialog"
         aria-modal="true"
+        aria-labelledby="onboarding-tour-title"
         @keydown="onKeydown"
     >
         <!-- Blocks interaction with the app beneath. When there is no anchor to
@@ -142,62 +144,72 @@ onBeforeUnmount(() => {
             "
         />
 
-        <!-- The coachmark bubble. -->
-        <div
-            class="absolute flex flex-col gap-2.5 rounded-2xl bg-primary p-5 text-primary-foreground shadow-2xl"
-            :style="{ ...bubbleStyle, width: `${BUBBLE_WIDTH}px` }"
-        >
-            <span
-                class="text-[11px] font-semibold tracking-[0.08em] text-brass uppercase"
+        <!-- The coachmark bubble. FocusScope moves focus into it on open, traps
+             Tab within its controls, and returns focus to the opener on close —
+             so a keyboard/screen-reader user can operate the tour and Escape
+             fires regardless of where focus sat before it opened. -->
+        <FocusScope trapped loop as-child>
+            <div
+                class="absolute flex flex-col gap-2.5 rounded-2xl bg-primary p-5 text-primary-foreground shadow-2xl"
+                :style="{ ...bubbleStyle, width: `${BUBBLE_WIDTH}px` }"
             >
-                {{
-                    $t('Step :current of :total', {
-                        current: stepIndex + 1,
-                        total: steps.length,
-                    })
-                }}
-            </span>
-            <h2 class="font-serif text-[19px] font-semibold tracking-[-0.01em]">
-                {{ $t(currentStep.title) }}
-            </h2>
-            <p class="text-[13.5px] leading-[1.55] text-primary-foreground/70">
-                {{ $t(currentStep.body) }}
-            </p>
+                <span
+                    class="text-[11px] font-semibold tracking-[0.08em] text-brass uppercase"
+                >
+                    {{
+                        $t('Step :current of :total', {
+                            current: stepIndex + 1,
+                            total: steps.length,
+                        })
+                    }}
+                </span>
+                <h2
+                    id="onboarding-tour-title"
+                    class="font-serif text-[19px] font-semibold tracking-[-0.01em]"
+                >
+                    {{ $t(currentStep.title) }}
+                </h2>
+                <p
+                    class="text-[13.5px] leading-[1.55] text-primary-foreground/70"
+                >
+                    {{ $t(currentStep.body) }}
+                </p>
 
-            <div class="mt-1.5 flex items-center gap-3">
-                <div class="mr-auto flex gap-1.5" aria-hidden="true">
-                    <span
-                        v-for="(step, index) in steps"
-                        :key="step.target"
-                        class="size-1.5 rounded-full"
-                        :class="
-                            index === stepIndex
-                                ? 'bg-brass'
-                                : 'bg-primary-foreground/30'
-                        "
-                    />
+                <div class="mt-1.5 flex items-center gap-3">
+                    <div class="mr-auto flex gap-1.5" aria-hidden="true">
+                        <span
+                            v-for="(step, index) in steps"
+                            :key="step.target"
+                            class="size-1.5 rounded-full"
+                            :class="
+                                index === stepIndex
+                                    ? 'bg-brass'
+                                    : 'bg-primary-foreground/30'
+                            "
+                        />
+                    </div>
+
+                    <Button
+                        variant="unstyled"
+                        size="none"
+                        type="button"
+                        data-test="onboarding-skip"
+                        class="text-[12.5px] font-medium text-primary-foreground/60 hover:text-primary-foreground"
+                        @click="skip"
+                    >
+                        {{ $t('Skip tour') }}
+                    </Button>
+
+                    <Button
+                        size="sm"
+                        data-test="onboarding-next"
+                        class="h-8 rounded-full bg-brass px-4 text-[12.5px] font-semibold text-brass-foreground hover:bg-brass/90"
+                        @click="next"
+                    >
+                        {{ isLastStep ? $t('Finish') : $t('Next') }}
+                    </Button>
                 </div>
-
-                <Button
-                    variant="unstyled"
-                    size="none"
-                    type="button"
-                    data-test="onboarding-skip"
-                    class="text-[12.5px] font-medium text-primary-foreground/60 hover:text-primary-foreground"
-                    @click="skip"
-                >
-                    {{ $t('Skip tour') }}
-                </Button>
-
-                <Button
-                    size="sm"
-                    data-test="onboarding-next"
-                    class="h-8 rounded-full bg-brass px-4 text-[12.5px] font-semibold text-brass-foreground hover:bg-brass/90"
-                    @click="next"
-                >
-                    {{ isLastStep ? $t('Finish') : $t('Next') }}
-                </Button>
             </div>
-        </div>
+        </FocusScope>
     </div>
 </template>

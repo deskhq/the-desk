@@ -5,13 +5,16 @@ import {
     PopoverRoot,
     PopoverTrigger,
 } from 'reka-ui';
-import { defineAsyncComponent, ref } from 'vue';
+import { computed, defineAsyncComponent, ref } from 'vue';
 import {
     Tooltip,
     TooltipContent,
     TooltipTrigger,
 } from '@/components/ui/tooltip';
+import { useAppearance } from '@/composables/useAppearance';
 import { useCustomEmojis } from '@/composables/useCustomEmojis';
+import { useEmojiPickerA11y } from '@/composables/useEmojiPickerA11y';
+import { useTranslations } from '@/composables/useTranslations';
 import type { CustomEmojiEntry } from '@/lib/customEmoji';
 
 defineProps<{
@@ -35,6 +38,25 @@ const EmojiPicker = defineAsyncComponent(async () => {
 const emit = defineEmits<{
     select: [emoji: string];
 }>();
+
+const { t } = useTranslations();
+
+// Follow "The Desk"'s active light/dark appearance instead of the library's own
+// black/white auto theme. In dark mode this hands the picker the library's dark
+// palette as a base, which the scoped `--v3-picker-*` token overrides then
+// refine onto the warm popover surface — so the grid never renders light-on-dark.
+const { resolvedAppearance } = useAppearance();
+const pickerTheme = computed(() => resolvedAppearance.value);
+
+// The picker grid is third-party DOM with no ARIA or keyboard model; the wrapper
+// element hosts the enhancer that labels the search field and turns the cells
+// into a keyboard-navigable listbox (see `useEmojiPickerA11y`).
+const pickerRoot = ref<HTMLElement | null>(null);
+
+useEmojiPickerA11y(pickerRoot, {
+    search: t('Search emoji'),
+    grid: t('Emoji'),
+});
 
 // The popover's open state, closed after a pick.
 const open = ref(false);
@@ -117,12 +139,14 @@ function onPickCustom(entry: CustomEmojiEntry): void {
                         </button>
                     </div>
                 </div>
-                <EmojiPicker
-                    :native="true"
-                    :hide-search="false"
-                    theme="light"
-                    @select="onPick"
-                />
+                <div ref="pickerRoot">
+                    <EmojiPicker
+                        :native="true"
+                        :hide-search="false"
+                        :theme="pickerTheme"
+                        @select="onPick"
+                    />
+                </div>
             </PopoverContent>
         </PopoverPortal>
     </PopoverRoot>
@@ -131,10 +155,11 @@ function onPickCustom(entry: CustomEmojiEntry): void {
 <!--
   vue3-emoji-picker themes itself through `--v3-picker-*` custom properties. We
   remap them onto "The Desk" semantic tokens so the picker follows the warm
-  light/dark palette instead of its own black/white auto theme (hence
-  `theme="light"` above — it disables the library's dark overrides so our
-  token-driven values win in both modes). The shell card carries the border and
-  shadow, so the picker's own chrome is flattened.
+  light/dark palette instead of its own black/white auto theme. `:theme` above
+  tracks the app's resolved appearance so the library's own light/dark base
+  matches ours; these scoped overrides then win on top (higher specificity) and
+  paint the warm popover surface in both modes. The shell card carries the
+  border and shadow, so the picker's own chrome is flattened.
 -->
 <style scoped>
 .emoji-picker-shell :deep(.v3-emoji-picker) {
