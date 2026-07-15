@@ -1,0 +1,97 @@
+---
+title: SOC 2 & ISO 27001 control mapping
+description: How the controls The Desk ships map to SOC 2 Trust Services Criteria and ISO 27001 Annex A, so your auditor's job is easy.
+---
+
+This page is written for an auditor. It maps the security controls The Desk ships
+to the **SOC 2 Trust Services Criteria** and **ISO/IEC 27001:2022 Annex A** so an
+adopter running a self-hosted instance can point an assessor straight at the
+relevant evidence.
+
+## What "certified" means here
+
+:::caution[The Desk is not, and cannot be, "SOC 2 certified" or "ISO 27001 certified"]
+SOC 2 and ISO 27001 certify an **organization** and the way it operates a system,
+not a piece of software. There is no SaaS version of The Desk to certify: every
+instance is run by the adopter, on infrastructure the adopter controls. So the
+subject of any audit is **your** organization, not this project.
+:::
+
+What this project can do, and what this page is for, is make that audit
+straightforward: The Desk ships the technical controls an auditor expects to see
+(authentication, least-privilege access, audit logging, session revocation,
+provisioning and deprovisioning, data portability and erasure), and this page
+tells you where each one lives so you can produce evidence quickly. The mappings
+below are **indicative**: they show which criteria a control is relevant to, not
+a claim of full coverage. Your auditor decides whether a control meets a
+criterion in the context of your whole system.
+
+## Control mapping
+
+| Control area | What The Desk provides | SOC 2 (Trust Services Criteria) | ISO 27001:2022 (Annex A) |
+| --- | --- | --- | --- |
+| **Authentication** | Password sign-in via Laravel Fortify, plus optional SSO through OpenID Connect and LDAP / Active Directory. Failed-login throttling (5 attempts per minute, keyed to email and IP). A local break-glass account keeps working during an SSO outage unless you disable it. | CC6.1 | A.5.15, A.5.16, A.8.5 |
+| **Multi-factor authentication** | Delegated to your identity provider. Route every sign-in through SSO with `AUTH_SSO_ONLY=true` and enforce MFA (TOTP, push, or passkeys) at the IdP. See the note below. | CC6.1 | A.8.5, A.5.17 |
+| **Password policy** | In production, passwords must be at least 12 characters with mixed case, letters, numbers, and symbols, and are checked against the Have I Been Pwned breach corpus (k-anonymity, no password leaves the server). Stored only as a bcrypt hash (work factor 12); never in plaintext or reversible form. | CC6.1 | A.5.17, A.8.5 |
+| **RBAC and least privilege** | Three team roles (Owner, Admin, Member) enforced by server-side policies on every action. Members hold no management permissions by default. Team deletion and ownership transfer are Owner-only and cannot be delegated. | CC6.3 | A.5.15, A.5.18, A.8.2, A.8.3 |
+| **Audit logging and tamper-evidence** | A team-scoped admin audit log records rename, role change, member removal, ownership transfer, channel lifecycle, message deletion, and emoji revocation. It is append-only: the application rejects any attempt to edit or delete an entry. Admins and Owners view it read-only in the app. | CC7.2, CC7.3 | A.8.15, A.8.16 |
+| **Account-activity log** | Each user sees their own recent security events (sign-in, sign-out, password change, and password reset), with IP address, user agent, and a new-device flag, so they can spot unfamiliar access. | CC7.2 | A.8.15, A.8.16 |
+| **Session management and revocation** | Session cookies are HTTP-only and `SameSite=Lax`, and are marked `Secure` when `SESSION_SECURE_COOKIE=true`. Users see every active session and can revoke a single device or sign out all other devices; a revoked session is force-signed-out on its next request. | CC6.1 | A.5.15, A.8.5 |
+| **Provisioning and deprovisioning (SSO / SCIM)** | SSO logins just-in-time provision accounts. SCIM 2.0 lets your IdP push lifecycle changes: removing someone from the directory deactivates their account here, revoking access and ending all their sessions immediately, while retaining history. Reactivation is a later `active: true`. | CC6.1, CC6.2, CC6.3 | A.5.16, A.5.18 |
+| **Data export (portability)** | A user can request a self-service export of their own data: a ZIP of JSON files (profile, teams, messages, and their security events), delivered by email and downloadable for 7 days. | (Privacy) P5 | A.5.34, A.8.11 |
+| **Account deletion and erasure** | Deleting an account removes the user record and reassigns their authored messages to a shared "Deleted User" tombstone, so conversations stay coherent while personal attribution is removed. The user's personal teams are deleted. | (Privacy) P4 | A.8.10, A.5.34 |
+| **Retention windows** | Uploaded-but-unsent attachments are swept after `ATTACHMENT_PENDING_TTL_HOURS` (default 24). Data-export archives are downloadable for a fixed 7-day window. Long-term retention of the audit and activity logs is an operator decision (see the note below). | (Privacy) P4 | A.8.10, A.5.34 |
+| **Encryption and transport posture** | The application encrypts session data and any encrypted attributes with `APP_KEY` (AES-256). Containers speak plain HTTP by design; TLS termination is delegated to your reverse proxy (see operator responsibilities). | CC6.1, CC6.7 | A.8.24, A.5.14 |
+| **Backups** | Durable state is one PostgreSQL database plus the uploaded-files volume; the search index and Redis are derived or transient. Logical dump and restore commands are documented, but taking, testing, and storing backups is an operator responsibility. | A1.2 | A.8.13 |
+
+### Notes an auditor should read
+
+- **Audit-log immutability is enforced in the application, not cryptographically.**
+  The audit log rejects updates and deletes through the app, but it does not
+  hash-chain or sign entries. Treat the database itself as in-scope: restrict
+  direct database access and rely on your infrastructure controls (least-privilege
+  database credentials, backups, and network isolation) as the second layer.
+- **MFA is delegated, not built in.** The Desk does not ship its own TOTP or
+  passkey enrollment today. The supported way to require MFA is to front all
+  access with SSO (`AUTH_SSO_ONLY=true`) and enforce the factor at your identity
+  provider, which is where most SOC 2 and ISO 27001 programs already manage it.
+- **Long-term log retention and disposal is yours to schedule.** The app does not
+  automatically prune the audit or account-activity logs, so they accumulate.
+  Define a retention window that matches your policy and enforce it at the
+  database or backup layer.
+- **The password policy is enforced in production.** The full complexity and
+  breach-check rules apply when the app runs in its production environment, which
+  is the configuration you audit.
+
+## Operator responsibilities
+
+A self-hosted deployment delegates several controls to you. An auditor will expect
+evidence for each of these from **your** environment, not from this project:
+
+- **TLS termination and HSTS.** The Desk's containers speak plain HTTP. Terminate
+  TLS at your reverse proxy, redirect HTTP to HTTPS, and set HSTS. See
+  [Reverse proxy & TLS](/docs/self-hosting/reverse-proxy/), and set
+  `SESSION_SECURE_COOKIE=true` and the browser-facing `REVERB_SCHEME_PUBLIC=https`.
+- **Encryption at rest.** Encrypt the disk or volume that holds the PostgreSQL
+  database and the uploaded-files volume. This is provided by your host or storage
+  layer, not the app.
+- **Backups.** Take, encrypt, test, and off-site the database and file-volume
+  backups. Commands are in [Upgrading](/docs/self-hosting/upgrading/#back-up-first).
+- **Secret management.** `APP_KEY`, `DB_PASSWORD`, `MEILISEARCH_KEY`, the
+  `REVERB_*` credentials, and any `SCIM_TOKEN` are full secrets. Generate them
+  with `./docker/gen-secrets.sh`, store them in a secret manager rather than a
+  committed `.env`, and rotate on exposure.
+- **Network isolation.** Expose only the web port publicly; keep PostgreSQL,
+  Redis, Meilisearch, and Reverb on an internal network. Restrict administrative
+  and database access to trusted operators.
+- **Patching.** Stay on the [latest release](/docs/self-hosting/upgrading/) so you
+  receive security fixes, and keep the host OS and reverse proxy patched.
+
+## Related reference
+
+- [Feature toggles](/docs/reference/feature-toggles/) for the switches that turn
+  registration, SSO-only mode, SCIM provisioning, and audit logging on or off.
+- [Environment variables](/docs/reference/environment-variables/) for the exact
+  `.env` settings behind every control above.
+- [Security & vulnerability reporting](/docs/reference/security/) for how to report
+  a problem privately and the automated scanning that guards the codebase.

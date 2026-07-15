@@ -61,6 +61,7 @@ export default defineConfig({
 						{ label: 'Feature toggles', slug: 'docs/reference/feature-toggles' },
 						{ label: 'Environment variables', slug: 'docs/reference/environment-variables' },
 						{ label: 'Security & compliance', slug: 'docs/reference/security' },
+						{ label: 'SOC 2 & ISO 27001 control mapping', slug: 'docs/reference/security-and-compliance' },
 					],
 				},
 			],
