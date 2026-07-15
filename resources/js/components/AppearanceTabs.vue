@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { Check } from '@lucide/vue';
+import { Button } from '@/components/ui/button';
 import { useAppearance } from '@/composables/useAppearance';
 import { useTranslations } from '@/composables/useTranslations';
 
@@ -20,14 +21,15 @@ const options = [
       fixed (not the active-theme tokens) — a light swatch always reads light.
     -->
     <div class="grid max-w-2xl grid-cols-3 gap-3">
-        <!-- eslint-disable-next-line local/no-raw-button -- bespoke segmented theme toggle (aria-pressed options) -->
-        <button
+        <Button
             v-for="{ value, label } in options"
             :key="value"
+            variant="unstyled"
+            size="none"
             type="button"
             :aria-pressed="appearance === value"
             @click="updateAppearance(value)"
-            class="flex flex-col gap-2 rounded-[13px] text-left focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+            class="flex flex-col gap-2 rounded-[13px] text-left"
         >
             <div
                 class="overflow-hidden rounded-xl border-2 transition-colors"
@@ -108,6 +110,6 @@ const options = [
                 <span v-else class="size-3.5" aria-hidden="true" />
                 {{ label }}
             </span>
-        </button>
+        </Button>
     </div>
 </template>

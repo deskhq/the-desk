@@ -162,8 +162,9 @@ function submit(): void {
                         >{{ getInitials(person.name) }}</span
                     >
                     {{ person.name }}
-                    <!-- eslint-disable-next-line local/no-raw-button -- bespoke tiny chip-dismiss control -->
-                    <button
+                    <Button
+                        variant="unstyled"
+                        size="none"
                         type="button"
                         :data-test="`add-people-remove-${person.id}`"
                         :aria-label="$t('Remove :name', { name: person.name })"
@@ -171,7 +172,7 @@ function submit(): void {
                         @click="removePerson(person.id)"
                     >
                         <X class="size-3.5" />
-                    </button>
+                    </Button>
                 </span>
                 <div class="flex min-w-[8rem] flex-1 items-center gap-1.5 px-1">
                     <Search

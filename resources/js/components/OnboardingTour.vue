@@ -178,15 +178,16 @@ onBeforeUnmount(() => {
                     />
                 </div>
 
-                <!-- eslint-disable-next-line local/no-raw-button -- bespoke control on the branded tour surface -->
-                <button
+                <Button
+                    variant="unstyled"
+                    size="none"
                     type="button"
                     data-test="onboarding-skip"
                     class="text-[12.5px] font-medium text-primary-foreground/60 hover:text-primary-foreground"
                     @click="skip"
                 >
                     {{ $t('Skip tour') }}
-                </button>
+                </Button>
 
                 <Button
                     size="sm"

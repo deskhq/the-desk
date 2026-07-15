@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { AlarmClock, X } from '@lucide/vue';
 import { computed } from 'vue';
+import { Button } from '@/components/ui/button';
 import { useInitials } from '@/composables/useInitials';
 import { messageBodyPreview } from '@/lib/messageBody';
 import type { MessageReminder } from '@/types';
@@ -42,8 +43,9 @@ const channelLabel = computed(() =>
             >
                 {{ $t('Reminder · due now') }}
             </span>
-            <!-- eslint-disable-next-line local/no-raw-button -- bespoke dismiss on the branded nudge -->
-            <button
+            <Button
+                variant="unstyled"
+                size="none"
                 type="button"
                 data-test="reminder-nudge-close"
                 :aria-label="$t('Dismiss reminder')"
@@ -51,7 +53,7 @@ const channelLabel = computed(() =>
                 @click="emit('dismiss', reminder)"
             >
                 <X class="size-3.5" />
-            </button>
+            </Button>
         </div>
 
         <div
@@ -90,33 +92,36 @@ const channelLabel = computed(() =>
         </div>
 
         <div class="flex items-center gap-2.5">
-            <!-- eslint-disable-next-line local/no-raw-button -- bespoke pill on the branded nudge -->
-            <button
+            <Button
+                variant="unstyled"
+                size="none"
                 type="button"
                 data-test="reminder-nudge-open"
                 class="inline-flex h-8 items-center rounded-full bg-brass px-4 text-[12.5px] font-semibold text-brass-foreground transition-opacity hover:opacity-90"
                 @click="emit('open', reminder)"
             >
                 {{ $t('Open message') }}
-            </button>
-            <!-- eslint-disable-next-line local/no-raw-button -- bespoke pill on the branded nudge -->
-            <button
+            </Button>
+            <Button
+                variant="unstyled"
+                size="none"
                 type="button"
                 data-test="reminder-nudge-snooze"
                 class="inline-flex h-8 items-center rounded-full border border-primary-foreground/25 px-3.5 text-[12.5px] font-medium text-primary-foreground/80 transition-colors hover:bg-primary-foreground/10"
                 @click="emit('snooze', reminder)"
             >
                 {{ $t('Snooze 20 min') }}
-            </button>
-            <!-- eslint-disable-next-line local/no-raw-button -- bespoke text action on the branded nudge -->
-            <button
+            </Button>
+            <Button
+                variant="unstyled"
+                size="none"
                 type="button"
                 data-test="reminder-nudge-done"
                 class="ml-auto text-[12.5px] font-medium text-primary-foreground/60 transition-colors hover:text-primary-foreground"
                 @click="emit('dismiss', reminder)"
             >
                 {{ $t('Done') }}
-            </button>
+            </Button>
         </div>
     </div>
 </template>

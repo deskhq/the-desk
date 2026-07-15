@@ -185,20 +185,16 @@ function confirm(): void {
             </DialogHeader>
 
             <div class="grid grid-cols-2 gap-2" data-test="schedule-presets">
-                <!-- eslint-disable-next-line local/no-raw-button -- bespoke schedule-preset item -->
-                <button
+                <Button
                     v-for="preset in presets"
                     :key="preset.key"
+                    variant="unstyled"
+                    size="none"
                     type="button"
                     data-test="schedule-preset"
                     :data-preset="preset.key"
                     :aria-pressed="preset.key === activePresetKey"
-                    class="flex items-center justify-between gap-2 rounded-md border px-3 py-1.5 text-left text-[13px] transition-colors"
-                    :class="
-                        preset.key === activePresetKey
-                            ? 'border-primary bg-primary/5 font-medium text-foreground'
-                            : 'border-input hover:bg-muted'
-                    "
+                    class="flex items-center justify-between gap-2 rounded-md border border-input px-3 py-1.5 text-left text-[13px] hover:bg-muted aria-pressed:border-primary aria-pressed:bg-primary/5 aria-pressed:font-medium aria-pressed:text-foreground"
                     @click="choosePreset(preset)"
                 >
                     <span class="truncate">{{ $t(preset.label) }}</span>
@@ -206,7 +202,7 @@ function confirm(): void {
                         v-if="preset.key === activePresetKey"
                         class="size-4 shrink-0 text-primary"
                     />
-                </button>
+                </Button>
             </div>
 
             <div class="rounded-lg border border-border">

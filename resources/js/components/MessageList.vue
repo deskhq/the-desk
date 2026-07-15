@@ -853,13 +853,14 @@ function confirmDelete(): void {
                                     }}</span>
                                 </div>
 
-                                <!-- eslint-disable-next-line local/no-raw-button -- bespoke quoted-reply preview control -->
-                                <button
+                                <Button
                                     v-if="
                                         message.replyTo &&
                                         !message.isDeleted &&
                                         editingId !== message.id
                                     "
+                                    variant="unstyled"
+                                    size="none"
                                     type="button"
                                     data-test="message-quote"
                                     :aria-label="
@@ -881,7 +882,7 @@ function confirmDelete(): void {
                                         :body="message.replyTo.body"
                                         :is-deleted="message.replyTo.isDeleted"
                                     />
-                                </button>
+                                </Button>
 
                                 <p
                                     v-if="message.isDeleted"
@@ -1099,8 +1100,9 @@ function confirmDelete(): void {
                                     v-if="showThreadSummary(message)"
                                     class="mt-1.5 flex flex-wrap items-center gap-2"
                                 >
-                                    <!-- eslint-disable-next-line local/no-raw-button -- bespoke thread-summary card -->
-                                    <button
+                                    <Button
+                                        variant="unstyled"
+                                        size="none"
                                         type="button"
                                         data-test="thread-summary"
                                         :aria-label="
@@ -1185,7 +1187,7 @@ function confirmDelete(): void {
                                             class="text-[12px] text-muted-foreground"
                                             >→</span
                                         >
-                                    </button>
+                                    </Button>
                                     <span
                                         v-if="message.threadLastReplyAt"
                                         class="text-[11.5px] text-muted-foreground"

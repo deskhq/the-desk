@@ -7,6 +7,7 @@ import {
     PopoverTrigger,
 } from 'reka-ui';
 import { computed, ref } from 'vue';
+import { Button } from '@/components/ui/button';
 import {
     Tooltip,
     TooltipContent,
@@ -91,14 +92,15 @@ function chooseCustom(): void {
                     {{ $t('Remind me about this') }}
                 </div>
                 <div class="flex flex-col">
-                    <!-- eslint-disable-next-line local/no-raw-button -- bespoke reminder menu item -->
-                    <button
+                    <Button
                         v-for="preset in presets"
                         :key="preset.key"
+                        variant="ghost"
+                        size="none"
                         type="button"
                         data-test="reminder-preset"
                         :data-preset="preset.key"
-                        class="flex h-9 items-center justify-between gap-2 rounded-lg px-3 text-[13.5px] font-medium text-foreground transition-colors hover:bg-accent"
+                        class="flex h-9 items-center justify-between gap-2 rounded-lg px-3 text-[13.5px] font-medium text-foreground"
                         @click="choose(preset.remindAt)"
                     >
                         <span>{{ $t(preset.label) }}</span>
@@ -107,18 +109,19 @@ function chooseCustom(): void {
                             class="text-[12px] font-normal text-muted-foreground"
                             >{{ preset.detail }}</span
                         >
-                    </button>
+                    </Button>
                     <div class="mx-2 my-1.5 h-px bg-border"></div>
-                    <!-- eslint-disable-next-line local/no-raw-button -- bespoke reminder menu item -->
-                    <button
+                    <Button
+                        variant="ghost"
+                        size="none"
                         type="button"
                         data-test="reminder-custom"
-                        class="flex h-9 items-center gap-2 rounded-lg px-3 text-[13.5px] font-medium text-brass-fill-foreground transition-colors hover:bg-accent"
+                        class="flex h-9 items-center gap-2 rounded-lg px-3 text-[13.5px] font-medium text-brass-fill-foreground"
                         @click="chooseCustom"
                     >
                         <CalendarClock class="size-3.5" />
                         {{ $t('Custom date & time…') }}
-                    </button>
+                    </Button>
                 </div>
             </PopoverContent>
         </PopoverPortal>

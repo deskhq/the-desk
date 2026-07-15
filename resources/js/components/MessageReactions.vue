@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { SmilePlus } from '@lucide/vue';
 import EmojiPickerPopover from '@/components/EmojiPickerPopover.vue';
+import { Button } from '@/components/ui/button';
 import {
     HoverCard,
     HoverCardContent,
@@ -76,8 +77,9 @@ function toggle(emoji: string): void {
             :close-delay="100"
         >
             <HoverCardTrigger as-child>
-                <!-- eslint-disable-next-line local/no-raw-button -- bespoke reaction pill (toggle) -->
-                <button
+                <Button
+                    variant="unstyled"
+                    size="none"
                     type="button"
                     data-test="reaction-pill"
                     :data-emoji="reaction.emoji"
@@ -85,12 +87,7 @@ function toggle(emoji: string): void {
                     :disabled="!props.canReact"
                     :aria-label="`${reaction.emoji} ${roster(reaction)}`"
                     :aria-pressed="reacted(reaction)"
-                    class="inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[12px] leading-none transition-colors"
-                    :class="
-                        reacted(reaction)
-                            ? 'border-brass-border bg-brass-fill text-brass-fill-foreground'
-                            : 'border-border bg-muted/40 text-muted-foreground hover:bg-muted'
-                    "
+                    class="inline-flex items-center gap-1 rounded-full border border-border bg-muted/40 px-2 py-0.5 text-[12px] leading-none text-muted-foreground hover:bg-muted aria-pressed:border-brass-border aria-pressed:bg-brass-fill aria-pressed:text-brass-fill-foreground"
                     @click="toggle(reaction.emoji)"
                 >
                     <img
@@ -103,7 +100,7 @@ function toggle(emoji: string): void {
                     <span class="font-medium tabular-nums">{{
                         reaction.count
                     }}</span>
-                </button>
+                </Button>
             </HoverCardTrigger>
             <HoverCardContent
                 data-test="reaction-reactors"
@@ -136,15 +133,16 @@ function toggle(emoji: string): void {
             v-if="props.canReact"
             @select="(emoji) => emit('toggle', emoji)"
         >
-            <!-- eslint-disable-next-line local/no-raw-button -- bespoke add-reaction pill -->
-            <button
+            <Button
+                variant="unstyled"
+                size="none"
                 type="button"
                 data-test="add-reaction"
                 :aria-label="$t('Add reaction')"
                 class="inline-flex items-center rounded-full border border-border bg-muted/40 p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
             >
                 <SmilePlus class="size-3.5" />
-            </button>
+            </Button>
         </EmojiPickerPopover>
     </div>
 </template>
