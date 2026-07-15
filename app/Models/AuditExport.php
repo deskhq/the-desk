@@ -22,7 +22,7 @@ use Illuminate\Support\Carbon;
  *
  * @property string $id
  * @property string $team_id
- * @property string $requested_by
+ * @property string|null $requested_by
  * @property AuditExportLogType $log_type
  * @property AuditExportFormat $format
  * @property Carbon|null $range_start
@@ -33,7 +33,7 @@ use Illuminate\Support\Carbon;
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  * @property-read Team $team
- * @property-read User $requester
+ * @property-read User|null $requester
  */
 #[Fillable(['team_id', 'requested_by', 'log_type', 'format', 'range_start', 'range_end', 'status', 'path', 'expires_at'])]
 class AuditExport extends Model

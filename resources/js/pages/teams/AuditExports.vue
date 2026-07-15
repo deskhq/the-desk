@@ -443,7 +443,9 @@ function downloadUrl(entry: AuditExport): string {
                             {{ rangeText(entry) }} ·
                             {{
                                 $t('requested by :name', {
-                                    name: entry.requestedByName,
+                                    name:
+                                        entry.requestedByName ??
+                                        $t('a former member'),
                                 })
                             }}, {{ requestedAt(entry) }}
                             <template

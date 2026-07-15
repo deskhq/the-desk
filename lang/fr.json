@@ -841,7 +841,6 @@
   "Request an export above and it will appear here. Files stay available for 7 days.": "Demandez un export ci-dessus et il apparaîtra ici. Les fichiers restent disponibles pendant 7 jours.",
   "Security events": "Événements de sécurité",
   "Start date": "Date de début",
-  "The :log export you requested for :team (:format) is ready to download. It expires in 7 days.": "L’export :log que vous avez demandé pour :team (:format) est prêt à être téléchargé. Il expire dans 7 jours.",
   "Timestamps are exported in UTC. Security-event exports cover the current members' account-level events for the period, including activity outside this team.": "Les horodatages sont exportés en UTC. Les exports d’événements de sécurité couvrent les événements au niveau du compte des membres actuels pour la période, y compris l’activité en dehors de cette équipe.",
   "Until %s": "Jusqu’au %s",
   "Until :date": "Jusqu’au :date",
@@ -850,5 +849,8 @@
   "optional": "facultatif",
   "refreshing while an export is generating": "actualisation pendant la génération d’un export",
   "requested by :name": "demandé par :name",
-  "to": "au"
+  "to": "au",
+  "a former member": "un ancien membre",
+  "The :log export you requested for :team (:format) is ready to download. It expires in :days days.": "L’export :log que vous avez demandé pour :team (:format) est prêt à être téléchargé. Il expire dans :days jours.",
+  "Could not start the export. Please try again.": "Impossible de démarrer l’export. Veuillez réessayer."
 }

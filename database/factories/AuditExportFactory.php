@@ -62,7 +62,7 @@ class AuditExportFactory extends Factory
     {
         return $this->state(fn (array $attributes): array => [
             'status' => AuditExportStatus::Ready,
-            'path' => 'audit-exports/'.fake()->uuid().'.csv',
+            'path' => 'audit-exports/'.fake()->uuid().'.'.$this->extensionFor($attributes),
             'expires_at' => now()->addDays(7),
         ]);
     }
@@ -74,9 +74,24 @@ class AuditExportFactory extends Factory
     {
         return $this->state(fn (array $attributes): array => [
             'status' => AuditExportStatus::Ready,
-            'path' => 'audit-exports/'.fake()->uuid().'.csv',
+            'path' => 'audit-exports/'.fake()->uuid().'.'.$this->extensionFor($attributes),
             'expires_at' => now()->subDay(),
         ]);
+    }
+
+    /**
+     * Resolve the file extension a built export's path should carry from the
+     * format already set on the state (always an enum: the definition and the
+     * json() state both set an AuditExportFormat).
+     *
+     * @param  array<string, mixed>  $attributes
+     */
+    private function extensionFor(array $attributes): string
+    {
+        /** @var AuditExportFormat $format */
+        $format = $attributes['format'] ?? AuditExportFormat::Csv;
+
+        return $format->extension();
     }
 
     /**

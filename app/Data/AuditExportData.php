@@ -21,7 +21,7 @@ class AuditExportData extends Data
         public bool $isExpired,
         public ?string $rangeStart,
         public ?string $rangeEnd,
-        public string $requestedByName,
+        public ?string $requestedByName,
         public string $requestedAt,
         public ?string $expiresAt,
     ) {}
@@ -43,7 +43,7 @@ class AuditExportData extends Data
             isExpired: $export->isExpired(),
             rangeStart: $export->range_start?->toDateString(),
             rangeEnd: $export->range_end?->toDateString(),
-            requestedByName: $export->requester->name,
+            requestedByName: $export->requester?->name,
             requestedAt: $export->created_at->toIso8601String(),
             expiresAt: $export->expires_at?->toIso8601String(),
         );

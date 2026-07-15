@@ -16,8 +16,10 @@ return new class extends Migration
             $table->uuid('id')->primary()->default(DB::raw('gen_random_uuid()'));
             $table->foreignUuid('team_id')->constrained()->cascadeOnDelete();
             // The admin who requested the export. Any current team admin may
-            // download it; this only records who kicked it off.
-            $table->foreignUuid('requested_by')->constrained('users')->cascadeOnDelete();
+            // download it; this only records who kicked it off. Nulled (not
+            // cascaded) when that user is deleted so the evidence export, and the
+            // file behind it, survive until its own retention window closes.
+            $table->foreignUuid('requested_by')->nullable()->constrained('users')->nullOnDelete();
             // Which log the export draws from (see App\Enums\AuditExportLogType).
             $table->string('log_type');
             // The file format written (see App\Enums\AuditExportFormat).

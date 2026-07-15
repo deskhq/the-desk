@@ -15,6 +15,7 @@ use App\Models\AuditExport;
 use App\Models\SecurityEvent;
 use App\Models\Team;
 use App\Models\User;
+use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
@@ -238,6 +239,26 @@ test('a plain member cannot request an export', function (): void {
         ->assertForbidden();
 });
 
+test('a failed queue dispatch marks the export failed and records no audit event', function (): void {
+    [$owner, $team] = exportTeam();
+
+    Bus::shouldReceive('dispatch')->once()->andThrow(new RuntimeException('queue down'));
+
+    $this->actingAs($owner)
+        ->from(route('teams.audit-exports.index', $team))
+        ->post(route('teams.audit-exports.store', $team), [
+            'log_type' => AuditExportLogType::Audit->value,
+            'format' => AuditExportFormat::Csv->value,
+        ])
+        ->assertRedirect(route('teams.audit-exports.index', $team));
+
+    expect($team->auditExports()->sole()->status)->toBe(AuditExportStatus::Failed);
+    expect(AuditActivity::query()
+        ->where('team_id', $team->id)
+        ->where('event', AuditAction::AuditExported->value)
+        ->count())->toBe(0);
+});
+
 // ── Generating the file ──────────────────────────────────────────────────────
 
 test('the job writes an audit-log CSV and emails the requester', function (): void {
@@ -420,6 +441,69 @@ test('the failed hook marks the export failed', function (): void {
     expect($export->refresh()->status)->toBe(AuditExportStatus::Failed);
 });
 
+test('an export whose requester was deleted still generates without emailing', function (): void {
+    Storage::fake('local');
+    Mail::fake();
+
+    [, $team] = exportTeam();
+    AuditActivity::factory()->forTeam($team)->ofAction(AuditAction::ChannelCreated)->create([
+        'properties' => ['channel_name' => 'june'],
+        'created_at' => '2026-06-15 12:00:00',
+    ]);
+
+    $export = AuditExport::factory()->for($team)->create([
+        'requested_by' => null,
+        'log_type' => AuditExportLogType::Audit,
+        'range_start' => '2026-06-01',
+        'range_end' => '2026-06-30',
+    ]);
+
+    (new GenerateAuditExport($export->id))->handle();
+
+    expect($export->refresh()->status)->toBe(AuditExportStatus::Ready);
+    expect(Storage::disk('local')->get($export->path))->toContain('june');
+    Mail::assertNothingSent();
+});
+
+test('a failed notification does not undo a ready export', function (): void {
+    Storage::fake('local');
+
+    [$owner, $team] = exportTeam();
+    $export = AuditExport::factory()->for($team)->create([
+        'requested_by' => $owner->id,
+        'log_type' => AuditExportLogType::Audit,
+    ]);
+
+    Mail::shouldReceive('to')->once()->andThrow(new RuntimeException('smtp down'));
+
+    (new GenerateAuditExport($export->id))->handle();
+
+    expect($export->refresh()->status)->toBe(AuditExportStatus::Ready);
+    expect($export->path)->not->toBeNull();
+});
+
+test('csv fields that begin like a formula are neutralised', function (): void {
+    Storage::fake('local');
+    Mail::fake();
+
+    [$owner, $team] = exportTeam();
+    $owner->update(['name' => '=1+1']);
+    AuditActivity::factory()->forTeam($team)->ofAction(AuditAction::ChannelCreated)->causedBy($owner)->create([
+        'properties' => ['channel_name' => 'general'],
+    ]);
+
+    $export = AuditExport::factory()->for($team)->create([
+        'requested_by' => $owner->id,
+        'log_type' => AuditExportLogType::Audit,
+        'format' => AuditExportFormat::Csv,
+    ]);
+
+    (new GenerateAuditExport($export->id))->handle();
+
+    $csv = Storage::disk('local')->get($export->refresh()->path);
+    expect($csv)->toContain("'=1+1");
+});
+
 // ── Downloading ──────────────────────────────────────────────────────────────
 
 test('any current admin can download a ready export', function (): void {
@@ -525,6 +609,18 @@ test('the DTO maps a pending all-time export', function (): void {
     expect($data->rangeStart)->toBeNull();
     expect($data->rangeEnd)->toBeNull();
     expect($data->expiresAt)->toBeNull();
+});
+
+test('the DTO tolerates a deleted requester', function (): void {
+    $data = AuditExportData::fromExport(AuditExport::factory()->create(['requested_by' => null]));
+
+    expect($data->requestedByName)->toBeNull();
+});
+
+test('a ready JSON export is built with a matching path extension', function (): void {
+    $export = AuditExport::factory()->json()->ready()->create();
+
+    expect($export->path)->toEndWith('.json');
 });
 
 test('the model reports an expired export as not ready', function (): void {

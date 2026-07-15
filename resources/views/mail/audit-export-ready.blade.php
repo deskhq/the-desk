@@ -1,7 +1,7 @@
 <x-mail::message>
 # {{ __('Your audit export is ready') }}
 
-{{ __('The :log export you requested for :team (:format) is ready to download. It expires in 7 days.', ['log' => $logLabel, 'team' => $teamName, 'format' => $formatLabel]) }}
+{{ __('The :log export you requested for :team (:format) is ready to download. It expires in :days days.', ['log' => $logLabel, 'team' => $teamName, 'format' => $formatLabel, 'days' => $retentionDays]) }}
 
 <x-mail::button :url="$url">
 {{ __('Download export') }}

@@ -38,7 +38,7 @@ class GenerateAuditExport implements ShouldQueue
     /**
      * How many days the built file stays downloadable before it is purged.
      */
-    private const int RETENTION_DAYS = 7;
+    public const int RETENTION_DAYS = 7;
 
     public function __construct(private string $auditExportId) {}
 
@@ -73,7 +73,16 @@ class GenerateAuditExport implements ShouldQueue
             'expires_at' => now()->addDays(self::RETENTION_DAYS),
         ]);
 
-        Mail::to($export->requester)->send(new AuditExportReady($export));
+        // The file is the deliverable; a failed notification must not undo the
+        // ready export or trip the job's failed() handler. Skip it entirely when
+        // the requester's account was deleted between request and generation.
+        if ($export->requester !== null) {
+            try {
+                Mail::to($export->requester)->send(new AuditExportReady($export));
+            } catch (Throwable $exception) {
+                report($exception);
+            }
+        }
     }
 
     /**
@@ -204,7 +213,7 @@ class GenerateAuditExport implements ShouldQueue
      */
     private function timezone(AuditExport $export): string
     {
-        return $export->requester->timezone ?: 'UTC';
+        return $export->requester?->timezone ?: 'UTC';
     }
 
     /**
@@ -244,12 +253,17 @@ class GenerateAuditExport implements ShouldQueue
     }
 
     /**
-     * Escape a single CSV field: wrap in quotes and double any embedded quotes
-     * when the value carries a comma, quote, or newline; otherwise pass it
-     * through untouched.
+     * Escape a single CSV field. A leading =, +, -, or @ is neutralised with a
+     * prefixed apostrophe so a spreadsheet cannot treat exported log data as a
+     * formula (CSV injection); the field is then wrapped in quotes with embedded
+     * quotes doubled when it carries a comma, quote, or newline.
      */
     private function csvField(string $value): string
     {
+        if (preg_match('/^[=+\-@]/', $value) === 1) {
+            $value = "'".$value;
+        }
+
         if (preg_match('/[",\r\n]/', $value) === 1) {
             return '"'.str_replace('"', '""', $value).'"';
         }

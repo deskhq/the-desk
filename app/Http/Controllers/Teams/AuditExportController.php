@@ -15,11 +15,13 @@ use App\Models\Team;
 use App\Support\AuditRecorder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Inertia\Response;
 use Symfony\Component\HttpFoundation\StreamedResponse;
+use Throwable;
 
 class AuditExportController extends Controller
 {
@@ -86,13 +88,25 @@ class AuditExportController extends Controller
             'status' => AuditExportStatus::Pending,
         ]);
 
+        // Dispatch eagerly so a queue-push failure surfaces here rather than
+        // leaving a pending row that would block the team's next request forever
+        // (a pending export never reaches the retention purge).
+        try {
+            Bus::dispatch(new GenerateAuditExport($export->id));
+        } catch (Throwable $exception) {
+            $export->update(['status' => AuditExportStatus::Failed]);
+            report($exception);
+
+            Inertia::flash('toast', ['type' => 'error', 'message' => __('Could not start the export. Please try again.')]);
+
+            return back();
+        }
+
         $recorder->record($team, $request->user(), AuditAction::AuditExported, $export, [
             'log' => $logType->label(),
             'format' => $format->label(),
             'range' => $this->rangeLabel($rangeStart, $rangeEnd),
         ]);
-
-        dispatch(new GenerateAuditExport($export->id));
 
         Inertia::flash('toast', ['type' => 'success', 'message' => __("Preparing your export. We'll email you when it's ready.")]);
 
