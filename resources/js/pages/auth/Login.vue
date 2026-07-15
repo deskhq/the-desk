@@ -46,10 +46,7 @@ defineProps<{
         <!-- Single sign-on entry point, shown only when an OIDC provider is
         configured. A full-page navigation (native anchor) hands off to the IdP;
         an Inertia visit would break the OAuth redirect. -->
-        <div
-            v-if="$page.props.sso.oidcEnabled"
-            class="flex flex-col gap-6"
-        >
+        <div v-if="$page.props.sso.oidcEnabled" class="flex flex-col gap-6">
             <Button
                 as-child
                 variant="outline"
