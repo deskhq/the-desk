@@ -59,8 +59,10 @@ class DataExportController extends Controller
         abort_unless($dataExport->user_id === $request->user()->id, 403);
         abort_unless($dataExport->isReady() && ! $dataExport->isExpired(), 404);
 
+        $response = Storage::disk(ExportUserData::DISK)->download($dataExport->path, 'data-export.zip');
+
         $securityEvents->record($request->user(), SecurityEventType::DataExportDownloaded);
 
-        return Storage::disk(ExportUserData::DISK)->download($dataExport->path, 'data-export.zip');
+        return $response;
     }
 }

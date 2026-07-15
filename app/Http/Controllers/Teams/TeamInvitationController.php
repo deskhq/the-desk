@@ -37,13 +37,13 @@ class TeamInvitationController extends Controller
             'expires_at' => now()->addDays(3),
         ]);
 
-        Notification::route('mail', $invitation->email)
-            ->notify(new TeamInvitationNotification($invitation));
-
         $recorder->record($team, $request->user(), AuditAction::InvitationCreated, $invitation, [
             'email' => $invitation->email,
             'role' => $role->label(),
         ]);
+
+        Notification::route('mail', $invitation->email)
+            ->notify(new TeamInvitationNotification($invitation));
 
         Inertia::flash('toast', ['type' => 'success', 'message' => __('Invitation sent.')]);
 
@@ -93,12 +93,12 @@ class TeamInvitationController extends Controller
 
         $invitation->update(['expires_at' => now()->addDays(3)]);
 
-        Notification::route('mail', $invitation->email)
-            ->notify(new TeamInvitationNotification($invitation));
-
         $recorder->record($team, $request->user(), AuditAction::InvitationResent, $invitation, [
             'email' => $invitation->email,
         ]);
+
+        Notification::route('mail', $invitation->email)
+            ->notify(new TeamInvitationNotification($invitation));
 
         Inertia::flash('toast', ['type' => 'success', 'message' => __('Invitation resent.')]);
 
