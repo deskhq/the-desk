@@ -9,6 +9,7 @@ import {
     Mail,
     ScrollText,
     Send,
+    ShieldCheck,
     SmilePlus,
     UserPlus,
     X,
@@ -48,6 +49,7 @@ import {
     show as showMember,
     update as updateMember,
 } from '@/routes/teams/members';
+import { index as securityLogIndex } from '@/routes/teams/security-log';
 import type {
     RoleOption,
     Team,
@@ -513,7 +515,11 @@ const confirmTransferOwnership = (member: TeamMember) => {
 
         <!-- Custom emoji + admin links -->
         <section
-            v-if="permissions.canViewAnalytics || permissions.canViewAudit"
+            v-if="
+                permissions.canViewAnalytics ||
+                permissions.canViewAudit ||
+                permissions.canViewSecurityLog
+            "
             class="border-b border-border py-6"
         >
             <div class="grid gap-3 sm:grid-cols-2">
@@ -569,6 +575,26 @@ const confirmTransferOwnership = (member: TeamMember) => {
                         </div>
                         <div class="truncate text-xs text-muted-foreground">
                             {{ $t('Moderation and admin actions') }}
+                        </div>
+                    </div>
+                    <ChevronRight
+                        class="ml-auto h-3.5 w-3.5 shrink-0 text-muted-foreground"
+                    />
+                </Link>
+
+                <Link
+                    v-if="permissions.canViewSecurityLog"
+                    :href="securityLogIndex(team.slug)"
+                    data-test="view-security-log-link"
+                    class="flex items-center gap-3 rounded-xl border border-border bg-card p-4 transition-colors hover:border-brass-border"
+                >
+                    <ShieldCheck class="h-4 w-4 shrink-0 text-brass" />
+                    <div class="min-w-0">
+                        <div class="text-sm font-semibold">
+                            {{ $t('Security log') }}
+                        </div>
+                        <div class="truncate text-xs text-muted-foreground">
+                            {{ $t('Sign-ins and credential changes') }}
                         </div>
                     </div>
                     <ChevronRight

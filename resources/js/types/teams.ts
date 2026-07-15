@@ -72,6 +72,7 @@ export type TeamPermissions = {
     canCancelInvitation: boolean;
     canTransferOwnership: boolean;
     canViewAudit: boolean;
+    canViewSecurityLog: boolean;
     canViewAnalytics: boolean;
 };
 

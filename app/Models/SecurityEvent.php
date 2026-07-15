@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\SecurityEventType;
+use App\Exceptions\SecurityEventImmutableException;
 use Database\Factories\SecurityEventFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
@@ -15,6 +16,13 @@ use Illuminate\Support\Carbon;
  * A record of a security-relevant account action (sign in/out, credential and
  * two-factor changes), captured with the request's IP and User-Agent so users
  * can review recent activity and spot unfamiliar access.
+ *
+ * The log is append-only: immutability is enforced here at the model layer, so
+ * once created an event can never be updated or deleted through an Eloquent
+ * instance. Query-builder bulk deletes (`SecurityEvent::query()->...->delete()`)
+ * fire no model events and so bypass this guard by design: that is the
+ * sanctioned path for retention pruning (see #423), mirroring how expired team
+ * invitations are pruned.
  *
  * @property string $id
  * @property string $user_id
@@ -31,6 +39,21 @@ class SecurityEvent extends Model
 {
     /** @use HasFactory<SecurityEventFactory> */
     use HasFactory, HasUuids;
+
+    /**
+     * Guard against any mutation after creation so the log stays append-only.
+     */
+    #[\Override]
+    protected static function booted(): void
+    {
+        static::updating(function (): never {
+            throw new SecurityEventImmutableException('Security events cannot be updated.');
+        });
+
+        static::deleting(function (): never {
+            throw new SecurityEventImmutableException('Security events cannot be deleted.');
+        });
+    }
 
     /**
      * Get the user the security event belongs to.
