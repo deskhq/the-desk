@@ -1,0 +1,13 @@
+name: "CodeQL config"
+
+# The docs site (docs/) is a separate Astro/Starlight install with its own
+# node_modules and is excluded from every app quality gate; keep it out of the
+# CodeQL scan too so it neither breaks setup nor adds noise. Generated and
+# vendored code carry no first-party risk we can act on.
+paths-ignore:
+  - docs
+  - "**/node_modules"
+  - "**/vendor"
+  - "resources/js/generated"
+  - bootstrap/ssr
+  - public/build

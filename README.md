@@ -295,6 +295,15 @@ read **[CONTRIBUTING.md](CONTRIBUTING.md)** for the development setup, the quali
 gates (100% test coverage, Pint/PHPStan/Rector, and the frontend checks), the
 Conventional Commits convention, and the PR workflow.
 
+## Security
+
+Found a vulnerability? Please report it privately through GitHub's
+[private vulnerability reporting](https://github.com/emmpaul/the-desk/security/advisories/new)
+rather than opening a public issue. See **[SECURITY.md](SECURITY.md)** for the
+full policy, supported versions, and response timeline. The codebase is scanned
+continuously with CodeQL, dependency review, and Dependabot; findings surface in
+the [Security tab](https://github.com/emmpaul/the-desk/security).
+
 ## License
 
 The Desk is open source under the [MIT License](LICENSE).

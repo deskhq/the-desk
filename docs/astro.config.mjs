@@ -60,6 +60,7 @@ export default defineConfig({
 						{ label: 'Architecture', slug: 'docs/reference/architecture' },
 						{ label: 'Feature toggles', slug: 'docs/reference/feature-toggles' },
 						{ label: 'Environment variables', slug: 'docs/reference/environment-variables' },
+						{ label: 'Security & compliance', slug: 'docs/reference/security' },
 					],
 				},
 			],
