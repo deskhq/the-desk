@@ -33,4 +33,17 @@ enum SecurityEventType: string
             self::PasskeyRemoved => __('Passkey removed'),
         };
     }
+
+    /**
+     * Get the selectable type options for the admin log's filter dropdown.
+     *
+     * @return array<int, array{value: string, label: string}>
+     */
+    public static function options(): array
+    {
+        return array_map(
+            fn (self $type): array => ['value' => $type->value, 'label' => $type->label()],
+            self::cases(),
+        );
+    }
 }

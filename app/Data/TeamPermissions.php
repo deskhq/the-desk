@@ -16,6 +16,7 @@ readonly class TeamPermissions
         public bool $canCancelInvitation,
         public bool $canTransferOwnership,
         public bool $canViewAudit,
+        public bool $canViewSecurityLog,
         public bool $canViewAnalytics,
         public bool $canManageEmojis,
     ) {

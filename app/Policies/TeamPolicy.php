@@ -123,6 +123,19 @@ class TeamPolicy
     }
 
     /**
+     * Determine whether the user can view the team's security-event log.
+     *
+     * The log surfaces account-level security events for the workspace's current
+     * members, so it is scoped to admins and the owner of a real (non-personal)
+     * workspace, mirroring {@see self::viewAudit()}.
+     */
+    public function viewSecurityLog(User $user, Team $team): bool
+    {
+        return ! $team->is_personal
+            && ($user->teamRole($team)?->isAtLeast(TeamRole::Admin) ?? false);
+    }
+
+    /**
      * Determine whether the user can view the team's analytics dashboard.
      *
      * The dashboard aggregates workspace-wide activity, so it is scoped to
