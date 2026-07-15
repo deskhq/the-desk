@@ -4,9 +4,24 @@ description: Implement a GitHub issue from this repo end-to-end — fetch the is
 disable-model-invocation: true
 ---
 
-Take a GitHub issue in this repo from open to PR. This skill is the front-to-back pipeline: **understand → gate → design-faithful TDD → local CodeRabbit → open PR**. It leans on existing skills at each seam (`grill-me`, `tdd`, `code-review`, `open-pr`) rather than reinventing them.
+Take a GitHub issue in this repo from open to PR. This skill is the front-to-back pipeline: **isolate → understand → gate → design-faithful TDD → local CodeRabbit → open PR**. It leans on existing skills at each seam (`grill-me`, `tdd`, `code-review`, `open-pr`) rather than reinventing them.
 
-Work on a feature branch (or in a worktree) — never on `master`.
+Every issue is implemented in its **own isolated worktree + Sail instance** (step 0), never in the main checkout and never on `master`. That lets several agents implement different issues at the same time without colliding on ports, containers, or dependencies.
+
+## 0. Isolate: self-bootstrap into a worktree
+
+**Do all of the work below in a dedicated worktree, not the main checkout.** `bin/worktree` (committed at the repo root) allocates a free port block + Compose project for issue `NNN`, creates `../the-desk-worktrees/<NNN>-<slug>/`, generates its `.env` (offset ports, `COMPOSE_PROJECT_NAME=desk-<NNN>`, `APP_URL`) and a trimmed `compose.override.yaml` (`laravel.test` + `pgsql` only — the gate touches nothing else), installs its own `vendor/` + `node_modules/`, and starts the two containers.
+
+```bash
+cd "$(bin/worktree create NNN)"   # prints the worktree path on stdout; cd into it
+```
+
+- **Run this first, from the main checkout.** `create` prints the absolute worktree path as its only stdout line, so `cd "$(bin/worktree create NNN)"` drops you straight into the isolated worktree. Everything after this — reading the issue, TDD, the gate, CodeRabbit, the PR — happens **inside that worktree**, against its own Sail instance (`./vendor/bin/sail composer test` there runs fully isolated).
+- **Base branch.** The worktree forks from `master` by default. If §1 reveals this is a **stacked-epic child**, fork from the foundation branch instead: `bin/worktree create NNN <foundation-branch>`. (Reading the issue with `gh` is safe from anywhere, so peek if you're unsure before creating.)
+- **Refuse to implement in the main checkout.** If you find yourself about to edit product code while `pwd` is the main checkout (`.../the-desk`, not `.../the-desk-worktrees/...`), stop and bootstrap the worktree first. The one exception is changing the isolation tooling itself (`bin/worktree`, this skill) — that bootstrapping work necessarily happens in the main checkout.
+- **Idempotent re-entry.** Re-running `bin/worktree create NNN` on an existing, ready worktree just re-prints its path (fast); if a previous bootstrap was interrupted it resumes. So a fresh session can rejoin an in-progress issue with the same one-liner.
+- **One Claude Code session per agent.** Each agent runs in its own session and its own worktree; don't drive two issues from one session (they would fight over `cd`). Use `bin/worktree list` to see active worktrees and their ports.
+- **Teardown when done** (after the PR is merged): `bin/worktree remove NNN` stops the containers, deletes their volumes, removes the git worktree, and frees the slot (the branch is left intact). Nothing is auto-destroyed, so a worktree stays browsable for follow-up review.
 
 ## 1. Fetch and read the issue
 
@@ -18,16 +33,16 @@ gh issue view NNN --comments
 
 Read it in full: the acceptance criteria, any **Decisions** section, linked issues (epics/parents/children), and every comment — later comments often revise the original ask. Note the Conventional-Commit type the work implies (`feat`/`fix`/…) for the eventual PR title.
 
-**Establish the base branch now — it is not always `master`.** This repo runs stacked epics (e.g. SSO, attachments) where a child issue branches off a **foundation branch** and its PR targets that branch, so only one branch ever merges to `master`. If the issue is a child of such an epic, find the foundation branch (`git branch -a`, the epic issue, or the parent PR) and use it as your base everywhere below — the branch you cut from, the `--base` for CodeRabbit (§5), and the PR base (§6, `gh pr create --base <foundation>`). Only default to `master` when the issue is standalone. Getting this wrong pollutes the diff with the parent's changes and points the PR at the wrong branch.
+**Confirm the base branch — it is not always `master`.** This repo runs stacked epics (e.g. SSO, attachments) where a child issue branches off a **foundation branch** and its PR targets that branch, so only one branch ever merges to `master`. If the issue is a child of such an epic, find the foundation branch (`git branch -a`, the epic issue, or the parent PR) and use it as the base everywhere: the `base` you passed to `bin/worktree create NNN <foundation>` in step 0 (re-create the worktree with the right base if you defaulted to `master` before realising), the `--base` for CodeRabbit (§5), and the PR base (§6, `gh pr create --base <foundation>`). Only default to `master` when the issue is standalone. Getting this wrong pollutes the diff with the parent's changes and points the PR at the wrong branch.
 
-**Check for existing work before starting — don't fork a second attempt.** Look for a branch or open PR that already targets this issue and pick up where it left off instead of starting fresh:
+**Check for existing work before starting — don't fork a second attempt.** Step 0 already put you on a fresh `NNN-<slug>` branch in the worktree (attaching that branch if it already existed). But an earlier attempt may live under a **different** branch name or an open PR:
 
 ```bash
 git branch -a | grep -iE "NNN|<issue-slug>"        # existing local/remote branch?
 gh pr list --state open --search "NNN in:title,body"   # open PR already Closes #NNN?
 ```
 
-If a branch/PR exists, check it out and continue from there. If nothing exists, cut a fresh branch from the base you established above.
+If one exists under another name, continue it instead of starting fresh. First run `git worktree list` — a branch can only be checked out in one worktree at a time, so if that branch is already attached elsewhere, work in *that* worktree (or `bin/worktree remove` the stray one first) rather than trying to check it out here. Otherwise check it out in this worktree (`git checkout <existing>`), or `bin/worktree remove NNN` and re-create once you know the branch to attach.
 
 **Claim the issue** so the work is visible and no one duplicates it:
 
