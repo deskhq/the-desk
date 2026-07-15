@@ -1,0 +1,476 @@
+#!/usr/bin/env bash
+#
+# bin/worktree — per-worktree Sail isolation so multiple agents can implement
+# issues concurrently (see issue #441).
+#
+# Git worktrees already isolate the working tree and Sail already isolates
+# containers/network/volumes per Compose project (keyed off COMPOSE_PROJECT_NAME).
+# The only things that collide across concurrent worktrees are host port bindings
+# and per-worktree vendor/ + node_modules/. This script hands each worktree a
+# unique port block and its own Compose project, and installs its deps.
+#
+# The test gate only touches Postgres (phpunit.xml: cache/session=array,
+# queue=sync, scout=collection, broadcast=null), so an isolated worktree runs
+# just `laravel.test` + `pgsql`. A generated compose.override.yaml trims
+# laravel.test's depends_on to pgsql; `sail up -d laravel.test` then starts those
+# two containers only.
+#
+# Subcommands:
+#   create <NNN> [base]   Create (or re-enter) an isolated worktree for issue NNN.
+#                         Prints the worktree's absolute path on stdout so it is
+#                         composable:  cd "$(bin/worktree create 441)"
+#                         `base` is the branch to fork from (default: master).
+#   list                  Show active worktrees with their slots and ports.
+#   remove <NNN>          Tear down containers + volumes, remove the git worktree,
+#                         and free the registry slot. Leaves the branch intact.
+#
+# Config (environment overrides):
+#   WORKTREE_SLOTS        Number of concurrent slots (default 10).
+#   WORKTREE_PORT_BASE    First host port; each slot gets a 10-port block from
+#                         here (default 20000 => slot 0 uses 20000-20003).
+#   WORKTREE_BASE         Default base branch for `create` (default master).
+#   WORKTREE_COMPOSER_IMAGE  Throwaway image used only to produce vendor/ before
+#                            ./vendor/bin/sail exists in a fresh worktree. NOT the
+#                            app runtime (that is the php8.5 sail-8.5/app image).
+#                            Defaults to laravelsail/php84-composer:latest — the
+#                            highest composer image Sail publishes (php85-composer
+#                            is not on Docker Hub yet); composer.json only needs
+#                            php ^8.3 and the resulting vendor/ runs on php8.5.
+#
+# All diagnostics go to stderr; only machine-readable output (the worktree path
+# from `create`, the table from `list`) goes to stdout.
+
+set -euo pipefail
+
+SLOTS="${WORKTREE_SLOTS:-10}"
+PORT_BASE="${WORKTREE_PORT_BASE:-20000}"
+DEFAULT_BASE="${WORKTREE_BASE:-master}"
+COMPOSER_IMAGE="${WORKTREE_COMPOSER_IMAGE:-laravelsail/php84-composer:latest}"
+
+REGISTRY_DIR="${HOME}/.the-desk"
+REGISTRY_FILE="${REGISTRY_DIR}/worktrees.json"
+LOCK_DIR="${REGISTRY_DIR}/worktrees.lock"
+
+log() { printf '%s\n' "$*" >&2; }
+die() { printf 'error: %s\n' "$*" >&2; exit 1; }
+
+# --- git anchoring -----------------------------------------------------------
+# Resolve the MAIN working tree from the shared .git dir, so the script behaves
+# identically whether invoked from the main checkout or from inside a worktree.
+git rev-parse --is-inside-work-tree >/dev/null 2>&1 || die "not inside a git repository"
+GIT_COMMON_DIR="$(cd "$(git rev-parse --git-common-dir)" && pwd)"
+MAIN_ROOT="$(dirname "$GIT_COMMON_DIR")"
+WORKTREES_DIR="$(dirname "$MAIN_ROOT")/the-desk-worktrees"
+
+# --- tooling checks ----------------------------------------------------------
+command -v jq >/dev/null 2>&1 || die "jq is required (brew install jq)"
+command -v docker >/dev/null 2>&1 || die "docker is required"
+# This script drives Compose v2 (`docker compose`, not the legacy v1
+# `docker-compose`) and relies on the `!override` merge tag (Compose >= 2.24).
+docker compose version >/dev/null 2>&1 || die "Docker Compose v2 is required ('docker compose' subcommand not found)"
+require_compose_version() {
+    local ver major minor rest
+    ver="$(docker compose version --short 2>/dev/null | sed 's/^v//')"
+    [ -n "$ver" ] || return 0 # can't determine version; the version check above already passed
+    major="${ver%%.*}"; rest="${ver#*.}"; minor="${rest%%.*}"
+    case "$major" in ''|*[!0-9]*) return 0 ;; esac
+    case "$minor" in ''|*[!0-9]*) minor=0 ;; esac
+    if [ "$major" -lt 2 ] || { [ "$major" -eq 2 ] && [ "$minor" -lt 24 ]; }; then
+        die "Docker Compose >= 2.24 is required for the '!override' merge tag (found ${ver})"
+    fi
+}
+require_compose_version
+
+# --- registry + locks --------------------------------------------------------
+ensure_registry() {
+    mkdir -p "$REGISTRY_DIR"
+    [ -f "$REGISTRY_FILE" ] || printf '{}\n' > "$REGISTRY_FILE"
+}
+
+# Two mkdir-based locks (flock is absent on macOS), released together by a single
+# EXIT trap set in main():
+#   - the global registry lock guards find_free_slot + registry mutations so two
+#     DIFFERENT issues never grab the same slot;
+#   - a per-issue lock serialises the whole create/remove of ONE issue, so a
+#     stray second `create NNN` (or a create racing a remove) can't run git,
+#     Composer, Sail or npm concurrently on the same worktree. Different issues
+#     take different per-issue locks, so cross-issue concurrency is preserved.
+HELD_REGISTRY_LOCK=""
+HELD_ISSUE_LOCK=""
+
+acquire_lock() {
+    local tries=0
+    while ! mkdir "$LOCK_DIR" 2>/dev/null; do
+        tries=$((tries + 1))
+        if [ "$tries" -gt 200 ]; then
+            die "could not acquire registry lock at ${LOCK_DIR}; if no other worktree command is running, remove it and retry"
+        fi
+        sleep 0.1
+    done
+    HELD_REGISTRY_LOCK=1
+}
+
+# Only removes LOCK_DIR when THIS process currently owns it, so an explicit
+# mid-flow release (or the EXIT trap firing after one) can never delete a lock
+# another process has since acquired.
+release_lock() {
+    [ -n "$HELD_REGISTRY_LOCK" ] || return 0
+    rmdir "$LOCK_DIR" 2>/dev/null || true
+    HELD_REGISTRY_LOCK=""
+}
+
+acquire_issue_lock() {
+    local nnn="$1" lock="${REGISTRY_DIR}/locks/${1}.lock" tries=0
+    mkdir -p "${REGISTRY_DIR}/locks"
+    while ! mkdir "$lock" 2>/dev/null; do
+        tries=$((tries + 1))
+        if [ "$tries" -gt 6000 ]; then
+            die "another 'worktree' command has been working on #${nnn} for >10m (lock ${lock}); wait for it, or remove the lock if it is stale"
+        fi
+        sleep 0.1
+    done
+    HELD_ISSUE_LOCK="$lock"
+}
+
+# Release both locks; safe to call unconditionally from the EXIT trap.
+release_all_locks() {
+    release_lock
+    [ -n "$HELD_ISSUE_LOCK" ] && rmdir "$HELD_ISSUE_LOCK" 2>/dev/null
+    HELD_ISSUE_LOCK=""
+    return 0
+}
+
+registry_get() { jq -r --arg k "$1" '.[$k] // empty' "$REGISTRY_FILE"; }
+
+registry_set() {
+    local nnn="$1" obj="$2" tmp
+    tmp="$(mktemp)"
+    jq --arg k "$nnn" --argjson v "$obj" '.[$k] = $v' "$REGISTRY_FILE" > "$tmp"
+    mv "$tmp" "$REGISTRY_FILE"
+}
+
+registry_del() {
+    local nnn="$1" tmp
+    tmp="$(mktemp)"
+    jq --arg k "$nnn" 'del(.[$k])' "$REGISTRY_FILE" > "$tmp"
+    mv "$tmp" "$REGISTRY_FILE"
+}
+
+# Lowest slot integer in [0, SLOTS) not claimed by an existing entry.
+find_free_slot() {
+    local s
+    for ((s = 0; s < SLOTS; s++)); do
+        if ! jq -e --argjson s "$s" 'any(.[]; .slot == $s)' "$REGISTRY_FILE" >/dev/null; then
+            printf '%s' "$s"
+            return 0
+        fi
+    done
+    return 1
+}
+
+# --- helpers -----------------------------------------------------------------
+slugify() {
+    printf '%s' "$1" \
+        | tr '[:upper:]' '[:lower:]' \
+        | sed -E 's/[^a-z0-9]+/-/g; s/^-+//; s/-+$//' \
+        | cut -c1-50 \
+        | sed -E 's/-+$//'
+}
+
+validate_issue() {
+    # Positive integer in canonical form: no zero, no leading zeroes, all digits.
+    case "$1" in
+        ''|0*|*[!0-9]*) die "issue number must be a positive integer without leading zeroes, got: '$1'" ;;
+    esac
+}
+
+# Insert or replace KEY=VALUE in an env file.
+upsert_env() {
+    local file="$1" key="$2" value="$3"
+    if grep -qE "^${key}=" "$file"; then
+        local tmp
+        tmp="$(mktemp)"
+        sed -E "s|^${key}=.*|${key}=${value}|" "$file" > "$tmp"
+        mv "$tmp" "$file"
+    else
+        printf '%s=%s\n' "$key" "$value" >> "$file"
+    fi
+}
+
+# --- create ------------------------------------------------------------------
+# A worktree is "ready" once a .worktree-ready sentinel exists. Re-entry is fast
+# when ready and resumes the (idempotent) bootstrap when a prior run was
+# interrupted before the sentinel was written.
+cmd_create() {
+    local nnn="${1:-}" base="${2:-$DEFAULT_BASE}"
+    validate_issue "$nnn"
+    ensure_registry
+
+    # Serialise the entire create for this issue (held until the EXIT trap fires),
+    # so a second `create NNN` re-enters instead of racing the bootstrap.
+    acquire_issue_lock "$nnn"
+
+    # --- resolve the entry (fast re-entry, or allocate a slot) under lock -----
+    acquire_lock
+    local entry path slot app_port vite_port reverb_port db_port slug branch project
+    entry="$(registry_get "$nnn")"
+    if [ -n "$entry" ]; then
+        path="$(printf '%s' "$entry" | jq -r '.path')"
+        if [ -d "$path" ] && [ -f "${path}/.worktree-ready" ]; then
+            release_lock
+            log "worktree for #${nnn} already ready — re-entering ${path}"
+            printf '%s\n' "$path"
+            return 0
+        fi
+        if [ ! -d "$path" ]; then
+            log "registry entry for #${nnn} points at missing ${path}; re-creating"
+            registry_del "$nnn"
+            entry=""
+        fi
+    fi
+
+    if [ -n "$entry" ]; then
+        # Registered but not yet ready: resume the same slot/path.
+        slot="$(printf '%s' "$entry" | jq -r '.slot')"
+        slug="$(printf '%s' "$entry" | jq -r '.slug')"
+        branch="$(printf '%s' "$entry" | jq -r '.branch')"
+        project="$(printf '%s' "$entry" | jq -r '.project')"
+        app_port="$(printf '%s' "$entry" | jq -r '.ports.app')"
+        vite_port="$(printf '%s' "$entry" | jq -r '.ports.vite')"
+        reverb_port="$(printf '%s' "$entry" | jq -r '.ports.reverb')"
+        db_port="$(printf '%s' "$entry" | jq -r '.ports.db')"
+        release_lock
+        log "resuming interrupted bootstrap for #${nnn} at ${path}"
+    else
+        slot="$(find_free_slot)" || { release_lock; die "all ${SLOTS} worktree slots are in use; free one with 'bin/worktree remove <NNN>'"; }
+
+        # Derive the whole port block from the slot integer.
+        local block=$((PORT_BASE + slot * 10))
+        app_port=$block vite_port=$((block + 1)) reverb_port=$((block + 2)) db_port=$((block + 3))
+
+        local title
+        title="$(gh issue view "$nnn" --json title --jq .title 2>/dev/null || true)"
+        slug="$(slugify "${title:-issue-$nnn}")"
+        [ -n "$slug" ] || slug="issue-$nnn"
+
+        branch="${nnn}-${slug}"
+        path="${WORKTREES_DIR}/${nnn}-${slug}"
+        project="desk-${nnn}"
+        local created_at
+        created_at="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+
+        # Claim the slot under lock, then release before the slow install work.
+        local obj
+        obj="$(jq -n \
+            --argjson issue "$nnn" \
+            --argjson slot "$slot" \
+            --arg slug "$slug" \
+            --arg branch "$branch" \
+            --arg path "$path" \
+            --arg project "$project" \
+            --argjson app "$app_port" \
+            --argjson vite "$vite_port" \
+            --argjson reverb "$reverb_port" \
+            --argjson db "$db_port" \
+            --arg created_at "$created_at" \
+            '{issue: $issue, slot: $slot, slug: $slug, branch: $branch, path: $path, project: $project, ports: {app: $app, vite: $vite, reverb: $reverb, db: $db}, created_at: $created_at}')"
+        registry_set "$nnn" "$obj"
+        release_lock
+    fi
+
+    log "issue #${nnn} -> slot ${slot} (project ${project}); ports app=${app_port} vite=${vite_port} reverb=${reverb_port} db=${db_port}"
+
+    # --- git worktree (idempotent) -------------------------------------------
+    mkdir -p "$WORKTREES_DIR"
+    if [ ! -d "$path" ]; then
+        if git show-ref --verify --quiet "refs/heads/${branch}"; then
+            log "attaching existing branch ${branch}"
+            git -C "$MAIN_ROOT" worktree add "$path" "$branch"
+        else
+            log "creating branch ${branch} from ${base}"
+            git -C "$MAIN_ROOT" worktree add -b "$branch" "$path" "$base"
+        fi
+    fi
+
+    # --- .env (generated once; preserves manual edits on resume) -------------
+    if [ ! -f "${path}/.env" ]; then
+        if [ -f "${MAIN_ROOT}/.env" ]; then
+            cp "${MAIN_ROOT}/.env" "${path}/.env"
+        else
+            log "no .env in main checkout; falling back to .env.example"
+            cp "${path}/.env.example" "${path}/.env"
+        fi
+        upsert_env "${path}/.env" APP_PORT "$app_port"
+        upsert_env "${path}/.env" VITE_PORT "$vite_port"
+        upsert_env "${path}/.env" REVERB_PORT "$reverb_port"
+        upsert_env "${path}/.env" FORWARD_DB_PORT "$db_port"
+        upsert_env "${path}/.env" COMPOSE_PROJECT_NAME "$project"
+        upsert_env "${path}/.env" APP_URL "http://localhost:${app_port}"
+    fi
+
+    # --- compose override -----------------------------------------------------
+    write_override "$path" "$nnn"
+
+    # --- dependencies ---------------------------------------------------------
+    # The lightweight composer image lacks the app's runtime extensions
+    # (gd/imagick/ldap/sockets) and cannot run Laravel's post-install scripts, so
+    # it only bootstraps enough vendor/ to obtain ./vendor/bin/sail; the
+    # authoritative install then runs inside the php8.5 app container below.
+    if [ ! -x "${path}/vendor/bin/sail" ]; then
+        log "bootstrapping vendor/ via ${COMPOSER_IMAGE} to obtain Sail"
+        docker run --rm \
+            -u "$(id -u):$(id -g)" \
+            -v "${path}:/var/www/html" \
+            -w /var/www/html \
+            "$COMPOSER_IMAGE" \
+            composer install --no-interaction --prefer-dist --no-progress \
+                --ignore-platform-reqs --no-scripts
+    fi
+
+    log "starting laravel.test + pgsql (building image on first run may take a while)"
+    (cd "$path" && ./vendor/bin/sail up -d laravel.test)
+
+    log "finalizing PHP dependencies inside the app container (runs post-install scripts)"
+    (cd "$path" && ./vendor/bin/sail composer install --no-interaction)
+
+    if grep -qE '^APP_KEY=$' "${path}/.env"; then
+        log "generating APP_KEY"
+        (cd "$path" && ./vendor/bin/sail artisan key:generate --force)
+    fi
+
+    log "installing JS dependencies via Sail (Linux-only native bindings)"
+    (cd "$path" && ./vendor/bin/sail npm install --no-progress)
+
+    # The feature suite renders Inertia pages, which fail with a 500 unless a Vite
+    # manifest exists, so a testable worktree must build assets. Regenerate the
+    # git-ignored App.Data/App.Enums ambient types first (the transformer needs
+    # its output dir to exist) so the build resolves the `App` namespace — mirrors
+    # the CI ordering in .github/workflows/tests.yml.
+    log "generating TypeScript types and building frontend assets (Vite manifest)"
+    mkdir -p "${path}/resources/js/generated"
+    (cd "$path" && ./vendor/bin/sail artisan typescript:transform)
+    (cd "$path" && ./vendor/bin/sail npm run build)
+
+    touch "${path}/.worktree-ready"
+    log "worktree ready — cd into it and run: ./vendor/bin/sail composer test"
+    printf '%s\n' "$path"
+}
+
+write_override() {
+    local path="$1" nnn="$2"
+    cat > "${path}/compose.override.yaml" <<EOF
+# Generated by bin/worktree for issue #${nnn} — do not edit by hand.
+#
+# Trims laravel.test to the test-runner essentials: the gate only touches
+# Postgres (phpunit.xml uses array/sync/collection/null drivers), so redis,
+# meilisearch, mailpit, reverb and queue are never needed. With depends_on cut
+# to pgsql, \`sail up -d laravel.test\` starts exactly two containers.
+#
+# Host ports and COMPOSE_PROJECT_NAME are offset per worktree in .env; Compose
+# auto-loads this override file alongside compose.yaml.
+services:
+    laravel.test:
+        depends_on: !override
+            - pgsql
+EOF
+}
+
+# --- list --------------------------------------------------------------------
+cmd_list() {
+    ensure_registry
+    local count
+    count="$(jq 'length' "$REGISTRY_FILE")"
+    if [ "$count" -eq 0 ]; then
+        log "no active worktrees"
+        return 0
+    fi
+    local rows
+    rows="$(
+        printf 'ISSUE\tSLOT\tAPP\tVITE\tREVERB\tDB\tBRANCH\tPATH\n'
+        jq -r '
+            to_entries
+            | sort_by(.value.slot)
+            | .[]
+            | .value
+            | [ (.issue|tostring), (.slot|tostring), (.ports.app|tostring), (.ports.vite|tostring), (.ports.reverb|tostring), (.ports.db|tostring), .branch, .path ]
+            | @tsv
+        ' "$REGISTRY_FILE"
+    )"
+    # Prefer aligned columns; fall back to raw TSV where `column` is unavailable.
+    if command -v column >/dev/null 2>&1; then
+        printf '%s\n' "$rows" | column -t -s "$(printf '\t')"
+    else
+        printf '%s\n' "$rows"
+    fi
+}
+
+# --- remove ------------------------------------------------------------------
+cmd_remove() {
+    local nnn="${1:-}"
+    validate_issue "$nnn"
+    ensure_registry
+
+    # Hold the per-issue lock across the whole teardown so a concurrent
+    # `create NNN` cannot slot in a replacement entry that we would then delete.
+    acquire_issue_lock "$nnn"
+
+    acquire_lock
+    local entry
+    entry="$(registry_get "$nnn")"
+    release_lock
+    [ -n "$entry" ] || die "no worktree registered for #${nnn}"
+
+    local path project
+    path="$(printf '%s' "$entry" | jq -r '.path')"
+    project="$(printf '%s' "$entry" | jq -r '.project')"
+
+    log "tearing down containers + volumes for project ${project}"
+    docker compose -p "$project" -f "${MAIN_ROOT}/compose.yaml" down --volumes --remove-orphans 2>/dev/null || \
+        log "compose teardown reported nothing to remove (already down?)"
+
+    if [ -d "$path" ]; then
+        log "removing git worktree ${path}"
+        git -C "$MAIN_ROOT" worktree remove --force "$path" 2>/dev/null || log "git worktree remove skipped (${path} not a registered worktree?)"
+    fi
+    git -C "$MAIN_ROOT" worktree prune
+
+    acquire_lock
+    registry_del "$nnn"
+    release_lock
+    log "freed slot for #${nnn} (branch left intact)"
+}
+
+# --- dispatch ----------------------------------------------------------------
+usage() {
+    cat >&2 <<'EOF'
+usage: bin/worktree <command> [args]
+
+  create <NNN> [base]   Create (or re-enter) an isolated worktree for issue NNN.
+                        Prints its absolute path:  cd "$(bin/worktree create 441)"
+  list                  Show active worktrees, slots and ports.
+  remove <NNN>          Tear down the worktree's containers/volumes and free its slot.
+EOF
+    exit 64
+}
+
+main() {
+    # EXIT runs the cleanup on any exit; INT/TERM just trigger an exit (with the
+    # conventional 128+signal code) so an interrupted run can't resume bootstrap
+    # or teardown without its locks.
+    trap release_all_locks EXIT
+    trap 'exit 130' INT
+    trap 'exit 143' TERM
+
+    local cmd="${1:-}"
+    [ -n "$cmd" ] || usage
+    shift
+    case "$cmd" in
+        create) cmd_create "$@" ;;
+        list)   cmd_list "$@" ;;
+        remove) cmd_remove "$@" ;;
+        -h|--help|help) usage ;;
+        *) die "unknown command: ${cmd} (try create|list|remove)" ;;
+    esac
+}
+
+main "$@"
