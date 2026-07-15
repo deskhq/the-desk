@@ -117,6 +117,16 @@ class HandleInertiaRequests extends Middleware
             'canInviteToCurrentTeam' => fn () => $user?->currentTeam
                 ? $user->toTeamPermissions($user->currentTeam)->canCreateInvitation
                 : false,
+            // The settings sidebar surfaces a team-admin "evidence" group (Audit
+            // log, Security log, Exports) gated by the same permissions as the
+            // Team-settings cards, so an admin can jump straight to those surfaces
+            // from any settings page. Both default to false off a team / for guests.
+            'canViewCurrentTeamAudit' => fn (): bool => $user?->currentTeam
+                ? $user->toTeamPermissions($user->currentTeam)->canViewAudit
+                : false,
+            'canViewCurrentTeamSecurityLog' => fn (): bool => $user?->currentTeam
+                ? $user->toTeamPermissions($user->currentTeam)->canViewSecurityLog
+                : false,
             'invitableRoles' => TeamRole::assignable(),
             'channels' => fn (): array => $this->channelsForSidebar($request, $user),
             // The current team's members feed the DM entry points (the sidebar
