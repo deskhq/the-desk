@@ -2,7 +2,6 @@
 import {
     ArrowUp,
     Bold,
-    CalendarClock,
     CircleAlert,
     Code,
     FileText,
@@ -14,6 +13,7 @@ import {
 } from '@lucide/vue';
 import { computed, nextTick, onMounted, ref, watch } from 'vue';
 import { store as storeAttachment } from '@/actions/App/Http/Controllers/Channels/AttachmentController';
+import ComposerSendButton from '@/components/ComposerSendButton.vue';
 import MessageQuote from '@/components/MessageQuote.vue';
 import ScheduleMessageDialog from '@/components/ScheduleMessageDialog.vue';
 import { Button } from '@/components/ui/button';
@@ -657,8 +657,12 @@ function saveEdit(): void {
 // composer has nothing to schedule.
 const scheduling = ref(false);
 
+// Scheduling never carries attachments, so the "Send later" affordances gate on
+// body text alone, matching the old schedule button's guard.
+const canSchedule = computed(() => body.value.trim() !== '');
+
 function openSchedule(): void {
-    if (body.value.trim() === '') {
+    if (!canSchedule.value) {
         return;
     }
 
@@ -1148,20 +1152,21 @@ function onKeydown(event: KeyboardEvent): void {
                         >
                             <Plus class="size-3.5" />
                         </Button>
-                        <Button
+                        <!-- Split send button: a primary Send plus a caret
+                             opening the "Send later" menu (quick presets +
+                             custom time). Falls back to a plain send circle in
+                             surfaces without scheduling (the thread composer). -->
+                        <ComposerSendButton
                             v-if="props.allowSchedule"
-                            variant="ghost"
-                            size="icon"
-                            :disabled="body.trim() === ''"
-                            data-test="message-composer-schedule"
-                            class="size-7 shrink-0 rounded-full text-muted-foreground"
-                            :aria-label="$t('Schedule for later')"
-                            :title="$t('Schedule for later')"
-                            @click="openSchedule"
-                        >
-                            <CalendarClock class="size-3.5" />
-                        </Button>
+                            :can-submit="canSubmit"
+                            :can-schedule="canSchedule"
+                            :timezone="props.timezone ?? null"
+                            @send="submit"
+                            @schedule-at="onScheduleConfirm"
+                            @custom-time="openSchedule"
+                        />
                         <Button
+                            v-else
                             size="icon"
                             :disabled="!canSubmit"
                             data-test="message-composer-send"

@@ -9,7 +9,6 @@ import {
     Dialog,
     DialogContent,
     DialogDescription,
-    DialogFooter,
     DialogHeader,
     DialogTitle,
 } from '@/components/ui/dialog';
@@ -172,19 +171,24 @@ function confirm(): void {
 
 <template>
     <Dialog v-model:open="open">
-        <DialogContent class="max-h-[85dvh] gap-3 overflow-y-auto sm:max-w-md">
-            <DialogHeader>
-                <DialogTitle>{{ props.title }}</DialogTitle>
-                <DialogDescription>
+        <DialogContent
+            class="max-h-[85dvh] gap-3 overflow-y-auto p-0 sm:max-w-md"
+        >
+            <DialogHeader class="gap-1 px-6 pt-6">
+                <DialogTitle class="text-[20px]">{{ props.title }}</DialogTitle>
+                <DialogDescription class="text-[12.5px]">
                     {{
-                        $t(
-                            'Pick when this message should be sent. Times are in your timezone.',
-                        )
+                        $t('Times are in your timezone · :zone', {
+                            zone: effectiveZone,
+                        })
                     }}
                 </DialogDescription>
             </DialogHeader>
 
-            <div class="grid grid-cols-2 gap-2" data-test="schedule-presets">
+            <div
+                class="flex flex-wrap gap-1.5 px-6"
+                data-test="schedule-presets"
+            >
                 <Button
                     v-for="preset in presets"
                     :key="preset.key"
@@ -194,23 +198,18 @@ function confirm(): void {
                     data-test="schedule-preset"
                     :data-preset="preset.key"
                     :aria-pressed="preset.key === activePresetKey"
-                    class="flex items-center justify-between gap-2 rounded-md border border-input px-3 py-1.5 text-left text-[13px] hover:bg-muted aria-pressed:border-primary aria-pressed:bg-primary/5 aria-pressed:font-medium aria-pressed:text-foreground"
+                    class="inline-flex items-center gap-1.5 rounded-full border border-input bg-card px-3 py-1.5 text-[12.5px] font-medium text-muted-foreground hover:bg-muted aria-pressed:border-brass-border aria-pressed:bg-brass-fill aria-pressed:font-semibold aria-pressed:text-foreground"
                     @click="choosePreset(preset)"
                 >
-                    <span class="truncate">{{ $t(preset.label) }}</span>
                     <Check
                         v-if="preset.key === activePresetKey"
-                        class="size-4 shrink-0 text-primary"
+                        class="size-3 shrink-0 text-brass"
                     />
+                    <span class="truncate">{{ $t(preset.label) }}</span>
                 </Button>
             </div>
 
-            <div class="rounded-lg border border-border">
-                <p
-                    class="border-b border-border px-3 py-1.5 text-[12px] font-medium text-muted-foreground"
-                >
-                    {{ $t('Or pick a date & time') }}
-                </p>
+            <div class="mx-6 rounded-xl border border-border bg-card">
                 <Calendar
                     v-model="dateValue"
                     :min-value="minDate"
@@ -219,11 +218,13 @@ function confirm(): void {
                     class="p-2"
                 />
                 <div
-                    class="flex items-center gap-2 border-t border-border px-3 py-2"
+                    class="flex items-center gap-2 border-t border-border px-3 py-2.5"
                 >
-                    <Clock class="size-4 shrink-0 text-muted-foreground" />
+                    <Clock class="size-3.5 shrink-0 text-muted-foreground" />
                     <Select v-model="hour" data-test="schedule-hour">
-                        <SelectTrigger class="h-8 w-20">
+                        <SelectTrigger
+                            class="h-8 gap-1.5 rounded-lg px-3 text-[13px] font-semibold"
+                        >
                             <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
@@ -238,7 +239,9 @@ function confirm(): void {
                     </Select>
                     <span class="text-muted-foreground">:</span>
                     <Select v-model="minute" data-test="schedule-minute">
-                        <SelectTrigger class="h-8 w-20">
+                        <SelectTrigger
+                            class="h-8 gap-1.5 rounded-lg px-3 text-[13px] font-semibold"
+                        >
                             <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
@@ -251,51 +254,64 @@ function confirm(): void {
                             </SelectItem>
                         </SelectContent>
                     </Select>
-                    <Select v-model="period" data-test="schedule-period">
-                        <SelectTrigger class="h-8 w-20">
-                            <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem
-                                v-for="value in PERIODS"
-                                :key="value"
-                                :value="value"
-                            >
-                                {{ value }}
-                            </SelectItem>
-                        </SelectContent>
-                    </Select>
+                    <!-- AM/PM segmented toggle: the picker's single source of the
+                         meridiem, mirroring the mockup's pill switch. -->
+                    <div
+                        data-test="schedule-period"
+                        class="ml-auto flex items-center rounded-full bg-muted p-0.5"
+                    >
+                        <Button
+                            v-for="value in PERIODS"
+                            :key="value"
+                            variant="segmented"
+                            size="none"
+                            type="button"
+                            :data-period="value"
+                            :aria-pressed="period === value"
+                            class="h-6.5 px-3 text-[12px] font-semibold"
+                            @click="period = value"
+                        >
+                            {{ value }}
+                        </Button>
+                    </div>
                 </div>
             </div>
 
-            <p
-                v-if="preview && isFuture"
-                data-test="schedule-preview"
-                class="flex items-center gap-1.5 text-[13px] text-muted-foreground"
-            >
-                <Clock class="size-3.5 shrink-0" />
-                {{ $t('Sends :when', { when: preview }) }}
-            </p>
-            <p
-                v-else-if="preview"
-                data-test="schedule-past"
-                class="text-[13px] text-destructive"
-            >
-                {{ $t('Pick a time in the future.') }}
-            </p>
-
-            <DialogFooter class="gap-2">
-                <Button variant="secondary" @click="open = false">
-                    {{ $t('Cancel') }}
-                </Button>
-                <Button
-                    data-test="schedule-confirm"
-                    :disabled="!isFuture"
-                    @click="confirm"
+            <div class="flex items-center gap-3 px-6 pb-6">
+                <p
+                    v-if="preview && isFuture"
+                    data-test="schedule-preview"
+                    class="flex items-center gap-1.5 text-[12.5px] font-medium text-brass-fill-foreground"
                 >
-                    {{ props.confirmLabel }}
-                </Button>
-            </DialogFooter>
+                    <Clock class="size-3 shrink-0 text-brass" />
+                    {{ $t('Sends :when', { when: preview }) }}
+                </p>
+                <p
+                    v-else-if="preview"
+                    data-test="schedule-past"
+                    class="text-[12.5px] text-destructive"
+                >
+                    {{ $t('Pick a time in the future.') }}
+                </p>
+
+                <div class="ml-auto flex items-center gap-2">
+                    <Button
+                        variant="secondary"
+                        class="rounded-full"
+                        @click="open = false"
+                    >
+                        {{ $t('Cancel') }}
+                    </Button>
+                    <Button
+                        data-test="schedule-confirm"
+                        class="rounded-full"
+                        :disabled="!isFuture"
+                        @click="confirm"
+                    >
+                        {{ props.confirmLabel }}
+                    </Button>
+                </div>
+            </div>
         </DialogContent>
     </Dialog>
 </template>

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { Head, InfiniteScroll, router, usePage } from '@inertiajs/vue3';
 import { echo } from '@laravel/echo-vue';
-import { ArrowUp, CalendarClock, Upload, WifiOff } from '@lucide/vue';
+import { ArrowUp, Upload, WifiOff } from '@lucide/vue';
 import {
     computed,
     nextTick,
@@ -24,6 +24,7 @@ import LeaveChannelModal from '@/components/LeaveChannelModal.vue';
 import MessageComposer from '@/components/MessageComposer.vue';
 import MessageList from '@/components/MessageList.vue';
 import PinsPanel from '@/components/PinsPanel.vue';
+import ScheduledCountChip from '@/components/ScheduledCountChip.vue';
 import ScheduledMessagesDialog from '@/components/ScheduledMessagesDialog.vue';
 import ScheduleMessageDialog from '@/components/ScheduleMessageDialog.vue';
 import ScrollableMessageList from '@/components/ScrollableMessageList.vue';
@@ -1287,23 +1288,13 @@ function archive(): void {
                         class="mx-5 shrink-0"
                     />
 
-                    <Button
+                    <ScheduledCountChip
                         v-if="props.scheduledMessages.length > 0"
-                        variant="unstyled"
-                        size="none"
-                        type="button"
-                        data-test="scheduled-trigger"
-                        class="mx-5 mb-1 inline-flex w-fit items-center gap-1.5 rounded-full bg-muted px-2.5 py-1 text-[12px] font-medium text-muted-foreground hover:bg-muted/70 hover:text-foreground"
-                        @click="scheduledDialogOpen = true"
-                    >
-                        <CalendarClock class="size-3.5" />
-                        {{ props.scheduledMessages.length }}
-                        {{
-                            props.scheduledMessages.length === 1
-                                ? $t('scheduled message')
-                                : $t('scheduled messages')
-                        }}
-                    </Button>
+                        :count="props.scheduledMessages.length"
+                        :channel-name="props.channel.name"
+                        class="mx-5 mb-2.5"
+                        @view="scheduledDialogOpen = true"
+                    />
 
                     <MessageComposer
                         ref="channelComposer"
@@ -1393,6 +1384,7 @@ function archive(): void {
     <ScheduledMessagesDialog
         v-model:open="scheduledDialogOpen"
         :scheduled-messages="props.scheduledMessages"
+        :channel-name="props.channel.name"
         :timezone="timezone"
         @update="updateScheduled"
         @cancel="cancelScheduled"

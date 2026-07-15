@@ -153,7 +153,7 @@ export function schedulePresets(
     const tomorrow = addCivilDays(wall, 1);
     presets.push({
         key: 'tomorrow-morning',
-        label: 'Tomorrow morning',
+        label: 'Tomorrow 9 AM',
         sendAt: wallTimeToInstant(
             { ...tomorrow, hour: 9, minute: 0 },
             timeZone,
@@ -165,7 +165,7 @@ export function schedulePresets(
     const nextMonday = addCivilDays(wall, daysUntilMonday);
     presets.push({
         key: 'next-monday',
-        label: 'Next Monday',
+        label: 'Monday 9 AM',
         sendAt: wallTimeToInstant(
             { ...nextMonday, hour: 9, minute: 0 },
             timeZone,
@@ -173,6 +173,64 @@ export function schedulePresets(
     });
 
     return presets;
+}
+
+/**
+ * The whole-day gap between two instants as their zone shows them, so a preview
+ * can decide how much date context to spell out.
+ */
+function zonedDayDiff(from: Date, to: Date, timeZone: string): number {
+    const fromDay = zonedWallTime(timeZone, from);
+    const toDay = zonedWallTime(timeZone, to);
+
+    return Math.round(
+        (Date.UTC(toDay.year, toDay.month - 1, toDay.day) -
+            Date.UTC(fromDay.year, fromDay.month - 1, fromDay.day)) /
+            (24 * MS_PER_HOUR),
+    );
+}
+
+/**
+ * A compact resolved-time preview for the composer's "Send later" quick presets,
+ * spelling out only as much date as the distance needs: the bare time today
+ * ("4:30 PM"), the weekday tomorrow ("Sat 9:00 AM"), and the calendar date
+ * beyond that ("Jul 13, 9:00 AM"). Distinct from `formatScheduledFor`, which
+ * always leads with a "Today/Tomorrow at" phrase for the list and summary.
+ */
+export function formatPresetPreview(
+    iso: string,
+    timeZone: string,
+    now: Date = new Date(),
+): string {
+    const target = new Date(iso);
+    const time = target.toLocaleTimeString(i18n.locale, {
+        hour: 'numeric',
+        minute: '2-digit',
+        timeZone,
+    });
+
+    const dayDiff = zonedDayDiff(now, target, timeZone);
+
+    if (dayDiff === 0) {
+        return time;
+    }
+
+    if (dayDiff === 1) {
+        const weekday = target.toLocaleDateString(i18n.locale, {
+            weekday: 'short',
+            timeZone,
+        });
+
+        return translate(':weekday :time', { weekday, time });
+    }
+
+    const date = target.toLocaleDateString(i18n.locale, {
+        month: 'short',
+        day: 'numeric',
+        timeZone,
+    });
+
+    return translate(':date, :time', { date, time });
 }
 
 /**
@@ -233,14 +291,7 @@ export function formatScheduledFor(
         timeZone,
     });
 
-    const targetDay = zonedWallTime(timeZone, target);
-    const nowDay = zonedWallTime(timeZone, now);
-
-    const dayDiff = Math.round(
-        (Date.UTC(targetDay.year, targetDay.month - 1, targetDay.day) -
-            Date.UTC(nowDay.year, nowDay.month - 1, nowDay.day)) /
-            (24 * MS_PER_HOUR),
-    );
+    const dayDiff = zonedDayDiff(now, target, timeZone);
 
     if (dayDiff === 0) {
         return translate('Today at :time', { time });

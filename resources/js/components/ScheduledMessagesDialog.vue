@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { CalendarClock, Clock, Pencil, Trash2 } from '@lucide/vue';
+import { Calendar, ChevronDown, Clock, Pencil, Trash2 } from '@lucide/vue';
 import { computed, ref, watch } from 'vue';
 import MessageQuote from '@/components/MessageQuote.vue';
 import ScheduleMessageDialog from '@/components/ScheduleMessageDialog.vue';
@@ -17,6 +17,7 @@ import type { ScheduledMessage } from '@/types';
 
 const props = defineProps<{
     scheduledMessages: ScheduledMessage[];
+    channelName: string;
     timezone: string | null;
 }>();
 
@@ -102,13 +103,25 @@ function bodyPreview(body: string): string {
 
 <template>
     <Dialog v-model:open="open">
-        <DialogContent class="gap-4 sm:max-w-lg">
-            <DialogHeader>
-                <DialogTitle>{{ $t('Scheduled messages') }}</DialogTitle>
-                <DialogDescription>
+        <DialogContent class="gap-0 p-0 sm:max-w-lg">
+            <DialogHeader class="gap-1 px-6 pt-6 pb-4">
+                <div class="flex items-center gap-2 pr-7">
+                    <DialogTitle class="text-[20px]">{{
+                        $t('Scheduled messages')
+                    }}</DialogTitle>
+                    <span
+                        v-if="props.scheduledMessages.length > 0"
+                        data-test="scheduled-count"
+                        class="inline-flex h-5 items-center rounded-full border border-brass-border/30 bg-brass-fill px-2 font-sans text-[11px] font-semibold text-brass-fill-foreground"
+                    >
+                        {{ props.scheduledMessages.length }}
+                    </span>
+                </div>
+                <DialogDescription class="text-[12.5px]">
                     {{
                         $t(
-                            "Messages waiting to be sent to this channel. Edit or cancel any that haven't gone out yet.",
+                            "Waiting to be sent to #:channel. Edit or cancel any that haven't gone out yet.",
+                            { channel: props.channelName },
                         )
                     }}
                 </DialogDescription>
@@ -116,48 +129,53 @@ function bodyPreview(body: string): string {
 
             <ul
                 v-if="props.scheduledMessages.length > 0"
-                class="max-h-96 space-y-2 overflow-y-auto"
+                class="max-h-[28rem] space-y-2 overflow-y-auto px-4 pb-4"
                 data-test="scheduled-list"
             >
                 <li
                     v-for="scheduled in props.scheduledMessages"
                     :key="scheduled.id"
                     data-test="scheduled-item"
-                    class="rounded-lg border border-border p-3"
                 >
-                    <template v-if="editingId === scheduled.id">
+                    <!-- Edit mode: an elevated card with the body textarea, a
+                         brass chip that reopens the schedule dialog, and
+                         Discard / Save. -->
+                    <div
+                        v-if="editingId === scheduled.id"
+                        class="flex flex-col gap-2.5 rounded-xl border border-input bg-card p-3.5 shadow-[0_4px_14px_rgba(29,26,21,0.08)]"
+                    >
                         <textarea
                             v-model="editBody"
                             rows="2"
+                            :aria-label="$t('Scheduled message body')"
                             data-test="scheduled-edit-body"
-                            class="w-full resize-none rounded-md border border-input bg-background px-2.5 py-1.5 text-sm leading-[1.5] text-foreground outline-none focus:border-ring focus:ring-1 focus:ring-ring"
+                            class="w-full resize-none rounded-lg border border-input bg-popover px-3 py-2.5 text-[13.5px] leading-[1.5] text-foreground outline-none focus:border-ring focus:ring-1 focus:ring-ring"
                         ></textarea>
-                        <div
-                            class="mt-2 flex items-center justify-between gap-2"
-                        >
+                        <div class="flex items-center gap-2">
                             <Button
-                                variant="ghost"
+                                variant="unstyled"
                                 size="none"
                                 type="button"
                                 data-test="scheduled-reschedule"
-                                class="gap-1.5 px-2 py-1 text-[13px] text-muted-foreground"
+                                class="inline-flex items-center gap-1.5 rounded-full border border-dashed border-brass-border bg-brass-fill px-3 py-1.5 text-[12px] font-semibold text-brass-fill-foreground hover:bg-brass-fill/70"
                                 @click="rescheduling = true"
                             >
-                                <CalendarClock class="size-3.5" />
+                                <Calendar class="size-3 text-brass" />
                                 {{ whenLabel(editSendAt) }}
+                                <ChevronDown class="size-3 text-brass" />
                             </Button>
-                            <div class="flex items-center gap-1.5">
+                            <div class="ml-auto flex items-center gap-2">
                                 <Button
                                     variant="secondary"
                                     size="sm"
-                                    class="h-7"
+                                    class="h-7.5 rounded-full"
                                     @click="cancelEdit"
                                 >
                                     {{ $t('Discard') }}
                                 </Button>
                                 <Button
                                     size="sm"
-                                    class="h-7"
+                                    class="h-7.5 rounded-full"
                                     data-test="scheduled-save"
                                     :disabled="!canSave"
                                     @click="saveEdit"
@@ -166,40 +184,44 @@ function bodyPreview(body: string): string {
                                 </Button>
                             </div>
                         </div>
-                    </template>
+                    </div>
 
-                    <template v-else>
+                    <!-- View mode: a warm card showing the body, an optional
+                         reply-quote, the brass "sends at" chip, and the
+                         edit / cancel actions. -->
+                    <div
+                        v-else
+                        class="group flex flex-col gap-2 rounded-xl border border-border bg-card p-3.5"
+                    >
                         <MessageQuote
                             v-if="scheduled.replyTo"
                             :author-name="scheduled.replyTo.authorName"
                             :body="scheduled.replyTo.body"
                             :is-deleted="scheduled.replyTo.isDeleted"
-                            class="mb-1"
+                            class="rounded-r-lg bg-brass-fill py-1.5 pr-3"
                         />
-                        <p class="line-clamp-3 text-sm text-foreground">
+                        <p class="line-clamp-3 text-[13.5px] text-foreground">
                             {{ bodyPreview(scheduled.body) }}
                         </p>
-                        <div
-                            class="mt-1.5 flex items-center justify-between gap-2"
-                        >
+                        <div class="flex items-center gap-2">
                             <span
-                                class="inline-flex items-center gap-1.5 text-[12.5px] text-muted-foreground"
+                                class="inline-flex items-center gap-1.5 rounded-full border border-brass-border/30 bg-brass-fill px-2.5 py-1 text-[11.5px] font-semibold text-brass-fill-foreground"
                                 data-test="scheduled-when"
                             >
-                                <Clock class="size-3.5" />
+                                <Clock class="size-3 text-brass" />
                                 {{ whenLabel(scheduled.sendAt) }}
                             </span>
-                            <div class="flex items-center gap-1">
+                            <div class="ml-auto flex items-center gap-0.5">
                                 <Button
                                     variant="ghost"
                                     size="icon-sm"
                                     type="button"
                                     :aria-label="$t('Edit scheduled message')"
                                     data-test="scheduled-edit"
-                                    class="text-muted-foreground"
+                                    class="size-7 rounded-full text-muted-foreground"
                                     @click="startEdit(scheduled)"
                                 >
-                                    <Pencil class="size-4" />
+                                    <Pencil class="size-3.5" />
                                 </Button>
                                 <Button
                                     variant="ghost"
@@ -207,21 +229,21 @@ function bodyPreview(body: string): string {
                                     type="button"
                                     :aria-label="$t('Cancel scheduled message')"
                                     data-test="scheduled-cancel"
-                                    class="text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                                    class="size-7 rounded-full text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
                                     @click="cancelSend(scheduled)"
                                 >
-                                    <Trash2 class="size-4" />
+                                    <Trash2 class="size-3.5" />
                                 </Button>
                             </div>
                         </div>
-                    </template>
+                    </div>
                 </li>
             </ul>
 
             <p
                 v-else
                 data-test="scheduled-empty"
-                class="py-6 text-center text-[13px] text-muted-foreground"
+                class="px-6 py-8 text-center text-[13px] text-muted-foreground"
             >
                 {{ $t('You have no messages scheduled for this channel.') }}
             </p>

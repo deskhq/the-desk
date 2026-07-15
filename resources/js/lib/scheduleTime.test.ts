@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+    formatPresetPreview,
     formatScheduledFor,
     isSendAtInFuture,
     schedulePresets,
@@ -87,6 +88,28 @@ describe('schedulePresets', () => {
         );
 
         expect(byKey['next-monday']).toBe('2026-07-27T09:00:00.000Z');
+    });
+});
+
+describe('formatPresetPreview', () => {
+    it('shows only the time for a preset later today', () => {
+        // In an hour from 15:30 UTC is 16:30 UTC, same calendar day.
+        expect(
+            formatPresetPreview('2026-07-14T16:30:00.000Z', 'UTC', NOW),
+        ).toBe('4:30 PM');
+    });
+
+    it('leads with the weekday for a preset tomorrow', () => {
+        // 15 Jul 2026 is a Wednesday.
+        expect(
+            formatPresetPreview('2026-07-15T09:00:00.000Z', 'UTC', NOW),
+        ).toBe('Wed 9:00 AM');
+    });
+
+    it('spells out the calendar date for a preset further out', () => {
+        expect(
+            formatPresetPreview('2026-07-20T09:00:00.000Z', 'UTC', NOW),
+        ).toBe('Jul 20, 9:00 AM');
     });
 });
 
