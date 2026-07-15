@@ -10,12 +10,17 @@ use App\Actions\Channels\SyncMentions;
 use App\Actions\Teams\CreateTeam;
 use App\Enums\AuditAction;
 use App\Enums\ChannelVisibility;
+use App\Enums\SecurityEventType;
 use App\Enums\TeamRole;
+use App\Models\AuditExport;
 use App\Models\Channel;
 use App\Models\CustomEmoji;
+use App\Models\DataExport;
 use App\Models\Message;
 use App\Models\MessagePin;
 use App\Models\MessageReaction;
+use App\Models\SecurityEvent;
+use App\Models\SsoIdentity;
 use App\Models\Team;
 use App\Models\TeamInvitation;
 use App\Models\User;
@@ -206,6 +211,10 @@ class WorkspaceSeeder extends Seeder
         $this->seedDirectMessages($acme, $demo, $admin, $member1, $member2);
         $this->seedInvitations($acme, $demo);
         $this->seedAuditLog($acme, $demo, $admin, $member1, $announcements, $archived, $secret);
+        $this->seedSecurityEvents($demo);
+        $this->seedAuditExports($acme, $demo);
+        $this->seedDataExports($demo);
+        $this->seedSsoIdentities($demo);
         $this->seedAnalyticsHistory($acme, $members, [$general, $announcements, $random]);
 
         return $acme;
@@ -289,6 +298,74 @@ class WorkspaceSeeder extends Seeder
         $this->auditRecorder->record($team, $owner, AuditAction::ChannelArchived, $archived, [
             'channel_name' => $archived->name,
         ]);
+    }
+
+    /**
+     * Populate the demo user's security-activity log with a representative spread
+     * of event types, so the per-user (and admin-visible) security-event surface
+     * has data on load — including a `newDevice()` login so the "new device" flag
+     * renders.
+     *
+     * Passkey coverage is limited to the `PasskeyRegistered` event for now; a
+     * dedicated passkey model/factory is not yet on `master`, so seeding actual
+     * `passkeys` rows is deferred (see #419).
+     */
+    private function seedSecurityEvents(User $demo): void
+    {
+        $types = [
+            SecurityEventType::LoggedIn,
+            SecurityEventType::PasswordChanged,
+            SecurityEventType::TwoFactorEnabled,
+            SecurityEventType::TwoFactorConfirmed,
+            SecurityEventType::PasskeyRegistered,
+        ];
+
+        foreach ($types as $type) {
+            SecurityEvent::factory()->for($demo)->ofType($type)->create();
+        }
+
+        // A login from an unfamiliar device, so the "new device" flag surfaces.
+        SecurityEvent::factory()->for($demo)->newDevice()->create();
+    }
+
+    /**
+     * Seed audit-log export jobs for the demo user's owned team, covering both
+     * the audit and security (`security()`) variants in each terminal state —
+     * a ready-to-download row, an expired one, and a failed one — so the export
+     * history table shows every download/expiry/failure state. One ready export
+     * is emitted as JSON to exercise the `json()` state alongside the CSV rows.
+     */
+    private function seedAuditExports(Team $team, User $demo): void
+    {
+        AuditExport::factory()->for($team)->for($demo, 'requester')->ready()->create();
+        AuditExport::factory()->for($team)->for($demo, 'requester')->expired()->create();
+        AuditExport::factory()->for($team)->for($demo, 'requester')->failed()->create();
+
+        AuditExport::factory()->for($team)->for($demo, 'requester')->security()->json()->ready()->create();
+        AuditExport::factory()->for($team)->for($demo, 'requester')->security()->expired()->create();
+        AuditExport::factory()->for($team)->for($demo, 'requester')->security()->failed()->create();
+    }
+
+    /**
+     * Seed the demo user's self-service data exports: a `ready()` archive (its
+     * download button is live) plus an `expired()` one whose window has closed,
+     * so both the downloadable and expired rows render.
+     */
+    private function seedDataExports(User $demo): void
+    {
+        DataExport::factory()->for($demo)->ready()->create();
+        DataExport::factory()->for($demo)->expired()->create();
+    }
+
+    /**
+     * Link a couple of external directory identities to the demo user across
+     * providers (OIDC and LDAP), so the "connected accounts" surface is
+     * populated and exercises the `provider()` state.
+     */
+    private function seedSsoIdentities(User $demo): void
+    {
+        SsoIdentity::factory()->for($demo)->provider('oidc')->create();
+        SsoIdentity::factory()->for($demo)->provider('ldap')->create();
     }
 
     /**

@@ -1,11 +1,18 @@
 <?php
 
+use App\Enums\AuditExportLogType;
+use App\Enums\AuditExportStatus;
 use App\Enums\ChannelType;
 use App\Enums\ChannelVisibility;
 use App\Enums\MessageType;
+use App\Enums\SecurityEventType;
 use App\Enums\TeamRole;
+use App\Models\AuditExport;
 use App\Models\Channel;
+use App\Models\DataExport;
 use App\Models\Message;
+use App\Models\SecurityEvent;
+use App\Models\SsoIdentity;
 use App\Models\Team;
 use App\Models\TeamInvitation;
 use App\Models\User;
@@ -167,6 +174,46 @@ test('it seeds direct messages covering the self, empty and excluded shapes', fu
     // A DM the demo is excluded from (between two other members).
     $excluded = $directChannels->first(fn (Channel $channel) => $channel->members()->whereKey($this->demo->id)->doesntExist());
     expect($excluded)->not->toBeNull();
+});
+
+test('it seeds a spread of security events for the demo user, including a new-device login', function (): void {
+    $events = $this->demo->securityEvents()->get();
+    $types = $events->pluck('type');
+
+    expect($events->count())->toBeGreaterThanOrEqual(5)
+        ->and($types)->toContain(SecurityEventType::LoggedIn)
+        ->and($types)->toContain(SecurityEventType::PasswordChanged)
+        ->and($types)->toContain(SecurityEventType::PasskeyRegistered)
+        ->and($events->contains(fn (SecurityEvent $event): bool => $event->type === SecurityEventType::LoggedIn
+            && $event->is_new_device))->toBeTrue();
+});
+
+test('it seeds audit exports for both log types across every terminal state', function (): void {
+    $acme = Team::where('name', 'Acme Corp')->firstOrFail();
+    $exports = AuditExport::where('team_id', $acme->id)->get();
+
+    foreach ([AuditExportLogType::Audit, AuditExportLogType::Security] as $logType) {
+        $forType = $exports->where('log_type', $logType);
+
+        expect($forType->contains(fn (AuditExport $export): bool => $export->isReady() && ! $export->isExpired()))->toBeTrue()
+            ->and($forType->contains(fn (AuditExport $export): bool => $export->isReady() && $export->isExpired()))->toBeTrue()
+            ->and($forType->contains(fn (AuditExport $export): bool => $export->status === AuditExportStatus::Failed))->toBeTrue();
+    }
+});
+
+test('it seeds ready and expired data exports for the demo user', function (): void {
+    $exports = $this->demo->dataExports()->get();
+
+    expect($exports->contains(fn (DataExport $export): bool => $export->isReady() && ! $export->isExpired()))->toBeTrue()
+        ->and($exports->contains(fn (DataExport $export): bool => $export->isExpired()))->toBeTrue();
+});
+
+test('it links sso identities to the demo user across providers', function (): void {
+    $identities = $this->demo->ssoIdentities()->get();
+
+    expect($identities->count())->toBeGreaterThanOrEqual(2)
+        ->and($identities->pluck('provider')->unique()->count())->toBeGreaterThan(1)
+        ->and(SsoIdentity::where('user_id', $this->demo->id)->exists())->toBeTrue();
 });
 
 test('it seeds pending, accepted and expired invitations across roles on an admin team', function (): void {
