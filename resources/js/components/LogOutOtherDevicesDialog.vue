@@ -1,20 +1,10 @@
 <script setup lang="ts">
-import { Form } from '@inertiajs/vue3';
-import { computed, useTemplateRef } from 'vue';
+import { computed } from 'vue';
 import SessionController from '@/actions/App/Http/Controllers/Settings/SessionController';
+import ConfirmDialog from '@/components/ConfirmDialog.vue';
 import FormField from '@/components/FormField.vue';
 import PasswordInput from '@/components/PasswordInput.vue';
 import { Button } from '@/components/ui/button';
-import {
-    Dialog,
-    DialogClose,
-    DialogContent,
-    DialogDescription,
-    DialogFooter,
-    DialogHeader,
-    DialogTitle,
-    DialogTrigger,
-} from '@/components/ui/dialog';
 import type { ActiveSession } from '@/types';
 
 type Props = {
@@ -22,8 +12,6 @@ type Props = {
 };
 
 const props = defineProps<Props>();
-
-const revokeOthersInput = useTemplateRef('revokeOthersInput');
 
 // Only offer the control when there is at least one session other than the one
 // making the request; the current session can never be revoked from here.
@@ -33,8 +21,15 @@ const hasOtherSessions = computed(() =>
 </script>
 
 <template>
-    <Dialog v-if="hasOtherSessions">
-        <DialogTrigger as-child>
+    <ConfirmDialog
+        v-if="hasOtherSessions"
+        :title="$t('Log out other devices?')"
+        :confirm-label="$t('Log out other devices')"
+        reset-on-success
+        :submit="{ form: SessionController.destroyOthers.form() }"
+        confirm-data-test="confirm-revoke-others"
+    >
+        <template #trigger>
             <Button
                 variant="outline"
                 class="h-8 rounded-full px-4 text-xs font-semibold"
@@ -42,69 +37,30 @@ const hasOtherSessions = computed(() =>
             >
                 {{ $t('Log out other devices') }}
             </Button>
-        </DialogTrigger>
-        <DialogContent>
-            <Form
-                v-bind="SessionController.destroyOthers.form()"
-                reset-on-success
-                @error="() => revokeOthersInput?.focus()"
-                :options="{ preserveScroll: true }"
-                class="space-y-6"
-                v-slot="{ errors, processing, reset, clearErrors }"
+        </template>
+
+        <template #description>
+            {{
+                $t(
+                    'This logs out every session except the one you are using now. Enter your password to confirm.',
+                )
+            }}
+        </template>
+
+        <template #body="{ errors }">
+            <FormField
+                id="revoke_others_password"
+                :label="$t('Password')"
+                label-class="sr-only"
+                :error="errors.password"
+                v-slot="{ id }"
             >
-                <DialogHeader class="space-y-3">
-                    <DialogTitle>{{
-                        $t('Log out other devices?')
-                    }}</DialogTitle>
-                    <DialogDescription>
-                        {{
-                            $t(
-                                'This logs out every session except the one you are using now. Enter your password to confirm.',
-                            )
-                        }}
-                    </DialogDescription>
-                </DialogHeader>
-
-                <FormField
-                    id="revoke_others_password"
-                    :label="$t('Password')"
-                    label-class="sr-only"
-                    :error="errors.password"
-                    v-slot="{ id }"
-                >
-                    <PasswordInput
-                        :id="id"
-                        name="password"
-                        ref="revokeOthersInput"
-                        :placeholder="$t('Password')"
-                    />
-                </FormField>
-
-                <DialogFooter class="gap-2">
-                    <DialogClose as-child>
-                        <Button
-                            variant="secondary"
-                            @click="
-                                () => {
-                                    clearErrors();
-                                    reset();
-                                }
-                            "
-                        >
-                            {{ $t('Cancel') }}
-                        </Button>
-                    </DialogClose>
-
-                    <Button
-                        type="submit"
-                        variant="destructive"
-                        :disabled="processing"
-                        data-test="confirm-revoke-others"
-                    >
-                        {{ $t('Log out other devices') }}
-                    </Button>
-                </DialogFooter>
-            </Form>
-        </DialogContent>
-    </Dialog>
+                <PasswordInput
+                    :id="id"
+                    name="password"
+                    :placeholder="$t('Password')"
+                />
+            </FormField>
+        </template>
+    </ConfirmDialog>
 </template>

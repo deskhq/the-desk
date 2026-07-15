@@ -1,17 +1,7 @@
 <script setup lang="ts">
-import { Form } from '@inertiajs/vue3';
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
+import ConfirmDialog from '@/components/ConfirmDialog.vue';
 import FormField from '@/components/FormField.vue';
-import { Button } from '@/components/ui/button';
-import {
-    Dialog,
-    DialogClose,
-    DialogContent,
-    DialogDescription,
-    DialogFooter,
-    DialogHeader,
-    DialogTitle,
-} from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { destroy } from '@/routes/teams';
 import type { Team } from '@/types';
@@ -27,79 +17,61 @@ const emit = defineEmits<{
 }>();
 
 const confirmationName = ref('');
-const formKey = ref(0);
 
 const canDeleteTeam = computed(() => {
     return confirmationName.value === props.team.name;
 });
 
-const handleOpenChange = (nextOpen: boolean) => {
-    emit('update:open', nextOpen);
-
-    if (!nextOpen) {
-        confirmationName.value = '';
-        formKey.value++;
-    }
-};
+// Clear the typed confirmation whenever the dialog closes so a reopen starts empty.
+watch(
+    () => props.open,
+    (open) => {
+        if (!open) {
+            confirmationName.value = '';
+        }
+    },
+);
 </script>
 
 <template>
-    <Dialog :open="props.open" @update:open="handleOpenChange">
-        <DialogContent>
-            <Form
-                :key="formKey"
-                v-bind="destroy.form(props.team.slug)"
-                class="space-y-6"
-                v-slot="{ errors, processing }"
-                @success="handleOpenChange(false)"
-            >
-                <DialogHeader>
-                    <DialogTitle>{{ $t('Are you sure?') }}</DialogTitle>
-                    <DialogDescription>
-                        {{
-                            $t(
-                                'This action cannot be undone. This will permanently delete the team',
-                            )
-                        }}
-                        <strong>"{{ props.team.name }}"</strong>.
-                    </DialogDescription>
-                </DialogHeader>
+    <ConfirmDialog
+        :open="props.open"
+        :title="$t('Are you sure?')"
+        :confirm-label="$t('Delete team')"
+        :submit="{ form: destroy.form(props.team.slug) }"
+        :confirm-disabled="!canDeleteTeam"
+        confirm-data-test="delete-team-confirm"
+        @update:open="emit('update:open', $event)"
+    >
+        <template #description>
+            {{
+                $t(
+                    'This action cannot be undone. This will permanently delete the team',
+                )
+            }}
+            <strong>"{{ props.team.name }}"</strong>.
+        </template>
 
-                <div class="space-y-4 py-4">
-                    <FormField id="confirmation-name" :error="errors.name">
-                        <template #label>
-                            {{ $t('Type') }}
-                            <strong>"{{ props.team.name }}"</strong>
-                            {{ $t('to confirm') }}
-                        </template>
-                        <template #default="{ id }">
-                            <Input
-                                :id="id"
-                                name="name"
-                                data-test="delete-team-name"
-                                v-model="confirmationName"
-                                :placeholder="$t('Enter team name')"
-                                autocomplete="off"
-                            />
-                        </template>
-                    </FormField>
-                </div>
-
-                <DialogFooter class="gap-2">
-                    <DialogClose as-child>
-                        <Button variant="secondary"> Cancel </Button>
-                    </DialogClose>
-
-                    <Button
-                        data-test="delete-team-confirm"
-                        variant="destructive"
-                        type="submit"
-                        :disabled="!canDeleteTeam || processing"
-                    >
-                        Delete team
-                    </Button>
-                </DialogFooter>
-            </Form>
-        </DialogContent>
-    </Dialog>
+        <template #body="{ errors }">
+            <div class="space-y-4 py-4">
+                <FormField id="confirmation-name" :error="errors.name">
+                    <template #label>
+                        {{ $t('Type') }}
+                        <strong>"{{ props.team.name }}"</strong>
+                        {{ $t('to confirm') }}
+                    </template>
+                    <template #default="{ id }">
+                        <Input
+                            :id="id"
+                            v-model="confirmationName"
+                            name="name"
+                            data-test="delete-team-name"
+                            :placeholder="$t('Enter team name')"
+                            autocomplete="off"
+                        />
+                    </template>
+                </FormField>
+            </div>
+        </template>
+    </ConfirmDialog>
 </template>
