@@ -4,6 +4,7 @@ import SecurityController from '@/actions/App/Http/Controllers/Settings/Security
 import FormField from '@/components/FormField.vue';
 import LogOutOtherDevicesDialog from '@/components/LogOutOtherDevicesDialog.vue';
 import ManageSessions from '@/components/ManageSessions.vue';
+import PasskeyManagement from '@/components/PasskeyManagement.vue';
 import PasswordInput from '@/components/PasswordInput.vue';
 import SecurityActivity from '@/components/SecurityActivity.vue';
 import SettingsPane from '@/components/SettingsPane.vue';
@@ -20,6 +21,8 @@ type Props = {
     securityEvents: SecurityActivityEvent[];
     canManageTwoFactor: boolean;
     twoFactor?: App.Data.TwoFactorStateData | null;
+    canManagePasskeys: boolean;
+    passkeys?: App.Data.PasskeyData[];
 };
 
 const props = defineProps<Props>();
@@ -148,6 +151,18 @@ defineOptions({
             "
         >
             <TwoFactorAuthentication :state="props.twoFactor ?? null" />
+        </SettingsPaneSection>
+
+        <SettingsPaneSection
+            v-if="props.canManagePasskeys"
+            :title="$t('Passkeys')"
+            :description="
+                $t(
+                    'Sign in without a password using Touch ID, Face ID, or a security key',
+                )
+            "
+        >
+            <PasskeyManagement :passkeys="props.passkeys ?? []" />
         </SettingsPaneSection>
 
         <SettingsPaneSection

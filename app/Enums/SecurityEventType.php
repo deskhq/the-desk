@@ -12,6 +12,8 @@ enum SecurityEventType: string
     case TwoFactorDisabled = 'two_factor_disabled';
     case TwoFactorConfirmed = 'two_factor_confirmed';
     case RecoveryCodesGenerated = 'recovery_codes_generated';
+    case PasskeyRegistered = 'passkey_registered';
+    case PasskeyRemoved = 'passkey_removed';
 
     /**
      * Get the human-readable label shown in the activity log.
@@ -27,6 +29,8 @@ enum SecurityEventType: string
             self::TwoFactorDisabled => __('Two-factor authentication disabled'),
             self::TwoFactorConfirmed => __('Two-factor authentication confirmed'),
             self::RecoveryCodesGenerated => __('Recovery codes generated'),
+            self::PasskeyRegistered => __('Passkey added'),
+            self::PasskeyRemoved => __('Passkey removed'),
         };
     }
 }

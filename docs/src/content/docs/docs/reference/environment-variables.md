@@ -91,6 +91,7 @@ production — see [Configuration](/docs/self-hosting/configuration/#reverb-webs
 | `REGISTRATION_ENABLED`       | `true`  | [Feature toggles → Open registration](/docs/reference/feature-toggles/#open-registration) |
 | `EMAIL_VERIFICATION_ENABLED` | `false` | [Feature toggles → Email verification](/docs/reference/feature-toggles/#email-verification) |
 | `TWO_FACTOR_AUTH_ENABLED`    | `false` | [Feature toggles → Two-factor authentication](/docs/reference/feature-toggles/#two-factor-authentication) |
+| `PASSKEYS_ENABLED`           | `false` | [Feature toggles → Passkeys](/docs/reference/feature-toggles/#passkeys) |
 | `GRAVATAR_ENABLED`           | `true`  | [Feature toggles → Gravatar avatars](/docs/reference/feature-toggles/#gravatar-avatars) |
 | `ACTIVITYLOG_ENABLED`        | `true`  | [Feature toggles → Activity logging](/docs/reference/feature-toggles/#activity-logging) |
 | `REVERB_SCALING_ENABLED`     | `false` | [Feature toggles → Advanced Reverb](/docs/reference/feature-toggles/#advanced-reverb-options) |

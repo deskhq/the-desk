@@ -71,6 +71,33 @@ This flag has **no effect under [SSO-only mode](#sso-only-mode)**. When
 multi-factor authentication, so the app-native option stays hidden.
 :::
 
+## Passkeys
+
+| Variable           | Default | Effect                                              |
+| ------------------ | ------- | --------------------------------------------------- |
+| `PASSKEYS_ENABLED` | `false` | Let users sign in passwordlessly with WebAuthn passkeys. |
+
+A single deploy-time flag for self-hosters. It defaults to **off**, keeping
+password-only sign-in.
+
+Set `PASSKEYS_ENABLED=true` to surface passkey management under **Settings →
+Security** and a **"Sign in with a passkey"** button on the login screen. Each
+user can then register one or more passkeys — Touch ID, Face ID, Windows Hello,
+or a hardware security key — name them, and remove them (each change is
+confirmed with their password). At the next sign-in they can authenticate with a
+passkey instead of a password. Registration is **per-user and opt-in** — turning
+the flag on offers the option but never forces anyone to enrol.
+
+The toggle takes effect immediately with no data migration: the underlying routes
+are always registered, so flipping the flag only changes whether the option is
+offered.
+
+:::note
+This flag has **no effect under [SSO-only mode](#sso-only-mode)**. When
+`AUTH_SSO_ONLY` routes everyone through an identity provider, that provider owns
+authentication, so the app-native passkey option stays hidden.
+:::
+
 ## SSO-only mode
 
 | Variable        | Default | Effect                                                                 |

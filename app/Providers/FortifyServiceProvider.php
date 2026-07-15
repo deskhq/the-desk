@@ -133,6 +133,10 @@ class FortifyServiceProvider extends ServiceProvider
             'canResetPassword' => Features::enabled(Features::resetPasswords()),
             'status' => $request->session()->get('status'),
             'teamInvitation' => $this->teamInvitation($request),
+            // Whether to surface the passwordless passkey sign-in affordance:
+            // the deploy-time toggle is on and SSO is not enforcing an external
+            // identity provider (which would own authentication).
+            'canLoginWithPasskey' => (bool) config('fortify.passkeys_enabled') && ! config('sso.enforced'),
         ]));
 
         Fortify::resetPasswordView(fn (Request $request) => Inertia::render('auth/ResetPassword', [

@@ -47,6 +47,7 @@
     "dependencies": {
         "@inertiajs/vite": "^3.0.0",
         "@inertiajs/vue3": "^3.0.0",
+        "@laravel/passkeys": "^0.2.0",
         "@lucide/vue": "^1.24.0",
         "@tanstack/vue-virtual": "^3.13.31",
         "@unovis/ts": "^1.6.7",

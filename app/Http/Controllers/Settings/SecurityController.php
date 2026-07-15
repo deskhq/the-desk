@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Settings;
 
+use App\Data\PasskeyData;
 use App\Data\SecurityEventData;
 use App\Data\SessionData;
 use App\Data\TwoFactorStateData;
@@ -17,6 +18,7 @@ use Illuminate\Validation\Rules\Password;
 use Inertia\Inertia;
 use Inertia\Response;
 use Laravel\Fortify\Features;
+use Laravel\Passkeys\Passkey;
 
 class SecurityController extends Controller
 {
@@ -35,6 +37,7 @@ class SecurityController extends Controller
             'sessions' => $this->activeSessions($request, $registry),
             'securityEvents' => $this->recentSecurityEvents($request),
             'canManageTwoFactor' => $this->canManageTwoFactor(),
+            'canManagePasskeys' => $this->canManagePasskeys(),
         ];
 
         if ($this->canManageTwoFactor()) {
@@ -44,6 +47,10 @@ class SecurityController extends Controller
                 'confirm',
             );
             $props['twoFactor'] = TwoFactorStateData::fromUser($request->user());
+        }
+
+        if ($this->canManagePasskeys()) {
+            $props['passkeys'] = $this->registeredPasskeys($request);
         }
 
         return Inertia::render('settings/Security', $props);
@@ -58,6 +65,32 @@ class SecurityController extends Controller
     private function canManageTwoFactor(): bool
     {
         return (bool) config('fortify.two_factor_enabled') && ! config('sso.enforced');
+    }
+
+    /**
+     * Whether app-native passkey management should be offered.
+     *
+     * Gated by the deploy-time toggle, and suppressed under SSO enforcement where
+     * the identity provider owns authentication.
+     */
+    private function canManagePasskeys(): bool
+    {
+        return (bool) config('fortify.passkeys_enabled') && ! config('sso.enforced');
+    }
+
+    /**
+     * List the user's registered passkeys, most recently added first.
+     *
+     * @return array<int, PasskeyData>
+     */
+    private function registeredPasskeys(TwoFactorAuthenticationRequest $request): array
+    {
+        return $request->user()
+            ->passkeys()
+            ->latest()
+            ->get()
+            ->map(fn (Passkey $passkey): PasskeyData => PasskeyData::fromModel($passkey))
+            ->all();
     }
 
     /**

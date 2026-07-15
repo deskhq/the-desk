@@ -12,6 +12,8 @@ use Laravel\Fortify\Events\RecoveryCodesGenerated;
 use Laravel\Fortify\Events\TwoFactorAuthenticationConfirmed;
 use Laravel\Fortify\Events\TwoFactorAuthenticationDisabled;
 use Laravel\Fortify\Events\TwoFactorAuthenticationEnabled;
+use Laravel\Passkeys\Events\PasskeyDeleted;
+use Laravel\Passkeys\Events\PasskeyRegistered;
 
 /**
  * Records framework and Fortify authentication events into the security
@@ -86,5 +88,21 @@ class RecordSecurityEvents
     public function handleRecoveryCodesGenerated(RecoveryCodesGenerated $event): void
     {
         $this->recorder->record($event->user, SecurityEventType::RecoveryCodesGenerated);
+    }
+
+    /**
+     * Handle a passkey being registered.
+     */
+    public function handlePasskeyRegistered(PasskeyRegistered $event): void
+    {
+        $this->recorder->record($event->user, SecurityEventType::PasskeyRegistered);
+    }
+
+    /**
+     * Handle a passkey being removed.
+     */
+    public function handlePasskeyDeleted(PasskeyDeleted $event): void
+    {
+        $this->recorder->record($event->user, SecurityEventType::PasskeyRemoved);
     }
 }

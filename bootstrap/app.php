@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Http\Middleware\EnsurePasskeysEnabled;
 use App\Http\Middleware\EnsurePasswordLoginEnabled;
 use App\Http\Middleware\EnsureUserIsActive;
 use App\Http\Middleware\HandleAppearance;
@@ -29,6 +30,7 @@ return Application::configure(basePath: dirname(__DIR__))
 
         $middleware->web(append: [
             EnsurePasswordLoginEnabled::class,
+            EnsurePasskeysEnabled::class,
             HandleAppearance::class,
             SetLocale::class,
             HandleInertiaRequests::class,

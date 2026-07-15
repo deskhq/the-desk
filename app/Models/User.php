@@ -25,7 +25,10 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection as SupportCollection;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
+use Laravel\Fortify\Contracts\PasskeyUser;
+use Laravel\Fortify\PasskeyAuthenticatable;
 use Laravel\Fortify\TwoFactorAuthenticatable;
+use Laravel\Passkeys\Passkey;
 
 /**
  * @property string $id
@@ -60,14 +63,15 @@ use Laravel\Fortify\TwoFactorAuthenticatable;
  * @property-read Collection<int, Channel> $channels
  * @property-read Collection<int, ChannelSection> $channelSections
  * @property-read Collection<int, DataExport> $dataExports
+ * @property-read Collection<int, Passkey> $passkeys
  */
 #[Appends(['avatar'])]
 #[Fillable(['name', 'email', 'avatar_url', 'pronouns', 'title', 'phone', 'timezone', 'locale', 'password', 'current_team_id', 'chime_sound', 'share_read_receipts', 'onboarding_completed_at', 'collapsed_channel_sections', 'is_tombstone'])]
 #[Hidden(['password', 'two_factor_secret', 'two_factor_recovery_codes', 'remember_token', 'avatar_url'])]
-class User extends Authenticatable implements HasLocalePreference, MustVerifyEmail
+class User extends Authenticatable implements HasLocalePreference, MustVerifyEmail, PasskeyUser
 {
     /** @use HasFactory<UserFactory> */
-    use HasFactory, HasTeams, HasUuids, Notifiable, TwoFactorAuthenticatable;
+    use HasFactory, HasTeams, HasUuids, Notifiable, PasskeyAuthenticatable, TwoFactorAuthenticatable;
 
     /**
      * Determine if the user has verified their email address.

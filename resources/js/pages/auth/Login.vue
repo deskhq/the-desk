@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { Form, Head } from '@inertiajs/vue3';
+import { usePasskeyVerify } from '@laravel/passkeys/vue';
 import AuthStatus from '@/components/AuthStatus.vue';
 import FormField from '@/components/FormField.vue';
 import PasswordInput from '@/components/PasswordInput.vue';
@@ -13,6 +14,7 @@ import { Separator } from '@/components/ui/separator';
 import { translate } from '@/lib/i18n';
 import { register } from '@/routes';
 import { store } from '@/routes/login';
+import { login as passkeyLogin, loginOptions } from '@/routes/passkey';
 import { request } from '@/routes/password';
 import { redirect as oidcRedirect } from '@/routes/sso/oidc';
 import type { TeamInvitationContext } from '@/types';
@@ -28,7 +30,26 @@ defineProps<{
     status?: string;
     canResetPassword: boolean;
     teamInvitation?: TeamInvitationContext | null;
+    canLoginWithPasskey?: boolean;
 }>();
+
+// Passwordless sign-in: run the WebAuthn assertion against the Fortify passkey
+// endpoints, then follow the server's intended-URL redirect. The whole session
+// changes on success, so a full navigation (not an Inertia visit) is safest.
+const {
+    verify: signInWithPasskey,
+    isLoading: passkeyLoading,
+    error: passkeyError,
+    isSupported: passkeySupported,
+} = usePasskeyVerify({
+    routes: {
+        options: loginOptions().url,
+        submit: passkeyLogin().url,
+    },
+    onSuccess: (response) => {
+        window.location.href = response.redirect ?? '/';
+    },
+});
 </script>
 
 <template>
@@ -43,18 +64,55 @@ defineProps<{
             action="Log in"
         />
 
-        <!-- Single sign-on entry point, shown only when an OIDC provider is
-        configured. A full-page navigation (native anchor) hands off to the IdP;
-        an Inertia visit would break the OAuth redirect. -->
-        <div v-if="$page.props.sso.oidcEnabled" class="flex flex-col gap-6">
-            <Button
-                as-child
-                variant="outline"
-                class="w-full rounded-full"
-                data-test="sso-login-button"
-            >
-                <a :href="oidcRedirect.url()">{{ $t('Sign in with SSO') }}</a>
-            </Button>
+        <!-- Alternative sign-in methods (single sign-on and/or passwordless
+        passkey), each shown only when its operator toggle is on. They share a
+        single "or continue with email" divider before the password form so it
+        never renders twice. -->
+        <div
+            v-if="
+                $page.props.sso.oidcEnabled ||
+                (canLoginWithPasskey && passkeySupported)
+            "
+            class="flex flex-col gap-6"
+        >
+            <div class="flex flex-col gap-3">
+                <!-- SSO: a full-page navigation (native anchor) hands off to the
+                IdP; an Inertia visit would break the OAuth redirect. -->
+                <Button
+                    v-if="$page.props.sso.oidcEnabled"
+                    as-child
+                    variant="outline"
+                    class="w-full rounded-full"
+                    data-test="sso-login-button"
+                >
+                    <a :href="oidcRedirect.url()">
+                        {{ $t('Sign in with SSO') }}
+                    </a>
+                </Button>
+
+                <!-- Passwordless passkey sign-in. Falls away silently on
+                browsers without WebAuthn support. -->
+                <Button
+                    v-if="canLoginWithPasskey && passkeySupported"
+                    type="button"
+                    variant="outline"
+                    class="w-full rounded-full"
+                    :loading="passkeyLoading"
+                    data-test="passkey-login-button"
+                    @click="signInWithPasskey"
+                >
+                    {{ $t('Sign in with a passkey') }}
+                </Button>
+
+                <p
+                    v-if="passkeyError"
+                    role="alert"
+                    class="text-center text-sm text-destructive"
+                    data-test="passkey-login-error"
+                >
+                    {{ passkeyError }}
+                </p>
+            </div>
 
             <div
                 v-if="$page.props.sso.passwordLoginEnabled"

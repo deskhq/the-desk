@@ -174,6 +174,17 @@ return [
             'confirm' => true,
             'confirmPassword' => true,
         ]),
+        // Passkeys (WebAuthn) are registered unconditionally for the same reason
+        // as two-factor above: a feature that defaults *off* would drop its
+        // Fortify passkey routes and stop Wayfinder emitting their route modules,
+        // breaking the frontend build. Availability is gated at runtime by
+        // `passkeys_enabled` below (mirroring `two_factor_enabled`); only whether
+        // the Security page and login screen surface passkeys is toggled, never
+        // route registration. `confirmPassword` requires a fresh password
+        // confirmation before registering or removing a passkey.
+        Features::passkeys([
+            'confirmPassword' => true,
+        ]),
     ]),
 
     /*
@@ -210,5 +221,24 @@ return [
     */
 
     'two_factor_enabled' => env('TWO_FACTOR_AUTH_ENABLED', false),
+
+    /*
+    |--------------------------------------------------------------------------
+    | Passkey (WebAuthn) Availability
+    |--------------------------------------------------------------------------
+    |
+    | A deploy-time flag letting self-hosters offer passwordless passkey sign-in
+    | (WebAuthn — Touch ID, Face ID, Windows Hello, security keys). It defaults to
+    | off, preserving today's behaviour for the hosted demo and existing
+    | deployments. The Fortify passkey feature (and its routes) stay registered
+    | either way so the frontend build is stable; only whether the Security
+    | settings page and the login screen surface passkeys is toggled — the
+    | SecurityController and the login view read this flag and hide the passkey
+    | affordances when it is off. Under SSO enforcement the identity provider owns
+    | authentication, so the app-native option hides regardless of this flag.
+    |
+    */
+
+    'passkeys_enabled' => env('PASSKEYS_ENABLED', false),
 
 ];
