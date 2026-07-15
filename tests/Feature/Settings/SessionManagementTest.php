@@ -1,5 +1,7 @@
 <?php
 
+use App\Enums\SecurityEventType;
+use App\Models\SecurityEvent;
 use App\Models\User;
 use App\Support\SessionRegistry;
 use Illuminate\Support\Str;
@@ -107,6 +109,74 @@ test('a single session can be revoked', function (): void {
 
     expect(sessionRegistry()->has($user->id, $otherId))->toBeFalse();
     expect(sessionRegistry()->has($user->id, $currentId))->toBeTrue();
+});
+
+test('revoking a session records a security event', function (): void {
+    $user = User::factory()->create();
+    $currentId = Str::random(40);
+    $otherId = Str::random(40);
+
+    seedSession($user, $currentId);
+    seedSession($user, $otherId);
+
+    $this->actingAs($user)
+        ->withSession(['active_session_id' => $currentId])
+        ->withCookie(config('session.cookie'), $currentId)
+        ->from(route('security.edit'))
+        ->delete(route('sessions.destroy', $otherId), ['password' => 'password'])
+        ->assertRedirect(route('security.edit'));
+
+    expect(SecurityEvent::query()->where('user_id', $user->id)->where('type', SecurityEventType::SessionRevoked)->count())->toBe(1);
+});
+
+test('a no-op single-session revocation records no security event', function (): void {
+    $user = User::factory()->create();
+    $currentId = Str::random(40);
+
+    seedSession($user, $currentId);
+
+    $this->actingAs($user)
+        ->withSession(['active_session_id' => $currentId])
+        ->withCookie(config('session.cookie'), $currentId)
+        ->from(route('security.edit'))
+        ->delete(route('sessions.destroy', Str::random(40)), ['password' => 'password'])
+        ->assertRedirect(route('security.edit'));
+
+    expect(SecurityEvent::query()->where('type', SecurityEventType::SessionRevoked)->count())->toBe(0);
+});
+
+test('logging out other devices records a security event', function (): void {
+    $user = User::factory()->create();
+    $currentId = Str::random(40);
+    $otherId = Str::random(40);
+
+    seedSession($user, $currentId);
+    seedSession($user, $otherId);
+
+    $this->actingAs($user)
+        ->withSession(['active_session_id' => $currentId])
+        ->withCookie(config('session.cookie'), $currentId)
+        ->from(route('security.edit'))
+        ->delete(route('sessions.destroy-others'), ['password' => 'password'])
+        ->assertRedirect(route('security.edit'));
+
+    expect(SecurityEvent::query()->where('user_id', $user->id)->where('type', SecurityEventType::OtherSessionsRevoked)->count())->toBe(1);
+});
+
+test('logging out other devices with none to revoke records no security event', function (): void {
+    $user = User::factory()->create();
+    $currentId = Str::random(40);
+
+    seedSession($user, $currentId);
+
+    $this->actingAs($user)
+        ->withSession(['active_session_id' => $currentId])
+        ->withCookie(config('session.cookie'), $currentId)
+        ->from(route('security.edit'))
+        ->delete(route('sessions.destroy-others'), ['password' => 'password'])
+        ->assertRedirect(route('security.edit'));
+
+    expect(SecurityEvent::query()->where('type', SecurityEventType::OtherSessionsRevoked)->count())->toBe(0);
 });
 
 test('a revoked session can no longer make authenticated requests', function (): void {

@@ -20,6 +20,10 @@ enum AuditAction: string
     case MessageDeleted = 'message_deleted';
     case EmojiRevoked = 'emoji_revoked';
     case AuditExported = 'audit_exported';
+    case InvitationCreated = 'invitation_created';
+    case InvitationResent = 'invitation_resent';
+    case InvitationRevoked = 'invitation_revoked';
+    case InvitationAccepted = 'invitation_accepted';
 
     /**
      * Get the short human-readable label used in the action filter and headers.
@@ -38,6 +42,10 @@ enum AuditAction: string
             self::MessageDeleted => __('Message deleted'),
             self::EmojiRevoked => __('Custom emoji revoked'),
             self::AuditExported => __('Log exported'),
+            self::InvitationCreated => __('Invitation sent'),
+            self::InvitationResent => __('Invitation resent'),
+            self::InvitationRevoked => __('Invitation cancelled'),
+            self::InvitationAccepted => __('Invitation accepted'),
         };
     }
 
@@ -62,6 +70,10 @@ enum AuditAction: string
             self::MessageDeleted => sprintf(__('Deleted a message from %s in #%s'), $this->text($context, 'author_name'), $this->text($context, 'channel_name')),
             self::EmojiRevoked => sprintf(__('Revoked the :%s: custom emoji'), $this->text($context, 'emoji_name')),
             self::AuditExported => sprintf(__('Exported %s as %s (%s)'), $this->text($context, 'log'), $this->text($context, 'format'), $this->text($context, 'range')),
+            self::InvitationCreated => sprintf(__('Invited %s as %s'), $this->text($context, 'email'), $this->text($context, 'role')),
+            self::InvitationResent => sprintf(__('Resent the invitation to %s'), $this->text($context, 'email')),
+            self::InvitationRevoked => sprintf(__('Cancelled the invitation to %s'), $this->text($context, 'email')),
+            self::InvitationAccepted => sprintf(__('Accepted the invitation to %s'), $this->text($context, 'email')),
         };
     }
 

@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Teams;
 
 use App\Actions\Teams\CreateTeam;
 use App\Enums\AuditAction;
+use App\Enums\SecurityEventType;
 use App\Enums\TeamRole;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Teams\DeleteTeamRequest;
@@ -12,6 +13,7 @@ use App\Models\Membership;
 use App\Models\Team;
 use App\Models\User;
 use App\Support\AuditRecorder;
+use App\Support\SecurityEventRecorder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -157,7 +159,7 @@ class TeamController extends Controller
     /**
      * Delete the specified team.
      */
-    public function destroy(DeleteTeamRequest $request, Team $team): RedirectResponse
+    public function destroy(DeleteTeamRequest $request, Team $team, SecurityEventRecorder $securityEvents): RedirectResponse
     {
         $user = $request->user();
         $fallbackTeam = $user->isCurrentTeam($team) ? $user->fallbackTeam($team) : null;
@@ -171,6 +173,8 @@ class TeamController extends Controller
             $team->memberships()->delete();
             $team->delete();
         });
+
+        $securityEvents->record($user, SecurityEventType::TeamDeleted);
 
         if ($fallbackTeam) {
             $user->switchTeam($fallbackTeam);

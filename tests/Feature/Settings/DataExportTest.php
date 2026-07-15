@@ -2,6 +2,7 @@
 
 use App\Data\DataExportData;
 use App\Enums\DataExportStatus;
+use App\Enums\SecurityEventType;
 use App\Jobs\ExportUserData;
 use App\Mail\DataExportReady;
 use App\Models\Channel;
@@ -31,6 +32,7 @@ test('requesting an export queues the job and records a pending export', functio
 
     expect($export)->not->toBeNull();
     expect($export->status)->toBe(DataExportStatus::Pending);
+    expect(SecurityEvent::query()->where('user_id', $user->id)->where('type', SecurityEventType::DataExportRequested)->count())->toBe(1);
 });
 
 test('the export job builds a downloadable archive and emails the user', function (): void {
@@ -101,6 +103,8 @@ test('the owner can download a ready export', function (): void {
         ->get(route('data-export.download', $export))
         ->assertOk()
         ->assertDownload('data-export.zip');
+
+    expect(SecurityEvent::query()->where('user_id', $user->id)->where('type', SecurityEventType::DataExportDownloaded)->count())->toBe(1);
 });
 
 test('another user cannot download an export', function (): void {

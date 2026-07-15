@@ -1,6 +1,8 @@
 <?php
 
+use App\Enums\SecurityEventType;
 use App\Enums\TeamRole;
+use App\Models\SecurityEvent;
 use App\Models\Team;
 use App\Models\User;
 use Inertia\Testing\AssertableInertia as Assert;
@@ -125,6 +127,8 @@ test('teams can be deleted by owners', function (): void {
     $this->assertSoftDeleted('teams', [
         'id' => $team->id,
     ]);
+
+    expect(SecurityEvent::query()->where('user_id', $user->id)->where('type', SecurityEventType::TeamDeleted)->count())->toBe(1);
 });
 
 test('team deletion requires name confirmation', function (): void {

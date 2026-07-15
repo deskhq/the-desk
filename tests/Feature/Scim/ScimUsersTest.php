@@ -1,7 +1,9 @@
 <?php
 
+use App\Enums\SecurityEventType;
 use App\Enums\TeamRole;
 use App\Http\Controllers\Scim\ScimUserController;
+use App\Models\SecurityEvent;
 use App\Models\Team;
 use App\Models\User;
 use App\Scim\ScimConfig;
@@ -250,4 +252,26 @@ test('a patch with active true reactivates a deactivated user', function (): voi
         ->assertJsonPath('active', true);
 
     expect($user->fresh()->isDeactivated())->toBeFalse();
+});
+
+test('a patch that deactivates records an account deactivated security event', function (): void {
+    $user = User::factory()->create(['email' => 'ada@example.com']);
+
+    $this->withToken(SCIM_TEST_TOKEN)
+        ->patchJson("/scim/v2/Users/{$user->id}", scimPatch([
+            ['op' => 'replace', 'path' => 'active', 'value' => false],
+        ]))
+        ->assertOk();
+
+    expect(SecurityEvent::query()->where('user_id', $user->id)->where('type', SecurityEventType::AccountDeactivated)->count())->toBe(1);
+});
+
+test('a delete records an account deactivated security event', function (): void {
+    $user = User::factory()->create(['email' => 'ada@example.com']);
+
+    $this->withToken(SCIM_TEST_TOKEN)
+        ->deleteJson("/scim/v2/Users/{$user->id}")
+        ->assertNoContent();
+
+    expect(SecurityEvent::query()->where('user_id', $user->id)->where('type', SecurityEventType::AccountDeactivated)->count())->toBe(1);
 });

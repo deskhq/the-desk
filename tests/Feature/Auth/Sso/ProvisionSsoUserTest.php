@@ -1,8 +1,10 @@
 <?php
 
 use App\Actions\Sso\ProvisionSsoUser;
+use App\Enums\SecurityEventType;
 use App\Enums\TeamRole;
 use App\Models\Channel;
+use App\Models\SecurityEvent;
 use App\Models\SsoIdentity;
 use App\Models\Team;
 use App\Models\User;
@@ -29,6 +31,14 @@ test('a new directory user is just-in-time provisioned into the sole team as a m
         ->user_id->toBe($user->id);
 });
 
+test('a just-in-time provisioned user records an account provisioned security event', function (): void {
+    Team::factory()->create();
+
+    $user = app(ProvisionSsoUser::class)->handle('oidc', 'sub-123', 'jordan@example.com', 'Jordan Rivers');
+
+    expect(SecurityEvent::query()->where('user_id', $user->id)->where('type', SecurityEventType::AccountProvisioned)->count())->toBe(1);
+});
+
 test('an existing user with a matching email is linked, not duplicated', function (): void {
     $existing = User::factory()->create(['email' => 'jordan@example.com']);
 
@@ -38,6 +48,8 @@ test('an existing user with a matching email is linked, not duplicated', functio
         ->and(User::query()->where('email', 'jordan@example.com')->count())->toBe(1);
 
     expect($existing->fresh()->ssoIdentities()->where('provider_id', 'sub-123')->exists())->toBeTrue();
+
+    expect(SecurityEvent::query()->where('type', SecurityEventType::AccountProvisioned)->count())->toBe(0);
 });
 
 test('an already-linked identity resolves straight to its user, even against a different email', function (): void {
