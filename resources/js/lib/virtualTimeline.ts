@@ -54,13 +54,20 @@ export function isDividerVisible(
  * existing unread divider sits strictly above the rendered window, i.e. the
  * reader has scrolled (or opened) past it and it's off-screen upward. Once the
  * divider scrolls into or below the window the pill is redundant and hides.
+ *
+ * `dividerSeen` is a per-visit latch: once the reader has reached the unread
+ * boundary (scrolled it into view) or jumped back to the present, the pill is
+ * dismissed for the rest of the channel visit and must not reappear when they
+ * later scroll away from the (frozen) divider.
  */
 export function shouldShowUnreadJump(
     dividerIndex: number,
     startIndex: number,
     endIndex: number,
+    dividerSeen: boolean,
 ): boolean {
     return (
+        !dividerSeen &&
         dividerIndex >= 0 &&
         !isDividerVisible(dividerIndex, startIndex, endIndex) &&
         dividerIndex < startIndex

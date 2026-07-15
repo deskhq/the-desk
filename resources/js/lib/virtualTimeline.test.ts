@@ -111,16 +111,23 @@ describe('isDividerVisible', () => {
 describe('shouldShowUnreadJump', () => {
     it('shows the jump pill only while the divider sits above the window', () => {
         // Divider at 2, window starts at 4 -> scrolled past it, offer the jump.
-        expect(shouldShowUnreadJump(2, 4, 8)).toBe(true);
+        expect(shouldShowUnreadJump(2, 4, 8, false)).toBe(true);
     });
 
     it('hides the pill once the divider is within or below the window', () => {
-        expect(shouldShowUnreadJump(4, 4, 8)).toBe(false);
-        expect(shouldShowUnreadJump(9, 4, 8)).toBe(false);
+        expect(shouldShowUnreadJump(4, 4, 8, false)).toBe(false);
+        expect(shouldShowUnreadJump(9, 4, 8, false)).toBe(false);
     });
 
     it('hides the pill when there is no unread divider', () => {
-        expect(shouldShowUnreadJump(-1, 0, 8)).toBe(false);
+        expect(shouldShowUnreadJump(-1, 0, 8, false)).toBe(false);
+    });
+
+    it('stays hidden once the divider has been seen, even scrolled away', () => {
+        // Same geometry as the "shows" case (divider above the window), but the
+        // reader has already reached the boundary this visit — the pill must not
+        // reappear when they scroll (or jump) away from it.
+        expect(shouldShowUnreadJump(2, 4, 8, true)).toBe(false);
     });
 });
 

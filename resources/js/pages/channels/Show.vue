@@ -64,6 +64,7 @@ import { groupDmMastheadName } from '@/lib/groupDm';
 import { createOutbox } from '@/lib/outbox';
 import { buildTimelineItems } from '@/lib/timeline';
 import {
+    isDividerVisible,
     shouldShowUnreadJump,
     timelineItemIndexForMessage,
     unreadDividerIndex,
@@ -396,22 +397,64 @@ const { unreadDividerId } = useUnreadDivider({
 // The unread boundary's render-item index, or -1 when there's none.
 const unreadIndex = computed(() => unreadDividerIndex(timelineItems.value));
 
+// Per-visit latch: once the reader reaches the unread boundary (it scrolls into
+// the window) or jumps back to the present, the "New messages" pill is dismissed
+// for the rest of this channel visit. Without it the pill reappears whenever the
+// (frozen) divider sits above the window again — e.g. right after Jump to present
+// (#411). Both flags are refrozen alongside the divider on every channel switch.
+const unreadDividerSeen = ref(false);
+
+// Whether the boundary has ever sat above the window this visit. The reader
+// "reaches" the divider only when it scrolls back into view *after* having been
+// above — the transition the seen latch keys off. This guards against the initial
+// pre-`scrollToBottom` render (rows start at the top, so the divider is briefly
+// on screen before the open pins to the newest message) latching it prematurely.
+const unreadDividerWasAbove = ref(false);
+
+watch(
+    () => props.channel.id,
+    () => {
+        unreadDividerSeen.value = false;
+        unreadDividerWasAbove.value = false;
+    },
+);
+
+// Track the boundary's position relative to the window and latch it as seen the
+// moment it scrolls back into view after having been above — the reader clicking
+// the pill or scrolling up to the divider.
+watch([timelineRange, unreadIndex], ([range, index]) => {
+    if (!range || index < 0) {
+        return;
+    }
+
+    if (index < range.startIndex) {
+        unreadDividerWasAbove.value = true;
+    } else if (
+        unreadDividerWasAbove.value &&
+        isDividerVisible(index, range.startIndex, range.endIndex)
+    ) {
+        unreadDividerSeen.value = true;
+    }
+});
+
 // Show the floating "New messages" pill while the unread boundary sits above the
-// virtualizer's window. Windowing drops the off-screen divider from the DOM, so
-// this replaces the old IntersectionObserver with pure range math. Before the
-// first range lands the view is pinned to the bottom, so an existing boundary is
+// virtualizer's window and the reader hasn't reached it yet. Windowing drops the
+// off-screen divider from the DOM, so this replaces the old IntersectionObserver
+// with pure range math plus the per-visit seen latch. Before the first range
+// lands the view is pinned to the bottom, so an existing, unseen boundary is
 // necessarily above it.
 const showJumpToUnread = computed(() => {
     const range = timelineRange.value;
 
     if (!range) {
-        return unreadIndex.value >= 0;
+        return unreadIndex.value >= 0 && !unreadDividerSeen.value;
     }
 
     return shouldShowUnreadJump(
         unreadIndex.value,
         range.startIndex,
         range.endIndex,
+        unreadDividerSeen.value,
     );
 });
 
@@ -421,6 +464,14 @@ function scrollToUnread(): void {
     if (unreadIndex.value >= 0) {
         messageListRef.value?.scrollToIndex(unreadIndex.value, 'start');
     }
+}
+
+// Return to the newest message. Jumping to present counts as reaching the unread
+// boundary, so latch it — the reader is done with the "New messages" pill for
+// this visit even if the frozen divider now sits above the window again (#411).
+function jumpToPresent(): void {
+    unreadDividerSeen.value = true;
+    scrollToBottom(true);
 }
 
 // The day the topmost visible row falls in, driving the floating sticky date
@@ -1087,7 +1138,7 @@ function archive(): void {
                         :pinned-to-bottom="pinnedToBottom"
                         :new-message-count="newMessageCount"
                         @scroll="onScroll"
-                        @jump="scrollToBottom(true)"
+                        @jump="jumpToPresent"
                     >
                         <Transition
                             enter-active-class="transition duration-150 ease-out"
