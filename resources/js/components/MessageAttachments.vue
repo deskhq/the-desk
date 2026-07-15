@@ -2,6 +2,7 @@
 import { Download, FileText } from '@lucide/vue';
 import { computed, ref } from 'vue';
 import MessageLightbox from '@/components/MessageLightbox.vue';
+import { Button } from '@/components/ui/button';
 import { useTranslations } from '@/composables/useTranslations';
 import {
     fileTypeLabel,
@@ -71,14 +72,15 @@ function isSvg(attachment: AttachmentData): boolean {
                 loading="lazy"
                 class="size-full object-cover"
             />
-            <!-- eslint-disable-next-line local/no-raw-button -- bespoke full-bleed image overlay, not a variant button -->
-            <button
+            <Button
+                variant="unstyled"
+                size="none"
                 type="button"
                 data-test="attachment-image"
                 :aria-label="t('Open :name', { name: images[0].filename })"
-                class="absolute inset-0 z-10 cursor-zoom-in focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                class="absolute inset-0 z-10 cursor-zoom-in"
                 @click="openLightbox(0)"
-            ></button>
+            />
             <a
                 :href="images[0].url"
                 :download="images[0].filename"
@@ -104,16 +106,17 @@ function isSvg(attachment: AttachmentData): boolean {
             }"
             data-test="attachment-grid"
         >
-            <!-- eslint-disable-next-line local/no-raw-button -- bespoke image grid tile, not a variant button -->
-            <button
+            <Button
                 v-for="tile in tiles"
                 :key="tile.attachment.id"
+                variant="unstyled"
+                size="none"
                 type="button"
                 data-test="attachment-image"
                 :aria-label="
                     t('Open :name', { name: tile.attachment.filename })
                 "
-                class="group relative aspect-square cursor-zoom-in overflow-hidden rounded-xl border border-border focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                class="group relative aspect-square cursor-zoom-in overflow-hidden rounded-xl border border-border"
                 @click="openLightbox(tile.index)"
             >
                 <img
@@ -128,7 +131,7 @@ function isSvg(attachment: AttachmentData): boolean {
                     class="absolute inset-0 flex items-center justify-center bg-[rgba(18,16,12,0.6)] text-2xl font-semibold text-[#f3efe4]"
                     >+{{ tile.overflow }}</span
                 >
-            </button>
+            </Button>
         </div>
 
         <!-- Non-image files (SVG included): a download card each. -->

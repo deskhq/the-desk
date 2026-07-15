@@ -160,19 +160,15 @@ function submit(): void {
                                 v-for="channel in rankedChannels"
                                 :key="channel.id"
                             >
-                                <!-- eslint-disable-next-line local/no-raw-button -- bespoke selectable recipient row (aria-pressed) -->
-                                <button
+                                <Button
+                                    variant="unstyled"
+                                    size="none"
                                     type="button"
                                     data-test="forward-channel-option"
                                     :aria-pressed="
                                         isSelected('channel', channel.id)
                                     "
-                                    class="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm hover:bg-muted"
-                                    :class="
-                                        isSelected('channel', channel.id)
-                                            ? 'bg-muted font-medium'
-                                            : ''
-                                    "
+                                    class="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm hover:bg-muted aria-pressed:bg-muted aria-pressed:font-medium"
                                     @click="selectChannel(channel)"
                                 >
                                     <Hash class="size-4 shrink-0 opacity-60" />
@@ -183,7 +179,7 @@ function submit(): void {
                                         v-if="isSelected('channel', channel.id)"
                                         class="ml-auto size-4 shrink-0 text-primary"
                                     />
-                                </button>
+                                </Button>
                             </li>
                         </ul>
                     </div>
@@ -196,19 +192,15 @@ function submit(): void {
                         </p>
                         <ul class="space-y-0.5">
                             <li v-for="person in rankedPeople" :key="person.id">
-                                <!-- eslint-disable-next-line local/no-raw-button -- bespoke selectable recipient row (aria-pressed) -->
-                                <button
+                                <Button
+                                    variant="unstyled"
+                                    size="none"
                                     type="button"
                                     data-test="forward-person-option"
                                     :aria-pressed="
                                         isSelected('user', person.id)
                                     "
-                                    class="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm hover:bg-muted"
-                                    :class="
-                                        isSelected('user', person.id)
-                                            ? 'bg-muted font-medium'
-                                            : ''
-                                    "
+                                    class="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm hover:bg-muted aria-pressed:bg-muted aria-pressed:font-medium"
                                     @click="
                                         selectPerson({
                                             id: person.id,
@@ -230,7 +222,7 @@ function submit(): void {
                                         v-if="isSelected('user', person.id)"
                                         class="ml-auto size-4 shrink-0 text-primary"
                                     />
-                                </button>
+                                </Button>
                             </li>
                         </ul>
                     </div>

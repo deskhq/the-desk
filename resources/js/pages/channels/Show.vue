@@ -1040,7 +1040,7 @@ function archive(): void {
                         leave-from-class="translate-y-0 opacity-100"
                         leave-to-class="-translate-y-1 opacity-0"
                     >
-                        <!-- eslint-disable-next-line local/no-raw-button -- bespoke jump-to-unread pill -->
+                        <!-- eslint-disable-next-line local/no-raw-button -- jump pill: stays raw with the deferred jump-to-latest pills (#316); the primitive does not compose as a <Transition> child here -->
                         <button
                             v-if="showJumpToUnread"
                             type="button"
@@ -1219,15 +1219,16 @@ function archive(): void {
                                       )
                             }}
                         </span>
-                        <!-- eslint-disable-next-line local/no-raw-button -- bespoke inline text action -->
-                        <button
+                        <Button
+                            variant="unstyled"
+                            size="none"
                             type="button"
                             data-test="discard-queue"
                             class="ml-auto shrink-0 font-semibold text-rose-600 hover:text-rose-700 dark:text-rose-400 dark:hover:text-rose-300"
                             @click="discardQueue"
                         >
                             {{ $t('Discard queue') }}
-                        </button>
+                        </Button>
                     </div>
 
                     <TypingIndicator
@@ -1235,9 +1236,10 @@ function archive(): void {
                         class="mx-5 shrink-0"
                     />
 
-                    <!-- eslint-disable-next-line local/no-raw-button -- bespoke scheduled-messages pill -->
-                    <button
+                    <Button
                         v-if="props.scheduledMessages.length > 0"
+                        variant="unstyled"
+                        size="none"
                         type="button"
                         data-test="scheduled-trigger"
                         class="mx-5 mb-1 inline-flex w-fit items-center gap-1.5 rounded-full bg-muted px-2.5 py-1 text-[12px] font-medium text-muted-foreground hover:bg-muted/70 hover:text-foreground"
@@ -1250,7 +1252,7 @@ function archive(): void {
                                 ? $t('scheduled message')
                                 : $t('scheduled messages')
                         }}
-                    </button>
+                    </Button>
 
                     <MessageComposer
                         ref="channelComposer"

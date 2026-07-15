@@ -4,6 +4,7 @@ import { Send, UserPlus } from '@lucide/vue';
 import { computed, ref } from 'vue';
 import CreateChannelModal from '@/components/CreateChannelModal.vue';
 import InviteMemberModal from '@/components/InviteMemberModal.vue';
+import { Button } from '@/components/ui/button';
 import { useOnboardingTour } from '@/composables/useOnboardingTour';
 import { useTranslations } from '@/composables/useTranslations';
 import { groupDmMastheadName } from '@/lib/groupDm';
@@ -94,8 +95,9 @@ const conversationName = computed(() =>
 
             <div class="mt-7 flex w-full flex-col gap-2.5">
                 <CreateChannelModal :team-slug="props.teamSlug">
-                    <!-- eslint-disable-next-line local/no-raw-button -- bespoke welcome action card -->
-                    <button
+                    <Button
+                        variant="unstyled"
+                        size="none"
                         type="button"
                         data-test="welcome-create-channel"
                         class="flex items-center gap-3.5 rounded-[13px] border border-border bg-card px-4 py-3.5 text-left shadow-sm transition-colors hover:bg-accent/40"
@@ -117,12 +119,13 @@ const conversationName = computed(() =>
                             class="inline-flex h-9 items-center rounded-full bg-primary px-4 text-[13px] font-semibold text-primary-foreground"
                             >{{ $t('Create') }}</span
                         >
-                    </button>
+                    </Button>
                 </CreateChannelModal>
 
-                <!-- eslint-disable-next-line local/no-raw-button -- bespoke welcome action card -->
-                <button
+                <Button
                     v-if="canInviteToCurrentTeam"
+                    variant="unstyled"
+                    size="none"
                     type="button"
                     data-test="welcome-invite"
                     class="flex items-center gap-3.5 rounded-[13px] border border-border bg-card px-4 py-3.5 text-left shadow-sm transition-colors hover:bg-accent/40"
@@ -146,10 +149,11 @@ const conversationName = computed(() =>
                         class="inline-flex h-9 items-center rounded-full border border-input bg-background px-4 text-[13px] font-semibold text-foreground"
                         >{{ $t('Invite') }}</span
                     >
-                </button>
+                </Button>
 
-                <!-- eslint-disable-next-line local/no-raw-button -- bespoke welcome action card -->
-                <button
+                <Button
+                    variant="unstyled"
+                    size="none"
                     type="button"
                     data-test="welcome-post-message"
                     class="flex items-center gap-3.5 rounded-[13px] border border-border bg-card px-4 py-3.5 text-left shadow-sm transition-colors hover:bg-accent/40"
@@ -173,20 +177,21 @@ const conversationName = computed(() =>
                         class="inline-flex h-9 items-center rounded-full border border-input bg-background px-4 text-[13px] font-semibold text-foreground"
                         >{{ $t('Compose') }}</span
                     >
-                </button>
+                </Button>
             </div>
 
             <p class="mt-5 text-[12.5px] text-muted-foreground">
                 {{ $t('Prefer to explore on your own?') }}
-                <!-- eslint-disable-next-line local/no-raw-button -- bespoke inline text-link control -->
-                <button
+                <Button
+                    variant="unstyled"
+                    size="none"
                     type="button"
                     data-test="welcome-take-tour"
                     class="font-semibold text-brass-fill-foreground hover:underline"
                     @click="openOnboardingTour"
                 >
                     {{ $t('Take the 30-second tour') }}
-                </button>
+                </Button>
             </p>
         </div>
 

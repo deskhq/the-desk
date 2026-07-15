@@ -5,6 +5,7 @@ import { ref, watch } from 'vue';
 import AppearanceTabs from '@/components/AppearanceTabs.vue';
 import SettingsPane from '@/components/SettingsPane.vue';
 import SettingsPaneSection from '@/components/SettingsPaneSection.vue';
+import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { useChimes } from '@/composables/useChimes';
 import { useReadReceipts } from '@/composables/useReadReceipts';
@@ -71,34 +72,31 @@ const { shareReadReceipts, updateShareReadReceipts } = useReadReceipts();
             "
         >
             <div class="flex flex-wrap items-center gap-2">
-                <!-- eslint-disable-next-line local/no-raw-button -- bespoke segmented chime-sound option (aria-pressed) -->
-                <button
+                <Button
                     v-for="option in chimeSounds"
                     :key="option.value"
+                    variant="unstyled"
+                    size="none"
                     type="button"
                     :aria-pressed="selected === option.value"
                     @click="choose(option.value)"
-                    class="inline-flex h-7.5 items-center rounded-full border px-3.5 text-[12.5px] transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
-                    :class="
-                        selected === option.value
-                            ? 'border-brass bg-brass-fill font-semibold text-foreground'
-                            : 'border-border bg-card font-medium text-muted-foreground hover:text-foreground'
-                    "
+                    class="inline-flex h-7.5 items-center rounded-full border border-border bg-card px-3.5 text-[12.5px] font-medium text-muted-foreground hover:text-foreground aria-pressed:border-brass aria-pressed:bg-brass-fill aria-pressed:font-semibold aria-pressed:text-foreground"
                 >
                     {{ option.label }}
-                </button>
+                </Button>
 
-                <!-- eslint-disable-next-line local/no-raw-button -- bespoke inline preview control -->
-                <button
+                <Button
+                    variant="unstyled"
+                    size="none"
                     type="button"
                     :disabled="selected === 'off'"
                     data-test="preview-chime"
                     @click="preview(selected)"
-                    class="ml-1 inline-flex h-7.5 items-center gap-1.5 rounded-full border border-border bg-card px-3.5 text-xs font-semibold text-muted-foreground transition-colors hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50"
+                    class="ml-1 inline-flex h-7.5 items-center gap-1.5 rounded-full border border-border bg-card px-3.5 text-xs font-semibold text-muted-foreground hover:text-foreground"
                 >
                     <Play class="size-3 fill-current" />
                     {{ $t('Preview') }}
-                </button>
+                </Button>
             </div>
         </SettingsPaneSection>
 

@@ -2,6 +2,7 @@
 import { Pin, X } from '@lucide/vue';
 import { onBeforeUnmount, onMounted } from 'vue';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Button } from '@/components/ui/button';
 import { useInitials } from '@/composables/useInitials';
 import { formatDateTime } from '@/lib/datetime';
 import { messageBodyPreview } from '@/lib/messageBody';
@@ -122,8 +123,9 @@ onBeforeUnmount(() => document.removeEventListener('keydown', onKeydown));
                     :key="message.id"
                     class="group/pin relative"
                 >
-                    <!-- eslint-disable-next-line local/no-raw-button -- bespoke pinned-message list row -->
-                    <button
+                    <Button
+                        variant="unstyled"
+                        size="none"
                         type="button"
                         data-test="pins-panel-row"
                         class="flex w-full flex-col gap-1.5 rounded-[10px] px-2.5 pt-2.5 pb-3 text-left hover:bg-muted"
@@ -196,13 +198,14 @@ onBeforeUnmount(() => document.removeEventListener('keydown', onKeydown));
                                 >
                             </span>
                         </span>
-                    </button>
+                    </Button>
 
                     <!-- Unpin: a floating pill revealed on row hover. Any member
                          may unpin (shared toggle); hidden read-only otherwise. -->
-                    <!-- eslint-disable-next-line local/no-raw-button -- bespoke floating unpin pill -->
-                    <button
+                    <Button
                         v-if="props.canPin"
+                        variant="unstyled"
+                        size="none"
                         type="button"
                         data-test="pins-panel-unpin"
                         class="absolute -top-1 right-3 hidden items-center gap-1.5 rounded-lg border border-border bg-popover px-2.5 py-1 text-[11.5px] font-semibold text-muted-foreground shadow-md group-hover/pin:inline-flex hover:text-foreground"
@@ -210,7 +213,7 @@ onBeforeUnmount(() => document.removeEventListener('keydown', onKeydown));
                     >
                         <X class="size-3" />
                         {{ $t('Unpin') }}
-                    </button>
+                    </Button>
                 </div>
             </div>
         </div>

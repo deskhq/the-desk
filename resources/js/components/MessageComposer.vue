@@ -816,8 +816,9 @@ function onKeydown(event: KeyboardEvent): void {
                         :is-deleted="props.replyTarget.isDeleted"
                     />
                 </span>
-                <!-- eslint-disable-next-line local/no-raw-button -- bespoke composer chip dismiss -->
-                <button
+                <Button
+                    variant="unstyled"
+                    size="none"
                     type="button"
                     data-test="reply-preview-dismiss"
                     :aria-label="$t('Cancel reply')"
@@ -825,7 +826,7 @@ function onKeydown(event: KeyboardEvent): void {
                     @click="emit('cancelReply')"
                 >
                     <X class="size-3.5" />
-                </button>
+                </Button>
             </div>
 
             <!-- Edit-mode banner: brass-tinted so the composer unmistakably
@@ -845,8 +846,9 @@ function onKeydown(event: KeyboardEvent): void {
                 <span class="shrink-0 text-[11.5px] text-muted-foreground">
                     {{ $t('Enter to save · Esc to cancel') }}
                 </span>
-                <!-- eslint-disable-next-line local/no-raw-button -- bespoke composer chip dismiss -->
-                <button
+                <Button
+                    variant="unstyled"
+                    size="none"
                     type="button"
                     data-test="composer-editing-dismiss"
                     :aria-label="$t('Cancel edit')"
@@ -854,7 +856,7 @@ function onKeydown(event: KeyboardEvent): void {
                     @click="exitEditMode"
                 >
                     <X class="size-3.5" />
-                </button>
+                </Button>
             </div>
 
             <!-- Floating pill: input on the left, ghost tool icons and the ink
@@ -901,19 +903,21 @@ function onKeydown(event: KeyboardEvent): void {
                                 </span>
                                 <span class="text-[11px] text-destructive">
                                     {{ $t('Upload failed') }} ·
-                                    <!-- eslint-disable-next-line local/no-raw-button -- inline text retry action -->
-                                    <button
+                                    <Button
+                                        variant="unstyled"
+                                        size="none"
                                         type="button"
                                         data-test="composer-attachment-retry"
                                         class="underline hover:no-underline"
                                         @click="uploads.retry(item.localId)"
                                     >
                                         {{ $t('Retry') }}
-                                    </button>
+                                    </Button>
                                 </span>
                             </span>
-                            <!-- eslint-disable-next-line local/no-raw-button -- bespoke tray chip dismiss -->
-                            <button
+                            <Button
+                                variant="unstyled"
+                                size="none"
                                 type="button"
                                 data-test="composer-attachment-remove"
                                 :aria-label="$t('Remove attachment')"
@@ -921,7 +925,7 @@ function onKeydown(event: KeyboardEvent): void {
                                 @click="uploads.remove(item.localId)"
                             >
                                 <X class="size-3" />
-                            </button>
+                            </Button>
                         </div>
 
                         <!-- Image preview thumbnail (never SVG). -->
@@ -950,8 +954,9 @@ function onKeydown(event: KeyboardEvent): void {
                                     :style="{ width: `${item.progress}%` }"
                                 ></div>
                             </div>
-                            <!-- eslint-disable-next-line local/no-raw-button -- bespoke tray chip dismiss -->
-                            <button
+                            <Button
+                                variant="unstyled"
+                                size="none"
                                 type="button"
                                 data-test="composer-attachment-remove"
                                 :aria-label="$t('Remove attachment')"
@@ -959,7 +964,7 @@ function onKeydown(event: KeyboardEvent): void {
                                 @click="uploads.remove(item.localId)"
                             >
                                 <X class="size-2.75" />
-                            </button>
+                            </Button>
                         </div>
 
                         <!-- Non-image file chip (uploading or done). -->
@@ -1000,8 +1005,9 @@ function onKeydown(event: KeyboardEvent): void {
                                     ></div>
                                 </div>
                             </span>
-                            <!-- eslint-disable-next-line local/no-raw-button -- bespoke tray chip dismiss -->
-                            <button
+                            <Button
+                                variant="unstyled"
+                                size="none"
                                 type="button"
                                 data-test="composer-attachment-remove"
                                 :aria-label="$t('Remove attachment')"
@@ -1009,7 +1015,7 @@ function onKeydown(event: KeyboardEvent): void {
                                 @click="uploads.remove(item.localId)"
                             >
                                 <X class="size-3" />
-                            </button>
+                            </Button>
                         </div>
                     </template>
                 </div>

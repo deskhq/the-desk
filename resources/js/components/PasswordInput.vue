@@ -2,6 +2,7 @@
 import { Eye, EyeOff } from '@lucide/vue';
 import { ref, useTemplateRef } from 'vue';
 import type { HTMLAttributes } from 'vue';
+import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 
@@ -28,15 +29,12 @@ defineExpose({
             :class="cn('pr-10', props.class)"
             v-bind="$attrs"
         />
-        <!-- eslint-disable-next-line local/no-raw-button -- bespoke show/hide toggle nested inside the input -->
-        <button
+        <Button
+            variant="unstyled"
+            size="none"
             type="button"
             @click="showPassword = !showPassword"
-            :class="
-                cn(
-                    'absolute inset-y-0 right-0 flex items-center rounded-r-md px-3 text-muted-foreground hover:text-foreground focus-visible:ring-[3px] focus-visible:ring-ring focus-visible:outline-none',
-                )
-            "
+            class="absolute inset-y-0 right-0 flex items-center rounded-r-md px-3 text-muted-foreground hover:text-foreground"
             :aria-label="
                 showPassword ? $t('Hide password') : $t('Show password')
             "
@@ -44,6 +42,6 @@ defineExpose({
         >
             <EyeOff v-if="showPassword" class="size-4" />
             <Eye v-else class="size-4" />
-        </button>
+        </Button>
     </div>
 </template>

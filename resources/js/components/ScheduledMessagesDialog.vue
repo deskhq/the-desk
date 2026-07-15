@@ -135,16 +135,17 @@ function bodyPreview(body: string): string {
                         <div
                             class="mt-2 flex items-center justify-between gap-2"
                         >
-                            <!-- eslint-disable-next-line local/no-raw-button -- bespoke reschedule pill -->
-                            <button
+                            <Button
+                                variant="ghost"
+                                size="none"
                                 type="button"
                                 data-test="scheduled-reschedule"
-                                class="inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-[13px] text-muted-foreground hover:bg-muted hover:text-foreground"
+                                class="gap-1.5 px-2 py-1 text-[13px] text-muted-foreground"
                                 @click="rescheduling = true"
                             >
                                 <CalendarClock class="size-3.5" />
                                 {{ whenLabel(editSendAt) }}
-                            </button>
+                            </Button>
                             <div class="flex items-center gap-1.5">
                                 <Button
                                     variant="secondary"
@@ -189,26 +190,28 @@ function bodyPreview(body: string): string {
                                 {{ whenLabel(scheduled.sendAt) }}
                             </span>
                             <div class="flex items-center gap-1">
-                                <!-- eslint-disable-next-line local/no-raw-button -- bespoke row icon action -->
-                                <button
+                                <Button
+                                    variant="ghost"
+                                    size="icon-sm"
                                     type="button"
                                     :aria-label="$t('Edit scheduled message')"
                                     data-test="scheduled-edit"
-                                    class="rounded p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground"
+                                    class="text-muted-foreground"
                                     @click="startEdit(scheduled)"
                                 >
                                     <Pencil class="size-4" />
-                                </button>
-                                <!-- eslint-disable-next-line local/no-raw-button -- bespoke row icon action -->
-                                <button
+                                </Button>
+                                <Button
+                                    variant="ghost"
+                                    size="icon-sm"
                                     type="button"
                                     :aria-label="$t('Cancel scheduled message')"
                                     data-test="scheduled-cancel"
-                                    class="rounded p-1.5 text-muted-foreground hover:bg-muted hover:text-destructive"
+                                    class="text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
                                     @click="cancelSend(scheduled)"
                                 >
                                     <Trash2 class="size-4" />
-                                </button>
+                                </Button>
                             </div>
                         </div>
                     </template>

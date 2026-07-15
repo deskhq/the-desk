@@ -256,12 +256,13 @@ function addedAt(iso: string): string {
                 <span class="w-28 shrink-0 text-xs text-muted-foreground">{{
                     addedAt(emoji.createdAt)
                 }}</span>
-                <!-- eslint-disable-next-line local/no-raw-button -- bespoke inline remove text-link -->
-                <button
+                <Button
                     v-if="canRemove(emoji)"
+                    variant="linkDestructive"
+                    size="none"
                     type="button"
                     :data-test="`emoji-remove-${emoji.name}`"
-                    class="shrink-0 text-xs font-semibold text-destructive hover:underline"
+                    class="shrink-0 text-xs font-semibold"
                     @click="pendingRemoval = emoji"
                 >
                     {{
@@ -269,7 +270,7 @@ function addedAt(iso: string): string {
                             ? $t('Delete')
                             : $t('Revoke')
                     }}
-                </button>
+                </Button>
             </li>
         </ul>
     </div>

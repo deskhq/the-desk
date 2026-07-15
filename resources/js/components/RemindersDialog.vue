@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { AlarmClock, Clock, X } from '@lucide/vue';
 import { computed } from 'vue';
+import { Button } from '@/components/ui/button';
 import {
     Dialog,
     DialogContent,
@@ -90,16 +91,17 @@ function openReminder(reminder: MessageReminder): void {
                             })
                         }}
                     </span>
-                    <!-- eslint-disable-next-line local/no-raw-button -- bespoke inline text action -->
-                    <button
+                    <Button
                         v-if="reminders.length > 0"
+                        variant="unstyled"
+                        size="none"
                         type="button"
                         data-test="reminders-clear-all"
                         class="ml-auto font-sans text-[12.5px] font-medium text-muted-foreground transition-colors hover:text-destructive"
                         @click="emit('clearAll')"
                     >
                         {{ $t('Clear all') }}
-                    </button>
+                    </Button>
                 </div>
                 <DialogDescription>
                     {{
@@ -143,8 +145,9 @@ function openReminder(reminder: MessageReminder): void {
                             :data-reminder="reminder.id"
                             class="flex items-center gap-3 rounded-xl border border-border bg-card p-3"
                         >
-                            <!-- eslint-disable-next-line local/no-raw-button -- bespoke reminder list row -->
-                            <button
+                            <Button
+                                variant="unstyled"
+                                size="none"
                                 type="button"
                                 data-test="reminder-open"
                                 class="flex min-w-0 flex-1 items-center gap-3 text-left"
@@ -188,7 +191,7 @@ function openReminder(reminder: MessageReminder): void {
                                         >{{ excerpt(reminder) }}</span
                                     >
                                 </div>
-                            </button>
+                            </Button>
                             <span
                                 class="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-brass-fill px-2.5 py-1 text-[11.5px] font-semibold text-brass-fill-foreground"
                                 data-test="reminder-when"
@@ -196,8 +199,9 @@ function openReminder(reminder: MessageReminder): void {
                                 <Clock class="size-3" />
                                 {{ whenLabel(reminder.remindAt) }}
                             </span>
-                            <!-- eslint-disable-next-line local/no-raw-button -- bespoke row icon action -->
-                            <button
+                            <Button
+                                variant="unstyled"
+                                size="none"
                                 type="button"
                                 data-test="reminder-clear"
                                 :aria-label="$t('Clear reminder')"
@@ -205,7 +209,7 @@ function openReminder(reminder: MessageReminder): void {
                                 @click="emit('clear', reminder.id)"
                             >
                                 <X class="size-4" />
-                            </button>
+                            </Button>
                         </div>
                     </section>
                 </template>

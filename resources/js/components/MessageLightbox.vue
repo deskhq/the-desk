@@ -10,6 +10,7 @@ import {
     DialogTitle,
 } from 'reka-ui';
 import { computed, ref, watch } from 'vue';
+import { Button } from '@/components/ui/button';
 import { useTranslations } from '@/composables/useTranslations';
 import { formatFileSize } from '@/lib/attachments';
 import { formatTimeOfDay } from '@/lib/datetime';
@@ -134,8 +135,9 @@ function onKeydown(event: KeyboardEvent): void {
                 </div>
 
                 <template v-if="images.length > 1">
-                    <!-- eslint-disable-next-line local/no-raw-button -- bespoke lightbox nav control on a dark backdrop -->
-                    <button
+                    <Button
+                        variant="unstyled"
+                        size="none"
                         type="button"
                         data-test="lightbox-prev"
                         :aria-label="t('Previous image')"
@@ -143,9 +145,10 @@ function onKeydown(event: KeyboardEvent): void {
                         @click="step(-1)"
                     >
                         <ChevronLeft class="size-4" />
-                    </button>
-                    <!-- eslint-disable-next-line local/no-raw-button -- bespoke lightbox nav control on a dark backdrop -->
-                    <button
+                    </Button>
+                    <Button
+                        variant="unstyled"
+                        size="none"
                         type="button"
                         data-test="lightbox-next"
                         :aria-label="t('Next image')"
@@ -153,7 +156,7 @@ function onKeydown(event: KeyboardEvent): void {
                         @click="step(1)"
                     >
                         <ChevronRight class="size-4" />
-                    </button>
+                    </Button>
                     <span
                         class="absolute bottom-3 left-1/2 -translate-x-1/2 text-[11.5px] text-[#8b8370] tabular-nums"
                     >

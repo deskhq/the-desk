@@ -12,6 +12,7 @@ import {
 import { computed, onMounted, ref } from 'vue';
 import Heading from '@/components/Heading.vue';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Button } from '@/components/ui/button';
 import type { ChartConfig } from '@/components/ui/chart';
 import {
     ChartContainer,
@@ -307,23 +308,19 @@ function channelColor(indexInList: number): string {
                 :aria-label="$t('Time range')"
                 data-test="analytics-range"
             >
-                <!-- eslint-disable-next-line local/no-raw-button -- bespoke segmented range option -->
-                <button
+                <Button
                     v-for="option in rangeOptions"
                     :key="option.value"
+                    variant="segmented"
+                    size="none"
                     type="button"
-                    class="inline-flex h-7 items-center rounded-full px-3.5 text-[12.5px] font-medium transition-colors"
-                    :class="
-                        option.value === range
-                            ? 'bg-card text-foreground shadow-sm'
-                            : 'text-muted-foreground hover:text-foreground'
-                    "
+                    class="h-7 px-3.5 text-[12.5px] font-medium"
                     :aria-pressed="option.value === range"
                     :data-test="`analytics-range-${option.value}`"
                     @click="selectRange(option.value)"
                 >
                     {{ option.label }}
-                </button>
+                </Button>
             </div>
         </div>
 
