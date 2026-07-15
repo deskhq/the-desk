@@ -41,6 +41,7 @@ declare module '@inertiajs/core' {
             pendingInvitations?: DashboardInvitation[];
             reminders?: MessageReminder[];
             firedReminders?: MessageReminder[];
+            update: App.Data.UpdateStatusData | null;
             locale: string;
             translations?: Record<string, string>;
             [key: string]: unknown;

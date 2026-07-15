@@ -76,6 +76,7 @@ import {
     SidebarProvider,
 } from '@/components/ui/sidebar';
 import { Toaster } from '@/components/ui/sonner';
+import UpdateIndicator from '@/components/UpdateIndicator.vue';
 import { adjacentSlug } from '@/composables/keyboardShortcuts';
 import { useChimeNotifications } from '@/composables/useChimeNotifications';
 import { useInitials } from '@/composables/useInitials';
@@ -1333,6 +1334,7 @@ onMounted(() => {
             </SidebarContent>
 
             <SidebarFooter class="border-t border-sidebar-border p-2.5">
+                <UpdateIndicator />
                 <NavUser />
             </SidebarFooter>
         </Sidebar>

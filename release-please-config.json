@@ -11,6 +11,7 @@
         { "type": "deps", "section": "Dependencies" }
       ],
       "extra-files": [
+        { "type": "generic", "path": "VERSION" },
         { "type": "generic", "path": "README.md" },
         { "type": "generic", "path": "docker-compose.prod.yml" },
         { "type": "generic", "path": "docs/src/content/docs/docs/comparison.md" },

@@ -94,6 +94,7 @@ production — see [Configuration](/docs/self-hosting/configuration/#reverb-webs
 | `ACTIVITYLOG_ENABLED`        | `true`  | [Feature toggles → Activity logging](/docs/reference/feature-toggles/#activity-logging) |
 | `REVERB_SCALING_ENABLED`     | `false` | [Feature toggles → Advanced Reverb](/docs/reference/feature-toggles/#advanced-reverb-options) |
 | `AUTH_SSO_ONLY`              | `false` | [Feature toggles → SSO-only mode](/docs/reference/feature-toggles/#sso-only-mode) |
+| `UPDATE_CHECK_ENABLED`       | `true`  | [Feature toggles → Update checks](/docs/reference/feature-toggles/#update-checks) |
 
 ## Single sign-on (OpenID Connect)
 

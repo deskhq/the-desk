@@ -19,6 +19,21 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Application Version
+    |--------------------------------------------------------------------------
+    |
+    | The running release, read from the committed VERSION file so a single
+    | built image knows which version it is at runtime. release-please keeps
+    | VERSION in lockstep with the git tag (see release-please-config.json),
+    | so this is the source of truth the update-available check compares
+    | against the latest published release.
+    |
+    */
+
+    'version' => trim((string) preg_replace('/#.*/', '', (string) file_get_contents(base_path('VERSION')))),
+
+    /*
+    |--------------------------------------------------------------------------
     | Application Environment
     |--------------------------------------------------------------------------
     |

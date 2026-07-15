@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Http\Controllers\Settings\AboutController;
 use App\Http\Controllers\Settings\AppearanceController;
 use App\Http\Controllers\Settings\DataExportController;
 use App\Http\Controllers\Settings\LocaleController;
@@ -28,6 +29,8 @@ Route::middleware(['auth'])->group(function (): void {
     Route::patch('settings/profile', [ProfileController::class, 'update'])->name('profile.update');
 
     Route::patch('settings/timezone', [TimezoneController::class, 'update'])->name('timezone.update');
+
+    Route::get('settings/about', [AboutController::class, 'edit'])->name('about.edit');
 });
 
 Route::middleware(['auth', 'verified'])->group(function (): void {

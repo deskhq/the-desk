@@ -4,6 +4,7 @@ import type { LucideIcon } from '@lucide/vue';
 import {
     ArrowLeft,
     Database,
+    Info,
     Languages,
     Palette,
     Shield,
@@ -22,6 +23,7 @@ import {
 import { useCurrentUrl } from '@/composables/useCurrentUrl';
 import { useTranslations } from '@/composables/useTranslations';
 import { toUrl } from '@/lib/utils';
+import { edit as editAbout } from '@/routes/about';
 import { edit as editAppearance } from '@/routes/appearance';
 import { edit as editDataPrivacy } from '@/routes/data-export';
 import { edit as editLocale } from '@/routes/locale';
@@ -71,6 +73,12 @@ const navItems = computed<SettingsNavItem[]>(() => [
         href: editDataPrivacy(),
         icon: Database,
         slug: 'data-privacy',
+    },
+    {
+        title: t('About'),
+        href: editAbout(),
+        icon: Info,
+        slug: 'about',
     },
 ]);
 

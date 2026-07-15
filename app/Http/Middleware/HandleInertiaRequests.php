@@ -6,6 +6,7 @@ use App\Data\ChannelData;
 use App\Data\ChannelSectionData;
 use App\Data\CustomEmojiData;
 use App\Data\MessageReminderData;
+use App\Data\UpdateStatusData;
 use App\Data\UserData;
 use App\Enums\MessageReminderStatus;
 use App\Enums\MessageType;
@@ -18,6 +19,7 @@ use App\Models\TeamInvitation;
 use App\Models\User;
 use App\Support\ReverbConfig;
 use App\Support\TranslationCatalog;
+use App\Support\UpdateChecker;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -98,6 +100,11 @@ class HandleInertiaRequests extends Middleware
                 'maxSizeMb' => (int) config('attachments.max_size_mb'),
                 'maxPerMessage' => (int) config('attachments.max_per_message'),
             ],
+            // The instance's version standing, so authenticated users see a
+            // low-key "update available" indicator when the self-hosted release
+            // is behind. `current` is always present; `latest`/`notesUrl` fill in
+            // once a scheduled check has cached a result (never when disabled).
+            'update' => fn (): ?UpdateStatusData => $user ? app(UpdateChecker::class)->status() : null,
             'auth' => [
                 'user' => $user,
             ],

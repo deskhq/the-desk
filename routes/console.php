@@ -32,3 +32,8 @@ Schedule::call(fn (PurgeExpiredAttachments $purge): int => $purge->handle())
     ->hourly()
     ->withoutOverlapping()
     ->description('Purge pending attachments never claimed by a message');
+
+Schedule::command('updates:check')
+    ->daily()
+    ->withoutOverlapping()
+    ->description('Check GitHub for a newer stable release');

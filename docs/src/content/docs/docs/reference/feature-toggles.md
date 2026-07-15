@@ -138,3 +138,32 @@ deployments. Most single-host instances leave them alone.
 | `REVERB_SCALING_ENABLED`            | `false` | Enables horizontal scaling of Reverb across multiple servers (Redis pub/sub). |
 | `REVERB_APP_RATE_LIMITING_ENABLED`  | `false` | Enables per-connection message rate limiting.                      |
 | `REVERB_APP_RATE_LIMIT_TERMINATE`   | `false` | When rate limiting is on, disconnects clients that exceed the limit rather than just throttling. |
+
+## Update checks
+
+| Variable                        | Default          | Effect                                                       |
+| ------------------------------- | ---------------- | ------------------------------------------------------------ |
+| `UPDATE_CHECK_ENABLED`          | `true`           | Check daily whether a newer stable release is available.     |
+| `UPDATE_CHECK_REPOSITORY`       | `emmpaul/the-desk` | The GitHub `owner/repo` to check and link release notes to. |
+| `UPDATE_CHECK_CACHE_TTL_HOURS`  | `12`             | How long a successful check is trusted before the next one.  |
+
+Update checks are **on** by default. Once a day a scheduled command asks the
+GitHub Releases API for the latest **stable** release (drafts and pre-releases
+are ignored) and caches the result. When your instance is behind, every signed-in
+user sees a low-key **"update available"** strip in the sidebar, and the running
+version appears in **Settings → About this instance** and the user menu. The strip
+is dismissible per version — it comes back on the next release.
+
+The check **fails silently**: no network, an air-gapped host, a rate limit, or a
+GitHub outage never blocks a request or shows an error — the last known-good
+result is kept.
+
+Set `UPDATE_CHECK_ENABLED=false` for an **air-gapped** instance: no outbound
+update-check request is ever made, and the UI shows only the running version with
+no "update available" claim. Forks can point `UPDATE_CHECK_REPOSITORY` at their
+own upstream.
+
+:::note
+The check only reads public release metadata. It sends no information about your
+instance to GitHub.
+:::
