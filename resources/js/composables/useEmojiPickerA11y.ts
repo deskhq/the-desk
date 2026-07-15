@@ -257,10 +257,16 @@ export function useEmojiPickerA11y(
             cell.setAttribute('role', 'option');
         }
 
-        // Keep the tab stop and selected option on the cell the user was on if
-        // it survived the re-render; otherwise fall back to the first cell.
+        // Anchor the tab stop and selected option on the cell the user was on if
+        // it is still visible; otherwise fall back to the first visible cell.
+        // Filtering by visibility keeps the single tab stop off cells whose
+        // category was hidden by the current search. `activate` still clears the
+        // roving state from every cell, hidden ones included.
+        const visible = visibleCells(host);
         const preserved =
-            activeCell && cells.includes(activeCell) ? activeCell : cells[0];
+            activeCell && visible.includes(activeCell)
+                ? activeCell
+                : visible[0];
 
         if (preserved) {
             activate(preserved, cells);

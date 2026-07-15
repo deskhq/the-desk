@@ -255,6 +255,10 @@ describe('useEmojiPickerA11y', () => {
         const emojis = root.querySelector('.v3-emojis')!;
         const fresh = document.createElement('button');
         fresh.type = 'button';
+        Object.defineProperty(fresh, 'offsetParent', {
+            configurable: true,
+            get: () => emojis,
+        });
         emojis.replaceChildren(fresh);
 
         await nextTick();
@@ -287,6 +291,39 @@ describe('useEmojiPickerA11y', () => {
         expect(cells[2].tabIndex).toBe(0);
         expect(cells[2].getAttribute('aria-selected')).toBe('true');
         expect(cells[0].tabIndex).toBe(-1);
+
+        stop();
+    });
+
+    it('anchors the tab stop on the first visible cell when a category is filtered out', async () => {
+        const { root, cells } = buildPicker([
+            { name: 'Smileys', count: 4 },
+            { name: 'Animals', count: 4 },
+        ]);
+        document.body.append(root);
+        const { stop } = mountEnhancer(root);
+
+        // A search hides the first category (v-show → display:none): its cells
+        // stay in the DOM but lose their offsetParent.
+        for (const hidden of cells.slice(0, 4)) {
+            Object.defineProperty(hidden, 'offsetParent', {
+                configurable: true,
+                get: () => null,
+            });
+        }
+
+        root.querySelector('.v3-body-inner')!.appendChild(
+            document.createElement('div'),
+        );
+
+        await nextTick();
+        await Promise.resolve();
+
+        // The single tab stop lands on the first still-visible cell, not the
+        // hidden first cell.
+        expect(cells[0].tabIndex).toBe(-1);
+        expect(cells[4].tabIndex).toBe(0);
+        expect(cells[4].getAttribute('aria-selected')).toBe('true');
 
         stop();
     });
