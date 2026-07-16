@@ -223,6 +223,22 @@ class User extends Authenticatable implements HasLocalePreference, MustVerifyEma
     }
 
     /**
+     * The ids of every channel this user may see across all their teams — the ACL
+     * boundary for cross-team ("All workspaces") message search.
+     *
+     * The team-agnostic counterpart to {@see visibleChannelIds()}: membership
+     * alone, unscoped by team. Because it is still the whole authorization
+     * boundary, widening a search to this set can never surface a channel the user
+     * is not a member of, in any team.
+     *
+     * @return SupportCollection<int, string>
+     */
+    public function visibleChannelIdsAcrossTeams(): SupportCollection
+    {
+        return $this->channels()->pluck('channels.id');
+    }
+
+    /**
      * Get the user's custom sidebar sections across all their teams.
      *
      * @return HasMany<ChannelSection, $this>

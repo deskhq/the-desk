@@ -142,10 +142,12 @@ return [
         'host' => env('MEILISEARCH_HOST', 'http://localhost:7700'),
         'key' => env('MEILISEARCH_KEY'),
         'index-settings' => [
-            // `channel_id` is the ACL filter used by message search; `team_id`
-            // and `user_id` are indexed for relevance and future faceting.
+            // `channel_id` is the ACL filter used by message search; `user_id`
+            // and `created_at` back the author and date facets (the latter also
+            // lets Meilisearch pre-filter the candidate window by date on large
+            // corpora); `team_id` is indexed for relevance.
             'messages' => [
-                'filterableAttributes' => ['channel_id'],
+                'filterableAttributes' => ['channel_id', 'user_id', 'created_at'],
                 'sortableAttributes' => ['created_at'],
             ],
         ],

@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace App\Http\Requests\Channels;
 
+use App\Enums\SearchScope;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class SearchMessagesRequest extends FormRequest
 {
@@ -29,6 +31,14 @@ class SearchMessagesRequest extends FormRequest
     {
         return [
             'q' => ['nullable', 'string', 'max:255'],
+            // The author and channel facets arrive as ids already resolved on the
+            // client; the channel ACL is re-asserted authoritatively, so an
+            // unknown id simply matches nothing rather than needing an exists rule.
+            'from' => ['nullable', 'string', 'max:255'],
+            'in' => ['nullable', 'string', 'max:255'],
+            'after' => ['nullable', 'date'],
+            'before' => ['nullable', 'date'],
+            'scope' => ['nullable', Rule::enum(SearchScope::class)],
         ];
     }
 }

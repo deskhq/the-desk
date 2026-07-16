@@ -44,6 +44,26 @@ function performSearch(User $user, Team $team, string $query): TestResponse
 }
 
 /**
+ * Hit the search endpoint with an arbitrary set of query parameters (facets).
+ *
+ * @param  array<string, string>  $params
+ */
+function performSearchWith(User $user, Team $team, array $params): TestResponse
+{
+    return test()->actingAs($user)->get(route('search', ['team' => $team->slug, ...$params]));
+}
+
+/**
+ * Join the user to a channel they are not yet a member of, returning the channel.
+ */
+function joinChannel(User $user, Channel $channel): Channel
+{
+    $channel->channelMembers()->firstOrCreate(['user_id' => $user->id]);
+
+    return $channel;
+}
+
+/**
  * Hit the quick-switcher JSON suggest endpoint for a team as the given user.
  */
 function performSuggest(User $user, Team $team, string $query): TestResponse
@@ -68,6 +88,97 @@ test('a member searches messages in their channels', function (): void {
             ->where('results.0.channelName', $general->name)
             ->where('results.0.channelSlug', $general->slug)
         );
+});
+
+test('a result carries a highlighted snippet of the match', function (): void {
+    [$owner, $team, $general] = searchTeamWithGeneral();
+    $member = searchMember($team, $general);
+    Message::factory()->for($general)->for($owner)->create(['body' => 'the quokka danced at dawn']);
+
+    performSearch($member, $team, 'quokka')
+        ->assertInertia(fn (Assert $page): Assert => $page
+            ->where('results.0.snippet', 'the <mark>quokka</mark> danced at dawn')
+        );
+});
+
+test('the author facet limits results to messages from that user', function (): void {
+    [$owner, $team, $general] = searchTeamWithGeneral();
+    $ada = searchMember($team, $general, 'Ada');
+    $bob = searchMember($team, $general, 'Bob');
+    Message::factory()->for($general)->for($ada)->create(['body' => 'zephyr from ada']);
+    Message::factory()->for($general)->for($bob)->create(['body' => 'zephyr from bob']);
+
+    performSearchWith($owner, $team, ['q' => 'zephyr', 'from' => $ada->id])
+        ->assertInertia(fn (Assert $page): Assert => $page
+            ->has('results', 1)
+            ->where('results.0.message.user.name', 'Ada')
+        );
+});
+
+test('the channel facet limits results to that channel', function (): void {
+    [$owner, $team, $general] = searchTeamWithGeneral();
+    $other = joinChannel($owner, Channel::factory()->for($team)->create(['created_by' => $owner->id]));
+    Message::factory()->for($general)->for($owner)->create(['body' => 'zephyr in general']);
+    Message::factory()->for($other)->for($owner)->create(['body' => 'zephyr in other']);
+
+    performSearchWith($owner, $team, ['q' => 'zephyr', 'in' => $other->id])
+        ->assertInertia(fn (Assert $page): Assert => $page
+            ->has('results', 1)
+            ->where('results.0.channelSlug', $other->slug)
+        );
+});
+
+test('the date facets limit results to the created-at range', function (): void {
+    [$owner, $team, $general] = searchTeamWithGeneral();
+    $member = searchMember($team, $general);
+    Message::factory()->for($general)->for($owner)->create(['body' => 'zephyr old', 'created_at' => now()->subDays(10)]);
+    Message::factory()->for($general)->for($owner)->create(['body' => 'zephyr new', 'created_at' => now()->subDay()]);
+
+    performSearchWith($member, $team, ['q' => 'zephyr', 'after' => now()->subDays(2)->toDateString()])
+        ->assertInertia(fn (Assert $page): Assert => $page
+            ->has('results', 1)
+            ->where('results.0.message.body', 'zephyr new')
+        );
+
+    performSearchWith($member, $team, ['q' => 'zephyr', 'before' => now()->subDays(5)->toDateString()])
+        ->assertInertia(fn (Assert $page): Assert => $page
+            ->has('results', 1)
+            ->where('results.0.message.body', 'zephyr old')
+        );
+});
+
+test('results are ordered newest first regardless of engine relevance order', function (): void {
+    [$owner, $team, $general] = searchTeamWithGeneral();
+    $member = searchMember($team, $general);
+    Message::factory()->for($general)->for($owner)->create(['body' => 'zephyr one', 'created_at' => now()->subDays(3)]);
+    Message::factory()->for($general)->for($owner)->create(['body' => 'zephyr two', 'created_at' => now()->subDay()]);
+
+    performSearch($member, $team, 'zephyr')
+        ->assertInertia(fn (Assert $page): Assert => $page
+            ->has('results', 2)
+            ->where('results.0.message.body', 'zephyr two')
+            ->where('results.1.message.body', 'zephyr one')
+        );
+});
+
+test('facets never widen the channel ACL', function (): void {
+    [$owner, $team, $general] = searchTeamWithGeneral();
+    $member = searchMember($team, $general);
+    $private = Channel::factory()->for($team)->private()->create(['created_by' => $owner->id]);
+    Message::factory()->for($private)->for($owner)->create(['body' => 'secret zephyr plans']);
+
+    // Even naming the owner as author and the private channel as the channel
+    // facet, the Eloquent ACL re-assertion keeps the private message hidden.
+    performSearchWith($member, $team, ['q' => 'zephyr', 'from' => $owner->id, 'in' => $private->id])
+        ->assertInertia(fn (Assert $page): Assert => $page->has('results', 0));
+});
+
+test('the date facets must be valid dates', function (): void {
+    [, $team, $general] = searchTeamWithGeneral();
+    $member = searchMember($team, $general);
+
+    performSearchWith($member, $team, ['q' => 'zephyr', 'after' => 'not-a-date'])
+        ->assertSessionHasErrors('after');
 });
 
 test('the search page shares the workspace sidebar props', function (): void {
