@@ -240,14 +240,19 @@ export type MessagePage = {
 };
 
 /**
- * A single message-search match. Mirrors the `MessageSearchResultData` DTO:
- * the matched message plus the channel it belongs to, for rendering the result
- * row and building its jump-to-message link.
+ * A single message-search match. Mirrors the `MessageSearchResultData` DTO: the
+ * matched message, its highlighted snippet, and the channel + owning team it
+ * belongs to, for rendering the result row, its `<mark>` snippet, a cross-team
+ * workspace tag, and the jump-to-message link.
  */
 export type MessageSearchResult = {
     message: Message;
     channelName: string;
     channelSlug: string;
+    snippet: string;
+    teamId: string;
+    teamName: string;
+    teamSlug: string;
 };
 
 /**

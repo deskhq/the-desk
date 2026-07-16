@@ -58,7 +58,10 @@ export function emptyFilters(): SearchFilters {
  * against the lookup. Later occurrences of a facet win (each is single-valued);
  * every unresolved word — token or plain — stays in `text`.
  */
-export function parseSearchQuery(raw: string, lookup: TokenLookup): SearchFilters {
+export function parseSearchQuery(
+    raw: string,
+    lookup: TokenLookup,
+): SearchFilters {
     const filters = emptyFilters();
     const residual: string[] = [];
 
@@ -96,9 +99,11 @@ function applyToken(
 ): boolean {
     if (key === 'from') {
         const member = resolveMember(value, lookup.members);
+
         if (member === null) {
             return false;
         }
+
         filters.from = member;
 
         return true;
@@ -106,18 +111,22 @@ function applyToken(
 
     if (key === 'in') {
         const channel = resolveChannel(value, lookup.channels);
+
         if (channel === null) {
             return false;
         }
+
         filters.in = channel;
 
         return true;
     }
 
     const date = parseDate(value);
+
     if (date === null) {
         return false;
     }
+
     filters[key === 'before' ? 'before' : 'after'] = date;
 
     return true;
@@ -188,18 +197,23 @@ export function filtersToParams(
     if (filters.text !== '') {
         params.q = filters.text;
     }
+
     if (filters.from !== null) {
         params.from = filters.from;
     }
+
     if (filters.in !== null) {
         params.in = filters.in;
     }
+
     if (filters.after !== null) {
         params.after = filters.after;
     }
+
     if (filters.before !== null) {
         params.before = filters.before;
     }
+
     if (scope !== undefined && scope !== '') {
         params.scope = scope;
     }
