@@ -17,6 +17,7 @@ use App\Models\Team;
 use App\Models\TeamInvitation;
 use App\Models\User;
 use Database\Seeders\WorkspaceSeeder;
+use Ramsey\Uuid\Uuid;
 
 beforeEach(function (): void {
     $this->seed();
@@ -114,6 +115,26 @@ test('backfilled messages carry time-ordered ids so a newly sent message sorts n
     $sent = Message::factory()->for($busiest)->for($this->demo)->create();
 
     expect($busiest->messages()->orderByDesc('id')->value('id'))->toBe($sent->id);
+});
+
+test('every seeded message derives its UUIDv7 id from its own created_at, never wall-clock seed time', function (): void {
+    // Root cause of the #447/#448 flake: a back-dated message that takes a
+    // wall-clock UUIDv7 id (stamped at seed time) instead of one derived from its
+    // `created_at` ranks by "now", so `id DESC` can disagree with `created_at DESC`
+    // whenever the seed run straddles a time boundary. Assert the invariant the
+    // timeline depends on — each id's embedded timestamp matches its own row's
+    // `created_at` (to the second) — across the busiest channel's whole history.
+    $busiest = Channel::withCount('messages')->orderByDesc('messages_count')->firstOrFail();
+
+    $busiest->messages()->get(['id', 'created_at'])->each(function (Message $message): void {
+        $uuid = Uuid::fromString($message->id);
+
+        // The id must be a UUIDv7 for its embedded timestamp to be meaningful — a
+        // random v4 would carry no `created_at` and break the time-ordered timeline.
+        expect($uuid->getVersion())->toBe(7);
+
+        expect(abs($uuid->getDateTime()->getTimestamp() - $message->created_at->getTimestamp()))->toBeLessThanOrEqual(1);
+    });
 });
 
 test('it seeds edited, soft-deleted and mention-bearing messages', function (): void {

@@ -554,9 +554,17 @@ class WorkspaceSeeder extends Seeder
 
         for ($index = 0; $index < $count; $index++) {
             $author = $authors[$index % count($authors)];
+            $createdAt = now()->subMinutes($count - $index);
 
             $messages[] = Message::factory()->for($channel)->for($author)->create([
-                'created_at' => now()->subMinutes($count - $index),
+                // Derive the UUIDv7 id from this row's back-dated `created_at` (as the
+                // real send path and `backfillChannelHistory()` do) rather than taking
+                // the trait's wall-clock default. Otherwise a message stamped "now"
+                // could rank ahead of a later `created_at` when the seed run straddles a
+                // time boundary, making `id DESC` disagree with `created_at DESC` — the
+                // intermittent timeline-ordering flake behind #447 and #448.
+                'id' => (string) Str::uuid7($createdAt),
+                'created_at' => $createdAt,
             ]);
         }
 
