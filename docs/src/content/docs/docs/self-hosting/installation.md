@@ -7,28 +7,29 @@ The production stack is orchestrated with `docker-compose.prod.yml`. The app is
 served with [FrankenPHP](https://frankenphp.dev/); Postgres, Meilisearch, Redis,
 Reverb, a queue worker, and the scheduler all run as containers.
 
-There are **two supported ways** to get the app image, both driven by the same
-`.env`:
+The stack **pulls a prebuilt image** by default, and can optionally **build from
+source** — both driven by the same `.env`:
 
-- **[Pull the prebuilt image](#option-a-pull-the-published-image)** from the
-  GitHub Container Registry (`ghcr.io/emmpaul/the-desk`) — no build step. Every
-  setting, including the browser-facing Reverb values, is read at **runtime**, so
-  one published image works for any host.
-- **[Build from source](#option-b-build-from-source)** at a release tag — clone
-  the repo, check out a tag, and `--build`.
+- **[Pull the published image](#pull-the-published-image)** from the GitHub
+  Container Registry (`ghcr.io/emmpaul/the-desk`) — the default, no build step.
+  Every setting, including the browser-facing Reverb values, is read at
+  **runtime**, so one published image works for any host.
+- **[Build from source](#build-from-source)** at a release tag — layer a build
+  overlay to compile the image locally.
 
 :::note
 Make sure you meet the [requirements](/docs/self-hosting/requirements/) first — Docker
 24+, a domain, a TLS reverse proxy, and working SMTP.
 :::
 
-## Option A — Pull the published image
+## Pull the published image
 
-Each release publishes a prebuilt image to the GitHub Container Registry at
-`ghcr.io/emmpaul/the-desk` (tags `X.Y.Z`, `X.Y`, and `latest`; `edge` tracks the
-tip of `master`). Because the app name and the browser-facing Reverb settings are
-served to the frontend at **runtime** — not baked into the JavaScript bundle at
-build time — the same image works for any operator's host with no rebuild.
+`docker-compose.prod.yml` pins the app image to this release's published tag on
+the GitHub Container Registry (`ghcr.io/emmpaul/the-desk`; tags `X.Y.Z`, `X.Y`,
+and `latest`, with `edge` tracking the tip of `master`), so `up -d` pulls and runs
+it with **no build step**. Because the app name and browser-facing Reverb settings
+are served to the frontend at **runtime** — not baked into the JavaScript bundle —
+the same image works for any operator's host.
 
 ```bash
 # 1. Grab the compose file, env template, and secret generator from a release tag.
@@ -39,17 +40,20 @@ git fetch --tags && git checkout v1.5.0 # x-release-please-version   (the desire
 # 2. Generate .env secrets, then edit APP_URL, mail, and REVERB_*_PUBLIC.
 ./docker/gen-secrets.sh
 
-# 3. Run the published image instead of building. Pin the version to the tag.
-echo 'APP_IMAGE=ghcr.io/emmpaul/the-desk:1.5.0' >> .env # x-release-please-version
-docker compose -f docker-compose.prod.yml pull
+# 3. Start the stack. up -d pulls the release-pinned image (no build step).
 docker compose -f docker-compose.prod.yml up -d
 ```
 
-`docker compose pull` fetches the prebuilt image; `up -d` runs it without a build
-step. Upgrades are just `APP_IMAGE=…:X.Y.Z`, then `pull` + `up -d` again — see
+The checked-out tag pins the image, so no `APP_IMAGE` is needed. To run a
+different tag (e.g. `edge`), set `APP_IMAGE=ghcr.io/emmpaul/the-desk:<tag>` in
+`.env`. Upgrades just check out a newer tag and restart — see
 [Upgrading](/docs/self-hosting/upgrading/).
 
-## Option B — Build from source
+## Build from source
+
+To build the image yourself — to audit or patch the source, or run in an
+air-gapped environment — layer the build overlay (`docker-compose.build.yml`) on
+top, which restores a local build for the app services (they share one image):
 
 ```bash
 # 1. Clone and check out the latest release tag.
@@ -58,17 +62,12 @@ cd the-desk
 git fetch --tags
 git checkout v1.5.0 # x-release-please-version         (the desired release tag)
 
-# 2. Generate .env with all required secrets filled in.
-#    Creates .env from the template and fills APP_KEY, DB_PASSWORD,
-#    MEILISEARCH_KEY, and the REVERB_* keys with fresh random values.
-#    Safe to re-run — it never overwrites values you have already set.
+# 2. Generate .env with all required secrets, then edit APP_URL, mail, and
+#    REVERB_*_PUBLIC (see Configuration) — identical to the pull flow above.
 ./docker/gen-secrets.sh
 
-# 3. Edit .env and set the non-secret settings the script can't guess
-#    (APP_URL, SMTP mail credentials, REVERB_*_PUBLIC). See Configuration.
-
-# 4. Build the images and start the stack.
-docker compose -f docker-compose.prod.yml up -d --build
+# 3. Build the image and start the stack.
+docker compose -f docker-compose.prod.yml -f docker-compose.build.yml up -d --build
 ```
 
 ## What happens on start

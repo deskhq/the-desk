@@ -135,15 +135,12 @@ The production stack is orchestrated with `docker-compose.prod.yml`. The app is
 served with [FrankenPHP](https://frankenphp.dev/); Postgres, Meilisearch, Reverb,
 a queue worker, and the scheduler all run as containers.
 
-There are two supported ways to get the app image, both driven by the same
-`.env`:
-
-- **Pull the prebuilt image** from the GitHub Container Registry
-  (`ghcr.io/emmpaul/the-desk`) — no build step. Every setting, including the
-  browser-facing Reverb values, is read at **runtime**, so one published image
-  works for any host. See [Using the published image](#using-the-published-image).
-- **Build from source** at a release tag — clone the repo, check out a tag, and
-  `--build`. See [First install](#first-install).
+By default the stack **pulls a prebuilt image** from the GitHub Container Registry
+(`ghcr.io/emmpaul/the-desk`), so `up -d` runs it with no build step. Every setting,
+including the browser-facing Reverb values, is read at **runtime**, so one
+published image works for any host. If you would rather **build from source**, a
+one-line overlay restores a local build — see
+[Building from source](#building-from-source).
 
 ### Prerequisites
 
@@ -174,8 +171,8 @@ git checkout v1.5.0 # x-release-please-version         (the desired release tag)
 #    REVERB_SCHEME_PUBLIC=https. These are read at runtime (a restart applies
 #    changes), so no rebuild is needed when they change.
 
-# 4. Build the images and start the stack.
-docker compose -f docker-compose.prod.yml up -d --build
+# 4. Start the stack. This pulls the release-pinned image — no build step.
+docker compose -f docker-compose.prod.yml up -d
 ```
 
 Migrations run automatically on start (the `app` container's entrypoint runs
@@ -214,14 +211,14 @@ Registration is open, so onboarding is self-service:
 ### Upgrading
 
 Upgrades follow the same tag-based flow. Check out the newer release tag and
-rebuild:
+restart — `up -d` pulls the image that tag pins:
 
 ```bash
 git fetch --tags
 git checkout v1.5.0 # x-release-please-version         (the desired release tag)
 docker compose -f docker-compose.prod.yml down
-docker compose -f docker-compose.prod.yml up -d --build
-# migrations run automatically via the entrypoint
+docker compose -f docker-compose.prod.yml up -d
+# pulls the newer pinned image; migrations run automatically via the entrypoint
 ```
 
 Your data persists across `down`/`up` in named volumes (`pgsql-data`,
@@ -238,32 +235,25 @@ Your data persists across `down`/`up` in named volumes (`pgsql-data`,
 > corresponding [GitHub Release notes](https://github.com/emmpaul/the-desk/releases)
 > for required manual steps.
 
-### Using the published image
+### Building from source
 
 Each release publishes a prebuilt image to the GitHub Container Registry at
 `ghcr.io/emmpaul/the-desk` (tags `X.Y.Z`, `X.Y`, and `latest`; `edge` tracks the
-tip of `master`). Because the app name and the browser-facing Reverb settings are
-served to the frontend at **runtime** — not baked into the JavaScript bundle at
-build time — the same image works for any operator's host with no rebuild. Point
-it at your `.env` and go:
+tip of `master`), and the [First install](#first-install) steps above pull it. If
+you would rather build the image yourself — to audit or patch the source, or to
+run in an air-gapped environment — layer the build overlay
+(`docker-compose.build.yml`) on top. It restores a local build for the app
+services (they share one image):
 
 ```bash
-# 1. Grab the compose file, env template, and secret generator from a release tag.
-git clone git@github.com:emmpaul/the-desk.git
-cd the-desk
-git fetch --tags && git checkout v1.5.0 # x-release-please-version   (the desired release tag)
-
-# 2. Generate .env secrets, then edit APP_URL, mail, and REVERB_*_PUBLIC (see below).
-./docker/gen-secrets.sh
-
-# 3. Run the published image instead of building. Pin the version to the tag.
-echo 'APP_IMAGE=ghcr.io/emmpaul/the-desk:1.5.0' >> .env # x-release-please-version
-docker compose -f docker-compose.prod.yml pull
-docker compose -f docker-compose.prod.yml up -d
+# Check out the matching release tag first so the build matches the compose file,
+# then run gen-secrets.sh and edit .env exactly as in First install.
+docker compose -f docker-compose.prod.yml -f docker-compose.build.yml up -d --build
 ```
 
-`docker compose pull` fetches the prebuilt image; `up -d` runs it without a build
-step. Upgrades are just `APP_IMAGE=…:X.Y.Z`, then `pull` + `up -d` again.
+Everything else — secrets, `.env`, and the automatic migrations — is identical to
+the pull flow. To go back to the published image, drop the overlay and `up -d`
+again.
 
 > **Reverb settings are runtime, so mind the browser vs. server split.** The
 > container speaks plain `http` on `8080` (`REVERB_PORT` / `REVERB_SCHEME`), but

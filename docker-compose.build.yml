@@ -1,0 +1,25 @@
+# Opt-in overlay that builds the app image from source instead of pulling the
+# published one. Layer it on top of the production stack:
+#
+#   git fetch --tags && git checkout vX.Y.Z
+#   docker compose -f docker-compose.prod.yml -f docker-compose.build.yml up -d --build
+#
+# It restores a local `build:` for the four app-role services (they share one
+# image) and retags it to a local tag so the build never masquerades as the
+# registry image. Everything else (Postgres, Meilisearch, Redis, ports, volumes)
+# comes from docker-compose.prod.yml unchanged.
+
+x-build: &build
+  build:
+    context: .
+  image: the-desk:latest
+
+services:
+  app:
+    <<: *build
+  reverb:
+    <<: *build
+  queue:
+    <<: *build
+  scheduler:
+    <<: *build

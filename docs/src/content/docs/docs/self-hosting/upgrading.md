@@ -3,8 +3,8 @@ title: Upgrading
 description: Tag-based upgrades with automatic migrations and version-scoped search reindexing.
 ---
 
-Upgrades follow the same tag-based flow you used to install, whether you build
-from source or run the published image.
+Upgrades follow the same tag-based flow you used to install, whether you run the
+published image (the default) or build from source.
 
 ## These docs track the in-development version
 
@@ -62,26 +62,33 @@ docker compose -f docker-compose.prod.yml exec -T app \
   tar xzf - -C /app/storage/app < storage-app-YYYY-MM-DD.tar.gz
 ```
 
-## Build-from-source
+## Default: pull the newer image
 
-Check out the newer release tag and rebuild:
+Check out the newer release tag and restart — `up -d` pulls the image that tag
+pins:
 
 ```bash
 git fetch --tags
 git checkout v1.5.0 # x-release-please-version         (the desired release tag)
 docker compose -f docker-compose.prod.yml down
-docker compose -f docker-compose.prod.yml up -d --build
-# migrations run automatically via the entrypoint
+docker compose -f docker-compose.prod.yml up -d
+# pulls the newer pinned image; migrations run automatically via the entrypoint
 ```
 
-## Published image
+If you override `APP_IMAGE` in `.env`, point it at the new tag first (e.g.
+`APP_IMAGE=ghcr.io/emmpaul/the-desk:<tag>`) before restarting.
 
-Point `APP_IMAGE` at the new tag, then pull and restart:
+## Build from source
+
+If you build the image locally with the build overlay, check out the newer tag and
+rebuild:
 
 ```bash
-sed -i 's|^APP_IMAGE=.*|APP_IMAGE=ghcr.io/emmpaul/the-desk:1.5.0|' .env # x-release-please-version
-docker compose -f docker-compose.prod.yml pull
-docker compose -f docker-compose.prod.yml up -d
+git fetch --tags
+git checkout v1.5.0 # x-release-please-version         (the desired release tag)
+docker compose -f docker-compose.prod.yml down
+docker compose -f docker-compose.prod.yml -f docker-compose.build.yml up -d --build
+# migrations run automatically via the entrypoint
 ```
 
 Migrations run automatically on start — the `app` container's entrypoint runs

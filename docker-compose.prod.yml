@@ -1,7 +1,10 @@
-# Production stack for self-hosting. Build-from-source at a release tag:
+# Production stack for self-hosting. Pull the prebuilt image and start it:
 #
 #   git fetch --tags && git checkout vX.Y.Z
-#   docker compose -f docker-compose.prod.yml up -d --build
+#   docker compose -f docker-compose.prod.yml up -d   # pulls the image, no build
+#
+# To build the app image from source instead, layer the build overlay on top:
+#   docker compose -f docker-compose.prod.yml -f docker-compose.build.yml up -d --build
 #
 # Development uses Laravel Sail (compose.yaml) — this file does not replace it.
 #
@@ -23,15 +26,16 @@
 # it being healthy before it starts.
 
 x-app: &app
-  # Defaults to the local build tag (build-from-source). Set APP_IMAGE to the
-  # published image to run the prebuilt turnkey image instead:
-  # `docker compose -f docker-compose.prod.yml pull` then `up -d`, no build step.
-  # Browser Reverb settings are read at runtime, so one published image works for
-  # any host. Example pin:
-  #   APP_IMAGE=ghcr.io/emmpaul/the-desk:1.5.0 # x-release-please-version
-  image: ${APP_IMAGE:-the-desk:latest}
-  build:
-    context: .
+  # Runs the prebuilt turnkey image from the GitHub Container Registry — `up -d`
+  # pulls it, no build step. The default pins the image to this release, so a
+  # checkout of vX.Y.Z runs exactly that version; set APP_IMAGE to run a different
+  # tag (e.g. `edge`, or an older release). Browser Reverb settings are read at
+  # runtime, so one published image works for any host.
+  #
+  # To build from source instead, add the build overlay (docker-compose.build.yml)
+  # which restores a local build for these services:
+  #   docker compose -f docker-compose.prod.yml -f docker-compose.build.yml up -d --build
+  image: ${APP_IMAGE:-ghcr.io/emmpaul/the-desk:1.5.0} # x-release-please-version
   env_file:
     - .env
   restart: unless-stopped

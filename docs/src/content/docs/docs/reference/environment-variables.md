@@ -31,7 +31,7 @@ The stack **refuses to start** without these (no defaults):
 | `APP_NAME` | `The Desk`     | Shown in the UI and emails. Served at runtime.    |
 | `APP_PORT` | `8000`         | Host port the web app is published on (bound to `APP_BIND`). |
 | `APP_BIND` | `127.0.0.1`    | Address the published app/reverb ports bind to. `0.0.0.0` exposes the raw HTTP origin off-box. |
-| `APP_IMAGE`| `the-desk:latest` | Set to `ghcr.io/emmpaul/the-desk:X.Y.Z` to run the published image instead of building. |
+| `APP_IMAGE`| *(pinned release image)* | Overrides the app image. Defaults to the release-pinned `ghcr.io/emmpaul/the-desk:X.Y.Z`, which `up -d` pulls with no build. Set it to run a different tag (e.g. `edge`) or an older release. |
 
 ## Database
 
