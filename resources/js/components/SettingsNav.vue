@@ -4,10 +4,13 @@ import type { LucideIcon } from '@lucide/vue';
 import {
     ArrowLeft,
     Database,
+    Download,
     Info,
     Languages,
     Palette,
+    ScrollText,
     Shield,
+    ShieldCheck,
     User,
     Users,
 } from '@lucide/vue';
@@ -30,6 +33,9 @@ import { edit as editLocale } from '@/routes/locale';
 import { edit as editProfile } from '@/routes/profile';
 import { edit as editSecurity } from '@/routes/security';
 import { index as teams } from '@/routes/teams';
+import { index as teamAudit } from '@/routes/teams/audit';
+import { index as teamAuditExports } from '@/routes/teams/audit-exports';
+import { index as teamSecurityLog } from '@/routes/teams/security-log';
 import type { NavItem } from '@/types';
 
 const page = usePage();
@@ -82,6 +88,52 @@ const navItems = computed<SettingsNavItem[]>(() => [
     },
 ]);
 
+// The team-admin "evidence" surfaces (Audit log, Security log, Exports) live
+// under the current team and are gated per-item by the same permissions as the
+// Team-settings cards. Members without either permission see none of them, so
+// the whole group collapses. Exports needs either permission, mirroring the card.
+const teamAdminNavItems = computed<SettingsNavItem[]>(() => {
+    const team = page.props.currentTeam;
+
+    if (!team) {
+        return [];
+    }
+
+    const items: SettingsNavItem[] = [];
+
+    if (page.props.canViewCurrentTeamAudit) {
+        items.push({
+            title: t('Audit log'),
+            href: teamAudit(team.slug),
+            icon: ScrollText,
+            slug: 'audit-log',
+        });
+    }
+
+    if (page.props.canViewCurrentTeamSecurityLog) {
+        items.push({
+            title: t('Security log'),
+            href: teamSecurityLog(team.slug),
+            icon: ShieldCheck,
+            slug: 'security-log',
+        });
+    }
+
+    if (
+        page.props.canViewCurrentTeamAudit ||
+        page.props.canViewCurrentTeamSecurityLog
+    ) {
+        items.push({
+            title: t('Exports'),
+            href: teamAuditExports(team.slug),
+            icon: Download,
+            slug: 'exports',
+        });
+    }
+
+    return items;
+});
+
 const { isCurrentOrParentUrl } = useCurrentUrl();
 </script>
 
@@ -112,6 +164,46 @@ const { isCurrentOrParentUrl } = useCurrentUrl();
                 <SidebarMenu>
                     <SidebarMenuItem
                         v-for="item in navItems"
+                        :key="toUrl(item.href)"
+                    >
+                        <SidebarMenuButton
+                            as-child
+                            :is-active="isCurrentOrParentUrl(item.href)"
+                            class="h-7.5 gap-2 rounded-[9px] px-2.5 text-[13px] text-muted-foreground hover:bg-sidebar-accent/60 hover:text-sidebar-foreground data-[active=true]:bg-sidebar-primary data-[active=true]:font-medium data-[active=true]:text-sidebar-primary-foreground data-[active=true]:hover:bg-sidebar-primary data-[active=true]:hover:text-sidebar-primary-foreground"
+                        >
+                            <Link
+                                :href="item.href"
+                                :data-test="`settings-nav-${item.slug}`"
+                                :aria-current="
+                                    isCurrentOrParentUrl(item.href)
+                                        ? 'page'
+                                        : undefined
+                                "
+                            >
+                                <component :is="item.icon" class="size-3.25" />
+                                <span>{{ item.title }}</span>
+                            </Link>
+                        </SidebarMenuButton>
+                    </SidebarMenuItem>
+                </SidebarMenu>
+            </SidebarGroupContent>
+        </SidebarGroup>
+
+        <!--
+            Team-admin evidence group: only rendered when the viewer can reach at
+            least one of Audit log / Security log / Exports for the current team.
+            The team name heads the group, mirroring the #421 design's team subnav.
+        -->
+        <SidebarGroup v-if="teamAdminNavItems.length > 0" class="pt-0">
+            <div
+                class="flex h-7 items-center px-2 text-[10.5px] font-semibold tracking-[0.1em] text-muted-foreground uppercase"
+            >
+                {{ page.props.currentTeam?.name }}
+            </div>
+            <SidebarGroupContent>
+                <SidebarMenu>
+                    <SidebarMenuItem
+                        v-for="item in teamAdminNavItems"
                         :key="toUrl(item.href)"
                     >
                         <SidebarMenuButton
