@@ -8,6 +8,7 @@ use App\Enums\SearchScope;
 use App\Models\Message;
 use App\Models\Team;
 use App\Models\User;
+use App\Support\MessagePlainText;
 use App\Support\MessageSnippet;
 use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Builder;
@@ -195,7 +196,7 @@ class SearchMessages
     {
         return $formatted !== null
             ? MessageSnippet::fromFormatted($formatted)
-            : MessageSnippet::highlight($message->body, $query);
+            : MessageSnippet::highlight(MessagePlainText::from($message->body), $query);
     }
 
     /**

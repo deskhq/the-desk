@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Data\MessageData;
 use App\Enums\MessageType;
 use App\Enums\NotificationLevel;
+use App\Support\MessagePlainText;
 use Database\Factories\MessageFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Builder;
@@ -388,7 +389,10 @@ class Message extends Model
     {
         return [
             'id' => $this->id,
-            'body' => $this->body,
+            // Index the readable text (mentions unwrapped to their names) so a
+            // search matches — and Meilisearch highlights — the name, not the raw
+            // `@[Name](id)` token.
+            'body' => MessagePlainText::from($this->body),
             'channel_id' => $this->channel_id,
             'user_id' => $this->user_id,
             'team_id' => $this->channel->team_id,

@@ -101,6 +101,19 @@ test('a result carries a highlighted snippet of the match', function (): void {
         );
 });
 
+test('a snippet unwraps mention tokens to plain names', function (): void {
+    [$owner, $team, $general] = searchTeamWithGeneral();
+    $member = searchMember($team, $general);
+    Message::factory()->for($general)->for($owner)->create([
+        'body' => 'ping @[Ada Lovelace](3f5b1c2d-1111-2222-3333-444455556666) about quokka',
+    ]);
+
+    performSearch($member, $team, 'quokka')
+        ->assertInertia(fn (Assert $page): Assert => $page
+            ->where('results.0.snippet', 'ping @Ada Lovelace about <mark>quokka</mark>')
+        );
+});
+
 test('the author facet limits results to messages from that user', function (): void {
     [$owner, $team, $general] = searchTeamWithGeneral();
     $ada = searchMember($team, $general, 'Ada');
