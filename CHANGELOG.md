@@ -1,5 +1,46 @@
 # Changelog
 
+## [1.5.0](https://github.com/emmpaul/the-desk/compare/v1.4.2...v1.5.0) (2026-07-16)
+
+
+### Features
+
+* add admin audit-log and security-event export (CSV / JSON) ([#438](https://github.com/emmpaul/the-desk/issues/438)) ([7c21cd4](https://github.com/emmpaul/the-desk/commit/7c21cd4eccc389a20fc78df9fdb1234b91230b3d))
+* add admin-visible, immutable security-event log ([#436](https://github.com/emmpaul/the-desk/issues/436)) ([87d9152](https://github.com/emmpaul/the-desk/commit/87d9152ed7e1f05cf67eb7c9ac4255a022106940))
+* add env-toggleable passkey (WebAuthn) passwordless sign-in ([#435](https://github.com/emmpaul/the-desk/issues/435)) ([151e9ef](https://github.com/emmpaul/the-desk/commit/151e9ef0f64bbae7a2d2ec8ce292364cdd5579b5))
+* add env-toggleable two-factor authentication (TOTP) with recovery codes ([#434](https://github.com/emmpaul/the-desk/issues/434)) ([35e33fd](https://github.com/emmpaul/the-desk/commit/35e33fd39640ec5ea08ce253dc2f3850a4dbdefa))
+* add per-user sidebar position setting (left / right) ([#455](https://github.com/emmpaul/the-desk/issues/455)) ([86c911b](https://github.com/emmpaul/the-desk/commit/86c911b3c72b49b32ded90bd042f990bdf131e87))
+* collapse the confirmation modals into a ConfirmDialog module ([#315](https://github.com/emmpaul/the-desk/issues/315)) ([#397](https://github.com/emmpaul/the-desk/issues/397)) ([009d7dd](https://github.com/emmpaul/the-desk/commit/009d7ddb21e60023748ac2f08890f44b95392049))
+* expand audit and security-event coverage (invitations, SSO/SCIM, exports, sessions) ([#443](https://github.com/emmpaul/the-desk/issues/443)) ([8c6c743](https://github.com/emmpaul/the-desk/commit/8c6c74318a41de5e76c88067aebe62208a821f3a))
+* make the emoji picker and onboarding tour keyboard/screen-reader accessible ([#429](https://github.com/emmpaul/the-desk/issues/429)) ([f29a386](https://github.com/emmpaul/the-desk/commit/f29a386836a75f3206e00cc05e42909fb9cba905))
+* **navigation:** reskin the sidebar user menu for "The Desk" ([#416](https://github.com/emmpaul/the-desk/issues/416)) ([49d806f](https://github.com/emmpaul/the-desk/commit/49d806fc0dff3b28618325aa379732bfcedaf720))
+* redesign message search (facets, highlighting, date grouping, cross-team scope) ([#452](https://github.com/emmpaul/the-desk/issues/452)) ([c7422c8](https://github.com/emmpaul/the-desk/commit/c7422c80d2faeef99802ecf38b7eb023324a5b1c))
+* reskin scheduled messages onto "The Desk" ([#431](https://github.com/emmpaul/the-desk/issues/431)) ([c0c5e57](https://github.com/emmpaul/the-desk/commit/c0c5e5733211e936343a6313e0781a9bfcd3193f))
+* seed a public demo workspace via demo:seed ([#459](https://github.com/emmpaul/the-desk/issues/459)) ([b18c70b](https://github.com/emmpaul/the-desk/commit/b18c70ba53fabc840a6ca89797a0781849e82399))
+* **settings:** show session location and data-export file size ([#449](https://github.com/emmpaul/the-desk/issues/449)) ([363c8d7](https://github.com/emmpaul/the-desk/commit/363c8d7a39c61b08f44eca37b4f76dea1c541e2a))
+* share the channel/thread scroll container in a ScrollableMessageList module ([#317](https://github.com/emmpaul/the-desk/issues/317)) ([#398](https://github.com/emmpaul/the-desk/issues/398)) ([ddd466e](https://github.com/emmpaul/the-desk/commit/ddd466e68c603b77502c95aff89ef0133865a8f6))
+* show an update-available indicator when the instance is behind ([#415](https://github.com/emmpaul/the-desk/issues/415)) ([3b7852a](https://github.com/emmpaul/the-desk/commit/3b7852a4faeb690e21975c768e1102ff5290f65f))
+
+
+### Bug Fixes
+
+* add team-admin evidence group to the settings sidebar ([#446](https://github.com/emmpaul/the-desk/issues/446)) ([71caf0a](https://github.com/emmpaul/the-desk/commit/71caf0ae358603ebd036173276df185661e1c60d))
+* bind prod app/reverb ports to loopback so a reverse proxy can own 80/443 ([#457](https://github.com/emmpaul/the-desk/issues/457)) ([db35474](https://github.com/emmpaul/the-desk/commit/db35474706bdc1fe15eca898c38bc601949322e8))
+* derive seeded message ids from created_at so the timeline never flakes ([#450](https://github.com/emmpaul/the-desk/issues/450)) ([e6a27f1](https://github.com/emmpaul/the-desk/commit/e6a27f104d4d1193c551bcc26ecd753437e951d0))
+* keep the "New messages" pill dismissed after it has been seen ([#412](https://github.com/emmpaul/the-desk/issues/412)) ([0a3f5e5](https://github.com/emmpaul/the-desk/commit/0a3f5e575a44f8e9eff43b653707c1f67cf3e142)), closes [#411](https://github.com/emmpaul/the-desk/issues/411) [#409](https://github.com/emmpaul/the-desk/issues/409)
+* move toast notifications to top-center so they don't obstruct the composer ([#432](https://github.com/emmpaul/the-desk/issues/432)) ([ec2bc81](https://github.com/emmpaul/the-desk/commit/ec2bc81d818bd503bf0e0a0b43389816b462bb5f)), closes [#430](https://github.com/emmpaul/the-desk/issues/430)
+* preserve composer attachments when an online send fails ([#454](https://github.com/emmpaul/the-desk/issues/454)) ([c53d614](https://github.com/emmpaul/the-desk/commit/c53d6140657a21b9a7e0f485f4aadb917da4edfb))
+
+
+### Code Refactoring
+
+* migrate remaining raw buttons onto the Button primitive ([#410](https://github.com/emmpaul/the-desk/issues/410)) ([23187c6](https://github.com/emmpaul/the-desk/commit/23187c65722bebad3c946a9e457a73a349a7f1c5))
+
+
+### Dependencies
+
+* bump the github-actions group with 4 updates ([#442](https://github.com/emmpaul/the-desk/issues/442)) ([cba98c3](https://github.com/emmpaul/the-desk/commit/cba98c37a4ec3dd4b9619f21413d12166cd8c21c))
+
 ## [1.4.2](https://github.com/emmpaul/the-desk/compare/v1.4.1...v1.4.2) (2026-07-14)
 
 
