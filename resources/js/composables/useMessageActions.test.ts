@@ -262,6 +262,44 @@ describe('useMessageActions', () => {
             // normally clears it isn't reached until the queue flushes.
             expect(h.clearDraft).toHaveBeenCalledOnce();
         });
+
+        it('accepts the send on a successful post so the composer drops its snapshot', () => {
+            const h = harness();
+            const onAccepted = vi.fn();
+            const onRejected = vi.fn();
+
+            h.actions.send('with files', [], ['att-1'], {
+                onAccepted,
+                onRejected,
+            });
+            optionsOf(post).onSuccess?.();
+
+            expect(onAccepted).toHaveBeenCalledOnce();
+            expect(onRejected).not.toHaveBeenCalled();
+        });
+
+        it('rejects the send on error so the composer restores its snapshot', () => {
+            const h = harness();
+            const onAccepted = vi.fn();
+            const onRejected = vi.fn();
+
+            h.actions.send('doomed', [], ['att-1'], { onAccepted, onRejected });
+            optionsOf(post).onError?.();
+
+            expect(onRejected).toHaveBeenCalledOnce();
+            expect(onAccepted).not.toHaveBeenCalled();
+        });
+
+        it('accepts a send queued offline so its snapshot is dropped, not restored', () => {
+            const h = harness({ isOnline: false });
+            const onAccepted = vi.fn();
+            const onRejected = vi.fn();
+
+            h.actions.send('later', [], ['att-1'], { onAccepted, onRejected });
+
+            expect(onAccepted).toHaveBeenCalledOnce();
+            expect(onRejected).not.toHaveBeenCalled();
+        });
     });
 
     describe('flushOutbox', () => {

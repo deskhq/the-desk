@@ -1319,8 +1319,13 @@ function archive(): void {
                         allow-schedule
                         :timezone="timezone"
                         @send="
-                            (body, mentions, _sendToChannel, attachmentIds) =>
-                                send(body, mentions, attachmentIds)
+                            (
+                                body,
+                                mentions,
+                                _sendToChannel,
+                                attachmentIds,
+                                callbacks,
+                            ) => send(body, mentions, attachmentIds, callbacks)
                         "
                         @schedule="scheduleMessage"
                         @typing="onTyping"

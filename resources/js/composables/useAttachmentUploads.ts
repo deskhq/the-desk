@@ -50,6 +50,19 @@ export interface AttachmentUploadsOptions {
     revokeObjectUrl?: (url: string) => void;
 }
 
+/**
+ * A detached tray, held while an optimistic send is in flight. The rows have
+ * left the live tray (so a fresh message starts clean) but keep their previews
+ * and stored ids, so the send's outcome can either {@see dispose} them (it stuck)
+ * or {@see restore} them (it failed and the user must retry).
+ */
+export interface AttachmentSnapshot {
+    /** Return the snapshot's rows to the tray, ahead of anything staged since. */
+    restore: () => void;
+    /** Drop the snapshot for good, releasing its preview URLs. */
+    dispose: () => void;
+}
+
 export interface AttachmentUploads {
     /** The tray rows, in send (`attachment_ids[]`) order. */
     items: Ref<PendingAttachment[]>;
@@ -67,6 +80,12 @@ export interface AttachmentUploads {
     remove: (localId: string) => void;
     /** Re-upload a previously failed row. */
     retry: (localId: string) => void;
+    /**
+     * Detach the tray for an in-flight send: the rows leave the live tray but
+     * survive in the returned snapshot, to be restored if the send fails or
+     * disposed once it sticks.
+     */
+    detach: () => AttachmentSnapshot;
     /** Drop every row (called once a send has claimed them). */
     clear: () => void;
 }
@@ -114,6 +133,11 @@ export function useAttachmentUploads(
     // The source File and the live upload's abort handle, kept off the reactive
     // rows (Files aren't reactive, and an abort fn shouldn't be proxied).
     const sources = new Map<string, { file: File; abort: () => void }>();
+
+    // Detached snapshots awaiting a send outcome. Their rows have left `items`
+    // and `sources`, so a scope teardown mid-send would otherwise leak their
+    // preview URLs; disposing them on teardown keeps the no-leak guarantee.
+    const outstanding = new Set<() => void>();
 
     const count = computed(() => items.value.length);
     const isUploading = computed(() =>
@@ -273,13 +297,77 @@ export function useAttachmentUploads(
         startUpload(localId);
     }
 
+    function detach(): AttachmentSnapshot {
+        // A send is blocked while any row is uploading or failed, so every
+        // detached row is already `done` with its upload settled — capturing
+        // the file/abort source is enough to hand ownership to the snapshot.
+        const captured = items.value.map((row) => ({
+            row,
+            source: sources.get(row.localId),
+        }));
+
+        // Optimistically empty the tray so the next message starts clean, moving
+        // the rows (and their still-live previews) into the snapshot untouched.
+        items.value = [];
+
+        for (const { row } of captured) {
+            sources.delete(row.localId);
+        }
+
+        let settled = false;
+
+        function dispose(): void {
+            if (settled) {
+                return;
+            }
+
+            settled = true;
+            outstanding.delete(dispose);
+
+            for (const { row } of captured) {
+                if (row.previewUrl) {
+                    revokeObjectUrl(row.previewUrl);
+                }
+            }
+        }
+
+        function restore(): void {
+            if (settled) {
+                return;
+            }
+
+            settled = true;
+            outstanding.delete(dispose);
+
+            for (const { row, source } of captured) {
+                if (source) {
+                    sources.set(row.localId, source);
+                }
+            }
+
+            // Ahead of anything the user staged while the send was in flight.
+            items.value = [...captured.map(({ row }) => row), ...items.value];
+        }
+
+        outstanding.add(dispose);
+
+        return { restore, dispose };
+    }
+
     function clear(): void {
         for (const localId of [...sources.keys()]) {
             remove(localId);
         }
     }
 
-    onScopeDispose(clear);
+    onScopeDispose(() => {
+        clear();
+
+        // Release the previews still held by any send whose outcome never landed.
+        for (const dispose of [...outstanding]) {
+            dispose();
+        }
+    });
 
     return {
         items,
@@ -290,6 +378,7 @@ export function useAttachmentUploads(
         addFiles,
         remove,
         retry,
+        detach,
         clear,
     };
 }

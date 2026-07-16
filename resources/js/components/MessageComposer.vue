@@ -25,6 +25,7 @@ import {
 } from '@/components/ui/tooltip';
 import { useAttachmentUploads } from '@/composables/useAttachmentUploads';
 import { useInitials } from '@/composables/useInitials';
+import type { SendCallbacks } from '@/composables/useMessageActions';
 import { useTranslations } from '@/composables/useTranslations';
 import { formatFileSize } from '@/lib/attachments';
 import {
@@ -76,6 +77,9 @@ const emit = defineEmits<{
         mentions: Mention[],
         sendToChannel: boolean,
         attachmentIds: string[],
+        // Outcome hooks: the tray is emptied optimistically on send, so a failed
+        // online send restores the staged attachments (and body) through these.
+        callbacks: SendCallbacks,
     ];
     typing: [];
     cancelReply: [];
@@ -547,14 +551,30 @@ function submit(): void {
 
     const trimmed = body.value.trim();
 
+    // Snapshot the composer state before the optimistic wipe: the send is
+    // fire-and-forget, so if an online send fails, the staged attachments (and
+    // the typed body) are handed back through the outcome hooks below, letting
+    // the user retry without re-picking every file. A successful (or queued)
+    // send disposes the snapshot instead. `detach` empties the tray but keeps the
+    // rows' previews alive until the outcome lands.
+    const stagedBody = body.value;
+    const attachmentIds = uploads.attachmentIds.value;
+    const snapshot = uploads.detach();
+
     emit(
         'send',
         trimmed,
         collectMentions(trimmed),
         sendToChannel.value,
-        uploads.attachmentIds.value,
+        attachmentIds,
+        {
+            onAccepted: () => snapshot.dispose(),
+            onRejected: () => {
+                snapshot.restore();
+                body.value = stagedBody;
+            },
+        },
     );
-    uploads.clear();
     clearAfterHandoff();
 }
 

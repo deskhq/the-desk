@@ -75,13 +75,33 @@ export interface MessageActionsOptions {
     onSendFailure?: (message: string) => void;
 }
 
+/**
+ * Per-send hooks the composer uses to reconcile the optimistic wipe of its body
+ * and attachment tray. The tray is emptied the instant a send fires, so the send
+ * reports back whether that wipe should stand — it was {@see onAccepted} (posted,
+ * or queued offline) — or be undone, {@see onRejected} (an online send failed and
+ * the staged files must return so the user can retry without re-picking them).
+ */
+export interface SendCallbacks {
+    /** The send was accepted (posted, or queued offline): drop the staged snapshot. */
+    onAccepted?: () => void;
+    /** An online send failed: restore the staged body and attachments. */
+    onRejected?: () => void;
+}
+
 export interface MessageActions {
     /**
      * Send a message, optimistically, rolling the row back on error. Any
      * `attachmentIds` (pre-uploaded in the composer) are claimed by the message
-     * in the same store request, in tray order.
+     * in the same store request, in tray order. `callbacks` report the send's
+     * outcome so the composer can restore a failed send's staged attachments.
      */
-    send: (body: string, mentions: Mention[], attachmentIds?: string[]) => void;
+    send: (
+        body: string,
+        mentions: Mention[],
+        attachmentIds?: string[],
+        callbacks?: SendCallbacks,
+    ) => void;
     /** Post every queued send, in order, then drop each from the queue. */
     flushOutbox: () => void;
     /** Save an edit, optimistically, rolling the patch back on error. */
@@ -167,6 +187,7 @@ export function useMessageActions(
         body: string;
         replyToId: string | null;
         attachmentIds: string[];
+        callbacks?: SendCallbacks;
     }): void {
         router.post(
             storeMessage({
@@ -181,6 +202,7 @@ export function useMessageActions(
             },
             {
                 preserveScroll: true,
+                onSuccess: () => item.callbacks?.onAccepted?.(),
                 onError: () => {
                     // The optimistic row failed to persist; roll it back and notify.
                     options.mainStream.removePending(item.clientUuid);
@@ -189,6 +211,8 @@ export function useMessageActions(
                     );
                     toast.error(message);
                     options.onSendFailure?.(message);
+                    // Hand the staged attachments back so the send is retryable.
+                    item.callbacks?.onRejected?.();
                 },
             },
         );
@@ -198,6 +222,7 @@ export function useMessageActions(
         body: string,
         mentions: Mention[],
         attachmentIds: string[] = [],
+        callbacks: SendCallbacks = {},
     ): void {
         // Sending clears the draft server-side, so drop any debounced save still
         // in flight; otherwise it would re-persist the just-sent text.
@@ -223,7 +248,13 @@ export function useMessageActions(
         nextTick(() => options.scrollToBottom());
 
         if (options.isOnline()) {
-            postMessage({ clientUuid, body, replyToId, attachmentIds });
+            postMessage({
+                clientUuid,
+                body,
+                replyToId,
+                attachmentIds,
+                callbacks,
+            });
 
             return;
         }
@@ -234,6 +265,9 @@ export function useMessageActions(
         // reached until flush — otherwise a refresh would repopulate the composer.
         options.outbox.enqueue({ clientUuid, body, replyToId, attachmentIds });
         options.clearDraft();
+        // The queue now owns the attachment ids and re-sends them on flush, so
+        // the composer's staged copies are safe to drop just as a live send would.
+        callbacks.onAccepted?.();
     }
 
     function flushOutbox(): void {
