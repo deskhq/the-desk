@@ -6,8 +6,16 @@
 # Development uses Laravel Sail (compose.yaml) — this file does not replace it.
 #
 # TLS/HTTPS is the operator's responsibility: put a reverse proxy in front of
-# `app` (published on APP_PORT) and `reverb` (published on REVERB_PORT). The
-# proxy must forward WebSocket upgrade requests to the reverb service.
+# `app` and `reverb`. The proxy must forward WebSocket upgrade requests to the
+# reverb service.
+#
+# Both services speak PLAIN HTTP, so their host port publishing defaults to
+# loopback (APP_BIND=127.0.0.1) on non-privileged ports — the unencrypted origin
+# is never exposed to the public internet, and nothing squats on 80/443:
+#   - A host-based proxy targets 127.0.0.1:${APP_PORT} and 127.0.0.1:${REVERB_PORT}.
+#   - A proxy running inside this compose network reaches app:8080 / reverb:8080
+#     directly and needs no host publishing at all.
+# Set APP_BIND=0.0.0.0 only to deliberately expose the raw HTTP app off-box.
 #
 # Redis backs cache, session, and queue (SESSION_DRIVER/CACHE_STORE=redis,
 # QUEUE_CONNECTION=redis in .env, with REDIS_HOST=redis). Broadcasting uses
@@ -46,7 +54,7 @@ services:
     environment:
       AUTORUN_MIGRATIONS: 'true'
     ports:
-      - '${APP_PORT:-80}:8080'
+      - '${APP_BIND:-127.0.0.1}:${APP_PORT:-8000}:8080'
     healthcheck:
       test: ['CMD', 'curl', '-fsS', 'http://localhost:8080/up']
       interval: 30s
@@ -59,7 +67,7 @@ services:
     <<: *app
     command: ['php', 'artisan', 'reverb:start', '--host=0.0.0.0', '--port=8080']
     ports:
-      - '${REVERB_PORT:-8080}:8080'
+      - '${APP_BIND:-127.0.0.1}:${REVERB_PORT:-8080}:8080'
 
   # Queue worker (queue connection is `redis`).
   queue:

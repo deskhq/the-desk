@@ -7,8 +7,19 @@ The Desk's containers speak **plain HTTP** — **TLS/HTTPS is your
 responsibility**. Put a reverse proxy in front of the stack to terminate TLS and
 route traffic to the two published ports:
 
-- The **web app** on `APP_PORT` (default `80`).
+- The **web app** on `APP_PORT` (default `8000`).
 - **Reverb** (WebSockets) on `REVERB_PORT` (default `8080`).
+
+Both publish to **loopback** by default (`APP_BIND=127.0.0.1`) since they speak
+plain HTTP — a host-based proxy connects to `127.0.0.1:8000` / `127.0.0.1:8080`.
+If your proxy runs **inside** the compose network instead (e.g. a Caddy container
+on the same network), target the service names `app:8080` / `reverb:8080` and you
+don't need any host publishing at all.
+
+> **HTTPS URLs:** the app must trust your proxy's `X-Forwarded-Proto` header, or it
+> generates `http://` links on an `https://` page and the browser blocks them as
+> mixed content (login/registration break). Make sure your proxy forwards the
+> standard `X-Forwarded-*` headers.
 
 The single hard requirement beyond normal HTTPS termination is that your proxy
 **forwards WebSocket upgrade requests** to Reverb. Without it, the app loads but
@@ -23,7 +34,7 @@ Caddy terminates TLS automatically and proxies WebSockets with no extra config:
 
 ```caddy
 chat.example.com {
-	reverse_proxy localhost:80
+	reverse_proxy localhost:8000
 }
 
 # Reverb on its own subdomain (matches REVERB_HOST_PUBLIC=ws.example.com):
@@ -34,6 +45,22 @@ ws.example.com {
 
 If you instead route Reverb under a path on the same host, proxy that path to
 port `8080`; Caddy handles the upgrade headers for you.
+
+### Caddy inside the compose network (single domain)
+
+If you'd rather run Caddy as a container on the app's Docker network, reference the
+services by name and split the Reverb WebSocket path (`/app/*`) off to `reverb`.
+The app then needs no host-published ports:
+
+```caddy
+chat.example.com {
+	# Reverb WebSocket (browser connects to wss://…/app/{key}).
+	@reverb path /app/* /apps/*
+	reverse_proxy @reverb reverb:8080
+
+	reverse_proxy app:8080
+}
+```
 
 ## nginx
 
@@ -53,7 +80,7 @@ server {
 	client_max_body_size 30m;
 
 	location / {
-		proxy_pass http://127.0.0.1:80;
+		proxy_pass http://127.0.0.1:8000;
 		proxy_set_header Host $host;
 		proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
 		proxy_set_header X-Forwarded-Proto $scheme;

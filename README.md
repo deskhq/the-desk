@@ -179,8 +179,11 @@ docker compose -f docker-compose.prod.yml up -d --build
 ```
 
 Migrations run automatically on start (the `app` container's entrypoint runs
-`php artisan migrate --force`). The app is published on `APP_PORT` (default `80`)
-and Reverb on `REVERB_PORT` (default `8080`); point your reverse proxy at them.
+`php artisan migrate --force`). The app and Reverb speak plain HTTP and publish to
+loopback by default (`APP_BIND=127.0.0.1`) on `APP_PORT` (default `8000`) and
+`REVERB_PORT` (default `8080`); point your reverse proxy at `127.0.0.1:8000` /
+`127.0.0.1:8080`, or reach `app:8080` / `reverb:8080` directly from a proxy on the
+compose network.
 
 > **Required secrets.** `APP_KEY`, `DB_PASSWORD`, and `MEILISEARCH_KEY` have no
 > defaults — the stack refuses to start without them. `gen-secrets.sh` generates

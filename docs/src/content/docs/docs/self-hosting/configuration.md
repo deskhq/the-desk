@@ -18,7 +18,8 @@ on/off feature switches, see [Feature toggles](/docs/reference/feature-toggles/)
 | ----------- | ------------------------------------------------------------------ |
 | `APP_URL`   | The public URL of your instance (e.g. `https://chat.example.com`). |
 | `APP_NAME`  | The app name shown in the UI and emails (default `The Desk`).      |
-| `APP_PORT`  | Host port the web app is published on (default `80`).              |
+| `APP_PORT`  | Host port the web app is published on (default `8000`, bound to loopback). |
+| `APP_BIND`  | Address the published app/reverb ports bind to (default `127.0.0.1`). |
 
 `APP_NAME` and the browser-facing Reverb settings are served to the frontend at
 runtime, which is why one published image works for any host.

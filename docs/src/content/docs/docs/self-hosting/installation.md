@@ -75,8 +75,11 @@ docker compose -f docker-compose.prod.yml up -d --build
 
 - **Migrations run automatically.** The `app` container's entrypoint runs
   `php artisan migrate --force` on boot.
-- The app is published on **`APP_PORT`** (default `80`) and Reverb on
-  **`REVERB_PORT`** (default `8080`). Point your reverse proxy at them.
+- The app and Reverb speak plain HTTP, so they publish to **loopback** by default
+  (**`APP_BIND`**, default `127.0.0.1`) on **`APP_PORT`** (default `8000`) and
+  **`REVERB_PORT`** (default `8080`). Point a host-based reverse proxy at
+  `127.0.0.1:8000` / `127.0.0.1:8080`; a proxy running inside the compose network
+  reaches `app:8080` / `reverb:8080` directly and needs no host publishing.
 
 ## Required secrets
 
