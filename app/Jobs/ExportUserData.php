@@ -63,6 +63,7 @@ class ExportUserData implements ShouldQueue
         $export->update([
             'status' => DataExportStatus::Ready,
             'path' => $path,
+            'size_bytes' => $disk->size($path),
             'expires_at' => now()->addDays(self::RETENTION_DAYS),
         ]);
 

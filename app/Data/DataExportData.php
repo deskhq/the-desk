@@ -16,6 +16,7 @@ class DataExportData extends Data
         public bool $isReady,
         public string $requestedAt,
         public ?string $expiresAt,
+        public ?int $sizeBytes,
     ) {}
 
     /**
@@ -30,6 +31,7 @@ class DataExportData extends Data
             isReady: $export->isReady() && ! $export->isExpired(),
             requestedAt: $export->created_at->toIso8601String(),
             expiresAt: $export->expires_at?->toIso8601String(),
+            sizeBytes: $export->size_bytes,
         );
     }
 }

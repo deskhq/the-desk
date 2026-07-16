@@ -18,14 +18,16 @@ class SessionData extends Data
         public string $platform,
         public string $lastActive,
         public bool $isCurrentDevice,
+        public ?string $location,
     ) {}
 
     /**
      * Build the DTO from a {@see SessionRegistry} index entry.
      *
      * @param  array{id: string, ip_address: ?string, user_agent: ?string, last_activity: int}  $session
+     * @param  ?string  $location  Approximate "City, CC" derived from the IP, or null when unknown.
      */
-    public static function fromRegistry(array $session, string $currentSessionId): self
+    public static function fromRegistry(array $session, string $currentSessionId, ?string $location = null): self
     {
         $agent = UserAgentParser::parse($session['user_agent']);
 
@@ -36,6 +38,7 @@ class SessionData extends Data
             platform: $agent['platform'],
             lastActive: Carbon::createFromTimestamp($session['last_activity'])->toIso8601String(),
             isCurrentDevice: $session['id'] === $currentSessionId,
+            location: $location,
         );
     }
 }

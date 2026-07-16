@@ -11,4 +11,6 @@ export type DataExport = {
     isReady: boolean;
     requestedAt: string;
     expiresAt: string | null;
+    /** Byte size of the built archive; null until captured (older or unbuilt exports). */
+    sizeBytes: number | null;
 };

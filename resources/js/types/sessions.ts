@@ -10,4 +10,6 @@ export type ActiveSession = {
     platform: string;
     lastActive: string;
     isCurrentDevice: boolean;
+    /** Approximate "City, CC" derived from the IP; null when it cannot be located. */
+    location: string | null;
 };

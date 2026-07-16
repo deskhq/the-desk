@@ -6,6 +6,7 @@ import DataExportController from '@/actions/App/Http/Controllers/Settings/DataEx
 import { Button } from '@/components/ui/button';
 import { useTimezone } from '@/composables/useTimezone';
 import { useTranslations } from '@/composables/useTranslations';
+import { formatFileSize } from '@/lib/attachments';
 import { formatDateTime } from '@/lib/datetime';
 import type { DataExport } from '@/types';
 
@@ -105,8 +106,15 @@ function formatDate(iso: string): string {
 
         <div class="flex min-w-0 flex-1 flex-col gap-0.5">
             <template v-if="isReady && dataExport">
-                <p class="text-sm font-semibold">
+                <p class="flex items-center gap-2 text-sm font-semibold">
                     {{ $t('Your export is ready') }}
+                    <span
+                        v-if="dataExport.sizeBytes !== null"
+                        class="inline-flex h-4.75 shrink-0 items-center rounded-full border border-brass/30 bg-brass-fill px-2.5 text-[10.5px] font-semibold tracking-[0.05em] text-brass-fill-foreground uppercase"
+                        data-test="data-export-size"
+                    >
+                        {{ formatFileSize(dataExport.sizeBytes) }}
+                    </span>
                 </p>
                 <p class="text-xs text-muted-foreground">
                     {{

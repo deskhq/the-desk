@@ -2,6 +2,7 @@
 
 namespace App\Providers;
 
+use App\Support\IpGeolocator;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
@@ -20,6 +21,10 @@ class AppServiceProvider extends ServiceProvider
         $this->app->singleton(Client::class, fn (): Client => new Client(
             config('scout.meilisearch.host'),
             config('scout.meilisearch.key'),
+        ));
+
+        $this->app->bind(IpGeolocator::class, fn (): IpGeolocator => new IpGeolocator(
+            (string) config('geolocation.database_path'),
         ));
     }
 

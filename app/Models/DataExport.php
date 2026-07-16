@@ -21,12 +21,13 @@ use Illuminate\Support\Carbon;
  * @property string $user_id
  * @property DataExportStatus $status
  * @property string|null $path
+ * @property int|null $size_bytes
  * @property Carbon|null $expires_at
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  * @property-read User $user
  */
-#[Fillable(['user_id', 'status', 'path', 'expires_at'])]
+#[Fillable(['user_id', 'status', 'path', 'size_bytes', 'expires_at'])]
 class DataExport extends Model
 {
     /** @use HasFactory<DataExportFactory> */
@@ -68,6 +69,7 @@ class DataExport extends Model
     {
         return [
             'status' => DataExportStatus::class,
+            'size_bytes' => 'integer',
             'expires_at' => 'datetime',
         ];
     }

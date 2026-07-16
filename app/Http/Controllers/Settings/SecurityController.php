@@ -11,6 +11,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Settings\PasswordUpdateRequest;
 use App\Http\Requests\Settings\TwoFactorAuthenticationRequest;
 use App\Models\SecurityEvent;
+use App\Support\IpGeolocator;
 use App\Support\SecurityEventRecorder;
 use App\Support\SessionRegistry;
 use Illuminate\Http\RedirectResponse;
@@ -30,11 +31,11 @@ class SecurityController extends Controller
     /**
      * Show the user's security settings page.
      */
-    public function edit(TwoFactorAuthenticationRequest $request, SessionRegistry $registry): Response
+    public function edit(TwoFactorAuthenticationRequest $request, SessionRegistry $registry, IpGeolocator $geolocator): Response
     {
         $props = [
             'passwordRules' => Password::defaults()->toPasswordRulesString(),
-            'sessions' => $this->activeSessions($request, $registry),
+            'sessions' => $this->activeSessions($request, $registry, $geolocator),
             'securityEvents' => $this->recentSecurityEvents($request),
             'canManageTwoFactor' => $this->canManageTwoFactor(),
             'canManagePasskeys' => $this->canManagePasskeys(),
@@ -113,12 +114,16 @@ class SecurityController extends Controller
      *
      * @return array<int, SessionData>
      */
-    private function activeSessions(TwoFactorAuthenticationRequest $request, SessionRegistry $registry): array
+    private function activeSessions(TwoFactorAuthenticationRequest $request, SessionRegistry $registry, IpGeolocator $geolocator): array
     {
         $currentSessionId = $request->session()->getId();
 
         return collect($registry->all($request->user()->id))
-            ->map(fn (array $session): SessionData => SessionData::fromRegistry($session, $currentSessionId))
+            ->map(fn (array $session): SessionData => SessionData::fromRegistry(
+                $session,
+                $currentSessionId,
+                $geolocator->locate($session['ip_address']),
+            ))
             ->sortByDesc('isCurrentDevice')
             ->values()
             ->all();
