@@ -72,6 +72,46 @@ test('active sessions are listed with the current device flagged first', functio
         );
 });
 
+test('active sessions carry an approximate location resolved from the IP', function (): void {
+    config(['geolocation.database_path' => base_path('tests/Fixtures/geoip/GeoLite2-City-Test.mmdb')]);
+
+    $user = User::factory()->create();
+    $currentId = Str::random(40);
+    $otherId = Str::random(40);
+
+    seedSession($user, $otherId, ip: '81.2.69.160', lastActivity: now()->subHour()->timestamp);
+
+    $this->actingAs($user)
+        ->withSession(['auth.password_confirmed_at' => time()])
+        ->withCookie(config('session.cookie'), $currentId)
+        ->get(route('security.edit'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page): Assert => $page
+            ->where('sessions.1.id', $otherId)
+            ->where('sessions.1.location', 'London, GB'),
+        );
+});
+
+test('a session with a private or unknown IP carries no location', function (): void {
+    config(['geolocation.database_path' => base_path('tests/Fixtures/geoip/GeoLite2-City-Test.mmdb')]);
+
+    $user = User::factory()->create();
+    $currentId = Str::random(40);
+    $otherId = Str::random(40);
+
+    seedSession($user, $otherId, ip: '192.168.1.50', lastActivity: now()->subHour()->timestamp);
+
+    $this->actingAs($user)
+        ->withSession(['auth.password_confirmed_at' => time()])
+        ->withCookie(config('session.cookie'), $currentId)
+        ->get(route('security.edit'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page): Assert => $page
+            ->where('sessions.1.id', $otherId)
+            ->where('sessions.1.location', null),
+        );
+});
+
 test('sessions inactive beyond the session lifetime are not listed', function (): void {
     $user = User::factory()->create();
     $currentId = Str::random(40);

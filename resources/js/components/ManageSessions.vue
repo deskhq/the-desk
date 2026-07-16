@@ -91,7 +91,12 @@ function lastActive(iso: string): string {
                             : $t('Last active :time', {
                                   time: lastActive(session.lastActive),
                               })
-                    }}
+                    }}<template v-if="session.location">
+                        &middot;
+                        <span data-test="session-location">{{
+                            session.location
+                        }}</span></template
+                    >
                 </p>
             </div>
 

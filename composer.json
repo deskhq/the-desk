@@ -14,6 +14,7 @@
         "ext-imagick": "*",
         "arietimmerman/laravel-scim-server": "^1.5",
         "directorytree/ldaprecord-laravel": "^4.0",
+        "geoip2/geoip2": "^3.3",
         "inertiajs/inertia-laravel": "^3.0",
         "intervention/image": "^4.2",
         "laravel/chisel": "^0.1.0",

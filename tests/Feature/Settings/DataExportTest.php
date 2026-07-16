@@ -72,6 +72,21 @@ test('the export job builds a downloadable archive and emails the user', functio
     Mail::assertSent(DataExportReady::class, fn (DataExportReady $mail): bool => $mail->hasTo($user->email));
 });
 
+test('the export job records the archive byte size', function (): void {
+    Storage::fake('local');
+    Mail::fake();
+
+    $user = User::factory()->create();
+    $export = DataExport::factory()->for($user)->create();
+
+    (new ExportUserData($export->id))->handle();
+
+    $export->refresh();
+
+    expect($export->size_bytes)->toBe(strlen((string) Storage::disk('local')->get($export->path)));
+    expect($export->size_bytes)->toBeGreaterThan(0);
+});
+
 test('the job bails quietly when the export no longer exists', function (): void {
     Mail::fake();
 
@@ -84,12 +99,17 @@ test('the job bails quietly when the export no longer exists', function (): void
     Mail::assertNothingSent();
 });
 
-test('the failed hook marks the export failed', function (): void {
-    $export = DataExport::factory()->create();
+test('the failed hook marks the export failed and discards any archive metadata', function (): void {
+    $export = DataExport::factory()->ready()->create();
 
     (new ExportUserData($export->id))->failed(new RuntimeException('boom'));
 
-    expect($export->refresh()->status)->toBe(DataExportStatus::Failed);
+    $export->refresh();
+
+    expect($export->status)->toBe(DataExportStatus::Failed);
+    expect($export->path)->toBeNull();
+    expect($export->size_bytes)->toBeNull();
+    expect($export->expires_at)->toBeNull();
 });
 
 test('the owner can download a ready export', function (): void {
@@ -141,14 +161,15 @@ test('an expired export cannot be downloaded', function (): void {
 
 test('the data & privacy page carries the latest export', function (): void {
     $user = User::factory()->create();
-    DataExport::factory()->for($user)->ready()->create();
+    DataExport::factory()->for($user)->ready()->create(['size_bytes' => 134_217_728]);
 
     $this->actingAs($user)
         ->get(route('data-export.edit'))
         ->assertInertia(fn (Assert $page): Assert => $page
             ->component('settings/DataPrivacy')
             ->where('dataExport.status', 'ready')
-            ->where('dataExport.isReady', true));
+            ->where('dataExport.isReady', true)
+            ->where('dataExport.sizeBytes', 134_217_728));
 });
 
 test('the data & privacy page carries a null export when none has been requested', function (): void {
@@ -171,6 +192,22 @@ test('the DTO maps a ready export', function (): void {
     expect($data->isReady)->toBeTrue();
     expect($data->expiresAt)->not->toBeNull();
     expect($data->requestedAt)->not->toBeNull();
+});
+
+test('the DTO exposes the archive size when captured', function (): void {
+    $export = DataExport::factory()->ready()->create(['size_bytes' => 134_217_728]);
+
+    $data = DataExportData::fromExport($export);
+
+    expect($data->sizeBytes)->toBe(134_217_728);
+});
+
+test('the DTO leaves the size null when it was never captured', function (): void {
+    $export = DataExport::factory()->create();
+
+    $data = DataExportData::fromExport($export);
+
+    expect($data->sizeBytes)->toBeNull();
 });
 
 test('the DTO maps a pending export', function (): void {

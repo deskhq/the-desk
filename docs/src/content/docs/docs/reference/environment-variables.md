@@ -211,3 +211,22 @@ whole request body, not just the file):
 If these are lower than `ATTACHMENT_MAX_SIZE_MB`, large uploads are rejected by the server or proxy
 before the app ever sees them. See [Reverse proxy](/docs/self-hosting/reverse-proxy/).
 :::
+
+## Session geolocation
+
+The **Security** settings page can show an approximate location (city, country)
+next to each active session, derived from its IP address. The lookup is fully
+offline against a local **MaxMind GeoLite2 / GeoIP2 City** database — no
+third-party API is called — and is **opt-in**: without a database file the
+location segment is simply omitted, and it is always omitted for private, LAN, or
+otherwise unresolvable addresses.
+
+| Variable              | Default                                  | Notes                                                                                     |
+| --------------------- | ---------------------------------------- | ----------------------------------------------------------------------------------------- |
+| `GEOIP_DATABASE_PATH` | `storage/app/geoip/GeoLite2-City.mmdb`   | Absolute path to a `GeoLite2-City.mmdb` (or GeoIP2 City) database. Unset, the app resolves the shown default under `storage_path()`. A missing file → no locations shown. |
+
+To enable it, download a free **GeoLite2 City** database from
+[MaxMind](https://www.maxmind.com/en/geolite2/signup) (a free account is
+required) and mount the `.mmdb` file at `GEOIP_DATABASE_PATH`. The database is not
+bundled: MaxMind's licence does not allow redistribution, and it is refreshed
+regularly, so you keep it up to date yourself.

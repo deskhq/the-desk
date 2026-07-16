@@ -35,6 +35,7 @@ class DataExportFactory extends Factory
         return $this->state(fn (array $attributes): array => [
             'status' => DataExportStatus::Ready,
             'path' => 'exports/'.fake()->uuid().'.zip',
+            'size_bytes' => fake()->numberBetween(1_024, 512 * 1_024 * 1_024),
             'expires_at' => now()->addDays(7),
         ]);
     }
@@ -47,6 +48,7 @@ class DataExportFactory extends Factory
         return $this->state(fn (array $attributes): array => [
             'status' => DataExportStatus::Ready,
             'path' => 'exports/'.fake()->uuid().'.zip',
+            'size_bytes' => fake()->numberBetween(1_024, 512 * 1_024 * 1_024),
             'expires_at' => now()->subDay(),
         ]);
     }
@@ -58,6 +60,9 @@ class DataExportFactory extends Factory
     {
         return $this->state(fn (array $attributes): array => [
             'status' => DataExportStatus::Failed,
+            'path' => null,
+            'size_bytes' => null,
+            'expires_at' => null,
         ]);
     }
 }
