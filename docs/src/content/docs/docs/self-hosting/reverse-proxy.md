@@ -16,10 +16,12 @@ If your proxy runs **inside** the compose network instead (e.g. a Caddy containe
 on the same network), target the service names `app:8080` / `reverb:8080` and you
 don't need any host publishing at all.
 
-> **HTTPS URLs:** the app must trust your proxy's `X-Forwarded-Proto` header, or it
-> generates `http://` links on an `https://` page and the browser blocks them as
-> mixed content (login/registration break). Make sure your proxy forwards the
-> standard `X-Forwarded-*` headers.
+> **HTTPS URLs:** the app trusts your proxy's `X-Forwarded-*` headers out of the
+> box, so it generates `https://` links from a `X-Forwarded-Proto: https` request.
+> You only need your proxy to **forward those headers** — Caddy and Traefik do
+> automatically; the nginx example below sets `X-Forwarded-Proto`. Without them the
+> app would emit `http://` links on an `https://` page and the browser blocks them
+> as mixed content (login/registration break).
 
 The single hard requirement beyond normal HTTPS termination is that your proxy
 **forwards WebSocket upgrade requests** to Reverb. Without it, the app loads but
