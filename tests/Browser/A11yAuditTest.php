@@ -85,6 +85,11 @@ test('the unread jump-to-unread pill has no serious accessibility violations in 
     $page = signInThroughBrowser($alice)
         ->assertSee('Anchor message');
 
+    // Let the initial open settle first: it anchors on the unread divider (pill
+    // hidden, boundary on-screen), and that scroll animation would otherwise
+    // override the programmatic scroll below and leave the divider in view.
+    $page->wait(1);
+
     // The channel opens anchored on the unread divider, which keeps the pill
     // hidden (the boundary is on-screen). Scroll the message-history region to the
     // bottom so the virtualizer drops the divider off the top of its window — the
@@ -97,7 +102,7 @@ test('the unread jump-to-unread pill has no serious accessibility violations in 
     }
     JS);
 
-    $page->wait(0.5)
+    $page->wait(1)
         ->assertPresent('[data-test="jump-to-unread"]')
         ->assertNoAccessibilityIssues();
 

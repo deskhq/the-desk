@@ -12,6 +12,7 @@ use Illuminate\Contracts\Http\Kernel as HttpKernelContract;
 use Illuminate\Foundation\Http\Kernel;
 use Pest\Browser\Api\AwaitableWebpage;
 use Tests\Browser\Support\ForgetGuardsPerRequest;
+use Tests\Browser\Support\PersistentArraySession;
 
 /**
  * Point broadcasting at a real Reverb server for the duration of a browser test.
@@ -56,6 +57,13 @@ function useReverbForBrowserTests(): void
     if ($kernel instanceof Kernel && ! $kernel->hasMiddleware(ForgetGuardsPerRequest::class)) {
         $kernel->prependMiddleware(ForgetGuardsPerRequest::class);
     }
+
+    // TestCase rebuilds the application (and the `array` driver's in-memory session
+    // store) before each test, but the browser keeps firing asynchronous requests
+    // that can land after the rebuild and load an empty session — bouncing the page
+    // to /login mid-test. Pin one handler that survives the refresh so a signed-in
+    // browser stays signed in for the life of its test.
+    PersistentArraySession::attach();
 }
 
 /**
