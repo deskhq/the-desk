@@ -19,8 +19,11 @@ export type SearchResultGroup = {
  */
 function dayIndex(date: Date): number {
     return Math.floor(
-        new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime() /
-            86_400_000,
+        new Date(
+            date.getFullYear(),
+            date.getMonth(),
+            date.getDate(),
+        ).getTime() / 86_400_000,
     );
 }
 
@@ -80,7 +83,9 @@ function bucketFor(
         label: date.toLocaleDateString(undefined, {
             month: 'long',
             year:
-                date.getFullYear() === now.getFullYear() ? undefined : 'numeric',
+                date.getFullYear() === now.getFullYear()
+                    ? undefined
+                    : 'numeric',
         }),
     };
 }

@@ -31,8 +31,8 @@ import {
     emptyFilters,
     filtersToParams,
     parseSearchQuery,
-    type SearchFilters,
 } from '@/lib/searchTokens';
+import type { SearchFilters } from '@/lib/searchTokens';
 import type { MessageSearchResult } from '@/types';
 
 interface TeamData {
@@ -130,12 +130,15 @@ function commitTerm(raw: string): void {
     if (parsed.from !== null) {
         authorId.value = parsed.from;
     }
+
     if (parsed.in !== null) {
         channelId.value = parsed.in;
     }
+
     if (parsed.after !== null) {
         after.value = parsed.after;
     }
+
     if (parsed.before !== null) {
         before.value = parsed.before;
     }
@@ -264,9 +267,11 @@ const dateChipLabel = computed(() => {
     if (after.value !== null && before.value !== null) {
         return `${formatCalendarDate(after.value)} – ${formatCalendarDate(before.value)}`;
     }
+
     if (after.value !== null) {
         return t('Since :date', { date: formatCalendarDate(after.value) });
     }
+
     if (before.value !== null) {
         return t('Before :date', { date: formatCalendarDate(before.value) });
     }
@@ -289,9 +294,11 @@ const activeFilterSummary = computed(() => {
     if (channelName.value !== null) {
         parts.push(`#${channelName.value}`);
     }
+
     if (authorName.value !== null) {
         parts.push(t('from :name', { name: authorName.value }));
     }
+
     if (dateChipLabel.value !== null) {
         parts.push(dateChipLabel.value);
     }
@@ -321,7 +328,9 @@ function jumpHref(result: MessageSearchResult): string {
     <header
         class="flex h-12 shrink-0 items-center gap-2.5 border-b border-border px-5"
     >
-        <SidebarTrigger class="-ml-1.5 size-8 text-muted-foreground md:hidden" />
+        <SidebarTrigger
+            class="-ml-1.5 size-8 text-muted-foreground md:hidden"
+        />
         <h1 class="text-[15px] font-semibold text-foreground">
             {{ $t('Search messages') }}
         </h1>
@@ -346,12 +355,16 @@ function jumpHref(result: MessageSearchResult): string {
                     :placeholder="$t('Search messages')"
                     :aria-label="$t('Search messages')"
                     autofocus
+                    data-test="search-input"
                     class="h-9.5 rounded-[10px] bg-muted/40 pl-9"
                 />
             </div>
 
             <!-- facet bar -->
-            <div class="flex flex-wrap items-center gap-2" data-test="facet-bar">
+            <div
+                class="flex flex-wrap items-center gap-2"
+                data-test="facet-bar"
+            >
                 <!-- author facet -->
                 <span
                     v-if="authorName !== null"
@@ -364,25 +377,29 @@ function jumpHref(result: MessageSearchResult): string {
                         >{{ getInitials(authorName) }}</span
                     >
                     {{ authorName }}
-                    <button
+                    <Button
+                        variant="unstyled"
+                        size="none"
                         type="button"
                         class="flex size-4 items-center justify-center rounded-full text-primary-foreground/70 hover:text-primary-foreground"
                         :aria-label="$t('Remove author filter')"
                         @click="clearAuthor"
                     >
                         <X class="size-3" aria-hidden="true" />
-                    </button>
+                    </Button>
                 </span>
                 <DropdownMenu v-else>
                     <DropdownMenuTrigger as-child>
-                        <button
+                        <Button
+                            variant="unstyled"
+                            size="none"
                             type="button"
                             class="inline-flex h-7 items-center gap-1.5 rounded-full border border-border px-3 text-xs font-medium text-muted-foreground hover:text-foreground"
                             data-test="facet-author-picker"
                         >
                             {{ $t('Author') }}
                             <ChevronDown class="size-3" aria-hidden="true" />
-                        </button>
+                        </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="start" class="w-56 p-1.5">
                         <Input
@@ -393,7 +410,9 @@ function jumpHref(result: MessageSearchResult): string {
                             @keydown.stop
                         />
                         <div class="max-h-56 overflow-y-auto">
-                            <button
+                            <Button
+                                variant="unstyled"
+                                size="none"
                                 v-for="member in filteredMembers"
                                 :key="member.id"
                                 type="button"
@@ -407,7 +426,7 @@ function jumpHref(result: MessageSearchResult): string {
                                     >{{ getInitials(member.name) }}</span
                                 >
                                 <span class="truncate">{{ member.name }}</span>
-                            </button>
+                            </Button>
                         </div>
                     </DropdownMenuContent>
                 </DropdownMenu>
@@ -420,18 +439,22 @@ function jumpHref(result: MessageSearchResult): string {
                 >
                     <span aria-hidden="true" class="text-brass">#</span
                     >{{ channelName }}
-                    <button
+                    <Button
+                        variant="unstyled"
+                        size="none"
                         type="button"
                         class="flex size-4 items-center justify-center rounded-full text-primary-foreground/70 hover:text-primary-foreground"
                         :aria-label="$t('Remove channel filter')"
                         @click="clearChannel"
                     >
                         <X class="size-3" aria-hidden="true" />
-                    </button>
+                    </Button>
                 </span>
                 <DropdownMenu v-else>
                     <DropdownMenuTrigger as-child>
-                        <button
+                        <Button
+                            variant="unstyled"
+                            size="none"
                             type="button"
                             class="inline-flex h-7 items-center gap-1.5 rounded-full border border-border px-3 text-xs font-medium text-muted-foreground hover:text-foreground"
                             data-test="facet-channel-picker"
@@ -442,7 +465,7 @@ function jumpHref(result: MessageSearchResult): string {
                                 >#</span
                             >{{ $t('Channel') }}
                             <ChevronDown class="size-3" aria-hidden="true" />
-                        </button>
+                        </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="start" class="w-56 p-1.5">
                         <Input
@@ -453,7 +476,9 @@ function jumpHref(result: MessageSearchResult): string {
                             @keydown.stop
                         />
                         <div class="max-h-56 overflow-y-auto">
-                            <button
+                            <Button
+                                variant="unstyled"
+                                size="none"
                                 v-for="channel in filteredChannels"
                                 :key="channel.id"
                                 type="button"
@@ -473,7 +498,7 @@ function jumpHref(result: MessageSearchResult): string {
                                     >#</span
                                 >
                                 <span class="truncate">{{ channel.name }}</span>
-                            </button>
+                            </Button>
                         </div>
                     </DropdownMenuContent>
                 </DropdownMenu>
@@ -486,18 +511,22 @@ function jumpHref(result: MessageSearchResult): string {
                 >
                     <Calendar class="size-3 text-brass" aria-hidden="true" />
                     {{ dateChipLabel }}
-                    <button
+                    <Button
+                        variant="unstyled"
+                        size="none"
                         type="button"
                         class="flex size-4 items-center justify-center rounded-full text-primary-foreground/70 hover:text-primary-foreground"
                         :aria-label="$t('Remove date filter')"
                         @click="clearDate"
                     >
                         <X class="size-3" aria-hidden="true" />
-                    </button>
+                    </Button>
                 </span>
                 <DropdownMenu v-else>
                     <DropdownMenuTrigger as-child>
-                        <button
+                        <Button
+                            variant="unstyled"
+                            size="none"
                             type="button"
                             class="inline-flex h-7 items-center gap-1.5 rounded-full border border-border px-3 text-xs font-medium text-muted-foreground hover:text-foreground"
                             data-test="facet-date-picker"
@@ -505,10 +534,12 @@ function jumpHref(result: MessageSearchResult): string {
                             <Calendar class="size-3" aria-hidden="true" />
                             {{ $t('Date') }}
                             <ChevronDown class="size-3" aria-hidden="true" />
-                        </button>
+                        </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="start" class="w-60 p-1.5">
-                        <button
+                        <Button
+                            variant="unstyled"
+                            size="none"
                             v-for="preset in datePresets"
                             :key="preset.key"
                             type="button"
@@ -517,8 +548,10 @@ function jumpHref(result: MessageSearchResult): string {
                             @click="setDateRange(preset.after, preset.before)"
                         >
                             {{ preset.label }}
-                        </button>
-                        <button
+                        </Button>
+                        <Button
+                            variant="unstyled"
+                            size="none"
                             type="button"
                             class="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-[13px] hover:bg-accent"
                             data-test="facet-date-custom"
@@ -526,7 +559,7 @@ function jumpHref(result: MessageSearchResult): string {
                         >
                             <Calendar class="size-3" aria-hidden="true" />
                             {{ $t('Custom…') }}
-                        </button>
+                        </Button>
                         <div
                             v-if="showCustomRange"
                             class="flex flex-col gap-1.5 border-t border-border px-2 pt-2"
@@ -570,7 +603,9 @@ function jumpHref(result: MessageSearchResult): string {
                     </DropdownMenuContent>
                 </DropdownMenu>
 
-                <button
+                <Button
+                    variant="unstyled"
+                    size="none"
                     v-if="hasFilters"
                     type="button"
                     class="ml-1 border-b border-dotted border-muted-foreground/60 pb-px text-xs text-muted-foreground hover:text-foreground"
@@ -578,7 +613,7 @@ function jumpHref(result: MessageSearchResult): string {
                     @click="clearAllFilters"
                 >
                     {{ $t('Clear all') }}
-                </button>
+                </Button>
 
                 <span
                     v-if="props.query !== '' && resultCount > 0"
@@ -606,7 +641,10 @@ function jumpHref(result: MessageSearchResult): string {
                 data-test="search-empty"
                 class="flex flex-col items-center gap-2.5 pt-16 text-center"
             >
-                <Search class="size-6 text-muted-foreground" aria-hidden="true" />
+                <Search
+                    class="size-6 text-muted-foreground"
+                    aria-hidden="true"
+                />
                 <span class="text-sm font-semibold text-foreground">
                     {{
                         $t('No matches for “:query” with these filters', {
@@ -619,7 +657,9 @@ function jumpHref(result: MessageSearchResult): string {
                     class="text-xs text-muted-foreground"
                 >
                     {{
-                        $t('Searched :filters', { filters: activeFilterSummary })
+                        $t('Searched :filters', {
+                            filters: activeFilterSummary,
+                        })
                     }}
                 </span>
                 <div class="mt-1 flex gap-2">
@@ -677,7 +717,9 @@ function jumpHref(result: MessageSearchResult): string {
                                     class="ml-auto shrink-0 text-[11px] text-muted-foreground"
                                 >
                                     {{
-                                        formatTimestamp(result.message.createdAt)
+                                        formatTimestamp(
+                                            result.message.createdAt,
+                                        )
                                     }}
                                 </span>
                             </div>
