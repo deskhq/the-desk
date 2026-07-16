@@ -8,5 +8,6 @@ export * from './messages';
 export * from './navigation';
 export * from './security';
 export * from './sessions';
+export * from './sidebar';
 export * from './teams';
 export * from './ui';

@@ -89,6 +89,7 @@ import {
     useOnboardingTour,
 } from '@/composables/useOnboardingTour';
 import { useSidebarBadges } from '@/composables/useSidebarBadges';
+import { useSidebarPosition } from '@/composables/useSidebarPosition';
 import { useTeamPresence } from '@/composables/useTeamPresence';
 import { useTeamSwitch } from '@/composables/useTeamSwitch';
 import { useTimezone } from '@/composables/useTimezone';
@@ -648,6 +649,10 @@ useKeyboardShortcuts({
 
 const { timezone, syncDetectedTimezone } = useTimezone();
 
+// Which edge the dock sits on, read from the shared user prop so the redirect
+// after a change re-binds :side live (no reload).
+const { sidebarPosition } = useSidebarPosition();
+
 onMounted(() => {
     // Lazily pull the (optional) shared invitations so the post-login prompt appears.
     router.reload({ only: ['pendingInvitations'] });
@@ -684,7 +689,12 @@ onMounted(() => {
         <!-- The dock: a single floating card. Team switching, invite, and
              new-team fold into the workspace header (the vertical team rail is
              gone); on mobile the whole card slides in as the built-in Sheet. -->
-        <Sidebar collapsible="offcanvas" variant="floating" class="p-3.5">
+        <Sidebar
+            :side="sidebarPosition"
+            collapsible="offcanvas"
+            variant="floating"
+            class="p-3.5"
+        >
             <SidebarHeader
                 class="gap-0 border-b border-sidebar-border p-3.5 pb-2.5"
             >
@@ -1341,10 +1351,18 @@ onMounted(() => {
 
         <!-- Main card: fills the screen on mobile, floats on the warm canvas
              (matching the dock) from md up. -->
+        <!-- Mirror the floating gap onto the correct edge: with the dock on the
+             right, the inset reorders ahead of it and takes its outer margin on
+             the left instead of the right. -->
         <SidebarInset
             id="main"
             tabindex="-1"
-            class="flex h-svh flex-col overflow-hidden focus-visible:outline-none md:my-3.5 md:mr-3.5 md:h-[calc(100svh-1.75rem)] md:rounded-[14px] md:border md:border-border md:bg-card md:shadow-sm"
+            class="flex h-svh flex-col overflow-hidden focus-visible:outline-none md:my-3.5 md:h-[calc(100svh-1.75rem)] md:rounded-[14px] md:border md:border-border md:bg-card md:shadow-sm"
+            :class="
+                sidebarPosition === 'right'
+                    ? 'md:order-first md:ml-3.5'
+                    : 'md:mr-3.5'
+            "
         >
             <slot />
         </SidebarInset>

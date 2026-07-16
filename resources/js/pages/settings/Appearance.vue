@@ -5,16 +5,22 @@ import { ref, watch } from 'vue';
 import AppearanceTabs from '@/components/AppearanceTabs.vue';
 import SettingsPane from '@/components/SettingsPane.vue';
 import SettingsPaneSection from '@/components/SettingsPaneSection.vue';
+import SidebarPositionTabs from '@/components/SidebarPositionTabs.vue';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { useChimes } from '@/composables/useChimes';
 import { useReadReceipts } from '@/composables/useReadReceipts';
 import { translate } from '@/lib/i18n';
 import { edit } from '@/routes/appearance';
-import type { ChimeSound, ChimeSoundOption } from '@/types';
+import type {
+    ChimeSound,
+    ChimeSoundOption,
+    SidebarPositionOption,
+} from '@/types';
 
 defineProps<{
     chimeSounds: ChimeSoundOption[];
+    sidebarPositions: SidebarPositionOption[];
 }>();
 
 defineOptions({
@@ -61,6 +67,17 @@ const { shareReadReceipts, updateShareReadReceipts } = useReadReceipts();
             "
         >
             <AppearanceTabs />
+        </SettingsPaneSection>
+
+        <SettingsPaneSection
+            :title="$t('Sidebar position')"
+            :description="
+                $t(
+                    'Which edge of the workspace the navigation sidebar sits on. Follows your account across devices.',
+                )
+            "
+        >
+            <SidebarPositionTabs :options="sidebarPositions" />
         </SettingsPaneSection>
 
         <SettingsPaneSection

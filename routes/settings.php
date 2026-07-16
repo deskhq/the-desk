@@ -11,6 +11,7 @@ use App\Http\Controllers\Settings\ProfileController;
 use App\Http\Controllers\Settings\ReadReceiptsController;
 use App\Http\Controllers\Settings\SecurityController;
 use App\Http\Controllers\Settings\SessionController;
+use App\Http\Controllers\Settings\SidebarPositionController;
 use App\Http\Controllers\Settings\TimezoneController;
 use App\Http\Controllers\Teams\AnalyticsController;
 use App\Http\Controllers\Teams\AuditController;
@@ -61,6 +62,8 @@ Route::middleware(['auth', 'verified'])->group(function (): void {
     Route::patch('settings/notifications', [NotificationController::class, 'update'])->name('notifications.update');
 
     Route::patch('settings/read-receipts', [ReadReceiptsController::class, 'update'])->name('read-receipts.update');
+
+    Route::patch('settings/sidebar-position', [SidebarPositionController::class, 'update'])->name('sidebar-position.update');
 
     Route::get('settings/language', [LocaleController::class, 'edit'])->name('locale.edit');
     Route::patch('settings/language', [LocaleController::class, 'update'])->name('locale.update');
