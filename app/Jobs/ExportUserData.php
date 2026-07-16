@@ -71,11 +71,17 @@ class ExportUserData implements ShouldQueue
     }
 
     /**
-     * Mark the export failed so the panel can offer a retry.
+     * Mark the export failed so the panel can offer a retry, discarding any
+     * partial archive metadata so a failed export is never treated as ready.
      */
     public function failed(Throwable $exception): void
     {
-        DataExport::whereKey($this->dataExportId)->update(['status' => DataExportStatus::Failed]);
+        DataExport::whereKey($this->dataExportId)->update([
+            'status' => DataExportStatus::Failed,
+            'path' => null,
+            'size_bytes' => null,
+            'expires_at' => null,
+        ]);
     }
 
     /**

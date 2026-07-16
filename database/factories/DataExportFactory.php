@@ -48,6 +48,7 @@ class DataExportFactory extends Factory
         return $this->state(fn (array $attributes): array => [
             'status' => DataExportStatus::Ready,
             'path' => 'exports/'.fake()->uuid().'.zip',
+            'size_bytes' => fake()->numberBetween(1_024, 512 * 1_024 * 1_024),
             'expires_at' => now()->subDay(),
         ]);
     }

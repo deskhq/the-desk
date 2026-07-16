@@ -99,12 +99,17 @@ test('the job bails quietly when the export no longer exists', function (): void
     Mail::assertNothingSent();
 });
 
-test('the failed hook marks the export failed', function (): void {
-    $export = DataExport::factory()->create();
+test('the failed hook marks the export failed and discards any archive metadata', function (): void {
+    $export = DataExport::factory()->ready()->create();
 
     (new ExportUserData($export->id))->failed(new RuntimeException('boom'));
 
-    expect($export->refresh()->status)->toBe(DataExportStatus::Failed);
+    $export->refresh();
+
+    expect($export->status)->toBe(DataExportStatus::Failed);
+    expect($export->path)->toBeNull();
+    expect($export->size_bytes)->toBeNull();
+    expect($export->expires_at)->toBeNull();
 });
 
 test('the owner can download a ready export', function (): void {

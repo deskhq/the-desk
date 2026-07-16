@@ -48,6 +48,12 @@ test('it returns null when the database file is missing', function (): void {
     expect($geolocator->locate('81.2.69.160'))->toBeNull();
 });
 
+test('it returns null when pointed at a non-City database', function (): void {
+    $geolocator = new IpGeolocator(dirname(__DIR__).'/Fixtures/geoip/GeoLite2-Country-Test.mmdb');
+
+    expect($geolocator->locate('81.2.69.160'))->toBeNull();
+});
+
 test('it returns null when the database file is unreadable', function (): void {
     $path = (string) tempnam(sys_get_temp_dir(), 'geoip');
     file_put_contents($path, 'not a valid database');

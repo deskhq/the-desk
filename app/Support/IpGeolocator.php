@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Support;
 
+use BadMethodCallException;
 use GeoIp2\Database\Reader;
 use GeoIp2\Exception\AddressNotFoundException;
 use GeoIp2\Model\City;
@@ -44,7 +45,9 @@ class IpGeolocator
 
         try {
             return $this->format($this->reader()->city($ip));
-        } catch (AddressNotFoundException|InvalidDatabaseException|InvalidArgumentException) {
+        } catch (AddressNotFoundException|InvalidDatabaseException|InvalidArgumentException|BadMethodCallException) {
+            // Address unknown, or the configured database is unreadable or not a
+            // City database (e.g. a Country .mmdb) — degrade to no location.
             return null;
         }
     }

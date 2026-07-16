@@ -223,7 +223,7 @@ otherwise unresolvable addresses.
 
 | Variable              | Default                                  | Notes                                                                                     |
 | --------------------- | ---------------------------------------- | ----------------------------------------------------------------------------------------- |
-| `GEOIP_DATABASE_PATH` | `storage/app/geoip/GeoLite2-City.mmdb`   | Absolute path to a `GeoLite2-City.mmdb` (or GeoIP2 City) database. Absent → no locations. |
+| `GEOIP_DATABASE_PATH` | `storage/app/geoip/GeoLite2-City.mmdb`   | Absolute path to a `GeoLite2-City.mmdb` (or GeoIP2 City) database. Unset, the app resolves the shown default under `storage_path()`. A missing file → no locations shown. |
 
 To enable it, download a free **GeoLite2 City** database from
 [MaxMind](https://www.maxmind.com/en/geolite2/signup) (a free account is
