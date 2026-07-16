@@ -26,6 +26,22 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        // Behind a TLS-terminating reverse proxy the container receives plain
+        // HTTP, so trust the proxy's X-Forwarded-* headers — otherwise
+        // $request->isSecure() is false and every absolute URL Laravel generates
+        // (route(), redirect()->route(), Fortify redirects, mail links) comes out
+        // http:// on an https:// page and the browser blocks it as mixed content.
+        // '*' trusts the calling proxy, which is safe for this stack: the app
+        // publishes to loopback / the compose network and is only reachable
+        // through the proxy that sets these headers.
+        $middleware->trustProxies(
+            at: '*',
+            headers: Request::HEADER_X_FORWARDED_FOR
+                | Request::HEADER_X_FORWARDED_HOST
+                | Request::HEADER_X_FORWARDED_PORT
+                | Request::HEADER_X_FORWARDED_PROTO,
+        );
+
         $middleware->encryptCookies(except: ['appearance', 'sidebar_state']);
 
         $middleware->web(append: [
