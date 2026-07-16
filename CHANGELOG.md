@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.5.1](https://github.com/emmpaul/the-desk/compare/v1.5.0...v1.5.1) (2026-07-16)
+
+
+### Bug Fixes
+
+* default the prod compose stack to the prebuilt image so up -d never builds ([#462](https://github.com/emmpaul/the-desk/issues/462)) ([229c236](https://github.com/emmpaul/the-desk/commit/229c2365db9caaa39e818c6f674c8d35031480df))
+
 ## [1.5.0](https://github.com/emmpaul/the-desk/compare/v1.4.2...v1.5.0) (2026-07-16)
 
 

@@ -69,7 +69,7 @@ pins:
 
 ```bash
 git fetch --tags
-git checkout v1.5.0 # x-release-please-version         (the desired release tag)
+git checkout v1.5.1 # x-release-please-version         (the desired release tag)
 docker compose -f docker-compose.prod.yml down
 docker compose -f docker-compose.prod.yml up -d
 # pulls the newer pinned image; migrations run automatically via the entrypoint
@@ -85,7 +85,7 @@ rebuild:
 
 ```bash
 git fetch --tags
-git checkout v1.5.0 # x-release-please-version         (the desired release tag)
+git checkout v1.5.1 # x-release-please-version         (the desired release tag)
 docker compose -f docker-compose.prod.yml down
 docker compose -f docker-compose.prod.yml -f docker-compose.build.yml up -d --build
 # migrations run automatically via the entrypoint

@@ -35,7 +35,7 @@ the same image works for any operator's host.
 # 1. Grab the compose file, env template, and secret generator from a release tag.
 git clone git@github.com:emmpaul/the-desk.git
 cd the-desk
-git fetch --tags && git checkout v1.5.0 # x-release-please-version   (the desired release tag)
+git fetch --tags && git checkout v1.5.1 # x-release-please-version   (the desired release tag)
 
 # 2. Generate .env secrets, then edit APP_URL, mail, and REVERB_*_PUBLIC.
 ./docker/gen-secrets.sh
@@ -60,7 +60,7 @@ top, which restores a local build for the app services (they share one image):
 git clone git@github.com:emmpaul/the-desk.git
 cd the-desk
 git fetch --tags
-git checkout v1.5.0 # x-release-please-version         (the desired release tag)
+git checkout v1.5.1 # x-release-please-version         (the desired release tag)
 
 # 2. Generate .env with all required secrets, then edit APP_URL, mail, and
 #    REVERB_*_PUBLIC (see Configuration) — identical to the pull flow above.
