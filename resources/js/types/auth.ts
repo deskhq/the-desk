@@ -1,5 +1,6 @@
 import type { ChimeSound } from './chimes';
 import type { AppLocale } from './locale';
+import type { SidebarPosition } from './sidebar';
 
 export type User = {
     id: number;
@@ -16,6 +17,7 @@ export type User = {
     updated_at: string;
     chime_sound: ChimeSound;
     share_read_receipts: boolean;
+    sidebar_position: SidebarPosition;
     onboarding_completed_at: string | null;
     [key: string]: unknown;
 };

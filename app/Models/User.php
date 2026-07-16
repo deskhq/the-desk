@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Concerns\HasTeams;
 use App\Enums\AppLocale;
 use App\Enums\ChimeSound;
+use App\Enums\SidebarPosition;
 use App\Enums\TeamRole;
 use App\Observers\UserObserver;
 use App\Support\Gravatar;
@@ -51,6 +52,7 @@ use Laravel\Passkeys\Passkey;
  * @property string|null $current_team_id
  * @property ChimeSound $chime_sound
  * @property bool $share_read_receipts
+ * @property SidebarPosition $sidebar_position
  * @property Carbon|null $onboarding_completed_at
  * @property bool $is_tombstone
  * @property Carbon|null $deactivated_at
@@ -68,7 +70,7 @@ use Laravel\Passkeys\Passkey;
  * @property-read Collection<int, Passkey> $passkeys
  */
 #[Appends(['avatar'])]
-#[Fillable(['name', 'email', 'avatar_url', 'pronouns', 'title', 'phone', 'timezone', 'locale', 'password', 'current_team_id', 'chime_sound', 'share_read_receipts', 'onboarding_completed_at', 'collapsed_channel_sections', 'is_tombstone'])]
+#[Fillable(['name', 'email', 'avatar_url', 'pronouns', 'title', 'phone', 'timezone', 'locale', 'password', 'current_team_id', 'chime_sound', 'share_read_receipts', 'sidebar_position', 'onboarding_completed_at', 'collapsed_channel_sections', 'is_tombstone'])]
 #[Hidden(['password', 'two_factor_secret', 'two_factor_recovery_codes', 'remember_token', 'avatar_url'])]
 #[ObservedBy(UserObserver::class)]
 class User extends Authenticatable implements HasLocalePreference, MustVerifyEmail, PasskeyUser
@@ -141,6 +143,7 @@ class User extends Authenticatable implements HasLocalePreference, MustVerifyEma
             'locale' => AppLocale::class,
             'chime_sound' => ChimeSound::class,
             'share_read_receipts' => 'boolean',
+            'sidebar_position' => SidebarPosition::class,
             'onboarding_completed_at' => 'datetime',
             'is_tombstone' => 'boolean',
             'deactivated_at' => 'datetime',

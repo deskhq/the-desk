@@ -1,6 +1,7 @@
 <?php
 
 use App\Enums\ChimeSound;
+use App\Enums\SidebarPosition;
 use App\Models\User;
 use Inertia\Testing\AssertableInertia as Assert;
 
@@ -15,6 +16,21 @@ test('the appearance & notifications page is displayed with the selectable chime
             ->component('settings/Appearance')
             ->has('chimeSounds', count(ChimeSound::cases()))
             ->where('chimeSounds.0', ['value' => ChimeSound::Off->value, 'label' => 'Off'])
+        );
+});
+
+test('the appearance & notifications page is displayed with the selectable sidebar positions', function (): void {
+    $user = User::factory()->create();
+
+    $this
+        ->actingAs($user)
+        ->get(route('appearance.edit'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page): Assert => $page
+            ->component('settings/Appearance')
+            ->has('sidebarPositions', count(SidebarPosition::cases()))
+            ->where('sidebarPositions.0', ['value' => SidebarPosition::Left->value, 'label' => 'Left'])
+            ->where('sidebarPositions.1', ['value' => SidebarPosition::Right->value, 'label' => 'Right'])
         );
 });
 
