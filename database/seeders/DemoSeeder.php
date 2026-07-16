@@ -77,6 +77,14 @@ class DemoSeeder extends Seeder
      */
     private const int FAKER_SEED = 20260716;
 
+    /**
+     * The canonical cast keys, in seeding order — the single source of truth for
+     * which accounts the demo owns, shared by seeding and wiping.
+     *
+     * @var non-empty-list<string>
+     */
+    private const array PERSONA_KEYS = ['owner', 'leo', 'priya', 'sam', 'jonas', 'amara', 'chloe'];
+
     public function __construct(
         private readonly CreateTeam $createTeam,
         private readonly CreateChannel $createChannel,
@@ -138,12 +146,36 @@ class DemoSeeder extends Seeder
             $team->forceDelete();
         });
 
-        User::where('email', 'like', '%@'.self::EMAIL_DOMAIN)->get()->each(function (User $user): void {
+        User::whereIn('email', $this->personaEmails())->get()->each(function (User $user): void {
             // Each persona's factory-spawned personal team is removed alongside
             // them, so the wipe leaves nothing behind.
             $this->deletePersonalTeams($user);
             $user->forceDelete();
         });
+    }
+
+    /**
+     * The exact set of demo persona emails, the single source of truth for both
+     * seeding and wiping. Scoping the wipe to this explicit list (rather than a
+     * broad domain match) guarantees it can only ever touch the demo accounts.
+     *
+     * @return non-empty-list<string>
+     */
+    private function personaEmails(): array
+    {
+        return array_map(
+            $this->personaEmail(...),
+            self::PERSONA_KEYS,
+        );
+    }
+
+    /**
+     * Resolve a persona's email from its cast key: the owner logs in with the
+     * documented demo address, everyone else uses `{key}@{domain}`.
+     */
+    private function personaEmail(string $key): string
+    {
+        return $key === 'owner' ? self::DEMO_EMAIL : $key.'@'.self::EMAIL_DOMAIN;
     }
 
     /**
@@ -157,13 +189,13 @@ class DemoSeeder extends Seeder
     private function seedCast(): array
     {
         $cast = [
-            'owner' => $this->seedPersona('Maya Okonkwo', self::DEMO_EMAIL),
-            'leo' => $this->seedPersona('Leo Tanaka', 'leo@'.self::EMAIL_DOMAIN),
-            'priya' => $this->seedPersona('Priya Nair', 'priya@'.self::EMAIL_DOMAIN),
-            'sam' => $this->seedPersona('Sam Rivera', 'sam@'.self::EMAIL_DOMAIN),
-            'jonas' => $this->seedPersona('Jonas Berg', 'jonas@'.self::EMAIL_DOMAIN),
-            'amara' => $this->seedPersona('Amara Diallo', 'amara@'.self::EMAIL_DOMAIN),
-            'chloe' => $this->seedPersona('Chloe Dubois', 'chloe@'.self::EMAIL_DOMAIN),
+            'owner' => $this->seedPersona('Maya Okonkwo', $this->personaEmail('owner')),
+            'leo' => $this->seedPersona('Leo Tanaka', $this->personaEmail('leo')),
+            'priya' => $this->seedPersona('Priya Nair', $this->personaEmail('priya')),
+            'sam' => $this->seedPersona('Sam Rivera', $this->personaEmail('sam')),
+            'jonas' => $this->seedPersona('Jonas Berg', $this->personaEmail('jonas')),
+            'amara' => $this->seedPersona('Amara Diallo', $this->personaEmail('amara')),
+            'chloe' => $this->seedPersona('Chloe Dubois', $this->personaEmail('chloe')),
         ];
 
         foreach ($cast as $persona) {

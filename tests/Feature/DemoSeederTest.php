@@ -130,14 +130,17 @@ test('it seeds reactions, pins, custom emoji and a link preview', function (): v
     $team = demoTeam();
     $launch = $team->channels()->where('slug', 'product-launch')->firstOrFail();
 
-    expect(MessageReaction::count())->toBeGreaterThan(0)
+    $launchReactions = MessageReaction::whereIn('message_id', $launch->messages()->pluck('id'))->count();
+
+    expect($launchReactions)->toBeGreaterThan(0)
         ->and(MessagePin::where('channel_id', $launch->id)->count())->toBe(2)
         ->and($team->customEmojis()->count())->toBe(4)
         ->and(MessageLinkPreview::where('status', 'ready')->count())->toBeGreaterThan(0);
 
-    // The custom-emoji art landed on the public disk.
-    $emoji = $team->customEmojis()->firstOrFail();
-    expect(Storage::disk(CustomEmoji::DISK)->exists($emoji->path))->toBeTrue();
+    // Every custom-emoji's art landed on the public disk.
+    foreach ($team->customEmojis as $emoji) {
+        expect(Storage::disk(CustomEmoji::DISK)->exists($emoji->path))->toBeTrue();
+    }
 });
 
 test('it seeds scheduled messages and reminders owned by the demo account', function (): void {
@@ -182,12 +185,29 @@ test('it omits the edge-state and compliance surfaces meant for developers', fun
 });
 
 test('re-running the command rebuilds a single pristine workspace', function (): void {
-    $firstMessageCount = Message::count();
+    // A deterministic seeder must reproduce the same shape on every run, so
+    // snapshot every seeded surface before re-running and expect it unchanged.
+    $snapshot = fn (): array => [
+        'teams' => Team::count(),
+        'users' => User::count(),
+        'members' => demoTeam()->members()->count(),
+        'channels' => Channel::count(),
+        'messages' => Message::count(),
+        'reactions' => MessageReaction::count(),
+        'pins' => MessagePin::count(),
+        'emoji' => CustomEmoji::count(),
+        'scheduled' => ScheduledMessage::count(),
+        'reminders' => MessageReminder::count(),
+        'attachments' => Attachment::count(),
+        'previews' => MessageLinkPreview::count(),
+    ];
+
+    $before = $snapshot();
 
     artisan('demo:seed')->assertSuccessful();
 
-    expect(Team::count())->toBe(1)
+    expect($snapshot())->toBe($before)
+        ->and(Team::count())->toBe(1)
         ->and(User::where('email', 'like', '%@northwind.test')->count())->toBe(7)
-        ->and(demoTeam()->owner()?->is(demoOwner()))->toBeTrue()
-        ->and(Message::count())->toBe($firstMessageCount);
+        ->and(demoTeam()->owner()?->is(demoOwner()))->toBeTrue();
 });
