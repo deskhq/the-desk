@@ -11,9 +11,13 @@ const viteConfig = readFileSync(`${repoRoot}/vite.config.ts`, 'utf8');
  * Guards the "The Desk" foundation contract: components consume these tokens, so a
  * regression in a value silently reskins the whole app.
  */
+function escapeRegExp(value: string): string {
+    return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
 function tokenValue(selector: string, property: string): string | null {
     const block = appCss.match(
-        new RegExp(`${selector.replace('.', '\\.')}\\s*\\{([\\s\\S]*?)\\}`),
+        new RegExp(`${escapeRegExp(selector)}\\s*\\{([\\s\\S]*?)\\}`),
     );
 
     if (block === null) {
@@ -21,7 +25,7 @@ function tokenValue(selector: string, property: string): string | null {
     }
 
     const declaration = block[1].match(
-        new RegExp(`${property.replace(/[-]/g, '\\$&')}:\\s*([^;]+);`),
+        new RegExp(`${escapeRegExp(property)}:\\s*([^;]+);`),
     );
 
     return declaration === null ? null : declaration[1].trim();
