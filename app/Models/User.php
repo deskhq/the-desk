@@ -38,6 +38,7 @@ use Laravel\Passkeys\Passkey;
  * @property string $name
  * @property string $email
  * @property string|null $avatar_url
+ * @property string|null $avatar_path
  * @property string|null $pronouns
  * @property string|null $title
  * @property string|null $phone
@@ -71,7 +72,7 @@ use Laravel\Passkeys\Passkey;
  */
 #[Appends(['avatar'])]
 #[Fillable(['name', 'email', 'avatar_url', 'pronouns', 'title', 'phone', 'timezone', 'locale', 'password', 'current_team_id', 'chime_sound', 'share_read_receipts', 'sidebar_position', 'onboarding_completed_at', 'collapsed_channel_sections', 'is_tombstone'])]
-#[Hidden(['password', 'two_factor_secret', 'two_factor_recovery_codes', 'remember_token', 'avatar_url'])]
+#[Hidden(['password', 'two_factor_secret', 'two_factor_recovery_codes', 'remember_token', 'avatar_url', 'avatar_path'])]
 #[ObservedBy(UserObserver::class)]
 class User extends Authenticatable implements HasLocalePreference, MustVerifyEmail, PasskeyUser
 {

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Http\Controllers\Settings\AboutController;
 use App\Http\Controllers\Settings\AppearanceController;
+use App\Http\Controllers\Settings\AvatarController;
 use App\Http\Controllers\Settings\DataExportController;
 use App\Http\Controllers\Settings\LocaleController;
 use App\Http\Controllers\Settings\NotificationController;
@@ -30,6 +31,9 @@ Route::middleware(['auth'])->group(function (): void {
 
     Route::get('settings/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('settings/profile', [ProfileController::class, 'update'])->name('profile.update');
+
+    Route::post('settings/avatar', [AvatarController::class, 'store'])->name('avatar.store');
+    Route::delete('settings/avatar', [AvatarController::class, 'destroy'])->name('avatar.destroy');
 
     Route::patch('settings/timezone', [TimezoneController::class, 'update'])->name('timezone.update');
 
