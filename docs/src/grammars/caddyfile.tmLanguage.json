@@ -14,11 +14,11 @@
 	],
 	"repository": {
 		"comment": {
-			"match": "#.*$",
+			"match": "(?:^|(?<=\\s))#.*$",
 			"name": "comment.line.number-sign.caddyfile"
 		},
 		"matcher": {
-			"match": "@[\\w-]+",
+			"match": "(?:^|(?<=\\s))@[\\w-]+",
 			"name": "variable.parameter.matcher.caddyfile"
 		},
 		"site-address": {
