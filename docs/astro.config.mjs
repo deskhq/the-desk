@@ -2,6 +2,8 @@
 import { defineConfig } from 'astro/config';
 import starlight from '@astrojs/starlight';
 import sitemap from '@astrojs/sitemap';
+import caddyfileGrammar from './src/grammars/caddyfile.tmLanguage.json' with { type: 'json' };
+import crontabGrammar from './src/grammars/crontab.tmLanguage.json' with { type: 'json' };
 
 // Public URL the site is served from. Used for canonical links, the sitemap,
 // and social-card (Open Graph / Twitter) URLs. Update this if the site moves.
@@ -28,6 +30,12 @@ export default defineConfig({
 			// brand ink via the --td-code-bg custom property (set in custom.css).
 			expressiveCode: {
 				themes: ['github-dark'],
+				// Register the Caddyfile and crontab TextMate grammars that Shiki
+				// does not ship in its default bundle, so the `caddy` and `cron`
+				// code fences render highlighted instead of plain text.
+				shiki: {
+					langs: [caddyfileGrammar, crontabGrammar],
+				},
 				styleOverrides: {
 					borderRadius: '12px',
 					codeBackground: 'var(--td-code-bg)',
