@@ -64,6 +64,54 @@ const scrollContainer = ref<HTMLElement | null>(null);
 const setScrollContainer = (el: HTMLElement | null): void => {
     scrollContainer.value = el;
 };
+// The windowed `MessageList` exposes `scrollToLatest`, so the jump-to-newest
+// lands on the real bottom: a native `scrollTo(scrollHeight)` settles short on
+// the virtualizer's estimated spacer (#347). Inertia's manual `<InfiniteScroll>`
+// exposes the older-page fetch. Both are read through template refs.
+const messageListRef = ref<{
+    scrollToIndex: (
+        index: number,
+        align?: 'auto' | 'start' | 'center' | 'end',
+    ) => void;
+    scrollToLatest: (behavior?: ScrollBehavior) => void;
+} | null>(null);
+
+const infiniteScrollRef = ref<{
+    fetchNext: () => void;
+    hasNext: () => boolean;
+} | null>(null);
+
+// True while an older reply page is being fetched, gating the virtualizer's
+// top-load trigger so a burst of range updates during a fast scroll can't stack
+// duplicate requests. Cleared once the merged list grows (older replies landed).
+const loadingOlder = ref(false);
+
+// In reverse mode the server returns replies newest-first, so "load older" maps
+// to the paginator's *next* page.
+const hasOlder = (): boolean => infiniteScrollRef.value?.hasNext() ?? false;
+
+const isLoadingOlder = (): boolean => loadingOlder.value;
+
+// Fetch the next older reply page through Inertia's merge engine; the virtualizer
+// decides *when* (the reader nears the top of loaded history) via `@load-older`.
+function loadOlderReplies(): void {
+    if (loadingOlder.value || !hasOlder()) {
+        return;
+    }
+
+    loadingOlder.value = true;
+    infiniteScrollRef.value?.fetchNext();
+}
+
+// The merged reply list grows once an older page lands (or a reply is appended);
+// either way the in-flight fetch is done, so release the gate.
+watch(
+    () => props.messages.length,
+    () => {
+        loadingOlder.value = false;
+    },
+);
+
 const {
     pinnedToBottom,
     newMessageCount,
@@ -71,7 +119,13 @@ const {
     scrollToBottom,
     notifyAppended,
     onScroll,
-} = useScrollPin(scrollContainer);
+} = useScrollPin(scrollContainer, {
+    // The reply list is windowed, so a native `scrollTo(scrollHeight)` lands short
+    // of the newest reply; drive the jump through the virtualizer, which re-targets
+    // the true bottom as off-screen rows measure (#347).
+    scrollToLatest: (smooth) =>
+        messageListRef.value?.scrollToLatest(smooth ? 'smooth' : 'auto'),
+});
 
 // The thread reply composer, so a hover card on a thread message can drop a
 // mention into it rather than the main channel composer.
@@ -165,6 +219,35 @@ watch(
             @scroll="onScroll"
             @jump="scrollToBottom(true)"
         >
+            <!-- Older replies page in as the virtualizer nears the top of loaded
+                 history; a floating loader sits at the top while that fetch is in
+                 flight, mirroring the main timeline. Kept ahead of the skeleton /
+                 list branch so their `v-if`/`v-else` pair stays adjacent. -->
+            <Transition
+                enter-active-class="transition duration-150 ease-out"
+                enter-from-class="opacity-0"
+                enter-to-class="opacity-100"
+                leave-active-class="transition duration-100 ease-in"
+                leave-from-class="opacity-100"
+                leave-to-class="opacity-0"
+            >
+                <div
+                    v-if="loadingOlder"
+                    data-test="thread-loading-older"
+                    class="pointer-events-none absolute inset-x-0 top-2 z-10 flex justify-center"
+                >
+                    <span
+                        class="inline-flex items-center gap-2 rounded-full bg-card px-3 py-1 text-[12px] text-muted-foreground shadow-sm ring-1 ring-border"
+                    >
+                        <span
+                            aria-hidden="true"
+                            class="size-3 animate-spin rounded-full border-2 border-border border-t-foreground"
+                        />
+                        {{ $t('Loading earlier replies…') }}
+                    </span>
+                </div>
+            </Transition>
+
             <div v-if="showSkeleton" class="space-y-4 p-5">
                 <div class="flex gap-3">
                     <Skeleton class="size-9 rounded-[10px]" />
@@ -183,16 +266,25 @@ watch(
             </div>
 
             <!-- Older replies page in on scroll-up; keyed by root so switching
-                 threads mounts a fresh, bottom-anchored list. `preserve-url`
-                 keeps the cursor out of the URL, matching the main timeline. -->
+                 threads mounts a fresh, bottom-anchored list. `manual` hands the
+                 load trigger to the virtualizer's range (only visible reply rows
+                 mount, so the automatic sentinel can't be relied on), and
+                 `preserve-url` keeps the cursor out of the URL. -->
             <InfiniteScroll
                 v-else
+                ref="infiniteScrollRef"
                 :key="props.rootId"
                 data="threadReplies"
                 reverse
+                manual
                 preserve-url
             >
                 <MessageList
+                    ref="messageListRef"
+                    virtualize
+                    :scroll-element="scrollContainer"
+                    :has-older="hasOlder"
+                    :is-loading-older="isLoadingOlder"
                     :messages="props.messages"
                     :team-slug="props.teamSlug"
                     :pending-uuids="props.pendingUuids"
@@ -203,6 +295,7 @@ watch(
                     :online-ids="props.onlineIds"
                     :editing-message-id="editingMessageId"
                     in-thread
+                    @load-older="loadOlderReplies"
                     @edit="(message, body) => emit('edit', message, body)"
                     @delete="(message) => emit('delete', message)"
                     @forward="(message) => emit('forward', message)"
