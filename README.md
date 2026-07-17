@@ -32,9 +32,18 @@
 
 ## Self-hosting
 
-The Desk ships as a single Docker Compose stack with a prebuilt image — one
-`docker compose up -d` and it's live. Full operator docs (requirements,
-install, reverse proxy & TLS, upgrades) live at
+The Desk ships as a single Docker Compose stack with a prebuilt image. The
+installer fetches the compose file, generates secrets, and pins the latest
+release, then `up -d` runs it with no build step:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/emmpaul/the-desk/master/docker/install.sh | sh
+# edit .env (APP_URL, mail, REVERB_*_PUBLIC), then:
+docker compose up -d
+```
+
+Full operator docs (requirements, configuration, reverse proxy & TLS, and
+upgrades) live at
 **[the-desk.emmanuelpaul.com/docs](https://the-desk.emmanuelpaul.com/docs/)**.
 
 ## Development
