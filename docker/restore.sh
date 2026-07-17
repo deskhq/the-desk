@@ -253,9 +253,9 @@ echo "Restoring the database..."
 # no recovering from. Staging costs the space twice, but a failed extract now
 # leaves the existing uploads untouched.
 #
-# The staging directory has to live inside the volume to keep the final move on
-# one filesystem, so it is cleaned up on every exit path (and again by the next
-# run) rather than being left for a later backup to sweep up.
+# The staging directory has to live inside the volume to keep the moves on one
+# filesystem, so it is cleaned up on every exit path (and again by the next run)
+# rather than being left for a later backup to sweep up.
 #
 # The swap replaces the live contents rather than merging into them, so the
 # result is the backup rather than the backup layered over whatever was there.
@@ -264,18 +264,36 @@ docker compose run --rm --no-deps -T --entrypoint sh app -c '
     set -e
     root=/app/storage/app
     staging="$root/.restore-staging"
+    previous="$root/.restore-previous"
 
-    # Clear it on the way out however this ends: a half-extracted staging tree
-    # left inside the volume would otherwise be picked up by the next backup.
+    # Only the staging tree is disposable on the way out. `previous` is the
+    # operator uploads and is cleared explicitly, once the swap has succeeded.
     trap "rm -rf \"$staging\"" EXIT
 
-    rm -rf "$staging"
+    rm -rf "$staging" "$previous"
     mkdir -p "$staging"
+
+    # The live tree is untouched until this succeeds, so running out of disk
+    # here costs nothing but the attempt.
     tar xzf - -C "$staging"
 
-    # Past this point extraction succeeded, so the live tree can go.
-    find "$root" -mindepth 1 -maxdepth 1 ! -name .restore-staging -exec rm -rf {} +
-    find "$staging" -mindepth 1 -maxdepth 1 -exec mv {} "$root/" \;
+    # Extraction is done, so swap. Move the live tree aside rather than deleting
+    # it: both steps are renames on one filesystem, so this costs no extra space
+    # and leaves something to put back if the second half fails part way.
+    mkdir -p "$previous"
+    find "$root" -mindepth 1 -maxdepth 1 ! -name .restore-staging ! -name .restore-previous \
+        -exec mv {} "$previous/" \;
+
+    if ! find "$staging" -mindepth 1 -maxdepth 1 -exec mv {} "$root/" \; ; then
+        echo "Installing the restored files failed; putting the previous ones back." >&2
+        find "$root" -mindepth 1 -maxdepth 1 ! -name .restore-staging ! -name .restore-previous \
+            -exec rm -rf {} +
+        find "$previous" -mindepth 1 -maxdepth 1 -exec mv {} "$root/" \;
+        rmdir "$previous"
+        exit 1
+    fi
+
+    rm -rf "$previous"
     rmdir "$staging"
 ' <"$STORAGE_FILE"
 

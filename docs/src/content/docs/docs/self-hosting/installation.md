@@ -51,8 +51,9 @@ different tag (e.g. `edge`), set `APP_IMAGE=ghcr.io/emmpaul/the-desk:<tag>` in
 
 ## The COMPOSE_FILE variable
 
-Every production command on this site is a bare `docker compose`, with no
-`-f docker-compose.prod.yml`. That works because `.env.prod.example` ships:
+Production commands on this site are a bare `docker compose`, with no
+`-f docker-compose.prod.yml`. That works for the default workflow below because
+`.env.prod.example` ships:
 
 ```
 COMPOSE_FILE=docker-compose.prod.yml

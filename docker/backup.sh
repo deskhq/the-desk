@@ -22,6 +22,14 @@
 # server; the app image ships no postgres-client and pg_dump refuses to run
 # against a mismatched server.
 #
+# This runs against a LIVE instance and deliberately does not stop anything.
+# pg_dump is internally consistent, but the database and the uploads are captured
+# moments apart, so a file uploaded in between can land in one and not the other:
+# an attachment row with no file, or a file no row points at. Quiescing the app
+# would close that gap and cost a service interruption on every run, including
+# the nightly cron this is built for, which is a far worse trade than a rare
+# orphan. Restore tolerates both.
+#
 # No `-f docker-compose.prod.yml` here: .env sets COMPOSE_FILE, so a bare
 # `docker compose` resolves the right files for both the published-image and
 # build-from-source setups.

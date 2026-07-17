@@ -142,6 +142,15 @@ Store both files off the host. They are an ordinary gzipped `pg_dump` and an
 ordinary gzipped tar of `storage/app`, so any backup tooling you already run can
 consume them.
 
+:::note
+Backups run against a live instance and stop nothing, so the database and the
+uploads are captured moments apart. A file uploaded in between can end up in one
+and not the other, leaving an attachment with no file behind it (or a file
+nothing points at) in that backup. Closing that gap would mean taking the
+instance down for every backup, including the nightly one, which is a worse trade
+than a rare orphan.
+:::
+
 ### Scheduled backups
 
 Run the script from **host cron**:
