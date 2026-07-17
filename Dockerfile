@@ -135,5 +135,14 @@ USER www
 
 EXPOSE 8080
 
+# The FrankenPHP base image ships a HEALTHCHECK that curls Caddy's admin API on
+# port 2019. This one image runs four different ways in the production stack
+# (web server, reverb, queue:work, schedule:work), and only the web role serves
+# Caddy — so that inherited probe would report the other three permanently
+# unhealthy. Drop it and let docker-compose.prod.yml declare a real healthcheck
+# per service where one is meaningful (the HTTP-serving `app` and `reverb`); the
+# non-HTTP `queue`/`scheduler` workers intentionally run with no healthcheck.
+HEALTHCHECK NONE
+
 ENTRYPOINT ["docker/entrypoint.sh"]
 CMD ["frankenphp", "run", "--config", "/etc/frankenphp/Caddyfile"]

@@ -29,6 +29,25 @@ with a local build from source (see
 Every app process (`app`, `reverb`, `queue`, `scheduler`) waits for `pgsql`,
 `redis`, and `meilisearch` to report healthy before it starts.
 
+## Health checks
+
+The app image itself declares no health check, so `docker compose ps` reports
+each app-role service by what it actually serves:
+
+| Service     | Health in `docker compose ps` | Probe                       |
+| ----------- | ----------------------------- | --------------------------- |
+| `app`       | `healthy` / `unhealthy`       | `GET /up` (HTTP, port 8080) |
+| `reverb`    | `healthy` / `unhealthy`       | `GET /up` (HTTP, port 8080) |
+| `queue`     | `Up` (no health column)       | none (no HTTP surface)      |
+| `scheduler` | `Up` (no health column)       | none (no HTTP surface)      |
+
+`queue` and `scheduler` run background workers (`queue:work` / `schedule:work`)
+with nothing to curl, so they carry no health check by design and show a plain
+`Up`. That confirms the container is running, not that jobs are being processed;
+check the worker logs (`docker compose logs queue`, `docker compose logs
+scheduler`) to confirm throughput. `app` and `reverb` both answer `GET /up`, so
+a genuine outage flips them to `unhealthy`.
+
 ## Data flow
 
 - **HTTP** requests hit `app` (FrankenPHP) behind your reverse proxy.
