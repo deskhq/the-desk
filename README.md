@@ -42,7 +42,7 @@ install, reverse proxy & TLS, upgrades) live at
 Local development uses [Laravel Sail](https://laravel.com/docs/sail):
 
 ```bash
-git clone git@github.com:emmpaul/the-desk.git
+git clone https://github.com/emmpaul/the-desk.git
 cd the-desk
 cp .env.example .env
 composer install
@@ -154,7 +154,7 @@ one-line overlay restores a local build — see
 
 ```bash
 # 1. Clone and check out the latest release tag.
-git clone git@github.com:emmpaul/the-desk.git
+git clone https://github.com/emmpaul/the-desk.git
 cd the-desk
 git fetch --tags
 git checkout v1.5.2 # x-release-please-version         (the desired release tag)
