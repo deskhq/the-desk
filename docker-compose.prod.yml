@@ -40,6 +40,13 @@ x-app: &app
     - .env
   restart: unless-stopped
   volumes:
+    # `env_file` injects the variables into the container's environment, but also
+    # bind-mount the file itself so the physical `.env` is on disk inside the app.
+    # Artisan commands run against the container (e.g. `demo:seed`, maintenance)
+    # then resolve configuration exactly like a standard on-disk install, even
+    # when the boot-time config cache has been cleared. Read-only: the operator
+    # owns and edits the file on the host.
+    - ./.env:/app/.env:ro
     - storage-app:/app/storage/app
   depends_on:
     pgsql:

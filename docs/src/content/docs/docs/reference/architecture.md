@@ -4,8 +4,11 @@ description: What runs in the production stack and why — the web app, Reverb, 
 ---
 
 The production stack (`docker-compose.prod.yml`) is a set of containers, all
-driven by the same `.env`. The app image is served with
-[FrankenPHP](https://frankenphp.dev/). By default the four app-role services
+driven by the same `.env`. Its values are injected into every app-role container,
+and the file itself is also bind-mounted read-only at `/app/.env`, so artisan
+commands run against a container (maintenance, seeding the public demo) resolve
+configuration exactly like a standard on-disk install. The app image is served
+with [FrankenPHP](https://frankenphp.dev/). By default the four app-role services
 (`app`, `reverb`, `queue`, `scheduler`) share one **prebuilt image** pulled from
 the registry; the optional `docker-compose.build.yml` overlay replaces that pull
 with a local build from source (see
