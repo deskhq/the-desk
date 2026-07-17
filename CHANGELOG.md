@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.6.1](https://github.com/emmpaul/the-desk/compare/v1.6.0...v1.6.1) (2026-07-17)
+
+
+### Bug Fixes
+
+* **docker:** stop queue, reverb and scheduler reporting unhealthy in the prod stack ([#485](https://github.com/emmpaul/the-desk/issues/485)) ([8d02cae](https://github.com/emmpaul/the-desk/commit/8d02caebce4c9f9cb45885028af954d68f023d9f))
+
 ## [1.6.0](https://github.com/emmpaul/the-desk/compare/v1.5.2...v1.6.0) (2026-07-17)
 
 

@@ -157,7 +157,7 @@ one-line overlay restores a local build — see
 git clone https://github.com/emmpaul/the-desk.git
 cd the-desk
 git fetch --tags
-git checkout v1.6.0 # x-release-please-version         (the desired release tag)
+git checkout v1.6.1 # x-release-please-version         (the desired release tag)
 
 # 2. Generate .env with all required secrets filled in.
 #    Creates .env from the template and fills APP_KEY, DB_PASSWORD,
@@ -227,7 +227,7 @@ alive; the old one answers just as happily):
 
 ```bash
 git fetch --tags
-git checkout v1.6.0 # x-release-please-version         (the desired release tag)
+git checkout v1.6.1 # x-release-please-version         (the desired release tag)
 ./docker/upgrade.sh /srv/backups
 ```
 

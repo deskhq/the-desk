@@ -43,7 +43,7 @@ x-app: &app
   # which restores a local build for these services:
   #   COMPOSE_FILE=docker-compose.prod.yml:docker-compose.build.yml   # in .env
   #   docker compose up -d --build
-  image: ${APP_IMAGE:-ghcr.io/emmpaul/the-desk:1.6.0} # x-release-please-version
+  image: ${APP_IMAGE:-ghcr.io/emmpaul/the-desk:1.6.1} # x-release-please-version
   env_file:
     - .env
   restart: unless-stopped
