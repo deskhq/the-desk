@@ -43,7 +43,7 @@ x-app: &app
   # which restores a local build for these services:
   #   COMPOSE_FILE=docker-compose.prod.yml:docker-compose.build.yml   # in .env
   #   docker compose up -d --build
-  image: ${APP_IMAGE:-ghcr.io/emmpaul/the-desk:1.6.0} # x-release-please-version
+  image: ${APP_IMAGE:-ghcr.io/emmpaul/the-desk:1.6.1} # x-release-please-version
   env_file:
     - .env
   restart: unless-stopped
@@ -81,19 +81,31 @@ services:
       retries: 5
       start_period: 60s
 
-  # WebSocket server for broadcasting.
+  # WebSocket server for broadcasting. Reverb serves a health endpoint at
+  # GET /up on the same 8080 port, so it gets a real probe (unlike queue and
+  # scheduler, which have no HTTP surface).
   reverb:
     <<: *app
     command: ['php', 'artisan', 'reverb:start', '--host=0.0.0.0', '--port=8080']
     ports:
       - '${APP_BIND:-127.0.0.1}:${REVERB_PORT:-8080}:8080'
+    healthcheck:
+      test: ['CMD', 'curl', '-fsS', 'http://localhost:8080/up']
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
 
-  # Queue worker (queue connection is `redis`).
+  # Queue worker (queue connection is `redis`). No HTTP surface, so no
+  # healthcheck: the image sets HEALTHCHECK NONE and this service leaves it that
+  # way, reporting a plain `Up` rather than a decorative or perpetually failing
+  # probe. `restart: unless-stopped` (from the *app anchor) keeps it running.
   queue:
     <<: *app
     command: ['php', 'artisan', 'queue:work', '--tries=3']
 
   # Scheduler (delivers due scheduled messages, prunes expired invitations).
+  # Also no HTTP surface — same no-healthcheck rationale as `queue` above.
   scheduler:
     <<: *app
     command: ['php', 'artisan', 'schedule:work']

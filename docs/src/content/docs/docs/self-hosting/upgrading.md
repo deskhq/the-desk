@@ -30,7 +30,7 @@ root:
 
 ```bash
 git fetch --tags
-git checkout v1.6.0 # x-release-please-version         (the desired release tag)
+git checkout v1.6.1 # x-release-please-version         (the desired release tag)
 ./docker/upgrade.sh /srv/backups
 ```
 
@@ -213,7 +213,7 @@ pins:
 
 ```bash
 git fetch --tags
-git checkout v1.6.0 # x-release-please-version         (the desired release tag)
+git checkout v1.6.1 # x-release-please-version         (the desired release tag)
 docker compose down
 docker compose up -d
 # pulls the newer pinned image; migrations run automatically via the entrypoint
@@ -237,7 +237,7 @@ rebuild:
 
 ```bash
 git fetch --tags
-git checkout v1.6.0 # x-release-please-version         (the desired release tag)
+git checkout v1.6.1 # x-release-please-version         (the desired release tag)
 docker compose down
 docker compose up -d --build
 # migrations run automatically via the entrypoint

@@ -1,0 +1,234 @@
+/* ============================================================
+   The Desk — Starlight theme (custom.css)
+   Wired into astro.config.mjs:
+     starlight({ customCss: ['./src/styles/custom.css'], ... })
+   Fonts (Newsreader + Instrument Sans) are loaded via Starlight's
+   `head` config (preconnect + stylesheet), matching the landing page,
+   rather than a render-blocking CSS @import.
+   ============================================================ */
+
+/* ---------- Fonts ---------- */
+:root {
+	--sl-font: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif;
+	--td-serif: 'Newsreader', Georgia, serif;
+	--td-brass: #c9a35c;
+	--td-brass-ink: #7d6023;
+	--td-ink: #1d1a15;
+	--td-paper: #f3efe4;
+}
+
+/* ---------- Dark palette (default) ---------- */
+:root {
+	--sl-color-accent-low: #3a2e17;
+	--sl-color-accent: #c9a35c;
+	--sl-color-accent-high: #e8dcc4;
+	--sl-color-white: #f3efe4;
+	--sl-color-gray-1: #e3dfd5;
+	--sl-color-gray-2: #c9c3b4;
+	--sl-color-gray-3: #9b937f;
+	--sl-color-gray-4: #665f4e;
+	--sl-color-gray-5: #2e2a21;
+	--sl-color-gray-6: #1a1712;
+	--sl-color-black: #12100c;
+	--sl-color-bg-nav: rgba(18, 16, 12, 0.92);
+	--sl-color-bg-sidebar: var(--sl-color-black);
+	--sl-color-hairline: #2e2a21;
+	--sl-color-hairline-light: #2e2a21;
+	--td-btn-bg: var(--td-paper);
+	--td-btn-text: var(--td-ink);
+	--td-card-bg: #1a1712;
+	--td-aside-bg: #221b0f;
+	--td-aside-line: #3a2e17;
+	--td-link: #d9b877;
+	--td-code-bg: #0d0b08;
+}
+
+/* ---------- Light palette ---------- */
+:root[data-theme='light'] {
+	--sl-color-accent-low: #eee6d2;
+	--sl-color-accent: #b98e3f;
+	--sl-color-accent-high: #7d6023;
+	--sl-color-white: #1d1a15;
+	--sl-color-gray-1: #2e2a21;
+	--sl-color-gray-2: #464033;
+	--sl-color-gray-3: #665f4e;
+	--sl-color-gray-4: #9b937f;
+	--sl-color-gray-5: #e3dfd5;
+	--sl-color-gray-6: #f7f5f0;
+	--sl-color-gray-7: #eae7de;
+	--sl-color-black: #f2f0eb;
+	--sl-color-bg-nav: rgba(242, 240, 235, 0.92);
+	--sl-color-bg-sidebar: var(--sl-color-black);
+	--sl-color-hairline: #e3dfd5;
+	--sl-color-hairline-light: #e3dfd5;
+	--td-btn-bg: var(--td-ink);
+	--td-btn-text: var(--td-paper);
+	--td-card-bg: #fefdfb;
+	--td-aside-bg: #f7f3e8;
+	--td-aside-line: #eee6d2;
+	--td-link: #7d6023;
+	--td-code-bg: #1a1712;
+}
+
+/* ---------- Header (façon landing) ---------- */
+header.header {
+	background: var(--sl-color-bg-nav);
+	backdrop-filter: blur(8px);
+	border-bottom: 1px solid var(--sl-color-hairline);
+}
+.site-title {
+	font-family: var(--td-serif);
+	font-weight: 600;
+	font-size: 1.2rem;
+	letter-spacing: -0.01em;
+	color: var(--sl-color-white);
+}
+
+/* Search : pilule douce */
+button[data-open-modal] {
+	border-radius: 99px;
+	border: 1px solid var(--sl-color-gray-5);
+	background: var(--sl-color-gray-6);
+	color: var(--sl-color-gray-3);
+}
+
+/* ---------- Typo du contenu ---------- */
+.sl-markdown-content h1,
+.sl-markdown-content h2,
+.sl-markdown-content h3,
+.sl-markdown-content h4,
+.content-panel h1,
+.hero h1 {
+	font-family: var(--td-serif);
+	font-weight: 600;
+	letter-spacing: -0.02em;
+	text-wrap: balance;
+}
+.sl-markdown-content a {
+	color: var(--td-link);
+	text-decoration-color: color-mix(in srgb, var(--td-link) 40%, transparent);
+	text-underline-offset: 3px;
+}
+.sl-markdown-content a:hover {
+	color: var(--sl-color-white);
+}
+.sl-markdown-content code:not(pre code) {
+	border-radius: 6px;
+	border: 1px solid var(--sl-color-gray-5);
+	background: var(--sl-color-gray-6);
+	padding: 0.1em 0.4em;
+}
+
+/* ---------- Boutons pill (hero / link buttons) ---------- */
+.sl-link-button {
+	border-radius: 99px;
+	font-weight: 600;
+	border: 1px solid transparent;
+	transition: background 0.15s ease, color 0.15s ease;
+}
+.sl-link-button.primary {
+	background: var(--td-btn-bg);
+	color: var(--td-btn-text);
+	box-shadow: 0 2px 8px rgba(29, 26, 21, 0.3);
+}
+.sl-link-button.primary:hover {
+	background: color-mix(in srgb, var(--td-btn-bg) 88%, var(--td-brass));
+}
+.sl-link-button.secondary,
+.sl-link-button.minimal {
+	border-color: var(--sl-color-gray-5);
+	background: var(--td-card-bg);
+	color: var(--sl-color-gray-2);
+}
+
+/* ---------- Cards (CardGrid) ---------- */
+.card {
+	border-radius: 14px;
+	border: 1px solid var(--sl-color-hairline);
+	background: var(--td-card-bg);
+	box-shadow: 0 1px 3px rgba(29, 26, 21, 0.05);
+}
+.card .title {
+	font-family: var(--td-serif);
+	font-weight: 600;
+}
+.card .icon {
+	color: var(--td-brass);
+}
+
+/* ---------- Asides : pilules chaudes façon app ---------- */
+.starlight-aside {
+	border: 1px solid var(--td-aside-line);
+	border-inline-start: 3px solid var(--td-brass);
+	border-radius: 12px;
+	background: var(--td-aside-bg);
+	color: var(--sl-color-gray-1);
+}
+.starlight-aside__title {
+	font-family: var(--td-serif);
+	color: var(--td-brass-ink);
+}
+:root:not([data-theme='light']) .starlight-aside__title {
+	color: var(--td-brass);
+}
+.starlight-aside--caution,
+.starlight-aside--danger {
+	border-inline-start-color: #b0623c;
+}
+.starlight-aside--caution .starlight-aside__title,
+.starlight-aside--danger .starlight-aside__title {
+	color: #b0623c;
+}
+
+/* ---------- Sidebar : items façon dock ---------- */
+.sidebar-content .top-level > li > details > summary .group-label span {
+	font-size: 0.72rem;
+	font-weight: 650;
+	letter-spacing: 0.1em;
+	text-transform: uppercase;
+	color: var(--sl-color-gray-3);
+}
+.sidebar-content a {
+	border-radius: 8px;
+	color: var(--sl-color-gray-3);
+}
+.sidebar-content a:hover {
+	color: var(--sl-color-white);
+	background: var(--sl-color-gray-6);
+}
+.sidebar-content a[aria-current='page'],
+.sidebar-content a[aria-current='page']:hover {
+	background: var(--sl-color-white);
+	color: var(--sl-color-black);
+	font-weight: 600;
+	box-shadow: 0 2px 5px rgba(29, 26, 21, 0.25);
+}
+
+/* ---------- Code blocks : terminal sombre dans les deux thèmes ----------
+   The dark terminal frame + its background/radius are driven by the
+   `expressiveCode` config in astro.config.mjs (single dark syntax theme +
+   --td-code-bg). Only non-EC <pre> blocks need a radius nudge here. */
+.sl-markdown-content pre:not(.expressive-code *) {
+	border-radius: 12px;
+}
+
+/* ---------- TOC droite ---------- */
+starlight-toc a[aria-current='true'] {
+	color: var(--td-link);
+	font-weight: 600;
+}
+
+/* ---------- Pagination prev/next ---------- */
+.pagination-links a {
+	border-radius: 14px;
+	border: 1px solid var(--sl-color-hairline);
+	background: var(--td-card-bg);
+	box-shadow: none;
+}
+.pagination-links a:hover {
+	border-color: var(--td-brass);
+}
+.pagination-links .link-title {
+	font-family: var(--td-serif);
+	color: var(--sl-color-white);
+}
