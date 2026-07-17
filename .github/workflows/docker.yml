@@ -238,6 +238,54 @@ jobs:
         if: always()
         run: docker compose down -v
 
+  # The other upgrade job covers the published-image path. This one covers the
+  # other half of "one command works for both setups": with the build overlay in
+  # COMPOSE_FILE, upgrade.sh must detect it, skip the pull entirely (the image is
+  # in no registry), and `up -d --build` instead. That branch is invisible to the
+  # prod-only job, so without this it would only ever be claimed, not proven.
+  upgrade-build-from-source:
+    name: Upgrade script (build from source)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+
+      # The build overlay retags the app image to the-desk:latest and builds it
+      # from this checkout, so APP_IMAGE is not involved on this path.
+      - name: Prepare a build-from-source .env
+        run: |
+          ./docker/gen-secrets.sh
+          sed -i 's|^COMPOSE_FILE=.*|COMPOSE_FILE=docker-compose.prod.yml:docker-compose.build.yml|' .env
+          echo "APP_URL=http://localhost:8000" >> .env
+          grep '^COMPOSE_FILE=' .env
+
+      - name: Start the stack from source
+        run: |
+          docker compose up -d --build
+          docker compose up -d --wait pgsql app
+
+      # No --no-pull here: detecting the overlay must be enough to skip the pull
+      # on its own. If it were not, this step would fail trying to pull an image
+      # that exists in no registry, which is exactly the regression to catch.
+      - name: Run upgrade.sh
+        run: |
+          set -o pipefail
+          mkdir -p backups
+          ./docker/upgrade.sh backups | tee upgrade.log
+          grep -q "build-from-source setup detected" upgrade.log
+          grep -q "Upgraded to $(sed -e 's/#.*//' VERSION | tr -d '[:space:]')" upgrade.log
+
+      - name: Show stack logs on failure
+        if: failure()
+        run: docker compose logs --tail=100
+
+      - name: Tear down
+        if: always()
+        run: docker compose down -v
+
   # Proves docker/upgrade.sh both succeeds and, just as importantly, fails
   # correctly: the whole point of the script is that a failed upgrade hands the
   # operator a real backup and a ready-to-paste restore command instead of
@@ -319,7 +367,7 @@ jobs:
 
           # It must say what went wrong, and must not have rolled back by itself.
           grep -q "running 9.9.9\|not 9.9.9" failed.log
-          grep -q "did NOT roll back" failed.log
+          grep -q "Nothing was rolled back" failed.log
 
           # The restore line must be ready to paste: real paths, both files, and
           # they must actually exist.

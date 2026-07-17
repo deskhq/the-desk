@@ -29,8 +29,10 @@
 # proxy hiccup). In the second case an automatic restore is a data-loss event the
 # script itself caused, destroying every message written since the dump, and it
 # would fire at 2am under exactly the conditions where nobody can evaluate it.
-# So on failure it stops, leaves the stack untouched for diagnosis, and prints
-# the exact restore command with the paths filled in. You make that call.
+# So on failure it stops where it is, prints the exact restore command with the
+# paths filled in, and leaves the decision to you. Note "stops", not "reverts":
+# if it got as far as starting the new release, those containers are up and
+# their migrations have run. Nothing is undone on your behalf.
 #
 # No `-f docker-compose.prod.yml` here: .env sets COMPOSE_FILE, so a bare
 # `docker compose` resolves the right files for both setups.
@@ -204,17 +206,24 @@ shell_quote() {
 }
 
 # Every failure from here on has a backup to offer, so they share this exit.
+#
+# Careful with the wording: by the time verification fails, the new image is
+# already up and its migrations have already run. Saying the stack is
+# "unchanged" would be a lie told at exactly the moment the operator is deciding
+# whether to restore. The guarantee is only that nothing was rolled back.
 fail_with_restore() {
     echo >&2
     echo "Error: $1" >&2
     echo >&2
-    echo "The stack has been left exactly as it is, for diagnosis:" >&2
+    echo "Nothing was rolled back, so the stack is in whatever state the attempt" >&2
+    echo "left it: the new containers may be up and their migrations may already" >&2
+    echo "have run. It is untouched from here on, for you to inspect:" >&2
     echo "  docker compose ps" >&2
     echo "  docker compose logs --tail=100 app" >&2
     echo >&2
-    echo "This did NOT roll back. Rolling back means restoring the database, which" >&2
-    echo "destroys everything written since the backup was taken a moment ago, and a" >&2
-    echo "slow boot looks identical to a broken one from here. That call is yours." >&2
+    echo "Rolling back means restoring the database, which destroys everything" >&2
+    echo "written since the backup was taken a moment ago, and a slow boot looks" >&2
+    echo "identical to a broken one from here. That call is yours." >&2
     echo >&2
     echo "Your backup is safe. When you have decided, restore it with:" >&2
     echo "  ./docker/restore.sh $(shell_quote "$DUMP_FILE") $(shell_quote "$STORAGE_FILE")" >&2

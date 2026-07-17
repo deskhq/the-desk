@@ -201,7 +201,17 @@ if [ "$(piped_status)" != "0" ]; then
 fi
 
 # ---- Publish ----------------------------------------------------------------
-# Both producers succeeded, so the pair can be published together.
+# Both producers succeeded, so the pair can be published.
+#
+# Drop any pair already under today's stamp first. Two renames cannot be made
+# atomic together, so without this, a crash between them would leave the new
+# dump sitting next to the PREVIOUS run's archive under one date: a mismatched
+# pair that looks complete and restores into a mess. Removing them first means
+# the worst case is a lone dump, which retention ignores and restore refuses
+# outright. A loud absence beats quiet corruption, and this only ever discards a
+# same-day pair that was about to be overwritten anyway.
+rm -f "$DUMP_FILE" "$STORAGE_FILE"
+
 mv "$DUMP_PARTIAL" "$DUMP_FILE"
 echo "  wrote $DUMP_FILE"
 mv "$STORAGE_PARTIAL" "$STORAGE_FILE"

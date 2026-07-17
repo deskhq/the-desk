@@ -74,9 +74,8 @@ written since the dump it took minutes earlier. It would be a data-loss event
 caused by the recovery, not the fault, and it would fire at 3am when nobody is
 awake to judge it.
 
-So on failure it exits non-zero, leaves the stack exactly as it is for you to
-inspect, and prints the precise restore command with the backup paths already
-filled in:
+So on failure it exits non-zero, stops where it is, and prints the precise
+restore command with the backup paths already filled in:
 
 ```
 Your backup is safe. When you have decided, restore it with:
@@ -85,6 +84,13 @@ Your backup is safe. When you have decided, restore it with:
 
 You still have the fresh backup and one command to run. What you do not have is a
 script deciding to destroy data on your behalf while you sleep.
+
+:::note
+"Stops" is not "reverts". If it got as far as starting the new release, those
+containers are up and their migrations have already run: that is the state you
+are inspecting, and the state you are deciding about. The guarantee is that
+nothing was undone for you, not that nothing changed.
+:::
 
 ## Backups
 
@@ -164,9 +170,14 @@ Restore is destructive in a way backup is not, so the script:
 - **prints exactly what it will overwrite** and asks you to confirm.
 
 Every check that can refuse runs before anything is stopped or overwritten, so a
-run that bails leaves the instance as it found it. The database restore itself
-runs in a single transaction: if it fails part way, it rolls back and leaves the
-database as it was, rather than dropped and half-restored.
+run that bails leaves the instance as it found it.
+
+The database restore itself runs in a single transaction, covering the schema
+replacement and the dump replay together: if anything fails part way, including
+the dump becoming unreadable mid-stream, it rolls back and leaves the database as
+it was rather than dropped and half-restored. The uploads are extracted to a
+staging directory and only swapped in once extraction has fully succeeded, so a
+restore that runs out of disk leaves your existing files alone.
 
 Pass `--force` to skip the confirmation for non-interactive use (cron, CI). On a
 populated database `--force` also replaces the existing schema outright, which is

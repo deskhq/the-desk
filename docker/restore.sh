@@ -159,6 +159,11 @@ running_writers() {
     done
 }
 
+# Only ever used for the message below. The stop itself covers every writer
+# unconditionally: this snapshot goes stale the moment it is taken, because
+# `restart: unless-stopped` can bring a container back while the operator is
+# still reading the confirmation prompt, and a writer missing from a stale list
+# would never be stopped and would write straight through the restore.
 RUNNING="$(running_writers | tr '\n' ' ' | sed -e 's/ *$//')"
 
 # ---- Plan and confirm -------------------------------------------------------
@@ -194,12 +199,13 @@ if [ "$FORCE" != "true" ]; then
 fi
 
 # ---- Stop the writers -------------------------------------------------------
-if [ -n "$RUNNING" ]; then
-    echo "Stopping $RUNNING..."
-    # Unquoted on purpose: the service names are a word list, not one argument.
-    # shellcheck disable=SC2086
-    docker compose stop $RUNNING </dev/null
-fi
+# Every writer, not just the ones that happened to be running when the plan was
+# printed: stopping an already-stopped service is a no-op, while missing one that
+# came back during the prompt means it writes into the middle of the restore.
+echo "Stopping ${WRITERS}..."
+# Unquoted on purpose: the service names are a word list, not one argument.
+# shellcheck disable=SC2086
+docker compose stop $WRITERS </dev/null
 
 # ---- Database ---------------------------------------------------------------
 echo "Restoring the database..."
@@ -216,13 +222,21 @@ echo "Restoring the database..."
 # ON_ERROR_STOP is what makes psql abort, and therefore roll back, on the first
 # failed statement instead of replaying the rest over a broken schema and
 # exiting 0. psql is last in the pipeline, so `set -e` sees its status.
+#
+# The `|| echo` on gunzip is what makes that guarantee hold for a decompression
+# failure too. --single-transaction commits at end of input, so a gunzip that
+# dies mid-stream would otherwise look like a clean EOF and psql would COMMIT the
+# half a database it had read, exiting 0. Feeding it a statement that cannot
+# succeed turns that silence into the error ON_ERROR_STOP needs to roll back.
+# (`gzip -t` above already rejects a corrupt file up front; this covers the file
+# changing underneath us, or an I/O error part way through reading it.)
 {
     if [ "$TABLE_COUNT" -gt 0 ]; then
         echo "DROP SCHEMA public CASCADE;"
         echo "CREATE SCHEMA public;"
     fi
 
-    gunzip -c "$DUMP_FILE"
+    gunzip -c "$DUMP_FILE" || echo "DO \$\$ BEGIN RAISE EXCEPTION 'restore aborted: reading $DUMP_FILE failed part way through'; END \$\$;"
 } | docker compose exec -T pgsql \
     psql --single-transaction -v ON_ERROR_STOP=1 --quiet -U "$DB_USERNAME" -d "$DB_DATABASE" >/dev/null
 
@@ -230,13 +244,40 @@ echo "Restoring the database..."
 # `run --rm --no-deps`, not `exec`: the app container is stopped by this point
 # and exec needs a running one. This starts a throwaway container with the same
 # storage-app volume mounted. The entrypoint is overridden because its job is to
-# migrate and cache config, none of which should happen mid-restore. The volume
-# is cleared first so the result is the backup, not the backup merged over
-# whatever was already there.
+# migrate and cache config, none of which should happen mid-restore.
+#
+# Extract into a staging directory FIRST, and only swap it in once tar has
+# succeeded. Clearing the live tree up front would mean a failure part way
+# through extraction (the disk filling is the realistic one) leaves the uploads
+# gone with the database restore already committed: the one combination there is
+# no recovering from. Staging costs the space twice, but a failed extract now
+# leaves the existing uploads untouched.
+#
+# The staging directory has to live inside the volume to keep the final move on
+# one filesystem, so it is cleaned up on every exit path (and again by the next
+# run) rather than being left for a later backup to sweep up.
+#
+# The swap replaces the live contents rather than merging into them, so the
+# result is the backup rather than the backup layered over whatever was there.
 echo "Restoring uploaded files..."
-docker compose run --rm --no-deps -T --entrypoint sh app \
-    -c 'set -e; find /app/storage/app -mindepth 1 -exec rm -rf {} +; exec tar xzf - -C /app/storage/app' \
-    <"$STORAGE_FILE"
+docker compose run --rm --no-deps -T --entrypoint sh app -c '
+    set -e
+    root=/app/storage/app
+    staging="$root/.restore-staging"
+
+    # Clear it on the way out however this ends: a half-extracted staging tree
+    # left inside the volume would otherwise be picked up by the next backup.
+    trap "rm -rf \"$staging\"" EXIT
+
+    rm -rf "$staging"
+    mkdir -p "$staging"
+    tar xzf - -C "$staging"
+
+    # Past this point extraction succeeded, so the live tree can go.
+    find "$root" -mindepth 1 -maxdepth 1 ! -name .restore-staging -exec rm -rf {} +
+    find "$staging" -mindepth 1 -maxdepth 1 -exec mv {} "$root/" \;
+    rmdir "$staging"
+' <"$STORAGE_FILE"
 
 echo
 echo "Restore complete."
