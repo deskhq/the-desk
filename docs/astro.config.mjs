@@ -19,14 +19,6 @@ export default defineConfig({
 			title: 'The Desk',
 			description:
 				'Self-hosting and operator documentation for The Desk — a real-time, self-hostable team chat application.',
-			// Register the Caddyfile and crontab TextMate grammars that Shiki does
-			// not ship in its default bundle, so the `caddy` and `cron` code fences
-			// in the self-hosting docs render highlighted instead of plain text.
-			expressiveCode: {
-				shiki: {
-					langs: [caddyfileGrammar, crontabGrammar],
-				},
-			},
 			social: [
 				{ icon: 'github', label: 'GitHub', href: 'https://github.com/emmpaul/the-desk' },
 			],
@@ -38,6 +30,12 @@ export default defineConfig({
 			// brand ink via the --td-code-bg custom property (set in custom.css).
 			expressiveCode: {
 				themes: ['github-dark'],
+				// Register the Caddyfile and crontab TextMate grammars that Shiki
+				// does not ship in its default bundle, so the `caddy` and `cron`
+				// code fences render highlighted instead of plain text.
+				shiki: {
+					langs: [caddyfileGrammar, crontabGrammar],
+				},
 				styleOverrides: {
 					borderRadius: '12px',
 					codeBackground: 'var(--td-code-bg)',
