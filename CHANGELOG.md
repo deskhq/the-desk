@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.7.1](https://github.com/emmpaul/the-desk/compare/v1.7.0...v1.7.1) (2026-07-17)
+
+
+### Dependencies
+
+* update composer and npm dependencies ([#496](https://github.com/emmpaul/the-desk/issues/496)) ([aa1dd89](https://github.com/emmpaul/the-desk/commit/aa1dd89844ff6d4289846e52d47365da323578d1))
+
 ## [1.7.0](https://github.com/emmpaul/the-desk/compare/v1.6.1...v1.7.0) (2026-07-17)
 
 
