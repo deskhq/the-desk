@@ -3,10 +3,11 @@ title: Upgrading
 description: One-command upgrades that back up, start the new release, and verify it is running, with automatic migrations and version-scoped search reindexing.
 ---
 
-Upgrades follow the same tag-based flow you used to install, whether you run the
-published image (the default) or build from source. Check out the release you
-want and run `./docker/upgrade.sh`: it backs up, starts the new release, and
-verifies the instance is actually running it.
+Upgrading is a version bump: set the release you want in `.env` as `APP_VERSION`
+and run `./docker/upgrade.sh`, which backs up, starts the new release, and
+verifies the instance is actually running it. There is no git checkout — the
+compose file pins the image to `APP_VERSION` — so a production box needs no
+repository at all. (Build-from-source is the exception; it still uses the tree.)
 
 ## These docs track the in-development version
 
@@ -20,19 +21,21 @@ That means a feature can be documented here before it appears in any released
 image. The site-wide banner names the **latest released version**; anything
 documented but not yet in that release is coming in a future one. Check the
 [CHANGELOG](https://github.com/emmpaul/the-desk/blob/master/CHANGELOG.md) to
-confirm which release a given feature shipped in, and pin your `APP_IMAGE` (or
-checkout tag) to a released version rather than `edge` for a stable deployment.
+confirm which release a given feature shipped in, and keep `APP_VERSION` on a
+released version rather than overriding `APP_IMAGE` to `edge` for a stable deployment.
 
 ## Upgrade
 
-Check out the release you want, then run the upgrade script from the project
-root:
+Pass the release you want as `--target`; the script writes it to `APP_VERSION`,
+so a routine upgrade is one command with no `.env` edit:
 
 ```bash
-git fetch --tags
-git checkout v1.6.1 # x-release-please-version         (the desired release tag)
-./docker/upgrade.sh /srv/backups
+./docker/upgrade.sh --target=1.6.1 /srv/backups # x-release-please-version
 ```
+
+Prefer to edit `.env` yourself? Bump `APP_VERSION` there and run
+`./docker/upgrade.sh /srv/backups` with no `--target` — it upgrades to whatever
+`APP_VERSION` holds.
 
 It does three things, stopping at the first that fails:
 
@@ -41,8 +44,7 @@ It does three things, stopping at the first that fails:
 2. **Starts the new release.** Migrations run automatically on boot, via the
    `app` container's entrypoint.
 3. **Verifies the upgrade landed.** It waits for `/up` to answer, then asks the
-   instance what it is actually running and compares that with the release you
-   checked out.
+   instance what it is actually running and compares that with `APP_VERSION`.
 
 That third step is the one worth understanding. A healthy stack only proves the
 containers are alive: the *old* container answers `/up` just as happily as the
@@ -57,7 +59,7 @@ Useful flags:
 
 | Flag | Why |
 | --- | --- |
-| `--target=X.Y.Z` | Expect this version instead of the checked-out one. Only needed if `APP_IMAGE` pins a tag that differs from the checkout. |
+| `--target=X.Y.Z` | The release to upgrade to. Written to `APP_VERSION` before pulling, and the version the verify step expects. Omit it to use whatever `APP_VERSION` already holds. |
 | `--timeout=SECONDS` | How long to wait for `/up` (default 300). A cold boot runs migrations and rebuilds the search index first, so raise it on a slow host or a large database. |
 | `--no-pull` | Use the image already on the host, for air-gapped hosts or when you pulled ahead of the window. |
 
@@ -208,19 +210,19 @@ yourself.
 
 ### Default: pull the newer image
 
-Check out the newer release tag and restart — `up -d` pulls the image that tag
-pins:
+Bump `APP_VERSION` in `.env`, pull, and restart — `up -d` runs the image
+`APP_VERSION` pins:
 
 ```bash
-git fetch --tags
-git checkout v1.6.1 # x-release-please-version         (the desired release tag)
-docker compose down
+# set APP_VERSION=1.6.1 in .env # x-release-please-version
+docker compose pull
 docker compose up -d
 # pulls the newer pinned image; migrations run automatically via the entrypoint
 ```
 
 If you override `APP_IMAGE` in `.env`, point it at the new tag first (e.g.
-`APP_IMAGE=ghcr.io/emmpaul/the-desk:<tag>`) before restarting.
+`APP_IMAGE=ghcr.io/emmpaul/the-desk:<tag>`) before restarting — it takes
+precedence over `APP_VERSION`.
 
 :::note
 These commands need no `-f docker-compose.prod.yml` because `.env` sets
@@ -257,7 +259,7 @@ Migrations run automatically on start — the `app` container's entrypoint runs
 ### Confirm the running version
 
 A healthy stack proves the containers are alive, not that they are running the
-version you just checked out: the old container answers just as happily as the
+version you just pinned: the old container answers just as happily as the
 new one. Ask the instance directly:
 
 ```bash
@@ -265,7 +267,7 @@ docker compose exec -T app php artisan app:version
 ```
 
 It prints the bare version and nothing else, newline-terminated, so you can
-compare it against the tag you checked out or capture it in a script:
+compare it against `APP_VERSION` or capture it in a script:
 
 ```bash
 running=$(docker compose exec -T app php artisan app:version)

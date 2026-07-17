@@ -153,27 +153,25 @@ one-line overlay restores a local build — see
 ### First install
 
 ```bash
-# 1. Clone and check out the latest release tag.
-git clone https://github.com/emmpaul/the-desk.git
-cd the-desk
-git fetch --tags
-git checkout v1.6.1 # x-release-please-version         (the desired release tag)
+# 1. Download the stack and generate secrets. The installer fetches the compose
+#    file, the .env template, and the operational scripts, fills APP_KEY,
+#    DB_PASSWORD, MEILISEARCH_KEY, and the REVERB_* keys with fresh random
+#    values, and pins the latest release in APP_VERSION. No git needed.
+curl -fsSL https://raw.githubusercontent.com/emmpaul/the-desk/master/docker/install.sh | sh
 
-# 2. Generate .env with all required secrets filled in.
-#    Creates .env from the template and fills APP_KEY, DB_PASSWORD,
-#    MEILISEARCH_KEY, and the REVERB_* keys with fresh random values.
-#    Safe to re-run — it never overwrites values you have already set.
-./docker/gen-secrets.sh
-
-# 3. Edit .env and set the non-secret settings the script can't guess:
+# 2. Edit .env and set the non-secret settings the script can't guess:
 #    APP_URL, SMTP mail credentials, and — since your TLS proxy terminates
 #    wss/443 while the container speaks http/8080 — REVERB_PORT_PUBLIC=443 and
 #    REVERB_SCHEME_PUBLIC=https. These are read at runtime (a restart applies
 #    changes), so no rebuild is needed when they change.
 
-# 4. Start the stack. This pulls the release-pinned image — no build step.
+# 3. Start the stack. This pulls the pinned image (APP_VERSION) — no build step.
 docker compose up -d
 ```
+
+> Pin a specific release with `sh -s -- --version=X.Y.Z`, or install into a
+> chosen directory by passing it as the last argument. `APP_VERSION` in `.env` is
+> the single source of the version; `up -d` fails fast if it is unset.
 
 > **Why no `-f docker-compose.prod.yml`?** `.env.prod.example` ships
 > `COMPOSE_FILE=docker-compose.prod.yml`, which the `docker compose` CLI reads
@@ -220,15 +218,13 @@ Registration is open, so onboarding is self-service:
 
 ### Upgrading
 
-Upgrades follow the same tag-based flow. Check out the newer release tag and run
-the upgrade script — it backs up, starts the new release, and verifies the
-instance is actually running it (a healthy stack only proves the containers are
-alive; the old one answers just as happily):
+Upgrading is a version bump — no git checkout. Pass the release as `--target`
+(the script writes it to `APP_VERSION`) and it backs up, starts the new release,
+and verifies the instance is actually running it (a healthy stack only proves the
+containers are alive; the old one answers just as happily):
 
 ```bash
-git fetch --tags
-git checkout v1.6.1 # x-release-please-version         (the desired release tag)
-./docker/upgrade.sh /srv/backups
+./docker/upgrade.sh --target=1.6.1 /srv/backups # x-release-please-version
 ```
 
 If any step fails it stops, leaves the stack untouched for diagnosis, and prints
@@ -237,8 +233,8 @@ back on its own: rolling back means restoring the database, which would destroy
 everything written since that backup, and from the outside a slow boot looks
 identical to a broken one. That call stays yours.
 
-Doing it by hand is still two commands (`docker compose down && docker compose up -d`,
-or `up -d --build` if you build from source); migrations run automatically via the
+Doing it by hand is a `APP_VERSION` bump in `.env` then `docker compose pull && docker compose up -d`
+(or `up -d --build` if you build from source); migrations run automatically via the
 entrypoint either way. See the
 [upgrade guide](https://the-desk.emmanuelpaul.com/docs/self-hosting/upgrading/).
 

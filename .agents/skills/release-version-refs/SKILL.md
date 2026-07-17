@@ -1,6 +1,6 @@
 ---
 name: release-version-refs
-description: Keep hardcoded release-version strings (git checkout vX.Y.Z, ghcr.io/emmpaul/the-desk:X.Y.Z image pins, "as of vX.Y.Z" prose) from drifting. release-please only stamps the new version into lines carrying an x-release-please annotation in a file registered under extra-files. Use whenever a change adds or edits a quick-start / install / upgrade step, an image-pin example, an .env example, or any operator-facing sentence that names a released version — before opening the PR.
+description: Keep hardcoded release-version strings (APP_VERSION=X.Y.Z in .env, ghcr.io/emmpaul/the-desk:X.Y.Z image pins, git checkout vX.Y.Z, "as of vX.Y.Z" prose) from drifting. release-please only stamps the new version into lines carrying an x-release-please annotation in a file registered under extra-files. Use whenever a change adds or edits a quick-start / install / upgrade step, an image-pin example, an .env example, or any operator-facing sentence that names a released version — before opening the PR.
 ---
 
 Stop hardcoded version strings from silently going stale.
@@ -11,9 +11,11 @@ When release-please cuts a release it bumps `.release-please-manifest.json` and 
 
 So the rule is mechanical: **a new hardcoded release-version string that is not annotated, or whose file is not registered, will drift.** This is a release-hygiene skill, sibling to `open-pr` — run through it before the PR goes up.
 
+The canonical stamped location is now **`.env.prod.example`'s `APP_VERSION`** (issue #476). The production compose file (`docker-compose.prod.yml`) deliberately carries **no** version — the image tag comes from `APP_VERSION` at runtime — so it is no longer registered under `extra-files`. `docker/install.sh` carries a stamped `DEFAULT_VERSION` and is registered too.
+
 ## The rule
 
-Any new **display** of a released version — `git checkout vX.Y.Z`, an `APP_IMAGE=ghcr.io/emmpaul/the-desk:X.Y.Z` pin, a `.env` example, prose like "as of vX.Y.Z" — must:
+Any new **display** of a released version — an `APP_VERSION=X.Y.Z` pin in a `.env` example, an `APP_IMAGE=ghcr.io/emmpaul/the-desk:X.Y.Z` override, a `git checkout vX.Y.Z` (build-from-source only), prose like "as of vX.Y.Z" — must:
 
 1. **Carry an annotation** on its line so release-please rewrites the version, and
 2. **Live in a file registered** under `extra-files` in `release-please-config.json`.
@@ -32,8 +34,8 @@ The marker just has to appear somewhere on the line; surrounding text is ignored
 
 - **Shell / YAML / `.env` (a `#` comment line):** put the marker in the trailing comment.
   ```bash
-  git checkout v1.2.0 # x-release-please-version         (the desired release tag)
-  echo 'APP_IMAGE=ghcr.io/emmpaul/the-desk:1.2.0' >> .env # x-release-please-version
+  APP_VERSION=1.2.0 # x-release-please-version           (the release to run, in .env.prod.example)
+  DEFAULT_VERSION="1.2.0" # x-release-please-version     (docker/install.sh's fallback)
   ```
 - **Markdown prose (no code comment):** append an HTML comment, which renders invisibly.
   ```markdown
@@ -75,7 +77,7 @@ git diff master... -- . ':(exclude)CHANGELOG.md' \
 Every hit is either something to annotate + register, or a false positive to consciously skip (an Action SHA-pin comment, a dependency version, changelog text). Then confirm every annotated file is registered:
 
 ```bash
-grep -rlE 'x-release-please' --include='*.md' --include='*.yml' --include='*.env*' . \
+grep -rlE 'x-release-please' --include='*.md' --include='*.yml' --include='*.env*' --include='*.sh' . \
   | grep -v node_modules
 # → each of these paths must appear under extra-files in release-please-config.json
 ```

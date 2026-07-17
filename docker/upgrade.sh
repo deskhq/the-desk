@@ -3,16 +3,18 @@
 # Upgrade the production stack in one command: back up, start the new release,
 # and verify the instance is actually running it.
 #
-#   git fetch --tags
-#   git checkout vX.Y.Z
-#   ./docker/upgrade.sh [BACKUP_DIR] [--target=X.Y.Z] [--timeout=SECONDS] [--no-pull]
+#   ./docker/upgrade.sh --target=X.Y.Z [BACKUP_DIR] [--timeout=SECONDS] [--no-pull]
+#
+# No git checkout: the release lives in .env as APP_VERSION, and the compose file
+# pins the image to it.
 #
 # BACKUP_DIR defaults to the current directory and is passed straight to
 # docker/backup.sh, so the backup lands wherever you would have put it anyway.
 #
-# The target version defaults to the VERSION file in this checkout, which is the
-# release the compose file pins. Pass --target only if you override APP_IMAGE to
-# a tag that does not match the checkout.
+# The target version is APP_VERSION in .env. --target=X.Y.Z writes it for you
+# before upgrading, so a routine upgrade is one command with no hand-edit; omit
+# --target to run whatever APP_VERSION already holds (e.g. after editing .env
+# yourself). It must match what the started container reports through app:version.
 #
 # --timeout bounds the health check (default 300s). A cold boot runs migrations
 # and rebuilds the search index (`search:sync`) before /up answers, so it is
@@ -45,7 +47,7 @@ PULL="true"
 POLL_INTERVAL="5"
 
 usage() {
-    echo "Usage: ./docker/upgrade.sh [BACKUP_DIR] [--target=X.Y.Z] [--timeout=SECONDS] [--no-pull]"
+    echo "Usage: ./docker/upgrade.sh --target=X.Y.Z [BACKUP_DIR] [--timeout=SECONDS] [--no-pull]"
 }
 
 for arg in "$@"; do
@@ -103,33 +105,22 @@ for script in docker/backup.sh docker/restore.sh; do
     fi
 done
 
-# ---- Target version ---------------------------------------------------------
-# The VERSION file carries a release-please annotation (`1.2.3 # x-release-...`),
-# stripped here exactly as config/app.php does, so this matches what the running
-# container reports through `php artisan app:version`.
-if [ -z "$TARGET" ]; then
-    if [ ! -f "VERSION" ]; then
-        echo "Error: no VERSION file here, and no --target given." >&2
-        exit 1
-    fi
-
-    TARGET="$(sed -e 's/#.*//' VERSION | tr -d '[:space:]')"
-fi
-
-if [ -z "$TARGET" ]; then
-    echo "Error: could not determine the target version." >&2
-    exit 1
-fi
-
 # Read a key from .env, falling back to a default. An exported environment
-# variable wins, matching how the other scripts read configuration.
+# variable wins, matching how the other scripts read configuration. A trailing
+# inline comment is stripped: the template ships `APP_VERSION=1.6.1 # x-release-...`
+# (Docker Compose strips it too), so without this the target would carry the
+# annotation and fail validation.
 env_value() {
     key="$1"
     default="$2"
     value=""
 
     if [ -f ".env" ]; then
-        value="$(sed -n "s/^${key}=//p" .env | tail -n 1 | sed -e 's/^"\(.*\)"$/\1/' -e "s/^'\(.*\)'\$/\1/")"
+        value="$(sed -n "s/^${key}=//p" .env | tail -n 1 \
+            | sed -e 's/[[:space:]][[:space:]]*#.*$//' \
+                  -e 's/[[:space:]]*$//' \
+                  -e 's/^"\(.*\)"$/\1/' \
+                  -e "s/^'\(.*\)'\$/\1/")"
     fi
 
     if [ -z "$value" ]; then
@@ -138,6 +129,59 @@ env_value() {
 
     echo "$value"
 }
+
+# Set KEY=VALUE in .env, replacing the line if present or appending it. Used to
+# record --target so `docker compose pull` below actually moves to it: a bare
+# pull reads APP_VERSION from .env, never this script's arguments.
+set_env() {
+    key="$1"
+    value="$2"
+    tmp="$(mktemp)"
+
+    if grep -Eq "^${key}=" .env; then
+        # Non-/ delimiter since versions are #-free but keep the habit.
+        sed "s#^${key}=.*#${key}=${value}#" .env >"$tmp"
+    else
+        cat .env >"$tmp"
+        printf '%s=%s\n' "$key" "$value" >>"$tmp"
+    fi
+
+    mv "$tmp" .env
+}
+
+# ---- Target version ---------------------------------------------------------
+# APP_VERSION in .env is the release to run: the compose file pins the image to
+# it, and the started container reports it back through `php artisan app:version`.
+# --target writes APP_VERSION (so the pull moves to it); otherwise whatever
+# APP_VERSION already holds is the target.
+FROM_FLAG="false"
+
+if [ -n "$TARGET" ]; then
+    FROM_FLAG="true"
+else
+    TARGET="$(env_value APP_VERSION "")"
+fi
+
+if [ -z "$TARGET" ]; then
+    echo "Error: no target version. Set APP_VERSION in .env, or pass --target=X.Y.Z." >&2
+    exit 1
+fi
+
+# Validate before it reaches the image tag, the version check, or set_env's sed.
+if ! echo "$TARGET" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+([.-][0-9A-Za-z.-]+)?$'; then
+    echo "Error: target version '$TARGET' is not a release like 1.6.1." >&2
+    echo "  For a floating tag (e.g. edge), override APP_IMAGE instead." >&2
+    exit 1
+fi
+
+if [ "$FROM_FLAG" = "true" ]; then
+    if [ ! -f ".env" ]; then
+        echo "Error: --target needs a .env to write APP_VERSION into (none here)." >&2
+        exit 1
+    fi
+
+    set_env APP_VERSION "$TARGET"
+fi
 
 # Build-from-source operators list the build overlay in COMPOSE_FILE (that is how
 # the install docs tell them to enable it), so detect the path from there rather
@@ -286,7 +330,7 @@ if [ -z "$RUNNING" ]; then
 fi
 
 if [ "$RUNNING" != "$TARGET" ]; then
-    fail_with_restore "the stack is running $RUNNING, not $TARGET. The old container is probably still up, or APP_IMAGE pins a different tag (pass --target if that is deliberate)."
+    fail_with_restore "the stack is running $RUNNING, not $TARGET. The old container is probably still up, or APP_IMAGE overrides the image to a tag other than the one APP_VERSION selects."
 fi
 
 echo "  running version confirmed: $RUNNING"
