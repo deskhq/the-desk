@@ -420,6 +420,7 @@ class WorkspaceSeeder extends Seeder
     private function backfillChannelHistory(Channel $channel, array $authorIds, int $weeks, int $weekdayVolume): void
     {
         $weekdayVolume = max(1, $weekdayVolume);
+        $now = now();
         $rows = [];
 
         for ($day = $weeks * 7; $day >= 1; $day--) {
@@ -433,6 +434,17 @@ class WorkspaceSeeder extends Seeder
 
             for ($index = 0; $index < $count; $index++) {
                 $createdAt = $date->copy()->addHours($index);
+
+                // A day's messages spread forward from 09:00, one hour each, so the
+                // most recent day's tail can cross midnight into the future when the
+                // seeder runs in the small hours. A future `created_at` mints a
+                // UUIDv7 that outranks every real message and breaks the `id DESC`
+                // timeline (the residual #447/#448 flake). Stop the day once a row
+                // would land at or after "now" — later indexes only push further
+                // ahead.
+                if ($createdAt->greaterThanOrEqualTo($now)) {
+                    break;
+                }
 
                 $rows[] = [
                     // Derive a UUIDv7 from this row's back-dated `created_at` so the
