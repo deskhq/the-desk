@@ -278,6 +278,13 @@ jobs:
           grep -q "build-from-source setup detected" upgrade.log
           grep -q "Upgraded to $(sed -e 's/#.*//' VERSION | tr -d '[:space:]')" upgrade.log
 
+      - name: Assert the upgrade took a real backup
+        run: |
+          test -s "$(ls backups/db-backup-*.sql.gz)"
+          test -s "$(ls backups/storage-app-*.tar.gz)"
+          gzip -t backups/db-backup-*.sql.gz
+          gzip -t backups/storage-app-*.tar.gz
+
       - name: Show stack logs on failure
         if: failure()
         run: docker compose logs --tail=100

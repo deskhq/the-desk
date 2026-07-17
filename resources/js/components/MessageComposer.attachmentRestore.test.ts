@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { App, Component } from 'vue';
 import { createApp, defineComponent, h, nextTick } from 'vue';
 import type { SendCallbacks } from '@/composables/useMessageActions';
@@ -113,15 +113,26 @@ vi.mock('@/components/MessageQuote', async () => {
 
 let active: Array<{ app: App; container: HTMLElement }> = [];
 
-function attachmentDto(id: string) {
+// An image staged in the tray gets a preview object URL, which `dispose()`
+// revokes and `restore()` keeps alive — the observable difference between an
+// accepted and a rejected send. jsdom ships neither, so stand them up here.
+const PREVIEW_URL = 'blob:preview-1';
+const revokeObjectUrl = vi.fn();
+
+beforeEach(() => {
+    URL.createObjectURL = vi.fn(() => PREVIEW_URL);
+    URL.revokeObjectURL = revokeObjectUrl;
+});
+
+function attachmentDto(id: string, isImage = false) {
     return {
         id,
-        filename: 'launch-checklist.txt',
-        mimeType: 'text/plain',
+        filename: isImage ? 'diagram.png' : 'launch-checklist.txt',
+        mimeType: isImage ? 'image/png' : 'text/plain',
         sizeBytes: 24,
-        width: null,
-        height: null,
-        isImage: false,
+        width: isImage ? 800 : null,
+        height: isImage ? 600 : null,
+        isImage,
         url: `/download/${id}`,
         thumbUrl: null,
     };
@@ -181,6 +192,7 @@ afterEach(() => {
     });
     active = [];
     uploads.length = 0;
+    revokeObjectUrl.mockClear();
 });
 
 describe('MessageComposer failed-send attachment restore', () => {
@@ -239,7 +251,7 @@ describe('MessageComposer failed-send attachment restore', () => {
         expect(textarea.value).toBe('Here you go');
     });
 
-    it('drops the staged snapshot when the send is accepted', async () => {
+    it('disposes the staged snapshot when the send is accepted', async () => {
         const { container, sent } = mountComposer();
 
         const fileInput = container.querySelector<HTMLInputElement>(
@@ -249,14 +261,13 @@ describe('MessageComposer failed-send attachment restore', () => {
             '[data-test="message-composer-input"]',
         )!;
 
+        // An image so the row carries a preview object URL to revoke on dispose.
         stageFile(
             fileInput,
-            new File(['launch checklist contents'], 'launch-checklist.txt', {
-                type: 'text/plain',
-            }),
+            new File(['png bytes'], 'diagram.png', { type: 'image/png' }),
         );
         await nextTick();
-        uploads[0].resolve(attachmentDto('att-1'));
+        uploads[0].resolve(attachmentDto('att-1', true));
         await nextTick();
 
         textarea.value = 'Here you go';
@@ -270,10 +281,17 @@ describe('MessageComposer failed-send attachment restore', () => {
             .click();
         await nextTick();
 
-        // A successful send disposes the snapshot: the tray stays empty.
+        // The tray empties optimistically on send, but the snapshot still holds
+        // the row's preview alive until the outcome lands: nothing revoked yet.
+        expect(revokeObjectUrl).not.toHaveBeenCalled();
+
+        // A successful send disposes the snapshot, which frees the preview URL.
+        // Asserting the revoke (not just the empty tray, which is already empty
+        // here) is what proves onAccepted actually did the disposal.
         sent[0].callbacks.onAccepted?.();
         await nextTick();
 
+        expect(revokeObjectUrl).toHaveBeenCalledWith(PREVIEW_URL);
         expect(
             container.querySelector('[data-test="composer-attachment"]'),
         ).toBeNull();
