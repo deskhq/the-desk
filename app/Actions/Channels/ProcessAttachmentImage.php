@@ -5,17 +5,15 @@ declare(strict_types=1);
 namespace App\Actions\Channels;
 
 use App\Models\Attachment;
+use App\Support\Images\ImageProcessor;
 use Illuminate\Support\Facades\Storage;
-use Imagick;
-use Intervention\Image\Drivers\Gd\Driver as GdDriver;
-use Intervention\Image\Drivers\Imagick\Driver as ImagickDriver;
 use Intervention\Image\Encoders\AutoEncoder;
-use Intervention\Image\ImageManager;
-use Intervention\Image\Interfaces\ImageInterface;
 use Throwable;
 
 class ProcessAttachmentImage
 {
+    public function __construct(private readonly ImageProcessor $images) {}
+
     /**
      * Strip metadata from a raster image attachment in place and generate a
      * downscaled thumbnail beside it.
@@ -39,9 +37,9 @@ class ProcessAttachmentImage
         // or written (an unsupported/corrupt image, or a disk hiccup) is left as
         // uploaded with no thumbnail rather than failing the upload.
         try {
-            $image = $this->manager()->decodeBinary($disk->get($attachment->path));
+            $image = $this->images->decode($disk->get($attachment->path));
 
-            $this->stripMetadata($image);
+            $this->images->stripMetadata($image);
 
             // Rewrite the original without its metadata (EXIF/GPS/XMP), keeping
             // the format and near-original quality; the lightbox serves it inline.
@@ -65,33 +63,6 @@ class ProcessAttachmentImage
             ])->save();
         } catch (Throwable) {
             return;
-        }
-    }
-
-    /**
-     * The Intervention manager on the configured driver. Imagick by default (it
-     * handles more formats and strips metadata precisely); GD is a fallback for
-     * hosts without the Imagick extension.
-     */
-    private function manager(): ImageManager
-    {
-        return new ImageManager(
-            config('attachments.image_driver') === 'gd' ? new GdDriver : new ImagickDriver,
-        );
-    }
-
-    /**
-     * Remove every embedded metadata profile. GD drops them on re-encode already;
-     * Imagick preserves the EXIF profile, so strip it from each frame explicitly.
-     */
-    private function stripMetadata(ImageInterface $image): void
-    {
-        $native = $image->core()->native();
-
-        if ($native instanceof Imagick) {
-            foreach ($native as $frame) {
-                $frame->stripImage();
-            }
         }
     }
 

@@ -1,6 +1,11 @@
+import { router } from '@inertiajs/vue3';
 import { echo } from '@laravel/echo-vue';
 import { onBeforeUnmount, onMounted, ref, toValue, watch } from 'vue';
 import type { MaybeRefOrGetter } from 'vue';
+
+// How long to coalesce a burst of profile updates before reloading, so many
+// teammates changing avatars at once trigger a single authoritative refetch.
+const PROFILE_RELOAD_DEBOUNCE_MS = 400;
 
 /**
  * A team member as carried on the `team.{id}` presence roster. Mirrors the
@@ -23,8 +28,21 @@ export function useTeamPresence(teamId: MaybeRefOrGetter<string | undefined>) {
     // Ids of the members currently present, driving the online dots.
     const onlineIds = ref<Set<string>>(new Set());
 
+    // A pending debounced profile-update reload, if any.
+    let profileReloadTimer: ReturnType<typeof setTimeout> | undefined;
+
     function channelName(id: string): string {
         return `team.${id}`;
+    }
+
+    // A teammate changed their profile (today: their avatar). Reload the current
+    // page's props so every avatar surface re-reads the new image, preserving
+    // scroll and local state so the refresh is invisible.
+    function scheduleProfileReload(): void {
+        clearTimeout(profileReloadTimer);
+        profileReloadTimer = setTimeout(() => {
+            router.reload();
+        }, PROFILE_RELOAD_DEBOUNCE_MS);
     }
 
     function replace(ids: Iterable<string>): void {
@@ -44,7 +62,8 @@ export function useTeamPresence(teamId: MaybeRefOrGetter<string | undefined>) {
                 const next = new Set(onlineIds.value);
                 next.delete(member.id);
                 onlineIds.value = next;
-            });
+            })
+            .listen('UserProfileUpdated', scheduleProfileReload);
     }
 
     function leave(id: string): void {
@@ -79,6 +98,8 @@ export function useTeamPresence(teamId: MaybeRefOrGetter<string | undefined>) {
     );
 
     onBeforeUnmount(() => {
+        clearTimeout(profileReloadTimer);
+
         const id = toValue(teamId);
 
         if (id) {

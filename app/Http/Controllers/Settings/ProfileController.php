@@ -21,6 +21,9 @@ class ProfileController extends Controller
     {
         return Inertia::render('settings/Profile', [
             'status' => $request->session()->get('status'),
+            // Whether the avatar is an uploaded blob (so "Remove photo" applies)
+            // rather than a derived Gravatar/initials fallback.
+            'hasCustomAvatar' => $request->user()->avatar_url !== null,
         ]);
     }
 

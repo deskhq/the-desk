@@ -1,7 +1,7 @@
 import { router, usePage } from '@inertiajs/vue3';
 import { computed } from 'vue';
-import type { SidebarPosition } from '@/types';
 import { update } from '@/routes/sidebar-position';
+import type { SidebarPosition } from '@/types';
 
 /**
  * Read and mutate the current user's sidebar-position preference. The value is

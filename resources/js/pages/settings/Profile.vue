@@ -4,6 +4,7 @@ import { Link } from '@inertiajs/vue3';
 import { computed } from 'vue';
 import ProfileController from '@/actions/App/Http/Controllers/Settings/ProfileController';
 import FormField from '@/components/FormField.vue';
+import AvatarUpload from '@/components/settings/AvatarUpload.vue';
 import SettingsSection from '@/components/SettingsSection.vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -33,6 +34,10 @@ defineOptions({
 const page = usePage();
 const user = computed(() => page.props.auth.user);
 
+// Whether the avatar is an uploaded blob (so "Remove photo" applies) rather
+// than a derived Gravatar/initials fallback.
+const hasCustomAvatar = computed(() => Boolean(page.props.hasCustomAvatar));
+
 const { timezone, setTimezone } = useTimezone();
 
 // The full IANA zone list from the runtime, labelled with underscores spaced out
@@ -53,6 +58,21 @@ function onTimezoneSelect(value: unknown): void {
     <Head :title="$t('Profile settings')" />
 
     <h1 class="sr-only">{{ $t('Profile settings') }}</h1>
+
+    <SettingsSection
+        :title="$t('Photo')"
+        :description="
+            $t(
+                'JPEG, PNG or WebP, up to 5 MB. Shown in a circle, so square images work best.',
+            )
+        "
+    >
+        <AvatarUpload
+            :avatar="user.avatar ?? null"
+            :name="user.name"
+            :has-custom-avatar="hasCustomAvatar"
+        />
+    </SettingsSection>
 
     <SettingsSection
         :title="$t('Profile')"
