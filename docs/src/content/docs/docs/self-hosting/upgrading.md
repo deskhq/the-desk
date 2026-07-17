@@ -129,7 +129,8 @@ echo "The Desk ${running} is running."
 ```
 
 If it still reports the version you upgraded from, the old container is most
-likely still up. Re-run `docker compose up -d` and check `docker compose ps`.
+likely still up. Check `docker compose ps`, then re-run the `up -d` step for
+your install path above (`--build` included, if you build from source).
 
 ## Your data persists
 
