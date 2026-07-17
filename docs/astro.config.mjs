@@ -20,6 +20,26 @@ export default defineConfig({
 			social: [
 				{ icon: 'github', label: 'GitHub', href: 'https://github.com/emmpaul/the-desk' },
 			],
+			// Brand theme override (The Desk): Newsreader/Instrument Sans + brass palette.
+			customCss: ['./src/styles/custom.css'],
+			// Code blocks stay a dark terminal frame in BOTH light and dark site
+			// themes (per the design). A single dark syntax theme keeps the token
+			// colours readable in both modes; the frame background follows the
+			// brand ink via the --td-code-bg custom property (set in custom.css).
+			expressiveCode: {
+				themes: ['github-dark'],
+				styleOverrides: {
+					borderRadius: '12px',
+					codeBackground: 'var(--td-code-bg)',
+					frames: {
+						editorBackground: 'var(--td-code-bg)',
+						editorTabBarBackground: 'var(--td-code-bg)',
+						editorActiveTabBackground: 'var(--td-code-bg)',
+						terminalBackground: 'var(--td-code-bg)',
+						terminalTitlebarBackground: 'var(--td-code-bg)',
+					},
+				},
+			},
 			// Site-wide social-card + canonical tags for every documentation page.
 			head: [
 				{ tag: 'link', attrs: { rel: 'apple-touch-icon', href: '/apple-touch-icon.png' } },
@@ -29,6 +49,24 @@ export default defineConfig({
 				{ tag: 'meta', attrs: { property: 'og:image:height', content: '630' } },
 				{ tag: 'meta', attrs: { name: 'twitter:card', content: 'summary_large_image' } },
 				{ tag: 'meta', attrs: { name: 'twitter:image', content: ogImage } },
+				// Brand fonts, loaded the same way as the marketing landing page
+				// (preconnect + stylesheet) rather than a render-blocking CSS @import.
+				{ tag: 'link', attrs: { rel: 'preconnect', href: 'https://fonts.googleapis.com' } },
+				{
+					tag: 'link',
+					attrs: {
+						rel: 'preconnect',
+						href: 'https://fonts.gstatic.com',
+						crossorigin: 'anonymous',
+					},
+				},
+				{
+					tag: 'link',
+					attrs: {
+						rel: 'stylesheet',
+						href: 'https://fonts.googleapis.com/css2?family=Instrument+Sans:ital,wght@0,400..700;1,400..700&family=Newsreader:ital,opsz,wght@0,6..72,400..700;1,6..72,400..700&display=swap',
+					},
+				},
 			],
 			// "Edit this page" links point at the file on the default branch.
 			editLink: {
