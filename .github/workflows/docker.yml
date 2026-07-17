@@ -102,3 +102,300 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+  # Proves docker/backup.sh and docker/restore.sh actually round-trip against the
+  # real production stack: back up, destroy both durable stores, restore, and
+  # assert the data came back. Backing up only proves half of it — a backup you
+  # cannot restore is not a backup.
+  #
+  # This is the ONLY automated verification these two scripts get: they are host
+  # shell, so the app's `--min=100` PHP coverage gate cannot see them (see #473).
+  backup-restore:
+    name: Backup & restore round trip
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c # v4.2.0
+
+      # `load` puts the image in the local daemon as the-desk:ci, which the .env
+      # below points APP_IMAGE at, so the stack runs this build rather than
+      # pulling a published release. cache-from reuses the layers the publish job
+      # wrote on the last master build.
+      - name: Build production image
+        uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7.3.0
+        with:
+          context: .
+          file: Dockerfile
+          platforms: linux/amd64
+          load: true
+          tags: the-desk:ci
+          cache-from: type=gha
+
+      # gen-secrets.sh writes .env from .env.prod.example, which sets
+      # COMPOSE_FILE. Every `docker compose` below therefore needs no
+      # `-f docker-compose.prod.yml`, exercising the same inheritance the two
+      # scripts rely on.
+      - name: Prepare a production .env
+        run: |
+          ./docker/gen-secrets.sh
+          {
+            echo "APP_IMAGE=the-desk:ci"
+            echo "APP_URL=http://localhost:8000"
+          } >> .env
+
+      - name: Start the stack
+        run: |
+          docker compose up -d
+          # Deliberately not a bare `up -d --wait`: queue, reverb, and scheduler
+          # inherit FrankenPHP's Caddy healthcheck and report unhealthy (#477),
+          # which would fail --wait. Wait on the services whose healthchecks are
+          # meaningful; they are the ones this test touches.
+          docker compose up -d --wait pgsql app
+
+      # A marker in each durable store: the database and the storage-app volume.
+      # Restoring has to bring back both.
+      - name: Seed a marker into both durable stores
+        run: |
+          docker compose exec -T pgsql psql -U laravel -d laravel \
+            -c "CREATE TABLE smoke_marker (note text)" \
+            -c "INSERT INTO smoke_marker VALUES ('round-trip-proof')"
+          docker compose exec -T app \
+            sh -c 'echo uploaded-file-proof > /app/storage/app/smoke-marker.txt'
+
+      - name: Run backup.sh
+        run: |
+          mkdir -p backups
+          ./docker/backup.sh backups
+
+      - name: Assert the backup pair is complete
+        run: |
+          dump=$(ls backups/db-backup-*.sql.gz)
+          archive=$(ls backups/storage-app-*.tar.gz)
+          test -s "$dump"
+          test -s "$archive"
+          gzip -t "$dump"
+          gzip -t "$archive"
+          gunzip -c "$dump" | grep -q round-trip-proof
+          tar tzf "$archive" | grep -q smoke-marker.txt
+
+      # The guardrail that matters most: restore must not quietly replay a dump
+      # over a populated database. Refusing is only half the requirement, so
+      # change both markers first and assert they survived: a refusal that had
+      # already dropped the schema would still "refuse", and still be a disaster.
+      - name: Assert restore refuses a populated database without --force
+        run: |
+          docker compose exec -T pgsql psql -U laravel -d laravel \
+            -c "UPDATE smoke_marker SET note = 'state-before-refusal'"
+          docker compose exec -T app \
+            sh -c 'echo state-before-refusal > /app/storage/app/smoke-marker.txt'
+
+          if ./docker/restore.sh backups/db-backup-*.sql.gz backups/storage-app-*.tar.gz </dev/null; then
+            echo "restore.sh should have refused a non-empty database" >&2
+            exit 1
+          fi
+
+          note=$(docker compose exec -T pgsql psql -U laravel -d laravel \
+            -tAc "SELECT note FROM smoke_marker" | tr -d '[:space:]')
+          test "$note" = "state-before-refusal"
+          upload=$(docker compose exec -T app cat /app/storage/app/smoke-marker.txt | tr -d '[:space:]')
+          test "$upload" = "state-before-refusal"
+
+      - name: Destroy both durable stores
+        run: |
+          docker compose exec -T pgsql psql -U laravel -d laravel \
+            -c "DROP SCHEMA public CASCADE" -c "CREATE SCHEMA public"
+          docker compose exec -T app \
+            sh -c 'find /app/storage/app -mindepth 1 -exec rm -rf {} +'
+          test "$(docker compose exec -T pgsql psql -U laravel -d laravel -tAc \
+            "SELECT count(*) FROM information_schema.tables WHERE table_schema = 'public'" | tr -d '[:space:]')" = "0"
+
+      - name: Run restore.sh
+        run: ./docker/restore.sh backups/db-backup-*.sql.gz backups/storage-app-*.tar.gz --force
+
+      - name: Assert the stack comes back healthy with both stores restored
+        run: |
+          docker compose up -d
+          docker compose up -d --wait pgsql app
+
+          note=$(docker compose exec -T pgsql psql -U laravel -d laravel \
+            -tAc "SELECT note FROM smoke_marker" | tr -d '[:space:]')
+          test "$note" = "round-trip-proof"
+
+          upload=$(docker compose exec -T app cat /app/storage/app/smoke-marker.txt | tr -d '[:space:]')
+          test "$upload" = "uploaded-file-proof"
+
+      - name: Show stack logs on failure
+        if: failure()
+        run: docker compose logs --tail=100
+
+      - name: Tear down
+        if: always()
+        run: docker compose down -v
+
+  # The other upgrade job covers the published-image path. This one covers the
+  # other half of "one command works for both setups": with the build overlay in
+  # COMPOSE_FILE, upgrade.sh must detect it, skip the pull entirely (the image is
+  # in no registry), and `up -d --build` instead. That branch is invisible to the
+  # prod-only job, so without this it would only ever be claimed, not proven.
+  upgrade-build-from-source:
+    name: Upgrade script (build from source)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+
+      # The build overlay retags the app image to the-desk:latest and builds it
+      # from this checkout, so APP_IMAGE is not involved on this path.
+      - name: Prepare a build-from-source .env
+        run: |
+          ./docker/gen-secrets.sh
+          sed -i 's|^COMPOSE_FILE=.*|COMPOSE_FILE=docker-compose.prod.yml:docker-compose.build.yml|' .env
+          echo "APP_URL=http://localhost:8000" >> .env
+          grep '^COMPOSE_FILE=' .env
+
+      - name: Start the stack from source
+        run: |
+          docker compose up -d --build
+          docker compose up -d --wait pgsql app
+
+      # No --no-pull here: detecting the overlay must be enough to skip the pull
+      # on its own. If it were not, this step would fail trying to pull an image
+      # that exists in no registry, which is exactly the regression to catch.
+      - name: Run upgrade.sh
+        run: |
+          set -o pipefail
+          mkdir -p backups
+          ./docker/upgrade.sh backups | tee upgrade.log
+          grep -q "build-from-source setup detected" upgrade.log
+          grep -q "Upgraded to $(sed -e 's/#.*//' VERSION | tr -d '[:space:]')" upgrade.log
+
+      - name: Assert the upgrade took a real backup
+        run: |
+          test -s "$(ls backups/db-backup-*.sql.gz)"
+          test -s "$(ls backups/storage-app-*.tar.gz)"
+          gzip -t backups/db-backup-*.sql.gz
+          gzip -t backups/storage-app-*.tar.gz
+
+      - name: Show stack logs on failure
+        if: failure()
+        run: docker compose logs --tail=100
+
+      - name: Tear down
+        if: always()
+        run: docker compose down -v
+
+  # Proves docker/upgrade.sh both succeeds and, just as importantly, fails
+  # correctly: the whole point of the script is that a failed upgrade hands the
+  # operator a real backup and a ready-to-paste restore command instead of
+  # rolling back on its own. Shell, so the `--min=100` PHP gate cannot see it
+  # (see #475).
+  upgrade:
+    name: Upgrade script
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c # v4.2.0
+
+      - name: Build production image
+        uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7.3.0
+        with:
+          context: .
+          file: Dockerfile
+          platforms: linux/amd64
+          load: true
+          tags: the-desk:ci
+          cache-from: type=gha
+
+      - name: Prepare a production .env
+        run: |
+          ./docker/gen-secrets.sh
+          {
+            echo "APP_IMAGE=the-desk:ci"
+            echo "APP_URL=http://localhost:8000"
+          } >> .env
+
+      # Start from a running stack, which is what an operator upgrades from.
+      # Not `up -d --wait`: queue/reverb/scheduler inherit FrankenPHP's Caddy
+      # healthcheck and report unhealthy (#477), which would fail --wait.
+      - name: Start the stack
+        run: |
+          docker compose up -d
+          docker compose up -d --wait pgsql app
+
+      # --no-pull because the image under test is local and in no registry.
+      # The target defaults to the VERSION file, which is the version this image
+      # was built from, so a successful run proves the identity check agrees.
+      - name: Run upgrade.sh
+        run: |
+          # pipefail: without it the pipeline reports tee's status, so a failing
+          # upgrade.sh would be masked.
+          set -o pipefail
+          mkdir -p backups
+          ./docker/upgrade.sh backups --no-pull | tee upgrade.log
+          grep -q "Upgraded to $(sed -e 's/#.*//' VERSION | tr -d '[:space:]')" upgrade.log
+
+      - name: Assert the upgrade took a real backup
+        run: |
+          test -s "$(ls backups/db-backup-*.sql.gz)"
+          test -s "$(ls backups/storage-app-*.tar.gz)"
+          gzip -t backups/db-backup-*.sql.gz
+          gzip -t backups/storage-app-*.tar.gz
+
+      # The failure path is the one that matters. Force a version mismatch: the
+      # stack is healthy and serving, so only the identity check can catch that
+      # it is not running what was asked for. Liveness alone would call this a
+      # successful upgrade.
+      - name: Assert a failed upgrade halts, keeps the stack, and hands back a restore command
+        run: |
+          version_before=$(docker compose exec -T app php artisan app:version)
+
+          if ./docker/upgrade.sh backups --no-pull --target=9.9.9 >failed.log 2>&1; then
+            echo "upgrade.sh should have failed on a version mismatch" >&2
+            cat failed.log >&2
+            exit 1
+          fi
+
+          cat failed.log
+
+          # It must say what went wrong, and must not have rolled back by itself.
+          grep -q "running 9.9.9\|not 9.9.9" failed.log
+          grep -q "Nothing was rolled back" failed.log
+
+          # The restore line must be ready to paste: real paths, both files, and
+          # they must actually exist.
+          restore_line=$(grep -oE '\./docker/restore\.sh \S+ \S+' failed.log | tail -1)
+          test -n "$restore_line"
+          dump=$(echo "$restore_line" | awk '{print $2}')
+          archive=$(echo "$restore_line" | awk '{print $3}')
+          test -f "$dump"
+          test -f "$archive"
+          gzip -t "$dump"
+          gzip -t "$archive"
+
+          # It must have left the stack alone rather than restoring anything:
+          # same version running as before the failed attempt.
+          version_after=$(docker compose exec -T app php artisan app:version)
+          test "$version_after" = "$version_before"
+
+      - name: Show stack logs on failure
+        if: failure()
+        run: docker compose logs --tail=100
+
+      - name: Tear down
+        if: always()
+        run: docker compose down -v

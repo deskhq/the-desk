@@ -8,7 +8,7 @@ Several behaviours are switched from `.env`. Like all settings, they are read at
 needed:
 
 ```bash
-docker compose -f docker-compose.prod.yml up -d
+docker compose up -d
 ```
 
 ## Open registration

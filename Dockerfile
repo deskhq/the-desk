@@ -4,7 +4,11 @@
 # Production image for self-hosting (build-from-source at a release tag).
 #
 #   git checkout vX.Y.Z
-#   docker compose -f docker-compose.prod.yml up -d --build
+#   ./docker/gen-secrets.sh
+#   # in .env, extend the COMPOSE_FILE the template ships so the build overlay
+#   # (docker-compose.build.yml) stacks on top and restores a local `build:`:
+#   COMPOSE_FILE=docker-compose.prod.yml:docker-compose.build.yml
+#   docker compose up -d --build
 #
 # Development still uses Laravel Sail (compose.yaml); this image is a separate
 # production path and does not replace it. Served with FrankenPHP (Caddy + a

@@ -171,5 +171,9 @@ for the full reference.
 After editing `.env`, restart the stack to pick up the new values:
 
 ```bash
-docker compose -f docker-compose.prod.yml up -d
+docker compose up -d
 ```
+
+The bare `docker compose` needs no `-f docker-compose.prod.yml` because `.env`
+sets `COMPOSE_FILE`. See
+[the COMPOSE_FILE variable](/docs/self-hosting/installation/#the-compose_file-variable).
