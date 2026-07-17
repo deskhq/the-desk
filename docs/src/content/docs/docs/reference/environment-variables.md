@@ -13,6 +13,19 @@ Run `./docker/gen-secrets.sh` to generate the required secrets — it fills
 with fresh random values and never overwrites values you have already set.
 :::
 
+## Docker Compose
+
+One variable in `.env` is read by the **`docker compose` CLI itself** rather than
+by the app:
+
+| Variable       | Default                   | Notes                                                                 |
+| -------------- | ------------------------- | --------------------------------------------------------------------- |
+| `COMPOSE_FILE` | `docker-compose.prod.yml` | Which compose file(s) a bare `docker compose` resolves. Shipped in `.env.prod.example`, which is why no command on this site passes `-f docker-compose.prod.yml`. Building from source? List both files separated by a colon: `docker-compose.prod.yml:docker-compose.build.yml`. |
+
+See [the COMPOSE_FILE variable](/docs/self-hosting/installation/#the-compose_file-variable)
+for the caveat about a bare `docker compose down`, and for what to do if your
+`.env` predates this variable.
+
 ## Required secrets
 
 The stack **refuses to start** without these (no defaults):

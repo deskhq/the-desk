@@ -58,4 +58,4 @@ set_if_empty "REVERB_APP_SECRET" "$(openssl rand -hex 16)"
 echo
 echo "Done. Review $ENV_FILE and set APP_URL, mail credentials, and the"
 echo "browser-side REVERB_*_PUBLIC values before running:"
-echo "  docker compose -f docker-compose.prod.yml up -d"
+echo "  docker compose up -d"

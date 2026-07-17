@@ -1,10 +1,17 @@
 # Production stack for self-hosting. Pull the prebuilt image and start it:
 #
 #   git fetch --tags && git checkout vX.Y.Z
-#   docker compose -f docker-compose.prod.yml up -d   # pulls the image, no build
+#   ./docker/gen-secrets.sh          # creates .env, which sets COMPOSE_FILE
+#   docker compose up -d             # pulls the image, no build
 #
-# To build the app image from source instead, layer the build overlay on top:
-#   docker compose -f docker-compose.prod.yml -f docker-compose.build.yml up -d --build
+# The bare `docker compose` above is not a typo: .env.prod.example ships
+# COMPOSE_FILE=docker-compose.prod.yml, so the CLI resolves this file with no
+# `-f`. Without it a bare command would pick up compose.yaml, the Sail dev stack.
+#
+# To build the app image from source instead, layer the build overlay on top by
+# listing both files in COMPOSE_FILE:
+#   COMPOSE_FILE=docker-compose.prod.yml:docker-compose.build.yml
+#   docker compose up -d --build
 #
 # Development uses Laravel Sail (compose.yaml) — this file does not replace it.
 #
@@ -34,7 +41,8 @@ x-app: &app
   #
   # To build from source instead, add the build overlay (docker-compose.build.yml)
   # which restores a local build for these services:
-  #   docker compose -f docker-compose.prod.yml -f docker-compose.build.yml up -d --build
+  #   COMPOSE_FILE=docker-compose.prod.yml:docker-compose.build.yml   # in .env
+  #   docker compose up -d --build
   image: ${APP_IMAGE:-ghcr.io/emmpaul/the-desk:1.5.2} # x-release-please-version
   env_file:
     - .env

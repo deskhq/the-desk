@@ -18,7 +18,7 @@ separate admin bootstrap step.
 :::tip
 If you enabled email verification and the email never arrives, your SMTP
 configuration is almost certainly the cause. Check the `queue` container logs
-(`docker compose -f docker-compose.prod.yml logs queue`) — mail is sent through
+(`docker compose logs queue`) — mail is sent through
 the queue worker.
 :::
 

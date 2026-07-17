@@ -172,8 +172,18 @@ git checkout v1.5.2 # x-release-please-version         (the desired release tag)
 #    changes), so no rebuild is needed when they change.
 
 # 4. Start the stack. This pulls the release-pinned image — no build step.
-docker compose -f docker-compose.prod.yml up -d
+docker compose up -d
 ```
+
+> **Why no `-f docker-compose.prod.yml`?** `.env.prod.example` ships
+> `COMPOSE_FILE=docker-compose.prod.yml`, which the `docker compose` CLI reads
+> from `.env`, so every production subcommand (`up`, `ps`, `logs`, `exec`,
+> `down`) resolves the production stack with no flag. It matters here: this repo
+> also contains `compose.yaml`, the Sail **dev** stack, which a bare
+> `docker compose` would otherwise pick up. The flip side is that a bare
+> `docker compose down` in this directory takes down production, with no `-f` to
+> remind you what you are aimed at. An explicit `-f` still overrides it, so an
+> instance whose `.env` predates this variable keeps working unchanged.
 
 Migrations run automatically on start (the `app` container's entrypoint runs
 `php artisan migrate --force`). The app and Reverb speak plain HTTP and publish to
@@ -216,8 +226,8 @@ restart — `up -d` pulls the image that tag pins:
 ```bash
 git fetch --tags
 git checkout v1.5.2 # x-release-please-version         (the desired release tag)
-docker compose -f docker-compose.prod.yml down
-docker compose -f docker-compose.prod.yml up -d
+docker compose down
+docker compose up -d
 # pulls the newer pinned image; migrations run automatically via the entrypoint
 ```
 
@@ -248,12 +258,23 @@ services (they share one image):
 ```bash
 # Check out the matching release tag first so the build matches the compose file,
 # then run gen-secrets.sh and edit .env exactly as in First install.
+
+# Extend COMPOSE_FILE in .env to list both files, separated by a colon:
+#   COMPOSE_FILE=docker-compose.prod.yml:docker-compose.build.yml
+docker compose up -d --build
+```
+
+Setting `COMPOSE_FILE` once keeps both files layered for every later command, so
+you never have to remember to repeat the overlay. The explicit form still works
+and overrides it if you would rather not edit `.env`:
+
+```bash
 docker compose -f docker-compose.prod.yml -f docker-compose.build.yml up -d --build
 ```
 
 Everything else — secrets, `.env`, and the automatic migrations — is identical to
-the pull flow. To go back to the published image, drop the overlay and `up -d`
-again.
+the pull flow. To go back to the published image, drop `:docker-compose.build.yml`
+from `COMPOSE_FILE` and `up -d` again.
 
 > **Reverb settings are runtime, so mind the browser vs. server split.** The
 > container speaks plain `http` on `8080` (`REVERB_PORT` / `REVERB_SCHEME`), but

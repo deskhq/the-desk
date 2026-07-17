@@ -41,13 +41,44 @@ git fetch --tags && git checkout v1.5.2 # x-release-please-version   (the desire
 ./docker/gen-secrets.sh
 
 # 3. Start the stack. up -d pulls the release-pinned image (no build step).
-docker compose -f docker-compose.prod.yml up -d
+docker compose up -d
 ```
 
 The checked-out tag pins the image, so no `APP_IMAGE` is needed. To run a
 different tag (e.g. `edge`), set `APP_IMAGE=ghcr.io/emmpaul/the-desk:<tag>` in
 `.env`. Upgrades just check out a newer tag and restart — see
 [Upgrading](/docs/self-hosting/upgrading/).
+
+## The COMPOSE_FILE variable
+
+Every production command on this site is a bare `docker compose`, with no
+`-f docker-compose.prod.yml`. That works because `.env.prod.example` ships:
+
+```
+COMPOSE_FILE=docker-compose.prod.yml
+```
+
+`COMPOSE_FILE` is read by the `docker compose` CLI itself, not by the app, and
+`gen-secrets.sh` writes `.env` from that template before you run any compose
+command. So the flag is redundant from the very first `up -d`, for every
+subcommand: `ps`, `logs`, `exec`, `pull`, `down`.
+
+This matters for more than typing. This repository also contains `compose.yaml`,
+the Laravel Sail **development** stack. Without `COMPOSE_FILE`, a bare
+`docker compose` in this directory would resolve that dev file instead of the
+production one.
+
+:::caution
+The flip side: with `COMPOSE_FILE` set, a bare `docker compose down` in this
+directory takes down the **production stack**. On a production box that is the
+intent, but there is no longer an `-f` to remind you what you are pointed at.
+Passing an explicit `-f` still overrides `COMPOSE_FILE` for a one-off command.
+:::
+
+Upgrading an instance installed before this variable existed? Your `.env`
+predates the template change, so nothing breaks: keep passing
+`-f docker-compose.prod.yml` exactly as before, or add the `COMPOSE_FILE` line to
+your `.env` to drop the flag.
 
 ## Build from source
 
@@ -66,9 +97,25 @@ git checkout v1.5.2 # x-release-please-version         (the desired release tag)
 #    REVERB_*_PUBLIC (see Configuration) — identical to the pull flow above.
 ./docker/gen-secrets.sh
 
-# 3. Build the image and start the stack.
+# 3. Extend COMPOSE_FILE in .env so the build overlay stacks on the prod stack.
+#    Both files, separated by a colon:
+#      COMPOSE_FILE=docker-compose.prod.yml:docker-compose.build.yml
+
+# 4. Build the image and start the stack.
+docker compose up -d --build
+```
+
+Setting `COMPOSE_FILE` once means every later command (`up`, `down`, `logs`,
+`exec`) keeps both files layered, so you never have to remember to repeat the
+overlay. If you would rather not edit `.env`, the explicit form still works and
+overrides it:
+
+```bash
 docker compose -f docker-compose.prod.yml -f docker-compose.build.yml up -d --build
 ```
+
+To go back to the published image, drop `:docker-compose.build.yml` from
+`COMPOSE_FILE` and run `docker compose up -d` again.
 
 ## What happens on start
 

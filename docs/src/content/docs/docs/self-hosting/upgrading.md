@@ -40,12 +40,12 @@ of the uploaded files:
 
 ```bash
 # Database — logical dump, gzipped
-docker compose -f docker-compose.prod.yml exec -T pgsql \
+docker compose exec -T pgsql \
   pg_dump -U "${DB_USERNAME:-laravel}" "${DB_DATABASE:-laravel}" \
   | gzip > db-backup-$(date +%F).sql.gz
 
 # Uploaded files — stream a tar out of the running app container
-docker compose -f docker-compose.prod.yml exec -T app \
+docker compose exec -T app \
   tar czf - -C /app/storage/app . > storage-app-$(date +%F).tar.gz
 ```
 
@@ -54,11 +54,11 @@ database and a running stack:
 
 ```bash
 # Database
-gunzip -c db-backup-YYYY-MM-DD.sql.gz | docker compose -f docker-compose.prod.yml exec -T pgsql \
+gunzip -c db-backup-YYYY-MM-DD.sql.gz | docker compose exec -T pgsql \
   psql -U "${DB_USERNAME:-laravel}" "${DB_DATABASE:-laravel}"
 
 # Uploaded files
-docker compose -f docker-compose.prod.yml exec -T app \
+docker compose exec -T app \
   tar xzf - -C /app/storage/app < storage-app-YYYY-MM-DD.tar.gz
 ```
 
@@ -70,13 +70,21 @@ pins:
 ```bash
 git fetch --tags
 git checkout v1.5.2 # x-release-please-version         (the desired release tag)
-docker compose -f docker-compose.prod.yml down
-docker compose -f docker-compose.prod.yml up -d
+docker compose down
+docker compose up -d
 # pulls the newer pinned image; migrations run automatically via the entrypoint
 ```
 
 If you override `APP_IMAGE` in `.env`, point it at the new tag first (e.g.
 `APP_IMAGE=ghcr.io/emmpaul/the-desk:<tag>`) before restarting.
+
+:::note
+These commands need no `-f docker-compose.prod.yml` because `.env` sets
+`COMPOSE_FILE`. See
+[the COMPOSE_FILE variable](/docs/self-hosting/installation/#the-compose_file-variable).
+If your `.env` predates that variable, keep passing the flag as before, or add
+`COMPOSE_FILE=docker-compose.prod.yml` to your `.env` to drop it.
+:::
 
 ## Build from source
 
@@ -86,9 +94,17 @@ rebuild:
 ```bash
 git fetch --tags
 git checkout v1.5.2 # x-release-please-version         (the desired release tag)
-docker compose -f docker-compose.prod.yml down
-docker compose -f docker-compose.prod.yml -f docker-compose.build.yml up -d --build
+docker compose down
+docker compose up -d --build
 # migrations run automatically via the entrypoint
+```
+
+This assumes your `.env` lists both files, as the
+[build-from-source install](/docs/self-hosting/installation/#build-from-source)
+sets up:
+
+```
+COMPOSE_FILE=docker-compose.prod.yml:docker-compose.build.yml
 ```
 
 Migrations run automatically on start — the `app` container's entrypoint runs
