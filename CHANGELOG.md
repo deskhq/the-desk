@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.5.2](https://github.com/emmpaul/the-desk/compare/v1.5.1...v1.5.2) (2026-07-17)
+
+
+### Bug Fixes
+
+* ship faker as a production dependency so demo:seed runs under --no-dev ([#465](https://github.com/emmpaul/the-desk/issues/465)) ([ffcbdba](https://github.com/emmpaul/the-desk/commit/ffcbdba2005dfd4f84855f1ab3cc21c1687d4d27))
+
 ## [1.5.1](https://github.com/emmpaul/the-desk/compare/v1.5.0...v1.5.1) (2026-07-16)
 
 

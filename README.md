@@ -157,7 +157,7 @@ one-line overlay restores a local build — see
 git clone git@github.com:emmpaul/the-desk.git
 cd the-desk
 git fetch --tags
-git checkout v1.5.1 # x-release-please-version         (the desired release tag)
+git checkout v1.5.2 # x-release-please-version         (the desired release tag)
 
 # 2. Generate .env with all required secrets filled in.
 #    Creates .env from the template and fills APP_KEY, DB_PASSWORD,
@@ -215,7 +215,7 @@ restart — `up -d` pulls the image that tag pins:
 
 ```bash
 git fetch --tags
-git checkout v1.5.1 # x-release-please-version         (the desired release tag)
+git checkout v1.5.2 # x-release-please-version         (the desired release tag)
 docker compose -f docker-compose.prod.yml down
 docker compose -f docker-compose.prod.yml up -d
 # pulls the newer pinned image; migrations run automatically via the entrypoint

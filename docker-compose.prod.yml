@@ -35,7 +35,7 @@ x-app: &app
   # To build from source instead, add the build overlay (docker-compose.build.yml)
   # which restores a local build for these services:
   #   docker compose -f docker-compose.prod.yml -f docker-compose.build.yml up -d --build
-  image: ${APP_IMAGE:-ghcr.io/emmpaul/the-desk:1.5.1} # x-release-please-version
+  image: ${APP_IMAGE:-ghcr.io/emmpaul/the-desk:1.5.2} # x-release-please-version
   env_file:
     - .env
   restart: unless-stopped
