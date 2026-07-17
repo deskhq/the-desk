@@ -32,9 +32,18 @@
 
 ## Self-hosting
 
-The Desk ships as a single Docker Compose stack with a prebuilt image — one
-`docker compose up -d` and it's live. Full operator docs (requirements,
-install, reverse proxy & TLS, upgrades) live at
+The Desk ships as a single Docker Compose stack with a prebuilt image. The
+installer fetches the compose file, generates secrets, and pins the latest
+release, then `up -d` runs it with no build step:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/emmpaul/the-desk/master/docker/install.sh | sh
+# edit .env (APP_URL, mail, REVERB_*_PUBLIC), then:
+docker compose up -d
+```
+
+Full operator docs (requirements, configuration, reverse proxy & TLS, and
+upgrades) live at
 **[the-desk.emmanuelpaul.com/docs](https://the-desk.emmanuelpaul.com/docs/)**.
 
 ## Development
@@ -128,186 +137,6 @@ sso`), then uncomment the matching dev values in `.env.example`:
   ```
 
   Then sign in through the normal login form with a seeded email.
-
-## Self-Hosting with Docker
-
-The production stack is orchestrated with `docker-compose.prod.yml`. The app is
-served with [FrankenPHP](https://frankenphp.dev/); Postgres, Meilisearch, Reverb,
-a queue worker, and the scheduler all run as containers.
-
-By default the stack **pulls a prebuilt image** from the GitHub Container Registry
-(`ghcr.io/emmpaul/the-desk`), so `up -d` runs it with no build step. Every setting,
-including the browser-facing Reverb values, is read at **runtime**, so one
-published image works for any host. If you would rather **build from source**, a
-one-line overlay restores a local build — see
-[Building from source](#building-from-source).
-
-### Prerequisites
-
-- Docker Engine 24+ and the Docker Compose plugin.
-- A domain and a TLS-terminating reverse proxy (nginx, Caddy, Traefik, …) in
-  front of the stack. **TLS/HTTPS is your responsibility** — the containers speak
-  plain HTTP. Your proxy must also forward WebSocket upgrade requests to the
-  `reverb` service.
-
-### First install
-
-```bash
-# 1. Download the stack and generate secrets. The installer fetches the compose
-#    file, the .env template, and the operational scripts, fills APP_KEY,
-#    DB_PASSWORD, MEILISEARCH_KEY, and the REVERB_* keys with fresh random
-#    values, and pins the latest release in APP_VERSION. No git needed.
-curl -fsSL https://raw.githubusercontent.com/emmpaul/the-desk/master/docker/install.sh | sh
-
-# 2. Edit .env and set the non-secret settings the script can't guess:
-#    APP_URL, SMTP mail credentials, and — since your TLS proxy terminates
-#    wss/443 while the container speaks http/8080 — REVERB_PORT_PUBLIC=443 and
-#    REVERB_SCHEME_PUBLIC=https. These are read at runtime (a restart applies
-#    changes), so no rebuild is needed when they change.
-
-# 3. Start the stack. This pulls the pinned image (APP_VERSION) — no build step.
-docker compose up -d
-```
-
-> Pin a specific release with `sh -s -- --version=X.Y.Z`, or install into a
-> chosen directory by passing it as the last argument. `APP_VERSION` in `.env` is
-> the single source of the version; `up -d` fails fast if it is unset.
-
-> **Why no `-f docker-compose.prod.yml`?** `.env.prod.example` ships
-> `COMPOSE_FILE=docker-compose.prod.yml`, which the `docker compose` CLI reads
-> from `.env`, so every production subcommand (`up`, `ps`, `logs`, `exec`,
-> `down`) resolves the production stack with no flag. It matters here: this repo
-> also contains `compose.yaml`, the Sail **dev** stack, which a bare
-> `docker compose` would otherwise pick up. The flip side is that a bare
-> `docker compose down` in this directory takes down production, with no `-f` to
-> remind you what you are aimed at. An explicit `-f` still overrides it, so an
-> instance whose `.env` predates this variable keeps working unchanged.
-
-Migrations run automatically on start (the `app` container's entrypoint runs
-`php artisan migrate --force`). The app and Reverb speak plain HTTP and publish to
-loopback by default (`APP_BIND=127.0.0.1`) on `APP_PORT` (default `8000`) and
-`REVERB_PORT` (default `8080`); point your reverse proxy at `127.0.0.1:8000` /
-`127.0.0.1:8080`, or reach `app:8080` / `reverb:8080` directly from a proxy on the
-compose network.
-
-> **Required secrets.** `APP_KEY`, `DB_PASSWORD`, and `MEILISEARCH_KEY` have no
-> defaults — the stack refuses to start without them. `gen-secrets.sh` generates
-> all of these for you; prefer it over setting them by hand. If you would rather
-> generate `APP_KEY` yourself, any `base64:`-encoded 32-byte value works, e.g.
-> `docker run --rm dunglas/frankenphp:1-php8.5-alpine php -r "echo 'base64:'.base64_encode(random_bytes(32)).PHP_EOL;"`.
-
-### Create the first user and workspace
-
-Registration is open, so onboarding is self-service:
-
-1. Visit your `APP_URL` and go to **/register** to create the first account.
-2. Create your first workspace from **Settings → Teams**, then invite teammates.
-
-> **Locking down registration.** Public sign-ups are open by default. To run a
-> private/invite-only instance, set `REGISTRATION_ENABLED=false` in `.env`
-> (create your own account first). With it off, `/register` returns 404 and the
-> "sign up" links are hidden — existing users and email invitations still work.
-
-> **Requiring email verification.** New accounts are _not_ asked to confirm
-> their email by default. To run a verified-only instance, set
-> `EMAIL_VERIFICATION_ENABLED=true` in `.env` and make sure your SMTP settings
-> work so the verification email is delivered. With it on, a freshly registered
-> user is emailed a confirmation link and is blocked from the workspace until
-> they verify; any existing account with an unverified email is likewise gated
-> on its next request.
-
-### Upgrading
-
-Upgrading is a version bump — no git checkout. Pass the release as `--target`
-(the script writes it to `APP_VERSION`) and it backs up, starts the new release,
-and verifies the instance is actually running it (a healthy stack only proves the
-containers are alive; the old one answers just as happily):
-
-```bash
-./docker/upgrade.sh --target=1.7.0 /srv/backups # x-release-please-version
-```
-
-If any step fails it stops, leaves the stack untouched for diagnosis, and prints
-the exact `docker/restore.sh` command for the backup it just took. It never rolls
-back on its own: rolling back means restoring the database, which would destroy
-everything written since that backup, and from the outside a slow boot looks
-identical to a broken one. That call stays yours.
-
-Doing it by hand is a `APP_VERSION` bump in `.env` then `docker compose pull && docker compose up -d`
-(or `up -d --build` if you build from source); migrations run automatically via the
-entrypoint either way. See the
-[upgrade guide](https://the-desk.emmanuelpaul.com/docs/self-hosting/upgrading/).
-
-Your data persists across `down`/`up` in named volumes (`pgsql-data`,
-`the-desk-meili-<version>`, `redis-data`, `storage-app`).
-
-> **Meilisearch upgrades reindex automatically.** The search index lives in a
-> version-scoped volume, so bumping `MEILISEARCH_VERSION` starts the new
-> Meilisearch on a fresh volume and the app rebuilds the index from Postgres on
-> boot (`php artisan search:sync`) — no manual dump/migration. The old volume is
-> left behind; prune it with `docker volume rm the-desk-meili-<old-version>`.
-
-> **MAJOR version upgrades may contain breaking changes.** Before upgrading
-> across a major version, read the [CHANGELOG](CHANGELOG.md) and the
-> corresponding [GitHub Release notes](https://github.com/emmpaul/the-desk/releases)
-> for required manual steps.
-
-### Building from source
-
-Each release publishes a prebuilt image to the GitHub Container Registry at
-`ghcr.io/emmpaul/the-desk` (tags `X.Y.Z`, `X.Y`, and `latest`; `edge` tracks the
-tip of `master`), and the [First install](#first-install) steps above pull it. If
-you would rather build the image yourself — to audit or patch the source, or to
-run in an air-gapped environment — layer the build overlay
-(`docker-compose.build.yml`) on top. It restores a local build for the app
-services (they share one image):
-
-```bash
-# Check out the matching release tag first so the build matches the compose file,
-# then run gen-secrets.sh and edit .env exactly as in First install.
-
-# Extend COMPOSE_FILE in .env to list both files, separated by a colon:
-#   COMPOSE_FILE=docker-compose.prod.yml:docker-compose.build.yml
-docker compose up -d --build
-```
-
-Setting `COMPOSE_FILE` once keeps both files layered for every later command, so
-you never have to remember to repeat the overlay. The explicit form still works
-and overrides it if you would rather not edit `.env`:
-
-```bash
-docker compose -f docker-compose.prod.yml -f docker-compose.build.yml up -d --build
-```
-
-Everything else — secrets, `.env`, and the automatic migrations — is identical to
-the pull flow. To go back to the published image, drop `:docker-compose.build.yml`
-from `COMPOSE_FILE` and `up -d` again.
-
-> **Reverb settings are runtime, so mind the browser vs. server split.** The
-> container speaks plain `http` on `8080` (`REVERB_PORT` / `REVERB_SCHEME`), but
-> the browser reaches Reverb through your TLS proxy on `wss`/`443`. Set
-> `REVERB_PORT_PUBLIC=443` and `REVERB_SCHEME_PUBLIC=https` in `.env`; the
-> browser-facing host defaults to your `APP_URL` host (override with
-> `REVERB_HOST_PUBLIC` only for a dedicated WebSocket subdomain).
-
-### What runs
-
-| Service       | Role                                             |
-| ------------- | ------------------------------------------------ |
-| `app`         | FrankenPHP web server (HTTP + migrations on boot)|
-| `reverb`      | WebSocket server for real-time broadcasting      |
-| `queue`       | Queue worker (`queue:work`)                      |
-| `scheduler`   | Scheduled tasks (`schedule:work`)                |
-| `pgsql`       | PostgreSQL database (named volume)               |
-| `meilisearch` | Full-text search index (named volume)            |
-| `redis`       | Cache, session, and queue backend (named volume) |
-
-Cache, session, and queue all use the **Redis** driver
-(`CACHE_STORE`/`SESSION_DRIVER=redis`, `QUEUE_CONNECTION=redis`, with
-`REDIS_HOST=redis`), and broadcasting uses **Reverb**. The `redis` service is
-always-on and persists to the `redis-data` volume with `appendonly` enabled, so
-queued jobs survive a restart; every app process waits for it to be healthy
-before starting.
 
 ## Contributing
 
