@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.7.0](https://github.com/emmpaul/the-desk/compare/v1.6.1...v1.7.0) (2026-07-17)
+
+
+### Features
+
+* pin the app image from .env so upgrading needs no git checkout ([#492](https://github.com/emmpaul/the-desk/issues/492)) ([fd493a7](https://github.com/emmpaul/the-desk/commit/fd493a7b64e02e1461a68e8a0fcfd7b872eafd18))
+
 ## [1.6.1](https://github.com/emmpaul/the-desk/compare/v1.6.0...v1.6.1) (2026-07-17)
 
 

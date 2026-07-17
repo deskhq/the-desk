@@ -12,7 +12,6 @@
       ],
       "extra-files": [
         { "type": "generic", "path": "VERSION" },
-        { "type": "generic", "path": "README.md" },
         { "type": "generic", "path": ".env.prod.example" },
         { "type": "generic", "path": "docker/install.sh" },
         { "type": "generic", "path": "docs/src/content/docs/docs/comparison.md" },

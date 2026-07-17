@@ -30,7 +30,7 @@ Pass the release you want as `--target`; the script writes it to `APP_VERSION`,
 so a routine upgrade is one command with no `.env` edit:
 
 ```bash
-./docker/upgrade.sh --target=1.6.1 /srv/backups # x-release-please-version
+./docker/upgrade.sh --target=1.7.0 /srv/backups # x-release-please-version
 ```
 
 Prefer to edit `.env` yourself? Bump `APP_VERSION` there and run
@@ -214,7 +214,7 @@ Bump `APP_VERSION` in `.env`, pull, and restart — `up -d` runs the image
 `APP_VERSION` pins:
 
 ```bash
-# set APP_VERSION=1.6.1 in .env # x-release-please-version
+# set APP_VERSION=1.7.0 in .env # x-release-please-version
 docker compose pull
 docker compose up -d
 # pulls the newer pinned image; migrations run automatically via the entrypoint
@@ -239,7 +239,7 @@ rebuild:
 
 ```bash
 git fetch --tags
-git checkout v1.6.1 # x-release-please-version         (the desired release tag)
+git checkout v1.7.0 # x-release-please-version         (the desired release tag)
 docker compose down
 docker compose up -d --build
 # migrations run automatically via the entrypoint
