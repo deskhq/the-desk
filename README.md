@@ -220,16 +220,27 @@ Registration is open, so onboarding is self-service:
 
 ### Upgrading
 
-Upgrades follow the same tag-based flow. Check out the newer release tag and
-restart — `up -d` pulls the image that tag pins:
+Upgrades follow the same tag-based flow. Check out the newer release tag and run
+the upgrade script — it backs up, starts the new release, and verifies the
+instance is actually running it (a healthy stack only proves the containers are
+alive; the old one answers just as happily):
 
 ```bash
 git fetch --tags
 git checkout v1.5.2 # x-release-please-version         (the desired release tag)
-docker compose down
-docker compose up -d
-# pulls the newer pinned image; migrations run automatically via the entrypoint
+./docker/upgrade.sh /srv/backups
 ```
+
+If any step fails it stops, leaves the stack untouched for diagnosis, and prints
+the exact `docker/restore.sh` command for the backup it just took. It never rolls
+back on its own: rolling back means restoring the database, which would destroy
+everything written since that backup, and from the outside a slow boot looks
+identical to a broken one. That call stays yours.
+
+Doing it by hand is still two commands (`docker compose down && docker compose up -d`,
+or `up -d --build` if you build from source); migrations run automatically via the
+entrypoint either way. See the
+[upgrade guide](https://the-desk.emmanuelpaul.com/docs/self-hosting/upgrading/).
 
 Your data persists across `down`/`up` in named volumes (`pgsql-data`,
 `the-desk-meili-<version>`, `redis-data`, `storage-app`).

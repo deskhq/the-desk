@@ -117,7 +117,7 @@ evidence for each of these from **your** environment, not from this project:
 - **Backups.** Take, encrypt, test, and off-site the database and file-volume
   backups. `docker/backup.sh` and `docker/restore.sh` handle the taking and the
   restoring, including a `--keep=N` retention flag and a host-cron example; see
-  [Upgrading](/docs/self-hosting/upgrading/#back-up-first). Encrypting and
+  [Upgrading](/docs/self-hosting/upgrading/#backups). Encrypting and
   off-siting the resulting files remains yours.
 - **Secret management.** `APP_KEY`, `DB_PASSWORD`, `MEILISEARCH_KEY`, the
   `REVERB_*` credentials, and any `SCIM_TOKEN` are full secrets. Generate them

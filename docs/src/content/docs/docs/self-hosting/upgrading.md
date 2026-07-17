@@ -1,10 +1,12 @@
 ---
 title: Upgrading
-description: Tag-based upgrades with automatic migrations and version-scoped search reindexing.
+description: One-command upgrades that back up, start the new release, and verify it is running, with automatic migrations and version-scoped search reindexing.
 ---
 
 Upgrades follow the same tag-based flow you used to install, whether you run the
-published image (the default) or build from source.
+published image (the default) or build from source. Check out the release you
+want and run `./docker/upgrade.sh`: it backs up, starts the new release, and
+verifies the instance is actually running it.
 
 ## These docs track the in-development version
 
@@ -21,12 +23,78 @@ documented but not yet in that release is coming in a future one. Check the
 confirm which release a given feature shipped in, and pin your `APP_IMAGE` (or
 checkout tag) to a released version rather than `edge` for a stable deployment.
 
-## Back up first
+## Upgrade
+
+Check out the release you want, then run the upgrade script from the project
+root:
+
+```bash
+git fetch --tags
+git checkout v1.5.2 # x-release-please-version         (the desired release tag)
+./docker/upgrade.sh /srv/backups
+```
+
+It does three things, stopping at the first that fails:
+
+1. **Backs up** by running [`docker/backup.sh`](#backups) for you, into the
+   directory you name (the current one by default).
+2. **Starts the new release.** Migrations run automatically on boot, via the
+   `app` container's entrypoint.
+3. **Verifies the upgrade landed.** It waits for `/up` to answer, then asks the
+   instance what it is actually running and compares that with the release you
+   checked out.
+
+That third step is the one worth understanding. A healthy stack only proves the
+containers are alive: the *old* container answers `/up` just as happily as the
+new one. So the script confirms identity separately, and an upgrade that quietly
+came back on the previous image is reported as a failure rather than a success.
+
+It picks up your setup on its own. Build-from-source installs are detected from
+`COMPOSE_FILE` and get built rather than pulled, so the same command works for
+both paths.
+
+Useful flags:
+
+| Flag | Why |
+| --- | --- |
+| `--target=X.Y.Z` | Expect this version instead of the checked-out one. Only needed if `APP_IMAGE` pins a tag that differs from the checkout. |
+| `--timeout=SECONDS` | How long to wait for `/up` (default 300). A cold boot runs migrations and rebuilds the search index first, so raise it on a slow host or a large database. |
+| `--no-pull` | Use the image already on the host, for air-gapped hosts or when you pulled ahead of the window. |
+
+### If it fails, it stops and hands you the backup
+
+The script **never rolls back on its own**, and that is deliberate.
+
+Rolling back here is not a git revert. It is a destructive database restore, and
+from the outside a slow boot is indistinguishable from a broken one: a first boot
+that runs migrations and `search:sync`, a wedged search healthcheck, or a proxy
+hiccup all look exactly like a failed upgrade for a while, and then recover. A
+script that restored automatically would, in that case, destroy every message
+written since the dump it took minutes earlier. It would be a data-loss event
+caused by the recovery, not the fault, and it would fire at 3am when nobody is
+awake to judge it.
+
+So on failure it exits non-zero, leaves the stack exactly as it is for you to
+inspect, and prints the precise restore command with the backup paths already
+filled in:
+
+```
+Your backup is safe. When you have decided, restore it with:
+  ./docker/restore.sh /srv/backups/db-backup-2026-07-17.sql.gz /srv/backups/storage-app-2026-07-17.tar.gz
+```
+
+You still have the fresh backup and one command to run. What you do not have is a
+script deciding to destroy data on your behalf while you sleep.
+
+## Backups
 
 :::caution
 Migrations run automatically on start and can alter your schema irreversibly. A
-failed or interrupted upgrade can leave the database in a broken state. **Always
-take a backup before upgrading** — especially across a major version.
+failed or interrupted upgrade can leave the database in a broken state.
+`upgrade.sh` takes a backup for you before it starts, so an upgrade through it is
+always covered. **Take one yourself before any other risky change**, and keep
+scheduled backups regardless: the upgrade-time dump is a safety net for that
+upgrade, not a backup policy.
 :::
 
 Two things hold your durable state: the **PostgreSQL database** (all messages,
@@ -112,7 +180,13 @@ with:
 docker compose up -d
 ```
 
-## Default: pull the newer image
+## Doing it by hand
+
+`upgrade.sh` is a wrapper around the steps below. They are worth knowing: this is
+what it runs, and what to fall back to if you would rather drive each step
+yourself.
+
+### Default: pull the newer image
 
 Check out the newer release tag and restart — `up -d` pulls the image that tag
 pins:
@@ -136,7 +210,7 @@ If your `.env` predates that variable, keep passing the flag as before, or add
 `COMPOSE_FILE=docker-compose.prod.yml` to your `.env` to drop it.
 :::
 
-## Build from source
+### Build from source
 
 If you build the image locally with the build overlay, check out the newer tag and
 rebuild:
@@ -160,7 +234,7 @@ COMPOSE_FILE=docker-compose.prod.yml:docker-compose.build.yml
 Migrations run automatically on start — the `app` container's entrypoint runs
 `php artisan migrate --force`.
 
-## Confirm the running version
+### Confirm the running version
 
 A healthy stack proves the containers are alive, not that they are running the
 version you just checked out: the old container answers just as happily as the

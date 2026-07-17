@@ -38,7 +38,7 @@ is rebuilt from Postgres on boot and Redis holds only cache, sessions, and queue
 jobs, so neither needs backing up. `./docker/restore.sh` puts both back.
 
 Add `--keep=N` to prune old backups and drive it from host cron for a schedule.
-See [Backups](/docs/self-hosting/upgrading/#back-up-first) for the details, and
+See [Backups](/docs/self-hosting/upgrading/#backups) for the details, and
 the [Architecture reference](/docs/reference/architecture/) for exactly what runs
 and where state lives.
 
