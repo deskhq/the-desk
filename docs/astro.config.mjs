@@ -2,6 +2,8 @@
 import { defineConfig } from 'astro/config';
 import starlight from '@astrojs/starlight';
 import sitemap from '@astrojs/sitemap';
+import caddyfileGrammar from './src/grammars/caddyfile.tmLanguage.json' with { type: 'json' };
+import crontabGrammar from './src/grammars/crontab.tmLanguage.json' with { type: 'json' };
 
 // Public URL the site is served from. Used for canonical links, the sitemap,
 // and social-card (Open Graph / Twitter) URLs. Update this if the site moves.
@@ -17,6 +19,14 @@ export default defineConfig({
 			title: 'The Desk',
 			description:
 				'Self-hosting and operator documentation for The Desk — a real-time, self-hostable team chat application.',
+			// Register the Caddyfile and crontab TextMate grammars that Shiki does
+			// not ship in its default bundle, so the `caddy` and `cron` code fences
+			// in the self-hosting docs render highlighted instead of plain text.
+			expressiveCode: {
+				shiki: {
+					langs: [caddyfileGrammar, crontabGrammar],
+				},
+			},
 			social: [
 				{ icon: 'github', label: 'GitHub', href: 'https://github.com/emmpaul/the-desk' },
 			],

@@ -1,0 +1,47 @@
+{
+	"$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+	"name": "caddyfile",
+	"scopeName": "source.caddyfile",
+	"aliases": ["caddy"],
+	"patterns": [
+		{ "include": "#comment" },
+		{ "include": "#matcher" },
+		{ "include": "#site-address" },
+		{ "include": "#directive" },
+		{ "include": "#placeholder" },
+		{ "include": "#number" },
+		{ "include": "#block" }
+	],
+	"repository": {
+		"comment": {
+			"match": "#.*$",
+			"name": "comment.line.number-sign.caddyfile"
+		},
+		"matcher": {
+			"match": "@[\\w-]+",
+			"name": "variable.parameter.matcher.caddyfile"
+		},
+		"site-address": {
+			"match": "^\\s*((?:https?://)?(?:[a-z0-9*]([\\w.*-]*[a-z0-9*])?\\.[a-z]{2,}|localhost)(?::\\d+)?)(?=[\\s{,])",
+			"captures": {
+				"1": { "name": "entity.name.section.site.caddyfile" }
+			}
+		},
+		"directive": {
+			"match": "\\b(reverse_proxy|handle|handle_path|handle_errors|route|respond|redir|rewrite|uri|file_server|encode|templates|tls|header|header_up|header_down|request_header|log|bind|root|try_files|php_fastcgi|fastcgi|import|map|vars|basicauth|basic_auth|forward_auth|abort|error|method|path|path_regexp|expression|not|metrics|acme_server)\\b",
+			"name": "keyword.other.directive.caddyfile"
+		},
+		"placeholder": {
+			"match": "\\{[\\w.$>:-]+\\}",
+			"name": "variable.other.placeholder.caddyfile"
+		},
+		"number": {
+			"match": "\\b\\d+\\b",
+			"name": "constant.numeric.caddyfile"
+		},
+		"block": {
+			"match": "[{}]",
+			"name": "punctuation.section.block.caddyfile"
+		}
+	}
+}
