@@ -44,7 +44,8 @@ The stack **refuses to start** without these (no defaults):
 | `APP_NAME` | `The Desk`     | Shown in the UI and emails. Served at runtime.    |
 | `APP_PORT` | `8000`         | Host port the web app is published on (bound to `APP_BIND`). |
 | `APP_BIND` | `127.0.0.1`    | Address the published app/reverb ports bind to. `0.0.0.0` exposes the raw HTTP origin off-box. |
-| `APP_IMAGE`| *(pinned release image)* | Overrides the app image. Defaults to the release-pinned `ghcr.io/emmpaul/the-desk:X.Y.Z`, which `up -d` pulls with no build. Set it to run a different tag (e.g. `edge`) or an older release. |
+| `APP_VERSION` | — **(required)** | The release to run. The compose file pins the image to `ghcr.io/emmpaul/the-desk:$APP_VERSION`, so upgrading is an `APP_VERSION` bump plus `docker compose pull && docker compose up -d` — no git checkout. It has no default: `up -d` fails fast with a clear message if it is unset. |
+| `APP_IMAGE`| *(uses `APP_VERSION`)* | Full image override. Set it to run a tag on another registry (a fork, an air-gapped mirror) or a floating tag like `edge`. When set it wins completely and `APP_VERSION` is ignored. |
 
 ## Database
 

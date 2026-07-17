@@ -1,8 +1,13 @@
-# Production stack for self-hosting. Pull the prebuilt image and start it:
+# Production stack for self-hosting. This file carries no version — the release
+# to run lives in .env as APP_VERSION, so upgrading is an .env edit plus a pull,
+# with no git checkout and no repository on the server at all:
 #
-#   git fetch --tags && git checkout vX.Y.Z
-#   ./docker/gen-secrets.sh          # creates .env, which sets COMPOSE_FILE
-#   docker compose up -d             # pulls the image, no build
+#   curl -fsSL https://raw.githubusercontent.com/emmpaul/the-desk/master/docker/install.sh | sh
+#   # edit .env (APP_URL, mail, REVERB_*_PUBLIC), then:
+#   docker compose up -d             # pulls the pinned image, no build
+#
+# APP_VERSION is required and has no default: a bare `up -d` with it unset fails
+# fast with a clear message rather than silently pulling some other version.
 #
 # The bare `docker compose` above is not a typo: .env.prod.example ships
 # COMPOSE_FILE=docker-compose.prod.yml, so the CLI resolves this file with no
@@ -34,16 +39,22 @@
 
 x-app: &app
   # Runs the prebuilt turnkey image from the GitHub Container Registry — `up -d`
-  # pulls it, no build step. The default pins the image to this release, so a
-  # checkout of vX.Y.Z runs exactly that version; set APP_IMAGE to run a different
-  # tag (e.g. `edge`, or an older release). Browser Reverb settings are read at
-  # runtime, so one published image works for any host.
+  # pulls it, no build step. APP_VERSION (in .env) selects the tag, so upgrading
+  # is an APP_VERSION bump, not a git checkout. It is required and has no default:
+  # the `:?` guard fails a bare `up -d` with a clear message if it is unset, which
+  # is deliberate — a silent default would have to be stamped here and would put
+  # the version back into this file. Browser Reverb settings are read at runtime,
+  # so one published image works for any host.
+  #
+  # APP_IMAGE still overrides the whole reference when set, for a tag on another
+  # registry (a fork, an air-gapped mirror) or `edge`; then APP_VERSION is unused.
   #
   # To build from source instead, add the build overlay (docker-compose.build.yml)
-  # which restores a local build for these services:
+  # which restores a local build for these services (APP_VERSION then just tags
+  # the locally built image):
   #   COMPOSE_FILE=docker-compose.prod.yml:docker-compose.build.yml   # in .env
   #   docker compose up -d --build
-  image: ${APP_IMAGE:-ghcr.io/emmpaul/the-desk:1.6.1} # x-release-please-version
+  image: ${APP_IMAGE:-ghcr.io/emmpaul/the-desk:${APP_VERSION:?APP_VERSION is required — set it in .env (see .env.prod.example) or override APP_IMAGE}}
   env_file:
     - .env
   restart: unless-stopped
