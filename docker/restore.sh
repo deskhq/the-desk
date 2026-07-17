@@ -1,0 +1,248 @@
+#!/bin/sh
+#
+# Restore the production stack's durable state from a backup pair.
+#
+#   ./docker/restore.sh db-backup-YYYY-MM-DD.sql.gz storage-app-YYYY-MM-DD.tar.gz [--force]
+#
+# Restore is destructive in a way backup is not, so this script:
+#
+#   - refuses a non-empty database unless --force is passed, because psql
+#     replaying a plain dump over existing tables produces a half-merged mess
+#     rather than the backup you asked for;
+#   - prints exactly what it will overwrite and asks for confirmation, which
+#     --force also skips for non-interactive use (cron, CI);
+#   - stops app, reverb, queue, and scheduler before touching anything, so
+#     nothing writes to the database or the uploads mid-restore.
+#
+# Every check that can refuse runs *before* the stack is stopped, so a run that
+# bails leaves the instance exactly as it found it.
+#
+# Those services are left stopped afterwards so you can check things over (pgsql
+# stays up: it is what we restore into); bring everything back with
+# `docker compose up -d`.
+#
+# No `-f docker-compose.prod.yml` here: .env sets COMPOSE_FILE, so a bare
+# `docker compose` resolves the right files for both the published-image and
+# build-from-source setups.
+set -eu
+
+DUMP_FILE=""
+STORAGE_FILE=""
+FORCE="false"
+
+usage() {
+    echo "Usage: ./docker/restore.sh DUMP_FILE STORAGE_FILE [--force]"
+}
+
+for arg in "$@"; do
+    case "$arg" in
+        --force)
+            FORCE="true"
+            ;;
+        -h | --help)
+            usage
+            exit 0
+            ;;
+        -*)
+            echo "Error: unknown option '$arg'." >&2
+            usage >&2
+            exit 1
+            ;;
+        *)
+            if [ -z "$DUMP_FILE" ]; then
+                DUMP_FILE="$arg"
+            elif [ -z "$STORAGE_FILE" ]; then
+                STORAGE_FILE="$arg"
+            else
+                echo "Error: unexpected argument '$arg'." >&2
+                usage >&2
+                exit 1
+            fi
+            ;;
+    esac
+done
+
+if [ -z "$DUMP_FILE" ] || [ -z "$STORAGE_FILE" ]; then
+    echo "Error: both a database dump and a storage archive are required." >&2
+    usage >&2
+    exit 1
+fi
+
+if [ ! -f "docker-compose.prod.yml" ]; then
+    echo "Error: run this from the project root (docker-compose.prod.yml not found)." >&2
+    exit 1
+fi
+
+# Verify both archives before anything is stopped or overwritten. Restoring half
+# of a truncated pair is worse than refusing the whole run: a valid gzip prefix
+# can replay into psql cleanly and look like it worked.
+for file in "$DUMP_FILE" "$STORAGE_FILE"; do
+    if [ ! -r "$file" ]; then
+        echo "Error: '$file' does not exist or is not readable." >&2
+        exit 1
+    fi
+
+    if ! gzip -t "$file" 2>/dev/null; then
+        echo "Error: '$file' is not a readable gzip archive (truncated or corrupt?)." >&2
+        exit 1
+    fi
+done
+
+# `gzip -t` only proves the compressed stream is intact; a valid gzip of garbage
+# passes it. The uploads are extracted after storage/app has been cleared, so
+# check the tar structure now rather than discovering it is unreadable with the
+# existing uploads already gone.
+if ! tar tzf "$STORAGE_FILE" >/dev/null 2>&1; then
+    echo "Error: '$STORAGE_FILE' is not a readable tar archive." >&2
+    exit 1
+fi
+
+# Read a key from .env, falling back to the same default the compose file uses.
+# An exported environment variable wins, matching the documented one-liners.
+env_value() {
+    key="$1"
+    default="$2"
+    value=""
+
+    if [ -f ".env" ]; then
+        value="$(sed -n "s/^${key}=//p" .env | tail -n 1 | sed -e 's/^"\(.*\)"$/\1/' -e "s/^'\(.*\)'\$/\1/")"
+    fi
+
+    if [ -z "$value" ]; then
+        value="$default"
+    fi
+
+    echo "$value"
+}
+
+DB_USERNAME="${DB_USERNAME:-$(env_value DB_USERNAME laravel)}"
+DB_DATABASE="${DB_DATABASE:-$(env_value DB_DATABASE laravel)}"
+
+# pgsql is the one service that must be up: it is what we restore into, and the
+# emptiness check below has to query it. Starting it changes no data.
+#
+# Every docker call from here to the confirmation prompt reads from /dev/null:
+# `docker compose exec -T` attaches the container's stdin and drains it, which
+# would otherwise eat the operator's answer before `read` sees it (and makes
+# `echo yes | ./docker/restore.sh ...` fail).
+echo "Ensuring the database is up..."
+docker compose up -d --wait pgsql </dev/null
+
+# ---- Guard a populated database ---------------------------------------------
+TABLE_COUNT="$(docker compose exec -T pgsql psql -U "$DB_USERNAME" -d "$DB_DATABASE" -tAc \
+    "SELECT count(*) FROM information_schema.tables WHERE table_schema = 'public'" </dev/null | tr -d '[:space:]')"
+
+if ! echo "$TABLE_COUNT" | grep -Eq '^[0-9]+$'; then
+    echo "Error: could not inspect database '$DB_DATABASE'." >&2
+    exit 1
+fi
+
+if [ "$TABLE_COUNT" -gt 0 ] && [ "$FORCE" != "true" ]; then
+    echo "Error: database '$DB_DATABASE' is not empty ($TABLE_COUNT tables)." >&2
+    echo "  Restoring a dump over existing tables produces a half-merged database," >&2
+    echo "  so this needs an explicit --force, which replaces the schema outright:" >&2
+    echo "  ./docker/restore.sh $DUMP_FILE $STORAGE_FILE --force" >&2
+    exit 1
+fi
+
+# ---- Which writers are up ---------------------------------------------------
+# Everything that could write mid-restore. pgsql stays up by design. reverb is
+# included because it shares the app image and boots the framework, even though
+# it is not itself a writer of note.
+WRITERS="app reverb queue scheduler"
+
+running_writers() {
+    for service in $WRITERS; do
+        if [ -n "$(docker compose ps --quiet --status running "$service" 2>/dev/null </dev/null)" ]; then
+            echo "$service"
+        fi
+    done
+}
+
+RUNNING="$(running_writers | tr '\n' ' ' | sed -e 's/ *$//')"
+
+# ---- Plan and confirm -------------------------------------------------------
+echo
+echo "About to restore into this instance, overwriting:"
+if [ "$TABLE_COUNT" -gt 0 ]; then
+    echo "  database '$DB_DATABASE' ($TABLE_COUNT existing tables, schema will be replaced)"
+else
+    echo "  database '$DB_DATABASE' (currently empty)"
+fi
+echo "    <- $DUMP_FILE"
+echo "  all uploaded files in storage/app"
+echo "    <- $STORAGE_FILE"
+
+if [ -n "$RUNNING" ]; then
+    echo "  stopping first, so nothing writes mid-restore: $RUNNING"
+fi
+echo
+
+if [ "$FORCE" != "true" ]; then
+    printf 'This cannot be undone. Type "yes" to continue: '
+    if ! read -r reply; then
+        echo >&2
+        echo "Error: no input available to confirm; pass --force for non-interactive use." >&2
+        exit 1
+    fi
+
+    if [ "$reply" != "yes" ]; then
+        echo "Aborted; nothing was changed."
+        exit 1
+    fi
+    echo
+fi
+
+# ---- Stop the writers -------------------------------------------------------
+if [ -n "$RUNNING" ]; then
+    echo "Stopping $RUNNING..."
+    # Unquoted on purpose: the service names are a word list, not one argument.
+    # shellcheck disable=SC2086
+    docker compose stop $RUNNING </dev/null
+fi
+
+# ---- Database ---------------------------------------------------------------
+echo "Restoring the database..."
+# Dropping the schema and replaying the dump go to psql as ONE stream under
+# --single-transaction, so a failure rolls the whole thing back and leaves the
+# database exactly as it was. Doing the DROP as its own statement first would
+# mean a dump that fails to replay leaves the operator with neither their old
+# database nor their backup.
+#
+# The schema is dropped and recreated (rather than restoring over what is there)
+# so the dump lands in the "freshly created, empty database" it expects: a plain
+# pg_dump carries no DROP statements, so every CREATE would otherwise collide.
+#
+# ON_ERROR_STOP is what makes psql abort, and therefore roll back, on the first
+# failed statement instead of replaying the rest over a broken schema and
+# exiting 0. psql is last in the pipeline, so `set -e` sees its status.
+{
+    if [ "$TABLE_COUNT" -gt 0 ]; then
+        echo "DROP SCHEMA public CASCADE;"
+        echo "CREATE SCHEMA public;"
+    fi
+
+    gunzip -c "$DUMP_FILE"
+} | docker compose exec -T pgsql \
+    psql --single-transaction -v ON_ERROR_STOP=1 --quiet -U "$DB_USERNAME" -d "$DB_DATABASE" >/dev/null
+
+# ---- Uploaded files ---------------------------------------------------------
+# `run --rm --no-deps`, not `exec`: the app container is stopped by this point
+# and exec needs a running one. This starts a throwaway container with the same
+# storage-app volume mounted. The entrypoint is overridden because its job is to
+# migrate and cache config, none of which should happen mid-restore. The volume
+# is cleared first so the result is the backup, not the backup merged over
+# whatever was already there.
+echo "Restoring uploaded files..."
+docker compose run --rm --no-deps -T --entrypoint sh app \
+    -c 'set -e; find /app/storage/app -mindepth 1 -exec rm -rf {} +; exec tar xzf - -C /app/storage/app' \
+    <"$STORAGE_FILE"
+
+echo
+echo "Restore complete."
+if [ -n "$RUNNING" ]; then
+    # pgsql is deliberately still up: it is what we restored into.
+    echo "Still stopped so you can check things over first: $RUNNING"
+fi
+echo "Bring the stack back with:"
+echo "  docker compose up -d"

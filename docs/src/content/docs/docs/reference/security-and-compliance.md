@@ -43,7 +43,7 @@ criterion in the context of your whole system.
 | **Account deletion and erasure** | Deleting an account removes the user record and reassigns their authored messages to a shared "Deleted User" tombstone, so conversations stay coherent while personal attribution is removed. The user's personal teams are deleted. | (Privacy) P4 | A.8.10, A.5.34 |
 | **Retention windows** | Uploaded-but-unsent attachments are swept after `ATTACHMENT_PENDING_TTL_HOURS` (default 24). Data-export archives and audit-evidence export files are downloadable for a fixed 7-day window, after which a scheduled task deletes both the file and its record. Long-term retention of the audit and activity logs themselves is an operator decision (see the note below). | (Privacy) P4 | A.8.10, A.5.34 |
 | **Encryption and transport posture** | The application encrypts session data and any encrypted attributes with `APP_KEY` (AES-256). Containers speak plain HTTP by design; TLS termination is delegated to your reverse proxy (see operator responsibilities). | CC6.1, CC6.7 | A.8.24, A.5.14 |
-| **Backups** | Durable state is one PostgreSQL database plus the uploaded-files volume; the search index and Redis are derived or transient. Logical dump and restore commands are documented, but taking, testing, and storing backups is an operator responsibility. | A1.2 | A.8.13 |
+| **Backups** | Durable state is one PostgreSQL database plus the uploaded-files volume; the search index and Redis are derived or transient. `docker/backup.sh` and `docker/restore.sh` ship with the stack and cover the dump, restore, and retention (`--keep=N`), but scheduling, testing, encrypting, and off-siting backups is an operator responsibility. | A1.2 | A.8.13 |
 
 ### Notes an auditor should read
 
@@ -115,7 +115,10 @@ evidence for each of these from **your** environment, not from this project:
   database and the uploaded-files volume. This is provided by your host or storage
   layer, not the app.
 - **Backups.** Take, encrypt, test, and off-site the database and file-volume
-  backups. Commands are in [Upgrading](/docs/self-hosting/upgrading/#back-up-first).
+  backups. `docker/backup.sh` and `docker/restore.sh` handle the taking and the
+  restoring, including a `--keep=N` retention flag and a host-cron example; see
+  [Upgrading](/docs/self-hosting/upgrading/#back-up-first). Encrypting and
+  off-siting the resulting files remains yours.
 - **Secret management.** `APP_KEY`, `DB_PASSWORD`, `MEILISEARCH_KEY`, the
   `REVERB_*` credentials, and any `SCIM_TOKEN` are full secrets. Generate them
   with `./docker/gen-secrets.sh`, store them in a secret manager rather than a

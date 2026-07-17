@@ -32,10 +32,14 @@ does.
 
 ## How do I back it up?
 
-Everything lives in **PostgreSQL** and a few **Docker volumes** (uploads and the
-Meilisearch index). Back up the Postgres database and those volumes on your normal
-schedule and you can restore the whole instance. The
-[Architecture reference](/docs/reference/architecture/) lists exactly what runs
+Run `./docker/backup.sh`. It dumps the **PostgreSQL** database and archives the
+**uploads** volume, which together are everything durable: the Meilisearch index
+is rebuilt from Postgres on boot and Redis holds only cache, sessions, and queued
+jobs, so neither needs backing up. `./docker/restore.sh` puts both back.
+
+Add `--keep=N` to prune old backups and drive it from host cron for a schedule.
+See [Backups](/docs/self-hosting/upgrading/#back-up-first) for the details, and
+the [Architecture reference](/docs/reference/architecture/) for exactly what runs
 and where state lives.
 
 ## Can people sign up themselves, or is it invite-only?
