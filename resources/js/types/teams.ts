@@ -74,6 +74,7 @@ export type TeamPermissions = {
     canViewAudit: boolean;
     canViewSecurityLog: boolean;
     canViewAnalytics: boolean;
+    canManageIntegrations: boolean;
 };
 
 export type RoleOption = {

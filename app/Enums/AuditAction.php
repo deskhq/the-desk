@@ -24,6 +24,19 @@ enum AuditAction: string
     case InvitationResent = 'invitation_resent';
     case InvitationRevoked = 'invitation_revoked';
     case InvitationAccepted = 'invitation_accepted';
+    case BotCreated = 'bot_created';
+    case BotDeleted = 'bot_deleted';
+    case BotTokenCreated = 'bot_token_created';
+    case BotTokenRevoked = 'bot_token_revoked';
+    case PersonalAccessTokenCreated = 'personal_access_token_created';
+    case PersonalAccessTokenRevoked = 'personal_access_token_revoked';
+    case IncomingWebhookCreated = 'incoming_webhook_created';
+    case IncomingWebhookRevoked = 'incoming_webhook_revoked';
+    case WebhookSubscriptionCreated = 'webhook_subscription_created';
+    case WebhookSubscriptionRevoked = 'webhook_subscription_revoked';
+    case WebhookSubscriptionAutoDisabled = 'webhook_subscription_auto_disabled';
+    case WebhookSubscriptionReenabled = 'webhook_subscription_reenabled';
+    case WebhookSubscriptionSecretRotated = 'webhook_subscription_secret_rotated';
 
     /**
      * Get the short human-readable label used in the action filter and headers.
@@ -46,6 +59,19 @@ enum AuditAction: string
             self::InvitationResent => __('Invitation resent'),
             self::InvitationRevoked => __('Invitation cancelled'),
             self::InvitationAccepted => __('Invitation accepted'),
+            self::BotCreated => __('Bot created'),
+            self::BotDeleted => __('Bot deleted'),
+            self::BotTokenCreated => __('API token minted'),
+            self::BotTokenRevoked => __('API token revoked'),
+            self::PersonalAccessTokenCreated => __('Personal access token minted'),
+            self::PersonalAccessTokenRevoked => __('Personal access token revoked'),
+            self::IncomingWebhookCreated => __('Incoming webhook created'),
+            self::IncomingWebhookRevoked => __('Incoming webhook revoked'),
+            self::WebhookSubscriptionCreated => __('Webhook subscription created'),
+            self::WebhookSubscriptionRevoked => __('Webhook subscription revoked'),
+            self::WebhookSubscriptionAutoDisabled => __('Webhook subscription auto-disabled'),
+            self::WebhookSubscriptionReenabled => __('Webhook subscription re-enabled'),
+            self::WebhookSubscriptionSecretRotated => __('Webhook secret rotated'),
         };
     }
 
@@ -74,6 +100,19 @@ enum AuditAction: string
             self::InvitationResent => sprintf(__('Resent the invitation to %s'), $this->text($context, 'email')),
             self::InvitationRevoked => sprintf(__('Cancelled the invitation to %s'), $this->text($context, 'email')),
             self::InvitationAccepted => sprintf(__('Accepted the invitation to %s'), $this->text($context, 'email')),
+            self::BotCreated => sprintf(__('Created the %s bot'), $this->text($context, 'bot_name')),
+            self::BotDeleted => sprintf(__('Deleted the %s bot'), $this->text($context, 'bot_name')),
+            self::BotTokenCreated => sprintf(__('Minted the “%s” API token for the %s bot'), $this->text($context, 'token_name'), $this->text($context, 'bot_name')),
+            self::BotTokenRevoked => sprintf(__('Revoked the “%s” API token for the %s bot'), $this->text($context, 'token_name'), $this->text($context, 'bot_name')),
+            self::PersonalAccessTokenCreated => sprintf(__('Minted the “%s” personal access token'), $this->text($context, 'token_name')),
+            self::PersonalAccessTokenRevoked => sprintf(__('Revoked the “%s” personal access token'), $this->text($context, 'token_name')),
+            self::IncomingWebhookCreated => sprintf(__('Created the “%s” incoming webhook for the %s bot in #%s'), $this->text($context, 'webhook_name'), $this->text($context, 'bot_name'), $this->text($context, 'channel_name')),
+            self::IncomingWebhookRevoked => sprintf(__('Revoked the “%s” incoming webhook for the %s bot in #%s'), $this->text($context, 'webhook_name'), $this->text($context, 'bot_name'), $this->text($context, 'channel_name')),
+            self::WebhookSubscriptionCreated => sprintf(__('Created the “%s” webhook subscription'), $this->text($context, 'subscription_name')),
+            self::WebhookSubscriptionRevoked => sprintf(__('Revoked the “%s” webhook subscription'), $this->text($context, 'subscription_name')),
+            self::WebhookSubscriptionAutoDisabled => sprintf(__('Auto-disabled the “%s” webhook subscription after %s consecutive failures'), $this->text($context, 'subscription_name'), $this->text($context, 'failures')),
+            self::WebhookSubscriptionReenabled => sprintf(__('Re-enabled the “%s” webhook subscription'), $this->text($context, 'subscription_name')),
+            self::WebhookSubscriptionSecretRotated => sprintf(__('Rotated the signing secret for the “%s” webhook subscription'), $this->text($context, 'subscription_name')),
         };
     }
 

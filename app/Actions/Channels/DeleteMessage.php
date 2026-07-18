@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace App\Actions\Channels;
 
 use App\Data\MessageData;
+use App\Enums\WebhookEvent;
 use App\Events\MessageDeleted;
+use App\Events\WebhookEventOccurred;
 use App\Models\Channel;
 use App\Models\Message;
 
@@ -35,6 +37,8 @@ class DeleteMessage
         $message->delete();
 
         $message->loadMissing('user');
-        event(new MessageDeleted($channel, MessageData::fromMessage($message)));
+        $data = MessageData::fromMessage($message);
+        event(new MessageDeleted($channel, $data));
+        event(new WebhookEventOccurred(WebhookEvent::MessageDeleted, $channel, $data->toArray()));
     }
 }

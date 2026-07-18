@@ -36,6 +36,8 @@ declare module '@inertiajs/core' {
             canInviteToCurrentTeam: boolean;
             canViewCurrentTeamAudit: boolean;
             canViewCurrentTeamSecurityLog: boolean;
+            canManageCurrentTeamIntegrations: boolean;
+            integrationsEnabled: boolean;
             invitableRoles: RoleOption[];
             channels?: Channel[];
             teamMembers?: PersonRef[];

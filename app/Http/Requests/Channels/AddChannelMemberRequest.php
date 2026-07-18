@@ -3,10 +3,10 @@
 namespace App\Http\Requests\Channels;
 
 use App\Models\Channel;
+use App\Rules\AddableChannelMember;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Gate;
-use Illuminate\Validation\Rule;
 
 class AddChannelMemberRequest extends FormRequest
 {
@@ -29,7 +29,7 @@ class AddChannelMemberRequest extends FormRequest
             'user_id' => [
                 'required',
                 'uuid',
-                Rule::exists('team_members', 'user_id')->where('team_id', $this->channel()->team_id),
+                new AddableChannelMember($this->channel()->team_id),
             ],
         ];
     }

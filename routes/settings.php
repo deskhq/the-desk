@@ -8,6 +8,7 @@ use App\Http\Controllers\Settings\AvatarController;
 use App\Http\Controllers\Settings\DataExportController;
 use App\Http\Controllers\Settings\LocaleController;
 use App\Http\Controllers\Settings\NotificationController;
+use App\Http\Controllers\Settings\PersonalAccessTokenController;
 use App\Http\Controllers\Settings\ProfileController;
 use App\Http\Controllers\Settings\ReadReceiptsController;
 use App\Http\Controllers\Settings\SecurityController;
@@ -18,6 +19,12 @@ use App\Http\Controllers\Teams\AnalyticsController;
 use App\Http\Controllers\Teams\AuditController;
 use App\Http\Controllers\Teams\AuditExportController;
 use App\Http\Controllers\Teams\CustomEmojiController;
+use App\Http\Controllers\Teams\Integrations\BotChannelController;
+use App\Http\Controllers\Teams\Integrations\BotController;
+use App\Http\Controllers\Teams\Integrations\BotTokenController;
+use App\Http\Controllers\Teams\Integrations\IncomingWebhookController;
+use App\Http\Controllers\Teams\Integrations\IntegrationsController;
+use App\Http\Controllers\Teams\Integrations\WebhookSubscriptionController;
 use App\Http\Controllers\Teams\SecurityLogController;
 use App\Http\Controllers\Teams\TeamController;
 use App\Http\Controllers\Teams\TeamInvitationController;
@@ -72,6 +79,18 @@ Route::middleware(['auth', 'verified'])->group(function (): void {
     Route::get('settings/language', [LocaleController::class, 'edit'])->name('locale.edit');
     Route::patch('settings/language', [LocaleController::class, 'update'])->name('locale.update');
 
+    // Human personal access tokens for the public REST API. JSON endpoints only
+    // (the settings UI ships in a follow-up); the whole surface 404s when the
+    // integrations platform is disabled.
+    Route::middleware('integrations')->group(function (): void {
+        Route::get('settings/personal-access-tokens', [PersonalAccessTokenController::class, 'index'])
+            ->name('personal-access-tokens.index');
+        Route::post('settings/personal-access-tokens', [PersonalAccessTokenController::class, 'store'])
+            ->name('personal-access-tokens.store');
+        Route::delete('settings/personal-access-tokens/{token}', [PersonalAccessTokenController::class, 'destroy'])
+            ->name('personal-access-tokens.destroy');
+    });
+
     Route::get('settings/teams', [TeamController::class, 'index'])->name('teams.index');
     Route::post('settings/teams', [TeamController::class, 'store'])->name('teams.store');
 
@@ -107,5 +126,47 @@ Route::middleware(['auth', 'verified'])->group(function (): void {
         Route::post('settings/teams/{team}/invitations', [TeamInvitationController::class, 'store'])->name('teams.invitations.store');
         Route::delete('settings/teams/{team}/invitations/{invitation}', [TeamInvitationController::class, 'destroy'])->name('teams.invitations.destroy');
         Route::post('settings/teams/{team}/invitations/{invitation}/resend', [TeamInvitationController::class, 'resend'])->name('teams.invitations.resend');
+
+        // The integrations management surface (bots, API tokens, incoming and
+        // outgoing webhooks). The whole group additionally 404s when the
+        // integrations platform is disabled, so the settings surface disappears
+        // in lockstep with the API.
+        Route::middleware('integrations')->group(function (): void {
+            Route::get('settings/teams/{team}/integrations', [IntegrationsController::class, 'index'])
+                ->name('teams.integrations.index');
+
+            Route::post('settings/teams/{team}/integrations/bots', [BotController::class, 'store'])
+                ->name('teams.integrations.bots.store');
+            Route::get('settings/teams/{team}/integrations/bots/{bot}', [BotController::class, 'show'])
+                ->name('teams.integrations.bots.show');
+            Route::delete('settings/teams/{team}/integrations/bots/{bot}', [BotController::class, 'destroy'])
+                ->name('teams.integrations.bots.destroy');
+
+            Route::post('settings/teams/{team}/integrations/bots/{bot}/channels', [BotChannelController::class, 'store'])
+                ->name('teams.integrations.bots.channels.store');
+            Route::delete('settings/teams/{team}/integrations/bots/{bot}/channels/{channel:id}', [BotChannelController::class, 'destroy'])
+                ->name('teams.integrations.bots.channels.destroy');
+
+            Route::post('settings/teams/{team}/integrations/bots/{bot}/tokens', [BotTokenController::class, 'store'])
+                ->name('teams.integrations.bots.tokens.store');
+            Route::delete('settings/teams/{team}/integrations/bots/{bot}/tokens/{token}', [BotTokenController::class, 'destroy'])
+                ->name('teams.integrations.bots.tokens.destroy');
+
+            Route::post('settings/teams/{team}/integrations/incoming-webhooks', [IncomingWebhookController::class, 'store'])
+                ->name('teams.integrations.incoming-webhooks.store');
+            Route::delete('settings/teams/{team}/integrations/incoming-webhooks/{incomingWebhook}', [IncomingWebhookController::class, 'destroy'])
+                ->name('teams.integrations.incoming-webhooks.destroy');
+
+            Route::post('settings/teams/{team}/integrations/webhooks', [WebhookSubscriptionController::class, 'store'])
+                ->name('teams.integrations.webhooks.store');
+            Route::get('settings/teams/{team}/integrations/webhooks/{webhookSubscription}', [WebhookSubscriptionController::class, 'show'])
+                ->name('teams.integrations.webhooks.show');
+            Route::delete('settings/teams/{team}/integrations/webhooks/{webhookSubscription}', [WebhookSubscriptionController::class, 'destroy'])
+                ->name('teams.integrations.webhooks.destroy');
+            Route::post('settings/teams/{team}/integrations/webhooks/{webhookSubscription}/reenable', [WebhookSubscriptionController::class, 'reenable'])
+                ->name('teams.integrations.webhooks.reenable');
+            Route::post('settings/teams/{team}/integrations/webhooks/{webhookSubscription}/rotate-secret', [WebhookSubscriptionController::class, 'rotateSecret'])
+                ->name('teams.integrations.webhooks.rotate-secret');
+        });
     });
 });

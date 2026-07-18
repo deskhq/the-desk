@@ -143,6 +143,54 @@ The token is a full provisioning credential — treat it like a password, serve
 SCIM over HTTPS only, and rotate it if it leaks.
 :::
 
+## Integrations platform
+
+The integrations platform lets external systems act inside a workspace as **bot
+users** through a versioned public REST API at `${APP_URL}/api/v1`, and lets
+them subscribe to **outgoing webhooks** so your systems can react to activity.
+
+| Variable                      | Default | Effect                                                              |
+| ----------------------------- | ------- | ------------------------------------------------------------------ |
+| `INTEGRATIONS_ENABLED`        | `true`  | Enables bot users, the public REST API, and outgoing webhooks. Set `false` to turn the whole surface off — every `/api/v1` route returns **404**, the management UI hides, and no webhooks are delivered. |
+| `INTEGRATIONS_API_RATE_LIMIT` | `60`    | Maximum requests **per token, per minute**. Exceeding it returns **429** with a `Retry-After` header. |
+
+The platform is **on** by default. A bot authenticates with a hashed
+**Bearer token** minted for it, scoped to fine-grained `resource:action`
+abilities (for example `messages:write`, `channels:read`) — each endpoint
+enforces exactly the scope it needs, and a token acts only within the channels
+its bot belongs to. Set `INTEGRATIONS_ENABLED=false` to disable the feature
+entirely; the routes then behave as if they do not exist.
+
+**Incoming webhooks** let an external system post a message into one channel by
+POSTing to an unguessable URL — `${APP_URL}/webhooks/incoming/{token}` — where the
+opaque token in the URL **is** the credential (Slack-style). Each webhook is bound
+to a single bot and channel, its token is stored only as a hash, and it is
+individually revocable. The JSON body accepts either a native `{"body": "..."}` or
+a Slack-compatible `{"text": "..."}` field (Block Kit is ignored); an optional
+HMAC `X-Signature-256` header is honoured when a signing secret is configured.
+Incoming webhooks are governed by the same `INTEGRATIONS_ENABLED` toggle — the
+endpoint 404s when the platform is off.
+
+The toggle takes effect immediately with no data migration.
+
+### Outgoing webhooks
+
+A bot with the `webhooks:write` scope can register subscriptions (via
+`POST /api/v1/webhooks`) that deliver a signed POST to an external URL whenever
+a subscribed event happens. See the [outgoing webhooks reference](/docs/reference/webhooks/)
+for the event set, payload shapes, and signature verification. Delivery is
+tunable:
+
+| Variable                | Default | Effect                                                              |
+| ----------------------- | ------- | ------------------------------------------------------------------ |
+| `WEBHOOKS_MAX_ATTEMPTS` | `5`     | Attempts per event before giving up, each retried with exponential backoff. |
+| `WEBHOOKS_TIMEOUT`      | `5`     | Seconds each delivery request may run before it counts as a failed attempt. |
+| `WEBHOOKS_DISABLE_AFTER`| `5`     | Consecutive failed deliveries (with no success in between) after which a subscription is **auto-disabled** and stops delivering. |
+| `WEBHOOKS_BLOCK_PRIVATE_URLS` | `true` | **SSRF guard.** Rejects webhook URLs that aren't public `http`/`https` addresses — loopback, private, link-local, and cloud-metadata (`169.254.169.254`) targets, plus `localhost`/`.local`/`.internal` hostnames — both when a subscription is registered and again before every delivery. Turn off only for a locked-down instance that deliberately targets internal endpoints. |
+
+Webhooks ride on the same `INTEGRATIONS_ENABLED` master switch — turning the
+platform off stops all delivery immediately, including jobs already queued.
+
 ## Gravatar avatars
 
 User avatars are derived from [Gravatar](https://gravatar.com) using the MD5 hash

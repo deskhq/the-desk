@@ -2,12 +2,17 @@
 
 namespace App\Providers;
 
+use App\Models\PersonalAccessToken;
 use App\Support\IpGeolocator;
 use Carbon\CarbonImmutable;
+use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Validation\Rules\Password;
+use Laravel\Sanctum\Sanctum;
 use Meilisearch\Client;
 
 class AppServiceProvider extends ServiceProvider
@@ -33,7 +38,32 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        Sanctum::usePersonalAccessTokenModel(PersonalAccessToken::class);
+
         $this->configureDefaults();
+        $this->configureRateLimiting();
+    }
+
+    /**
+     * Configure the public API's per-token rate limit at
+     * `INTEGRATIONS_API_RATE_LIMIT` requests/minute.
+     */
+    protected function configureRateLimiting(): void
+    {
+        // Keyed on the presented bearer token (hashed, never stored raw) so each
+        // bot integration is throttled independently at the operator-configured
+        // rate; a hit yields a 429 with a Retry-After header.
+        RateLimiter::for('integrations', fn (Request $request): Limit => Limit::perMinute(
+            (int) config('integrations.api_rate_limit'),
+        )->by(sha1((string) $request->bearerToken())));
+
+        // Incoming webhooks authenticate by the opaque token in their URL, not a
+        // bearer token, so they are throttled per URL token — two webhooks posting
+        // from the same egress IP never share a quota. Same operator-configured
+        // rate as the rest of the platform.
+        RateLimiter::for('incoming-webhook', fn (Request $request): Limit => Limit::perMinute(
+            (int) config('integrations.api_rate_limit'),
+        )->by(sha1((string) $request->route('token'))));
     }
 
     /**
