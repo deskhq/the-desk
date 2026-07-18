@@ -160,6 +160,16 @@ enforces exactly the scope it needs, and a token acts only within the channels
 its bot belongs to. Set `INTEGRATIONS_ENABLED=false` to disable the feature
 entirely; the routes then behave as if they do not exist.
 
+**Incoming webhooks** let an external system post a message into one channel by
+POSTing to an unguessable URL — `${APP_URL}/webhooks/incoming/{token}` — where the
+opaque token in the URL **is** the credential (Slack-style). Each webhook is bound
+to a single bot and channel, its token is stored only as a hash, and it is
+individually revocable. The JSON body accepts either a native `{"body": "..."}` or
+a Slack-compatible `{"text": "..."}` field (Block Kit is ignored); an optional
+HMAC `X-Signature-256` header is honoured when a signing secret is configured.
+Incoming webhooks are governed by the same `INTEGRATIONS_ENABLED` toggle — the
+endpoint 404s when the platform is off.
+
 The toggle takes effect immediately with no data migration.
 
 ## Gravatar avatars
