@@ -37,6 +37,16 @@ return [
         ],
     ],
 
+    // Giphy powers the composer's `/gif` picker. The feature is fully hidden and
+    // its endpoints 404 unless `GIPHY_API_KEY` is set (an operator-supplied key
+    // from developers.giphy.com), so a default deployment ships it off. `rating`
+    // is the strictest content rating Giphy may return — `g` (workplace-safe)
+    // by default; loosen to `pg`, `pg-13`, or `r` for a casual community.
+    'giphy' => [
+        'key' => env('GIPHY_API_KEY'),
+        'rating' => env('GIPHY_CONTENT_RATING', 'g'),
+    ],
+
     // Generic OpenID Connect provider (Okta, Microsoft Entra ID, Google
     // Workspace, Auth0, Keycloak, …). Socialite resolves the driver named
     // "oidc" from this block; App\Providers\SsoServiceProvider reads the issuer's

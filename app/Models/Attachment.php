@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\AttachmentSource;
 use App\Enums\AttachmentStatus;
 use Database\Factories\AttachmentFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
@@ -19,13 +20,16 @@ use Illuminate\Support\Facades\Storage;
  * @property string|null $message_id
  * @property string $user_id
  * @property string $channel_id
- * @property string $disk
- * @property string $path
- * @property string $original_filename
+ * @property AttachmentSource $source
+ * @property string|null $disk
+ * @property string|null $path
+ * @property string|null $original_filename
  * @property string $mime_type
  * @property int $size_bytes
  * @property int|null $width
  * @property int|null $height
+ * @property string|null $remote_url
+ * @property string|null $description
  * @property string|null $thumb_path
  * @property AttachmentStatus $status
  * @property Carbon|null $deleted_at
@@ -37,11 +41,22 @@ use Illuminate\Support\Facades\Storage;
  * @property-read User $user
  * @property-read Channel $channel
  */
-#[Fillable(['message_id', 'user_id', 'channel_id', 'disk', 'path', 'original_filename', 'mime_type', 'size_bytes', 'width', 'height', 'thumb_path', 'status'])]
+#[Fillable(['message_id', 'user_id', 'channel_id', 'source', 'disk', 'path', 'original_filename', 'mime_type', 'size_bytes', 'width', 'height', 'remote_url', 'description', 'thumb_path', 'status'])]
 class Attachment extends Model
 {
     /** @use HasFactory<AttachmentFactory> */
     use HasFactory, HasUuids, SoftDeletes;
+
+    /**
+     * Default an attachment to an operator-hosted upload, so a row created
+     * without an explicit `source` (the upload path) has it populated in memory
+     * — not just via the database column default after a reload.
+     *
+     * @var array<string, mixed>
+     */
+    protected $attributes = [
+        'source' => AttachmentSource::Upload->value,
+    ];
 
     /**
      * Mime types that are image-shaped but must never be rendered inline. SVG is
@@ -63,6 +78,11 @@ class Attachment extends Model
     protected static function booted(): void
     {
         static::forceDeleted(function (Attachment $attachment): void {
+            // A remote attachment (Giphy) has no blob on disk — nothing to reclaim.
+            if ($attachment->path === null) {
+                return;
+            }
+
             try {
                 $disk = Storage::disk($attachment->disk);
                 $disk->delete($attachment->path);
@@ -133,15 +153,20 @@ class Attachment extends Model
      * team are expected to be eager-loaded (via the message payload's relation
      * set) so building this per attachment stays N+1-free.
      *
+     * A remote attachment (Giphy) has no blob to serve, so its media is the
+     * CDN URL hotlinked directly — the blob-only serve route does not apply.
+     *
      * @return Attribute<string, never>
      */
     protected function url(): Attribute
     {
-        return Attribute::get(fn (): string => route('channels.attachments.download', [
-            'team' => $this->channel->team->slug,
-            'channel' => $this->channel->slug,
-            'attachment' => $this->id,
-        ]));
+        return Attribute::get(fn (): string => $this->source === AttachmentSource::Giphy
+            ? (string) $this->remote_url
+            : route('channels.attachments.download', [
+                'team' => $this->channel->team->slug,
+                'channel' => $this->channel->slug,
+                'attachment' => $this->id,
+            ]));
     }
 
     /**
@@ -169,6 +194,7 @@ class Attachment extends Model
             'size_bytes' => 'int',
             'width' => 'int',
             'height' => 'int',
+            'source' => AttachmentSource::class,
             'status' => AttachmentStatus::class,
         ];
     }
