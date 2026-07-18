@@ -18,8 +18,10 @@ const props = defineProps<{
     attachments: AttachmentData[];
     authorName: string;
     createdAt: string;
-    // The viewer's configured timezone, so the lightbox's timestamp matches the
-    // timeline. Undefined falls back to the browser's local zone.
+    /**
+     * The viewer's configured timezone, so the lightbox's timestamp matches the
+     * timeline. Undefined falls back to the browser's local zone.
+     */
     viewerTimeZone?: string;
 }>();
 

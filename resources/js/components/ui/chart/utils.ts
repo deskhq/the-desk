@@ -3,10 +3,9 @@ import { isClient } from "@vueuse/core"
 import { useId } from "reka-ui"
 import { h, render } from "vue"
 
-// Simple cache using a Map to store serialized object keys
 const cache = new Map<string, string>()
 
-// Convert object to a consistent string key
+/** Convert object to a consistent string key */
 function serializeKey(key: Record<string, any>): string {
   return JSON.stringify(key, Object.keys(key).sort())
 }

@@ -3,8 +3,10 @@ import { translate } from '@/lib/i18n';
 import { isSystemMessage } from '@/lib/messageActions';
 import type { Message, MessageAuthor } from '@/types';
 
-// Consecutive messages from the same author within this window collapse under a
-// single avatar + header line in the timeline.
+/**
+ * Consecutive messages from the same author within this window collapse under a
+ * single avatar + header line in the timeline.
+ */
 export const GROUPING_WINDOW_MS = 5 * 60 * 1000;
 
 /**

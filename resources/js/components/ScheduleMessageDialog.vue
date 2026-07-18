@@ -33,10 +33,12 @@ import type { SchedulePreset } from '@/lib/scheduleTime';
 
 const props = withDefaults(
     defineProps<{
-        // The viewer's stored IANA zone; falls back to the runtime zone when null
-        // so presets and the picker are always resolved in a real zone.
+        /**
+         * The viewer's stored IANA zone; falls back to the runtime zone when null
+         * so presets and the picker are always resolved in a real zone.
+         */
         timezone: string | null;
-        // When editing an existing scheduled message, the instant to open on.
+        /** When editing an existing scheduled message, the instant to open on. */
         initialSendAt?: string | null;
         title?: string;
         confirmLabel?: string;

@@ -38,7 +38,6 @@ function setOpenMobile(value: boolean) {
   openMobile.value = value
 }
 
-// Helper to toggle the sidebar.
 function toggleSidebar() {
   return isMobile.value ? setOpenMobile(!openMobile.value) : setOpen(!open.value)
 }
@@ -50,8 +49,10 @@ useEventListener("keydown", (event: KeyboardEvent) => {
   }
 })
 
-// We add a state so that we can do data-state="expanded" or "collapsed".
-// This makes it easier to style the sidebar with Tailwind classes.
+/**
+ * We add a state so that we can do data-state="expanded" or "collapsed".
+ * This makes it easier to style the sidebar with Tailwind classes.
+ */
 const state = computed(() => open.value ? "expanded" : "collapsed")
 
 provideSidebarContext({

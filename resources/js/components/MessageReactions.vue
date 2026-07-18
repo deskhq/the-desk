@@ -15,8 +15,10 @@ import type { Reaction } from '@/types';
 const props = defineProps<{
     reactions: Reaction[];
     currentUserId: string;
-    // Whether the viewer may add/remove reactions (channel member, non-archived);
-    // when false the existing pills still render read-only.
+    /**
+     * Whether the viewer may add/remove reactions (channel member, non-archived);
+     * when false the existing pills still render read-only.
+     */
     canReact: boolean;
 }>();
 

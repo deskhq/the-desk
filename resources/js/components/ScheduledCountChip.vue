@@ -3,14 +3,16 @@ import { Clock } from '@lucide/vue';
 import { Button } from '@/components/ui/button';
 
 defineProps<{
-    // Number of pending scheduled messages for the channel (always > 0 at the
-    // call site — the chip is only rendered when there are some to view).
+    /**
+     * Number of pending scheduled messages for the channel (always > 0 at the
+     * call site — the chip is only rendered when there are some to view).
+     */
     count: number;
     channelName: string;
 }>();
 
 const emit = defineEmits<{
-    // Open the scheduled-messages list dialog.
+    /** Open the scheduled-messages list dialog. */
     view: [];
 }>();
 </script>

@@ -14,11 +14,13 @@ import {
 } from '@/composables/useConnectionState';
 import type { ConnectionState } from '@/composables/useConnectionState';
 
-// A no-op custom renderer lets us mount a real component instance under Node
-// (no DOM), which is what fires the composable's `onMounted` — the hook that
-// ungates the pill so first paint matches SSR. An effectScope alone never
-// mounts, so the pill would stay blank and the reconnecting/back-online
-// assertions below could never be exercised.
+/**
+ * A no-op custom renderer lets us mount a real component instance under Node
+ * (no DOM), which is what fires the composable's `onMounted` — the hook that
+ * ungates the pill so first paint matches SSR. An effectScope alone never
+ * mounts, so the pill would stay blank and the reconnecting/back-online
+ * assertions below could never be exercised.
+ */
 const { createApp } = createRenderer<object, object>({
     insert: () => {},
     remove: () => {},

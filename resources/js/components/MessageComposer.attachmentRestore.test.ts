@@ -25,7 +25,7 @@ import MessageComposer from './MessageComposer.vue';
  * instead so the real staging → detach → restore flow runs.
  */
 
-// Control the upload transport so a staged file settles to `done` on demand.
+/** Control the upload transport so a staged file settles to `done` on demand. */
 const uploads = vi.hoisted(
     () => [] as Array<{ resolve: (value: unknown) => void }>,
 );
@@ -113,9 +113,11 @@ vi.mock('@/components/MessageQuote', async () => {
 
 let active: Array<{ app: App; container: HTMLElement }> = [];
 
-// An image staged in the tray gets a preview object URL, which `dispose()`
-// revokes and `restore()` keeps alive — the observable difference between an
-// accepted and a rejected send. jsdom ships neither, so stand them up here.
+/**
+ * An image staged in the tray gets a preview object URL, which `dispose()`
+ * revokes and `restore()` keeps alive — the observable difference between an
+ * accepted and a rejected send. jsdom ships neither, so stand them up here.
+ */
 const PREVIEW_URL = 'blob:preview-1';
 const revokeObjectUrl = vi.fn();
 

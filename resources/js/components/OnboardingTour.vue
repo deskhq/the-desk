@@ -7,14 +7,16 @@ import { useOnboardingTour } from '@/composables/useOnboardingTour';
 const { isOpen, stepIndex, steps, currentStep, isLastStep, next, skip } =
     useOnboardingTour();
 
-// Padding around the spotlighted element, and how far the coachmark sits from it.
+/** Padding around the spotlighted element, and how far the coachmark sits from it. */
 const SPOTLIGHT_PADDING = 8;
 const BUBBLE_GAP = 16;
 const BUBBLE_WIDTH = 340;
 
-// The active step's anchor rect in viewport coordinates, or null when the anchor
-// is not on the page (e.g. it lives inside the collapsed mobile sidebar sheet),
-// in which case the coachmark falls back to the screen centre.
+/**
+ * The active step's anchor rect in viewport coordinates, or null when the anchor
+ * is not on the page (e.g. it lives inside the collapsed mobile sidebar sheet),
+ * in which case the coachmark falls back to the screen centre.
+ */
 const targetRect = ref<DOMRect | null>(null);
 
 function measure(): void {
@@ -33,8 +35,10 @@ function measure(): void {
     targetRect.value = element?.getBoundingClientRect() ?? null;
 }
 
-// The spotlight ring: a transparent box over the anchor whose huge box-shadow
-// dims the rest of the screen, cutting a lit hole around the highlighted action.
+/**
+ * The spotlight ring: a transparent box over the anchor whose huge box-shadow
+ * dims the rest of the screen, cutting a lit hole around the highlighted action.
+ */
 const spotlightStyle = computed(() => {
     const rect = targetRect.value;
 
@@ -50,9 +54,11 @@ const spotlightStyle = computed(() => {
     };
 });
 
-// Position the coachmark next to the anchor — above it when it sits in the lower
-// half of the viewport, otherwise below — clamped to stay on screen. Falls back
-// to the centre when there is no anchor.
+/**
+ * Position the coachmark next to the anchor — above it when it sits in the lower
+ * half of the viewport, otherwise below — clamped to stay on screen. Falls back
+ * to the centre when there is no anchor.
+ */
 const bubbleStyle = computed(() => {
     const rect = targetRect.value;
 

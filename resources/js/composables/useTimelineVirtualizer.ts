@@ -41,10 +41,12 @@ export function useTimelineVirtualizer(options: {
     hasOlder: () => boolean;
     isLoadingOlder: () => boolean;
     loadOlder: () => void;
-    // True while the consumer is deliberately pinning the view to the newest
-    // message (a jump-to-present). Upward size-change anchoring is suppressed
-    // during it so a row measured above the viewport can't drift the view up
-    // while we settle on the bottom.
+    /**
+     * True while the consumer is deliberately pinning the view to the newest
+     * message (a jump-to-present). Upward size-change anchoring is suppressed
+     * during it so a row measured above the viewport can't drift the view up
+     * while we settle on the bottom.
+     */
     isPinning?: () => boolean;
 }) {
     const virtualizer = useVirtualizer(

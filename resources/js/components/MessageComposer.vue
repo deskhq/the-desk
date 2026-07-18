@@ -48,38 +48,54 @@ const props = defineProps<{
     placeholder?: string;
     allowSendToChannel?: boolean;
     autofocus?: boolean;
-    // Text to seed the composer with on mount, e.g. a persisted draft. Restored
-    // verbatim (mention tokens included) so it round-trips faithfully.
+    /**
+     * Text to seed the composer with on mount, e.g. a persisted draft. Restored
+     * verbatim (mention tokens included) so it round-trips faithfully.
+     */
     initialBody?: string;
-    // Whether to offer the "schedule for later" affordance (main channel
-    // composer only). The viewer's zone drives the picker's presets.
+    /**
+     * Whether to offer the "schedule for later" affordance (main channel
+     * composer only). The viewer's zone drives the picker's presets.
+     */
     allowSchedule?: boolean;
     timezone?: string | null;
-    // The messages of the surface this composer posts to (main timeline or the
-    // open thread), oldest first. ArrowUp on an empty composer loads the
-    // viewer's most recent editable one from here into an inline edit mode.
+    /**
+     * The messages of the surface this composer posts to (main timeline or the
+     * open thread), oldest first. ArrowUp on an empty composer loads the
+     * viewer's most recent editable one from here into an inline edit mode.
+     */
     messages?: Message[];
-    // The viewer's id, resolving which of `messages` they may edit.
+    /** The viewer's id, resolving which of `messages` they may edit. */
     currentUserId?: string;
-    // Client uuids of the viewer's in-flight optimistic sends; those rows have
-    // no stable id yet and are skipped when resolving the edit target.
+    /**
+     * Client uuids of the viewer's in-flight optimistic sends; those rows have
+     * no stable id yet and are skipped when resolving the edit target.
+     */
     pendingUuids?: string[];
-    // The team and channel slugs the composer posts to. Both are required to
-    // enable attachments: files pre-upload to this channel's endpoint, so
-    // without them the "Add attachment" button stays disabled (e.g. the thread
-    // composer, which does not carry a channel slug).
+    /**
+     * The team and channel slugs the composer posts to. Both are required to
+     * enable attachments: files pre-upload to this channel's endpoint, so
+     * without them the "Add attachment" button stays disabled (e.g. the thread
+     * composer, which does not carry a channel slug).
+     */
     teamSlug?: string;
     channelSlug?: string;
-    // The per-file and per-message attachment caps, pre-checked client-side for
-    // instant feedback (the server re-enforces both).
+    /**
+     * The per-file and per-message attachment caps, pre-checked client-side for
+     * instant feedback (the server re-enforces both).
+     */
     maxAttachmentSizeMb?: number;
     maxAttachmentsPerMessage?: number;
-    // The server's slash-command autocomplete manifest. Passed only where slash
-    // commands apply (the main channel composer); absent/empty elsewhere (e.g.
-    // the thread composer), which disables all slash handling.
+    /**
+     * The server's slash-command autocomplete manifest. Passed only where slash
+     * commands apply (the main channel composer); absent/empty elsewhere (e.g.
+     * the thread composer), which disables all slash handling.
+     */
     slashCommands?: App.Data.SlashCommandData[];
-    // Whether the Giphy `/gif` picker is available (an API key is configured).
-    // When false, `/gif` is neither in the manifest nor intercepted here.
+    /**
+     * Whether the Giphy `/gif` picker is available (an API key is configured).
+     * When false, `/gif` is neither in the manifest nor intercepted here.
+     */
     gifPickerEnabled?: boolean;
 }>();
 
@@ -89,26 +105,36 @@ const emit = defineEmits<{
         mentions: Mention[],
         sendToChannel: boolean,
         attachmentIds: string[],
-        // Outcome hooks: the tray is emptied optimistically on send, so a failed
-        // online send restores the staged attachments (and body) through these.
+        /**
+         * Outcome hooks: the tray is emptied optimistically on send, so a failed
+         * online send restores the staged attachments (and body) through these.
+         */
         callbacks: SendCallbacks,
     ];
-    // A slash command was typed and sent. The raw body goes to the server, which
-    // parses it authoritatively; the callbacks clear the composer on success and
-    // keep the text on error (the send is non-optimistic).
+    /**
+     * A slash command was typed and sent. The raw body goes to the server, which
+     * parses it authoritatively; the callbacks clear the composer on success and
+     * keep the text on error (the send is non-optimistic).
+     */
     command: [body: string, callbacks: CommandCallbacks];
     typing: [];
     cancelReply: [];
-    // The composer body changed (typed, restored-then-edited, or cleared on
-    // send). The parent decides whether to persist it as a draft.
+    /**
+     * The composer body changed (typed, restored-then-edited, or cleared on
+     * send). The parent decides whether to persist it as a draft.
+     */
     draftChange: [body: string];
-    // The composer text should be delivered later, at the chosen UTC instant.
+    /** The composer text should be delivered later, at the chosen UTC instant. */
     schedule: [body: string, mentions: Mention[], sendAt: string];
-    // Save an inline composer edit through the same PATCH path the message
-    // list's inline editor uses.
+    /**
+     * Save an inline composer edit through the same PATCH path the message
+     * list's inline editor uses.
+     */
     edit: [message: Message, body: string];
-    // The composer entered (message id) or left (null) edit mode, so the
-    // parent can highlight the target row in the timeline.
+    /**
+     * The composer entered (message id) or left (null) edit mode, so the
+     * parent can highlight the target row in the timeline.
+     */
     editingChange: [messageId: string | null];
 }>();
 
@@ -118,15 +144,19 @@ const { t } = useTranslations();
 const body = ref(props.initialBody ?? '');
 const textarea = ref<HTMLTextAreaElement | null>(null);
 
-// The message the composer is editing in place, or null in normal compose mode.
-// Set by the ArrowUp "edit last message" shortcut; while non-null the body is
-// scoped to that message, not a new-message draft.
+/**
+ * The message the composer is editing in place, or null in normal compose mode.
+ * Set by the ArrowUp "edit last message" shortcut; while non-null the body is
+ * scoped to that message, not a new-message draft.
+ */
 const editingMessage = ref<Message | null>(null);
 
-// When true, the next body change is a programmatic clear-on-send (or the wipe
-// that leaves edit mode), not a user edit, so it must not emit a draft change:
-// sending already clears the draft server-side, and re-emitting would fire a
-// redundant save.
+/**
+ * When true, the next body change is a programmatic clear-on-send (or the wipe
+ * that leaves edit mode), not a user edit, so it must not emit a draft change:
+ * sending already clears the draft server-side, and re-emitting would fire a
+ * redundant save.
+ */
 let clearingAfterSend = false;
 
 // Surface every body change so the parent can persist (or clear) the draft.
@@ -148,19 +178,23 @@ watch(body, (value) => {
     emit('draftChange', value);
 });
 
-// In a thread composer, whether the reply is also surfaced in the main timeline.
+/** In a thread composer, whether the reply is also surfaced in the main timeline. */
 const sendToChannel = ref(false);
 
-// Attachments are enabled only when the composer knows its channel: files
-// pre-upload to that channel's endpoint. The thread composer omits the slug, so
-// its "Add attachment" button stays disabled (thread attachments are a separate
-// epic child).
+/**
+ * Attachments are enabled only when the composer knows its channel: files
+ * pre-upload to that channel's endpoint. The thread composer omits the slug, so
+ * its "Add attachment" button stays disabled (thread attachments are a separate
+ * epic child).
+ */
 const attachmentsEnabled = computed(
     () => Boolean(props.teamSlug) && Boolean(props.channelSlug),
 );
 
-// The pre-send attachment tray: files upload immediately on pick/paste/drop,
-// each row tracking its own progress; the send later claims the finished ids.
+/**
+ * The pre-send attachment tray: files upload immediately on pick/paste/drop,
+ * each row tracking its own progress; the send later claims the finished ids.
+ */
 const uploads = useAttachmentUploads({
     endpoint: () =>
         storeAttachment({
@@ -176,9 +210,11 @@ const showTray = computed(
     () => attachmentsEnabled.value && trayItems.value.length > 0,
 );
 
-// A send is allowed once nothing is mid-upload or failed and there is something
-// to send (body text or at least one finished attachment). Body is optional
-// when the tray carries a ready attachment.
+/**
+ * A send is allowed once nothing is mid-upload or failed and there is something
+ * to send (body text or at least one finished attachment). Body is optional
+ * when the tray carries a ready attachment.
+ */
 const canSubmit = computed(() => {
     if (uploads.isUploading.value || uploads.hasFailed.value) {
         return false;
@@ -187,7 +223,7 @@ const canSubmit = computed(() => {
     return body.value.trim() !== '' || uploads.attachmentIds.value.length > 0;
 });
 
-// The hidden native file input the "Add attachment" button proxies to.
+/** The hidden native file input the "Add attachment" button proxies to. */
 const fileInput = ref<HTMLInputElement | null>(null);
 
 function openFilePicker(): void {
@@ -205,8 +241,10 @@ function onFilesPicked(event: Event): void {
     input.value = '';
 }
 
-// Pasting image data (a screenshot) or files into the composer stages them in
-// the tray instead of dropping raw bytes into the text.
+/**
+ * Pasting image data (a screenshot) or files into the composer stages them in
+ * the tray instead of dropping raw bytes into the text.
+ */
 function onPaste(event: ClipboardEvent): void {
     if (!attachmentsEnabled.value) {
         return;
@@ -220,8 +258,10 @@ function onPaste(event: ClipboardEvent): void {
     }
 }
 
-// Stage externally-provided files (the channel pane's drag-and-drop overlay
-// forwards its drop here). Exposed below.
+/**
+ * Stage externally-provided files (the channel pane's drag-and-drop overlay
+ * forwards its drop here). Exposed below.
+ */
 function addFiles(files: FileList | File[]): void {
     if (attachmentsEnabled.value) {
         uploads.addFiles(files);
@@ -258,13 +298,17 @@ watch(
     },
 );
 
-// Well-formed mention token: `@[Display Name](user-id)`. The parser on the
-// server resolves the id; here it lets us collect the mentions being sent and
-// recognise a completed token so it never re-triggers the autocomplete.
+/**
+ * Well-formed mention token: `@[Display Name](user-id)`. The parser on the
+ * server resolves the id; here it lets us collect the mentions being sent and
+ * recognise a completed token so it never re-triggers the autocomplete.
+ */
 const MENTION_TOKEN = /@\[[^\]]+\]\(([0-9a-fA-F-]{36})\)/g;
 
-// A fresh `@query` at the caret: an `@` at the start or after whitespace,
-// followed by run of non-space characters that isn't already a token.
+/**
+ * A fresh `@query` at the caret: an `@` at the start or after whitespace,
+ * followed by run of non-space characters that isn't already a token.
+ */
 const MENTION_QUERY = /(?:^|\s)@([^\s@[\]()]*)$/;
 
 const MAX_SUGGESTIONS = 8;
@@ -354,10 +398,12 @@ function selectActive(): void {
     }
 }
 
-// A slash command occupies the whole body up to the caret: a leading `/`
-// followed by word characters and nothing else. The menu therefore triggers
-// only at composer position 0 and closes the instant a space is typed (which
-// breaks the match), matching the server's `^/(name)(\s|$)` interception rule.
+/**
+ * A slash command occupies the whole body up to the caret: a leading `/`
+ * followed by word characters and nothing else. The menu therefore triggers
+ * only at composer position 0 and closes the instant a space is typed (which
+ * breaks the match), matching the server's `^/(name)(\s|$)` interception rule.
+ */
 const SLASH_QUERY = /^\/(\w*)$/;
 
 const slashSuggestions = ref<App.Data.SlashCommandData[]>([]);
@@ -368,8 +414,10 @@ const showSlashMenu = computed(
     () => slashMenuOpen.value && slashSuggestions.value.length > 0,
 );
 
-// True while a command send awaits the server. Unlike a normal (optimistic)
-// send, a command keeps its text and blocks re-submits until the outcome lands.
+/**
+ * True while a command send awaits the server. Unlike a normal (optimistic)
+ * send, a command keeps its text and blocks re-submits until the outcome lands.
+ */
 const commandPending = ref(false);
 
 function refreshSlashSuggestions(): void {
@@ -407,18 +455,22 @@ function slashMoveActive(delta: number): void {
     slashActiveIndex.value = (slashActiveIndex.value + delta + count) % count;
 }
 
-// The one picker-backed command: `/gif` opens the Giphy picker instead of
-// completing to text and posting through the command endpoint.
+/**
+ * The one picker-backed command: `/gif` opens the Giphy picker instead of
+ * completing to text and posting through the command endpoint.
+ */
 const GIF_COMMAND_NAME = 'gif';
 
-// The GIF picker's open state and the search term it opens on (from `/gif cats`).
+/** The GIF picker's open state and the search term it opens on (from `/gif cats`). */
 const gifPickerOpen = ref(false);
 const gifPickerQuery = ref('');
 
-// The picker is usable only when configured, when the composer knows its
-// channel (a picked GIF is staged as an attachment on that channel), and while
-// composing a new message — not editing an existing one (an inline edit saves
-// text only and cannot carry an attachment).
+/**
+ * The picker is usable only when configured, when the composer knows its
+ * channel (a picked GIF is staged as an attachment on that channel), and while
+ * composing a new message — not editing an existing one (an inline edit saves
+ * text only and cannot carry an attachment).
+ */
 const gifPickerAvailable = computed(
     () =>
         Boolean(props.gifPickerEnabled) &&
@@ -546,8 +598,10 @@ function resize(): void {
     el.style.height = `${Math.min(el.scrollHeight, 200)}px`;
 }
 
-// The platform's primary modifier, for the format tooltips' shortcut hints.
-// Falls back to Ctrl off-Mac (and during SSR, where `navigator` is absent).
+/**
+ * The platform's primary modifier, for the format tooltips' shortcut hints.
+ * Falls back to Ctrl off-Mac (and during SSR, where `navigator` is absent).
+ */
 const isMac =
     typeof navigator !== 'undefined' &&
     /Mac|iPhone|iPad/.test(navigator.platform);
@@ -675,19 +729,23 @@ function insertMention(member: Mention): void {
     });
 }
 
-// Focus the input field, e.g. from the brand-new-workspace welcome's "Post your
-// first message" action.
+/**
+ * Focus the input field, e.g. from the brand-new-workspace welcome's "Post your
+ * first message" action.
+ */
 function focus(): void {
     nextTick(() => textarea.value?.focus());
 }
 
-// The whole card reads as "the message box", so a click anywhere in its chrome —
-// the padding, the whitespace around the single line of text — should activate
-// the input. Clicks that land on a control (send/attachment/schedule buttons) or
-// on the textarea itself carry their own behaviour and are left untouched; only
-// clicks on the non-interactive chrome fall through here to focus the field with
-// the caret at the end. `mousedown` is preventable before focus shifts, so the
-// redirect happens without a flicker of the card losing then regaining focus.
+/**
+ * The whole card reads as "the message box", so a click anywhere in its chrome —
+ * the padding, the whitespace around the single line of text — should activate
+ * the input. Clicks that land on a control (send/attachment/schedule buttons) or
+ * on the textarea itself carry their own behaviour and are left untouched; only
+ * clicks on the non-interactive chrome fall through here to focus the field with
+ * the caret at the end. `mousedown` is preventable before focus shifts, so the
+ * redirect happens without a flicker of the card losing then regaining focus.
+ */
 function focusFromCard(event: MouseEvent): void {
     const el = textarea.value;
 
@@ -710,8 +768,10 @@ function focusFromCard(event: MouseEvent): void {
 
 defineExpose({ insertMention, focus, addFiles });
 
-// Clear the composer after the text has been handed off (an immediate send or a
-// scheduled one), flagging the wipe so it doesn't re-persist as a draft.
+/**
+ * Clear the composer after the text has been handed off (an immediate send or a
+ * scheduled one), flagging the wipe so it doesn't re-persist as a draft.
+ */
 function clearAfterHandoff(): void {
     clearingAfterSend = true;
     body.value = '';
@@ -899,12 +959,16 @@ function saveEdit(): void {
     exitEditMode();
 }
 
-// Whether the schedule picker is open. Opening requires some text — an empty
-// composer has nothing to schedule.
+/**
+ * Whether the schedule picker is open. Opening requires some text — an empty
+ * composer has nothing to schedule.
+ */
 const scheduling = ref(false);
 
-// Scheduling never carries attachments, so the "Send later" affordances gate on
-// body text alone, matching the old schedule button's guard.
+/**
+ * Scheduling never carries attachments, so the "Send later" affordances gate on
+ * body text alone, matching the old schedule button's guard.
+ */
 const canSchedule = computed(() => body.value.trim() !== '');
 
 function openSchedule(): void {
