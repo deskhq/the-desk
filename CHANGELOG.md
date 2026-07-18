@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.8.0](https://github.com/emmpaul/the-desk/compare/v1.7.1...v1.8.0) (2026-07-18)
+
+
+### Features
+
+* user-uploaded avatars ([#502](https://github.com/emmpaul/the-desk/issues/502)) ([fd8c30b](https://github.com/emmpaul/the-desk/commit/fd8c30b52d442c10d96649e1ea50c56324c3a39b))
+* virtualize the thread panel timeline ([#501](https://github.com/emmpaul/the-desk/issues/501)) ([6cdcd5b](https://github.com/emmpaul/the-desk/commit/6cdcd5b577a889c2a16c1faf23430a535e8a9891))
+
+
+### Bug Fixes
+
+* pin the virtualized timeline to the newest message on initial open of tall lists ([#508](https://github.com/emmpaul/the-desk/issues/508)) ([4a0d330](https://github.com/emmpaul/the-desk/commit/4a0d330e0c7abf470f4fe315cb847793845c0b80))
+* sync Meilisearch index settings on deploy ([#507](https://github.com/emmpaul/the-desk/issues/507)) ([795fd95](https://github.com/emmpaul/the-desk/commit/795fd95a9dee2e9ce08832b025fc100208891d2d))
+
 ## [1.7.1](https://github.com/emmpaul/the-desk/compare/v1.7.0...v1.7.1) (2026-07-17)
 
 
