@@ -10,7 +10,7 @@ import {
     zonedWallTime,
 } from '@/lib/scheduleTime';
 
-// A fixed reference instant: Tuesday 14 Jul 2026, 15:30 UTC.
+/** A fixed reference instant: Tuesday 14 Jul 2026, 15:30 UTC. */
 const NOW = new Date('2026-07-14T15:30:00.000Z');
 
 describe('zonedWallTime', () => {

@@ -3,10 +3,12 @@ import { createSSRApp, h } from 'vue';
 import { renderToString } from 'vue/server-renderer';
 import type { Channel } from '@/types/channels';
 
-// Inertia + Wayfinder + UI stubs so the row's own markup (unread badge, close
-// button) can be rendered in isolation without the full app/router context.
-// `stub(tag)` builds a passthrough component; hoisted so the vi.mock factories
-// (which run before the module body) can reach it.
+/**
+ * Inertia + Wayfinder + UI stubs so the row's own markup (unread badge, close
+ * button) can be rendered in isolation without the full app/router context.
+ * `stub(tag)` builds a passthrough component; hoisted so the vi.mock factories
+ * (which run before the module body) can reach it.
+ */
 const { stub } = await vi.hoisted(async () => {
     const { defineComponent, h: hyper } = await import('vue');
 

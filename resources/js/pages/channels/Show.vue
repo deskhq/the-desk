@@ -90,39 +90,57 @@ const props = defineProps<{
     members: Mention[];
     canArchive: boolean;
     canManagePreferences: boolean;
-    // Whether the viewer may leave the channel (a member of a standard channel
-    // that isn't #general); drives the "Leave channel" menu item and modal.
+    /**
+     * Whether the viewer may leave the channel (a member of a standard channel
+     * that isn't #general); drives the "Leave channel" menu item and modal.
+     */
     canLeave: boolean;
-    // Whether the viewer may react (member of a non-archived channel); read-only
-    // reaction pills still render for a non-member browsing a public channel.
+    /**
+     * Whether the viewer may react (member of a non-archived channel); read-only
+     * reaction pills still render for a non-member browsing a public channel.
+     */
     canReact: boolean;
-    // Whether the viewer already belongs to the channel. A non-member viewing a
-    // public channel by URL sees a "Join channel" bar in place of the composer.
+    /**
+     * Whether the viewer already belongs to the channel. A non-member viewing a
+     * public channel by URL sees a "Join channel" bar in place of the composer.
+     */
     isMember: boolean;
-    // The channel's member count, surfaced in the join bar for a non-member.
+    /** The channel's member count, surfaced in the join bar for a non-member. */
     memberCount: number;
-    // The channel's pinned-message count, driving the masthead badge on first
-    // load; kept live from the MessagePinned broadcast thereafter.
+    /**
+     * The channel's pinned-message count, driving the masthead badge on first
+     * load; kept live from the MessagePinned broadcast thereafter.
+     */
     pinCount: number;
-    // The channel's pinned messages, most-recently-pinned first, feeding the pins
-    // popover. Refreshed via a partial reload when the panel opens or a pin
-    // changes; each row is a full Message (its `pin` carries the attribution).
+    /**
+     * The channel's pinned messages, most-recently-pinned first, feeding the pins
+     * popover. Refreshed via a partial reload when the panel opens or a pin
+     * changes; each row is a full Message (its `pin` carries the attribution).
+     */
     pins: Message[];
     notificationLevels: NotificationLevelOption[];
     jumpToMessageId?: string | null;
-    // The viewer's read pointer at load time, used to place the "New messages"
-    // divider; null when the channel has never been read.
+    /**
+     * The viewer's read pointer at load time, used to place the "New messages"
+     * divider; null when the channel has never been read.
+     */
     lastReadMessageId?: string | null;
-    // Read positions of the channel's other members who share read receipts,
-    // seeding the "Seen by" affordance; later advances arrive via MessageRead.
+    /**
+     * Read positions of the channel's other members who share read receipts,
+     * seeding the "Seen by" affordance; later advances arrive via MessageRead.
+     */
     channelReaders: ChannelReader[];
-    // The open thread's root, loaded on demand keyed by `?thread=`.
+    /** The open thread's root, loaded on demand keyed by `?thread=`. */
     thread?: Thread | null;
-    // The open thread's replies, a reverse-infinite-scroll page that grows as
-    // older replies load. Empty when no thread is open.
+    /**
+     * The open thread's replies, a reverse-infinite-scroll page that grows as
+     * older replies load. Empty when no thread is open.
+     */
     threadReplies: MessagePage;
-    // The viewer's own pending scheduled messages for this channel, soonest
-    // first, feeding the composer's "Scheduled" affordance.
+    /**
+     * The viewer's own pending scheduled messages for this channel, soonest
+     * first, feeding the composer's "Scheduled" affordance.
+     */
     scheduledMessages: ScheduledMessage[];
 }>();
 
@@ -135,21 +153,27 @@ const currentUser = computed(() => ({
     name: page.props.auth.user.name,
 }));
 
-// Peers currently composing on this channel, driven by `typing` client
-// whispers over the same private channel as the message events.
+/**
+ * Peers currently composing on this channel, driven by `typing` client
+ * whispers over the same private channel as the message events.
+ */
 const typing = useTypingIndicator((user: TypingUser) => {
     echo().private(channelName(props.channel.id)).whisper('typing', user);
 });
 
 const typingNames = typing.typingNames;
 
-// Live roster of team members currently online, driving the presence dots on
-// message avatars. Follows the team across channel switches.
+/**
+ * Live roster of team members currently online, driving the presence dots on
+ * message avatars. Follows the team across channel switches.
+ */
 const { onlineIds } = useTeamPresence(() => props.team.id);
 
-// Read positions of the channel's other members who share read receipts, keyed
-// by user id. Seeded from the server prop and kept current from the MessageRead
-// broadcast, driving the "Seen by" affordance under the newest message.
+/**
+ * Read positions of the channel's other members who share read receipts, keyed
+ * by user id. Seeded from the server prop and kept current from the MessageRead
+ * broadcast, driving the "Seen by" affordance under the newest message.
+ */
 const readers = ref(new Map<string, ChannelReader>());
 
 function seedReaders(): void {
@@ -164,15 +188,17 @@ function onTyping(): void {
     typing.signalTyping(currentUser.value);
 }
 
-// You can't @mention yourself; drop the current user from the composer list.
+/** You can't @mention yourself; drop the current user from the composer list. */
 const mentionableMembers = computed(() =>
     props.members.filter((member) => member.id !== currentUser.value.id),
 );
 
-// A direct message renders viewer-relative: no "#", the other participant's
-// name (the viewer's own self-DM reads "You"), or a group's participant-joined
-// name. Drives the `<Head>` title, the masthead, and the empty state's
-// viewer-relative copy; the masthead owns the DM avatar and facepile itself.
+/**
+ * A direct message renders viewer-relative: no "#", the other participant's
+ * name (the viewer's own self-DM reads "You"), or a group's participant-joined
+ * name. Drives the `<Head>` title, the masthead, and the empty state's
+ * viewer-relative copy; the masthead owns the DM avatar and facepile itself.
+ */
 const isSelfDm = computed(
     () =>
         props.channel.isDirect &&
@@ -189,35 +215,43 @@ const mastheadTitle = computed(() => {
     return isSelfDm.value ? t('You') : props.channel.name;
 });
 
-// The viewer may add people to any DM they belong to; grows a 1:1 into a group
-// or a group further. Drives the masthead's "Add people" button and its modal.
+/**
+ * The viewer may add people to any DM they belong to; grows a 1:1 into a group
+ * or a group further. Drives the masthead's "Add people" button and its modal.
+ */
 const canAddPeople = computed(() => props.channel.isDirect && props.isMember);
 const addingPeople = ref(false);
 
-// A DM's composer addresses the conversation by its participant name rather than
-// a "#channel", so its placeholder overrides the composer's channel default.
+/**
+ * A DM's composer addresses the conversation by its participant name rather than
+ * a "#channel", so its placeholder overrides the composer's channel default.
+ */
 const composerPlaceholder = computed(() =>
     props.channel.isDirect
         ? t('Message :name', { name: mastheadTitle.value })
         : undefined,
 );
 
-// A team Admin+ may delete anyone's message in the channel (moderation).
+/** A team Admin+ may delete anyone's message in the channel (moderation). */
 const canModerate = computed(() =>
     ['admin', 'owner'].includes(page.props.currentTeam?.role ?? ''),
 );
 
 const scrollContainer = ref<HTMLElement | null>(null);
-// `ScrollableMessageList` owns the scroll element; this points our ref at it so
-// `useScrollPin`, `useUnreadDivider`, and the virtualized `MessageList` all bind
-// to the very same node.
+/**
+ * `ScrollableMessageList` owns the scroll element; this points our ref at it so
+ * `useScrollPin`, `useUnreadDivider`, and the virtualized `MessageList` all bind
+ * to the very same node.
+ */
 const setScrollContainer = (el: HTMLElement | null): void => {
     scrollContainer.value = el;
 };
 
-// The windowed timeline exposes `scrollToIndex` so off-screen jump targets can be
-// brought into view; Inertia's `<InfiniteScroll>` (driven manually) exposes the
-// older-page fetch. Both are read through template refs.
+/**
+ * The windowed timeline exposes `scrollToIndex` so off-screen jump targets can be
+ * brought into view; Inertia's `<InfiniteScroll>` (driven manually) exposes the
+ * older-page fetch. Both are read through template refs.
+ */
 const messageListRef = ref<{
     scrollToIndex: (
         index: number,
@@ -231,19 +265,25 @@ const infiniteScrollRef = ref<{
     hasNext: () => boolean;
 } | null>(null);
 
-// The virtualizer's visible render-item window, surfaced by `MessageList` so the
-// unread-jump pill can be derived without a DOM `IntersectionObserver`.
+/**
+ * The virtualizer's visible render-item window, surfaced by `MessageList` so the
+ * unread-jump pill can be derived without a DOM `IntersectionObserver`.
+ */
 const timelineRange = ref<{ startIndex: number; endIndex: number } | null>(
     null,
 );
 
-// True while an older page is being fetched, gating the virtualizer's top-load
-// trigger so a burst of range updates can't stack duplicate requests. Cleared
-// once the merged page grows (older rows have landed).
+/**
+ * True while an older page is being fetched, gating the virtualizer's top-load
+ * trigger so a burst of range updates can't stack duplicate requests. Cleared
+ * once the merged page grows (older rows have landed).
+ */
 const loadingOlder = ref(false);
 
-// In reverse mode, older history is the paginator's *next* page (the server
-// returns messages newest-first), so "load older" maps to fetchNext/hasNext.
+/**
+ * In reverse mode, older history is the paginator's *next* page (the server
+ * returns messages newest-first), so "load older" maps to fetchNext/hasNext.
+ */
 const hasOlder = (): boolean => infiniteScrollRef.value?.hasNext() ?? false;
 
 const isLoadingOlder = (): boolean => loadingOlder.value;
@@ -269,9 +309,11 @@ watch(
     },
 );
 
-// Shared scroll/pin bookkeeping: the pinned-to-newest flag, the "N new messages"
-// count while scrolled up, and the smooth jump back to the bottom. The thread
-// panel runs its own instance of the same composable.
+/**
+ * Shared scroll/pin bookkeeping: the pinned-to-newest flag, the "N new messages"
+ * count while scrolled up, and the smooth jump back to the bottom. The thread
+ * panel runs its own instance of the same composable.
+ */
 const {
     pinnedToBottom,
     newMessageCount,
@@ -288,49 +330,61 @@ const {
         messageListRef.value?.scrollToLatest(smooth ? 'smooth' : 'auto'),
 });
 
-// `Inertia::scroll` delivers messages newest-first; reverse for display.
+/** `Inertia::scroll` delivers messages newest-first; reverse for display. */
 const serverMessages = computed<Message[]>(() =>
     [...(props.messages?.data ?? [])].reverse(),
 );
 
-// The main channel timeline: optimistic sends + live echoes + edit/delete
-// patches, all merged over the server page and deduped by client uuid.
+/**
+ * The main channel timeline: optimistic sends + live echoes + edit/delete
+ * patches, all merged over the server page and deduped by client uuid.
+ */
 const mainStream = useMessageStream(serverMessages);
 const displayMessages = mainStream.displayMessages;
 
-// Announce genuine inbound messages to screen readers via a polite live region;
-// the virtualized timeline itself can't be a `role="log"` (rows unmount).
+/**
+ * Announce genuine inbound messages to screen readers via a polite live region;
+ * the virtualized timeline itself can't be a `role="log"` (rows unmount).
+ */
 const { announcement } = useMessageAnnouncer({
     messages: () => displayMessages.value,
     currentUserId: () => currentUser.value.id,
 });
 
-// A failed optimistic send rolls its row back silently; this polite live region
-// announces the failure so a screen-reader user hears it, mirroring the toast.
+/**
+ * A failed optimistic send rolls its row back silently; this polite live region
+ * announces the failure so a screen-reader user hears it, mirroring the toast.
+ */
 const { announcement: sendFailureAnnouncement, announce: announceSendFailure } =
     useSendFailureAnnouncer();
 const pendingUuids = mainStream.pendingUuids;
 
 const hasMessages = computed(() => displayMessages.value.length > 0);
 
-// The same grouped render list the virtualized `MessageList` builds, recomputed
-// here so index-based affordances (jump-to-message, the unread boundary) can map
-// a message or divider to the render-item index the virtualizer scrolls to. Pure
-// and cheap; `unreadDividerId` is resolved lazily by the composable below.
+/**
+ * The same grouped render list the virtualized `MessageList` builds, recomputed
+ * here so index-based affordances (jump-to-message, the unread boundary) can map
+ * a message or divider to the render-item index the virtualizer scrolls to. Pure
+ * and cheap; `unreadDividerId` is resolved lazily by the composable below.
+ */
 const timelineItems = computed(() =>
     buildTimelineItems(displayMessages.value, unreadDividerId.value ?? null),
 );
 
-// Focus the channel composer — from the empty-state welcome's "Post your first
-// message" card, or a profile hover card dropping in a mention.
+/**
+ * Focus the channel composer — from the empty-state welcome's "Post your first
+ * message" card, or a profile hover card dropping in a mention.
+ */
 function focusComposer(): void {
     channelComposer.value?.focus();
 }
 
-// The thread panel's whole open → load → reset → mark-read lifecycle, with its own
-// merge stream over the root plus paginated replies. It resets itself on a channel
-// switch, so this page no longer juggles two stream lifecycles inline;
-// `sendThreadReply` stays in `useMessageActions`, sharing this panel's stream.
+/**
+ * The thread panel's whole open → load → reset → mark-read lifecycle, with its own
+ * merge stream over the root plus paginated replies. It resets itself on a channel
+ * switch, so this page no longer juggles two stream lifecycles inline;
+ * `sendThreadReply` stays in `useMessageActions`, sharing this panel's stream.
+ */
 const {
     activeThreadRootId,
     threadLoading,
@@ -350,9 +404,11 @@ const {
     threadReplies: () => props.threadReplies,
 });
 
-// The message to briefly highlight after a search jump. The server windows the
-// initial page so the target is loaded; we scroll it into view and clear the
-// highlight after a short beat.
+/**
+ * The message to briefly highlight after a search jump. The server windows the
+ * initial page so the target is loaded; we scroll it into view and clear the
+ * highlight after a short beat.
+ */
 const highlightedMessageId = ref<string | null>(null);
 let highlightTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -383,10 +439,12 @@ function jumpToMessage(id: string): void {
     });
 }
 
-// The "New messages" divider's lifecycle — freeze its position at open, refreeze
-// on each channel switch, and hide the jump pill once it scrolls into view —
-// lives in this composable. It reads the server page (not the live-merged list)
-// so the boundary is immune to the order per-channel state resets on a switch.
+/**
+ * The "New messages" divider's lifecycle — freeze its position at open, refreeze
+ * on each channel switch, and hide the jump pill once it scrolls into view —
+ * lives in this composable. It reads the server page (not the live-merged list)
+ * so the boundary is immune to the order per-channel state resets on a switch.
+ */
 const { unreadDividerId } = useUnreadDivider({
     channelId: () => props.channel.id,
     scrollContainer,
@@ -395,21 +453,25 @@ const { unreadDividerId } = useUnreadDivider({
     currentUserId: () => currentUser.value.id,
 });
 
-// The unread boundary's render-item index, or -1 when there's none.
+/** The unread boundary's render-item index, or -1 when there's none. */
 const unreadIndex = computed(() => unreadDividerIndex(timelineItems.value));
 
-// Per-visit latch: once the reader reaches the unread boundary (it scrolls into
-// the window) or jumps back to the present, the "New messages" pill is dismissed
-// for the rest of this channel visit. Without it the pill reappears whenever the
-// (frozen) divider sits above the window again — e.g. right after Jump to present
-// (#411). Both flags are refrozen alongside the divider on every channel switch.
+/**
+ * Per-visit latch: once the reader reaches the unread boundary (it scrolls into
+ * the window) or jumps back to the present, the "New messages" pill is dismissed
+ * for the rest of this channel visit. Without it the pill reappears whenever the
+ * (frozen) divider sits above the window again — e.g. right after Jump to present
+ * (#411). Both flags are refrozen alongside the divider on every channel switch.
+ */
 const unreadDividerSeen = ref(false);
 
-// Whether the boundary has ever sat above the window this visit. The reader
-// "reaches" the divider only when it scrolls back into view *after* having been
-// above — the transition the seen latch keys off. This guards against the initial
-// pre-`scrollToBottom` render (rows start at the top, so the divider is briefly
-// on screen before the open pins to the newest message) latching it prematurely.
+/**
+ * Whether the boundary has ever sat above the window this visit. The reader
+ * "reaches" the divider only when it scrolls back into view *after* having been
+ * above — the transition the seen latch keys off. This guards against the initial
+ * pre-`scrollToBottom` render (rows start at the top, so the divider is briefly
+ * on screen before the open pins to the newest message) latching it prematurely.
+ */
 const unreadDividerWasAbove = ref(false);
 
 watch(
@@ -438,12 +500,14 @@ watch([timelineRange, unreadIndex], ([range, index]) => {
     }
 });
 
-// Show the floating "New messages" pill while the unread boundary sits above the
-// virtualizer's window and the reader hasn't reached it yet. Windowing drops the
-// off-screen divider from the DOM, so this replaces the old IntersectionObserver
-// with pure range math plus the per-visit seen latch. Before the first range
-// lands the view is pinned to the bottom, so an existing, unseen boundary is
-// necessarily above it.
+/**
+ * Show the floating "New messages" pill while the unread boundary sits above the
+ * virtualizer's window and the reader hasn't reached it yet. Windowing drops the
+ * off-screen divider from the DOM, so this replaces the old IntersectionObserver
+ * with pure range math plus the per-visit seen latch. Before the first range
+ * lands the view is pinned to the bottom, so an existing, unseen boundary is
+ * necessarily above it.
+ */
 const showJumpToUnread = computed(() => {
     const range = timelineRange.value;
 
@@ -459,26 +523,32 @@ const showJumpToUnread = computed(() => {
     );
 });
 
-// Scroll the unread boundary to the top of the viewport via the virtualizer,
-// bringing it on screen even when it wasn't rendered.
+/**
+ * Scroll the unread boundary to the top of the viewport via the virtualizer,
+ * bringing it on screen even when it wasn't rendered.
+ */
 function scrollToUnread(): void {
     if (unreadIndex.value >= 0) {
         messageListRef.value?.scrollToIndex(unreadIndex.value, 'start');
     }
 }
 
-// Return to the newest message. Jumping to present counts as reaching the unread
-// boundary, so latch it — the reader is done with the "New messages" pill for
-// this visit even if the frozen divider now sits above the window again (#411).
+/**
+ * Return to the newest message. Jumping to present counts as reaching the unread
+ * boundary, so latch it — the reader is done with the "New messages" pill for
+ * this visit even if the frozen divider now sits above the window again (#411).
+ */
 function jumpToPresent(): void {
     unreadDividerSeen.value = true;
     scrollToBottom(true);
 }
 
-// The day the topmost visible row falls in, driving the floating sticky date
-// chip while the reader is scrolled up into history (design 1a). Reads the first
-// dated render item at or after the window's top — a group's lead timestamp or a
-// day divider's own ISO.
+/**
+ * The day the topmost visible row falls in, driving the floating sticky date
+ * chip while the reader is scrolled up into history (design 1a). Reads the first
+ * dated render item at or after the window's top — a group's lead timestamp or a
+ * day divider's own ISO.
+ */
 const stickyDayLabel = computed<string | null>(() => {
     const range = timelineRange.value;
     const items = timelineItems.value;
@@ -513,10 +583,12 @@ function channelName(id: string): string {
     return `channel.${id}`;
 }
 
-// Advance the read pointer for the open channel so its sidebar badge clears.
-// Debounced and gated on tab focus: a channel is only "read" while the user is
-// actually looking at it, and a burst of arriving messages collapses to one
-// request. The redirect refreshes just the shared `channels` prop.
+/**
+ * Advance the read pointer for the open channel so its sidebar badge clears.
+ * Debounced and gated on tab focus: a channel is only "read" while the user is
+ * actually looking at it, and a burst of arriving messages collapses to one
+ * request. The redirect refreshes just the shared `channels` prop.
+ */
 const readPost = useDebouncedPost(
     () => {
         router.post(
@@ -535,10 +607,12 @@ function markRead(): void {
     readPost.schedule();
 }
 
-// The member's own star/mute/notification-level preferences for this channel:
-// seeded from the server, reseeded on every channel switch, saved optimistically
-// and rolled back on error. `threadUnreadSuppressed` mirrors the server's dot
-// suppression and feeds the realtime router below.
+/**
+ * The member's own star/mute/notification-level preferences for this channel:
+ * seeded from the server, reseeded on every channel switch, saved optimistically
+ * and rolled back on error. `threadUnreadSuppressed` mirrors the server's dot
+ * suppression and feeds the realtime router below.
+ */
 const {
     notificationLevel,
     muted,
@@ -555,11 +629,13 @@ const {
     channelSlug: () => props.channel.slug,
 });
 
-// The channel-level pin count driving the masthead badge, and the pins popover
-// state. The count is seeded from the server, resynced on partial reloads and
-// channel switches (the prop watch below), and patched live by the MessagePinned
-// broadcast; the pins list itself rides the `pins` prop, refreshed whenever the
-// panel opens or a pin changes.
+/**
+ * The channel-level pin count driving the masthead badge, and the pins popover
+ * state. The count is seeded from the server, resynced on partial reloads and
+ * channel switches (the prop watch below), and patched live by the MessagePinned
+ * broadcast; the pins list itself rides the `pins` prop, refreshed whenever the
+ * panel opens or a pin changes.
+ */
 const pinCount = ref(props.pinCount);
 watch(
     () => props.pinCount,
@@ -570,15 +646,17 @@ watch(
 
 const pinsPanelOpen = ref(false);
 
-// Open the pins popover, pulling the freshest pins first — another member may
-// have pinned or unpinned since this page loaded, and the count badge and list
-// should agree with the server on open.
+/**
+ * Open the pins popover, pulling the freshest pins first — another member may
+ * have pinned or unpinned since this page loaded, and the count badge and list
+ * should agree with the server on open.
+ */
 function openPinsPanel(): void {
     pinsPanelOpen.value = true;
     router.reload({ only: ['pins', 'pinCount'] });
 }
 
-// Jump to a pinned message from the panel, closing the popover on the way.
+/** Jump to a pinned message from the panel, closing the popover on the way. */
 function jumpToPin(id: string): void {
     pinsPanelOpen.value = false;
     jumpToMessage(id);
@@ -668,11 +746,13 @@ onBeforeUnmount(() => {
     }
 });
 
-// The message the composer is currently quoting, or null for a normal send.
+/** The message the composer is currently quoting, or null for a normal send. */
 const replyTarget = ref<Message | null>(null);
 
-// The id of the message the main composer is editing in place (via the ↑
-// shortcut), or null. Highlights the target row in the timeline while editing.
+/**
+ * The id of the message the main composer is editing in place (via the ↑
+ * shortcut), or null. Highlights the target row in the timeline while editing.
+ */
 const composerEditingId = ref<string | null>(null);
 
 function startReply(message: Message): void {
@@ -683,18 +763,22 @@ function cancelReply(): void {
     replyTarget.value = null;
 }
 
-// The channel composer, so a profile hover card in the main timeline can drop a
-// mention straight into it.
+/**
+ * The channel composer, so a profile hover card in the main timeline can drop a
+ * mention straight into it.
+ */
 const channelComposer = ref<InstanceType<typeof MessageComposer> | null>(null);
 
 function mentionInChannel(member: { id: string; name: string }): void {
     channelComposer.value?.insertMention(member);
 }
 
-// Whole-pane drag-and-drop: dropping files anywhere over the channel content
-// stages them in the composer tray. A depth counter tracks nested
-// dragenter/dragleave so the brass overlay doesn't flicker as the pointer
-// crosses child elements. Only meaningful where the composer itself is shown.
+/**
+ * Whole-pane drag-and-drop: dropping files anywhere over the channel content
+ * stages them in the composer tray. A depth counter tracks nested
+ * dragenter/dragleave so the brass overlay doesn't flicker as the pointer
+ * crosses child elements. Only meaningful where the composer itself is shown.
+ */
 const isDraggingFiles = ref(false);
 let dragDepth = 0;
 
@@ -771,9 +855,11 @@ function onPaneDrop(event: DragEvent): void {
     }
 }
 
-// The message being forwarded and whether the forward dialog is open. The dialog
-// picks a target channel (from the sidebar list — the channels the viewer can
-// post to) and an optional note.
+/**
+ * The message being forwarded and whether the forward dialog is open. The dialog
+ * picks a target channel (from the sidebar list — the channels the viewer can
+ * post to) and an optional note.
+ */
 const forwardTarget = ref<Message | null>(null);
 const forwardDialogOpen = ref(false);
 
@@ -781,8 +867,10 @@ const forwardableChannels = computed<Channel[]>(
     () => page.props.channels ?? [],
 );
 
-// Team members offered as DM forward targets; selecting one opens-or-creates the
-// 1:1 DM on the server.
+/**
+ * Team members offered as DM forward targets; selecting one opens-or-creates the
+ * 1:1 DM on the server.
+ */
 const forwardablePeople = computed<PersonRef[]>(
     () => page.props.teamMembers ?? [],
 );
@@ -792,8 +880,10 @@ function openForward(message: Message): void {
     forwardDialogOpen.value = true;
 }
 
-// Submit the forward dialog: hand the selected source and destination to the
-// actions engine, then clear the target so the dialog resets.
+/**
+ * Submit the forward dialog: hand the selected source and destination to the
+ * actions engine, then clear the target so the dialog resets.
+ */
 function submitForward(payload: { target: ForwardTarget; note: string }): void {
     const source = forwardTarget.value;
 
@@ -804,10 +894,12 @@ function submitForward(payload: { target: ForwardTarget; note: string }): void {
     forwardTarget.value = null;
 }
 
-// The member's unsent composer text is persisted per channel so it survives
-// navigation, reloads and other devices. This composable owns the debounce, the
-// channel-switch flush, and the flush-on-unmount; a send clears the draft
-// server-side, so only manual edits flow through `onDraftChange`.
+/**
+ * The member's unsent composer text is persisted per channel so it survives
+ * navigation, reloads and other devices. This composable owns the debounce, the
+ * channel-switch flush, and the flush-on-unmount; a send clears the draft
+ * server-side, so only manual edits flow through `onDraftChange`.
+ */
 const {
     onDraftChange,
     cancel: cancelDraft,
@@ -818,9 +910,11 @@ const {
     channelSlug: () => props.channel.slug,
 });
 
-// The realtime connection cue (reconnecting / back-online pill) and the offline
-// outbox: sends made while the socket is down queue here and flush on recovery.
-// The outbox persists per channel, so a refresh while offline keeps the queue.
+/**
+ * The realtime connection cue (reconnecting / back-online pill) and the offline
+ * outbox: sends made while the socket is down queue here and flush on recovery.
+ * The outbox persists per channel, so a refresh while offline keeps the queue.
+ */
 const connection = useConnectionState();
 const outbox = createOutbox({ storageKey: `outbox:${props.channel.id}` });
 
@@ -838,15 +932,19 @@ for (const item of outbox.items.value) {
     );
 }
 
-// Client uuids currently held in the outbox, so the timeline can mark each queued
-// row until it flushes.
+/**
+ * Client uuids currently held in the outbox, so the timeline can mark each queued
+ * row until it flushes.
+ */
 const queuedUuids = computed(() =>
     outbox.items.value.map((item) => item.clientUuid),
 );
 
-// The channel's optimistic-mutation engine: send/edit/delete/react/forward,
-// thread replies, scheduling, and reminders all follow the same optimistic-apply
-// → router-call → rollback-on-error shape, concentrated behind one seam.
+/**
+ * The channel's optimistic-mutation engine: send/edit/delete/react/forward,
+ * thread replies, scheduling, and reminders all follow the same optimistic-apply
+ * → router-call → rollback-on-error shape, concentrated behind one seam.
+ */
 const actions = useMessageActions({
     teamSlug: () => props.team.slug,
     channel: () => props.channel,
@@ -881,7 +979,7 @@ const {
     sendCommand,
 } = actions;
 
-// Discard the whole offline queue: drop the optimistic rows and clear the outbox.
+/** Discard the whole offline queue: drop the optimistic rows and clear the outbox. */
 function discardQueue(): void {
     for (const item of outbox.items.value) {
         mainStream.removePending(item.clientUuid);
@@ -924,30 +1022,34 @@ if (connection.isOnline.value && outbox.count.value > 0) {
     flushOutbox();
 }
 
-// The viewer's stored timezone, driving the schedule picker's presets and the
-// list's "sends at" labels so a scheduled time always reads in their own zone.
+/**
+ * The viewer's stored timezone, driving the schedule picker's presets and the
+ * list's "sends at" labels so a scheduled time always reads in their own zone.
+ */
 const { timezone } = useTimezone();
 
-// Whether the "Scheduled messages" management dialog is open.
+/** Whether the "Scheduled messages" management dialog is open. */
 const scheduledDialogOpen = ref(false);
 
-// The message a custom-time reminder is being set for, and whether the custom
-// date & time picker is open.
+/**
+ * The message a custom-time reminder is being set for, and whether the custom
+ * date & time picker is open.
+ */
 const reminderTargetId = ref<string | null>(null);
 const reminderCustomOpen = ref(false);
 
-// A preset was chosen from a message's reminder popover.
+/** A preset was chosen from a message's reminder popover. */
 function remindWith(message: Message, remindAt: string): void {
     setReminder(message.id, remindAt);
 }
 
-// The viewer chose "Custom date & time…"; remember the target and open the picker.
+/** The viewer chose "Custom date & time…"; remember the target and open the picker. */
 function openCustomReminder(message: Message): void {
     reminderTargetId.value = message.id;
     reminderCustomOpen.value = true;
 }
 
-// Confirm the custom reminder time picked in the dialog.
+/** Confirm the custom reminder time picked in the dialog. */
 function confirmCustomReminder(remindAt: string): void {
     if (reminderTargetId.value === null) {
         return;
@@ -957,10 +1059,10 @@ function confirmCustomReminder(remindAt: string): void {
     reminderTargetId.value = null;
 }
 
-// Drives the archive confirmation dialog opened from the channel header menu.
+/** Drives the archive confirmation dialog opened from the channel header menu. */
 const confirmingArchive = ref(false);
 
-// Drives the leave-channel confirmation modal opened from the header menu.
+/** Drives the leave-channel confirmation modal opened from the header menu. */
 const confirmingLeave = ref(false);
 
 function archive(): void {

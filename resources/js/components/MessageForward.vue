@@ -7,7 +7,7 @@ import type { Mention } from '@/types';
 
 const props = defineProps<{
     authorName: string;
-    // Null when the source is a direct message, which has no channel name.
+    /** Null when the source is a direct message, which has no channel name. */
     channelName: string | null;
     body: string;
     isDeleted: boolean;
@@ -16,8 +16,10 @@ const props = defineProps<{
 
 const { map: customEmojis } = useCustomEmojis();
 
-// The forwarded body, rendered with its own mentions; empty for a deleted
-// source, whose body is never sent to the client.
+/**
+ * The forwarded body, rendered with its own mentions; empty for a deleted
+ * source, whose body is never sent to the client.
+ */
 const rendered = computed(() =>
     props.isDeleted
         ? ''

@@ -48,9 +48,11 @@ export function shouldAutoStartTour(
     return !user.onboarding_completed_at;
 }
 
-// Shared open-state for the tour overlay. It is mounted once in the workspace
-// layout, but can be started on first login and replayed from the user menu
-// without prop-drilling through the component tree.
+/**
+ * Shared open-state for the tour overlay. It is mounted once in the workspace
+ * layout, but can be started on first login and replayed from the user menu
+ * without prop-drilling through the component tree.
+ */
 const isOpen = ref(false);
 const stepIndex = ref(0);
 
@@ -63,9 +65,11 @@ export function useOnboardingTour() {
         stepIndex.value = 0;
     }
 
-    // Persist completion so the tour and the brand-new-workspace welcome stay
-    // dismissed across reloads and devices. Idempotent server-side, so replaying
-    // and finishing again is harmless.
+    /**
+     * Persist completion so the tour and the brand-new-workspace welcome stay
+     * dismissed across reloads and devices. Idempotent server-side, so replaying
+     * and finishing again is harmless.
+     */
     function persistCompletion(): void {
         router.patch(
             completeOnboarding().url,

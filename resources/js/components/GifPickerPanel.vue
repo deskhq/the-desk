@@ -20,14 +20,14 @@ import type { AttachmentData } from '@/types/attachments';
 
 const props = withDefaults(
     defineProps<{
-        // The channel the picker searches and attaches within.
+        /** The channel the picker searches and attaches within. */
         teamSlug: string;
         channelSlug: string;
-        // The search term to seed from (`/gif cats` → "cats"); blank → trending.
+        /** The search term to seed from (`/gif cats` → "cats"); blank → trending. */
         initialQuery?: string;
-        // Debounce for search-as-you-type; 0 in tests for determinism.
+        /** Debounce for search-as-you-type; 0 in tests for determinism. */
         debounceMs?: number;
-        // Transport, injected in tests so the panel unit-tests without a network.
+        /** Transport, injected in tests so the panel unit-tests without a network. */
         searchGifs?: (
             url: string,
             signal?: AbortSignal,
@@ -43,9 +43,9 @@ const props = withDefaults(
 );
 
 const emit = defineEmits<{
-    // A GIF was picked and attached; carries the stored remote attachment.
+    /** A GIF was picked and attached; carries the stored remote attachment. */
     select: [attachment: AttachmentData];
-    // The picker should close (Escape, the close button, or a backdrop click).
+    /** The picker should close (Escape, the close button, or a backdrop click). */
     close: [];
 }>();
 
@@ -58,7 +58,7 @@ const loading = ref(false);
 const loadingMore = ref(false);
 const errored = ref(false);
 const attaching = ref(false);
-// The keyboard-active option, or -1 when focus is in the search field.
+/** The keyboard-active option, or -1 when focus is in the search field. */
 const activeIndex = ref(-1);
 
 const searchInput = ref<HTMLInputElement | null>(null);
@@ -78,8 +78,10 @@ function searchUrl(offset: number): string {
 
 let controller: AbortController | null = null;
 
-// False once the panel has unmounted, so an in-flight attach that resolves after
-// the user closed the picker doesn't stage a GIF they cancelled.
+/**
+ * False once the panel has unmounted, so an in-flight attach that resolves after
+ * the user closed the picker doesn't stage a GIF they cancelled.
+ */
 let alive = true;
 
 /**

@@ -36,17 +36,17 @@ import type { Message } from '@/types';
 const props = defineProps<{
     message: Message;
     currentUserId: string;
-    // Whether the viewer may add/remove reactions (member of a live channel).
+    /** Whether the viewer may add/remove reactions (member of a live channel). */
     canReact?: boolean;
-    // Whether the viewer may pin/unpin messages (member of a non-archived channel).
+    /** Whether the viewer may pin/unpin messages (member of a non-archived channel). */
     canPin?: boolean;
-    // Whether the viewer may moderate others' messages (delete them).
+    /** Whether the viewer may moderate others' messages (delete them). */
     canModerate?: boolean;
-    // Rendered inside a thread panel: suppresses the reply/thread affordances.
+    /** Rendered inside a thread panel: suppresses the reply/thread affordances. */
     inThread?: boolean;
-    // Whether this row is an optimistic send with no stable server id yet.
+    /** Whether this row is an optimistic send with no stable server id yet. */
     pending?: boolean;
-    // The viewer's stored zone, feeding the reminder popover's wall-clock presets.
+    /** The viewer's stored zone, feeding the reminder popover's wall-clock presets. */
     viewerTimezone: string | null;
 }>();
 
@@ -85,7 +85,7 @@ const showForward = computed(() =>
     canForwardMessage(props.message, context.value),
 );
 const showPin = computed(() => canPinMessage(props.message, context.value));
-// The button toggles: a pinned message offers Unpin, an unpinned one offers Pin.
+/** The button toggles: a pinned message offers Unpin, an unpinned one offers Pin. */
 const isPinned = computed(() => props.message.pin !== null);
 const showRemind = computed(() =>
     canRemindAboutMessage(props.message, context.value),
@@ -98,8 +98,10 @@ const showBar = computed(() =>
     hasAnyMessageAction(props.message, context.value),
 );
 
-// The hairline divider only earns its place when it sits between two clusters:
-// the react/reply group and the forward/edit/delete group.
+/**
+ * The hairline divider only earns its place when it sits between two clusters:
+ * the react/reply group and the forward/edit/delete group.
+ */
 const showDivider = computed(
     () =>
         (showReact.value || showStartThread.value || showReply.value) &&
@@ -110,15 +112,17 @@ const showDivider = computed(
             showDelete.value),
 );
 
-// The bar's icon buttons ride the `<Button variant="ghost" size="icon-sm">`
-// primitive; these classes only tune what the primitive doesn't own: a muted
-// resting glyph (`ghost` rests transparent), and — for the two popover triggers
-// (react / remind) — an accent-filled "open" state so it reads as active while
-// its menu is attached.
+/**
+ * The bar's icon buttons ride the `<Button variant="ghost" size="icon-sm">`
+ * primitive; these classes only tune what the primitive doesn't own: a muted
+ * resting glyph (`ghost` rests transparent), and — for the two popover triggers
+ * (react / remind) — an accent-filled "open" state so it reads as active while
+ * its menu is attached.
+ */
 const iconButtonClass = 'text-muted-foreground';
 const openStateClass = 'bg-accent text-accent-foreground';
 
-// Delete recolors to the destructive token on hover instead of neutral.
+/** Delete recolors to the destructive token on hover instead of neutral. */
 const deleteButtonClass =
     'text-muted-foreground hover:bg-destructive/10 hover:text-destructive';
 </script>

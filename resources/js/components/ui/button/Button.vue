@@ -11,9 +11,11 @@ interface Props extends PrimitiveProps {
   variant?: ButtonVariants["variant"]
   size?: ButtonVariants["size"]
   class?: HTMLAttributes["class"]
-  // Renders a leading spinner and disables the control while a request is in
-  // flight, so every submit button gets consistent pending feedback without
-  // each caller re-wiring `<Spinner v-if="processing" />` by hand.
+  /**
+   * Renders a leading spinner and disables the control while a request is in
+   * flight, so every submit button gets consistent pending feedback without
+   * each caller re-wiring `<Spinner v-if="processing" />` by hand.
+   */
   loading?: boolean
 }
 

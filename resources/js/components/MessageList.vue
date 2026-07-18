@@ -50,50 +50,74 @@ import type {
 
 const props = defineProps<{
     messages: Message[];
-    // The team the messages belong to, so author hover cards can resolve the
-    // right member profile.
+    /**
+     * The team the messages belong to, so author hover cards can resolve the
+     * right member profile.
+     */
     teamSlug: string;
     pendingUuids?: string[];
-    // Client uuids of the viewer's own sends held in the offline outbox; each
-    // renders a "Queued — will send on reconnect" marker until it flushes.
+    /**
+     * Client uuids of the viewer's own sends held in the offline outbox; each
+     * renders a "Queued — will send on reconnect" marker until it flushes.
+     */
     queuedUuids?: string[];
     currentUserId: string;
-    // Whether the timeline belongs to a direct message, so a "member left" notice
-    // reads "left the conversation" rather than "left the channel".
+    /**
+     * Whether the timeline belongs to a direct message, so a "member left" notice
+     * reads "left the conversation" rather than "left the channel".
+     */
     isDirect?: boolean;
     canModerate?: boolean;
-    // Whether the viewer may add/remove reactions (member of a non-archived
-    // channel); existing reaction pills still render read-only when false.
+    /**
+     * Whether the viewer may add/remove reactions (member of a non-archived
+     * channel); existing reaction pills still render read-only when false.
+     */
     canReact?: boolean;
-    // Whether the viewer may pin/unpin messages (member of a non-archived
-    // channel); the "Pinned by" indicator still renders read-only when false.
+    /**
+     * Whether the viewer may pin/unpin messages (member of a non-archived
+     * channel); the "Pinned by" indicator still renders read-only when false.
+     */
     canPin?: boolean;
     onlineIds?: Set<string>;
     highlightMessageId?: string | null;
-    // The message the "New messages" divider sits above — the first unread on
-    // channel open — or null when there's no unread boundary to mark.
+    /**
+     * The message the "New messages" divider sits above — the first unread on
+     * channel open — or null when there's no unread boundary to mark.
+     */
     unreadDividerId?: string | null;
-    // Rendered inside a thread panel: hides the per-message thread affordances
-    // (you're already in the thread), so the panel only shows the conversation.
+    /**
+     * Rendered inside a thread panel: hides the per-message thread affordances
+     * (you're already in the thread), so the panel only shows the conversation.
+     */
     inThread?: boolean;
-    // The root of the currently-open thread, highlighted in the main timeline.
+    /** The root of the currently-open thread, highlighted in the main timeline. */
     activeThreadRootId?: string | null;
-    // The message currently being edited from the composer, brass-highlighted so
-    // the edit target is unmistakable while the composer holds its text.
+    /**
+     * The message currently being edited from the composer, brass-highlighted so
+     * the edit target is unmistakable while the composer holds its text.
+     */
     editingMessageId?: string | null;
-    // Read positions of channel members who share read receipts, driving the
-    // "Seen by" affordance under the newest message. Omitted inside a thread.
+    /**
+     * Read positions of channel members who share read receipts, driving the
+     * "Seen by" affordance under the newest message. Omitted inside a thread.
+     */
     readers?: ChannelReader[];
-    // Opt into windowed (virtualized) rendering. The main channel timeline sets
-    // this so only on-screen rows mount; the thread panel leaves it off and
-    // renders the full list.
+    /**
+     * Opt into windowed (virtualized) rendering. The main channel timeline sets
+     * this so only on-screen rows mount; the thread panel leaves it off and
+     * renders the full list.
+     */
     virtualize?: boolean;
-    // The parent-owned scroll container the virtualizer drives. Required when
-    // `virtualize` is set; the virtualizer reads its scroll offset and height.
+    /**
+     * The parent-owned scroll container the virtualizer drives. Required when
+     * `virtualize` is set; the virtualizer reads its scroll offset and height.
+     */
     scrollElement?: HTMLElement | null;
-    // Whether older history remains to fetch, and whether a fetch is already in
-    // flight — read by the virtualizer to gate its top-load trigger. Supplied by
-    // the parent, which owns Inertia's `<InfiniteScroll>` merge engine.
+    /**
+     * Whether older history remains to fetch, and whether a fetch is already in
+     * flight — read by the virtualizer to gate its top-load trigger. Supplied by
+     * the parent, which owns Inertia's `<InfiniteScroll>` merge engine.
+     */
     hasOlder?: () => boolean;
     isLoadingOlder?: () => boolean;
 }>();
@@ -111,19 +135,21 @@ const emit = defineEmits<{
     openThread: [messageId: string];
     jump: [messageId: string];
     mention: [member: { id: string; name: string }];
-    // The reader has scrolled near the top of the loaded history: fetch older.
+    /** The reader has scrolled near the top of the loaded history: fetch older. */
     loadOlder: [];
-    // The virtualizer's visible render-item window changed, so the parent can
-    // recompute position-dependent affordances (the unread-jump pill).
+    /**
+     * The virtualizer's visible render-item window changed, so the parent can
+     * recompute position-dependent affordances (the unread-jump pill).
+     */
     rangeChange: [range: { startIndex: number; endIndex: number }];
 }>();
 
-// The viewer's stored zone, feeding the reminder popover's wall-clock presets.
+/** The viewer's stored zone, feeding the reminder popover's wall-clock presets. */
 const viewerTimezone = computed<string | null>(
     () => page.props.auth.user.timezone ?? null,
 );
 
-// How many participant avatars to preview on a root's "N replies" affordance.
+/** How many participant avatars to preview on a root's "N replies" affordance. */
 const MAX_THREAD_AVATARS = 3;
 
 function threadAvatars(message: Message): Mention[] {
@@ -143,12 +169,16 @@ function isThreadRoot(item: TimelineGroup): boolean {
     return props.inThread === true && item.messages[0]?.threadRootId === null;
 }
 
-// How many reader avatars to preview on the "Seen by" row before collapsing the
-// rest into a "+N" overflow chip.
+/**
+ * How many reader avatars to preview on the "Seen by" row before collapsing the
+ * rest into a "+N" overflow chip.
+ */
 const MAX_SEEN_AVATARS = 3;
 
-// The members who have read up to the newest message, driving the "Seen by" row.
-// Empty inside a thread panel and on an empty timeline.
+/**
+ * The members who have read up to the newest message, driving the "Seen by" row.
+ * Empty inside a thread panel and on an empty timeline.
+ */
 const seenByReaders = computed<MessageAuthor[]>(() => {
     if (props.inThread || props.messages.length === 0) {
         return [];
@@ -171,8 +201,10 @@ const extraSeenBy = computed(() =>
     Math.max(0, seenByReaders.value.length - MAX_SEEN_AVATARS),
 );
 
-// A full, human-readable roster ("Seen by Alice, Bob and 3 others") used as the
-// row's accessible label and hover title, so the compact avatars still name who.
+/**
+ * A full, human-readable roster ("Seen by Alice, Bob and 3 others") used as the
+ * row's accessible label and hover title, so the compact avatars still name who.
+ */
 const seenByLabel = computed(() => {
     const names = seenByReaders.value.map((reader) => reader.name);
 
@@ -210,7 +242,7 @@ const { map: customEmojis } = useCustomEmojis();
 
 const page = usePage();
 
-// Render timestamps in the viewer's stored zone, falling back to the browser's.
+/** Render timestamps in the viewer's stored zone, falling back to the browser's. */
 const viewerTimeZone = computed(
     () => page.props.auth.user.timezone ?? undefined,
 );
@@ -268,22 +300,26 @@ function systemNoticeText(message: Message): string {
         : t(':name joined the channel', { name });
 }
 
-// The grouped, divider-interleaved render list. The grouping and boundary logic
-// lives in a pure, unit-tested helper; the day label is formatted here so it
-// stays relative to the viewer's "today".
+/**
+ * The grouped, divider-interleaved render list. The grouping and boundary logic
+ * lives in a pure, unit-tested helper; the day label is formatted here so it
+ * stays relative to the viewer's "today".
+ */
 const renderItems = computed(() =>
     buildTimelineItems(props.messages, props.unreadDividerId ?? null),
 );
 
-// Windowed rendering. Only the main channel timeline opts in (`virtualize`); the
-// thread panel leaves the virtualizer idle (count 0) and renders every row. The
-// virtualizer drives the parent's scroll container, keeping its real
-// `scrollHeight`/`scrollTop` so the shared pin-to-bottom math is untouched.
-// Windowing is client-only: the virtualizer needs a live scroll element and
-// measured heights, neither of which exist during SSR. Rendering the full list
-// on the server (and through first hydration) keeps server and client markup
-// identical, then we switch to the window once mounted — a post-hydration
-// re-render, not a mismatch.
+/**
+ * Windowed rendering. Only the main channel timeline opts in (`virtualize`); the
+ * thread panel leaves the virtualizer idle (count 0) and renders every row. The
+ * virtualizer drives the parent's scroll container, keeping its real
+ * `scrollHeight`/`scrollTop` so the shared pin-to-bottom math is untouched.
+ * Windowing is client-only: the virtualizer needs a live scroll element and
+ * measured heights, neither of which exist during SSR. Rendering the full list
+ * on the server (and through first hydration) keeps server and client markup
+ * identical, then we switch to the window once mounted — a post-hydration
+ * re-render, not a mismatch.
+ */
 const isMounted = ref(false);
 
 onMounted(() => {
@@ -294,14 +330,16 @@ const virtualizeActive = computed(
     () => props.virtualize === true && isMounted.value,
 );
 
-// True while a deliberate jump-to-present is in flight. The scrub skeletons swap
-// full message content for a fixed 56px placeholder, so measuring them mid-jump
-// feeds the virtualizer short heights; when rows then swap to their taller real
-// content the list grows and the animation is left stranded above the newest
-// message — the "it stops when the skeleton loads" symptom (#347). While this is
-// set, skeletons are suppressed so every row entering the window measures its
-// real height, and the virtualizer's upward size-change anchoring is disabled so
-// a row measured above the viewport can't drift us up as we settle on the bottom.
+/**
+ * True while a deliberate jump-to-present is in flight. The scrub skeletons swap
+ * full message content for a fixed 56px placeholder, so measuring them mid-jump
+ * feeds the virtualizer short heights; when rows then swap to their taller real
+ * content the list grows and the animation is left stranded above the newest
+ * message — the "it stops when the skeleton loads" symptom (#347). While this is
+ * set, skeletons are suppressed so every row entering the window measures its
+ * real height, and the virtualizer's upward size-change anchoring is disabled so
+ * a row measured above the viewport can't drift us up as we settle on the bottom.
+ */
 const jumpingToBottom = ref(false);
 
 const {
@@ -332,9 +370,11 @@ type RenderRow = {
     offsetTop: number | null;
 };
 
-// The rows to render: the full list when the thread panel renders it flat, or
-// just the virtualizer's window (each carrying its absolute offset) for the main
-// timeline.
+/**
+ * The rows to render: the full list when the thread panel renders it flat, or
+ * just the virtualizer's window (each carrying its absolute offset) for the main
+ * timeline.
+ */
 const renderRows = computed<RenderRow[]>(() => {
     if (!virtualizeActive.value) {
         return renderItems.value.map((item, index) => ({
@@ -351,9 +391,11 @@ const renderRows = computed<RenderRow[]>(() => {
     }));
 });
 
-// Render items whose height the virtualizer has already settled. A row is
-// recorded once scrolling stops, so a fast scrub shows height-stable skeletons
-// for rows it hasn't paused on, and they materialize the instant it settles.
+/**
+ * Render items whose height the virtualizer has already settled. A row is
+ * recorded once scrolling stops, so a fast scrub shows height-stable skeletons
+ * for rows it hasn't paused on, and they materialize the instant it settles.
+ */
 const settledKeys = ref<Set<string>>(new Set());
 
 /**
@@ -387,21 +429,23 @@ watch(isScrolling, (scrolling) => {
     }
 });
 
-// A windowed jump can't know the true bottom up front: `scrollToEnd` aims at the
-// bottom the virtualizer can see now, but each row measured as the animation
-// passes it grows the list, so the target keeps moving. `finalizeJump` follows
-// the animation to the bottom, then glues the view there frame by frame until both
-// the measured height plateaus and the scroll goes quiet, so late measurements
-// settle without a visible bounce.
-//
-// The glue releases on convergence, not a fixed frame count: it holds until the
-// scroll height has been steady for `JUMP_SETTLE_FRAMES` consecutive frames *and*
-// the container has stopped scrolling. A fixed budget let go too early on a slow
-// render — while rows were still measuring, or while the glue's own `scrollTop`
-// writes still counted as scrolling — so unsettled rows flipped in their scrub
-// skeletons and the virtualizer's re-enabled size-change anchoring drifted the
-// view below the fold: the timeline landing short of the newest message on initial
-// open of a long list of tall rows (#500).
+/**
+ * A windowed jump can't know the true bottom up front: `scrollToEnd` aims at the
+ * bottom the virtualizer can see now, but each row measured as the animation
+ * passes it grows the list, so the target keeps moving. `finalizeJump` follows
+ * the animation to the bottom, then glues the view there frame by frame until both
+ * the measured height plateaus and the scroll goes quiet, so late measurements
+ * settle without a visible bounce.
+ *
+ * The glue releases on convergence, not a fixed frame count: it holds until the
+ * scroll height has been steady for `JUMP_SETTLE_FRAMES` consecutive frames *and*
+ * the container has stopped scrolling. A fixed budget let go too early on a slow
+ * render — while rows were still measuring, or while the glue's own `scrollTop`
+ * writes still counted as scrolling — so unsettled rows flipped in their scrub
+ * skeletons and the virtualizer's re-enabled size-change anchoring drifted the
+ * view below the fold: the timeline landing short of the newest message on initial
+ * open of a long list of tall rows (#500).
+ */
 const JUMP_SETTLE_FRAMES = 4;
 const JUMP_MAX_FRAMES = 180;
 let jumpRaf: number | null = null;
@@ -569,10 +613,12 @@ function isQueued(message: Message): boolean {
     return queued.value.has(message.clientUuid);
 }
 
-// The viewer context each per-message guard resolves against. The hover-action
-// bar (extracted to MessageActions) owns the toolbar guards; the two rules below
-// stay here because they drive non-toolbar UI — the reaction pills and the
-// thread summary — and share the same context.
+/**
+ * The viewer context each per-message guard resolves against. The hover-action
+ * bar (extracted to MessageActions) owns the toolbar guards; the two rules below
+ * stay here because they drive non-toolbar UI — the reaction pills and the
+ * thread summary — and share the same context.
+ */
 function actionContext(message: Message): MessageActionContext {
     return {
         currentUserId: props.currentUserId,
@@ -584,25 +630,31 @@ function actionContext(message: Message): MessageActionContext {
     };
 }
 
-// The viewer may react to any live, confirmed message when they're a member of
-// the (non-archived) channel; drives whether the reaction pills accept toggles.
+/**
+ * The viewer may react to any live, confirmed message when they're a member of
+ * the (non-archived) channel; drives whether the reaction pills accept toggles.
+ */
 function canReactTo(message: Message): boolean {
     return canReactToMessage(message, actionContext(message));
 }
 
-// The "N replies" affordance shows on any root that has replies, even a deleted
-// one — the thread outlives its root as a tombstone.
+/**
+ * The "N replies" affordance shows on any root that has replies, even a deleted
+ * one — the thread outlives its root as a tombstone.
+ */
 function showThreadSummary(message: Message): boolean {
     return showsThreadSummary(message, actionContext(message));
 }
 
-// The message currently being edited inline, and its working draft.
+/** The message currently being edited inline, and its working draft. */
 const editingId = ref<string | null>(null);
 const editDraft = ref('');
 const editField = ref<HTMLTextAreaElement | null>(null);
 
-// A plain template ref inside v-for collects into an array; a function ref keeps
-// the single visible editor element (only one row edits at a time).
+/**
+ * A plain template ref inside v-for collects into an array; a function ref keeps
+ * the single visible editor element (only one row edits at a time).
+ */
 function setEditField(el: unknown): void {
     editField.value = (el as HTMLTextAreaElement | null) ?? null;
 }
@@ -629,7 +681,7 @@ function saveEdit(message: Message): void {
     cancelEdit();
 }
 
-// The message queued for deletion; a non-null value drives the confirm dialog.
+/** The message queued for deletion; a non-null value drives the confirm dialog. */
 const pendingDelete = ref<Message | null>(null);
 
 function requestDelete(message: Message): void {

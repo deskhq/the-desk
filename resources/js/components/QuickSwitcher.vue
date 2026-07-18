@@ -39,22 +39,26 @@ const props = defineProps<{
 const open = defineModel<boolean>('open', { default: false });
 
 const emit = defineEmits<{
-    // The viewer picked the "Reminders" action; the layout owns the dialog.
+    /** The viewer picked the "Reminders" action; the layout owns the dialog. */
     openReminders: [];
 }>();
 
-// Our own query drives the fuzzy channel ranking. The Command's internal filter
-// state is deliberately left untouched (empty) so it never hides a subsequence
-// match that `rankChannels` chose to surface — the ranked list is the single
-// source of truth for what shows and in what order.
+/**
+ * Our own query drives the fuzzy channel ranking. The Command's internal filter
+ * state is deliberately left untouched (empty) so it never hides a subsequence
+ * match that `rankChannels` chose to surface — the ranked list is the single
+ * source of truth for what shows and in what order.
+ */
 const query = ref('');
 
 const trimmedQuery = computed(() => query.value.trim().replace(/^#+/, ''));
 
-// Parse the raw input into the shared filter model so `from:` / `in:` /
-// `before:` / `after:` tokens drive the same structured search the page uses —
-// the palette just has no visible chip bar. The residual text is the query the
-// results highlight and the channel/people groups keep ranking on.
+/**
+ * Parse the raw input into the shared filter model so `from:` / `in:` /
+ * `before:` / `after:` tokens drive the same structured search the page uses —
+ * the palette just has no visible chip bar. The residual text is the query the
+ * results highlight and the channel/people groups keep ranking on.
+ */
 const parsedFilters = computed(() =>
     parseSearchQuery(query.value, {
         members: props.members,
@@ -76,9 +80,11 @@ const peopleResults = computed(() =>
     rankPeople(props.members, query.value, props.currentUserId),
 );
 
-// Live message search: a debounced JSON call to the suggest endpoint, with the
-// in-flight request cancelled whenever the query changes so late responses
-// never overwrite newer ones.
+/**
+ * Live message search: a debounced JSON call to the suggest endpoint, with the
+ * in-flight request cancelled whenever the query changes so late responses
+ * never overwrite newer ones.
+ */
 const {
     results: messageResults,
     isSearching: isSearchingMessages,

@@ -17,7 +17,7 @@ function jsonResponse(results: MessageSearchResult[], ok = true): Response {
 const ids = (results: MessageSearchResult[]): string[] =>
     results.map((result) => result.message.id);
 
-// Drain the microtask queue so an already-resolved fetch chain settles.
+/** Drain the microtask queue so an already-resolved fetch chain settles. */
 const flush = async (): Promise<void> => {
     await vi.advanceTimersByTimeAsync(0);
 };

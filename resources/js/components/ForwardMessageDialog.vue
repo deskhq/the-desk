@@ -20,13 +20,15 @@ import type { ForwardTarget } from '@/types/forward';
 import type { PersonRef } from '@/types/people';
 
 const props = defineProps<{
-    // The message being forwarded, driving the preview; null when the dialog is
-    // closed (nothing is being forwarded).
+    /**
+     * The message being forwarded, driving the preview; null when the dialog is
+     * closed (nothing is being forwarded).
+     */
     message: Message | null;
     channels: Channel[];
-    // Team members, offered as DM targets (opened-or-created on forward).
+    /** Team members, offered as DM targets (opened-or-created on forward). */
     people: PersonRef[];
-    // The viewer's own id, so their entry can read "You" and open a self-DM.
+    /** The viewer's own id, so their entry can read "You" and open a self-DM. */
     currentUserId: string;
 }>();
 
@@ -42,8 +44,10 @@ const query = ref('');
 const note = ref('');
 const selected = ref<ForwardTarget | null>(null);
 
-// Only standard channels are ranked here; DMs are reached through the People
-// section (which opens-or-creates the DM), so they never double up as channels.
+/**
+ * Only standard channels are ranked here; DMs are reached through the People
+ * section (which opens-or-creates the DM), so they never double up as channels.
+ */
 const rankedChannels = computed(() =>
     rankChannels(
         props.channels.filter((channel) => !channel.isDirect),
@@ -59,7 +63,7 @@ const hasResults = computed(
     () => rankedChannels.value.length > 0 || rankedPeople.value.length > 0,
 );
 
-// A one-line snippet of the message being forwarded, empty for a deleted source.
+/** A one-line snippet of the message being forwarded, empty for a deleted source. */
 const preview = computed(() =>
     props.message && !props.message.isDeleted
         ? messageBodyPreview(props.message.body)
