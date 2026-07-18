@@ -3,6 +3,7 @@ import type { Auth } from '@/types/auth';
 import type { Channel, ChannelSection } from '@/types/channels';
 import type { MessageReminder } from '@/types/messages';
 import type { PersonRef } from '@/types/people';
+import type { SidebarPositionOption } from '@/types/sidebar';
 import type { DashboardInvitation, RoleOption, Team } from '@/types/teams';
 
 // Extend ImportMeta interface for Vite...
@@ -28,6 +29,7 @@ declare module '@inertiajs/core' {
             sso: { oidcEnabled: boolean; passwordLoginEnabled: boolean };
             attachments: { maxSizeMb: number; maxPerMessage: number };
             gifPickerEnabled: boolean;
+            sidebarPositions: SidebarPositionOption[];
             sidebarOpen: boolean;
             currentTeam: Team | null;
             teams: Team[];
