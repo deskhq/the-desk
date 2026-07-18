@@ -52,6 +52,14 @@ class AppServiceProvider extends ServiceProvider
         RateLimiter::for('integrations', fn (Request $request): Limit => Limit::perMinute(
             (int) config('integrations.api_rate_limit'),
         )->by(sha1((string) $request->bearerToken())));
+
+        // Incoming webhooks authenticate by the opaque token in their URL, not a
+        // bearer token, so they are throttled per URL token — two webhooks posting
+        // from the same egress IP never share a quota. Same operator-configured
+        // rate as the rest of the platform.
+        RateLimiter::for('incoming-webhook', fn (Request $request): Limit => Limit::perMinute(
+            (int) config('integrations.api_rate_limit'),
+        )->by(sha1((string) $request->route('token'))));
     }
 
     /**
