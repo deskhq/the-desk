@@ -48,33 +48,45 @@ import type {
 const props = defineProps<{
     channel: Channel;
     teamSlug: string;
-    // The team roster the page already carries for the composer, reused for the
-    // overlapping member facepile.
+    /**
+     * The team roster the page already carries for the composer, reused for the
+     * overlapping member facepile.
+     */
     members: Mention[];
-    // Ids of team members currently online, driving the DM presence dot.
+    /** Ids of team members currently online, driving the DM presence dot. */
     onlineIds: Set<string>;
-    // The viewer-relative title (self-DM reads "You"); the page also feeds it to
-    // `<Head>`, so it is resolved once there and passed down.
+    /**
+     * The viewer-relative title (self-DM reads "You"); the page also feeds it to
+     * `<Head>`, so it is resolved once there and passed down.
+     */
     title: string;
     canManagePreferences: boolean;
     canArchive: boolean;
-    // Whether the viewer may leave the channel — a member of a standard channel
-    // that isn't #general, or of a group DM. Drives the "Leave" menu item.
+    /**
+     * Whether the viewer may leave the channel — a member of a standard channel
+     * that isn't #general, or of a group DM. Drives the "Leave" menu item.
+     */
     canLeave: boolean;
-    // Whether the viewer may add people to this DM (a member of any DM). Drives
-    // the masthead's "Add people" button.
+    /**
+     * Whether the viewer may add people to this DM (a member of any DM). Drives
+     * the masthead's "Add people" button.
+     */
     canAddPeople: boolean;
     notificationLevels: NotificationLevelOption[];
     starred: boolean;
     muted: boolean;
-    // The channel's pinned-message count, driving the pins button's badge. Kept
-    // live from the `MessagePinned` broadcast by the page.
+    /**
+     * The channel's pinned-message count, driving the pins button's badge. Kept
+     * live from the `MessagePinned` broadcast by the page.
+     */
     pinCount: number;
     notificationLevel: NotificationLevel;
-    // A compact header cue for a non-default notification state, or null.
+    /** A compact header cue for a non-default notification state, or null. */
     notificationStatus: NotificationIndicator | null;
-    // The realtime connection cue: a reconnecting pill, a transient back-online
-    // confirmation, or null when the socket is steadily connected.
+    /**
+     * The realtime connection cue: a reconnecting pill, a transient back-online
+     * confirmation, or null when the socket is steadily connected.
+     */
     connectionPill?: ConnectionPill;
 }>();
 
@@ -88,39 +100,45 @@ const emit = defineEmits<{
     openPins: [];
 }>();
 
-// How many member avatars the masthead shows before collapsing the rest into a
-// single "+N" overflow chip.
+/**
+ * How many member avatars the masthead shows before collapsing the rest into a
+ * single "+N" overflow chip.
+ */
 const MAX_MASTHEAD_AVATARS = 3;
 
-// The overlapping member avatars for the masthead's right side.
+/** The overlapping member avatars for the masthead's right side. */
 const mastheadAvatars = computed(() =>
     memberAvatarStack(props.members, MAX_MASTHEAD_AVATARS),
 );
 
 const page = usePage();
 
-// The other participant of a 1:1 DM, whose avatar the masthead shows.
+/** The other participant of a 1:1 DM, whose avatar the masthead shows. */
 const dmParticipant = computed(() => props.channel.dmParticipants?.[0] ?? null);
 
-// The avatar image for the 1:1 masthead: the other participant's, or — in a
-// self-DM, which has no other participant — the viewer's own. Null (so the
-// initials fallback shows) when that person has no avatar.
+/**
+ * The avatar image for the 1:1 masthead: the other participant's, or — in a
+ * self-DM, which has no other participant — the viewer's own. Null (so the
+ * initials fallback shows) when that person has no avatar.
+ */
 const dmAvatar = computed(() =>
     dmParticipant.value
         ? (dmParticipant.value.avatar ?? null)
         : (page.props.auth.user.avatar ?? null),
 );
 
-// A 1:1 DM renders viewer-relative: the other participant's presence dot follows
-// the team roster. A DM is a fixed set, so the "who's in the channel" facepile is
-// meaningless and hidden.
+/**
+ * A 1:1 DM renders viewer-relative: the other participant's presence dot follows
+ * the team roster. A DM is a fixed set, so the "who's in the channel" facepile is
+ * meaningless and hidden.
+ */
 const dmParticipantOnline = computed(
     () =>
         props.channel.dmUserId != null &&
         props.onlineIds.has(props.channel.dmUserId),
 );
 
-// The group's participant count, including the viewer, for the subtitle.
+/** The group's participant count, including the viewer, for the subtitle. */
 const groupParticipantCount = computed(
     () => (props.channel.dmParticipants?.length ?? 0) + 1,
 );

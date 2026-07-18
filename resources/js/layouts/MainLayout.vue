@@ -107,9 +107,11 @@ const page = usePage();
 
 const { t } = useTranslations();
 
-// The same workspace shell wraps the settings/teams section, but its sidebar
-// swaps the channel list for the settings navigation so there is a single
-// sidebar rather than a nested one.
+/**
+ * The same workspace shell wraps the settings/teams section, but its sidebar
+ * swaps the channel list for the settings navigation so there is a single
+ * sidebar rather than a nested one.
+ */
 const isSettingsSection = computed(() => {
     const component = page.component;
 
@@ -134,13 +136,13 @@ const currentTeam = computed(() => page.props.currentTeam);
 const teams = computed(() => page.props.teams ?? []);
 const channels = computed(() => page.props.channels ?? []);
 const currentUserId = computed(() => String(page.props.auth.user.id));
-// The current team's members, feeding the DM entry points (people picker + ⌘K).
+/** The current team's members, feeding the DM entry points (people picker + ⌘K). */
 const teamMembers = computed(() => page.props.teamMembers ?? []);
 
-// Online roster for the current team, driving the presence dot on each DM row.
+/** Online roster for the current team, driving the presence dot on each DM row. */
 const { onlineIds } = useTeamPresence(() => currentTeam.value?.id);
 
-// The "New message" people picker opened from the "Direct messages" header.
+/** The "New message" people picker opened from the "Direct messages" header. */
 const newDmOpen = ref(false);
 const activeChannelSlug = computed(
     () => (page.props.channel as { slug?: string } | undefined)?.slug ?? null,
@@ -148,8 +150,10 @@ const activeChannelSlug = computed(
 const pendingInvitations = computed(() => page.props.pendingInvitations ?? []);
 const hasUnreadThreads = computed(() => page.props.hasUnreadThreads ?? false);
 
-// The dock header's "invite people" mini-button reuses the member-invite modal;
-// the permission and assignable roles ride along on the shared workspace props.
+/**
+ * The dock header's "invite people" mini-button reuses the member-invite modal;
+ * the permission and assignable roles ride along on the shared workspace props.
+ */
 const canInviteToCurrentTeam = computed(
     () => page.props.canInviteToCurrentTeam ?? false,
 );
@@ -158,20 +162,26 @@ const invitableRoles = computed<RoleOption[]>(
 );
 const inviteOpen = ref(false);
 
-// The user's custom sidebar sections for the current team, kept in their
-// persisted order.
+/**
+ * The user's custom sidebar sections for the current team, kept in their
+ * persisted order.
+ */
 const customSections = computed<ChannelSection[]>(
     () => page.props.channelSections ?? [],
 );
 
-// Local, drag-mutable copies of each sidebar group. vuedraggable writes to these
-// arrays as the user drags; they are re-seeded from the shared props whenever the
-// server recomputes them (a star toggle, a live badge update, or a persisted
-// reorder round-tripping), so the layout follows the user across devices.
+/**
+ * Local, drag-mutable copies of each sidebar group. vuedraggable writes to these
+ * arrays as the user drags; they are re-seeded from the shared props whenever the
+ * server recomputes them (a star toggle, a live badge update, or a persisted
+ * reorder round-tripping), so the layout follows the user across devices.
+ */
 const starredList = ref<Channel[]>([]);
 const defaultList = ref<Channel[]>([]);
-// Direct messages, ordered by recent activity (the partitioner sorts them). Not
-// drag-mutable — DMs never file into sections — so this is a plain projection.
+/**
+ * Direct messages, ordered by recent activity (the partitioner sorts them). Not
+ * drag-mutable — DMs never file into sections — so this is a plain projection.
+ */
 const directList = ref<Channel[]>([]);
 const customGroups = ref<{ section: ChannelSection; channels: Channel[] }[]>(
     [],
@@ -339,7 +349,7 @@ function blurInput(event: Event): void {
     }
 }
 
-// Creating a new section from the inline form under the "Channels" header.
+/** Creating a new section from the inline form under the "Channels" header. */
 const sectionFormOpen = ref(false);
 const newSectionName = ref('');
 
@@ -380,9 +390,11 @@ function createSection(): void {
     );
 }
 
-// Inline renaming of an existing section. The input renders inside the sections
-// v-for, so its DOM node is resolved by its section-scoped `data-test` once
-// mounted (see focusSidebarInput).
+/**
+ * Inline renaming of an existing section. The input renders inside the sections
+ * v-for, so its DOM node is resolved by its section-scoped `data-test` once
+ * mounted (see focusSidebarInput).
+ */
 const renamingSectionId = ref<string | null>(null);
 const renameValue = ref('');
 
@@ -478,10 +490,12 @@ function toggleCustomSection(group: {
     );
 }
 
-// Which sidebar sections the user has collapsed, seeded from the shared prop and
-// kept in sync when the server recomputes it (e.g. after a reload on another
-// device). A local ref lets the header toggle feel instant before the persisted
-// state round-trips.
+/**
+ * Which sidebar sections the user has collapsed, seeded from the shared prop and
+ * kept in sync when the server recomputes it (e.g. after a reload on another
+ * device). A local ref lets the header toggle feel instant before the persisted
+ * state round-trips.
+ */
 const collapsedSections = ref<string[]>([
     ...(page.props.collapsedChannelSections ?? []),
 ]);
@@ -532,8 +546,10 @@ const quickSwitcherOpen = ref(false);
 const { isOpen: shortcutsOpen, toggle: toggleShortcuts } =
     useKeyboardShortcutsModal();
 
-// The viewer's still-pending reminders in this team, feeding the "Reminders"
-// list and its sidebar count; the due-and-unacknowledged ones drive the nudges.
+/**
+ * The viewer's still-pending reminders in this team, feeding the "Reminders"
+ * list and its sidebar count; the due-and-unacknowledged ones drive the nudges.
+ */
 const reminders = computed<MessageReminder[]>(() => page.props.reminders ?? []);
 const firedReminders = computed<MessageReminder[]>(
     () => page.props.firedReminders ?? [],
@@ -550,8 +566,10 @@ const reminderReloadOptions = {
     only: ['reminders', 'firedReminders'] as string[],
 };
 
-// Jump to the reminded message, then clear its now-acknowledged nudge. The
-// clear runs first so the fresh page load no longer carries the fired reminder.
+/**
+ * Jump to the reminded message, then clear its now-acknowledged nudge. The
+ * clear runs first so the fresh page load no longer carries the fired reminder.
+ */
 function openReminder(reminder: MessageReminder): void {
     const target = show(
         { team: reminder.teamSlug, channel: reminder.channelSlug },
@@ -567,7 +585,7 @@ function openReminder(reminder: MessageReminder): void {
     );
 }
 
-// Push a fired reminder out by 20 minutes, re-arming it back to pending.
+/** Push a fired reminder out by 20 minutes, re-arming it back to pending. */
 function snoozeReminder(reminder: MessageReminder): void {
     router.post(
         storeReminder({ team: reminder.teamSlug }).url,
@@ -587,7 +605,7 @@ function snoozeReminder(reminder: MessageReminder): void {
     );
 }
 
-// Clear a single reminder — an acknowledged nudge, or a pending row from the list.
+/** Clear a single reminder — an acknowledged nudge, or a pending row from the list. */
 function clearReminder(
     reminder: Pick<MessageReminder, 'id' | 'teamSlug'>,
 ): void {
@@ -597,7 +615,7 @@ function clearReminder(
     );
 }
 
-// Clear every pending reminder in the current team at once.
+/** Clear every pending reminder in the current team at once. */
 function clearAllReminders(): void {
     if (!currentTeam.value) {
         return;
@@ -609,8 +627,10 @@ function clearAllReminders(): void {
     );
 }
 
-// The dialog rows only carry the reminder id; resolve the team from the shared
-// prop (all listed reminders belong to the current team).
+/**
+ * The dialog rows only carry the reminder id; resolve the team from the shared
+ * prop (all listed reminders belong to the current team).
+ */
 function clearReminderById(id: string): void {
     const reminder = reminders.value.find((entry) => entry.id === id);
 
@@ -649,8 +669,10 @@ useKeyboardShortcuts({
 
 const { timezone, syncDetectedTimezone } = useTimezone();
 
-// Which edge the dock sits on, read from the shared user prop so the redirect
-// after a change re-binds :side live (no reload).
+/**
+ * Which edge the dock sits on, read from the shared user prop so the redirect
+ * after a change re-binds :side live (no reload).
+ */
 const { sidebarPosition } = useSidebarPosition();
 
 onMounted(() => {

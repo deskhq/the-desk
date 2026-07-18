@@ -18,8 +18,10 @@ function message(
     } as unknown as Message;
 }
 
-// Noon timestamps keep day boundaries unambiguous regardless of the runner's
-// timezone; a calendar day never flips around midday.
+/**
+ * Noon timestamps keep day boundaries unambiguous regardless of the runner's
+ * timezone; a calendar day never flips around midday.
+ */
 const DAY_1_NOON = '2026-07-10T12:00:00.000Z';
 
 function minutesLater(iso: string, minutes: number): string {

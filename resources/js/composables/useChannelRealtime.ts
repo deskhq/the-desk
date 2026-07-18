@@ -69,17 +69,21 @@ function channelName(id: string): string {
  * this composable stays a thin bridge between Echo and the streams.
  */
 export function useChannelRealtime(options: ChannelRealtimeOptions): void {
-    // An edit or deletion may touch either timeline (or both, for a
-    // sent-to-channel reply); patch both streams, since a patch is ignored where
-    // the message isn't rendered.
+    /**
+     * An edit or deletion may touch either timeline (or both, for a
+     * sent-to-channel reply); patch both streams, since a patch is ignored where
+     * the message isn't rendered.
+     */
     function applyPatch(message: Message): void {
         options.mainStream.applyPatch(message);
         options.threadStream.applyPatch(message);
     }
 
-    // Route a broadcast message to the timeline it belongs to, following the main
-    // timeline down when the reader is near the bottom and reconciling the open
-    // thread's read state — all decided by `placeIncomingMessage`.
+    /**
+     * Route a broadcast message to the timeline it belongs to, following the main
+     * timeline down when the reader is near the bottom and reconciling the open
+     * thread's read state — all decided by `placeIncomingMessage`.
+     */
     function routeIncoming(message: Message): void {
         const root = options
             .displayMessages()
@@ -206,9 +210,11 @@ export function useChannelRealtime(options: ChannelRealtimeOptions): void {
         },
     });
 
-    // Drive the fleet as a single-channel subscription: `null` active id keeps the
-    // handoff dormant, so each reconcile leaves the previous channel and
-    // subscribes the current one.
+    /**
+     * Drive the fleet as a single-channel subscription: `null` active id keeps the
+     * handoff dormant, so each reconcile leaves the previous channel and
+     * subscribes the current one.
+     */
     function moveSubscription(): void {
         fleet.reconcile([options.channelId()], null);
     }

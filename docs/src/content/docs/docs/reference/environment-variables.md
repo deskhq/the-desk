@@ -229,6 +229,28 @@ If these are lower than `ATTACHMENT_MAX_SIZE_MB`, large uploads are rejected by 
 before the app ever sees them. See [Reverse proxy](/docs/self-hosting/reverse-proxy/).
 :::
 
+## GIFs (Giphy)
+
+The composer's `/gif` picker searches [Giphy](https://developers.giphy.com/) and sends the chosen
+GIF into any channel or DM. It is **off** until you supply an API key, so a default deployment ships
+without it — the `/gif` command and picker are hidden, and the search/attach routes (though still
+registered) return **404**.
+
+| Variable               | Default   | Notes                                                                                     |
+| ---------------------- | --------- | ----------------------------------------------------------------------------------------- |
+| `GIPHY_API_KEY`        | *(blank)* | A Giphy API key (free from developers.giphy.com). Blank hides the feature entirely.       |
+| `GIPHY_CONTENT_RATING` | `g`       | Strictest rating Giphy may return: `g`, `pg`, `pg-13`, or `r`. `g` is workplace-safe.     |
+
+See [Feature toggles → GIF picker](/docs/reference/feature-toggles/#gif-picker-giphy) for how the
+feature behaves once enabled.
+
+:::note[GIFs are hotlinked from Giphy's CDN]
+A sent GIF is stored as a **reference** to Giphy's CDN URL — the bytes are never downloaded to your
+server. Viewers' browsers therefore load the GIF directly from Giphy's CDN, which means Giphy can see
+those requests (IP address, timing). This is a minor privacy consideration; self-hosting the GIF bytes
+is not currently supported.
+:::
+
 ## Session geolocation
 
 The **Security** settings page can show an approximate location (city, country)

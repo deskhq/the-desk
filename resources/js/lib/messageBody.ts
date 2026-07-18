@@ -16,16 +16,20 @@ function escapeHtml(text: string): string {
     return text.replace(/[&<>"']/g, (char) => HTML_ESCAPES[char]);
 }
 
-// The composer stores each resolved mention as a `@[Display Name](user-id)`
-// token. None of its literal characters are altered by HTML escaping, so the
-// token survives escapeHtml intact and can be matched afterwards.
+/**
+ * The composer stores each resolved mention as a `@[Display Name](user-id)`
+ * token. None of its literal characters are altered by HTML escaping, so the
+ * token survives escapeHtml intact and can be matched afterwards.
+ */
 const MENTION_PATTERN = /@\[([^\]]+)\]\(([0-9a-fA-F-]{36})\)/g;
 
-// http/https URLs, consuming everything up to whitespace. Any escaped `<`
-// becomes `&lt;` before this runs, so it can never re-open a tag.
+/**
+ * http/https URLs, consuming everything up to whitespace. Any escaped `<`
+ * becomes `&lt;` before this runs, so it can never re-open a tag.
+ */
 const URL_PATTERN = /\bhttps?:\/\/[^\s]+/gi;
 
-// Punctuation that commonly trails a URL in prose and shouldn't be linked.
+/** Punctuation that commonly trails a URL in prose and shouldn't be linked. */
 const TRAILING_PUNCTUATION = /[.,!?;:'")\]]+$/;
 
 /**
@@ -70,11 +74,13 @@ function wrapMarks(inner: string, marks: InlineMark[]): string {
     return html;
 }
 
-// The fixed allowlist DOMPurify sanitizes emitted HTML against — the formatting
-// scaffold plus the mention/emoji/link markup this module builds. This is the
-// XSS trust boundary: every HTML string we hand to a `v-html`/rendered surface
-// passes through {@see sanitize} first, so an attacker-authored tag or
-// `javascript:` URL that somehow reached the output could never survive it.
+/**
+ * The fixed allowlist DOMPurify sanitizes emitted HTML against — the formatting
+ * scaffold plus the mention/emoji/link markup this module builds. This is the
+ * XSS trust boundary: every HTML string we hand to a `v-html`/rendered surface
+ * passes through {@see sanitize} first, so an attacker-authored tag or
+ * `javascript:` URL that somehow reached the output could never survive it.
+ */
 const SANITIZE_CONFIG = {
     ALLOWED_TAGS: ['strong', 'em', 'del', 'code', 'br', 'span', 'a', 'img'],
     ALLOWED_ATTR: ['class', 'href', 'target', 'rel', 'src', 'alt', 'title'],
@@ -111,8 +117,10 @@ export type MessageBodySegment =
     | { kind: 'mention'; id: string; name: string; marks?: InlineMark[] }
     | { kind: 'emoji'; name: string; url: string; marks?: InlineMark[] };
 
-// The highlighted-pill styling for a resolved mention, shared by the interactive
-// segment renderer and the flat-HTML {@see renderMessageBody}.
+/**
+ * The highlighted-pill styling for a resolved mention, shared by the interactive
+ * segment renderer and the flat-HTML {@see renderMessageBody}.
+ */
 const MENTION_PILL_CLASS =
     'rounded px-1 py-0.5 font-medium text-blue-700 bg-blue-500/10 dark:text-blue-300 dark:bg-blue-400/15';
 
@@ -120,7 +128,7 @@ function mentionPillHtml(name: string): string {
     return `<span class="${MENTION_PILL_CLASS}">@${escapeHtml(name)}</span>`;
 }
 
-// Escape a run of text for HTML and preserve its newlines as `<br>`.
+/** Escape a run of text for HTML and preserve its newlines as `<br>`. */
 function escapeInline(text: string): string {
     return escapeHtml(text).replace(/\n/g, '<br>');
 }
@@ -154,7 +162,7 @@ function tokenizeTextRun(
         return marks.length > 0 ? { ...segment, marks: [...marks] } : segment;
     };
 
-    // Emoji shortcodes inside a run that already has no URL or mention.
+    /** Emoji shortcodes inside a run that already has no URL or mention. */
     const pushEmojiRun = (value: string): void => {
         if (value === '') {
             return;
@@ -181,9 +189,11 @@ function tokenizeTextRun(
         pushHtml(value.slice(lastIndex));
     };
 
-    // Mentions within a run that has no URL. Only ids present in `resolved`
-    // become interactive; any other well-formed token falls back to plain
-    // `@Name` text so a spoofed token can never masquerade as a real mention.
+    /**
+     * Mentions within a run that has no URL. Only ids present in `resolved`
+     * become interactive; any other well-formed token falls back to plain
+     * `@Name` text so a spoofed token can never masquerade as a real mention.
+     */
     const pushInline = (chunk: string): void => {
         const pattern = new RegExp(MENTION_PATTERN.source, 'g');
         let lastIndex = 0;
@@ -325,9 +335,11 @@ function linkHtml(href: string): string {
     return `<a href="${safe}" target="_blank" rel="noopener noreferrer nofollow" class="text-primary underline underline-offset-2 hover:no-underline">${safe}</a>`;
 }
 
-// The shared inline-image markup for a resolved custom emoji. The url comes from
-// the trusted server-shared map and the name is regex-constrained kebab-case, so
-// both are safe to interpolate; the alt is still escaped defensively.
+/**
+ * The shared inline-image markup for a resolved custom emoji. The url comes from
+ * the trusted server-shared map and the name is regex-constrained kebab-case, so
+ * both are safe to interpolate; the alt is still escaped defensively.
+ */
 const EMOJI_IMG_CLASS =
     'custom-emoji inline-block h-[1.35em] w-[1.35em] align-text-bottom';
 

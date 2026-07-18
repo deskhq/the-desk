@@ -123,6 +123,69 @@ describe('useAttachmentUploads', () => {
         expect(calls[0].url).toBe('/t/acme/c/design/attachments');
     });
 
+    it('stages a picked GIF as a ready remote row carrying its claimable id', () => {
+        uploads.addRemote({
+            id: 'gif-1',
+            filename: null,
+            mimeType: 'image/gif',
+            sizeBytes: 0,
+            width: 2,
+            height: 1,
+            isImage: true,
+            source: 'giphy',
+            url: 'https://media.giphy.com/gif-1/200.gif',
+            thumbUrl: null,
+            description: 'a happy cat',
+        });
+
+        expect(uploads.items.value).toHaveLength(1);
+        const row = uploads.items.value[0];
+        expect(row.status).toBe('done');
+        expect(row.isImage).toBe(true);
+        // A remote GIF previews straight from its CDN url (no local blob).
+        expect(row.previewUrl).toBe('https://media.giphy.com/gif-1/200.gif');
+        expect(row.name).toBe('a happy cat');
+        expect(uploads.isUploading.value).toBe(false);
+        expect(uploads.attachmentIds.value).toEqual(['gif-1']);
+        // No upload is fired for an already-created remote attachment.
+        expect(calls).toHaveLength(0);
+    });
+
+    it('honours the per-message cap for picked GIFs', () => {
+        for (let i = 0; i < 3; i++) {
+            uploads.addRemote({
+                id: `gif-${i}`,
+                filename: null,
+                mimeType: 'image/gif',
+                sizeBytes: 0,
+                width: 2,
+                height: 1,
+                isImage: true,
+                source: 'giphy',
+                url: `https://media.giphy.com/gif-${i}/200.gif`,
+                thumbUrl: null,
+                description: null,
+            });
+        }
+
+        uploads.addRemote({
+            id: 'gif-over',
+            filename: null,
+            mimeType: 'image/gif',
+            sizeBytes: 0,
+            width: 2,
+            height: 1,
+            isImage: true,
+            source: 'giphy',
+            url: 'https://media.giphy.com/over/200.gif',
+            thumbUrl: null,
+            description: null,
+        });
+
+        expect(uploads.items.value).toHaveLength(3);
+        expect(toastError).toHaveBeenCalledOnce();
+    });
+
     it('previews an image row via an object URL but not a plain file', () => {
         uploads.addFiles([
             fakeFile('pic.png', 'image/png'),

@@ -20,16 +20,18 @@ export function isSystemMessage(message: Pick<Message, 'type'>): boolean {
  */
 export type MessageActionContext = {
     currentUserId: string;
-    // Whether the viewer may add/remove reactions (member of a live channel).
+    /** Whether the viewer may add/remove reactions (member of a live channel). */
     canReact: boolean;
-    // Whether the viewer may pin/unpin messages (member of a non-archived
-    // channel). Pinning is a shared toggle — any member may unpin any pin.
+    /**
+     * Whether the viewer may pin/unpin messages (member of a non-archived
+     * channel). Pinning is a shared toggle — any member may unpin any pin.
+     */
     canPin: boolean;
-    // Whether the viewer may moderate others' messages (delete them).
+    /** Whether the viewer may moderate others' messages (delete them). */
     canModerate: boolean;
-    // Rendered inside a thread panel: suppresses the reply/thread affordances.
+    /** Rendered inside a thread panel: suppresses the reply/thread affordances. */
     inThread: boolean;
-    // Whether this row is an optimistic send with no stable server id yet.
+    /** Whether this row is an optimistic send with no stable server id yet. */
     pending: boolean;
 };
 

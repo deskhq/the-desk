@@ -11,13 +11,17 @@ import { useScrollPin } from '@/composables/useScrollPin';
 import type { Mention, Message } from '@/types';
 
 const props = defineProps<{
-    // The open thread's root id, used to key the reply scroll so switching
-    // threads mounts a fresh, bottom-anchored list.
+    /**
+     * The open thread's root id, used to key the reply scroll so switching
+     * threads mounts a fresh, bottom-anchored list.
+     */
     rootId: string;
     teamSlug: string;
     channelName: string;
-    // The root followed by its replies (oldest first), merged and deduped by the
-    // parent's thread stream; empty while the thread is still loading.
+    /**
+     * The root followed by its replies (oldest first), merged and deduped by the
+     * parent's thread stream; empty while the thread is still loading.
+     */
     messages: Message[];
     pendingUuids?: string[];
     members: Mention[];
@@ -48,29 +52,37 @@ const emit = defineEmits<{
     jump: [messageId: string];
 }>();
 
-// The root is the thread's only top-level message; everything else is a reply.
+/** The root is the thread's only top-level message; everything else is a reply. */
 const root = computed(() =>
     props.messages.find((message) => message.threadRootId === null),
 );
 const hasRoot = computed(() => root.value !== undefined);
-// The header shows the thread's total reply count (denormalized on the root),
-// not just the replies currently paged into view.
+/**
+ * The header shows the thread's total reply count (denormalized on the root),
+ * not just the replies currently paged into view.
+ */
 const replyCount = computed(() => root.value?.threadReplyCount ?? 0);
 const showSkeleton = computed(() => props.loading || !hasRoot.value);
 
-// Shared scroll/pin bookkeeping, identical to the main timeline's: the
-// pinned-to-newest flag, the "N new replies" count while scrolled up, and the
-// smooth jump back to the bottom.
+/**
+ * Shared scroll/pin bookkeeping, identical to the main timeline's: the
+ * pinned-to-newest flag, the "N new replies" count while scrolled up, and the
+ * smooth jump back to the bottom.
+ */
 const scrollContainer = ref<HTMLElement | null>(null);
-// `ScrollableMessageList` owns the scroll element; this points our ref at it so
-// `useScrollPin` binds to the very same node.
+/**
+ * `ScrollableMessageList` owns the scroll element; this points our ref at it so
+ * `useScrollPin` binds to the very same node.
+ */
 const setScrollContainer = (el: HTMLElement | null): void => {
     scrollContainer.value = el;
 };
-// The windowed `MessageList` exposes `scrollToLatest`, so the jump-to-newest
-// lands on the real bottom: a native `scrollTo(scrollHeight)` settles short on
-// the virtualizer's estimated spacer (#347). Inertia's manual `<InfiniteScroll>`
-// exposes the older-page fetch. Both are read through template refs.
+/**
+ * The windowed `MessageList` exposes `scrollToLatest`, so the jump-to-newest
+ * lands on the real bottom: a native `scrollTo(scrollHeight)` settles short on
+ * the virtualizer's estimated spacer (#347). Inertia's manual `<InfiniteScroll>`
+ * exposes the older-page fetch. Both are read through template refs.
+ */
 const messageListRef = ref<{
     scrollToIndex: (
         index: number,
@@ -84,19 +96,25 @@ const infiniteScrollRef = ref<{
     hasNext: () => boolean;
 } | null>(null);
 
-// True while an older reply page is being fetched, gating the virtualizer's
-// top-load trigger so a burst of range updates during a fast scroll can't stack
-// duplicate requests. Cleared once the merged list grows (older replies landed).
+/**
+ * True while an older reply page is being fetched, gating the virtualizer's
+ * top-load trigger so a burst of range updates during a fast scroll can't stack
+ * duplicate requests. Cleared once the merged list grows (older replies landed).
+ */
 const loadingOlder = ref(false);
 
-// In reverse mode the server returns replies newest-first, so "load older" maps
-// to the paginator's *next* page.
+/**
+ * In reverse mode the server returns replies newest-first, so "load older" maps
+ * to the paginator's *next* page.
+ */
 const hasOlder = (): boolean => infiniteScrollRef.value?.hasNext() ?? false;
 
 const isLoadingOlder = (): boolean => loadingOlder.value;
 
-// Fetch the next older reply page through Inertia's merge engine; the virtualizer
-// decides *when* (the reader nears the top of loaded history) via `@load-older`.
+/**
+ * Fetch the next older reply page through Inertia's merge engine; the virtualizer
+ * decides *when* (the reader nears the top of loaded history) via `@load-older`.
+ */
 function loadOlderReplies(): void {
     if (loadingOlder.value || !hasOlder()) {
         return;
@@ -130,21 +148,27 @@ const {
         messageListRef.value?.scrollToLatest(smooth ? 'smooth' : 'auto'),
 });
 
-// The thread reply composer, so a hover card on a thread message can drop a
-// mention into it rather than the main channel composer.
+/**
+ * The thread reply composer, so a hover card on a thread message can drop a
+ * mention into it rather than the main channel composer.
+ */
 const threadComposer = ref<InstanceType<typeof MessageComposer> | null>(null);
 
 function mentionInThread(member: { id: string; name: string }): void {
     threadComposer.value?.insertMention(member);
 }
 
-// The reply the thread composer is editing in place (via the ↑ shortcut), or
-// null. Highlights the target row in the thread while editing.
+/**
+ * The reply the thread composer is editing in place (via the ↑ shortcut), or
+ * null. Highlights the target row in the thread while editing.
+ */
 const editingMessageId = ref<string | null>(null);
 
-// The id of the newest reply currently shown, so a reply appended at the bottom
-// (which should follow the reader or raise the count) can be told apart from
-// older replies paging in at the top, which must leave the viewport anchored.
+/**
+ * The id of the newest reply currently shown, so a reply appended at the bottom
+ * (which should follow the reader or raise the count) can be told apart from
+ * older replies paging in at the top, which must leave the viewport anchored.
+ */
 const newestMessageId = ref<string | null>(null);
 
 // Keep the panel pinned to the newest reply as the conversation grows: the

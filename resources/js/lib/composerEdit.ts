@@ -7,23 +7,25 @@ import type { Message } from '@/types';
  * unit-testable, independent of the live `KeyboardEvent` and Vue refs.
  */
 export type ComposerEditTriggerState = {
-    // The pressed key (`event.key`).
+    /** The pressed key (`event.key`). */
     key: string;
-    // Modifier flags; any held modifier disqualifies the trigger so it never
-    // clashes with `⌥↑` channel navigation.
+    /**
+     * Modifier flags; any held modifier disqualifies the trigger so it never
+     * clashes with `⌥↑` channel navigation.
+     */
     altKey: boolean;
     ctrlKey: boolean;
     metaKey: boolean;
     shiftKey: boolean;
-    // Whether the mention autocomplete menu is open (ArrowUp navigates it then).
+    /** Whether the mention autocomplete menu is open (ArrowUp navigates it then). */
     menuOpen: boolean;
-    // Whether the composer is already in edit mode (no re-entry).
+    /** Whether the composer is already in edit mode (no re-entry). */
     editing: boolean;
-    // Whether a reply is being composed (the composer answers that instead).
+    /** Whether a reply is being composed (the composer answers that instead). */
     hasReplyTarget: boolean;
-    // Whether the composer body is empty (trimmed).
+    /** Whether the composer body is empty (trimmed). */
     isEmpty: boolean;
-    // Whether the caret sits at the very start of the field.
+    /** Whether the caret sits at the very start of the field. */
     caretAtStart: boolean;
 };
 

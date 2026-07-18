@@ -11,20 +11,20 @@ const props = defineProps<{
 }>();
 
 const emit = defineEmits<{
-    // Jump to the reminded message and acknowledge the nudge.
+    /** Jump to the reminded message and acknowledge the nudge. */
     open: [reminder: MessageReminder];
-    // Push the reminder out by 20 minutes.
+    /** Push the reminder out by 20 minutes. */
     snooze: [reminder: MessageReminder];
-    // Acknowledge and clear the nudge without jumping.
+    /** Acknowledge and clear the nudge without jumping. */
     dismiss: [reminder: MessageReminder];
 }>();
 
 const { getInitials } = useInitials();
 
-// A one-line preview of the reminded message, or a stub when it was deleted.
+/** A one-line preview of the reminded message, or a stub when it was deleted. */
 const excerpt = computed(() => messageBodyPreview(props.reminder.body));
 
-// "#design" for a channel, blank for a direct message (no channel name).
+/** "#design" for a channel, blank for a direct message (no channel name). */
 const channelLabel = computed(() =>
     props.reminder.channelName ? `#${props.reminder.channelName}` : null,
 );

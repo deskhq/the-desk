@@ -68,9 +68,9 @@ export function imageGridColumns(count: number): number {
 
 export type ImageGridTile = {
     attachment: AttachmentData;
-    // Index within the message's image list, so the lightbox opens at this tile.
+    /** Index within the message's image list, so the lightbox opens at this tile. */
     index: number;
-    // The count of images hidden behind this tile ("+N"), or 0 when none.
+    /** The count of images hidden behind this tile ("+N"), or 0 when none. */
     overflow: number;
 };
 

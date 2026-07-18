@@ -76,6 +76,14 @@ export interface AttachmentUploads {
     attachmentIds: ComputedRef<string[]>;
     /** Stage and begin uploading the given files, validating size and count. */
     addFiles: (files: Iterable<File>) => void;
+    /**
+     * Stage an already-created remote attachment (a picked Giphy GIF): it is
+     * "done" the moment it lands — the server created the pending row — so it
+     * joins the tray with its claimable id, contributing to `attachmentIds`.
+     * Honours the per-message count cap; returns whether it was accepted (false
+     * when the tray is already full).
+     */
+    addRemote: (attachment: AttachmentData) => boolean;
     /** Remove a row, cancelling its upload and releasing any preview. */
     remove: (localId: string) => void;
     /** Re-upload a previously failed row. */
@@ -269,6 +277,34 @@ export function useAttachmentUploads(
         }
     }
 
+    function addRemote(attachment: AttachmentData): boolean {
+        // A remote attachment carries no File and no local blob preview: it is
+        // hotlinked, so the tray previews it (and later renders it) straight from
+        // the CDN url. It has no upload to run — it arrives already `done`.
+        if (items.value.length >= options.maxPerMessage()) {
+            toast.error(
+                t('You can attach up to :max files per message.', {
+                    max: options.maxPerMessage(),
+                }),
+            );
+
+            return false;
+        }
+
+        items.value.push({
+            localId: generateUuid(),
+            name: attachment.description ?? t('GIF'),
+            sizeBytes: attachment.sizeBytes,
+            isImage: attachment.isImage,
+            previewUrl: attachment.thumbUrl ?? attachment.url,
+            status: 'done',
+            progress: 100,
+            attachment,
+        });
+
+        return true;
+    }
+
     function remove(localId: string): void {
         const source = sources.get(localId);
         source?.abort();
@@ -355,8 +391,10 @@ export function useAttachmentUploads(
     }
 
     function clear(): void {
-        for (const localId of [...sources.keys()]) {
-            remove(localId);
+        // Iterate the live rows, not `sources`: a remote (Giphy) row created by
+        // addRemote has no `sources` entry, so keying off rows removes it too.
+        for (const item of [...items.value]) {
+            remove(item.localId);
         }
     }
 
@@ -376,6 +414,7 @@ export function useAttachmentUploads(
         hasFailed,
         attachmentIds,
         addFiles,
+        addRemote,
         remove,
         retry,
         detach,

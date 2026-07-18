@@ -2,6 +2,7 @@
 
 namespace Database\Factories;
 
+use App\Enums\AttachmentSource;
 use App\Enums\AttachmentStatus;
 use App\Models\Attachment;
 use App\Models\Channel;
@@ -26,6 +27,7 @@ class AttachmentFactory extends Factory
             'message_id' => null,
             'user_id' => User::factory(),
             'channel_id' => Channel::factory(),
+            'source' => AttachmentSource::Upload,
             'disk' => config('attachments.disk'),
             'path' => 'attachments/'.fake()->uuid().'/'.fake()->uuid().'.png',
             'original_filename' => fake()->word().'.png',
@@ -35,6 +37,27 @@ class AttachmentFactory extends Factory
             'height' => 600,
             'status' => AttachmentStatus::Pending,
         ];
+    }
+
+    /**
+     * Indicate the attachment is a remote Giphy GIF: no blob (disk/path/filename
+     * are null), hotlinked from the CDN via `remote_url`, with a content
+     * description used as the rendered `alt` text.
+     */
+    public function giphy(): static
+    {
+        return $this->state(fn (array $attributes): array => [
+            'source' => AttachmentSource::Giphy,
+            'disk' => null,
+            'path' => null,
+            'original_filename' => null,
+            'mime_type' => 'image/gif',
+            'size_bytes' => fake()->numberBetween(50_000, 2_000_000),
+            'width' => 480,
+            'height' => 270,
+            'remote_url' => 'https://media.giphy.com/media/'.fake()->uuid().'/giphy.gif',
+            'description' => fake()->words(3, true),
+        ]);
     }
 
     /**

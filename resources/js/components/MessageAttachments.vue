@@ -18,8 +18,10 @@ const props = defineProps<{
     attachments: AttachmentData[];
     authorName: string;
     createdAt: string;
-    // The viewer's configured timezone, so the lightbox's timestamp matches the
-    // timeline. Undefined falls back to the browser's local zone.
+    /**
+     * The viewer's configured timezone, so the lightbox's timestamp matches the
+     * timeline. Undefined falls back to the browser's local zone.
+     */
     viewerTimeZone?: string;
 }>();
 
@@ -50,6 +52,27 @@ function previewSrc(attachment: AttachmentData): string {
     return attachment.thumbUrl ?? attachment.url;
 }
 
+/**
+ * A human label for an image: its upload filename, else its remote description
+ * (a Giphy GIF has no filename), else a generic "GIF" fallback. Used for the
+ * open/download affordance names and the hover caption.
+ */
+function imageLabel(attachment: AttachmentData): string {
+    return attachment.filename ?? attachment.description ?? t('GIF');
+}
+
+/**
+ * The hover caption for an image: its label, and its size when it has one. A
+ * remote GIF is hotlinked (no stored bytes), so its size is omitted.
+ */
+function imageCaption(attachment: AttachmentData): string {
+    const label = imageLabel(attachment);
+
+    return attachment.sizeBytes > 0
+        ? `${label} · ${formatFileSize(attachment.sizeBytes)}`
+        : label;
+}
+
 function isSvg(attachment: AttachmentData): boolean {
     return attachment.mimeType.toLowerCase() === 'image/svg+xml';
 }
@@ -68,7 +91,7 @@ function isSvg(attachment: AttachmentData): boolean {
         >
             <img
                 :src="previewSrc(images[0])"
-                alt=""
+                :alt="images[0].description ?? ''"
                 loading="lazy"
                 class="size-full object-cover"
             />
@@ -77,14 +100,18 @@ function isSvg(attachment: AttachmentData): boolean {
                 size="none"
                 type="button"
                 data-test="attachment-image"
-                :aria-label="t('Open :name', { name: images[0].filename })"
+                :aria-label="t('Open :name', { name: imageLabel(images[0]) })"
                 class="absolute inset-0 z-10 cursor-zoom-in"
                 @click="openLightbox(0)"
             />
             <a
                 :href="images[0].url"
                 :download="images[0].filename"
-                :aria-label="t('Download :name', { name: images[0].filename })"
+                :target="images[0].filename ? undefined : '_blank'"
+                :rel="images[0].filename ? undefined : 'noopener noreferrer'"
+                :aria-label="
+                    t('Download :name', { name: imageLabel(images[0]) })
+                "
                 class="absolute top-2.5 right-2.5 z-20 flex size-7.5 items-center justify-center rounded-[9px] bg-[rgba(29,26,21,0.72)] text-[#f3efe4] opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-[#f3efe4] focus-visible:outline-none"
             >
                 <Download class="size-3.5" />
@@ -92,8 +119,7 @@ function isSvg(attachment: AttachmentData): boolean {
             <span
                 class="pointer-events-none absolute bottom-2.5 left-2.5 z-20 inline-flex h-6 max-w-[calc(100%-1.25rem)] items-center truncate rounded-md bg-[rgba(29,26,21,0.72)] px-2.5 text-[11px] font-medium text-[#f3efe4] opacity-0 transition-opacity group-hover:opacity-100"
             >
-                {{ images[0].filename }} ·
-                {{ formatFileSize(images[0].sizeBytes) }}
+                {{ imageCaption(images[0]) }}
             </span>
         </div>
 
@@ -114,14 +140,14 @@ function isSvg(attachment: AttachmentData): boolean {
                 type="button"
                 data-test="attachment-image"
                 :aria-label="
-                    t('Open :name', { name: tile.attachment.filename })
+                    t('Open :name', { name: imageLabel(tile.attachment) })
                 "
                 class="group relative aspect-square cursor-zoom-in overflow-hidden rounded-xl border border-border"
                 @click="openLightbox(tile.index)"
             >
                 <img
                     :src="previewSrc(tile.attachment)"
-                    alt=""
+                    :alt="tile.attachment.description ?? ''"
                     loading="lazy"
                     class="size-full object-cover"
                 />
@@ -139,9 +165,11 @@ function isSvg(attachment: AttachmentData): boolean {
             v-for="file in files"
             :key="file.id"
             :href="file.url"
-            :download="file.filename"
+            :download="file.filename ?? undefined"
+            :target="file.filename ? undefined : '_blank'"
+            :rel="file.filename ? undefined : 'noopener noreferrer'"
             data-test="attachment-file"
-            :aria-label="t('Download :name', { name: file.filename })"
+            :aria-label="t('Download :name', { name: file.filename ?? '' })"
             class="flex w-95 max-w-full items-center gap-3 rounded-xl border border-border bg-muted/40 px-3 py-2.5 transition-colors hover:bg-muted/70 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
         >
             <span
@@ -156,7 +184,7 @@ function isSvg(attachment: AttachmentData): boolean {
                     {{ file.filename }}
                 </span>
                 <span class="text-[11.5px] text-muted-foreground">
-                    {{ fileTypeLabel(file.filename, file.mimeType) }} ·
+                    {{ fileTypeLabel(file.filename ?? '', file.mimeType) }} ·
                     {{ formatFileSize(file.sizeBytes)
                     }}<template v-if="isSvg(file)">
                         · {{ t('download only') }}</template

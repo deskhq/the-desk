@@ -3,8 +3,10 @@ import type { AttachmentData } from '@/types/attachments';
 export type MessageAuthor = {
     id: string;
     name: string;
-    // The author's avatar URL (derived from their email's Gravatar), or null
-    // when they have none — the UI falls back to their initials.
+    /**
+     * The author's avatar URL (derived from their email's Gravatar), or null
+     * when they have none — the UI falls back to their initials.
+     */
     avatar?: string | null;
     // Whether the author is a bot, so its message row shows the "Bot" badge and
     // a squared-off avatar. Absent (falsy) on human and optimistic messages.
@@ -26,8 +28,10 @@ export type MessageType = 'standard' | 'member_joined' | 'member_left';
 export type Mention = {
     id: string;
     name: string;
-    // The member's avatar URL (derived from their email's Gravatar), or null
-    // when they have none — the UI falls back to their initials.
+    /**
+     * The member's avatar URL (derived from their email's Gravatar), or null
+     * when they have none — the UI falls back to their initials.
+     */
     avatar?: string | null;
     // Whether this member is a bot. Set on the channel roster (from UserData), so
     // the member facepile can badge it and the composer can drop it from @mention
@@ -70,8 +74,10 @@ export type MessageForward = {
     id: string;
     body: string;
     authorName: string;
-    // Null when the source is a direct message (a DM has no name); the client
-    // then renders "a direct message" instead of a "#channel" attribution.
+    /**
+     * Null when the source is a direct message (a DM has no name); the client
+     * then renders "a direct message" instead of a "#channel" attribution.
+     */
     channelName: string | null;
     isDeleted: boolean;
     mentions: Mention[];

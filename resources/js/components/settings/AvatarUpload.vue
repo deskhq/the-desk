@@ -7,13 +7,13 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { useInitials } from '@/composables/useInitials';
 
-//
-// The Settings → Profile photo block. Uploads commit on selection (no Save
-// button): the server strips metadata, downscales, and stores the image, then
-// redirects back with the fresh avatar. "Remove photo" reverts to the
-// Gravatar → initials fallback. The circle center-crops via object-cover, so no
-// client-side cropper is needed.
-//
+/**
+ * The Settings → Profile photo block. Uploads commit on selection (no Save
+ * button): the server strips metadata, downscales, and stores the image, then
+ * redirects back with the fresh avatar. "Remove photo" reverts to the
+ * Gravatar → initials fallback. The circle center-crops via object-cover, so no
+ * client-side cropper is needed.
+ */
 const props = defineProps<{
     avatar: string | null;
     name: string;

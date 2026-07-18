@@ -12,7 +12,7 @@ import type { Channel } from '@/types';
 
 const props = defineProps<{
     channel: Channel;
-    // Whether the open DM is the viewer's own space, tuning the empty-state copy.
+    /** Whether the open DM is the viewer's own space, tuning the empty-state copy. */
     isSelfDm: boolean;
     teamName: string;
     teamSlug: string;
@@ -26,18 +26,22 @@ const page = usePage();
 
 const { t } = useTranslations();
 
-// The brand-new-workspace welcome replaces the plain "no messages" empty state on
-// a fresh #general for a user who has not yet completed onboarding — the reachable
-// "first channel, first message" moment. Any other empty channel/DM keeps the
-// plain copy.
+/**
+ * The brand-new-workspace welcome replaces the plain "no messages" empty state on
+ * a fresh #general for a user who has not yet completed onboarding — the reachable
+ * "first channel, first message" moment. Any other empty channel/DM keeps the
+ * plain copy.
+ */
 const showWelcome = computed(
     () =>
         props.channel.slug === 'general' &&
         page.props.auth.user.onboarding_completed_at == null,
 );
 
-// The welcome's "Invite your teammates" action reuses the member-invite modal,
-// gated on the same permission and roles the workspace already shares.
+/**
+ * The welcome's "Invite your teammates" action reuses the member-invite modal,
+ * gated on the same permission and roles the workspace already shares.
+ */
 const inviteOpen = ref(false);
 const canInviteToCurrentTeam = computed(
     () => page.props.canInviteToCurrentTeam ?? false,
@@ -47,9 +51,11 @@ const currentTeamForInvite = computed(() => page.props.currentTeam);
 
 const { open: openOnboardingTour } = useOnboardingTour();
 
-// The viewer-relative conversation name for the DM empty state: a group joins
-// its participants ("Jonas, Ana & Tomas"), a 1:1 uses the pre-resolved name. A
-// group whose other members have all left falls back to a generic label.
+/**
+ * The viewer-relative conversation name for the DM empty state: a group joins
+ * its participants ("Jonas, Ana & Tomas"), a 1:1 uses the pre-resolved name. A
+ * group whose other members have all left falls back to a generic label.
+ */
 const conversationName = computed(() =>
     props.channel.isGroupDirect
         ? groupDmMastheadName(props.channel.dmParticipants ?? []) ||

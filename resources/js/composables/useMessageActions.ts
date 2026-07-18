@@ -19,6 +19,7 @@ import {
     store as storeScheduledMessage,
     update as updateScheduledMessage,
 } from '@/actions/App/Http/Controllers/Channels/ScheduledMessageController';
+import { store as storeCommand } from '@/actions/App/Http/Controllers/Channels/SlashCommandController';
 import type { useMessageStream } from '@/composables/useMessageStream';
 import { optimisticMessage } from '@/composables/useMessageStream';
 import { useTranslations } from '@/composables/useTranslations';
@@ -89,6 +90,20 @@ export interface SendCallbacks {
     onRejected?: () => void;
 }
 
+/**
+ * Outcome hooks for a non-optimistic slash-command send. Unlike a normal
+ * message the composer renders nothing up front — it keeps the typed text in a
+ * pending state and reconciles here: {@see onSuccess} clears it (the command
+ * ran; any posted message arrives over the realtime echo), {@see onError} keeps
+ * it so the invoker can correct and resend.
+ */
+export interface CommandCallbacks {
+    /** The command ran: clear the composer. */
+    onSuccess?: () => void;
+    /** The command failed (unknown args, blocked, or a transport error): keep the text. */
+    onError?: () => void;
+}
+
 export interface MessageActions {
     /**
      * Send a message, optimistically, rolling the row back on error. Any
@@ -141,6 +156,13 @@ export interface MessageActions {
     cancelScheduled: (id: string) => void;
     /** Set (or re-arm) a personal reminder on a message at a chosen instant. */
     setReminder: (messageId: string, remindAt: string) => void;
+    /**
+     * Run a slash command by posting its raw body to the server, which parses
+     * and dispatches authoritatively. Non-optimistic: nothing renders until the
+     * server responds. `callbacks` report the outcome so the composer clears on
+     * success and preserves the typed text on failure.
+     */
+    sendCommand: (body: string, callbacks?: CommandCallbacks) => void;
 }
 
 /**
@@ -702,6 +724,38 @@ export function useMessageActions(
         );
     }
 
+    function sendCommand(body: string, callbacks: CommandCallbacks = {}): void {
+        // A command send clears the draft server-side (a `postMessage` result
+        // posts through the normal path), so drop any debounced save in flight.
+        options.cancelDraft();
+
+        router.post(
+            storeCommand({
+                team: options.teamSlug(),
+                channel: options.channel().slug,
+            }).url,
+            { body, client_uuid: generateUuid() },
+            {
+                preserveScroll: true,
+                // Not optimistic: no pending row to reconcile. A `postMessage`
+                // result arrives over the realtime echo like any other message;
+                // a `notice` surfaces via the flash-toast bridge.
+                onSuccess: () => callbacks.onSuccess?.(),
+                onError: (errors: Record<string, string>) => {
+                    // A command error (or a blocked authorize) comes back as a
+                    // `command` validation message; a transport failure has none.
+                    toast.error(
+                        errors.command ??
+                            t(
+                                'That command could not be run. Please try again.',
+                            ),
+                    );
+                    callbacks.onError?.();
+                },
+            },
+        );
+    }
+
     function setReminder(messageId: string, remindAt: string): void {
         router.post(
             remindMessage({ team: options.teamSlug() }).url,
@@ -733,5 +787,6 @@ export function useMessageActions(
         updateScheduled,
         cancelScheduled,
         setReminder,
+        sendCommand,
     };
 }

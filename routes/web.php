@@ -12,6 +12,7 @@ use App\Http\Controllers\Channels\ChannelStarController;
 use App\Http\Controllers\Channels\DirectMessageController;
 use App\Http\Controllers\Channels\DirectMessagePeopleController;
 use App\Http\Controllers\Channels\ForwardMessageController;
+use App\Http\Controllers\Channels\GiphyController;
 use App\Http\Controllers\Channels\HideDirectMessageController;
 use App\Http\Controllers\Channels\MessageController;
 use App\Http\Controllers\Channels\MessageReminderController;
@@ -19,11 +20,13 @@ use App\Http\Controllers\Channels\PinController;
 use App\Http\Controllers\Channels\ReactionController;
 use App\Http\Controllers\Channels\ScheduledMessageController;
 use App\Http\Controllers\Channels\SearchController;
+use App\Http\Controllers\Channels\SlashCommandController;
 use App\Http\Controllers\Channels\ThreadsController;
 use App\Http\Controllers\LocaleCatalogController;
 use App\Http\Controllers\OnboardingController;
 use App\Http\Controllers\SidebarSectionController;
 use App\Http\Controllers\Teams\TeamInvitationController;
+use App\Http\Middleware\EnsureGiphyEnabled;
 use App\Http\Middleware\EnsureTeamMembership;
 use Illuminate\Support\Facades\Route;
 
@@ -92,6 +95,12 @@ Route::middleware(['auth', 'verified', EnsureTeamMembership::class])->group(func
     Route::post('t/{team}/c/{channel}/messages', [MessageController::class, 'store'])
         ->scopeBindings()
         ->name('channels.messages.store');
+    // Slash commands post their raw body to a dedicated endpoint; the server
+    // parses and dispatches authoritatively. Sits in the same auth/membership
+    // group as message posting and reuses its `postMessage` gate.
+    Route::post('t/{team}/c/{channel}/commands', [SlashCommandController::class, 'store'])
+        ->scopeBindings()
+        ->name('channels.commands.store');
     Route::patch('t/{team}/c/{channel}/messages/{message}', [MessageController::class, 'update'])
         ->scopeBindings()
         ->name('channels.messages.update');
@@ -104,6 +113,17 @@ Route::middleware(['auth', 'verified', EnsureTeamMembership::class])->group(func
     Route::post('t/{team}/c/{channel}/attachments', [AttachmentController::class, 'store'])
         ->scopeBindings()
         ->name('channels.attachments.store');
+    // The Giphy picker: a throttled, key-gated search proxy and an attach
+    // endpoint that re-resolves the chosen id into a pending remote attachment.
+    // EnsureGiphyEnabled 404s both when no API key is configured.
+    Route::get('t/{team}/c/{channel}/gifs', [GiphyController::class, 'search'])
+        ->middleware([EnsureGiphyEnabled::class, 'throttle:30,1'])
+        ->scopeBindings()
+        ->name('channels.gifs.search');
+    Route::post('t/{team}/c/{channel}/gifs', [GiphyController::class, 'store'])
+        ->middleware([EnsureGiphyEnabled::class, 'throttle:30,1'])
+        ->scopeBindings()
+        ->name('channels.gifs.store');
     Route::get('t/{team}/c/{channel}/attachments/{attachment}/download', [AttachmentController::class, 'download'])
         ->scopeBindings()
         ->name('channels.attachments.download');
