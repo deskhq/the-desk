@@ -86,6 +86,13 @@ class HandleInertiaRequests extends Middleware
             // imply a verification step that can't happen (e.g. the profile
             // "resend verification email" affordance).
             'emailVerificationEnabled' => (bool) config('fortify.email_verification_enabled'),
+            // Whether this instance is the public single-shared-account demo.
+            // The frontend reads it only to disable the destructive owner-level
+            // controls (delete/rename the workspace, change email/password,
+            // enable 2FA/passkeys, remove members) with a "disabled in the demo"
+            // tooltip — the server enforces every block regardless (see
+            // PreventDestructiveDemoActions), so this is UI affordance only.
+            'demoMode' => (bool) config('demo.mode'),
             // Single sign-on state for the login page: whether to show the
             // "Sign in with SSO" entry point (an OIDC provider is configured),
             // and whether the password form still applies (off only when SSO

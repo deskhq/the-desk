@@ -66,6 +66,19 @@ abstract class TestCase extends BaseTestCase
     }
 
     /**
+     * Reboot the application with DEMO_MODE set to the given value.
+     *
+     * Demo mode gates boot-time decisions (whether Fortify registers the
+     * `/register` routes, whether the destructive-action guard and the mail
+     * transport override are active), so the env var has to be in place before
+     * the app boots — hence the refresh rather than a runtime `config()` set.
+     */
+    protected function reloadWithDemoMode(bool $enabled): void
+    {
+        $this->reloadWithEnv(['DEMO_MODE' => $enabled]);
+    }
+
+    /**
      * Reboot the application with the given environment variables in place.
      *
      * Boot-time decisions (which Fortify routes to register, the SSO-only

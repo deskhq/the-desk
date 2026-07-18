@@ -26,6 +26,7 @@ declare module '@inertiajs/core' {
             auth: Auth;
             registrationEnabled: boolean;
             emailVerificationEnabled: boolean;
+            demoMode: boolean;
             sso: { oidcEnabled: boolean; passwordLoginEnabled: boolean };
             attachments: { maxSizeMb: number; maxPerMessage: number };
             gifPickerEnabled: boolean;

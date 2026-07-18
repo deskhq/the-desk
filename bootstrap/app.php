@@ -7,6 +7,7 @@ use App\Http\Middleware\EnsurePasswordLoginEnabled;
 use App\Http\Middleware\EnsureUserIsActive;
 use App\Http\Middleware\HandleAppearance;
 use App\Http\Middleware\HandleInertiaRequests;
+use App\Http\Middleware\PreventDestructiveDemoActions;
 use App\Http\Middleware\SetLocale;
 use App\Http\Middleware\SetTeamUrlDefaults;
 use App\Http\Middleware\TrackActiveSession;
@@ -47,6 +48,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->web(append: [
             EnsurePasswordLoginEnabled::class,
             EnsurePasskeysEnabled::class,
+            PreventDestructiveDemoActions::class,
             HandleAppearance::class,
             SetLocale::class,
             HandleInertiaRequests::class,

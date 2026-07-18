@@ -93,12 +93,14 @@ Route::middleware(['auth', 'verified', EnsureTeamMembership::class])->group(func
         ->scopeBindings()
         ->name('channels.archive');
     Route::post('t/{team}/c/{channel}/messages', [MessageController::class, 'store'])
+        ->middleware('throttle:demo-messages')
         ->scopeBindings()
         ->name('channels.messages.store');
     // Slash commands post their raw body to a dedicated endpoint; the server
     // parses and dispatches authoritatively. Sits in the same auth/membership
     // group as message posting and reuses its `postMessage` gate.
     Route::post('t/{team}/c/{channel}/commands', [SlashCommandController::class, 'store'])
+        ->middleware('throttle:demo-messages')
         ->scopeBindings()
         ->name('channels.commands.store');
     Route::patch('t/{team}/c/{channel}/messages/{message}', [MessageController::class, 'update'])
@@ -111,6 +113,7 @@ Route::middleware(['auth', 'verified', EnsureTeamMembership::class])->group(func
         ->scopeBindings()
         ->name('channels.messages.forward');
     Route::post('t/{team}/c/{channel}/attachments', [AttachmentController::class, 'store'])
+        ->middleware('throttle:demo-uploads')
         ->scopeBindings()
         ->name('channels.attachments.store');
     // The Giphy picker: a throttled, key-gated search proxy and an attach

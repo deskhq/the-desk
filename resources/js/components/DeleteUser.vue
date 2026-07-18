@@ -1,13 +1,28 @@
 <script setup lang="ts">
 import ProfileController from '@/actions/App/Http/Controllers/Settings/ProfileController';
 import ConfirmDialog from '@/components/ConfirmDialog.vue';
+import DemoLock from '@/components/DemoLock.vue';
 import FormField from '@/components/FormField.vue';
 import PasswordInput from '@/components/PasswordInput.vue';
 import { Button } from '@/components/ui/button';
+import { useDemoMode } from '@/composables/useDemoMode';
+
+const { demoMode } = useDemoMode();
 </script>
 
 <template>
+    <DemoLock v-if="demoMode" v-slot="{ disabled }">
+        <Button
+            variant="outline"
+            class="rounded-full border-destructive/40 text-destructive hover:border-destructive/60 hover:bg-destructive/10 hover:text-destructive"
+            data-test="delete-user-button"
+            :disabled="disabled"
+            >{{ $t('Delete account…') }}</Button
+        >
+    </DemoLock>
+
     <ConfirmDialog
+        v-else
         :title="$t('Are you sure you want to delete your account?')"
         :confirm-label="$t('Delete account')"
         reset-on-success

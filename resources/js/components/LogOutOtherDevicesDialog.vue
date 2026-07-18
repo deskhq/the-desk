@@ -2,9 +2,11 @@
 import { computed } from 'vue';
 import SessionController from '@/actions/App/Http/Controllers/Settings/SessionController';
 import ConfirmDialog from '@/components/ConfirmDialog.vue';
+import DemoLock from '@/components/DemoLock.vue';
 import FormField from '@/components/FormField.vue';
 import PasswordInput from '@/components/PasswordInput.vue';
 import { Button } from '@/components/ui/button';
+import { useDemoMode } from '@/composables/useDemoMode';
 import type { ActiveSession } from '@/types';
 
 type Props = {
@@ -12,6 +14,8 @@ type Props = {
 };
 
 const props = defineProps<Props>();
+
+const { demoMode } = useDemoMode();
 
 // Only offer the control when there is at least one session other than the one
 // making the request; the current session can never be revoked from here.
@@ -21,8 +25,19 @@ const hasOtherSessions = computed(() =>
 </script>
 
 <template>
+    <DemoLock v-if="hasOtherSessions && demoMode" v-slot="{ disabled }">
+        <Button
+            variant="outline"
+            class="h-8 rounded-full px-4 text-xs font-semibold"
+            :disabled="disabled"
+            data-test="revoke-others-button"
+        >
+            {{ $t('Log out other devices') }}
+        </Button>
+    </DemoLock>
+
     <ConfirmDialog
-        v-if="hasOtherSessions"
+        v-else-if="hasOtherSessions"
         :title="$t('Log out other devices?')"
         :confirm-label="$t('Log out other devices')"
         reset-on-success

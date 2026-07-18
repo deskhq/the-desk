@@ -246,3 +246,43 @@ A sent GIF is **hotlinked** from Giphy's CDN, not stored on your server, so
 viewers' browsers fetch it directly from Giphy. See the privacy note under
 [Environment variables → GIFs (Giphy)](/docs/reference/environment-variables/#gifs-giphy).
 :::
+
+## Demo mode
+
+| Variable    | Default | Effect                                                          |
+| ----------- | ------- | -------------------------------------------------------------- |
+| `DEMO_MODE` | `false` | Turn the instance into a public, single-shared-account demo.   |
+
+Demo mode is for running a **public playground** off the seeded "Northwind Labs"
+workspace (see the `demo:seed` command), where every visitor signs in as the same
+account and lands as the workspace **owner**. Because that one account is shared,
+the mode adds guard rails so no visitor can lock out, evict, or deface the
+workspace for everyone else. It defaults to **off**, and when off it changes
+nothing — leave it off on any real deployment.
+
+Set `DEMO_MODE=true` to enable all of the following at once:
+
+- **Destructive owner actions are blocked.** Changing the shared account's email,
+  password, or name; enabling two-factor or a passkey; revoking sessions; deleting
+  the account or team; renaming the team or editing its slug; transferring
+  ownership; and removing or leaving members are all **rejected server-side** and
+  their UI controls render disabled with a "Disabled in the demo" tooltip.
+- **All outbound email is swallowed.** The mail transport is forced to the
+  in-memory `array` driver, so invites, password resets, verification, and
+  notifications never leave the host — regardless of your SMTP settings.
+- **Writes are rate-limited per IP.** Message sends (~30/min) and attachment
+  uploads (~10/min) are throttled by IP address (per-user throttling is useless
+  when everyone shares one account). The caps are generous enough that honest
+  exploring never trips them.
+- **Self-registration is forced off.** `/register` returns **404** regardless of
+  [`REGISTRATION_ENABLED`](#open-registration), so a visitor can't create a fresh
+  account with its own unguarded personal team and sidestep the rails.
+- **The workspace heals hourly.** A scheduled `demo:seed` runs every hour to wipe
+  and rebuild "Northwind Labs", undoing whatever visitors changed. Make sure the
+  [scheduler](/docs/self-hosting/configuration/) is running.
+
+:::caution
+The hourly reset **force-deletes** the demo team and its accounts, so any
+in-flight visitor session breaks when it runs — expected for a throwaway demo,
+never appropriate for real data.
+:::
