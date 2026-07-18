@@ -18,12 +18,6 @@ use Illuminate\Http\JsonResponse;
 class GiphyController extends Controller
 {
     /**
-     * The picker page size. One value for trending and search; the infinite
-     * scroll pages by Giphy's offset cursor.
-     */
-    private const int PAGE_SIZE = 24;
-
-    /**
      * Proxy a Giphy trending/search page for the composer picker.
      *
      * The API key stays server-side; the endpoint is throttled per user and the
@@ -36,7 +30,7 @@ class GiphyController extends Controller
         $page = $giphy->search(
             query: $request->validated('q'),
             offset: (int) $request->validated('offset', 0),
-            limit: self::PAGE_SIZE,
+            limit: (int) config('services.giphy.page_size'),
             lang: $request->user()->locale->value,
         );
 

@@ -19,22 +19,9 @@ use Illuminate\Support\Facades\Http;
  */
 class GiphyClient
 {
-    private const string BASE_URL = 'https://api.giphy.com/v1/gifs';
-
     /**
-     * Total time budget for a single request, in seconds.
-     */
-    private const int TIMEOUT_SECONDS = 5;
-
-    /**
-     * How long a resolved search/trending page stays cached. Short, because
-     * trending and search results are meant to feel live; long enough to absorb
-     * a burst of identical requests (a member scrolling) off the shared key.
-     */
-    private const int CACHE_TTL_SECONDS = 300; // 5 minutes
-
-    /**
-     * Giphy's own per-request page-size ceiling.
+     * Giphy's own per-request page-size ceiling (an API constraint, not an
+     * operator knob).
      */
     private const int MAX_LIMIT = 50;
 
@@ -62,7 +49,7 @@ class GiphyClient
         /** @var array{results: array<int, array<string, mixed>>, nextOffset: int|null} $payload */
         $payload = Cache::remember(
             $cacheKey,
-            now()->addSeconds(self::CACHE_TTL_SECONDS),
+            now()->addSeconds((int) config('services.giphy.cache_ttl')),
             fn (): array => $this->fetchPage($query, $offset, $limit, $lang),
         );
 
@@ -81,7 +68,7 @@ class GiphyClient
     public function resolve(string $id): ?GiphyGifData
     {
         try {
-            $response = Http::timeout(self::TIMEOUT_SECONDS)->get(self::BASE_URL.'/'.$id, [
+            $response = Http::timeout($this->timeout())->get($this->baseUrl().'/'.$id, [
                 'api_key' => (string) config('services.giphy.key'),
             ]);
         } catch (ConnectionException) {
@@ -114,7 +101,7 @@ class GiphyClient
      */
     private function fetchPage(string $query, int $offset, int $limit, string $lang): array
     {
-        $endpoint = $query === '' ? self::BASE_URL.'/trending' : self::BASE_URL.'/search';
+        $endpoint = $query === '' ? $this->baseUrl().'/trending' : $this->baseUrl().'/search';
 
         $params = array_filter([
             'api_key' => (string) config('services.giphy.key'),
@@ -127,7 +114,7 @@ class GiphyClient
         ], fn (mixed $value): bool => $value !== null);
 
         try {
-            $response = Http::timeout(self::TIMEOUT_SECONDS)->get($endpoint, $params);
+            $response = Http::timeout($this->timeout())->get($endpoint, $params);
         } catch (ConnectionException) {
             // DNS/connect/timeout failure degrades to an empty page, so a Giphy
             // outage never 500s the picker.
@@ -217,6 +204,22 @@ class GiphyClient
         }
 
         return null;
+    }
+
+    /**
+     * The Giphy v2 API base URL, from config.
+     */
+    private function baseUrl(): string
+    {
+        return (string) config('services.giphy.base_url');
+    }
+
+    /**
+     * The per-request time budget in seconds, from config.
+     */
+    private function timeout(): int
+    {
+        return (int) config('services.giphy.timeout');
     }
 
     /**

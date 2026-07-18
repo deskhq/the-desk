@@ -130,6 +130,12 @@ function onKeydown(event: KeyboardEvent): void {
                     <a
                         :href="activeImage.url"
                         :download="activeImage.filename ?? undefined"
+                        :target="activeImage.filename ? undefined : '_blank'"
+                        :rel="
+                            activeImage.filename
+                                ? undefined
+                                : 'noopener noreferrer'
+                        "
                         :aria-label="t('Download :name', { name: activeLabel })"
                         class="flex size-8 items-center justify-center rounded-[9px] bg-[rgba(243,239,228,0.12)] text-[#ece7da] transition-colors hover:bg-[rgba(243,239,228,0.22)] focus-visible:ring-2 focus-visible:ring-[#ece7da] focus-visible:outline-none"
                     >

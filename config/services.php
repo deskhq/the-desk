@@ -45,6 +45,18 @@ return [
     'giphy' => [
         'key' => env('GIPHY_API_KEY'),
         'rating' => env('GIPHY_CONTENT_RATING', 'g'),
+        // The Giphy v2 API base. Not an operator knob (kept out of .env); here so
+        // it is overridable in tests and never hardcoded in the client.
+        'base_url' => 'https://api.giphy.com/v1/gifs',
+        // Per-request time budget (seconds) for the outbound Giphy call.
+        'timeout' => 5,
+        // How long a resolved search/trending page is cached — short, so results
+        // feel live, but long enough to absorb a burst of identical requests
+        // (a member scrolling) off the shared key.
+        'cache_ttl' => 300,
+        // Picker page size for trending and search; infinite scroll pages by
+        // Giphy's offset cursor.
+        'page_size' => 24,
     ],
 
     // Generic OpenID Connect provider (Okta, Microsoft Entra ID, Google

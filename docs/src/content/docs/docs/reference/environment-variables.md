@@ -231,7 +231,8 @@ before the app ever sees them. See [Reverse proxy](/docs/self-hosting/reverse-pr
 
 The composer's `/gif` picker searches [Giphy](https://developers.giphy.com/) and sends the chosen
 GIF into any channel or DM. It is **off** until you supply an API key, so a default deployment ships
-without it — the `/gif` command, the picker, and the search/attach endpoints are all absent.
+without it — the `/gif` command and picker are hidden, and the search/attach routes (though still
+registered) return **404**.
 
 | Variable               | Default   | Notes                                                                                     |
 | ---------------------- | --------- | ----------------------------------------------------------------------------------------- |

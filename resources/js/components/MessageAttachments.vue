@@ -105,6 +105,8 @@ function isSvg(attachment: AttachmentData): boolean {
             <a
                 :href="images[0].url"
                 :download="images[0].filename"
+                :target="images[0].filename ? undefined : '_blank'"
+                :rel="images[0].filename ? undefined : 'noopener noreferrer'"
                 :aria-label="
                     t('Download :name', { name: imageLabel(images[0]) })
                 "
@@ -162,6 +164,8 @@ function isSvg(attachment: AttachmentData): boolean {
             :key="file.id"
             :href="file.url"
             :download="file.filename ?? undefined"
+            :target="file.filename ? undefined : '_blank'"
+            :rel="file.filename ? undefined : 'noopener noreferrer'"
             data-test="attachment-file"
             :aria-label="t('Download :name', { name: file.filename ?? '' })"
             class="flex w-95 max-w-full items-center gap-3 rounded-xl border border-border bg-muted/40 px-3 py-2.5 transition-colors hover:bg-muted/70 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"

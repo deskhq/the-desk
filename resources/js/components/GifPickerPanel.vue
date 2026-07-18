@@ -78,6 +78,10 @@ function searchUrl(offset: number): string {
 
 let controller: AbortController | null = null;
 
+// False once the panel has unmounted, so an in-flight attach that resolves after
+// the user closed the picker doesn't stage a GIF they cancelled.
+let alive = true;
+
 /**
  * Load a page of results, replacing them (a new/changed query) or appending
  * (infinite scroll). A superseded in-flight request is aborted so its late
@@ -177,6 +181,13 @@ async function pick(gif: App.Data.GiphyGifData): Promise<void> {
             }),
             gif.id,
         );
+
+        // The user may have closed the picker while the attach was in flight;
+        // don't stage a GIF they cancelled.
+        if (!alive) {
+            return;
+        }
+
         emit('select', attachment);
     } catch {
         toast.error(t('That GIF could not be added. Try another one.'));
@@ -241,6 +252,7 @@ onMounted(() => {
 });
 
 onBeforeUnmount(() => {
+    alive = false;
     controller?.abort();
 
     if (debounceTimer) {
