@@ -40,6 +40,7 @@ import { update as updateSidebarSections } from '@/actions/App/Http/Controllers/
 import ChannelListItem from '@/components/ChannelListItem.vue';
 import CreateChannelModal from '@/components/CreateChannelModal.vue';
 import CreateTeamModal from '@/components/CreateTeamModal.vue';
+import DemoBanner from '@/components/DemoBanner.vue';
 import DirectMessageListItem from '@/components/DirectMessageListItem.vue';
 import InviteMemberModal from '@/components/InviteMemberModal.vue';
 import KeyboardShortcutsModal from '@/components/KeyboardShortcutsModal.vue';
@@ -697,6 +698,8 @@ onMounted(() => {
         class="bg-background"
         style="--sidebar-width: calc(272px + 1.75rem)"
     >
+        <DemoBanner />
+
         <!-- The first focusable element: a skip link that jumps keyboard users
              past the sidebar straight to the main content. Visually hidden until
              it takes focus. -->

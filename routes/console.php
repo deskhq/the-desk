@@ -44,3 +44,12 @@ Schedule::command('updates:check')
     ->daily()
     ->withoutOverlapping()
     ->description('Check GitHub for a newer stable release');
+
+// The public demo heals hourly: the idempotent seeder wipes and rebuilds the
+// shared "Northwind Labs" workspace, undoing whatever a visitor changed within
+// the guard rails. Gated on DEMO_MODE, so it never runs on a real deployment.
+Schedule::command('demo:seed')
+    ->hourly()
+    ->withoutOverlapping()
+    ->when(fn (): bool => (bool) config('demo.mode'))
+    ->description('Reset the public demo workspace');

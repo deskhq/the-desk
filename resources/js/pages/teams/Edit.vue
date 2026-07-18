@@ -19,6 +19,7 @@ import {
 import { computed, ref } from 'vue';
 import CancelInvitationModal from '@/components/CancelInvitationModal.vue';
 import DeleteTeamModal from '@/components/DeleteTeamModal.vue';
+import DemoLock from '@/components/DemoLock.vue';
 import InputError from '@/components/InputError.vue';
 import InviteMemberModal from '@/components/InviteMemberModal.vue';
 import RemoveMemberModal from '@/components/RemoveMemberModal.vue';
@@ -38,6 +39,7 @@ import {
     TooltipProvider,
     TooltipTrigger,
 } from '@/components/ui/tooltip';
+import { useDemoMode } from '@/composables/useDemoMode';
 import { useInitials } from '@/composables/useInitials';
 import { useTranslations } from '@/composables/useTranslations';
 import { formatRelativeTime } from '@/lib/datetime';
@@ -90,6 +92,7 @@ defineOptions({
 
 const { getInitials } = useInitials();
 const { t } = useTranslations();
+const { demoMode } = useDemoMode();
 
 const page = usePage();
 const currentUserId = computed(() => String(page.props.auth.user.id));
@@ -244,14 +247,16 @@ const confirmTransferOwnership = (member: TeamMember) => {
                         <InputError :message="errors.name" />
                     </div>
 
-                    <Button
-                        type="submit"
-                        class="rounded-full px-6"
-                        data-test="team-save-button"
-                        :disabled="processing"
-                    >
-                        {{ $t('Save') }}
-                    </Button>
+                    <DemoLock v-slot="{ disabled }">
+                        <Button
+                            type="submit"
+                            class="rounded-full px-6"
+                            data-test="team-save-button"
+                            :disabled="processing || disabled"
+                        >
+                            {{ $t('Save') }}
+                        </Button>
+                    </DemoLock>
                 </div>
             </Form>
         </section>
@@ -389,7 +394,28 @@ const confirmTransferOwnership = (member: TeamMember) => {
                             "
                         >
                             <Tooltip>
-                                <TooltipTrigger as-child>
+                                <!-- Off the demo the tooltip triggers on the
+                                     focusable button (keyboard + hover); in the
+                                     demo the button is disabled, so a
+                                     tabindex'd span carries the trigger to keep
+                                     the reason reachable by keyboard. -->
+                                <TooltipTrigger v-if="demoMode" as-child>
+                                    <span
+                                        tabindex="0"
+                                        class="inline-flex cursor-not-allowed"
+                                    >
+                                        <Button
+                                            data-test="member-transfer-ownership-button"
+                                            variant="ghost"
+                                            size="icon"
+                                            class="rounded-full text-muted-foreground"
+                                            disabled
+                                        >
+                                            <Crown class="h-4 w-4" />
+                                        </Button>
+                                    </span>
+                                </TooltipTrigger>
+                                <TooltipTrigger v-else as-child>
                                     <Button
                                         data-test="member-transfer-ownership-button"
                                         variant="ghost"
@@ -403,7 +429,13 @@ const confirmTransferOwnership = (member: TeamMember) => {
                                     </Button>
                                 </TooltipTrigger>
                                 <TooltipContent>
-                                    <p>{{ $t('Transfer ownership') }}</p>
+                                    <p>
+                                        {{
+                                            demoMode
+                                                ? $t('Disabled in the demo')
+                                                : $t('Transfer ownership')
+                                        }}
+                                    </p>
                                 </TooltipContent>
                             </Tooltip>
                         </TooltipProvider>
@@ -415,7 +447,27 @@ const confirmTransferOwnership = (member: TeamMember) => {
                             "
                         >
                             <Tooltip>
-                                <TooltipTrigger as-child>
+                                <!-- Same focusable-trigger split as the transfer
+                                     button above: enabled button off the demo,
+                                     tabindex'd span around the disabled button
+                                     in the demo. -->
+                                <TooltipTrigger v-if="demoMode" as-child>
+                                    <span
+                                        tabindex="0"
+                                        class="inline-flex cursor-not-allowed"
+                                    >
+                                        <Button
+                                            data-test="member-remove-button"
+                                            variant="ghost"
+                                            size="icon"
+                                            class="rounded-full text-muted-foreground"
+                                            disabled
+                                        >
+                                            <X class="h-4 w-4" />
+                                        </Button>
+                                    </span>
+                                </TooltipTrigger>
+                                <TooltipTrigger v-else as-child>
                                     <Button
                                         data-test="member-remove-button"
                                         variant="ghost"
@@ -427,7 +479,13 @@ const confirmTransferOwnership = (member: TeamMember) => {
                                     </Button>
                                 </TooltipTrigger>
                                 <TooltipContent>
-                                    <p>{{ $t('Remove member') }}</p>
+                                    <p>
+                                        {{
+                                            demoMode
+                                                ? $t('Disabled in the demo')
+                                                : $t('Remove member')
+                                        }}
+                                    </p>
                                 </TooltipContent>
                             </Tooltip>
                         </TooltipProvider>
@@ -699,13 +757,16 @@ const confirmTransferOwnership = (member: TeamMember) => {
                     }}
                 </p>
             </div>
-            <Button
-                data-test="delete-team-button"
-                variant="outline"
-                class="rounded-full border-destructive/40 text-destructive hover:border-destructive/60 hover:bg-destructive/10 hover:text-destructive"
-                @click="deleteDialogOpen = true"
-                >{{ $t('Delete team…') }}</Button
-            >
+            <DemoLock v-slot="{ disabled }">
+                <Button
+                    data-test="delete-team-button"
+                    variant="outline"
+                    class="rounded-full border-destructive/40 text-destructive hover:border-destructive/60 hover:bg-destructive/10 hover:text-destructive"
+                    :disabled="disabled"
+                    @click="deleteDialogOpen = true"
+                    >{{ $t('Delete team…') }}</Button
+                >
+            </DemoLock>
         </section>
     </div>
 

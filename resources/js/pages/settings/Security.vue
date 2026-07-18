@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Form, Head } from '@inertiajs/vue3';
 import SecurityController from '@/actions/App/Http/Controllers/Settings/SecurityController';
+import DemoLock from '@/components/DemoLock.vue';
 import FormField from '@/components/FormField.vue';
 import LogOutOtherDevicesDialog from '@/components/LogOutOtherDevicesDialog.vue';
 import ManageSessions from '@/components/ManageSessions.vue';
@@ -117,13 +118,15 @@ defineOptions({
                 </FormField>
 
                 <div class="flex items-center gap-4">
-                    <Button
-                        :disabled="processing"
-                        class="rounded-full px-6"
-                        data-test="update-password-button"
-                    >
-                        {{ $t('Save') }}
-                    </Button>
+                    <DemoLock v-slot="{ disabled }">
+                        <Button
+                            :disabled="processing || disabled"
+                            class="rounded-full px-6"
+                            data-test="update-password-button"
+                        >
+                            {{ $t('Save') }}
+                        </Button>
+                    </DemoLock>
                     <Transition
                         enter-active-class="transition ease-in-out"
                         enter-from-class="opacity-0"

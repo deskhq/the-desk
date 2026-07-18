@@ -46,6 +46,16 @@ Full operator docs (requirements, configuration, reverse proxy & TLS, and
 upgrades) live at
 **[the-desk.emmanuelpaul.com/docs](https://the-desk.emmanuelpaul.com/docs/)**.
 
+### Public demo
+
+Set `DEMO_MODE=true` to run a public, single-shared-account demo off the seeded
+"Northwind Labs" workspace (`php artisan demo:seed`). Every visitor signs in as
+the same owner, so the mode adds guard rails: destructive owner actions are
+blocked, all outbound email is swallowed, message/attachment writes are
+rate-limited per IP, self-registration is forced off, and an hourly reset heals
+the workspace. It defaults to `false` — leave it off on any real deployment. See
+**[Running a public demo](https://the-desk.emmanuelpaul.com/docs/self-hosting/demo/)**.
+
 ## Development
 
 Local development uses [Laravel Sail](https://laravel.com/docs/sail):

@@ -3,6 +3,7 @@ import { Form } from '@inertiajs/vue3';
 import { Monitor, Smartphone } from '@lucide/vue';
 import { useTemplateRef } from 'vue';
 import SessionController from '@/actions/App/Http/Controllers/Settings/SessionController';
+import DemoLock from '@/components/DemoLock.vue';
 import FormField from '@/components/FormField.vue';
 import PasswordInput from '@/components/PasswordInput.vue';
 import { Button } from '@/components/ui/button';
@@ -16,6 +17,7 @@ import {
     DialogTitle,
     DialogTrigger,
 } from '@/components/ui/dialog';
+import { useDemoMode } from '@/composables/useDemoMode';
 import { useTimezone } from '@/composables/useTimezone';
 import { formatDateTime } from '@/lib/datetime';
 import type { ActiveSession } from '@/types';
@@ -26,6 +28,7 @@ type Props = {
 
 const props = defineProps<Props>();
 
+const { demoMode } = useDemoMode();
 const { timezone } = useTimezone();
 const revokeInput = useTemplateRef('revokeInput');
 
@@ -100,7 +103,24 @@ function lastActive(iso: string): string {
                 </p>
             </div>
 
-            <Dialog v-if="!session.isCurrentDevice">
+            <!-- The auto margin lives on the wrapper (not the button) so the
+                 control still right-aligns once DemoLock nests it in a span. -->
+            <DemoLock
+                v-if="!session.isCurrentDevice && demoMode"
+                v-slot="{ disabled }"
+                class="ml-auto"
+            >
+                <Button
+                    variant="ghost"
+                    class="h-7.5 rounded-full px-3.5 text-xs font-semibold text-muted-foreground hover:bg-accent hover:text-foreground"
+                    :disabled="disabled"
+                    :data-test="`revoke-session-${session.id}`"
+                >
+                    {{ $t('Revoke') }}
+                </Button>
+            </DemoLock>
+
+            <Dialog v-else-if="!session.isCurrentDevice">
                 <DialogTrigger as-child>
                     <Button
                         variant="ghost"

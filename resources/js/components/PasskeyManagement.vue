@@ -3,6 +3,7 @@ import { router } from '@inertiajs/vue3';
 import { usePasskeyRegister } from '@laravel/passkeys/vue';
 import { ref } from 'vue';
 import ConfirmDialog from '@/components/ConfirmDialog.vue';
+import DemoLock from '@/components/DemoLock.vue';
 import FormField from '@/components/FormField.vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -183,14 +184,17 @@ async function submitAdding(): Promise<void> {
         </form>
 
         <div v-else-if="isSupported">
-            <Button
-                variant="outline"
-                class="rounded-full px-6"
-                data-test="add-passkey-button"
-                @click="startAdding"
-            >
-                {{ $t('Add a passkey') }}
-            </Button>
+            <DemoLock v-slot="{ disabled }">
+                <Button
+                    variant="outline"
+                    class="rounded-full px-6"
+                    :disabled="disabled"
+                    data-test="add-passkey-button"
+                    @click="startAdding"
+                >
+                    {{ $t('Add a passkey') }}
+                </Button>
+            </DemoLock>
         </div>
     </div>
 </template>

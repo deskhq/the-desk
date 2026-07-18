@@ -3,6 +3,7 @@ import { Form, Head, usePage } from '@inertiajs/vue3';
 import { Link } from '@inertiajs/vue3';
 import { computed } from 'vue';
 import ProfileController from '@/actions/App/Http/Controllers/Settings/ProfileController';
+import DemoLock from '@/components/DemoLock.vue';
 import FormField from '@/components/FormField.vue';
 import AvatarUpload from '@/components/settings/AvatarUpload.vue';
 import SettingsSection from '@/components/SettingsSection.vue';
@@ -195,12 +196,14 @@ function onTimezoneSelect(value: unknown): void {
             </div>
 
             <div class="flex items-center gap-4">
-                <Button
-                    :disabled="processing"
-                    class="rounded-full px-6"
-                    data-test="update-profile-button"
-                    >{{ $t('Save') }}</Button
-                >
+                <DemoLock v-slot="{ disabled }">
+                    <Button
+                        :disabled="processing || disabled"
+                        class="rounded-full px-6"
+                        data-test="update-profile-button"
+                        >{{ $t('Save') }}</Button
+                    >
+                </DemoLock>
                 <Transition
                     enter-active-class="transition ease-in-out"
                     enter-from-class="opacity-0"

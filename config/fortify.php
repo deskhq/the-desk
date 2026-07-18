@@ -155,9 +155,11 @@ return [
 
     'features' => array_filter([
         // Self-service registration is on by default, but disabled whenever the
-        // operator closes public sign-ups (REGISTRATION_ENABLED=false) or routes
-        // all access through a configured directory (AUTH_SSO_ONLY=true).
-        (env('REGISTRATION_ENABLED', true) && ! $ssoEnforced) ? Features::registration() : null,
+        // operator closes public sign-ups (REGISTRATION_ENABLED=false), routes
+        // all access through a configured directory (AUTH_SSO_ONLY=true), or runs
+        // the public demo (DEMO_MODE=true) — where a fresh account would carry its
+        // own unguarded personal team and sidestep the demo guard rails.
+        (env('REGISTRATION_ENABLED', true) && ! $ssoEnforced && ! env('DEMO_MODE', false)) ? Features::registration() : null,
         Features::resetPasswords(),
         Features::emailVerification(),
         // Two-factor authentication is registered unconditionally so the Fortify

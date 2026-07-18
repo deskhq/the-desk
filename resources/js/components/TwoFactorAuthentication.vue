@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { router, useForm } from '@inertiajs/vue3';
 import { computed, ref } from 'vue';
+import DemoLock from '@/components/DemoLock.vue';
 import FormField from '@/components/FormField.vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -69,15 +70,18 @@ function regenerateRecoveryCodes(): void {
     <div class="space-y-5">
         <!-- Not enrolled: a single call to action. -->
         <div v-if="!state">
-            <Button
-                variant="outline"
-                class="rounded-full px-6"
-                :loading="processing"
-                data-test="enable-two-factor-button"
-                @click="enableTwoFactor"
-            >
-                {{ $t('Enable two-factor authentication') }}
-            </Button>
+            <DemoLock v-slot="{ disabled }">
+                <Button
+                    variant="outline"
+                    class="rounded-full px-6"
+                    :loading="processing"
+                    :disabled="disabled"
+                    data-test="enable-two-factor-button"
+                    @click="enableTwoFactor"
+                >
+                    {{ $t('Enable two-factor authentication') }}
+                </Button>
+            </DemoLock>
         </div>
 
         <!-- Enrolling: scan the QR (or key in the secret), then confirm a code. -->
