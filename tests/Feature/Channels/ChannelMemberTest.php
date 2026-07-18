@@ -79,6 +79,37 @@ test('members cannot be managed on a public channel through the members endpoint
         ->assertForbidden();
 });
 
+test('a team-owned bot can be added to a private channel', function (): void {
+    [$owner, $member, $team] = teamWithMember();
+    $bot = User::factory()->bot($team)->create(['name' => 'Deploy Bot']);
+    $channel = Channel::factory()->for($team)->private()->create(['slug' => 'secret']);
+    app(JoinChannel::class)->handle($channel, $owner);
+
+    $this->actingAs($owner)
+        ->post(route('channels.members.store', ['team' => $team->slug, 'channel' => $channel->slug]), [
+            'user_id' => $bot->id,
+        ])
+        ->assertRedirect();
+
+    expect($channel->members()->whereKey($bot->id)->exists())->toBeTrue();
+});
+
+test('a bot owned by another team cannot be added to a channel', function (): void {
+    [$owner, $member, $team] = teamWithMember();
+    $otherTeam = app(CreateTeam::class)->handle(User::factory()->create(), 'Other');
+    $foreignBot = User::factory()->bot($otherTeam)->create();
+    $channel = Channel::factory()->for($team)->private()->create(['slug' => 'secret']);
+    app(JoinChannel::class)->handle($channel, $owner);
+
+    $this->actingAs($owner)
+        ->post(route('channels.members.store', ['team' => $team->slug, 'channel' => $channel->slug]), [
+            'user_id' => $foreignBot->id,
+        ])
+        ->assertSessionHasErrors('user_id');
+
+    expect($channel->members()->whereKey($foreignBot->id)->exists())->toBeFalse();
+});
+
 test('a user who is not a team member cannot be added to a channel', function (): void {
     [$owner, $member, $team] = teamWithMember();
     $outsider = User::factory()->create();

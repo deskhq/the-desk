@@ -3,10 +3,10 @@
 namespace App\Http\Requests\Api\V1;
 
 use App\Enums\ChannelVisibility;
+use App\Rules\AddableChannelMember;
 use App\Support\Integrations\ApiChannelAccess;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Support\Facades\Gate;
-use Illuminate\Validation\Rule;
 
 /**
  * Validates a subject adding a team member to a private channel via the public
@@ -44,7 +44,7 @@ class AddMemberRequest extends ApiRequest
             'user_id' => [
                 'required',
                 'uuid',
-                Rule::exists('team_members', 'user_id')->where('team_id', $this->channel()->team_id),
+                new AddableChannelMember($this->channel()->team_id),
             ],
         ];
     }

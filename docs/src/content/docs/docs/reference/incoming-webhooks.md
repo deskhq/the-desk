@@ -13,11 +13,12 @@ ingest endpoint returns **404**.
 
 ## Creating one
 
-From **Team settings → Integrations**, create a bot (or reuse one), add it to the
-target channel, then create an incoming webhook naming that bot and channel. The
-opaque URL is revealed **once** — copy it immediately. Only its hash is stored,
-so it can never be shown again; to rotate it, revoke the webhook and create a new
-one.
+From **Team settings → Integrations**, create a bot (or reuse one). Open the bot
+from the **Bots** list and, under **Channels**, use **Add to channel** to add it
+to the target channel — a bot can only post where it is a member. Then create an
+incoming webhook naming that bot and channel. The opaque URL is revealed **once**
+— copy it immediately. Only its hash is stored, so it can never be shown again; to
+rotate it, revoke the webhook and create a new one.
 
 ```
 https://desk.example.com/webhooks/incoming/9f2c8a41-77b3-4e02-b1a9-c3d5e6f70812
@@ -38,9 +39,10 @@ The message appears in the channel authored by the webhook's bot.
 ## Membership gating
 
 Posting is **membership-gated**: the webhook only works while its bot is a member
-of the channel. Remove the bot from the channel and the URL returns **403** — the
-same authorization path a bot's API token follows, so there is no parallel way to
-post. Revoking the webhook (or deleting the bot) stops it permanently.
+of the channel. Remove the bot from the channel — via **Remove** under the bot's
+**Channels** — and the URL returns **403**, the same authorization path a bot's
+API token follows, so there is no parallel way to post. Revoking the webhook (or
+deleting the bot) stops it permanently.
 
 ## Signing (optional)
 
