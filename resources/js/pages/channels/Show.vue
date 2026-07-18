@@ -164,9 +164,19 @@ function onTyping(): void {
     typing.signalTyping(currentUser.value);
 }
 
-// You can't @mention yourself; drop the current user from the composer list.
+// You can't @mention yourself, and bots have no inbox to reach, so drop the
+// current user and any bots from the composer list — the roster facepile still
+// shows the bots.
 const mentionableMembers = computed(() =>
-    props.members.filter((member) => member.id !== currentUser.value.id),
+    props.members.filter(
+        (member) => member.id !== currentUser.value.id && !member.isBot,
+    ),
+);
+
+// Whether this channel has a bot member, so the composer's mention menu can note
+// once, quietly, why bots aren't mentionable.
+const channelHasBots = computed(() =>
+    props.members.some((member) => member.isBot),
 );
 
 // A direct message renders viewer-relative: no "#", the other participant's
@@ -1303,6 +1313,7 @@ function archive(): void {
                         :channel-name="props.channel.name"
                         :placeholder="composerPlaceholder"
                         :members="mentionableMembers"
+                        :has-bots="channelHasBots"
                         :reply-target="replyTarget"
                         :initial-body="props.channel.draft ?? ''"
                         :messages="displayMessages"
@@ -1354,6 +1365,7 @@ function archive(): void {
                 :messages="threadMessages"
                 :pending-uuids="threadPendingUuids"
                 :members="mentionableMembers"
+                :has-bots="channelHasBots"
                 :current-user-id="currentUser.id"
                 :can-moderate="canModerate"
                 :can-react="props.canReact"

@@ -16,6 +16,7 @@ use App\Data\UserData;
 use App\Enums\AuditAction;
 use App\Enums\ChannelVisibility;
 use App\Enums\NotificationLevel;
+use App\Enums\UserType;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Channels\CreateChannelRequest;
 use App\Models\Channel;
@@ -119,8 +120,11 @@ class ChannelController extends Controller
             // replaced by a "Join channel" call-to-action until they join.
             'isMember' => $membership !== null,
             // The channel's member count, surfaced in the join call-to-action so a
-            // non-member sees how many teammates are already in the channel.
-            'memberCount' => $channel->channelMembers()->count(),
+            // non-member sees how many teammates are already in the channel. Bots
+            // are integration identities, not seats, so they never count here.
+            'memberCount' => $channel->channelMembers()
+                ->whereRelation('user', 'type', UserType::Human->value)
+                ->count(),
             // The channel's pin count, driving the masthead's pins-button badge on
             // first load; later pins/unpins patch it live over MessagePinned.
             'pinCount' => $channel->pins()->count(),
@@ -170,15 +174,22 @@ class ChannelController extends Controller
                     ->orderBy('send_at')
                     ->get()
             ),
-            // Feeds the composer's @mention autocomplete. A standard channel is
-            // team-scoped — you may mention anyone on the team. A direct message
-            // is scoped to its own participants, since mentioning someone who
-            // isn't in the conversation would never reach them (this generalizes
-            // to group DMs, whatever their member count).
+            // Feeds both the masthead member facepile and the composer's @mention
+            // autocomplete. A standard channel is team-scoped — you may mention
+            // anyone on the team — plus the channel's own bots, which appear in the
+            // roster (badged) but are filtered out of mention autocomplete client
+            // side (a bot has no inbox to reach). A direct message is scoped to its
+            // own participants, since mentioning someone who isn't in the
+            // conversation would never reach them (this generalizes to group DMs).
             'members' => UserData::collect(
-                ($channel->isDirectMessage() ? $channel->members() : $team->members())
-                    ->orderBy('name')
-                    ->get()
+                $channel->isDirectMessage()
+                    ? $channel->members()->orderBy('name')->get()
+                    : $team->members()->orderBy('name')->get()->concat(
+                        $channel->members()
+                            ->where('users.type', UserType::Bot->value)
+                            ->orderBy('name')
+                            ->get()
+                    )
             ),
             // Read pointers of the channel's other members who share read receipts,
             // seeding the "Seen by" affordance at open; later advances arrive via the

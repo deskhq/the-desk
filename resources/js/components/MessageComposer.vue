@@ -2,6 +2,7 @@
 import {
     ArrowUp,
     Bold,
+    Bot,
     CircleAlert,
     Code,
     FileText,
@@ -39,6 +40,10 @@ import type { Mention, Message } from '@/types';
 const props = defineProps<{
     channelName: string;
     members: Mention[];
+    // Whether this channel has any bot members. Bots are excluded from `members`
+    // (they can't be mentioned), so the mention menu explains their absence with
+    // a quiet footnote only when at least one is present.
+    hasBots?: boolean;
     replyTarget?: Message | null;
     placeholder?: string;
     allowSendToChannel?: boolean;
@@ -825,6 +830,20 @@ function onKeydown(event: KeyboardEvent): void {
                         {{ getInitials(member.name) }}
                     </span>
                     <span class="truncate">{{ member.name }}</span>
+                </li>
+                <!-- A quiet footnote explaining why bots never appear here — shown
+                     only in a channel that actually has a bot. Presentational, so
+                     it is not announced as a selectable option. -->
+                <li
+                    v-if="props.hasBots"
+                    role="presentation"
+                    data-test="mention-bot-hint"
+                    class="mt-1 flex items-center gap-2 border-t border-border px-2 pt-2 pb-1 text-[11px] text-muted-foreground italic"
+                >
+                    <Bot class="size-3 shrink-0" aria-hidden="true" />
+                    <span>{{
+                        $t('Bots can’t be mentioned — they don’t read messages')
+                    }}</span>
                 </li>
             </ul>
 

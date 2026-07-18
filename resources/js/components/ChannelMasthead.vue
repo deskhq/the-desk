@@ -2,6 +2,7 @@
 import { Link, usePage } from '@inertiajs/vue3';
 import {
     Archive,
+    Bot,
     Check,
     EllipsisVertical,
     LogOut,
@@ -290,22 +291,33 @@ const groupParticipantCount = computed(
                               })
                     }}
                 </span>
+                <!-- A bot in the roster squares its avatar (rounded-md vs a
+                     human's circle) and shows a glyph, so it reads as non-human
+                     even at this size — matching its message-row treatment. -->
                 <Avatar
                     v-for="member in mastheadAvatars.visible"
                     :key="member.id"
                     class="size-6 text-[9px] ring-2 ring-card"
+                    :class="member.isBot ? 'rounded-md' : ''"
                     :title="member.name"
                     aria-hidden="true"
                 >
                     <AvatarImage
-                        v-if="member.avatar"
+                        v-if="member.avatar && !member.isBot"
                         :src="member.avatar"
                         :alt="member.name"
                     />
                     <AvatarFallback
-                        class="bg-primary/10 font-semibold text-primary"
+                        :class="
+                            member.isBot
+                                ? 'rounded-md bg-muted-foreground text-background'
+                                : 'bg-primary/10 font-semibold text-primary'
+                        "
                     >
-                        {{ getInitials(member.name) }}
+                        <Bot v-if="member.isBot" class="size-3" />
+                        <template v-else>{{
+                            getInitials(member.name)
+                        }}</template>
                     </AvatarFallback>
                 </Avatar>
                 <span

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { usePage } from '@inertiajs/vue3';
-import { Clock, Pin } from '@lucide/vue';
+import { Bot, Clock, Pin } from '@lucide/vue';
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
 import InlineMarks from '@/components/InlineMarks.vue';
 import LinkPreview from '@/components/LinkPreview.vue';
@@ -756,25 +756,47 @@ function confirmDelete(): void {
                             @mention="(member) => emit('mention', member)"
                         >
                             <div class="relative size-8.5 cursor-pointer">
+                                <!-- A bot squares off its avatar (rounded-lg vs a
+                                     human's full circle) and shows a glyph on the
+                                     ink-stone fill, so it reads as non-human at a
+                                     glance; a human keeps their gravatar/initials. -->
                                 <Avatar
                                     class="size-8.5 text-[11px]"
+                                    :class="
+                                        item.author.isBot ? 'rounded-lg' : ''
+                                    "
                                     aria-hidden="true"
                                 >
                                     <AvatarImage
-                                        v-if="item.author.avatar"
+                                        v-if="
+                                            item.author.avatar &&
+                                            !item.author.isBot
+                                        "
                                         :src="item.author.avatar"
                                         :alt="item.author.name"
                                     />
                                     <AvatarFallback
-                                        class="bg-primary/10 font-semibold text-primary"
+                                        :class="
+                                            item.author.isBot
+                                                ? 'rounded-lg bg-muted-foreground text-background'
+                                                : 'bg-primary/10 font-semibold text-primary'
+                                        "
                                     >
-                                        {{ getInitials(item.author.name) }}
+                                        <Bot
+                                            v-if="item.author.isBot"
+                                            class="size-4.5"
+                                        />
+                                        <template v-else>{{
+                                            getInitials(item.author.name)
+                                        }}</template>
                                     </AvatarFallback>
                                 </Avatar>
                                 <!-- Presence is announced once per author group
                                      via the sr-only text beside the name below,
-                                     so this repeated dot is decorative to AT. -->
+                                     so this repeated dot is decorative to AT. A bot
+                                     has no presence, so it shows no dot. -->
                                 <span
+                                    v-if="!item.author.isBot"
                                     data-test="presence-dot"
                                     :data-online="isOnline(item.author.id)"
                                     aria-hidden="true"
@@ -812,7 +834,16 @@ function confirmDelete(): void {
                                 >{{ item.author.name }}</span
                             >
                         </UserHoverCard>
-                        <span class="sr-only">{{
+                        <!-- The uppercase "Bot" tag rides beside a bot author's
+                             name; a bot has no presence, so it replaces the
+                             Online/Offline announcement rather than adding to it. -->
+                        <span
+                            v-if="item.author.isBot"
+                            data-test="author-bot-badge"
+                            class="ml-1.5 inline-flex items-center rounded border border-border px-1.5 align-[1px] text-[9px] font-bold tracking-[0.08em] text-muted-foreground uppercase"
+                            >{{ $t('Bot') }}</span
+                        >
+                        <span v-else class="sr-only">{{
                             isOnline(item.author.id)
                                 ? $t('Online')
                                 : $t('Offline')
