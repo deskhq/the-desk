@@ -1,5 +1,24 @@
 # Changelog
 
+## [1.9.0](https://github.com/emmpaul/the-desk/compare/v1.8.0...v1.9.0) (2026-07-18)
+
+
+### Features
+
+* add a /gif Giphy GIF picker ([#512](https://github.com/emmpaul/the-desk/issues/512)) ([6ba2ddb](https://github.com/emmpaul/the-desk/commit/6ba2ddbb1769d301b0756df87b06415820d317c4))
+* quick theme and sidebar switchers in the user menu ([#541](https://github.com/emmpaul/the-desk/issues/541)) ([349f763](https://github.com/emmpaul/the-desk/commit/349f7633f31fbbed88f4d9a594488cd4ca3fdf0d))
+* slash command framework with text-transform commands ([#509](https://github.com/emmpaul/the-desk/issues/509)) ([995d1fa](https://github.com/emmpaul/the-desk/commit/995d1fa8cd245ba0146c6bae21aecf23cda73769))
+
+
+### Bug Fixes
+
+* dark-mode contrast on Version available badge (About page) ([#519](https://github.com/emmpaul/the-desk/issues/519)) ([1379f49](https://github.com/emmpaul/the-desk/commit/1379f49e51263b5f5c51630d814001db76b2087e))
+
+
+### Code Refactoring
+
+* promote JS/TS inline comments to JSDoc/TSDoc and trim redundant ones ([#515](https://github.com/emmpaul/the-desk/issues/515)) ([32c8e54](https://github.com/emmpaul/the-desk/commit/32c8e5418935132f881d39c9e38282aa0f2a6119))
+
 ## [1.8.0](https://github.com/emmpaul/the-desk/compare/v1.7.1...v1.8.0) (2026-07-18)
 
 
