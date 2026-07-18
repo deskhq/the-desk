@@ -39,7 +39,7 @@ import type { MessageBodySegment } from '@/lib/messageBody';
 import { readersForMessage } from '@/lib/readReceipts';
 import { buildTimelineItems, messageAccessibleName } from '@/lib/timeline';
 import type { TimelineGroup, TimelineItem } from '@/lib/timeline';
-import { shouldRenderSkeleton } from '@/lib/virtualTimeline';
+import { bottomGlueSettled, shouldRenderSkeleton } from '@/lib/virtualTimeline';
 import type {
     ChannelReader,
     Mention,
@@ -390,9 +390,19 @@ watch(isScrolling, (scrolling) => {
 // A windowed jump can't know the true bottom up front: `scrollToEnd` aims at the
 // bottom the virtualizer can see now, but each row measured as the animation
 // passes it grows the list, so the target keeps moving. `finalizeJump` follows
-// the animation to the bottom, then briefly glues the view there frame by frame
-// so late measurements settle without a visible bounce.
-const JUMP_GLUE_FRAMES = 12;
+// the animation to the bottom, then glues the view there frame by frame until both
+// the measured height plateaus and the scroll goes quiet, so late measurements
+// settle without a visible bounce.
+//
+// The glue releases on convergence, not a fixed frame count: it holds until the
+// scroll height has been steady for `JUMP_SETTLE_FRAMES` consecutive frames *and*
+// the container has stopped scrolling. A fixed budget let go too early on a slow
+// render — while rows were still measuring, or while the glue's own `scrollTop`
+// writes still counted as scrolling — so unsettled rows flipped in their scrub
+// skeletons and the virtualizer's re-enabled size-change anchoring drifted the
+// view below the fold: the timeline landing short of the newest message on initial
+// open of a long list of tall rows (#500).
+const JUMP_SETTLE_FRAMES = 4;
 const JUMP_MAX_FRAMES = 180;
 let jumpRaf: number | null = null;
 
@@ -404,11 +414,13 @@ let jumpRaf: number | null = null;
  * once it has stopped short — stalled on a skeleton-height estimate rather than
  * the real bottom — snap the residual gap. Gating on the scrolling flag means an
  * explicit `smooth` jump keeps animating instead of being force-converted to an
- * instant snap. Once the bottom is reached, phase two pins `scrollTop` to the
- * end for a handful of frames so a row measured late (taller or shorter than its
- * estimate) can't drift the view up or leave it short: each correction lands
- * before paint, so the settle is invisible rather than a bounce (#347). Bounded
- * by a frame budget so a list that never settles can't spin forever.
+ * instant snap. Once the bottom is reached, phase two pins `scrollTop` to the end
+ * every frame — so a row measured late (taller or shorter than its estimate)
+ * can't drift the view up or leave it short — and releases only once the measured
+ * height has settled (`bottomGlueSettled`) *and* the scroll has quiesced, rather
+ * than after a fixed budget that could expire mid-measurement and strand the view
+ * (#347, #500). Bounded by a frame budget so a list that never settles can't spin
+ * forever.
  */
 function finalizeJump(): void {
     if (jumpRaf !== null) {
@@ -416,7 +428,10 @@ function finalizeJump(): void {
     }
 
     let reachedBottom = false;
-    let glueFrames = 0;
+    let stableFrames = 0;
+    // Sentinel so the first glue frame always registers as a change: the glue
+    // needs at least `JUMP_SETTLE_FRAMES` genuine same-height frames to release.
+    let lastHeight = -1;
     let frames = 0;
 
     const step = (): void => {
@@ -440,11 +455,28 @@ function finalizeJump(): void {
                 scrollToEnd('auto');
             }
         } else {
-            // Glue to the bottom so late row measurements settle invisibly.
+            // Glue to the bottom so late row measurements settle invisibly, and
+            // hold until the height stops moving — the true bottom has arrived.
             el.scrollTop = el.scrollHeight;
-            glueFrames += 1;
 
-            if (glueFrames >= JUMP_GLUE_FRAMES) {
+            const settle = bottomGlueSettled(
+                el.scrollHeight,
+                lastHeight,
+                stableFrames,
+                JUMP_SETTLE_FRAMES,
+            );
+            stableFrames = settle.stableFrames;
+            lastHeight = el.scrollHeight;
+
+            // Release only once the height has settled *and* the scroll has gone
+            // quiet. Letting go while `isScrolling` is still true (the glue's own
+            // `scrollTop` writes keep it set for ~150ms after the last change)
+            // would flip `jumpingToBottom` off mid-scroll, so unsettled rows render
+            // their 56px scrub skeletons — shrinking the content above the viewport
+            // and drifting the view up off the newest message (#347, #500). Waiting
+            // for the scroll to quiesce keeps skeletons suppressed until the view is
+            // safely at rest on the bottom.
+            if (settle.settled && !isScrolling.value) {
                 jumpingToBottom.value = false;
                 jumpRaf = null;
 

@@ -44,11 +44,28 @@ class SearchIndexSyncCommand extends Command
             return self::SUCCESS;
         }
 
+        $this->syncIndexSettings();
+
         foreach (self::SEARCHABLE_MODELS as $model) {
             $this->syncModel($meilisearch, $model);
         }
 
         return self::SUCCESS;
+    }
+
+    /**
+     * Apply the configured index settings (filterable/sortable attributes)
+     * declared in config/scout.php to Meilisearch.
+     *
+     * Importing documents auto-creates the index with empty filterable
+     * attributes, so this must run unconditionally — independent of whether the
+     * index already holds documents — or the channel-ACL search scope
+     * (`channel_id IN [...]`) fails on any fresh or rotated Meilisearch volume.
+     * The underlying update is idempotent.
+     */
+    private function syncIndexSettings(): void
+    {
+        $this->call('scout:sync-index-settings');
     }
 
     /**
