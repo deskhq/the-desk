@@ -12,7 +12,7 @@ use App\Http\Resources\Api\V1\MessageResource;
 use App\Models\Channel;
 use App\Models\Message;
 use App\Models\User;
-use App\Support\Integrations\BotChannelAccess;
+use App\Support\Integrations\ApiChannelAccess;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
@@ -26,10 +26,10 @@ class MessageController extends Controller
      */
     public function index(Request $request, Channel $channel): AnonymousResourceCollection
     {
-        $bot = $request->user();
-        assert($bot instanceof User);
+        $subject = $request->user();
+        assert($subject instanceof User);
 
-        BotChannelAccess::assert($bot, $channel);
+        ApiChannelAccess::assert($subject, $channel);
 
         $messages = $channel->messages()
             ->with(['user', 'reactions'])
@@ -44,12 +44,12 @@ class MessageController extends Controller
      */
     public function store(StoreMessageRequest $request, Channel $channel, PostMessage $postMessage): JsonResponse
     {
-        $bot = $request->user();
-        assert($bot instanceof User);
+        $subject = $request->user();
+        assert($subject instanceof User);
 
         $message = $postMessage->handle(
             channel: $channel,
-            author: $bot,
+            author: $subject,
             body: $request->validated('body'),
             clientUuid: $request->validated('client_uuid') ?? (string) Str::uuid(),
             replyToId: $request->validated('reply_to_id'),
@@ -67,10 +67,10 @@ class MessageController extends Controller
      */
     public function show(Request $request, Channel $channel, Message $message): MessageResource
     {
-        $bot = $request->user();
-        assert($bot instanceof User);
+        $subject = $request->user();
+        assert($subject instanceof User);
 
-        BotChannelAccess::assert($bot, $channel);
+        ApiChannelAccess::assert($subject, $channel);
         abort_unless($message->channel_id === $channel->id, 404);
 
         $message->load(['user', 'reactions']);
@@ -95,10 +95,10 @@ class MessageController extends Controller
      */
     public function destroy(Request $request, Channel $channel, Message $message, DeleteMessage $deleteMessage): JsonResponse
     {
-        $bot = $request->user();
-        assert($bot instanceof User);
+        $subject = $request->user();
+        assert($subject instanceof User);
 
-        BotChannelAccess::assert($bot, $channel);
+        ApiChannelAccess::assert($subject, $channel);
         abort_unless($message->channel_id === $channel->id, 404);
         abort_unless(Gate::allows('delete', $message), 403);
 

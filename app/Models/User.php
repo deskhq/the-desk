@@ -24,6 +24,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Carbon;
@@ -172,6 +173,20 @@ class User extends Authenticatable implements HasLocalePreference, MustVerifyEma
     public function ownerTeam(): BelongsTo
     {
         return $this->belongsTo(Team::class, 'owner_team_id');
+    }
+
+    /**
+     * The user's Sanctum API tokens.
+     *
+     * Narrows Sanctum's trait relation to the application's own token model so
+     * a token's bound {@see PersonalAccessToken::team()} is visible to callers
+     * and static analysis.
+     *
+     * @return MorphMany<PersonalAccessToken, $this>
+     */
+    public function tokens(): MorphMany
+    {
+        return $this->morphMany(PersonalAccessToken::class, 'tokenable');
     }
 
     /**

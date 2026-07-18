@@ -3,7 +3,7 @@
 namespace App\Http\Requests\Api\V1;
 
 use App\Enums\MessageType;
-use App\Support\Integrations\BotChannelAccess;
+use App\Support\Integrations\ApiChannelAccess;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\Rule;
@@ -21,7 +21,7 @@ class StoreMessageRequest extends ApiRequest
      */
     public function authorize(): bool
     {
-        BotChannelAccess::assert($this->bot(), $this->channel());
+        ApiChannelAccess::assert($this->subject(), $this->channel());
 
         return Gate::allows('postMessage', $this->channel());
     }

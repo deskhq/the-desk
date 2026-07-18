@@ -5,23 +5,33 @@ namespace App\Http\Requests\Api\V1;
 use App\Enums\ChannelVisibility;
 use App\Models\Channel;
 use App\Models\Team;
+use App\Support\Integrations\ApiChannelAccess;
 use Closure;
 use Illuminate\Contracts\Validation\ValidationRule;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
 
 /**
- * Validates a bot creating a channel in its own team via the public API.
+ * Validates a subject creating a channel in its acting team via the public API.
  */
 class StoreChannelRequest extends ApiRequest
 {
     /**
-     * A bot may only create channels in the team it is scoped to.
+     * A bot may create channels in the team it is scoped to; a human PAT defers
+     * to the same web `create` policy (any member of the bound team may create
+     * a channel), so the token never exceeds what the person could do in-app.
      */
     public function authorize(): bool
     {
-        return $this->bot()->owner_team_id !== null;
+        $subject = $this->subject();
+
+        if ($subject->isBot()) {
+            return $subject->owner_team_id !== null;
+        }
+
+        return Gate::forUser($subject)->allows('create', ApiChannelAccess::team($subject));
     }
 
     /**
@@ -73,10 +83,10 @@ class StoreChannelRequest extends ApiRequest
     }
 
     /**
-     * The team the channel is created in — the bot's own team.
+     * The team the channel is created in — the subject's acting team.
      */
     public function team(): Team
     {
-        return $this->bot()->ownerTeam()->firstOrFail();
+        return ApiChannelAccess::team($this->subject());
     }
 }
