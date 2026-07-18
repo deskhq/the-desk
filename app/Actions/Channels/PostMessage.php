@@ -4,9 +4,11 @@ namespace App\Actions\Channels;
 
 use App\Data\MessageData;
 use App\Enums\AttachmentStatus;
+use App\Enums\WebhookEvent;
 use App\Events\DirectMessageStarted;
 use App\Events\MessageSent;
 use App\Events\MessageUpdated;
+use App\Events\WebhookEventOccurred;
 use App\Models\Attachment;
 use App\Models\Channel;
 use App\Models\Message;
@@ -78,7 +80,9 @@ class PostMessage
             $this->syncMentions->handle($channel, $message);
             $this->syncLinkPreviews->handle($message);
             $message->loadMessageDataRelations();
-            event(new MessageSent($channel, MessageData::fromMessage($message)));
+            $data = MessageData::fromMessage($message);
+            event(new MessageSent($channel, $data));
+            event(new WebhookEventOccurred(WebhookEvent::MessageCreated, $channel, $data->toArray()));
 
             $this->announceFirstDirectMessage($channel, $author);
 

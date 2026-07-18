@@ -22,6 +22,8 @@ enum IntegrationScope: string
     case ReactionsWrite = 'reactions:write';
     case MembersRead = 'members:read';
     case MembersWrite = 'members:write';
+    case WebhooksRead = 'webhooks:read';
+    case WebhooksWrite = 'webhooks:write';
 
     /**
      * Get the short human-readable description of what the scope grants, used by
@@ -37,6 +39,8 @@ enum IntegrationScope: string
             self::ReactionsWrite => __('Add and remove reactions'),
             self::MembersRead => __('Read channel membership'),
             self::MembersWrite => __('Add and remove channel members'),
+            self::WebhooksRead => __('Read outgoing-webhook subscriptions'),
+            self::WebhooksWrite => __('Create and revoke outgoing-webhook subscriptions'),
         };
     }
 

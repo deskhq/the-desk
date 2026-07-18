@@ -1,0 +1,176 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Jobs;
+
+use App\Enums\AuditAction;
+use App\Enums\WebhookSubscriptionStatus;
+use App\Models\WebhookSubscription;
+use App\Support\AuditRecorder;
+use App\Support\Webhooks\WebhookSignature;
+use Illuminate\Contracts\Queue\ShouldQueue;
+use Illuminate\Foundation\Queue\Queueable;
+use Illuminate\Http\Client\Response;
+use Illuminate\Support\Facades\Http;
+use RuntimeException;
+use Throwable;
+
+/**
+ * Delivers one webhook envelope to one subscription's endpoint, signed and with
+ * a bounded timeout.
+ *
+ * Failure handling is per-attempt: each non-2xx response or transport error
+ * increments the subscription's `consecutive_failures` and logs the attempt; a
+ * 2xx resets the counter and stamps `last_success_at`. When the counter reaches
+ * `config('integrations.webhooks.disable_after')` the subscription is
+ * auto-disabled (with an audit entry) and the job stops retrying. Otherwise the
+ * job throws so the queue retries it with the configured backoff — the retry
+ * ceiling is the same threshold, so a permanently dead endpoint retries, then
+ * disables, then goes quiet.
+ */
+class DeliverWebhook implements ShouldQueue
+{
+    use Queueable;
+
+    /**
+     * @param  array<string, mixed>  $envelope  The full payload body (id, type,
+     *                                          created_at, data), stable across
+     *                                          retries so the receiver can dedupe.
+     */
+    public function __construct(
+        public readonly string $subscriptionId,
+        public readonly array $envelope,
+    ) {}
+
+    /**
+     * The maximum number of attempts, capped at the auto-disable threshold so the
+     * final failed attempt is the one that disables the subscription.
+     */
+    public function tries(): int
+    {
+        return (int) config('integrations.webhooks.disable_after');
+    }
+
+    /**
+     * Seconds to wait before each retry (exponential backoff), reusing the last
+     * value once the configured list is exhausted.
+     *
+     * @return list<int>
+     */
+    public function backoff(): array
+    {
+        /** @var list<int> $backoff */
+        $backoff = config('integrations.webhooks.backoff');
+
+        return $backoff;
+    }
+
+    /**
+     * Attempt one delivery.
+     */
+    public function handle(AuditRecorder $recorder): void
+    {
+        $subscription = WebhookSubscription::find($this->subscriptionId);
+
+        if ($subscription === null || ! $subscription->isActive()) {
+            return;
+        }
+
+        $body = (string) json_encode($this->envelope);
+        $timestamp = now()->getTimestamp();
+
+        try {
+            $response = Http::withHeaders([
+                'Content-Type' => 'application/json',
+                'X-Desk-Event' => (string) $this->envelope['type'],
+                'X-Desk-Delivery' => (string) $this->envelope['id'],
+                'X-Desk-Signature' => WebhookSignature::header($subscription->secret, $body, $timestamp),
+            ])
+                ->timeout((int) config('integrations.webhooks.timeout'))
+                ->withBody($body, 'application/json')
+                ->post($subscription->url);
+        } catch (Throwable $exception) {
+            $this->recordFailure($subscription, $recorder, null, $this->summarize($exception->getMessage()));
+
+            return;
+        }
+
+        if ($response->successful()) {
+            $this->recordSuccess($subscription, $response);
+
+            return;
+        }
+
+        $this->recordFailure($subscription, $recorder, $response->status(), 'HTTP '.$response->status());
+    }
+
+    /**
+     * Log a successful attempt and clear the failure streak.
+     */
+    private function recordSuccess(WebhookSubscription $subscription, Response $response): void
+    {
+        $subscription->deliveries()->create([
+            'event_type' => (string) $this->envelope['type'],
+            'event_id' => (string) $this->envelope['id'],
+            'succeeded' => true,
+            'response_status' => $response->status(),
+            'error' => null,
+        ]);
+
+        $subscription->forceFill([
+            'consecutive_failures' => 0,
+            'last_success_at' => now(),
+        ])->save();
+    }
+
+    /**
+     * Log a failed attempt, advance the failure streak, and either auto-disable
+     * (streak hit the threshold) or re-throw so the queue retries with backoff.
+     */
+    private function recordFailure(WebhookSubscription $subscription, AuditRecorder $recorder, ?int $status, string $error): void
+    {
+        $subscription->deliveries()->create([
+            'event_type' => (string) $this->envelope['type'],
+            'event_id' => (string) $this->envelope['id'],
+            'succeeded' => false,
+            'response_status' => $status,
+            'error' => $error,
+        ]);
+
+        $failures = $subscription->consecutive_failures + 1;
+        $subscription->forceFill(['consecutive_failures' => $failures])->save();
+
+        if ($failures >= (int) config('integrations.webhooks.disable_after')) {
+            $this->autoDisable($subscription, $recorder, $failures);
+
+            return;
+        }
+
+        throw new RuntimeException('Webhook delivery failed: '.$error);
+    }
+
+    /**
+     * Flip the subscription to disabled and record the reason in the audit log.
+     */
+    private function autoDisable(WebhookSubscription $subscription, AuditRecorder $recorder, int $failures): void
+    {
+        $subscription->forceFill([
+            'status' => WebhookSubscriptionStatus::Disabled,
+            'disabled_at' => now(),
+        ])->save();
+
+        $recorder->record($subscription->team, $subscription->creator, AuditAction::WebhookSubscriptionAutoDisabled, $subscription, [
+            'subscription_name' => $subscription->name,
+            'failures' => $failures,
+        ]);
+    }
+
+    /**
+     * Trim a transport-error message to fit the delivery log's error column.
+     */
+    private function summarize(string $message): string
+    {
+        return mb_substr($message, 0, 255);
+    }
+}

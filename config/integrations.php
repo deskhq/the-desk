@@ -31,4 +31,30 @@ return [
 
     'api_rate_limit' => (int) env('INTEGRATIONS_API_RATE_LIMIT', 60),
 
+    /*
+    |--------------------------------------------------------------------------
+    | Outgoing webhook delivery
+    |--------------------------------------------------------------------------
+    |
+    | Tuning for delivering subscribed domain events to external URLs. Each
+    | delivery is signed (HMAC-SHA256) and retried with exponential backoff up
+    | to `max_attempts` times; a request that outlives `timeout` seconds counts
+    | as a failed attempt. A subscription whose deliveries fail `disable_after`
+    | times in a row (with no success in between) is auto-disabled and stops
+    | delivering until an integrator recreates it.
+    |
+    */
+
+    'webhooks' => [
+        'max_attempts' => (int) env('WEBHOOKS_MAX_ATTEMPTS', 5),
+        'timeout' => (int) env('WEBHOOKS_TIMEOUT', 5),
+        'disable_after' => (int) env('WEBHOOKS_DISABLE_AFTER', 5),
+
+        /*
+         * Seconds to wait before each retry, indexed by the number of prior
+         * attempts. The last value is reused once the list is exhausted.
+         */
+        'backoff' => [10, 30, 120, 600],
+    ],
+
 ];

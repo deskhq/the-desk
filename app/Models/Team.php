@@ -28,6 +28,7 @@ use Illuminate\Support\Carbon;
  * @property-read Collection<int, User> $members
  * @property-read Collection<int, Channel> $channels
  * @property-read Collection<int, CustomEmoji> $customEmojis
+ * @property-read Collection<int, WebhookSubscription> $webhookSubscriptions
  */
 #[Fillable(['name', 'slug', 'is_personal'])]
 class Team extends Model
@@ -107,6 +108,16 @@ class Team extends Model
     public function channels(): HasMany
     {
         return $this->hasMany(Channel::class);
+    }
+
+    /**
+     * Get the team's outgoing-webhook subscriptions.
+     *
+     * @return HasMany<WebhookSubscription, $this>
+     */
+    public function webhookSubscriptions(): HasMany
+    {
+        return $this->hasMany(WebhookSubscription::class);
     }
 
     /**

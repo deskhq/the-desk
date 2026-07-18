@@ -2,7 +2,10 @@
 
 namespace App\Actions\Channels;
 
+use App\Data\UserData;
 use App\Enums\MessageType;
+use App\Enums\WebhookEvent;
+use App\Events\WebhookEventOccurred;
 use App\Models\Channel;
 use App\Models\ChannelMember;
 use App\Models\User;
@@ -31,8 +34,15 @@ class JoinChannel
             'user_id' => $user->id,
         ]));
 
-        if ($announce && $membership->wasRecentlyCreated) {
-            $this->postSystemMessage->handle($channel, $user, MessageType::MemberJoined);
+        if ($membership->wasRecentlyCreated) {
+            if ($announce) {
+                $this->postSystemMessage->handle($channel, $user, MessageType::MemberJoined);
+            }
+
+            event(new WebhookEventOccurred(WebhookEvent::ChannelMemberAdded, $channel, [
+                'channel_id' => $channel->id,
+                'user' => UserData::fromUser($user)->toArray(),
+            ]));
         }
 
         return $membership;

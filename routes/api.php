@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\V1\ChannelController;
 use App\Http\Controllers\Api\V1\MemberController;
 use App\Http\Controllers\Api\V1\MessageController;
 use App\Http\Controllers\Api\V1\ReactionController;
+use App\Http\Controllers\Api\V1\WebhookSubscriptionController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -59,4 +60,15 @@ Route::prefix('v1')
             ->middleware('scope:members:write')->name('members.store');
         Route::delete('channels/{channel:id}/members/{user}', [MemberController::class, 'destroy'])
             ->middleware('scope:members:write')->name('members.destroy');
+
+        // Outgoing webhooks — subscription management (delivery itself is queued
+        // and signed; see App\Jobs\DeliverWebhook).
+        Route::get('webhooks', [WebhookSubscriptionController::class, 'index'])
+            ->middleware('scope:webhooks:read')->name('webhooks.index');
+        Route::post('webhooks', [WebhookSubscriptionController::class, 'store'])
+            ->middleware('scope:webhooks:write')->name('webhooks.store');
+        Route::get('webhooks/{webhookSubscription:id}', [WebhookSubscriptionController::class, 'show'])
+            ->middleware('scope:webhooks:read')->name('webhooks.show');
+        Route::delete('webhooks/{webhookSubscription:id}', [WebhookSubscriptionController::class, 'destroy'])
+            ->middleware('scope:webhooks:write')->name('webhooks.destroy');
     });

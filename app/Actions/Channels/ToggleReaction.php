@@ -5,7 +5,10 @@ declare(strict_types=1);
 namespace App\Actions\Channels;
 
 use App\Data\ReactionData;
+use App\Data\UserData;
+use App\Enums\WebhookEvent;
 use App\Events\MessageReactionChanged;
+use App\Events\WebhookEventOccurred;
 use App\Models\Channel;
 use App\Models\Message;
 use App\Models\User;
@@ -28,6 +31,8 @@ class ToggleReaction
             ->where('emoji', $emoji)
             ->first();
 
+        $added = $existing === null;
+
         if ($existing !== null) {
             $existing->delete();
         } else {
@@ -40,5 +45,14 @@ class ToggleReaction
         $message->load('reactions.user');
 
         event(new MessageReactionChanged($channel, $message->id, ReactionData::forMessage($message)));
+
+        if ($added) {
+            event(new WebhookEventOccurred(WebhookEvent::ReactionAdded, $channel, [
+                'channel_id' => $channel->id,
+                'message_id' => $message->id,
+                'emoji' => $emoji,
+                'user' => UserData::fromUser($user)->toArray(),
+            ]));
+        }
     }
 }

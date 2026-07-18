@@ -146,11 +146,12 @@ SCIM over HTTPS only, and rotate it if it leaks.
 ## Integrations platform
 
 The integrations platform lets external systems act inside a workspace as **bot
-users** through a versioned public REST API at `${APP_URL}/api/v1`.
+users** through a versioned public REST API at `${APP_URL}/api/v1`, and lets
+them subscribe to **outgoing webhooks** so your systems can react to activity.
 
 | Variable                      | Default | Effect                                                              |
 | ----------------------------- | ------- | ------------------------------------------------------------------ |
-| `INTEGRATIONS_ENABLED`        | `true`  | Enables bot users and the public REST API. Set `false` to turn the whole surface off — every `/api/v1` route returns **404** and the management UI hides. |
+| `INTEGRATIONS_ENABLED`        | `true`  | Enables bot users, the public REST API, and outgoing webhooks. Set `false` to turn the whole surface off — every `/api/v1` route returns **404**, the management UI hides, and no webhooks are delivered. |
 | `INTEGRATIONS_API_RATE_LIMIT` | `60`    | Maximum requests **per token, per minute**. Exceeding it returns **429** with a `Retry-After` header. |
 
 The platform is **on** by default. A bot authenticates with a hashed
@@ -161,6 +162,23 @@ its bot belongs to. Set `INTEGRATIONS_ENABLED=false` to disable the feature
 entirely; the routes then behave as if they do not exist.
 
 The toggle takes effect immediately with no data migration.
+
+### Outgoing webhooks
+
+A bot with the `webhooks:write` scope can register subscriptions (via
+`POST /api/v1/webhooks`) that deliver a signed POST to an external URL whenever
+a subscribed event happens. See the [outgoing webhooks reference](/docs/reference/webhooks/)
+for the event set, payload shapes, and signature verification. Delivery is
+tunable:
+
+| Variable                | Default | Effect                                                              |
+| ----------------------- | ------- | ------------------------------------------------------------------ |
+| `WEBHOOKS_MAX_ATTEMPTS` | `5`     | Attempts per event before giving up, each retried with exponential backoff. |
+| `WEBHOOKS_TIMEOUT`      | `5`     | Seconds each delivery request may run before it counts as a failed attempt. |
+| `WEBHOOKS_DISABLE_AFTER`| `5`     | Consecutive failed deliveries (with no success in between) after which a subscription is **auto-disabled** and stops delivering. |
+
+Webhooks ride on the same `INTEGRATIONS_ENABLED` master switch — turning the
+platform off stops all delivery immediately.
 
 ## Gravatar avatars
 

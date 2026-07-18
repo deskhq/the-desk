@@ -28,6 +28,9 @@ enum AuditAction: string
     case BotDeleted = 'bot_deleted';
     case BotTokenCreated = 'bot_token_created';
     case BotTokenRevoked = 'bot_token_revoked';
+    case WebhookSubscriptionCreated = 'webhook_subscription_created';
+    case WebhookSubscriptionRevoked = 'webhook_subscription_revoked';
+    case WebhookSubscriptionAutoDisabled = 'webhook_subscription_auto_disabled';
 
     /**
      * Get the short human-readable label used in the action filter and headers.
@@ -54,6 +57,9 @@ enum AuditAction: string
             self::BotDeleted => __('Bot deleted'),
             self::BotTokenCreated => __('API token minted'),
             self::BotTokenRevoked => __('API token revoked'),
+            self::WebhookSubscriptionCreated => __('Webhook subscription created'),
+            self::WebhookSubscriptionRevoked => __('Webhook subscription revoked'),
+            self::WebhookSubscriptionAutoDisabled => __('Webhook subscription auto-disabled'),
         };
     }
 
@@ -86,6 +92,9 @@ enum AuditAction: string
             self::BotDeleted => sprintf(__('Deleted the %s bot'), $this->text($context, 'bot_name')),
             self::BotTokenCreated => sprintf(__('Minted the “%s” API token for the %s bot'), $this->text($context, 'token_name'), $this->text($context, 'bot_name')),
             self::BotTokenRevoked => sprintf(__('Revoked the “%s” API token for the %s bot'), $this->text($context, 'token_name'), $this->text($context, 'bot_name')),
+            self::WebhookSubscriptionCreated => sprintf(__('Created the “%s” webhook subscription'), $this->text($context, 'subscription_name')),
+            self::WebhookSubscriptionRevoked => sprintf(__('Revoked the “%s” webhook subscription'), $this->text($context, 'subscription_name')),
+            self::WebhookSubscriptionAutoDisabled => sprintf(__('Auto-disabled the “%s” webhook subscription after %s consecutive failures'), $this->text($context, 'subscription_name'), $this->text($context, 'failures')),
         };
     }
 
