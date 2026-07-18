@@ -17,6 +17,7 @@ function fakeMeilisearchDocumentCount(int $documents): void
 {
     $index = Mockery::mock(Indexes::class);
     $index->shouldReceive('stats')->andReturn(['numberOfDocuments' => $documents]);
+    $index->shouldReceive('updateSettings')->andReturn([]);
 
     test()->mock(Client::class, function ($mock) use ($index): void {
         $mock->shouldReceive('index')->with('messages')->andReturn($index);
@@ -55,6 +56,7 @@ it('imports when the meilisearch index does not exist yet', function (): void {
         new Response(404, [], (string) json_encode(['code' => 'index_not_found'])),
         ['code' => 'index_not_found'],
     ));
+    $index->shouldReceive('updateSettings')->andReturn([]);
     $this->mock(Client::class, fn ($mock) => $mock->shouldReceive('index')->andReturn($index));
 
     Message::withoutSyncingToSearch(fn () => Message::factory()->count(2)->create());
@@ -82,6 +84,36 @@ it('skips import when there are no records to index', function (): void {
     fakeMeilisearchDocumentCount(0);
 
     $this->artisan('search:sync')->assertSuccessful();
+
+    Queue::assertNotPushed(MakeSearchable::class);
+});
+
+it('syncs the configured index settings even when the index is already populated', function (): void {
+    config()->set('scout.driver', 'meilisearch');
+    Queue::fake();
+
+    $captured = null;
+    $index = Mockery::mock(Indexes::class);
+    $index->shouldReceive('stats')->andReturn(['numberOfDocuments' => 5]);
+    $index->shouldReceive('updateSettings')
+        ->once()
+        ->andReturnUsing(function (array $settings) use (&$captured): array {
+            $captured = $settings;
+
+            return [];
+        });
+
+    $this->mock(Client::class, fn ($mock) => $mock->shouldReceive('index')->with('messages')->andReturn($index));
+
+    $this->artisan('search:sync')->assertSuccessful();
+
+    // Settings are synced unconditionally — not gated on an empty index — so a
+    // rotated Meilisearch volume gets the filterable/sortable attributes that
+    // the channel-ACL search scope (`channel_id IN [...]`) depends on.
+    expect($captured)->toMatchArray([
+        'filterableAttributes' => ['channel_id', 'user_id', 'created_at'],
+        'sortableAttributes' => ['created_at'],
+    ]);
 
     Queue::assertNotPushed(MakeSearchable::class);
 });
