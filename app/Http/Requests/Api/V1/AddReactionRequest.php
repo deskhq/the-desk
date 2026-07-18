@@ -2,7 +2,7 @@
 
 namespace App\Http\Requests\Api\V1;
 
-use App\Support\Integrations\BotChannelAccess;
+use App\Support\Integrations\ApiChannelAccess;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Support\Facades\Gate;
 
@@ -19,7 +19,7 @@ class AddReactionRequest extends ApiRequest
      */
     public function authorize(): bool
     {
-        BotChannelAccess::assert($this->bot(), $this->channel());
+        ApiChannelAccess::assert($this->subject(), $this->channel());
 
         abort_unless($this->message()->channel_id === $this->channel()->id, 404);
 

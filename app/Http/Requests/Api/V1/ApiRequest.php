@@ -8,16 +8,16 @@ use App\Models\User;
 use Illuminate\Foundation\Http\FormRequest;
 
 /**
- * Shared accessors for the public-API form requests: the authenticated bot and
- * the route-bound channel / message, each narrowed to its concrete type so the
- * subclasses stay terse.
+ * Shared accessors for the public-API form requests: the authenticated token
+ * subject (a bot or a human personal access token) and the route-bound channel
+ * / message, each narrowed to its concrete type so the subclasses stay terse.
  */
 abstract class ApiRequest extends FormRequest
 {
     /**
-     * The authenticated bot behind the token.
+     * The authenticated subject behind the token — a bot or a human.
      */
-    protected function bot(): User
+    protected function subject(): User
     {
         $user = $this->user();
 

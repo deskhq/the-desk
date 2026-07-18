@@ -8,6 +8,7 @@ use App\Http\Controllers\Settings\AvatarController;
 use App\Http\Controllers\Settings\DataExportController;
 use App\Http\Controllers\Settings\LocaleController;
 use App\Http\Controllers\Settings\NotificationController;
+use App\Http\Controllers\Settings\PersonalAccessTokenController;
 use App\Http\Controllers\Settings\ProfileController;
 use App\Http\Controllers\Settings\ReadReceiptsController;
 use App\Http\Controllers\Settings\SecurityController;
@@ -71,6 +72,18 @@ Route::middleware(['auth', 'verified'])->group(function (): void {
 
     Route::get('settings/language', [LocaleController::class, 'edit'])->name('locale.edit');
     Route::patch('settings/language', [LocaleController::class, 'update'])->name('locale.update');
+
+    // Human personal access tokens for the public REST API. JSON endpoints only
+    // (the settings UI ships in a follow-up); the whole surface 404s when the
+    // integrations platform is disabled.
+    Route::middleware('integrations')->group(function (): void {
+        Route::get('settings/personal-access-tokens', [PersonalAccessTokenController::class, 'index'])
+            ->name('personal-access-tokens.index');
+        Route::post('settings/personal-access-tokens', [PersonalAccessTokenController::class, 'store'])
+            ->name('personal-access-tokens.store');
+        Route::delete('settings/personal-access-tokens/{token}', [PersonalAccessTokenController::class, 'destroy'])
+            ->name('personal-access-tokens.destroy');
+    });
 
     Route::get('settings/teams', [TeamController::class, 'index'])->name('teams.index');
     Route::post('settings/teams', [TeamController::class, 'store'])->name('teams.store');
