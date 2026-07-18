@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { buildTimelineItems } from '@/lib/timeline';
 import {
     anchorAfterPrepend,
+    bottomGlueSettled,
     isDividerVisible,
     shouldLoadOlder,
     shouldRenderSkeleton,
@@ -152,6 +153,44 @@ describe('anchorAfterPrepend', () => {
 
     it('leaves scrollTop untouched when nothing was prepended', () => {
         expect(anchorAfterPrepend(1000, 1000, 200)).toBe(200);
+    });
+});
+
+describe('bottomGlueSettled', () => {
+    it('counts a frame as stable when the measured height held steady', () => {
+        // Same height as last frame: one more consecutive stable frame, and not
+        // yet settled while below the required run.
+        expect(bottomGlueSettled(5000, 5000, 1, 3)).toEqual({
+            stableFrames: 2,
+            settled: false,
+        });
+    });
+
+    it('resets the run the moment the height grows (rows still measuring)', () => {
+        // A row measured taller than its estimate, so the true bottom moved down:
+        // the glue must keep following it, not release.
+        expect(bottomGlueSettled(5200, 5000, 2, 3)).toEqual({
+            stableFrames: 0,
+            settled: false,
+        });
+    });
+
+    it('resets the run when the height shrinks below the last frame', () => {
+        // A row measured shorter than its estimate is still a height change, so
+        // measurement is in flight: reset rather than declare victory.
+        expect(bottomGlueSettled(4800, 5000, 2, 3)).toEqual({
+            stableFrames: 0,
+            settled: false,
+        });
+    });
+
+    it('settles once the height has held for the required consecutive frames', () => {
+        // The plateau is reached: the newest message will no longer drift down,
+        // so the glue can release.
+        expect(bottomGlueSettled(5000, 5000, 2, 3)).toEqual({
+            stableFrames: 3,
+            settled: true,
+        });
     });
 });
 

@@ -103,6 +103,39 @@ export function anchorAfterPrepend(
 }
 
 /**
+ * Track a jump-to-present's bottom-glue toward release. A windowed jump can't
+ * know the true bottom up front: it sizes from row-height estimates and only
+ * learns a row's real height once it renders, so the newest message's offset
+ * keeps moving down as rows near it measure taller. The glue follows that moving
+ * bottom frame by frame; this decides when it has stopped moving.
+ *
+ * Releasing on a fixed frame budget stranded the view short whenever a row
+ * measured late — after the budget elapsed the glue let go, and the
+ * virtualizer's re-enabled upward size-change anchoring then drifted the newest
+ * message below the fold (#500). Instead, release only once the measured scroll
+ * height has held steady for `requiredStableFrames` consecutive frames: any
+ * change (taller *or* shorter) means measurement is still in flight and resets
+ * the run, so the glue holds until the true bottom truly settles.
+ *
+ * @return the updated consecutive-stable-frame count and whether the run has
+ *         reached the threshold and the glue may release.
+ */
+export function bottomGlueSettled(
+    currentHeight: number,
+    previousHeight: number,
+    priorStableFrames: number,
+    requiredStableFrames: number,
+): { stableFrames: number; settled: boolean } {
+    const stableFrames =
+        currentHeight === previousHeight ? priorStableFrames + 1 : 0;
+
+    return {
+        stableFrames,
+        settled: stableFrames >= requiredStableFrames,
+    };
+}
+
+/**
  * Whether a virtual row should render a height-stable skeleton placeholder
  * instead of its full message content: only while the list is actively being
  * scrubbed and the row has not yet been measured. Deferring the expensive
