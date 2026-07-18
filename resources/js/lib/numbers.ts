@@ -7,6 +7,7 @@ import { i18n } from './i18n';
 export function formatNumber(
     value: number,
     locale: string = i18n.locale,
+    options?: Intl.NumberFormatOptions,
 ): string {
-    return new Intl.NumberFormat(locale).format(value);
+    return new Intl.NumberFormat(locale, options).format(value);
 }

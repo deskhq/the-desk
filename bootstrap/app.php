@@ -2,8 +2,10 @@
 
 declare(strict_types=1);
 
+use App\Http\Middleware\EnsureIntegrationsEnabled;
 use App\Http\Middleware\EnsurePasskeysEnabled;
 use App\Http\Middleware\EnsurePasswordLoginEnabled;
+use App\Http\Middleware\EnsureTokenScope;
 use App\Http\Middleware\EnsureUserIsActive;
 use App\Http\Middleware\HandleAppearance;
 use App\Http\Middleware\HandleInertiaRequests;
@@ -22,6 +24,7 @@ use Inertia\Inertia;
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
         web: __DIR__.'/../routes/web.php',
+        api: __DIR__.'/../routes/api.php',
         commands: __DIR__.'/../routes/console.php',
         channels: __DIR__.'/../routes/channels.php',
         health: '/up',
@@ -44,6 +47,19 @@ return Application::configure(basePath: dirname(__DIR__))
         );
 
         $middleware->encryptCookies(except: ['appearance', 'sidebar_state']);
+
+        // Incoming webhooks authenticate by their opaque URL token, not a session,
+        // so they carry no CSRF token — exempt them so external senders (curl,
+        // Grafana, Sentry) can post without one.
+        $middleware->validateCsrfTokens(except: ['webhooks/incoming/*']);
+
+        // Route-middleware aliases for the public REST API: `integrations` 404s
+        // the whole surface when the platform toggle is off; `scope` enforces a
+        // single Sanctum ability per endpoint.
+        $middleware->alias([
+            'integrations' => EnsureIntegrationsEnabled::class,
+            'scope' => EnsureTokenScope::class,
+        ]);
 
         $middleware->web(append: [
             EnsurePasswordLoginEnabled::class,

@@ -7,6 +7,7 @@ use App\Enums\AppLocale;
 use App\Enums\ChimeSound;
 use App\Enums\SidebarPosition;
 use App\Enums\TeamRole;
+use App\Enums\UserType;
 use App\Observers\UserObserver;
 use App\Support\Gravatar;
 use Database\Factories\UserFactory;
@@ -20,8 +21,10 @@ use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Carbon;
@@ -32,11 +35,13 @@ use Laravel\Fortify\Contracts\PasskeyUser;
 use Laravel\Fortify\PasskeyAuthenticatable;
 use Laravel\Fortify\TwoFactorAuthenticatable;
 use Laravel\Passkeys\Passkey;
+use Laravel\Sanctum\HasApiTokens;
 
 /**
  * @property string $id
  * @property string $name
  * @property string $email
+ * @property UserType $type
  * @property string|null $avatar_url
  * @property string|null $avatar_path
  * @property string|null $pronouns
@@ -51,6 +56,7 @@ use Laravel\Passkeys\Passkey;
  * @property Carbon|null $two_factor_confirmed_at
  * @property string|null $remember_token
  * @property string|null $current_team_id
+ * @property string|null $owner_team_id
  * @property ChimeSound $chime_sound
  * @property bool $share_read_receipts
  * @property SidebarPosition $sidebar_position
@@ -62,6 +68,7 @@ use Laravel\Passkeys\Passkey;
  * @property Carbon|null $updated_at
  * @property-read string|null $avatar
  * @property-read Team|null $currentTeam
+ * @property-read Team|null $ownerTeam
  * @property-read Collection<int, Team> $ownedTeams
  * @property-read Collection<int, Membership> $teamMemberships
  * @property-read Collection<int, Team> $teams
@@ -77,7 +84,7 @@ use Laravel\Passkeys\Passkey;
 class User extends Authenticatable implements HasLocalePreference, MustVerifyEmail, PasskeyUser
 {
     /** @use HasFactory<UserFactory> */
-    use HasFactory, HasTeams, HasUuids, Notifiable, PasskeyAuthenticatable, TwoFactorAuthenticatable;
+    use HasApiTokens, HasFactory, HasTeams, HasUuids, Notifiable, PasskeyAuthenticatable, TwoFactorAuthenticatable;
 
     /**
      * Determine if the user has verified their email address.
@@ -141,6 +148,7 @@ class User extends Authenticatable implements HasLocalePreference, MustVerifyEma
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'type' => UserType::class,
             'locale' => AppLocale::class,
             'chime_sound' => ChimeSound::class,
             'share_read_receipts' => 'boolean',
@@ -150,6 +158,62 @@ class User extends Authenticatable implements HasLocalePreference, MustVerifyEma
             'deactivated_at' => 'datetime',
             'collapsed_channel_sections' => 'array',
         ];
+    }
+
+    /**
+     * The team a bot belongs to, or null for a human.
+     *
+     * A bot is team-scoped to exactly one team through this reference rather than
+     * a team_members pivot row, which is what keeps it out of seat counts, member
+     * lists, invites, DM pickers, and @mention autocomplete without any per-surface
+     * filtering. Null once its team is deleted (see the migration's nullOnDelete).
+     *
+     * @return BelongsTo<Team, $this>
+     */
+    public function ownerTeam(): BelongsTo
+    {
+        return $this->belongsTo(Team::class, 'owner_team_id');
+    }
+
+    /**
+     * The user's Sanctum API tokens.
+     *
+     * Narrows Sanctum's trait relation to the application's own token model so
+     * a token's bound {@see PersonalAccessToken::team()} is visible to callers
+     * and static analysis.
+     *
+     * @return MorphMany<PersonalAccessToken, $this>
+     */
+    public function tokens(): MorphMany
+    {
+        return $this->morphMany(PersonalAccessToken::class, 'tokenable');
+    }
+
+    /**
+     * The human who created this account (set only for bots), so the
+     * integrations surface can attribute a bot to its creator.
+     *
+     * @return BelongsTo<User, $this>
+     */
+    public function creator(): BelongsTo
+    {
+        return $this->belongsTo(self::class, 'created_by');
+    }
+
+    /**
+     * Whether this account is a non-human integration identity (a bot).
+     */
+    public function isBot(): bool
+    {
+        return $this->type === UserType::Bot;
+    }
+
+    /**
+     * Whether this account is a human.
+     */
+    public function isHuman(): bool
+    {
+        return $this->type === UserType::Human;
     }
 
     /**
@@ -192,6 +256,17 @@ class User extends Authenticatable implements HasLocalePreference, MustVerifyEma
                 ->where('users.id', '!=', $this->id)
                 ->doesntExist())
             ->values();
+    }
+
+    /**
+     * The messages this user has authored, newest first — used to surface a
+     * bot's last-post time on the integrations surface.
+     *
+     * @return HasMany<Message, $this>
+     */
+    public function messages(): HasMany
+    {
+        return $this->hasMany(Message::class)->latest();
     }
 
     /**

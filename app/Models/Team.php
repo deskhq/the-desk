@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Concerns\GeneratesUniqueTeamSlugs;
 use App\Enums\TeamRole;
+use App\Enums\UserType;
 use Database\Factories\TeamFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Collection;
@@ -28,6 +29,7 @@ use Illuminate\Support\Carbon;
  * @property-read Collection<int, User> $members
  * @property-read Collection<int, Channel> $channels
  * @property-read Collection<int, CustomEmoji> $customEmojis
+ * @property-read Collection<int, WebhookSubscription> $webhookSubscriptions
  */
 #[Fillable(['name', 'slug', 'is_personal'])]
 class Team extends Model
@@ -107,6 +109,40 @@ class Team extends Model
     public function channels(): HasMany
     {
         return $this->hasMany(Channel::class);
+    }
+
+    /**
+     * Get the team's outgoing-webhook subscriptions.
+     *
+     * @return HasMany<WebhookSubscription, $this>
+     */
+    public function webhookSubscriptions(): HasMany
+    {
+        return $this->hasMany(WebhookSubscription::class);
+    }
+
+    /**
+     * Get the bot identities scoped to this workspace.
+     *
+     * Bots are {@see UserType::Bot} users referenced through `owner_team_id`
+     * (not a team_members pivot), so they stay out of seat counts and rosters.
+     *
+     * @return HasMany<User, $this>
+     */
+    public function bots(): HasMany
+    {
+        return $this->hasMany(User::class, 'owner_team_id')
+            ->where('type', UserType::Bot->value);
+    }
+
+    /**
+     * Get the team's incoming webhooks.
+     *
+     * @return HasMany<IncomingWebhook, $this>
+     */
+    public function incomingWebhooks(): HasMany
+    {
+        return $this->hasMany(IncomingWebhook::class);
     }
 
     /**

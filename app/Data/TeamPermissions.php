@@ -19,6 +19,7 @@ readonly class TeamPermissions
         public bool $canViewSecurityLog,
         public bool $canViewAnalytics,
         public bool $canManageEmojis,
+        public bool $canManageIntegrations,
     ) {
         //
     }

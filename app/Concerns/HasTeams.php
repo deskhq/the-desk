@@ -181,6 +181,7 @@ trait HasTeams
             canViewSecurityLog: ! $team->is_personal && ($role?->isAtLeast(TeamRole::Admin) ?? false),
             canViewAnalytics: ! $team->is_personal && ($role?->isAtLeast(TeamRole::Admin) ?? false),
             canManageEmojis: ! $team->is_personal && ($role?->isAtLeast(TeamRole::Admin) ?? false),
+            canManageIntegrations: ! $team->is_personal && ($role?->hasPermission(TeamPermission::ManageIntegrations) ?? false),
         );
     }
 

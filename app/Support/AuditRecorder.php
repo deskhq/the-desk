@@ -19,6 +19,10 @@ class AuditRecorder
     /**
      * Record a single audit entry for an action performed within a workspace.
      *
+     * The actor is nullable for platform-initiated actions with no human causer
+     * (e.g. a webhook subscription auto-disabled after repeated delivery
+     * failures); every user-initiated call still passes the acting user.
+     *
      * @param  Model|null  $target  The entity acted upon (channel, message, or
      *                              the affected member), stored as the subject.
      * @param  array<string, mixed>  $context  Extra detail needed to render a
@@ -26,7 +30,7 @@ class AuditRecorder
      */
     public function record(
         Team $team,
-        User $actor,
+        ?User $actor,
         AuditAction $action,
         ?Model $target = null,
         array $context = [],

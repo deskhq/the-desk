@@ -7,6 +7,9 @@ export type StackMember = {
     id: string;
     name: string;
     avatar?: string | null;
+    // Whether this member is a bot, so the stack can square its avatar and show a
+    // glyph. Absent (falsy) for humans.
+    isBot?: boolean;
 };
 
 /**

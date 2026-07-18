@@ -8,6 +8,7 @@ import {
     Info,
     Languages,
     Palette,
+    Plug,
     ScrollText,
     Shield,
     ShieldCheck,
@@ -35,6 +36,7 @@ import { edit as editSecurity } from '@/routes/security';
 import { index as teams } from '@/routes/teams';
 import { index as teamAudit } from '@/routes/teams/audit';
 import { index as teamAuditExports } from '@/routes/teams/audit-exports';
+import { index as teamIntegrations } from '@/routes/teams/integrations';
 import { index as teamSecurityLog } from '@/routes/teams/security-log';
 import type { NavItem } from '@/types';
 
@@ -100,6 +102,18 @@ const teamAdminNavItems = computed<SettingsNavItem[]>(() => {
     }
 
     const items: SettingsNavItem[] = [];
+
+    if (
+        page.props.canManageCurrentTeamIntegrations &&
+        page.props.integrationsEnabled
+    ) {
+        items.push({
+            title: t('Integrations'),
+            href: teamIntegrations(team.slug),
+            icon: Plug,
+            slug: 'integrations',
+        });
+    }
 
     if (page.props.canViewCurrentTeamAudit) {
         items.push({

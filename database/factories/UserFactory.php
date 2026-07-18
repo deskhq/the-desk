@@ -6,6 +6,7 @@ use App\Enums\AppLocale;
 use App\Enums\ChimeSound;
 use App\Enums\SidebarPosition;
 use App\Enums\TeamRole;
+use App\Enums\UserType;
 use App\Models\Team;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
@@ -32,6 +33,7 @@ class UserFactory extends Factory
         return [
             'name' => fake()->name(),
             'email' => fake()->unique()->safeEmail(),
+            'type' => UserType::Human->value,
             'email_verified_at' => now(),
             'password' => static::$password ??= Hash::make('password'),
             'remember_token' => Str::random(10),
@@ -55,7 +57,14 @@ class UserFactory extends Factory
     #[\Override]
     public function configure(): static
     {
-        return $this->afterCreating(function ($user): void {
+        return $this->afterCreating(function (User $user): void {
+            // A bot is team-scoped through its owner_team_id, never a personal
+            // team or a team_members row — that absence is what keeps it out of
+            // seat counts, member lists, invites, and mention autocomplete.
+            if ($user->isBot()) {
+                return;
+            }
+
             $team = Team::factory()->personal()->create([
                 'name' => $user->name."'s Team",
             ]);
@@ -66,6 +75,21 @@ class UserFactory extends Factory
 
             $user->switchTeam($team);
         });
+    }
+
+    /**
+     * Indicate that the user is a bot (a non-human integration identity).
+     *
+     * A bot has no login password and, when scoped to a team, references it
+     * through owner_team_id rather than a team_members pivot row.
+     */
+    public function bot(?Team $team = null): static
+    {
+        return $this->state(fn (array $attributes): array => [
+            'type' => UserType::Bot->value,
+            'password' => null,
+            'owner_team_id' => $team?->id,
+        ]);
     }
 
     /**

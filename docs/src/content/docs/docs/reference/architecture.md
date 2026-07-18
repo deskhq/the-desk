@@ -58,6 +58,26 @@ a genuine outage flips them to `unhealthy`.
 - **Search** queries go to `meilisearch`; the index is derived from Postgres and
   rebuilt with `php artisan search:sync` when needed.
 
+## Integrations platform
+
+External systems reach a workspace through the **integrations platform**, gated
+by the [`INTEGRATIONS_ENABLED`](/docs/reference/feature-toggles/#integrations-platform)
+toggle (with it off, the API and webhook endpoints `404` and the management UI
+hides):
+
+- The versioned [**REST API**](/docs/reference/api/) under `/api/v1` is served by
+  `app`, authenticated by hashed bearer tokens and throttled per token.
+- **Bots** are workspace users of a `bot` type, scoped to a team; they post
+  through the API exactly like a person, gated by channel membership.
+- [**Incoming webhooks**](/docs/reference/incoming-webhooks/) accept a `POST` to an
+  opaque secret URL and post it into one channel as a bot.
+- [**Outgoing webhooks**](/docs/reference/webhooks/) deliver subscribed events as
+  signed `POST`s from the `queue` worker, with retries, per-attempt logging, and
+  auto-disable on repeated failure.
+
+All lifecycle actions (create, revoke, rotate, re-enable, auto-disable) are
+recorded in the workspace audit log; secret values are never logged.
+
 ## Storage backends
 
 Cache, session, and the queue all use the **Redis** driver

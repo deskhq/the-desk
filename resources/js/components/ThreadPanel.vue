@@ -25,6 +25,9 @@ const props = defineProps<{
     messages: Message[];
     pendingUuids?: string[];
     members: Mention[];
+    // Whether the channel has a bot member, forwarded to the reply composer's
+    // mention menu footnote.
+    hasBots?: boolean;
     currentUserId: string;
     canModerate?: boolean;
     canReact?: boolean;
@@ -337,6 +340,7 @@ watch(
         </ScrollableMessageList>
 
         <MessageComposer
+            :has-bots="props.hasBots"
             v-if="hasRoot && !props.readOnly"
             ref="threadComposer"
             :key="root?.id"

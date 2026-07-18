@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace App\Actions\Channels;
 
 use App\Data\MessageData;
+use App\Enums\WebhookEvent;
 use App\Events\MessageUpdated;
+use App\Events\WebhookEventOccurred;
 use App\Models\Channel;
 use App\Models\Message;
 
@@ -34,7 +36,9 @@ class EditMessage
         $this->syncLinkPreviews->handle($message);
 
         $message->loadMessageDataRelations();
-        event(new MessageUpdated($channel, MessageData::fromMessage($message)));
+        $data = MessageData::fromMessage($message);
+        event(new MessageUpdated($channel, $data));
+        event(new WebhookEventOccurred(WebhookEvent::MessageUpdated, $channel, $data->toArray()));
 
         return $message;
     }

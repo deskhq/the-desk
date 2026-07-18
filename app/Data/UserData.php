@@ -13,6 +13,11 @@ class UserData extends Data
         public string $id,
         public string $name,
         public ?string $avatar = null,
+        // Whether this author is a bot, so every surface that renders a user
+        // (message rows, the channel member facepile) can mark it with the bot
+        // badge and squared avatar, and the composer can exclude it from @mention
+        // autocomplete.
+        public bool $isBot = false,
     ) {}
 
     /**
@@ -24,6 +29,7 @@ class UserData extends Data
             id: $user->id,
             name: $user->name,
             avatar: $user->avatar,
+            isBot: $user->isBot(),
         );
     }
 }

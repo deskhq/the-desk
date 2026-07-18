@@ -8,6 +8,7 @@ import {
     Crown,
     Download,
     Mail,
+    Plug,
     ScrollText,
     Send,
     ShieldCheck,
@@ -48,6 +49,7 @@ import { index as analyticsIndex } from '@/routes/teams/analytics';
 import { index as auditIndex } from '@/routes/teams/audit';
 import { index as auditExportsIndex } from '@/routes/teams/audit-exports';
 import { index as emojisIndex } from '@/routes/teams/emojis';
+import { index as integrationsIndex } from '@/routes/teams/integrations';
 import { resend as resendInvitationRoute } from '@/routes/teams/invitations';
 import {
     show as showMember,
@@ -94,6 +96,14 @@ const { demoMode } = useDemoMode();
 
 const page = usePage();
 const currentUserId = computed(() => String(page.props.auth.user.id));
+
+// The integrations card shows only for managers (Owner + Admin) and only while
+// the platform toggle is on, mirroring the route's own gating.
+const showIntegrationsLink = computed(
+    () =>
+        props.permissions.canManageIntegrations &&
+        page.props.integrationsEnabled,
+);
 
 const inviteDialogOpen = ref(false);
 const deleteDialogOpen = ref(false);
@@ -578,7 +588,8 @@ const confirmTransferOwnership = (member: TeamMember) => {
             v-if="
                 permissions.canViewAnalytics ||
                 permissions.canViewAudit ||
-                permissions.canViewSecurityLog
+                permissions.canViewSecurityLog ||
+                showIntegrationsLink
             "
             class="border-b border-border py-6"
         >
@@ -595,6 +606,26 @@ const confirmTransferOwnership = (member: TeamMember) => {
                         </div>
                         <div class="truncate text-xs text-muted-foreground">
                             {{ $t('Named emoji for messages and reactions') }}
+                        </div>
+                    </div>
+                    <ChevronRight
+                        class="ml-auto h-3.5 w-3.5 shrink-0 text-muted-foreground"
+                    />
+                </Link>
+
+                <Link
+                    v-if="showIntegrationsLink"
+                    :href="integrationsIndex(team.slug)"
+                    data-test="manage-integrations-link"
+                    class="flex items-center gap-3 rounded-xl border border-border bg-card p-4 transition-colors hover:border-brass-border"
+                >
+                    <Plug class="h-4 w-4 shrink-0 text-brass" />
+                    <div class="min-w-0">
+                        <div class="text-sm font-semibold">
+                            {{ $t('Integrations') }}
+                        </div>
+                        <div class="truncate text-xs text-muted-foreground">
+                            {{ $t('Bots, API tokens, and webhooks') }}
                         </div>
                     </div>
                     <ChevronRight

@@ -8,6 +8,9 @@ export type MessageAuthor = {
      * when they have none — the UI falls back to their initials.
      */
     avatar?: string | null;
+    // Whether the author is a bot, so its message row shows the "Bot" badge and
+    // a squared-off avatar. Absent (falsy) on human and optimistic messages.
+    isBot?: boolean;
 };
 
 /**
@@ -30,6 +33,10 @@ export type Mention = {
      * when they have none — the UI falls back to their initials.
      */
     avatar?: string | null;
+    // Whether this member is a bot. Set on the channel roster (from UserData), so
+    // the member facepile can badge it and the composer can drop it from @mention
+    // autocomplete. Absent on mention/reactor payloads (those never include bots).
+    isBot?: boolean;
 };
 
 /**

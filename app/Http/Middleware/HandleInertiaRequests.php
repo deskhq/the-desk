@@ -148,6 +148,14 @@ class HandleInertiaRequests extends Middleware
             'canViewCurrentTeamSecurityLog' => fn (): bool => $user?->currentTeam
                 ? $user->toTeamPermissions($user->currentTeam)->canViewSecurityLog
                 : false,
+            // The integrations settings surface (bots, tokens, webhooks) hides
+            // entirely unless the viewer can manage it and the platform is on, so
+            // the permission and the master toggle ride along with every request
+            // to gate the nav entry and the Team-settings card.
+            'canManageCurrentTeamIntegrations' => fn (): bool => $user?->currentTeam
+                ? $user->toTeamPermissions($user->currentTeam)->canManageIntegrations
+                : false,
+            'integrationsEnabled' => (bool) config('integrations.enabled'),
             'invitableRoles' => TeamRole::assignable(),
             'channels' => fn (): array => $this->channelsForSidebar($request, $user),
             // The current team's members feed the DM entry points (the sidebar
