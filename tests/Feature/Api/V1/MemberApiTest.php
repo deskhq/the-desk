@@ -45,6 +45,28 @@ it('adds a team member to a private channel and audits it', function (): void {
     ]);
 });
 
+it('adds a team bot to a private channel', function (): void {
+    $otherBot = User::factory()->bot($this->team)->create(['name' => 'Standup Bot']);
+
+    Sanctum::actingAs($this->bot, ['members:write']);
+
+    $this->postJson("/api/v1/channels/{$this->channel->id}/members", ['user_id' => $otherBot->id])
+        ->assertCreated()
+        ->assertJsonPath('data.id', $otherBot->id);
+
+    expect($this->channel->channelMembers()->where('user_id', $otherBot->id)->exists())->toBeTrue();
+});
+
+it('rejects adding a bot owned by another team', function (): void {
+    $foreignBot = User::factory()->bot(Team::factory()->create())->create();
+
+    Sanctum::actingAs($this->bot, ['members:write']);
+
+    $this->postJson("/api/v1/channels/{$this->channel->id}/members", ['user_id' => $foreignBot->id])
+        ->assertStatus(422)
+        ->assertJsonValidationErrorFor('user_id');
+});
+
 it('rejects adding a user who is not in the team', function (): void {
     $outsider = User::factory()->create();
 

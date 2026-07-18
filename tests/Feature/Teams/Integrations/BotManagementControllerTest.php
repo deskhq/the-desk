@@ -9,6 +9,7 @@ use App\Models\Channel;
 use App\Models\Message;
 use App\Models\Team;
 use App\Models\User;
+use Illuminate\Support\Collection;
 use Inertia\Testing\AssertableInertia as Assert;
 
 /**
@@ -68,6 +69,31 @@ it('shows a bot detail with its counts, creator, last-post time, tokens, and sco
             ->whereNot('bot.lastPostedAt', null)
             ->has('tokens', 1)
             ->has('scopeOptions', 9)
+        );
+});
+
+it('lists the bot\'s channels and the standard channels it can still be added to', function (): void {
+    ['team' => $team, 'owner' => $owner] = botManagementFixture();
+    $bot = app(CreateBot::class)->handle($team, $owner, 'Deploy Bot');
+    $joined = Channel::factory()->for($team)->create(['name' => 'engineering']);
+    $joined->channelMembers()->create(['user_id' => $bot->id]);
+    $addable = Channel::factory()->for($team)->private()->create(['name' => 'secret']);
+    // A DM is never an add candidate.
+    Channel::factory()->for($team)->direct()->create();
+
+    $this->actingAs($owner)
+        ->get(route('teams.integrations.bots.show', ['team' => $team->slug, 'bot' => $bot->id]))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page): Assert => $page
+            ->has('channels', 1)
+            ->where('channels.0.id', $joined->id)
+            ->where('channels.0.name', 'engineering')
+            ->where('channels.0.visibility', 'public')
+            ->where('addableChannels', function (Collection $channels) use ($joined, $addable): bool {
+                $ids = $channels->pluck('id');
+
+                return $ids->contains($addable->id) && $ids->doesntContain($joined->id);
+            })
         );
 });
 

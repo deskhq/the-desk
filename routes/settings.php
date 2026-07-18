@@ -19,6 +19,7 @@ use App\Http\Controllers\Teams\AnalyticsController;
 use App\Http\Controllers\Teams\AuditController;
 use App\Http\Controllers\Teams\AuditExportController;
 use App\Http\Controllers\Teams\CustomEmojiController;
+use App\Http\Controllers\Teams\Integrations\BotChannelController;
 use App\Http\Controllers\Teams\Integrations\BotController;
 use App\Http\Controllers\Teams\Integrations\BotTokenController;
 use App\Http\Controllers\Teams\Integrations\IncomingWebhookController;
@@ -140,6 +141,11 @@ Route::middleware(['auth', 'verified'])->group(function (): void {
                 ->name('teams.integrations.bots.show');
             Route::delete('settings/teams/{team}/integrations/bots/{bot}', [BotController::class, 'destroy'])
                 ->name('teams.integrations.bots.destroy');
+
+            Route::post('settings/teams/{team}/integrations/bots/{bot}/channels', [BotChannelController::class, 'store'])
+                ->name('teams.integrations.bots.channels.store');
+            Route::delete('settings/teams/{team}/integrations/bots/{bot}/channels/{channel:id}', [BotChannelController::class, 'destroy'])
+                ->name('teams.integrations.bots.channels.destroy');
 
             Route::post('settings/teams/{team}/integrations/bots/{bot}/tokens', [BotTokenController::class, 'store'])
                 ->name('teams.integrations.bots.tokens.store');

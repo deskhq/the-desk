@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Head, useForm } from '@inertiajs/vue3';
-import { Bot, Plus, Trash2 } from '@lucide/vue';
+import { Bot, Lock, Plus, Trash2 } from '@lucide/vue';
 import { ref } from 'vue';
 import InputError from '@/components/InputError.vue';
 import RevealSecretDialog from '@/components/integrations/RevealSecretDialog.vue';
@@ -17,12 +17,23 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
 import { useTimezone } from '@/composables/useTimezone';
 import { formatDateTime } from '@/lib/datetime';
 import { translate } from '@/lib/i18n';
 import { edit, index } from '@/routes/teams';
 import { index as integrationsIndex } from '@/routes/teams/integrations';
 import { destroy as botDestroy } from '@/routes/teams/integrations/bots';
+import {
+    destroy as channelDestroy,
+    store as channelStore,
+} from '@/routes/teams/integrations/bots/channels';
 import {
     destroy as tokenDestroy,
     store as tokenStore,
@@ -33,11 +44,22 @@ type BotSummary = App.Data.BotData;
 type BotToken = App.Data.BotTokenData;
 type Option = { value: string; label: string };
 
+/** A channel the bot is (or could be) a member of, for the channels rack. */
+type ChannelMembership = {
+    id: string;
+    name: string;
+    visibility: 'public' | 'private';
+};
+
 const props = defineProps<{
     team: Team;
     bot: BotSummary;
     tokens: BotToken[];
     scopeOptions: Option[];
+    /** The standard channels the bot currently belongs to. */
+    channels: ChannelMembership[];
+    /** The team's standard channels the bot can still be added to. */
+    addableChannels: ChannelMembership[];
 }>();
 
 defineOptions({
@@ -113,6 +135,47 @@ function confirmRevoke(): void {
         {
             preserveScroll: true,
             onFinish: () => (pendingToken.value = null),
+        },
+    );
+}
+
+// --- Add to channel --------------------------------------------------------
+const showAddChannel = ref(false);
+const addChannelForm = useForm<{ channel_id: string }>({ channel_id: '' });
+
+function submitAddChannel(): void {
+    addChannelForm.post(
+        channelStore({ team: props.team.slug, bot: props.bot.id }).url,
+        {
+            preserveScroll: true,
+            onSuccess: () => {
+                showAddChannel.value = false;
+                addChannelForm.reset();
+            },
+        },
+    );
+}
+
+// --- Remove from channel ---------------------------------------------------
+const pendingChannel = ref<ChannelMembership | null>(null);
+const removeChannelForm = useForm({});
+
+function confirmRemoveChannel(): void {
+    const channel = pendingChannel.value;
+
+    if (!channel) {
+        return;
+    }
+
+    removeChannelForm.delete(
+        channelDestroy({
+            team: props.team.slug,
+            bot: props.bot.id,
+            channel: channel.id,
+        }).url,
+        {
+            preserveScroll: true,
+            onFinish: () => (pendingChannel.value = null),
         },
     );
 }
@@ -244,6 +307,73 @@ function confirmDeleteBot(): void {
             </ul>
         </section>
 
+        <!-- Channels -->
+        <section class="flex flex-col gap-3">
+            <div class="flex items-start justify-between gap-4">
+                <div class="flex flex-col gap-0.5">
+                    <h2 class="font-serif text-lg font-semibold">
+                        {{ $t('Channels') }}
+                    </h2>
+                    <p class="text-xs text-muted-foreground">
+                        {{
+                            $t(
+                                'Channels this bot can post in — membership-gated per channel.',
+                            )
+                        }}
+                    </p>
+                </div>
+                <Button
+                    type="button"
+                    class="rounded-full"
+                    data-test="add-channel-button"
+                    :disabled="addableChannels.length === 0"
+                    @click="showAddChannel = true"
+                >
+                    <Plus class="size-4" /> {{ $t('Add to channel') }}
+                </Button>
+            </div>
+
+            <p
+                v-if="channels.length === 0"
+                data-test="channels-empty"
+                class="text-sm text-muted-foreground"
+            >
+                {{
+                    $t(
+                        'Not in any channel yet. Add it to a channel so it can post there.',
+                    )
+                }}
+            </p>
+            <ul v-else class="flex flex-col divide-y divide-border" role="list">
+                <li
+                    v-for="channel in channels"
+                    :key="channel.id"
+                    class="flex items-center gap-2.5 py-3"
+                    :data-test="`channel-row-${channel.id}`"
+                >
+                    <Lock
+                        v-if="channel.visibility === 'private'"
+                        class="size-4 shrink-0 text-muted-foreground"
+                        aria-hidden="true"
+                    />
+                    <span v-else aria-hidden="true" class="text-brass">#</span>
+                    <span class="flex-1 truncate text-sm font-semibold">{{
+                        channel.name
+                    }}</span>
+                    <Button
+                        type="button"
+                        variant="linkDestructive"
+                        size="none"
+                        class="text-xs font-semibold"
+                        :data-test="`remove-channel-${channel.id}`"
+                        @click="pendingChannel = channel"
+                    >
+                        {{ $t('Remove') }}
+                    </Button>
+                </li>
+            </ul>
+        </section>
+
         <!-- Danger zone -->
         <section class="flex flex-col gap-3 border-t border-border pt-6">
             <div class="flex flex-col gap-0.5">
@@ -269,6 +399,121 @@ function confirmDeleteBot(): void {
             </Button>
         </section>
     </div>
+
+    <!-- Add to channel dialog -->
+    <Dialog
+        :open="showAddChannel"
+        @update:open="(open) => (showAddChannel = open)"
+    >
+        <DialogContent data-test="add-channel-dialog">
+            <form @submit.prevent="submitAddChannel">
+                <DialogHeader>
+                    <DialogTitle>{{
+                        $t('Add :bot to a channel', { bot: bot.name })
+                    }}</DialogTitle>
+                    <DialogDescription>{{
+                        $t('The bot can post in every channel it belongs to.')
+                    }}</DialogDescription>
+                </DialogHeader>
+                <div class="flex flex-col gap-2 py-4">
+                    <Label for="add-channel-select">{{ $t('Channel') }}</Label>
+                    <Select v-model="addChannelForm.channel_id">
+                        <SelectTrigger
+                            id="add-channel-select"
+                            data-test="add-channel-select"
+                            class="w-full"
+                        >
+                            <SelectValue
+                                :placeholder="$t('Select a channel')"
+                            />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem
+                                v-for="channel in addableChannels"
+                                :key="channel.id"
+                                :value="channel.id"
+                                :data-test="`add-channel-option-${channel.id}`"
+                            >
+                                <span class="flex items-center gap-2">
+                                    <Lock
+                                        v-if="channel.visibility === 'private'"
+                                        class="size-3.5 text-muted-foreground"
+                                        aria-hidden="true"
+                                    />
+                                    <span
+                                        v-else
+                                        aria-hidden="true"
+                                        class="text-brass"
+                                        >#</span
+                                    >
+                                    {{ channel.name }}
+                                </span>
+                            </SelectItem>
+                        </SelectContent>
+                    </Select>
+                    <InputError :message="addChannelForm.errors.channel_id" />
+                </div>
+                <DialogFooter>
+                    <DialogClose as-child>
+                        <Button
+                            type="button"
+                            variant="outline"
+                            class="rounded-full"
+                            >{{ $t('Cancel') }}</Button
+                        >
+                    </DialogClose>
+                    <Button
+                        type="submit"
+                        class="rounded-full"
+                        data-test="add-channel-submit"
+                        :disabled="
+                            addChannelForm.processing ||
+                            !addChannelForm.channel_id
+                        "
+                        >{{ $t('Add to channel') }}</Button
+                    >
+                </DialogFooter>
+            </form>
+        </DialogContent>
+    </Dialog>
+
+    <!-- Remove from channel dialog -->
+    <Dialog
+        :open="pendingChannel !== null"
+        @update:open="(open) => !open && (pendingChannel = null)"
+    >
+        <DialogContent data-test="remove-channel-dialog">
+            <DialogHeader>
+                <DialogTitle>{{
+                    $t('Remove :bot from #:channel?', {
+                        bot: bot.name,
+                        channel: pendingChannel?.name ?? '',
+                    })
+                }}</DialogTitle>
+                <DialogDescription>{{
+                    $t(
+                        'The bot stops posting there immediately, and any incoming webhook bound to this channel starts returning 403.',
+                    )
+                }}</DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+                <DialogClose as-child>
+                    <Button variant="outline" class="rounded-full">{{
+                        $t('Cancel')
+                    }}</Button>
+                </DialogClose>
+                <Button
+                    variant="destructive"
+                    class="rounded-full"
+                    data-test="remove-channel-confirm"
+                    :disabled="removeChannelForm.processing"
+                    @click="confirmRemoveChannel"
+                >
+                    {{ $t('Remove from channel') }}
+                </Button>
+            </DialogFooter>
+        </DialogContent>
+    </Dialog>
 
     <!-- New token dialog -->
     <Dialog
