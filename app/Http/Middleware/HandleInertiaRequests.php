@@ -11,6 +11,7 @@ use App\Data\UpdateStatusData;
 use App\Data\UserData;
 use App\Enums\MessageReminderStatus;
 use App\Enums\MessageType;
+use App\Enums\SidebarPosition;
 use App\Enums\TeamRole;
 use App\Models\Channel;
 use App\Models\Message;
@@ -115,6 +116,12 @@ class HandleInertiaRequests extends Middleware
             'auth' => [
                 'user' => $user,
             ],
+            // The selectable sidebar positions (left / right) ride every request
+            // so the user-menu quick switcher can offer them anywhere, not just on
+            // Settings → Appearance where the page-level prop is scoped. The enum
+            // is the single source of truth, shared the same way the settings page
+            // sources its own options.
+            'sidebarPositions' => SidebarPosition::options(),
             'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',
             'currentTeam' => fn () => $user?->currentTeam ? $user->toUserTeam($user->currentTeam) : null,
             'teams' => fn () => $user?->toUserTeams(includeCurrent: true) ?? [],

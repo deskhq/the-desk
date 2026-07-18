@@ -1,20 +1,35 @@
 <script setup lang="ts">
 import { Link, router, usePage } from '@inertiajs/vue3';
-import { Compass, Keyboard, LogOut, Settings } from '@lucide/vue';
+import {
+    Compass,
+    Keyboard,
+    LogOut,
+    Monitor,
+    Moon,
+    PanelLeft,
+    PanelRight,
+    Settings,
+    Sun,
+} from '@lucide/vue';
+import type { Component } from 'vue';
 import { computed } from 'vue';
+import MenuSegmentedControl from '@/components/MenuSegmentedControl.vue';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
     DropdownMenuItem,
     DropdownMenuLabel,
     DropdownMenuShortcut,
 } from '@/components/ui/dropdown-menu';
+import { useAppearance } from '@/composables/useAppearance';
 import { useInitials } from '@/composables/useInitials';
 import { useKeyboardShortcutsModal } from '@/composables/useKeyboardShortcutsModal';
 import { useOnboardingTour } from '@/composables/useOnboardingTour';
+import { useSidebarPosition } from '@/composables/useSidebarPosition';
+import { useTranslations } from '@/composables/useTranslations';
 import { useUpdateStatus } from '@/composables/useUpdateStatus';
 import { logout } from '@/routes';
 import { edit } from '@/routes/profile';
-import type { Team, User } from '@/types';
+import type { Appearance, SidebarPosition, Team, User } from '@/types';
 
 type Props = {
     user: User;
@@ -22,8 +37,35 @@ type Props = {
 
 const page = usePage();
 const { getInitials } = useInitials();
+const { t } = useTranslations();
 const { open: openKeyboardShortcuts } = useKeyboardShortcutsModal();
 const { open: replayOnboardingTour } = useOnboardingTour();
+
+// Quick theme + sidebar switchers reuse the same composables (and shared
+// `sidebarPositions` prop) as Settings → Appearance, so flipping either here
+// reflects there and back with no extra persistence.
+const { appearance, updateAppearance } = useAppearance();
+const { sidebarPosition, updateSidebarPosition } = useSidebarPosition();
+
+const themeOptions = computed<
+    { value: Appearance; label: string; icon: Component }[]
+>(() => [
+    { value: 'light', label: t('Light'), icon: Sun },
+    { value: 'dark', label: t('Dark'), icon: Moon },
+    { value: 'system', label: t('System'), icon: Monitor },
+]);
+
+const sidebarIcons: Record<SidebarPosition, Component> = {
+    left: PanelLeft,
+    right: PanelRight,
+};
+
+const sidebarOptions = computed(() =>
+    page.props.sidebarPositions.map((option) => ({
+        ...option,
+        icon: sidebarIcons[option.value],
+    })),
+);
 
 // The menu footer always shows the running version; when behind it becomes a
 // link to the release notes, so the fact stays reachable after the dock strip
@@ -112,6 +154,45 @@ const handleLogout = () => {
                 class="ml-auto rounded-full border border-brass/40 bg-brass-fill px-1.75 py-0.5 text-[9px] font-bold tracking-[0.09em] text-brass-fill-foreground uppercase"
                 >{{ $t('Later') }}</span
             >
+        </div>
+    </div>
+
+    <!-- Appearance: quick theme + sidebar switchers, grouped ahead of navigation.
+         Both are label-left / segmented-control-right rows wired to the same
+         composables as Settings → Appearance; selecting one applies instantly and
+         leaves the menu open. -->
+    <div class="px-2 pt-3 pb-1">
+        <DropdownMenuLabel
+            class="px-2.5 pb-1.5 text-[10px] font-semibold tracking-[0.12em] text-muted-foreground uppercase"
+            >{{ $t('Appearance') }}</DropdownMenuLabel
+        >
+        <div class="flex h-9.5 items-center gap-2.5 px-2.5">
+            <span class="flex-1 text-[13px] text-foreground">{{
+                $t('Theme')
+            }}</span>
+            <MenuSegmentedControl
+                :model-value="appearance"
+                :options="themeOptions"
+                :aria-label="$t('Theme')"
+                data-test="menu-theme-switcher"
+                @update:model-value="
+                    (value) => updateAppearance(value as Appearance)
+                "
+            />
+        </div>
+        <div class="flex h-9.5 items-center gap-2.5 px-2.5">
+            <span class="flex-1 text-[13px] text-foreground">{{
+                $t('Sidebar')
+            }}</span>
+            <MenuSegmentedControl
+                :model-value="sidebarPosition"
+                :options="sidebarOptions"
+                :aria-label="$t('Sidebar position')"
+                data-test="menu-sidebar-switcher"
+                @update:model-value="
+                    (value) => updateSidebarPosition(value as SidebarPosition)
+                "
+            />
         </div>
     </div>
 
