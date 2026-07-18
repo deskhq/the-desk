@@ -52,7 +52,7 @@ it('rejects an incoming webhook whose bot is not a member of the channel', funct
             'channel_id' => $otherChannel->id,
             'bot_id' => $bot->id,
         ])
-        ->assertSessionHasErrors('channel');
+        ->assertSessionHasErrors('bot_id');
 
     expect(IncomingWebhook::count())->toBe(0);
 });

@@ -29,7 +29,7 @@ class CreateIncomingWebhook
     {
         if (! ApiChannelAccess::allows($bot, $channel)) {
             throw ValidationException::withMessages([
-                'channel' => __('The bot must be a member of the channel.'),
+                'bot_id' => __('The bot must be a member of the channel.'),
             ]);
         }
 
