@@ -86,6 +86,7 @@ Follow every rule in `CLAUDE.md` as you go — they are not optional:
 - **i18n:** no hardcoded user-facing copy. Frontend through `$t` / `useTranslations`; backend through `__()`. Add every new key's French translation to `lang/fr.json`.
 - **Laravel the Laravel way:** `php artisan make:*` for new files, constructor property promotion, explicit return types and type hints, `Data` classes for DTOs, named routes.
 - **Frontend:** Vue + Inertia v3 conventions; prefer generated `App.Data.*` / `App.Enums.*` types over hand-rolled ones; regenerate them with `./vendor/bin/sail artisan typescript:transform` after touching a `Data` class or enum; use Wayfinder route functions, not hardcoded URLs.
+- **Comments:** don't emit narrating inline `//` comments in JS/TS that merely restate the code — the names and the code carry the *what*. When a comment documents a *declaration* (prop, emit, type member, function, exported symbol), write it as a JSDoc/TSDoc `/** … */` block above that declaration, not a loose `//`. Reserve bare `//` for a non-obvious *why*, intent, edge case, or ordering constraint *inside* a body. (Same rule as the PHP "prefer PHPDoc over inline comments" convention — see `CLAUDE.md` → *Code Comments (JS/TS)*.)
 - **Run all Node/npm tooling through Sail** (`./vendor/bin/sail npm run …`), never bare `npm`.
 - **Docs:** if the change is operator-facing (a new `.env`/config setting, feature toggle, install/upgrade/stack change), update `docs/` in the same change.
 

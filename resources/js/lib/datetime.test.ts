@@ -7,8 +7,10 @@ import {
 } from './datetime';
 import { formatNumber } from './numbers';
 
-// A fixed instant: 2026-07-10 15:30 UTC. July is DST in the US, so New York
-// (UTC-4) reads 11:30 and Tokyo (UTC+9) reads the next day at 00:30.
+/**
+ * A fixed instant: 2026-07-10 15:30 UTC. July is DST in the US, so New York
+ * (UTC-4) reads 11:30 and Tokyo (UTC+9) reads the next day at 00:30.
+ */
 const INSTANT = '2026-07-10T15:30:00Z';
 
 describe('formatTimeOfDay', () => {

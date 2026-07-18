@@ -52,7 +52,7 @@ export function useUnreadDivider(options: UnreadDividerOptions): UnreadDivider {
         () => unreadDividerId.value !== null && !unreadDividerInView.value,
     );
 
-    // Watch the divider element so the pill hides once it scrolls into view.
+    /** Watch the divider element so the pill hides once it scrolls into view. */
     function observeDivider(): void {
         observer?.disconnect();
         observer = null;

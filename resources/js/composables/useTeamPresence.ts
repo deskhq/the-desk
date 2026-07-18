@@ -3,8 +3,10 @@ import { echo } from '@laravel/echo-vue';
 import { onBeforeUnmount, onMounted, ref, toValue, watch } from 'vue';
 import type { MaybeRefOrGetter } from 'vue';
 
-// How long to coalesce a burst of profile updates before reloading, so many
-// teammates changing avatars at once trigger a single authoritative refetch.
+/**
+ * How long to coalesce a burst of profile updates before reloading, so many
+ * teammates changing avatars at once trigger a single authoritative refetch.
+ */
 const PROFILE_RELOAD_DEBOUNCE_MS = 400;
 
 /**

@@ -9,15 +9,17 @@ import { messageBodyPreview } from '@/lib/messageBody';
 import type { Message } from '@/types';
 
 const props = defineProps<{
-    // The channel's pinned messages, most-recently-pinned first.
+    /** The channel's pinned messages, most-recently-pinned first. */
     pins: Message[];
-    // The channel's pin count, shown as "N of :max" in the header.
+    /** The channel's pin count, shown as "N of :max" in the header. */
     pinCount: number;
-    // Whether the viewer may unpin (member of a non-archived channel). The
-    // per-row Unpin affordance is hidden when false — a non-member or an archived
-    // channel still lists and jumps to pins, read-only.
+    /**
+     * Whether the viewer may unpin (member of a non-archived channel). The
+     * per-row Unpin affordance is hidden when false — a non-member or an archived
+     * channel still lists and jumps to pins, read-only.
+     */
     canPin: boolean;
-    // The viewer's stored zone, so pinned-at and authored-at read in their clock.
+    /** The viewer's stored zone, so pinned-at and authored-at read in their clock. */
     viewerTimezone: string | null;
 }>();
 
@@ -27,18 +29,20 @@ const emit = defineEmits<{
     unpin: [message: Message];
 }>();
 
-// The hard cap, mirroring PinMessageRequest::MAX_PINS, shown as "N of 100".
+/** The hard cap, mirroring PinMessageRequest::MAX_PINS, shown as "N of 100". */
 const MAX_PINS = 100;
 
 const { getInitials } = useInitials();
 
-// A pinned row always carries its pin (it came from the pins query), but the
-// type is nullable; this narrows it for the template without a non-null bang.
+/**
+ * A pinned row always carries its pin (it came from the pins query), but the
+ * type is nullable; this narrows it for the template without a non-null bang.
+ */
 function pinnedByName(message: Message): string {
     return message.pin?.pinnedBy.name ?? '';
 }
 
-// Dismiss the popover on Escape, matching the outside-click backdrop.
+/** Dismiss the popover on Escape, matching the outside-click backdrop. */
 function onKeydown(event: KeyboardEvent): void {
     if (event.key === 'Escape') {
         emit('close');

@@ -69,17 +69,21 @@ const props = defineProps<{
 const { t } = useTranslations();
 const page = usePage();
 
-// The current team's channels and members feed the facet pickers and the token
-// parser; both are shared props, so the search route already carries them. The
-// teams list decides whether the workspace-scope control shows.
+/**
+ * The current team's channels and members feed the facet pickers and the token
+ * parser; both are shared props, so the search route already carries them. The
+ * teams list decides whether the workspace-scope control shows.
+ */
 const channels = computed(() => page.props.channels ?? []);
 const members = computed(() => page.props.teamMembers ?? []);
 const teams = computed(() => page.props.teams ?? []);
 const showScopeControl = computed(() => teams.value.length > 1);
 
-// The URL is the state: the input, facets, and scope seed from the server-echoed
-// query and filters, and every change writes them back so a shared link
-// reproduces the filtered view.
+/**
+ * The URL is the state: the input, facets, and scope seed from the server-echoed
+ * query and filters, and every change writes them back so a shared link
+ * reproduces the filtered view.
+ */
 const term = ref(props.query);
 const authorId = ref<string | null>(props.filters.from);
 const channelId = ref<string | null>(props.filters.in);
@@ -87,9 +91,11 @@ const after = ref<string | null>(props.filters.after);
 const before = ref<string | null>(props.filters.before);
 const scope = ref(props.filters.scope);
 
-// In cross-team mode the channel facet lists the union across all the user's
-// teams; otherwise just the current team's channels. Either way, every known
-// channel resolves a chip label, so a shared link's channel id renders its name.
+/**
+ * In cross-team mode the channel facet lists the union across all the user's
+ * teams; otherwise just the current team's channels. Either way, every known
+ * channel resolves a chip label, so a shared link's channel id renders its name.
+ */
 const channelOptions = computed<
     Array<{
         id: string;
@@ -150,9 +156,11 @@ function currentFilters(): SearchFilters {
     };
 }
 
-// A single scoped reload that refreshes only the results and the echoed
-// query/filters, preserving the input's focus and the scroll position. The
-// default `team` scope stays out of the URL; only `all` is serialized.
+/**
+ * A single scoped reload that refreshes only the results and the echoed
+ * query/filters, preserving the input's focus and the scroll position. The
+ * default `team` scope stays out of the URL; only `all` is serialized.
+ */
 function reload(): void {
     router.get(
         search(props.team.slug).url,
@@ -184,7 +192,7 @@ function setScope(next: string): void {
     reload();
 }
 
-// Debounce keystrokes; a facet change (chip/picker) reloads immediately.
+/** Debounce keystrokes; a facet change (chip/picker) reloads immediately. */
 const debouncedTerm = useDebouncedPost((raw: string) => commitTerm(raw), {
     delay: 300,
 });
@@ -200,8 +208,10 @@ watch(term, (value) => {
     debouncedTerm.schedule(value);
 });
 
-// Recognized `from:` / `in:` / `before:` / `after:` tokens promote to facet
-// chips and are stripped from the visible input; unknown tokens stay literal.
+/**
+ * Recognized `from:` / `in:` / `before:` / `after:` tokens promote to facet
+ * chips and are stripped from the visible input; unknown tokens stay literal.
+ */
 function commitTerm(raw: string): void {
     const parsed = parseSearchQuery(raw, lookup.value);
 
@@ -272,7 +282,7 @@ function searchAllChannels(): void {
     reload();
 }
 
-// Facet-picker filter inputs.
+/** Facet-picker filter inputs. */
 const channelFilter = ref('');
 const authorFilter = ref('');
 
@@ -332,7 +342,7 @@ const datePresets = computed(() => {
 
 const showCustomRange = ref(after.value !== null || before.value !== null);
 
-// The applied chip labels.
+/** The applied chip labels. */
 const authorName = computed(
     () =>
         (authorId.value && memberById.value.get(authorId.value)?.name) || null,
@@ -366,7 +376,7 @@ const hasFilters = computed(
         before.value !== null,
 );
 
-// The zero-result summary names the active filters back to the user.
+/** The zero-result summary names the active filters back to the user. */
 const activeFilterSummary = computed(() => {
     const parts: string[] = [];
 
@@ -393,9 +403,11 @@ function formatTimestamp(iso: string): string {
     return formatDateTime(iso, page.props.auth.user.timezone ?? undefined);
 }
 
-// Each result links into its own team's channel — for a same-team result that is
-// the current team; for a cross-team ("All workspaces") result it targets the
-// message's own workspace, which resolves because ACL guarantees membership.
+/**
+ * Each result links into its own team's channel — for a same-team result that is
+ * the current team; for a cross-team ("All workspaces") result it targets the
+ * message's own workspace, which resolves because ACL guarantees membership.
+ */
 function jumpHref(result: MessageSearchResult): string {
     return show(
         { team: result.teamSlug, channel: result.channelSlug },

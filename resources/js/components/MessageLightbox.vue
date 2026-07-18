@@ -22,7 +22,7 @@ const props = defineProps<{
     startIndex: number;
     authorName: string;
     createdAt: string;
-    // The viewer's configured timezone, matching the timeline's formatting.
+    /** The viewer's configured timezone, matching the timeline's formatting. */
     viewerTimeZone?: string;
 }>();
 
@@ -32,8 +32,10 @@ const emit = defineEmits<{
 
 const { t } = useTranslations();
 
-// The image currently on screen. Seeded from the tile that was clicked and
-// stepped through the message's images with the arrows; wraps at either end.
+/**
+ * The image currently on screen. Seeded from the tile that was clicked and
+ * stepped through the message's images with the arrows; wraps at either end.
+ */
 const current = ref(props.startIndex);
 
 watch(
@@ -47,9 +49,11 @@ watch(
 
 const activeImage = computed<AttachmentData>(() => props.images[current.value]);
 
-// A human name for the active image: its upload filename, else its remote
-// description (a Giphy GIF has no filename), else a generic fallback. Feeds the
-// dialog title, download name, and alt.
+/**
+ * A human name for the active image: its upload filename, else its remote
+ * description (a Giphy GIF has no filename), else a generic fallback. Feeds the
+ * dialog title, download name, and alt.
+ */
 const activeLabel = computed(
     () =>
         activeImage.value.filename ?? activeImage.value.description ?? t('GIF'),

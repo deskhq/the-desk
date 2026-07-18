@@ -21,11 +21,11 @@ const props = defineProps<{
 }>();
 
 const emit = defineEmits<{
-    // Jump to the reminded message (and close the dialog).
+    /** Jump to the reminded message (and close the dialog). */
     open: [reminder: MessageReminder];
-    // Clear a single pending reminder.
+    /** Clear a single pending reminder. */
     clear: [id: string];
-    // Clear every pending reminder shown.
+    /** Clear every pending reminder shown. */
     clearAll: [];
 }>();
 
@@ -37,8 +37,10 @@ const effectiveZone = computed(
     () => props.timezone ?? Intl.DateTimeFormat().resolvedOptions().timeZone,
 );
 
-// The pending reminders arrive sorted soonest-first; split them so due-today
-// reminders sit above the rest, matching the design's "Today / Later" sections.
+/**
+ * The pending reminders arrive sorted soonest-first; split them so due-today
+ * reminders sit above the rest, matching the design's "Today / Later" sections.
+ */
 const todayReminders = computed(() =>
     props.reminders.filter((reminder) =>
         isReminderToday(reminder.remindAt, effectiveZone.value),

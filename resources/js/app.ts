@@ -10,9 +10,11 @@ import { initializeFlashToast } from '@/lib/flashToast';
 import { setMessages, translate } from '@/lib/i18n';
 import type { Messages } from '@/lib/i18n';
 
-// Seeded from the server-shared props at boot (see `withApp`), so both Echo and
-// the document title use the operator's runtime settings rather than values
-// baked into the bundle at build time.
+/**
+ * Seeded from the server-shared props at boot (see `withApp`), so both Echo and
+ * the document title use the operator's runtime settings rather than values
+ * baked into the bundle at build time.
+ */
 let appName = 'Laravel';
 
 // createInertiaApp returns a bootstrap Promise we intentionally don't await.
@@ -65,8 +67,6 @@ void createInertiaApp({
     },
 });
 
-// This will set light / dark mode on page load...
 initializeTheme();
 
-// This will listen for flash toast data from the server...
 initializeFlashToast();

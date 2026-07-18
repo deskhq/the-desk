@@ -13,23 +13,27 @@ import {
 import { formatPresetPreview, schedulePresets } from '@/lib/scheduleTime';
 
 const props = defineProps<{
-    // Whether the composer has something to send right now (text or a ready
-    // attachment). Gates the primary Send and the "Send now" menu item.
+    /**
+     * Whether the composer has something to send right now (text or a ready
+     * attachment). Gates the primary Send and the "Send now" menu item.
+     */
     canSubmit: boolean;
-    // Whether the composer body carries text to schedule. Scheduling never
-    // includes attachments, so it gates on text alone — matching the old
-    // schedule button's "empty composer has nothing to schedule" guard.
+    /**
+     * Whether the composer body carries text to schedule. Scheduling never
+     * includes attachments, so it gates on text alone — matching the old
+     * schedule button's "empty composer has nothing to schedule" guard.
+     */
     canSchedule: boolean;
-    // The viewer's stored IANA zone; drives the quick presets' resolved times.
+    /** The viewer's stored IANA zone; drives the quick presets' resolved times. */
     timezone: string | null;
 }>();
 
 const emit = defineEmits<{
-    // Deliver the composer body now.
+    /** Deliver the composer body now. */
     send: [];
-    // Schedule the body for the given UTC instant (a quick preset was chosen).
+    /** Schedule the body for the given UTC instant (a quick preset was chosen). */
     scheduleAt: [sendAt: string];
-    // Open the full schedule dialog to pick a custom time.
+    /** Open the full schedule dialog to pick a custom time. */
     customTime: [];
 }>();
 
@@ -58,8 +62,10 @@ type QuickPreset = {
     preview: string;
 };
 
-// Resolved on open so the times stay current with the wall clock each time the
-// menu is shown, rather than frozen at mount.
+/**
+ * Resolved on open so the times stay current with the wall clock each time the
+ * menu is shown, rather than frozen at mount.
+ */
 const quickPresets = ref<QuickPreset[]>([]);
 
 function buildPresets(): void {

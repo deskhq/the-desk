@@ -14,7 +14,8 @@ import { describe, expect, it } from 'vitest';
  */
 
 const AA_TEXT = 4.5;
-const AA_NON_TEXT = 3; // focus indicators / non-text (WCAG 1.4.11, 2.4.7)
+/** focus indicators / non-text (WCAG 1.4.11, 2.4.7) */
+const AA_NON_TEXT = 3;
 
 const cssPath = fileURLToPath(new URL('../../css/app.css', import.meta.url));
 const css = readFileSync(cssPath, 'utf8');

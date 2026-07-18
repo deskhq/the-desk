@@ -16,20 +16,24 @@ import {
 import { reminderPresets } from '@/lib/reminderTime';
 
 const props = defineProps<{
-    // The viewer's stored IANA zone; falls back to the runtime zone when null so
-    // the wall-clock presets ("Tomorrow 9am") resolve in a real zone.
+    /**
+     * The viewer's stored IANA zone; falls back to the runtime zone when null so
+     * the wall-clock presets ("Tomorrow 9am") resolve in a real zone.
+     */
     timezone: string | null;
-    // Optional label shown in a tooltip above the trigger on hover and keyboard
-    // focus. When set, the trigger is composed as Tooltip → PopoverTrigger so the
-    // one button anchors both the popover (on click) and the tooltip (on
-    // hover/focus); this requires a TooltipProvider ancestor.
+    /**
+     * Optional label shown in a tooltip above the trigger on hover and keyboard
+     * focus. When set, the trigger is composed as Tooltip → PopoverTrigger so the
+     * one button anchors both the popover (on click) and the tooltip (on
+     * hover/focus); this requires a TooltipProvider ancestor.
+     */
     tooltip?: string;
 }>();
 
 const emit = defineEmits<{
-    // A preset was chosen: the resolved UTC instant to remind at.
+    /** A preset was chosen: the resolved UTC instant to remind at. */
     set: [remindAt: string];
-    // The viewer wants to pick an exact date & time instead.
+    /** The viewer wants to pick an exact date & time instead. */
     custom: [];
 }>();
 
@@ -39,8 +43,10 @@ const effectiveZone = computed(
     () => props.timezone ?? Intl.DateTimeFormat().resolvedOptions().timeZone,
 );
 
-// Recomputed each time the popover opens so "In 20 minutes" is always measured
-// from now, never from when the row first rendered.
+/**
+ * Recomputed each time the popover opens so "In 20 minutes" is always measured
+ * from now, never from when the row first rendered.
+ */
 const presets = ref(reminderPresets(effectiveZone.value));
 
 function onOpenChange(next: boolean): void {

@@ -18,11 +18,13 @@ import { useTranslations } from '@/composables/useTranslations';
 import type { CustomEmojiEntry } from '@/lib/customEmoji';
 
 defineProps<{
-    // Optional label shown in a tooltip above the trigger on hover and keyboard
-    // focus. When set, the trigger is composed as Tooltip → PopoverTrigger so the
-    // one button anchors both the popover (on click) and the tooltip (on
-    // hover/focus); this requires a TooltipProvider ancestor. Consumers that
-    // don't want a tooltip omit it and get the bare trigger.
+    /**
+     * Optional label shown in a tooltip above the trigger on hover and keyboard
+     * focus. When set, the trigger is composed as Tooltip → PopoverTrigger so the
+     * one button anchors both the popover (on click) and the tooltip (on
+     * hover/focus); this requires a TooltipProvider ancestor. Consumers that
+     * don't want a tooltip omit it and get the bare trigger.
+     */
     tooltip?: string;
 }>();
 

@@ -13,9 +13,11 @@ import { i18n, translate } from './i18n';
 /** Wall-clock components, as read off a clock on the wall in some zone. */
 export type WallTime = {
     year: number;
-    month: number; // 1-12
+    /** 1-12 */
+    month: number;
     day: number;
-    hour: number; // 0-23
+    /** 0-23 */
+    hour: number;
     minute: number;
 };
 

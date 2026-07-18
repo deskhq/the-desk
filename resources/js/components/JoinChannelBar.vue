@@ -8,8 +8,10 @@ const props = defineProps<{
     teamSlug: string;
     channelName: string;
     channelSlug: string;
-    // The channel's current member count, shown so a non-member sees how many
-    // teammates are already in the channel before joining.
+    /**
+     * The channel's current member count, shown so a non-member sees how many
+     * teammates are already in the channel before joining.
+     */
     memberCount: number;
 }>();
 </script>
