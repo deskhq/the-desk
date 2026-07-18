@@ -167,6 +167,36 @@ describe('theme contrast (WCAG AA)', () => {
     // which measured 2.94:1 (#278); lock the surfaces it renders on so the brass
     // debt can't creep back. The channel axe audit can't guard it: to stay scoped
     // to #268 it seeds a *read* message, so the divider never renders there.
+    // The "Version X.Y.Z available" badge (settings/About.vue, `isBehind`) paints
+    // --brass-foreground on a `bg-brass/10` fill composited over the settings
+    // card. Dark mode overrode --brass but not --brass-foreground, leaving
+    // near-black text on the dark fill (#518); lock body-text AA in both themes.
+    const BADGE_FILL_ALPHA = 0.1; // matches the `bg-brass/10` utility
+
+    it('light --brass-foreground meets AA on the version badge', () => {
+        const badge = flatten(
+            hexToRgb(light['brass']),
+            BADGE_FILL_ALPHA,
+            hexToRgb(light['card']),
+        );
+
+        expect(
+            contrast(hexToRgb(light['brass-foreground']), badge),
+        ).toBeGreaterThanOrEqual(AA_TEXT);
+    });
+
+    it('dark --brass-foreground meets AA on the version badge', () => {
+        const badge = flatten(
+            hexToRgb(dark['brass']),
+            BADGE_FILL_ALPHA,
+            hexToRgb(dark['card']),
+        );
+
+        expect(
+            contrast(hexToRgb(dark['brass-foreground']), badge),
+        ).toBeGreaterThanOrEqual(AA_TEXT);
+    });
+
     const dividerSurfaces = ['card', 'background'] as const;
 
     it.each(dividerSurfaces)(

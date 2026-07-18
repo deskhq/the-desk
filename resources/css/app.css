@@ -179,6 +179,9 @@
     --input: #2a271f;
     --ring: #c9a35c;
     --brass: #c9a35c;
+    /* Light brass so badge/pill text stays legible on the dark brass fill; the
+       light value (#1d1a15) would render near-black on the dark surface (#518). */
+    --brass-foreground: #dcb56a;
     --brass-border: #c9a35c;
     --brass-fill: rgba(201, 163, 92, 0.14);
     --brass-fill-foreground: #dcb56a;
