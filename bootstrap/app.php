@@ -47,6 +47,11 @@ return Application::configure(basePath: dirname(__DIR__))
 
         $middleware->encryptCookies(except: ['appearance', 'sidebar_state']);
 
+        // Incoming webhooks authenticate by their opaque URL token, not a session,
+        // so they carry no CSRF token — exempt them so external senders (curl,
+        // Grafana, Sentry) can post without one.
+        $middleware->validateCsrfTokens(except: ['webhooks/incoming/*']);
+
         // Route-middleware aliases for the public REST API: `integrations` 404s
         // the whole surface when the platform toggle is off; `scope` enforces a
         // single Sanctum ability per endpoint.

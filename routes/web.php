@@ -26,11 +26,21 @@ use App\Http\Controllers\LocaleCatalogController;
 use App\Http\Controllers\OnboardingController;
 use App\Http\Controllers\SidebarSectionController;
 use App\Http\Controllers\Teams\TeamInvitationController;
+use App\Http\Controllers\Webhooks\IncomingWebhookController;
 use App\Http\Middleware\EnsureGiphyEnabled;
+use App\Http\Middleware\EnsureIntegrationsEnabled;
 use App\Http\Middleware\EnsureTeamMembership;
 use Illuminate\Support\Facades\Route;
 
 Route::inertia('/', 'Welcome')->name('home');
+
+// Incoming webhooks: an external system posts a channel message by POSTing to an
+// opaque, unguessable URL whose final segment is the credential. Unauthenticated
+// and CSRF-exempt (see bootstrap/app.php) so `curl`/Grafana/Sentry can drop in;
+// gated by the integrations toggle and throttled per URL.
+Route::post('webhooks/incoming/{token}', IncomingWebhookController::class)
+    ->middleware([EnsureIntegrationsEnabled::class, 'throttle:incoming-webhook'])
+    ->name('webhooks.incoming');
 
 // OpenID Connect single sign-on. The routes are always registered (so Wayfinder
 // can generate them and the login page can link to them); the controller 404s
