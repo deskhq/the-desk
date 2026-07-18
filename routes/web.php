@@ -19,6 +19,7 @@ use App\Http\Controllers\Channels\PinController;
 use App\Http\Controllers\Channels\ReactionController;
 use App\Http\Controllers\Channels\ScheduledMessageController;
 use App\Http\Controllers\Channels\SearchController;
+use App\Http\Controllers\Channels\SlashCommandController;
 use App\Http\Controllers\Channels\ThreadsController;
 use App\Http\Controllers\LocaleCatalogController;
 use App\Http\Controllers\OnboardingController;
@@ -92,6 +93,12 @@ Route::middleware(['auth', 'verified', EnsureTeamMembership::class])->group(func
     Route::post('t/{team}/c/{channel}/messages', [MessageController::class, 'store'])
         ->scopeBindings()
         ->name('channels.messages.store');
+    // Slash commands post their raw body to a dedicated endpoint; the server
+    // parses and dispatches authoritatively. Sits in the same auth/membership
+    // group as message posting and reuses its `postMessage` gate.
+    Route::post('t/{team}/c/{channel}/commands', [SlashCommandController::class, 'store'])
+        ->scopeBindings()
+        ->name('channels.commands.store');
     Route::patch('t/{team}/c/{channel}/messages/{message}', [MessageController::class, 'update'])
         ->scopeBindings()
         ->name('channels.messages.update');

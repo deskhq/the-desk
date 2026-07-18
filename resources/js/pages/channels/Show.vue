@@ -878,6 +878,7 @@ const {
     updateScheduled,
     cancelScheduled,
     setReminder,
+    sendCommand,
 } = actions;
 
 // Discard the whole offline queue: drop the optimistic rows and clear the outbox.
@@ -1318,6 +1319,7 @@ function archive(): void {
                         "
                         allow-schedule
                         :timezone="timezone"
+                        :slash-commands="page.props.slashCommands"
                         @send="
                             (
                                 body,
@@ -1327,6 +1329,7 @@ function archive(): void {
                                 callbacks,
                             ) => send(body, mentions, attachmentIds, callbacks)
                         "
+                        @command="sendCommand"
                         @schedule="scheduleMessage"
                         @typing="onTyping"
                         @cancel-reply="cancelReply"

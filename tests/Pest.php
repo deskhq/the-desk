@@ -20,6 +20,10 @@ pest()->extend(TestCase::class)
     ->use(RefreshDatabase::class)
     ->in('Feature');
 
+// The slash-command unit tests exercise command copy through the translator, so
+// they need the application booted (but no database).
+pest()->extend(TestCase::class)->in('Unit/SlashCommands');
+
 /*
 |--------------------------------------------------------------------------
 | Browser (E2E) Test Case

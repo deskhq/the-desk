@@ -6,6 +6,7 @@ use App\Data\ChannelData;
 use App\Data\ChannelSectionData;
 use App\Data\CustomEmojiData;
 use App\Data\MessageReminderData;
+use App\Data\SlashCommandData;
 use App\Data\UpdateStatusData;
 use App\Data\UserData;
 use App\Enums\MessageReminderStatus;
@@ -17,6 +18,7 @@ use App\Models\MessageReminder;
 use App\Models\Team;
 use App\Models\TeamInvitation;
 use App\Models\User;
+use App\SlashCommands\SlashCommandRegistry;
 use App\Support\ReverbConfig;
 use App\Support\TranslationCatalog;
 use App\Support\UpdateChecker;
@@ -137,6 +139,12 @@ class HandleInertiaRequests extends Middleware
             // bodies and reaction pills can resolve `:name:` shortcodes to images.
             // A revoked emoji is simply absent, so its token falls back to text.
             'customEmojis' => fn (): array => $this->customEmojisForWorkspace($request, $user),
+            // The composer's slash-command autocomplete manifest, built from the
+            // registry with copy already translated under the active locale.
+            // Server-authoritative: a newly registered command appears in
+            // autocomplete with no frontend change. Empty off the workspace,
+            // where the composer isn't rendered.
+            'slashCommands' => fn (): array => $this->slashCommandsForWorkspace($request),
             'collapsedChannelSections' => fn () => $user->collapsed_channel_sections ?? [],
             'hasUnreadThreads' => fn (): bool => $this->hasUnreadThreads($request, $user),
             'pendingInvitations' => Inertia::optional(fn (): array => $user ? $this->pendingInvitationsFor($user) : []),
@@ -324,6 +332,23 @@ class HandleInertiaRequests extends Middleware
         }
 
         return CustomEmojiData::mapForTeam($team);
+    }
+
+    /**
+     * The composer's slash-command autocomplete manifest, or an empty list off
+     * the workspace (where no composer renders). The manifest is global and
+     * unscoped to a team — the v1 commands are unrestricted — but built per
+     * request so its copy reflects the active locale.
+     *
+     * @return array<int, SlashCommandData>
+     */
+    protected function slashCommandsForWorkspace(Request $request): array
+    {
+        if (! $this->isWorkspaceRoute($request)) {
+            return [];
+        }
+
+        return app(SlashCommandRegistry::class)->manifest();
     }
 
     /**

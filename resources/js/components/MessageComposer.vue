@@ -25,7 +25,10 @@ import {
 } from '@/components/ui/tooltip';
 import { useAttachmentUploads } from '@/composables/useAttachmentUploads';
 import { useInitials } from '@/composables/useInitials';
-import type { SendCallbacks } from '@/composables/useMessageActions';
+import type {
+    CommandCallbacks,
+    SendCallbacks,
+} from '@/composables/useMessageActions';
 import { useTranslations } from '@/composables/useTranslations';
 import { formatFileSize } from '@/lib/attachments';
 import {
@@ -69,6 +72,10 @@ const props = defineProps<{
     // instant feedback (the server re-enforces both).
     maxAttachmentSizeMb?: number;
     maxAttachmentsPerMessage?: number;
+    // The server's slash-command autocomplete manifest. Passed only where slash
+    // commands apply (the main channel composer); absent/empty elsewhere (e.g.
+    // the thread composer), which disables all slash handling.
+    slashCommands?: App.Data.SlashCommandData[];
 }>();
 
 const emit = defineEmits<{
@@ -81,6 +88,10 @@ const emit = defineEmits<{
         // online send restores the staged attachments (and body) through these.
         callbacks: SendCallbacks,
     ];
+    // A slash command was typed and sent. The raw body goes to the server, which
+    // parses it authoritatively; the callbacks clear the composer on success and
+    // keep the text on error (the send is non-optimistic).
+    command: [body: string, callbacks: CommandCallbacks];
     typing: [];
     cancelReply: [];
     // The composer body changed (typed, restored-then-edited, or cleared on
@@ -338,6 +349,103 @@ function selectActive(): void {
     }
 }
 
+// A slash command occupies the whole body up to the caret: a leading `/`
+// followed by word characters and nothing else. The menu therefore triggers
+// only at composer position 0 and closes the instant a space is typed (which
+// breaks the match), matching the server's `^/(name)(\s|$)` interception rule.
+const SLASH_QUERY = /^\/(\w*)$/;
+
+const slashSuggestions = ref<App.Data.SlashCommandData[]>([]);
+const slashActiveIndex = ref(0);
+const slashMenuOpen = ref(false);
+
+const showSlashMenu = computed(
+    () => slashMenuOpen.value && slashSuggestions.value.length > 0,
+);
+
+// True while a command send awaits the server. Unlike a normal (optimistic)
+// send, a command keeps its text and blocks re-submits until the outcome lands.
+const commandPending = ref(false);
+
+function refreshSlashSuggestions(): void {
+    const commands = props.slashCommands ?? [];
+
+    if (commands.length === 0) {
+        slashMenuOpen.value = false;
+        slashSuggestions.value = [];
+
+        return;
+    }
+
+    const el = textarea.value;
+    const caret = el ? el.selectionStart : body.value.length;
+    const match = body.value.slice(0, caret).match(SLASH_QUERY);
+
+    if (!match) {
+        slashMenuOpen.value = false;
+        slashSuggestions.value = [];
+
+        return;
+    }
+
+    const needle = match[1].toLowerCase();
+
+    slashSuggestions.value = commands
+        .filter((command) => command.name.toLowerCase().startsWith(needle))
+        .slice(0, MAX_SUGGESTIONS);
+    slashActiveIndex.value = 0;
+    slashMenuOpen.value = slashSuggestions.value.length > 0;
+}
+
+function slashMoveActive(delta: number): void {
+    const count = slashSuggestions.value.length;
+    slashActiveIndex.value = (slashActiveIndex.value + delta + count) % count;
+}
+
+function selectSlashCommand(command: App.Data.SlashCommandData): void {
+    body.value = `/${command.name} `;
+    slashMenuOpen.value = false;
+
+    const nextCaret = body.value.length;
+
+    nextTick(() => {
+        const field = textarea.value;
+
+        if (field) {
+            field.focus();
+            field.setSelectionRange(nextCaret, nextCaret);
+        }
+
+        resize();
+    });
+}
+
+function selectSlashActive(): void {
+    const command = slashSuggestions.value[slashActiveIndex.value];
+
+    if (command) {
+        selectSlashCommand(command);
+    }
+}
+
+/**
+ * Whether the trimmed body is a send-ready command the server will intercept: a
+ * leading `/name` (name followed by a space or the end) matching a registered
+ * command. Only advisory — it decides which endpoint the composer posts to; the
+ * server re-parses authoritatively.
+ */
+function looksLikeCommand(text: string): boolean {
+    const match = text.match(/^\/(\S+)(?:\s|$)/);
+
+    if (!match) {
+        return false;
+    }
+
+    return (props.slashCommands ?? []).some(
+        (command) => command.name === match[1],
+    );
+}
+
 /**
  * Collect the distinct, resolvable mentions present in the body so the
  * optimistic row can highlight them before the server echo arrives.
@@ -541,15 +649,55 @@ function clearAfterHandoff(): void {
     body.value = '';
     sendToChannel.value = false;
     menuOpen.value = false;
+    slashMenuOpen.value = false;
     nextTick(resize);
 }
 
+/**
+ * Send a slash command. Non-optimistic: the composer keeps the typed text in a
+ * pending state, clears it once the server confirms the command ran, and keeps
+ * it if the command failed so the user can correct and resend.
+ *
+ * The field stays editable while the send is in flight, so both outcomes guard
+ * against clobbering a fresh edit: success clears only if the body is still the
+ * one that was sent, and failure re-emits the draft (the command send cancels
+ * the debounced save, so the retained text must reschedule its persistence).
+ */
+function submitCommand(rawBody: string): void {
+    const submittedBody = body.value;
+    commandPending.value = true;
+    slashMenuOpen.value = false;
+
+    emit('command', rawBody, {
+        onSuccess: () => {
+            commandPending.value = false;
+
+            if (body.value === submittedBody) {
+                clearAfterHandoff();
+            }
+        },
+        onError: () => {
+            commandPending.value = false;
+            emit('draftChange', body.value);
+        },
+    });
+}
+
 function submit(): void {
-    if (!canSubmit.value) {
+    if (!canSubmit.value || commandPending.value) {
         return;
     }
 
     const trimmed = body.value.trim();
+
+    // A slash command forks off the optimistic message path onto a dedicated,
+    // non-optimistic send. Only when the tray is empty — a command carries no
+    // attachments, so a command-looking body with staged files posts as text.
+    if (uploads.attachmentIds.value.length === 0 && looksLikeCommand(trimmed)) {
+        submitCommand(trimmed);
+
+        return;
+    }
 
     // Snapshot the composer state before the optimistic wipe: the send is
     // fire-and-forget, so if an online send fails, the staged attachments (and
@@ -731,6 +879,39 @@ function onKeydown(event: KeyboardEvent): void {
         }
     }
 
+    // The slash-command menu mirrors the mention menu's navigation. The two are
+    // mutually exclusive (a `/…` body never matches an `@query`), so this runs
+    // only when the slash menu is the open one.
+    if (showSlashMenu.value) {
+        if (event.key === 'ArrowDown') {
+            event.preventDefault();
+            slashMoveActive(1);
+
+            return;
+        }
+
+        if (event.key === 'ArrowUp') {
+            event.preventDefault();
+            slashMoveActive(-1);
+
+            return;
+        }
+
+        if (event.key === 'Enter' || event.key === 'Tab') {
+            event.preventDefault();
+            selectSlashActive();
+
+            return;
+        }
+
+        if (event.key === 'Escape') {
+            event.preventDefault();
+            slashMenuOpen.value = false;
+
+            return;
+        }
+    }
+
     // Format shortcuts wrap the selection. Placed after the mention menu's key
     // handling so its arrow/Enter/Escape keep priority while it is open; the
     // chosen keys (B/I/E, ⇧X) never collide with it or Enter-to-send.
@@ -764,7 +945,7 @@ function onKeydown(event: KeyboardEvent): void {
             ctrlKey: event.ctrlKey,
             metaKey: event.metaKey,
             shiftKey: event.shiftKey,
-            menuOpen: showMenu.value,
+            menuOpen: showMenu.value || showSlashMenu.value,
             editing: editingMessage.value !== null,
             hasReplyTarget: props.replyTarget != null,
             isEmpty: body.value.trim() === '',
@@ -825,6 +1006,49 @@ function onKeydown(event: KeyboardEvent): void {
                         {{ getInitials(member.name) }}
                     </span>
                     <span class="truncate">{{ member.name }}</span>
+                </li>
+            </ul>
+
+            <!-- Slash-command autocomplete. Mirrors the mention menu's listbox
+                 ARIA and keyboard model, but triggers only at composer position
+                 0. Each row shows name · argument hint · description. -->
+            <ul
+                v-if="showSlashMenu"
+                id="slash-listbox"
+                data-test="slash-menu"
+                role="listbox"
+                :aria-label="$t('Slash commands')"
+                class="absolute bottom-full left-0 z-10 mb-2 max-h-60 w-80 overflow-y-auto rounded-lg border border-border bg-popover p-1 shadow-md"
+            >
+                <li
+                    v-for="(command, index) in slashSuggestions"
+                    :id="`slash-option-${index}`"
+                    :key="command.name"
+                    data-test="slash-option"
+                    role="option"
+                    tabindex="-1"
+                    :aria-selected="index === slashActiveIndex"
+                    class="flex w-full cursor-pointer flex-col gap-0.5 rounded-md px-2 py-1.5 text-left text-sm text-popover-foreground"
+                    :class="
+                        index === slashActiveIndex
+                            ? 'bg-accent text-accent-foreground'
+                            : 'hover:bg-accent/60'
+                    "
+                    @mousedown.prevent="selectSlashCommand(command)"
+                    @mouseenter="slashActiveIndex = index"
+                >
+                    <span class="flex items-baseline gap-1.5">
+                        <span class="font-semibold">/{{ command.name }}</span>
+                        <span
+                            v-if="command.argumentHint"
+                            class="text-[11px] text-muted-foreground"
+                        >
+                            {{ command.argumentHint }}
+                        </span>
+                    </span>
+                    <span class="truncate text-[12px] text-muted-foreground">
+                        {{ command.description }}
+                    </span>
                 </li>
             </ul>
 
@@ -1055,14 +1279,20 @@ function onKeydown(event: KeyboardEvent): void {
                         data-test="message-composer-input"
                         role="combobox"
                         aria-autocomplete="list"
-                        :aria-expanded="showMenu"
+                        :aria-expanded="showMenu || showSlashMenu"
                         :aria-controls="
-                            showMenu ? 'mention-listbox' : undefined
+                            showMenu
+                                ? 'mention-listbox'
+                                : showSlashMenu
+                                  ? 'slash-listbox'
+                                  : undefined
                         "
                         :aria-activedescendant="
                             showMenu
                                 ? `mention-option-${activeIndex}`
-                                : undefined
+                                : showSlashMenu
+                                  ? `slash-option-${slashActiveIndex}`
+                                  : undefined
                         "
                         autocomplete="off"
                         autocorrect="off"
@@ -1074,10 +1304,15 @@ function onKeydown(event: KeyboardEvent): void {
                         data-form-type="other"
                         class="max-h-[200px] min-w-0 flex-1 resize-none self-center bg-transparent py-1 text-sm text-foreground outline-none placeholder:text-muted-foreground"
                         @input="
-                            (resize(), refreshSuggestions(), emit('typing'))
+                            (resize(),
+                            refreshSuggestions(),
+                            refreshSlashSuggestions(),
+                            emit('typing'))
                         "
                         @paste="onPaste"
-                        @click="refreshSuggestions"
+                        @click="
+                            (refreshSuggestions(), refreshSlashSuggestions())
+                        "
                         @keydown="onKeydown"
                     ></textarea>
                     <!-- Edit mode swaps the compose tools for explicit
@@ -1178,7 +1413,7 @@ function onKeydown(event: KeyboardEvent): void {
                              surfaces without scheduling (the thread composer). -->
                         <ComposerSendButton
                             v-if="props.allowSchedule"
-                            :can-submit="canSubmit"
+                            :can-submit="canSubmit && !commandPending"
                             :can-schedule="canSchedule"
                             :timezone="props.timezone ?? null"
                             @send="submit"
@@ -1188,7 +1423,7 @@ function onKeydown(event: KeyboardEvent): void {
                         <Button
                             v-else
                             size="icon"
-                            :disabled="!canSubmit"
+                            :disabled="!canSubmit || commandPending"
                             data-test="message-composer-send"
                             class="size-8.5 shrink-0 rounded-full bg-primary text-brass hover:bg-primary/90"
                             :aria-label="$t('Send message')"
