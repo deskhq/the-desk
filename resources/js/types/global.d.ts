@@ -27,6 +27,7 @@ declare module '@inertiajs/core' {
             emailVerificationEnabled: boolean;
             sso: { oidcEnabled: boolean; passwordLoginEnabled: boolean };
             attachments: { maxSizeMb: number; maxPerMessage: number };
+            gifPickerEnabled: boolean;
             sidebarOpen: boolean;
             currentTeam: Team | null;
             teams: Team[];

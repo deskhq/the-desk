@@ -57,5 +57,6 @@
         <env name="SSO_OIDC_ISSUER" value=""/>
         <env name="SSO_DEFAULT_TEAM_ID" value=""/>
         <env name="SCIM_TOKEN" value=""/>
+        <env name="GIPHY_API_KEY" value=""/>
     </php>
 </phpunit>

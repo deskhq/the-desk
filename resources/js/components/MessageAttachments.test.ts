@@ -13,8 +13,10 @@ function image(overrides: Partial<AttachmentData> = {}): AttachmentData {
         width: 800,
         height: 600,
         isImage: true,
+        source: 'upload',
         url: 'https://desk.test/orig.png',
         thumbUrl: 'https://desk.test/thumb.png',
+        description: null,
         ...overrides,
     };
 }

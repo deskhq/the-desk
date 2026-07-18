@@ -920,5 +920,17 @@
   "in thread · 1 reply": "dans un fil · 1 réponse",
   "in thread · :count replies": "dans un fil · :count réponses",
   "Search scope": "Portée de la recherche",
-  "All workspaces": "Tous les espaces"
+  "All workspaces": "Tous les espaces",
+  "GIF picker": "Sélecteur de GIF",
+  "GIF results": "Résultats de GIF",
+  "GIFs could not be loaded. Try again.": "Impossible de charger les GIF. Réessayez.",
+  "No GIFs found.": "Aucun GIF trouvé.",
+  "Loading more…": "Chargement…",
+  "Powered by GIPHY": "Propulsé par GIPHY",
+  "Search GIFs": "Rechercher des GIF",
+  "That GIF could not be added. Try another one.": "Ce GIF n'a pas pu être ajouté. Essayez-en un autre.",
+  "Search Giphy for a GIF to send": "Rechercher un GIF à envoyer sur Giphy",
+  "[search]": "[recherche]",
+  "Pick a GIF from the picker to send one.": "Choisissez un GIF dans le sélecteur pour en envoyer un.",
+  "That GIF is no longer available.": "Ce GIF n'est plus disponible."
 }

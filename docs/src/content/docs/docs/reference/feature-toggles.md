@@ -219,3 +219,30 @@ own upstream.
 The check only reads public release metadata. It sends no information about your
 instance to GitHub.
 :::
+
+## GIF picker (Giphy)
+
+| Variable        | Default   | Effect                                                        |
+| --------------- | --------- | ------------------------------------------------------------ |
+| `GIPHY_API_KEY` | *(blank)* | Enables the composer's `/gif` [Giphy](https://developers.giphy.com/) picker. |
+
+The `/gif` picker is **off** by default. Setting `GIPHY_API_KEY` (a free key from
+developers.giphy.com) turns it on: typing `/gif` in the composer opens a picker
+that searches Giphy — trending on an empty query, debounced search as you type,
+infinite scroll — and the chosen GIF is sent as a normal message attachment.
+
+Leave the key blank and the feature is **fully hidden**: the `/gif` command is
+absent from autocomplete, the picker never appears, and the search/attach
+endpoints return **404**. The key is read server-side and never exposed to the
+browser.
+
+`GIPHY_CONTENT_RATING` (default `g`) caps the strictest rating Giphy may
+return — `g`, `pg`, `pg-13`, or `r`. `g` keeps results workplace-safe; loosen it
+for a casual community. See
+[Environment variables → GIFs (Giphy)](/docs/reference/environment-variables/#gifs-giphy).
+
+:::note
+A sent GIF is **hotlinked** from Giphy's CDN, not stored on your server, so
+viewers' browsers fetch it directly from Giphy. See the privacy note under
+[Environment variables → GIFs (Giphy)](/docs/reference/environment-variables/#gifs-giphy).
+:::

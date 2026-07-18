@@ -24,6 +24,10 @@ pest()->extend(TestCase::class)
 // they need the application booted (but no database).
 pest()->extend(TestCase::class)->in('Unit/SlashCommands');
 
+// The Giphy client unit test drives config/Http/Cache facades, so it needs the
+// application booted (but no database).
+pest()->extend(TestCase::class)->in('Unit/Support/GiphyClientTest.php');
+
 /*
 |--------------------------------------------------------------------------
 | Browser (E2E) Test Case

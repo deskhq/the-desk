@@ -1320,6 +1320,7 @@ function archive(): void {
                         allow-schedule
                         :timezone="timezone"
                         :slash-commands="page.props.slashCommands"
+                        :gif-picker-enabled="page.props.gifPickerEnabled"
                         @send="
                             (
                                 body,

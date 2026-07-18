@@ -17,8 +17,10 @@ function attachment(overrides: Partial<AttachmentData> = {}): AttachmentData {
         width: null,
         height: null,
         isImage: false,
+        source: 'upload',
         url: 'https://example.test/a1/download',
         thumbUrl: null,
+        description: null,
         ...overrides,
     };
 }

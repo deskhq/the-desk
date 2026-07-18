@@ -47,6 +47,14 @@ watch(
 
 const activeImage = computed<AttachmentData>(() => props.images[current.value]);
 
+// A human name for the active image: its upload filename, else its remote
+// description (a Giphy GIF has no filename), else a generic fallback. Feeds the
+// dialog title, download name, and alt.
+const activeLabel = computed(
+    () =>
+        activeImage.value.filename ?? activeImage.value.description ?? t('GIF'),
+);
+
 const meta = computed(() => {
     const parts = [
         props.authorName,
@@ -57,7 +65,10 @@ const meta = computed(() => {
         parts.push(`${activeImage.value.width}×${activeImage.value.height}`);
     }
 
-    parts.push(formatFileSize(activeImage.value.sizeBytes));
+    // A remote GIF carries no byte size (it is hotlinked, not stored).
+    if (activeImage.value.sizeBytes > 0) {
+        parts.push(formatFileSize(activeImage.value.sizeBytes));
+    }
 
     return parts.join(' · ');
 });
@@ -98,7 +109,7 @@ function onKeydown(event: KeyboardEvent): void {
             >
                 <img
                     :src="activeImage.url"
-                    :alt="activeImage.filename"
+                    :alt="activeImage.description ?? ''"
                     class="max-h-[85vh] max-w-[85vw] rounded-lg object-contain shadow-2xl"
                 />
 
@@ -106,7 +117,7 @@ function onKeydown(event: KeyboardEvent): void {
                     <DialogTitle
                         class="truncate text-[13px] font-semibold text-[#ece7da]"
                     >
-                        {{ activeImage.filename }}
+                        {{ activeLabel }}
                     </DialogTitle>
                     <DialogDescription
                         class="text-[11.5px] text-[#8b8370] tabular-nums"
@@ -118,10 +129,14 @@ function onKeydown(event: KeyboardEvent): void {
                 <div class="absolute top-3 right-4 flex gap-2">
                     <a
                         :href="activeImage.url"
-                        :download="activeImage.filename"
-                        :aria-label="
-                            t('Download :name', { name: activeImage.filename })
+                        :download="activeImage.filename ?? undefined"
+                        :target="activeImage.filename ? undefined : '_blank'"
+                        :rel="
+                            activeImage.filename
+                                ? undefined
+                                : 'noopener noreferrer'
                         "
+                        :aria-label="t('Download :name', { name: activeLabel })"
                         class="flex size-8 items-center justify-center rounded-[9px] bg-[rgba(243,239,228,0.12)] text-[#ece7da] transition-colors hover:bg-[rgba(243,239,228,0.22)] focus-visible:ring-2 focus-visible:ring-[#ece7da] focus-visible:outline-none"
                     >
                         <Download class="size-3.5" />

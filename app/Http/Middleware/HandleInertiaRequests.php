@@ -102,6 +102,11 @@ class HandleInertiaRequests extends Middleware
                 'maxSizeMb' => (int) config('attachments.max_size_mb'),
                 'maxPerMessage' => (int) config('attachments.max_per_message'),
             ],
+            // Whether the Giphy `/gif` picker is available, derived from the API
+            // key being set. False fully hides the picker client-side (and the
+            // `/gif` command is absent from autocomplete), matching the 404 the
+            // search/attach endpoints return when unconfigured.
+            'gifPickerEnabled' => filled(config('services.giphy.key')),
             // The instance's version standing, so authenticated users see a
             // low-key "update available" indicator when the self-hosted release
             // is behind. `current` is always present; `latest`/`notesUrl` fill in

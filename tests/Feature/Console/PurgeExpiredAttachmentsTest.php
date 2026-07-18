@@ -33,6 +33,17 @@ test('a pending attachment older than the ttl is purged, row and blob', function
     Storage::disk('local')->assertMissing($stale->path);
 });
 
+test('a stale pending Giphy attachment is purged without touching storage', function (): void {
+    Storage::fake('local');
+    config()->set('attachments.pending_ttl_hours', 24);
+    $stale = Attachment::factory()->giphy()->create(['created_at' => now()->subHours(48)]);
+
+    $purged = app(PurgeExpiredAttachments::class)->handle();
+
+    expect($purged)->toBe(1);
+    $this->assertDatabaseMissing('attachments', ['id' => $stale->id]);
+});
+
 test('a pending attachment within the ttl survives', function (): void {
     Storage::fake('local');
     config()->set('attachments.pending_ttl_hours', 24);
