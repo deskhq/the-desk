@@ -79,7 +79,7 @@ it('lists the bot\'s channels and the standard channels it can still be added to
     $joined->channelMembers()->create(['user_id' => $bot->id]);
     $addable = Channel::factory()->for($team)->private()->create(['name' => 'secret']);
     // A DM is never an add candidate.
-    Channel::factory()->for($team)->direct()->create();
+    $dm = Channel::factory()->for($team)->direct()->create();
 
     $this->actingAs($owner)
         ->get(route('teams.integrations.bots.show', ['team' => $team->slug, 'bot' => $bot->id]))
@@ -89,10 +89,12 @@ it('lists the bot\'s channels and the standard channels it can still be added to
             ->where('channels.0.id', $joined->id)
             ->where('channels.0.name', 'engineering')
             ->where('channels.0.visibility', 'public')
-            ->where('addableChannels', function (Collection $channels) use ($joined, $addable): bool {
+            ->where('addableChannels', function (Collection $channels) use ($joined, $addable, $dm): bool {
                 $ids = $channels->pluck('id');
 
-                return $ids->contains($addable->id) && $ids->doesntContain($joined->id);
+                return $ids->contains($addable->id)
+                    && $ids->doesntContain($joined->id)
+                    && $ids->doesntContain($dm->id);
             })
         );
 });

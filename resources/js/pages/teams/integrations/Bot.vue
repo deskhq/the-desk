@@ -357,6 +357,11 @@ function confirmDeleteBot(): void {
                         aria-hidden="true"
                     />
                     <span v-else aria-hidden="true" class="text-brass">#</span>
+                    <span class="sr-only">{{
+                        channel.visibility === 'private'
+                            ? $t('Private channel')
+                            : $t('Public channel')
+                    }}</span>
                     <span class="flex-1 truncate text-sm font-semibold">{{
                         channel.name
                     }}</span>
@@ -485,7 +490,7 @@ function confirmDeleteBot(): void {
         <DialogContent data-test="remove-channel-dialog">
             <DialogHeader>
                 <DialogTitle>{{
-                    $t('Remove :bot from #:channel?', {
+                    $t('Remove :bot from :channel?', {
                         bot: bot.name,
                         channel: pendingChannel?.name ?? '',
                     })

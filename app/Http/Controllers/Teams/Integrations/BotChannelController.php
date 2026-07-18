@@ -7,6 +7,7 @@ namespace App\Http\Controllers\Teams\Integrations;
 use App\Actions\Channels\JoinChannel;
 use App\Actions\Channels\RemoveChannelMember;
 use App\Enums\AuditAction;
+use App\Enums\ChannelType;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Teams\Integrations\StoreBotChannelRequest;
 use App\Models\Channel;
@@ -47,7 +48,7 @@ class BotChannelController extends Controller
             'member_name' => $bot->name,
         ]);
 
-        Inertia::flash('toast', ['type' => 'success', 'message' => __('Bot added to #:channel.', ['channel' => $channel->name])]);
+        Inertia::flash('toast', ['type' => 'success', 'message' => __('Bot added to :channel.', ['channel' => $channel->name])]);
 
         return to_route('teams.integrations.bots.show', ['team' => $team->slug, 'bot' => $bot->id]);
     }
@@ -61,7 +62,7 @@ class BotChannelController extends Controller
 
         $this->ensureBotBelongsToTeam($bot, $team);
 
-        abort_unless($channel->team_id === $team->id, 404);
+        abort_unless($channel->team_id === $team->id && $channel->type === ChannelType::Standard, 404);
 
         $removeChannelMember->handle($channel, $bot);
 
@@ -70,7 +71,7 @@ class BotChannelController extends Controller
             'member_name' => $bot->name,
         ]);
 
-        Inertia::flash('toast', ['type' => 'success', 'message' => __('Bot removed from #:channel.', ['channel' => $channel->name])]);
+        Inertia::flash('toast', ['type' => 'success', 'message' => __('Bot removed from :channel.', ['channel' => $channel->name])]);
 
         return to_route('teams.integrations.bots.show', ['team' => $team->slug, 'bot' => $bot->id]);
     }
