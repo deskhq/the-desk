@@ -10,6 +10,7 @@ use App\Models\Team;
 use App\Models\User;
 use App\Models\WebhookSubscription;
 use App\Support\AuditRecorder;
+use Illuminate\Support\Facades\DB;
 
 /**
  * Registers an outgoing-webhook subscription for a team and records it in the
@@ -26,20 +27,22 @@ class CreateWebhookSubscription
      */
     public function handle(Team $team, User $actor, string $name, string $url, array $events, ?array $channelIds = null): WebhookSubscription
     {
-        $subscription = $team->webhookSubscriptions()->create([
-            'created_by' => $actor->id,
-            'name' => $name,
-            'url' => $url,
-            'secret' => WebhookSubscription::generateSecret(),
-            'events' => $events,
-            'channel_ids' => $channelIds,
-            'status' => WebhookSubscriptionStatus::Active,
-        ]);
+        return DB::transaction(function () use ($team, $actor, $name, $url, $events, $channelIds): WebhookSubscription {
+            $subscription = $team->webhookSubscriptions()->create([
+                'created_by' => $actor->id,
+                'name' => $name,
+                'url' => $url,
+                'secret' => WebhookSubscription::generateSecret(),
+                'events' => $events,
+                'channel_ids' => $channelIds,
+                'status' => WebhookSubscriptionStatus::Active,
+            ]);
 
-        $this->recorder->record($team, $actor, AuditAction::WebhookSubscriptionCreated, $subscription, [
-            'subscription_name' => $name,
-        ]);
+            $this->recorder->record($team, $actor, AuditAction::WebhookSubscriptionCreated, $subscription, [
+                'subscription_name' => $name,
+            ]);
 
-        return $subscription;
+            return $subscription;
+        });
     }
 }

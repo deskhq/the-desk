@@ -6,6 +6,7 @@ use App\Enums\AuditAction;
 use App\Enums\IntegrationScope;
 use App\Models\User;
 use App\Support\AuditRecorder;
+use Illuminate\Support\Facades\DB;
 use Laravel\Sanctum\NewAccessToken;
 
 /**
@@ -23,13 +24,15 @@ class MintBotToken
      */
     public function handle(User $bot, User $actor, string $name, array $abilities): NewAccessToken
     {
-        $token = $bot->createToken($name, $abilities);
+        return DB::transaction(function () use ($bot, $actor, $name, $abilities): NewAccessToken {
+            $token = $bot->createToken($name, $abilities);
 
-        $this->recorder->record($bot->ownerTeam()->firstOrFail(), $actor, AuditAction::BotTokenCreated, $bot, [
-            'token_name' => $name,
-            'bot_name' => $bot->name,
-        ]);
+            $this->recorder->record($bot->ownerTeam()->firstOrFail(), $actor, AuditAction::BotTokenCreated, $bot, [
+                'token_name' => $name,
+                'bot_name' => $bot->name,
+            ]);
 
-        return $token;
+            return $token;
+        });
     }
 }

@@ -11,6 +11,7 @@ use App\Models\Channel;
 use App\Models\Message;
 use App\Models\Team;
 use App\Models\User;
+use App\Support\AuditRecorder;
 
 beforeEach(function (): void {
     $this->team = Team::factory()->create();
@@ -37,6 +38,17 @@ it('creates a team-scoped bot with no password and a synthetic email, and audits
         'event' => AuditAction::BotCreated->value,
         'causer_id' => $this->owner->id,
     ]);
+});
+
+it('rolls back the bot when audit recording fails', function (): void {
+    $this->mock(AuditRecorder::class)
+        ->shouldReceive('record')
+        ->andThrow(new RuntimeException('audit down'));
+
+    expect(fn () => app(CreateBot::class)->handle($this->team, $this->owner, 'Doomed Bot'))
+        ->toThrow(RuntimeException::class);
+
+    expect(User::where('type', UserType::Bot)->where('owner_team_id', $this->team->id)->exists())->toBeFalse();
 });
 
 it('gives each bot a unique email', function (): void {

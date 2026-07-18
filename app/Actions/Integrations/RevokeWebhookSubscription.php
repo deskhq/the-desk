@@ -8,6 +8,7 @@ use App\Enums\AuditAction;
 use App\Models\User;
 use App\Models\WebhookSubscription;
 use App\Support\AuditRecorder;
+use Illuminate\Support\Facades\DB;
 
 /**
  * Revokes a webhook subscription and records the revocation in the audit log.
@@ -23,10 +24,12 @@ class RevokeWebhookSubscription
         $team = $subscription->team;
         $name = $subscription->name;
 
-        $subscription->delete();
+        DB::transaction(function () use ($team, $actor, $subscription, $name): void {
+            $subscription->delete();
 
-        $this->recorder->record($team, $actor, AuditAction::WebhookSubscriptionRevoked, $subscription, [
-            'subscription_name' => $name,
-        ]);
+            $this->recorder->record($team, $actor, AuditAction::WebhookSubscriptionRevoked, $subscription, [
+                'subscription_name' => $name,
+            ]);
+        });
     }
 }

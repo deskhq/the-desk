@@ -5,6 +5,7 @@ namespace App\Http\Requests\Api\V1;
 use App\Enums\WebhookEvent;
 use App\Models\Channel;
 use App\Models\Team;
+use App\Rules\PublicWebhookUrl;
 use Closure;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Validation\Rule;
@@ -31,7 +32,7 @@ class StoreWebhookSubscriptionRequest extends ApiRequest
     {
         return [
             'name' => ['required', 'string', 'max:255'],
-            'url' => ['required', 'url', 'max:2048'],
+            'url' => ['required', 'url', 'max:2048', new PublicWebhookUrl],
             'events' => ['required', 'array', 'min:1'],
             'events.*' => [Rule::in(WebhookEvent::values())],
             'channel_ids' => ['nullable', 'array'],

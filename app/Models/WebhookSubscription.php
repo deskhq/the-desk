@@ -6,6 +6,7 @@ use App\Enums\WebhookEvent;
 use App\Enums\WebhookSubscriptionStatus;
 use Database\Factories\WebhookSubscriptionFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -41,6 +42,7 @@ use Illuminate\Support\Str;
  * @property-read Collection<int, WebhookDelivery> $deliveries
  */
 #[Fillable(['team_id', 'created_by', 'name', 'url', 'secret', 'events', 'channel_ids', 'status', 'consecutive_failures', 'last_success_at', 'disabled_at'])]
+#[Hidden(['secret'])]
 class WebhookSubscription extends Model
 {
     /** @use HasFactory<WebhookSubscriptionFactory> */

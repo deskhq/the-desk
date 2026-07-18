@@ -9,9 +9,11 @@ use App\Enums\WebhookSubscriptionStatus;
 use App\Models\WebhookSubscription;
 use App\Support\AuditRecorder;
 use App\Support\Webhooks\WebhookSignature;
+use App\Support\Webhooks\WebhookUrlGuard;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Http\Client\Response;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use RuntimeException;
 use Throwable;
@@ -71,9 +73,19 @@ class DeliverWebhook implements ShouldQueue
      */
     public function handle(AuditRecorder $recorder): void
     {
+        if (! config('integrations.enabled')) {
+            return;
+        }
+
         $subscription = WebhookSubscription::find($this->subscriptionId);
 
         if ($subscription === null || ! $subscription->isActive()) {
+            return;
+        }
+
+        if (! WebhookUrlGuard::isPublic($subscription->url)) {
+            $this->recordFailure($subscription, $recorder, null, 'Blocked non-public webhook URL', 0);
+
             return;
         }
 
@@ -108,51 +120,84 @@ class DeliverWebhook implements ShouldQueue
 
     /**
      * Log a successful attempt and clear the failure streak.
+     *
+     * The delivery-log write and counter reset run under a row lock so
+     * concurrent deliveries of the same subscription can't race the health
+     * fields (a stale read followed by a save would clobber the other attempt's
+     * count and skew the auto-disable decision).
      */
     private function recordSuccess(WebhookSubscription $subscription, Response $response, int $durationMs): void
     {
-        $subscription->deliveries()->create([
-            'event_type' => (string) $this->envelope['type'],
-            'event_id' => (string) $this->envelope['id'],
-            'succeeded' => true,
-            'response_status' => $response->status(),
-            'duration_ms' => $durationMs,
-            'attempt' => $this->attempts(),
-            'error' => null,
-        ]);
+        DB::transaction(function () use ($subscription, $response, $durationMs): void {
+            $locked = $this->lockSubscription($subscription);
 
-        $subscription->forceFill([
-            'consecutive_failures' => 0,
-            'last_success_at' => now(),
-        ])->save();
+            $locked->deliveries()->create([
+                'event_type' => (string) $this->envelope['type'],
+                'event_id' => (string) $this->envelope['id'],
+                'succeeded' => true,
+                'response_status' => $response->status(),
+                'duration_ms' => $durationMs,
+                'attempt' => $this->attempts(),
+                'error' => null,
+            ]);
+
+            $locked->forceFill([
+                'consecutive_failures' => 0,
+                'last_success_at' => now(),
+            ])->save();
+        });
     }
 
     /**
      * Log a failed attempt, advance the failure streak, and either auto-disable
      * (streak hit the threshold) or re-throw so the queue retries with backoff.
+     *
+     * The log write, streak increment, and auto-disable flip run under a row
+     * lock so a concurrent delivery can't miscount the streak. The retry throw
+     * happens after the transaction commits.
      */
     private function recordFailure(WebhookSubscription $subscription, AuditRecorder $recorder, ?int $status, string $error, int $durationMs): void
     {
-        $subscription->deliveries()->create([
-            'event_type' => (string) $this->envelope['type'],
-            'event_id' => (string) $this->envelope['id'],
-            'succeeded' => false,
-            'response_status' => $status,
-            'duration_ms' => $durationMs,
-            'attempt' => $this->attempts(),
-            'error' => $error,
-        ]);
+        $disabled = DB::transaction(function () use ($subscription, $recorder, $status, $error, $durationMs): bool {
+            $locked = $this->lockSubscription($subscription);
 
-        $failures = $subscription->consecutive_failures + 1;
-        $subscription->forceFill(['consecutive_failures' => $failures])->save();
+            $locked->deliveries()->create([
+                'event_type' => (string) $this->envelope['type'],
+                'event_id' => (string) $this->envelope['id'],
+                'succeeded' => false,
+                'response_status' => $status,
+                'duration_ms' => $durationMs,
+                'attempt' => $this->attempts(),
+                'error' => $error,
+            ]);
 
-        if ($failures >= (int) config('integrations.webhooks.disable_after')) {
-            $this->autoDisable($subscription, $recorder, $failures);
+            $failures = $locked->consecutive_failures + 1;
+            $locked->forceFill(['consecutive_failures' => $failures])->save();
 
-            return;
-        }
+            if ($failures >= (int) config('integrations.webhooks.disable_after')) {
+                $this->autoDisable($locked, $recorder, $failures);
 
-        throw new RuntimeException('Webhook delivery failed: '.$error);
+                return true;
+            }
+
+            return false;
+        });
+
+        throw_unless($disabled, RuntimeException::class, 'Webhook delivery failed: '.$error);
+    }
+
+    /**
+     * Re-fetch the subscription under a row lock so a concurrent delivery of the
+     * same subscription can't race the health-field update. A revoke that lands
+     * between the delivery attempt and this lock deletes the row, so the fetch
+     * throws and the job fails cleanly (its next run no-ops on the missing row).
+     */
+    private function lockSubscription(WebhookSubscription $subscription): WebhookSubscription
+    {
+        return $subscription->newQuery()
+            ->whereKey($subscription->getKey())
+            ->lockForUpdate()
+            ->firstOrFail();
     }
 
     /**

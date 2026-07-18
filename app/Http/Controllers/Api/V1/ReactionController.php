@@ -25,9 +25,7 @@ class ReactionController extends Controller
 
         $emoji = (string) $request->validated('emoji');
 
-        if (! $this->hasReaction($message, $subject, $emoji)) {
-            $toggleReaction->handle($channel, $message, $subject, $emoji);
-        }
+        $toggleReaction->add($channel, $message, $subject, $emoji);
 
         return response()->json(null, 204);
     }
@@ -47,21 +45,8 @@ class ReactionController extends Controller
 
         $emoji = (string) $request->route('emoji');
 
-        if ($this->hasReaction($message, $subject, $emoji)) {
-            $toggleReaction->handle($channel, $message, $subject, $emoji);
-        }
+        $toggleReaction->remove($channel, $message, $subject, $emoji);
 
         return response()->json(null, 204);
-    }
-
-    /**
-     * Whether the bot already reacted to the message with the given emoji.
-     */
-    private function hasReaction(Message $message, User $subject, string $emoji): bool
-    {
-        return $message->reactions()
-            ->where('user_id', $subject->id)
-            ->where('emoji', $emoji)
-            ->exists();
     }
 }

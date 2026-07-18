@@ -694,6 +694,7 @@
   "The team name does not match.": "Le nom de l’équipe ne correspond pas.",
   "The team owner cannot be removed.": "Le propriétaire de l’équipe ne peut pas être retiré.",
   "The version this instance is running.": "La version exécutée par cette instance.",
+  "The webhook URL must be a public HTTP or HTTPS address.": "L’URL du webhook doit être une adresse HTTP ou HTTPS publique.",
   "Theme": "Thème",
   "There are no public channels left to join.": "Il ne reste aucun canal public à rejoindre.",
   "This account cannot reset its password.": "Ce compte ne peut pas réinitialiser son mot de passe.",

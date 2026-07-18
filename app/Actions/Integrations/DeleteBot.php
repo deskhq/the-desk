@@ -29,7 +29,7 @@ class DeleteBot
         $team = $bot->ownerTeam()->firstOrFail();
         $name = $bot->name;
 
-        DB::transaction(function () use ($bot): void {
+        DB::transaction(function () use ($team, $actor, $bot, $name): void {
             $tombstone = User::tombstone();
 
             Message::withTrashed()
@@ -40,10 +40,10 @@ class DeleteBot
                 ->update(['pinned_by' => $tombstone->id]);
 
             $bot->delete();
-        });
 
-        $this->recorder->record($team, $actor, AuditAction::BotDeleted, $bot, [
-            'bot_name' => $name,
-        ]);
+            $this->recorder->record($team, $actor, AuditAction::BotDeleted, $bot, [
+                'bot_name' => $name,
+            ]);
+        });
     }
 }

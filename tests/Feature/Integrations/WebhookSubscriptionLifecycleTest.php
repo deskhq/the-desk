@@ -2,20 +2,46 @@
 
 declare(strict_types=1);
 
+use App\Actions\Integrations\CreateWebhookSubscription;
 use App\Actions\Integrations\ReenableWebhookSubscription;
 use App\Actions\Integrations\RotateWebhookSecret;
 use App\Enums\AuditAction;
 use App\Enums\TeamRole;
+use App\Enums\WebhookEvent;
 use App\Enums\WebhookSubscriptionStatus;
 use App\Models\AuditActivity;
 use App\Models\Team;
 use App\Models\User;
 use App\Models\WebhookSubscription;
+use App\Support\AuditRecorder;
 
 beforeEach(function (): void {
     $this->team = Team::factory()->create();
     $this->owner = User::factory()->create();
     $this->team->members()->attach($this->owner, ['role' => TeamRole::Owner->value]);
+});
+
+it('rolls back a new subscription when audit recording fails', function (): void {
+    $this->mock(AuditRecorder::class)
+        ->shouldReceive('record')
+        ->andThrow(new RuntimeException('audit down'));
+
+    expect(fn () => app(CreateWebhookSubscription::class)->handle(
+        $this->team,
+        $this->owner,
+        'Doomed',
+        'https://example.test/hooks',
+        [WebhookEvent::MessageCreated->value],
+    ))->toThrow(RuntimeException::class);
+
+    expect(WebhookSubscription::where('team_id', $this->team->id)->exists())->toBeFalse();
+});
+
+it('hides the signing secret from array serialization but keeps it readable in code', function (): void {
+    $subscription = WebhookSubscription::factory()->for($this->team)->create();
+
+    expect($subscription->toArray())->not->toHaveKey('secret')
+        ->and($subscription->secret)->toStartWith('whsec_');
 });
 
 it('re-enables an auto-disabled subscription, clears the failure streak, and audits it', function (): void {

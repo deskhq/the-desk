@@ -117,6 +117,7 @@ production — see [Configuration](/docs/self-hosting/configuration/#reverb-webs
 | `WEBHOOKS_MAX_ATTEMPTS`      | `5`     | [Feature toggles → Integrations platform](/docs/reference/feature-toggles/#outgoing-webhooks) |
 | `WEBHOOKS_TIMEOUT`           | `5`     | [Feature toggles → Integrations platform](/docs/reference/feature-toggles/#outgoing-webhooks) |
 | `WEBHOOKS_DISABLE_AFTER`     | `5`     | [Feature toggles → Integrations platform](/docs/reference/feature-toggles/#outgoing-webhooks) |
+| `WEBHOOKS_BLOCK_PRIVATE_URLS`| `true`  | [Feature toggles → Integrations platform](/docs/reference/feature-toggles/#outgoing-webhooks) |
 
 ## Single sign-on (OpenID Connect)
 

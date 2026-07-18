@@ -110,6 +110,64 @@ it('does not deliver when the integrations platform is disabled', function (): v
     Http::assertNothingSent();
 });
 
+it('skips an already-queued job once the platform is disabled', function (): void {
+    config(['integrations.enabled' => false]);
+    Http::fake();
+
+    (new DeliverWebhook($this->subscription->id, [
+        'id' => (string) Str::uuid(),
+        'type' => WebhookEvent::MessageCreated->value,
+        'created_at' => now()->toIso8601String(),
+        'data' => [],
+    ]))->handle(app(AuditRecorder::class));
+
+    Http::assertNothingSent();
+    expect($this->subscription->deliveries()->count())->toBe(0);
+});
+
+it('refuses to deliver to a non-public URL and logs the blocked attempt', function (): void {
+    $this->subscription->update(['url' => 'http://127.0.0.1/hook']);
+    Http::fake();
+
+    try {
+        (new DeliverWebhook($this->subscription->id, [
+            'id' => (string) Str::uuid(),
+            'type' => WebhookEvent::MessageCreated->value,
+            'created_at' => now()->toIso8601String(),
+            'data' => [],
+        ]))->handle(app(AuditRecorder::class));
+    } catch (RuntimeException) {
+        // expected retry signal
+    }
+
+    Http::assertNothingSent();
+    $delivery = $this->subscription->deliveries()->sole();
+    expect($delivery->succeeded)->toBeFalse()
+        ->and($delivery->response_status)->toBeNull()
+        ->and($delivery->error)->toContain('Blocked non-public');
+});
+
+it('auto-disables a subscription whose URL is blocked once it hits the threshold', function (): void {
+    $threshold = (int) config('integrations.webhooks.disable_after');
+    $this->subscription->update([
+        'url' => 'http://127.0.0.1/hook',
+        'consecutive_failures' => $threshold - 1,
+    ]);
+    Http::fake();
+
+    // The blocked attempt reaches the threshold, so it disables and returns
+    // rather than throwing a retry signal.
+    (new DeliverWebhook($this->subscription->id, [
+        'id' => (string) Str::uuid(),
+        'type' => WebhookEvent::MessageCreated->value,
+        'created_at' => now()->toIso8601String(),
+        'data' => [],
+    ]))->handle(app(AuditRecorder::class));
+
+    Http::assertNothingSent();
+    expect($this->subscription->refresh()->status)->toBe(WebhookSubscriptionStatus::Disabled);
+});
+
 it('retries a failing endpoint, then auto-disables after the threshold and logs every attempt', function (): void {
     Http::fake(['example.test/*' => Http::response('nope', 500)]);
     $threshold = (int) config('integrations.webhooks.disable_after');

@@ -9,6 +9,7 @@ use App\Enums\UserType;
 use App\Models\Team;
 use App\Models\User;
 use App\Support\AuditRecorder;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
 /**
@@ -25,21 +26,23 @@ class CreateBot
 
     public function handle(Team $team, User $actor, string $name): User
     {
-        $bot = new User;
+        return DB::transaction(function () use ($team, $actor, $name): User {
+            $bot = new User;
 
-        $bot->forceFill([
-            'name' => $name,
-            'email' => sprintf('bot-%s@bots.invalid', Str::uuid()),
-            'password' => null,
-            'type' => UserType::Bot,
-            'owner_team_id' => $team->id,
-            'created_by' => $actor->id,
-        ])->save();
+            $bot->forceFill([
+                'name' => $name,
+                'email' => sprintf('bot-%s@bots.invalid', Str::uuid()),
+                'password' => null,
+                'type' => UserType::Bot,
+                'owner_team_id' => $team->id,
+                'created_by' => $actor->id,
+            ])->save();
 
-        $this->recorder->record($team, $actor, AuditAction::BotCreated, $bot, [
-            'bot_name' => $name,
-        ]);
+            $this->recorder->record($team, $actor, AuditAction::BotCreated, $bot, [
+                'bot_name' => $name,
+            ]);
 
-        return $bot;
+            return $bot;
+        });
     }
 }

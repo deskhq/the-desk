@@ -82,6 +82,20 @@ it('rejects an unknown event value', function (): void {
     ])->assertJsonValidationErrorFor('events.0');
 });
 
+it('rejects a non-public webhook URL', function (string $url): void {
+    Sanctum::actingAs($this->bot, ['webhooks:write']);
+
+    $this->postJson('/api/v1/webhooks', [
+        'name' => 'SSRF',
+        'url' => $url,
+        'events' => [WebhookEvent::MessageCreated->value],
+    ])->assertJsonValidationErrorFor('url');
+})->with([
+    'metadata' => 'http://169.254.169.254/latest/meta-data',
+    'loopback' => 'http://127.0.0.1/hook',
+    'localhost' => 'http://localhost/hook',
+]);
+
 it('rejects a channel that is not in the bot’s team', function (): void {
     $foreignChannel = Channel::factory()->create();
 

@@ -8,6 +8,7 @@ use App\Enums\AuditAction;
 use App\Models\User;
 use App\Models\WebhookSubscription;
 use App\Support\AuditRecorder;
+use Illuminate\Support\Facades\DB;
 
 /**
  * Rotates a webhook subscription's signing secret and records it in the audit
@@ -26,12 +27,14 @@ class RotateWebhookSecret
     {
         $secret = WebhookSubscription::generateSecret();
 
-        $subscription->forceFill(['secret' => $secret])->save();
+        return DB::transaction(function () use ($actor, $subscription, $secret): string {
+            $subscription->forceFill(['secret' => $secret])->save();
 
-        $this->recorder->record($subscription->team, $actor, AuditAction::WebhookSubscriptionSecretRotated, $subscription, [
-            'subscription_name' => $subscription->name,
-        ]);
+            $this->recorder->record($subscription->team, $actor, AuditAction::WebhookSubscriptionSecretRotated, $subscription, [
+                'subscription_name' => $subscription->name,
+            ]);
 
-        return $secret;
+            return $secret;
+        });
     }
 }

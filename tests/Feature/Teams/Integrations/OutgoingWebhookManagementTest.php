@@ -59,6 +59,18 @@ it('registers a workspace-wide subscription when no channels are given', functio
     expect($team->webhookSubscriptions()->sole()->channel_ids)->toBeNull();
 });
 
+it('rejects a subscription pointed at a non-public URL', function (): void {
+    ['team' => $team, 'owner' => $owner] = outgoingFixture();
+
+    $this->actingAs($owner)
+        ->post(route('teams.integrations.webhooks.store', $team), [
+            'name' => 'SSRF',
+            'url' => 'http://169.254.169.254/latest/meta-data',
+            'events' => [WebhookEvent::MessageCreated->value],
+        ])
+        ->assertSessionHasErrors('url');
+});
+
 it('rejects a subscription scoped to a channel outside the team', function (): void {
     ['team' => $team, 'owner' => $owner] = outgoingFixture();
     $foreign = Channel::factory()->for(Team::factory()->create())->create();

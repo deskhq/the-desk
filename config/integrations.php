@@ -51,6 +51,15 @@ return [
         'disable_after' => (int) env('WEBHOOKS_DISABLE_AFTER', 5),
 
         /*
+         * SSRF guard for outgoing deliveries. When on (default), webhook URLs
+         * that aren't public http/https addresses — loopback, private,
+         * link-local, and cloud-metadata targets — are rejected both at
+         * registration and again before each delivery. Turn it off for a
+         * locked-down instance that deliberately targets internal endpoints.
+         */
+        'block_private_urls' => (bool) env('WEBHOOKS_BLOCK_PRIVATE_URLS', true),
+
+        /*
          * Seconds to wait before each retry, indexed by the number of prior
          * attempts. The last value is reused once the list is exhausted.
          */
