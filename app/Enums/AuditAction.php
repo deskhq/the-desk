@@ -35,6 +35,8 @@ enum AuditAction: string
     case WebhookSubscriptionCreated = 'webhook_subscription_created';
     case WebhookSubscriptionRevoked = 'webhook_subscription_revoked';
     case WebhookSubscriptionAutoDisabled = 'webhook_subscription_auto_disabled';
+    case WebhookSubscriptionReenabled = 'webhook_subscription_reenabled';
+    case WebhookSubscriptionSecretRotated = 'webhook_subscription_secret_rotated';
 
     /**
      * Get the short human-readable label used in the action filter and headers.
@@ -68,6 +70,8 @@ enum AuditAction: string
             self::WebhookSubscriptionCreated => __('Webhook subscription created'),
             self::WebhookSubscriptionRevoked => __('Webhook subscription revoked'),
             self::WebhookSubscriptionAutoDisabled => __('Webhook subscription auto-disabled'),
+            self::WebhookSubscriptionReenabled => __('Webhook subscription re-enabled'),
+            self::WebhookSubscriptionSecretRotated => __('Webhook secret rotated'),
         };
     }
 
@@ -107,6 +111,8 @@ enum AuditAction: string
             self::WebhookSubscriptionCreated => sprintf(__('Created the “%s” webhook subscription'), $this->text($context, 'subscription_name')),
             self::WebhookSubscriptionRevoked => sprintf(__('Revoked the “%s” webhook subscription'), $this->text($context, 'subscription_name')),
             self::WebhookSubscriptionAutoDisabled => sprintf(__('Auto-disabled the “%s” webhook subscription after %s consecutive failures'), $this->text($context, 'subscription_name'), $this->text($context, 'failures')),
+            self::WebhookSubscriptionReenabled => sprintf(__('Re-enabled the “%s” webhook subscription'), $this->text($context, 'subscription_name')),
+            self::WebhookSubscriptionSecretRotated => sprintf(__('Rotated the signing secret for the “%s” webhook subscription'), $this->text($context, 'subscription_name')),
         };
     }
 

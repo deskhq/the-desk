@@ -21,7 +21,7 @@ class StoreWebhookSubscriptionRequest extends ApiRequest
      */
     public function authorize(): bool
     {
-        return $this->bot()->owner_team_id !== null;
+        return $this->subject()->owner_team_id !== null;
     }
 
     /**
@@ -72,6 +72,6 @@ class StoreWebhookSubscriptionRequest extends ApiRequest
      */
     public function team(): Team
     {
-        return $this->bot()->ownerTeam()->firstOrFail();
+        return $this->subject()->ownerTeam()->firstOrFail();
     }
 }

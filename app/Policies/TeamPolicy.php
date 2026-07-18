@@ -146,4 +146,17 @@ class TeamPolicy
         return ! $team->is_personal
             && ($user->teamRole($team)?->isAtLeast(TeamRole::Admin) ?? false);
     }
+
+    /**
+     * Determine whether the user can manage the team's integrations.
+     *
+     * The integrations surface mints bot credentials and webhook secrets, so it
+     * is scoped to the {@see TeamPermission::ManageIntegrations} holders (Owner +
+     * Admin) of a real (non-personal) workspace.
+     */
+    public function manageIntegrations(User $user, Team $team): bool
+    {
+        return ! $team->is_personal
+            && $user->hasTeamPermission($team, TeamPermission::ManageIntegrations);
+    }
 }

@@ -79,6 +79,7 @@ class DeliverWebhook implements ShouldQueue
 
         $body = (string) json_encode($this->envelope);
         $timestamp = now()->getTimestamp();
+        $startedAt = microtime(true);
 
         try {
             $response = Http::withHeaders([
@@ -91,30 +92,32 @@ class DeliverWebhook implements ShouldQueue
                 ->withBody($body, 'application/json')
                 ->post($subscription->url);
         } catch (Throwable $exception) {
-            $this->recordFailure($subscription, $recorder, null, $this->summarize($exception->getMessage()));
+            $this->recordFailure($subscription, $recorder, null, $this->summarize($exception->getMessage()), $this->elapsedMs($startedAt));
 
             return;
         }
 
         if ($response->successful()) {
-            $this->recordSuccess($subscription, $response);
+            $this->recordSuccess($subscription, $response, $this->elapsedMs($startedAt));
 
             return;
         }
 
-        $this->recordFailure($subscription, $recorder, $response->status(), 'HTTP '.$response->status());
+        $this->recordFailure($subscription, $recorder, $response->status(), 'HTTP '.$response->status(), $this->elapsedMs($startedAt));
     }
 
     /**
      * Log a successful attempt and clear the failure streak.
      */
-    private function recordSuccess(WebhookSubscription $subscription, Response $response): void
+    private function recordSuccess(WebhookSubscription $subscription, Response $response, int $durationMs): void
     {
         $subscription->deliveries()->create([
             'event_type' => (string) $this->envelope['type'],
             'event_id' => (string) $this->envelope['id'],
             'succeeded' => true,
             'response_status' => $response->status(),
+            'duration_ms' => $durationMs,
+            'attempt' => $this->attempts(),
             'error' => null,
         ]);
 
@@ -128,13 +131,15 @@ class DeliverWebhook implements ShouldQueue
      * Log a failed attempt, advance the failure streak, and either auto-disable
      * (streak hit the threshold) or re-throw so the queue retries with backoff.
      */
-    private function recordFailure(WebhookSubscription $subscription, AuditRecorder $recorder, ?int $status, string $error): void
+    private function recordFailure(WebhookSubscription $subscription, AuditRecorder $recorder, ?int $status, string $error, int $durationMs): void
     {
         $subscription->deliveries()->create([
             'event_type' => (string) $this->envelope['type'],
             'event_id' => (string) $this->envelope['id'],
             'succeeded' => false,
             'response_status' => $status,
+            'duration_ms' => $durationMs,
+            'attempt' => $this->attempts(),
             'error' => $error,
         ]);
 
@@ -172,5 +177,14 @@ class DeliverWebhook implements ShouldQueue
     private function summarize(string $message): string
     {
         return mb_substr($message, 0, 255);
+    }
+
+    /**
+     * Wall-clock milliseconds elapsed since the given high-resolution start, for
+     * the delivery log's latency column.
+     */
+    private function elapsedMs(float $startedAt): int
+    {
+        return (int) round((microtime(true) - $startedAt) * 1000);
     }
 }

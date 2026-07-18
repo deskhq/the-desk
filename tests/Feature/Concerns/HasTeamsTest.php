@@ -65,6 +65,19 @@ test('user team dto carries the team member count', function (): void {
     expect($user->toUserTeam($team)->membersCount)->toBe(2);
 });
 
+test('team permissions grant integration management to admins of a real team only', function (): void {
+    $admin = User::factory()->create();
+    $member = User::factory()->create();
+
+    $team = Team::factory()->create();
+    $team->members()->attach($admin, ['role' => TeamRole::Admin->value]);
+    $team->members()->attach($member, ['role' => TeamRole::Member->value]);
+
+    expect($admin->toTeamPermissions($team)->canManageIntegrations)->toBeTrue()
+        ->and($member->toTeamPermissions($team)->canManageIntegrations)->toBeFalse()
+        ->and($admin->toTeamPermissions($admin->personalTeam())->canManageIntegrations)->toBeFalse();
+});
+
 test('fallback team can exclude a given team', function (): void {
     $user = User::factory()->create(['name' => 'Zzz']);
 

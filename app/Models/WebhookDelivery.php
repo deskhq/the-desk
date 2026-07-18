@@ -22,12 +22,14 @@ use Illuminate\Support\Carbon;
  * @property string $event_id
  * @property bool $succeeded
  * @property int|null $response_status
+ * @property int|null $duration_ms
+ * @property int $attempt
  * @property string|null $error
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  * @property-read WebhookSubscription $subscription
  */
-#[Fillable(['webhook_subscription_id', 'event_type', 'event_id', 'succeeded', 'response_status', 'error'])]
+#[Fillable(['webhook_subscription_id', 'event_type', 'event_id', 'succeeded', 'response_status', 'duration_ms', 'attempt', 'error'])]
 class WebhookDelivery extends Model
 {
     /** @use HasFactory<WebhookDeliveryFactory> */
@@ -54,6 +56,8 @@ class WebhookDelivery extends Model
         return [
             'succeeded' => 'boolean',
             'response_status' => 'integer',
+            'duration_ms' => 'integer',
+            'attempt' => 'integer',
         ];
     }
 }

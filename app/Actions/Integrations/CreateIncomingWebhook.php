@@ -7,7 +7,7 @@ use App\Models\Channel;
 use App\Models\IncomingWebhook;
 use App\Models\User;
 use App\Support\AuditRecorder;
-use App\Support\Integrations\BotChannelAccess;
+use App\Support\Integrations\ApiChannelAccess;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
@@ -27,7 +27,7 @@ class CreateIncomingWebhook
      */
     public function handle(User $bot, Channel $channel, User $actor, string $name, bool $withSigningSecret = false): NewIncomingWebhook
     {
-        if (! BotChannelAccess::allows($bot, $channel)) {
+        if (! ApiChannelAccess::allows($bot, $channel)) {
             throw ValidationException::withMessages([
                 'channel' => __('The bot must be a member of the channel.'),
             ]);

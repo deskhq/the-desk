@@ -26,6 +26,8 @@ class WebhookDeliveryFactory extends Factory
             'event_id' => (string) Str::uuid(),
             'succeeded' => true,
             'response_status' => 200,
+            'duration_ms' => fake()->numberBetween(20, 800),
+            'attempt' => 1,
             'error' => null,
         ];
     }

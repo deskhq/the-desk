@@ -55,6 +55,9 @@ it('delivers a signed POST for a subscribed event', function (): void {
     $delivery = $this->subscription->deliveries()->sole();
     expect($delivery->succeeded)->toBeTrue()
         ->and($delivery->response_status)->toBe(200)
+        ->and($delivery->duration_ms)->not->toBeNull()
+        ->and($delivery->duration_ms)->toBeGreaterThanOrEqual(0)
+        ->and($delivery->attempt)->toBe(1)
         ->and($delivery->subscription->is($this->subscription))->toBeTrue();
 
     $this->subscription->refresh();

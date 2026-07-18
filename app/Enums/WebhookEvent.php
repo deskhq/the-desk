@@ -44,4 +44,17 @@ enum WebhookEvent: string
     {
         return array_map(fn (self $event): string => $event->value, self::cases());
     }
+
+    /**
+     * Get the selectable event options for the subscription-management UI.
+     *
+     * @return array<int, array{value: string, label: string}>
+     */
+    public static function options(): array
+    {
+        return array_map(
+            fn (self $event): array => ['value' => $event->value, 'label' => $event->label()],
+            self::cases(),
+        );
+    }
 }

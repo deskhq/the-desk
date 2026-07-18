@@ -190,6 +190,17 @@ class User extends Authenticatable implements HasLocalePreference, MustVerifyEma
     }
 
     /**
+     * The human who created this account (set only for bots), so the
+     * integrations surface can attribute a bot to its creator.
+     *
+     * @return BelongsTo<User, $this>
+     */
+    public function creator(): BelongsTo
+    {
+        return $this->belongsTo(self::class, 'created_by');
+    }
+
+    /**
      * Whether this account is a non-human integration identity (a bot).
      */
     public function isBot(): bool
@@ -245,6 +256,17 @@ class User extends Authenticatable implements HasLocalePreference, MustVerifyEma
                 ->where('users.id', '!=', $this->id)
                 ->doesntExist())
             ->values();
+    }
+
+    /**
+     * The messages this user has authored, newest first — used to surface a
+     * bot's last-post time on the integrations surface.
+     *
+     * @return HasMany<Message, $this>
+     */
+    public function messages(): HasMany
+    {
+        return $this->hasMany(Message::class)->latest();
     }
 
     /**

@@ -119,9 +119,12 @@ exponential backoff. If a subscription's deliveries fail
 times in a row — with no success in between — it is **auto-disabled** and stops
 delivering. Its `status` (surfaced on the API resource, along with
 `consecutive_failures` and `last_success_at`) then reads `disabled`, and the
-event is recorded in the workspace audit log. To resume, register a new
-subscription. Tune the attempt count, per-request timeout, and disable threshold
-with the [`WEBHOOKS_*` variables](/docs/reference/feature-toggles/#outgoing-webhooks).
+event is recorded in the workspace audit log. To resume, **re-enable** the
+subscription from **Team settings → Integrations** (which clears the failure
+streak) or register a new one; the same detail page shows the recent delivery log
+and can **rotate** the signing secret. Tune the attempt count, per-request
+timeout, and disable threshold with the
+[`WEBHOOKS_*` variables](/docs/reference/feature-toggles/#outgoing-webhooks).
 
 Your endpoint should respond `2xx` quickly and do its own work asynchronously,
 and should treat deliveries as **at-least-once** — dedupe on the envelope `id`.
