@@ -1,5 +1,15 @@
 # Changelog
 
+## [1.10.0](https://github.com/emmpaul/the-desk/compare/v1.9.0...v1.10.0) (2026-07-19)
+
+
+### Features
+
+* add DEMO_MODE guard rails for the public demo ([#546](https://github.com/emmpaul/the-desk/issues/546)) ([fe51f8e](https://github.com/emmpaul/the-desk/commit/fe51f8e2d89af2c71dae0cf9a2b489655332abba))
+* add polls with a /poll builder and live voting ([#548](https://github.com/emmpaul/the-desk/issues/548)) ([a4d5885](https://github.com/emmpaul/the-desk/commit/a4d58859a63c21904f8fda4e457ee24ad4dbcbee))
+* integrations platform (bots, REST API, incoming + outgoing webhooks) ([#517](https://github.com/emmpaul/the-desk/issues/517)) ([165471a](https://github.com/emmpaul/the-desk/commit/165471acd0868a1b6246a159eb57d335824bb55b))
+* redesign demo banner and show demo credentials on login ([#551](https://github.com/emmpaul/the-desk/issues/551)) ([5415669](https://github.com/emmpaul/the-desk/commit/5415669e0d3695202dcb5d887a869dfc761d3ad4))
+
 ## [1.9.0](https://github.com/emmpaul/the-desk/compare/v1.8.0...v1.9.0) (2026-07-18)
 
 
