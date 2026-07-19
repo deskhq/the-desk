@@ -14,7 +14,8 @@ export type Team = {
 export type TeamMember = {
     id: string;
     name: string;
-    email: string;
+    /** Only present for roster managers (Owner/Admin); null for plain Members. */
+    email: string | null;
     avatar?: string | null;
     role: TeamRole;
     role_label: string;

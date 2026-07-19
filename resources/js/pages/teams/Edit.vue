@@ -327,7 +327,10 @@ const confirmTransferOwnership = (member: TeamMember) => {
                                 >{{ $t('(you)') }}</span
                             >
                         </Link>
-                        <div class="truncate text-sm text-muted-foreground">
+                        <div
+                            v-if="member.email"
+                            class="truncate text-sm text-muted-foreground"
+                        >
                             {{ member.email }}
                         </div>
                     </div>

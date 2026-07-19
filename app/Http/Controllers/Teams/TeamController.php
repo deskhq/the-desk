@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Teams;
 use App\Actions\Teams\CreateTeam;
 use App\Enums\AuditAction;
 use App\Enums\SecurityEventType;
+use App\Enums\TeamPermission;
 use App\Enums\TeamRole;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Teams\DeleteTeamRequest;
@@ -49,10 +50,18 @@ class TeamController extends Controller
 
     /**
      * Show the team edit page.
+     *
+     * Member emails and the pending-invitation list are sensitive roster data,
+     * so they are only included for users who manage invitations (Owner and
+     * Admin via {@see TeamPermission::CreateInvitation}); plain Members get a
+     * null email per member and an empty invitation list.
      */
     public function edit(Request $request, Team $team): Response
     {
+        Gate::authorize('view', $team);
+
         $user = $request->user();
+        $canViewRoster = Gate::allows('inviteMember', $team);
 
         return Inertia::render('teams/Edit', [
             'team' => [
@@ -62,29 +71,31 @@ class TeamController extends Controller
                 'isPersonal' => $team->is_personal,
                 'role' => $user->teamRole($team)?->value,
             ],
-            'members' => $team->members()->get()->map(function (User $member): array {
+            'members' => $team->members()->get()->map(function (User $member) use ($canViewRoster): array {
                 /** @var Membership $membership */
                 $membership = $member->getRelation('pivot');
 
                 return [
                     'id' => $member->id,
                     'name' => $member->name,
-                    'email' => $member->email,
+                    'email' => $canViewRoster ? $member->email : null,
                     'avatar' => $member->avatar ?? null,
                     'role' => $membership->role->value,
                     'role_label' => $membership->role->label(),
                 ];
             }),
-            'invitations' => $team->invitations()
-                ->whereNull('accepted_at')
-                ->get()
-                ->map(fn ($invitation): array => [
-                    'code' => $invitation->code,
-                    'email' => $invitation->email,
-                    'role' => $invitation->role->value,
-                    'role_label' => $invitation->role->label(),
-                    'created_at' => $invitation->created_at->toISOString(),
-                ]),
+            'invitations' => $canViewRoster
+                ? $team->invitations()
+                    ->whereNull('accepted_at')
+                    ->get()
+                    ->map(fn ($invitation): array => [
+                        'code' => $invitation->code,
+                        'email' => $invitation->email,
+                        'role' => $invitation->role->value,
+                        'role_label' => $invitation->role->label(),
+                        'created_at' => $invitation->created_at->toISOString(),
+                    ])
+                : collect(),
             'permissions' => $user->toTeamPermissions($team),
             'availableRoles' => TeamRole::assignable(),
         ]);
