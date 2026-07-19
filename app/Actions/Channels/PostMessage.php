@@ -4,6 +4,7 @@ namespace App\Actions\Channels;
 
 use App\Data\MessageData;
 use App\Enums\AttachmentStatus;
+use App\Enums\MessageType;
 use App\Enums\WebhookEvent;
 use App\Events\DirectMessageStarted;
 use App\Events\MessageSent;
@@ -13,6 +14,7 @@ use App\Models\Attachment;
 use App\Models\Channel;
 use App\Models\Message;
 use App\Models\User;
+use Closure;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -50,16 +52,24 @@ class PostMessage
      * against the existing row and resolves each already-linked id to a no-op,
      * keeping the path idempotent.
      *
+     * `$type` marks a non-standard message subtype (a poll), and `$afterCreate`
+     * runs inside the create transaction — only on a genuinely new row — to build
+     * that subtype's related records (a poll's options), so they are visible to
+     * the `loadMessageDataRelations()` + broadcast below. A `client_uuid` retry
+     * finds the existing row and skips the hook, keeping the send idempotent.
+     *
      * @param  list<string>  $attachmentIds
+     * @param  (Closure(Message): void)|null  $afterCreate
      */
-    public function handle(Channel $channel, User $author, string $body, string $clientUuid, ?string $replyToId = null, ?string $forwardedFromId = null, ?string $threadRootId = null, bool $sentToChannel = false, bool $clearDraft = true, array $attachmentIds = []): Message
+    public function handle(Channel $channel, User $author, string $body, string $clientUuid, ?string $replyToId = null, ?string $forwardedFromId = null, ?string $threadRootId = null, bool $sentToChannel = false, bool $clearDraft = true, array $attachmentIds = [], MessageType $type = MessageType::Standard, ?Closure $afterCreate = null): Message
     {
-        $message = DB::transaction(function () use ($channel, $author, $body, $clientUuid, $replyToId, $forwardedFromId, $threadRootId, $sentToChannel, $attachmentIds): Message {
+        $message = DB::transaction(function () use ($channel, $author, $body, $clientUuid, $replyToId, $forwardedFromId, $threadRootId, $sentToChannel, $attachmentIds, $type, $afterCreate): Message {
             $message = $channel->messages()->firstOrCreate(
                 ['client_uuid' => $clientUuid],
                 [
                     'user_id' => $author->id,
                     'body' => $body,
+                    'type' => $type,
                     'reply_to_id' => $replyToId,
                     'forwarded_from_id' => $forwardedFromId,
                     'thread_root_id' => $threadRootId,
@@ -72,6 +82,10 @@ class PostMessage
             // message, and claiming resolves each to a no-op so the send stays
             // idempotent (while still rejecting an id claimed by another message).
             $this->claimAttachments($channel, $author, $message, $attachmentIds);
+
+            if ($message->wasRecentlyCreated && $afterCreate instanceof Closure) {
+                $afterCreate($message);
+            }
 
             return $message;
         });

@@ -62,6 +62,18 @@ class MessageFactory extends Factory
     }
 
     /**
+     * Indicate that the message is a poll: a bodyless, first-class row whose
+     * votable question and options live in the related `polls` table.
+     */
+    public function poll(): static
+    {
+        return $this->state(fn (array $attributes): array => [
+            'type' => MessageType::Poll,
+            'body' => '',
+        ]);
+    }
+
+    /**
      * Indicate that the message has been edited.
      */
     public function edited(): static

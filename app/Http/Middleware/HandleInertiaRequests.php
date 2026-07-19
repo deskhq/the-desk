@@ -121,6 +121,10 @@ class HandleInertiaRequests extends Middleware
             // `/gif` command is absent from autocomplete), matching the 404 the
             // search/attach endpoints return when unconfigured.
             'gifPickerEnabled' => filled(config('services.giphy.key')),
+            // Whether the `/poll` builder is available. False fully hides the
+            // builder client-side (and the `/poll` command is absent from
+            // autocomplete), matching the 404 the poll endpoints return when off.
+            'pollsEnabled' => (bool) config('polls.enabled'),
             // The instance's version standing, so authenticated users see a
             // low-key "update available" indicator when the self-hosted release
             // is behind. `current` is always present; `latest`/`notesUrl` fill in
