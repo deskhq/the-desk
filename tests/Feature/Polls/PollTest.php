@@ -178,18 +178,39 @@ test('a single-choice vote can be cast, swapped, and retracted', function (): vo
 });
 
 /**
- * Collect the queries in the log that take a FOR UPDATE lock on the polls table.
+ * Record the queries a vote request runs, as full query-log entries.
  *
- * @param  list<array{query: string}>  $queryLog
- * @return list<string>
+ * @return list<array{query: string, bindings: array<int, mixed>}>
  */
-function pollRowLockQueries(array $queryLog): array
+function voteQueryLog(User $actor, Team $team, Channel $channel, Poll $poll, PollOption $option): array
 {
-    return collect($queryLog)
-        ->map(fn (array $query): string => $query['query'])
-        ->filter(fn (string $sql): bool => str_contains($sql, 'from "polls"') && str_contains($sql, 'for update'))
-        ->values()
-        ->all();
+    DB::connection()->flushQueryLog();
+    DB::enableQueryLog();
+
+    try {
+        votePoll($actor, $team, $channel, $poll, $option)->assertRedirect();
+
+        return DB::getQueryLog();
+    } finally {
+        DB::disableQueryLog();
+    }
+}
+
+/**
+ * The index of the first log entry matching every given SQL fragment, or null.
+ *
+ * @param  list<array{query: string, bindings: array<int, mixed>}>  $queryLog
+ * @param  list<string>  $fragments
+ */
+function queryIndexMatching(array $queryLog, array $fragments): ?int
+{
+    $index = collect($queryLog)->search(
+        fn (array $entry): bool => collect($fragments)->every(
+            fn (string $fragment): bool => str_contains($entry['query'], $fragment),
+        ),
+    );
+
+    return $index === false ? null : $index;
 }
 
 // The double-vote race itself (two requests interleaving between the clear and
@@ -202,24 +223,25 @@ test('a single-choice vote locks the poll row so concurrent votes serialize', fu
     [$owner, $team, $general] = pollTeam();
     $poll = makePoll($general, $owner, ['A', 'B']);
 
-    DB::enableQueryLog();
-    votePoll($owner, $team, $general, $poll, $poll->options[0])->assertRedirect();
-    $lockQueries = pollRowLockQueries(DB::getQueryLog());
-    DB::disableQueryLog();
+    $queryLog = voteQueryLog($owner, $team, $general, $poll, $poll->options[0]);
 
-    expect($lockQueries)->not->toBeEmpty();
+    $lockIndex = queryIndexMatching($queryLog, ['from "polls"', 'for update']);
+    $insertIndex = queryIndexMatching($queryLog, ['insert into "poll_votes"']);
+
+    expect($lockIndex)->not->toBeNull()
+        ->and($queryLog[$lockIndex]['bindings'])->toContain($poll->id)
+        ->and($insertIndex)->not->toBeNull()
+        ->and($lockIndex)->toBeLessThan($insertIndex);
 });
 
 test('a multiple-choice vote does not lock the poll row', function (): void {
     [$owner, $team, $general] = pollTeam();
     $poll = makePoll($general, $owner, ['A', 'B'], fn ($f) => $f->multiChoice());
 
-    DB::enableQueryLog();
-    votePoll($owner, $team, $general, $poll, $poll->options[0])->assertRedirect();
-    $lockQueries = pollRowLockQueries(DB::getQueryLog());
-    DB::disableQueryLog();
+    $queryLog = voteQueryLog($owner, $team, $general, $poll, $poll->options[0]);
 
-    expect($lockQueries)->toBeEmpty();
+    expect(queryIndexMatching($queryLog, ['from "polls"', 'for update']))->toBeNull()
+        ->and(queryIndexMatching($queryLog, ['insert into "poll_votes"']))->not->toBeNull();
 });
 
 test('a multiple-choice vote toggles each option independently', function (): void {
