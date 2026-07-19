@@ -17,6 +17,7 @@ use App\Enums\AuditAction;
 use App\Enums\ChannelVisibility;
 use App\Enums\NotificationLevel;
 use App\Enums\UserType;
+use App\Events\UserTyping;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Channels\CreateChannelRequest;
 use App\Models\Channel;
@@ -27,6 +28,7 @@ use App\Support\ChannelTimelineWindow;
 use Illuminate\Contracts\Pagination\CursorPaginator;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response as HttpResponse;
 use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -284,6 +286,23 @@ class ChannelController extends Controller
         $markChannelRead->handle($channel, $request->user());
 
         return back();
+    }
+
+    /**
+     * Broadcast that the current user is composing a message in the channel.
+     *
+     * The typist identity is taken from the authenticated user — never from the
+     * request body — so a channel member cannot spoof another member's typing
+     * indicator (the reason this replaced the client-to-client whisper). The
+     * broadcast goes to others only; the typist never sees their own indicator.
+     */
+    public function typing(Request $request, Team $team, Channel $channel): HttpResponse
+    {
+        Gate::authorize('postMessage', $channel);
+
+        broadcast(new UserTyping($channel, UserData::fromUser($request->user())))->toOthers();
+
+        return response()->noContent();
     }
 
     /**

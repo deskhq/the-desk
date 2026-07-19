@@ -2,11 +2,6 @@
 
 use Inertia\Testing\AssertableInertia as Assert;
 
-afterEach(function (): void {
-    putenv('REGISTRATION_ENABLED');
-    unset($_ENV['REGISTRATION_ENABLED'], $_SERVER['REGISTRATION_ENABLED']);
-});
-
 test('registration routes respond when registration is enabled', function (): void {
     $this->reloadWithRegistrationEnabled(true);
 

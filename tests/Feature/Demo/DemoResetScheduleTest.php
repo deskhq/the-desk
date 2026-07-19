@@ -4,11 +4,6 @@ use Illuminate\Console\Scheduling\Event;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Support\Facades\Artisan;
 
-afterEach(function (): void {
-    putenv('DEMO_MODE');
-    unset($_ENV['DEMO_MODE'], $_SERVER['DEMO_MODE']);
-});
-
 /**
  * The scheduled `demo:seed` reset event, loading the console schedule first so a
  * fresh (post-reload) application has its events registered.

@@ -4,11 +4,6 @@ use App\Actions\Teams\CreateTeam;
 use App\Models\Channel;
 use App\Models\User;
 
-afterEach(function (): void {
-    putenv('DEMO_MODE');
-    unset($_ENV['DEMO_MODE'], $_SERVER['DEMO_MODE']);
-});
-
 /**
  * A team owner in their seeded #general channel, plus the message-store URL.
  *

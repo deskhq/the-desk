@@ -41,7 +41,7 @@ export interface ChannelRealtimeOptions {
     isNearBottom: () => boolean;
     /** Follow a live append down, or raise the "new messages" count instead. */
     notifyAppended: (wasNearBottom: boolean) => void;
-    /** The channel's typing indicator, for whisper receipt and settle-on-send. */
+    /** The channel's typing indicator, for broadcast receipt and settle-on-send. */
     typing: TypingIndicator;
     /** Advance the channel's read pointer (a message landed while focused). */
     markRead: () => void;
@@ -58,8 +58,8 @@ function channelName(id: string): string {
 
 /**
  * Own the *active* channel's realtime lifecycle: subscribe to its Echo channel,
- * route the five broadcast events plus typing whispers into the two message
- * streams, and move the subscription when the open channel changes.
+ * route the broadcast events (including typing) into the two message streams,
+ * and move the subscription when the open channel changes.
  *
  * The subscribe/leave bookkeeping rides {@see createChannelFleet} — the same
  * engine behind {@see useChannelFleetSubscription} — driven as a single-element
@@ -217,7 +217,14 @@ export function useChannelRealtime(options: ChannelRealtimeOptions): void {
                         options.readers.value = next;
                     },
                 )
-                .listenForWhisper('typing', (user: TypingUser) => {
+                .listen('UserTyping', (user: TypingUser) => {
+                    // The server broadcasts to others only, but that exclusion
+                    // rides the X-Socket-ID header — if it was ever missing, the
+                    // typist's own signal would echo back, so drop it here too.
+                    if (user.id === options.currentUserId()) {
+                        return;
+                    }
+
                     options.typing.receiveTyping(user);
                 });
         },
