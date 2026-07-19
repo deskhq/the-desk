@@ -140,6 +140,7 @@ email, otherwise created — into the default team as a **Member**. Leave
 | `SSO_OIDC_DISCOVERY_URL` | *(derived from issuer)*          | Override only if discovery is not at the standard well-known path.         |
 | `SSO_OIDC_SCOPES`        | `openid profile email`           | Space-separated OIDC scopes to request.                                   |
 | `SSO_OIDC_VALIDATE_ID_TOKEN` | `true`                       | When the provider returns an `id_token`, verify its signature (via the provider JWKS), issuer, audience, and expiry, and require its subject to match the UserInfo subject. Defence-in-depth; set `false` only for a non-conformant provider whose `id_token` cannot be validated. |
+| `SSO_OIDC_REQUIRE_VERIFIED_EMAIL` | `false`                 | A login whose UserInfo reports `email_verified: false` is **always** rejected — never linked to an existing account nor provisioned. Set `true` to also reject logins whose UserInfo **omits** the claim entirely (fail-closed). Off by default because many conformant IdPs never send the claim. |
 | `SSO_DEFAULT_TEAM_ID`    | *(sole team)*                    | Team new SSO users join as a Member. Blank uses the sole team when there is exactly one; otherwise the account gets its own workspace. Shared with LDAP. |
 | `AUTH_SSO_ONLY`          | `false`                          | Route **all** access through SSO (OIDC or LDAP). See [SSO-only mode](/docs/reference/feature-toggles/#sso-only-mode). |
 

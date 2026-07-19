@@ -7,6 +7,8 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Laravel\Socialite\AbstractUser;
+use Laravel\Socialite\Contracts\User as OidcUser;
 use Laravel\Socialite\Facades\Socialite;
 use Symfony\Component\HttpFoundation\RedirectResponse as SymfonyRedirectResponse;
 use Throwable;
@@ -49,7 +51,7 @@ class OidcController extends Controller
                 return $this->failed();
             }
 
-            $user = $provisionSsoUser->handle($this->providerKey(), (string) $subject, $email, $oidcUser->getName());
+            $user = $provisionSsoUser->handle($this->providerKey(), (string) $subject, $email, $oidcUser->getName(), emailVerified: $this->emailVerified($oidcUser));
         } catch (Throwable $e) {
             // Report before the friendly redirect so ops can tell a denied grant
             // from an IdP outage or a provisioning bug — otherwise every failure
@@ -81,6 +83,34 @@ class OidcController extends Controller
     private function providerKey(): string
     {
         return 'oidc:'.rtrim((string) config('services.oidc.issuer'), '/');
+    }
+
+    /**
+     * Whether the IdP asserts this profile's email address as verified.
+     *
+     * Read from the raw UserInfo `email_verified` claim, which arrives as a
+     * real boolean or as the string "true"/"false" depending on the IdP — both
+     * forms are coerced. An absent claim is treated as verified by default
+     * (many conformant IdPs simply omit it); SSO_OIDC_REQUIRE_VERIFIED_EMAIL
+     * flips that to fail-closed for operators who want an explicit assertion
+     * on every login. An unparseable claim value is treated the same as an
+     * absent one rather than guessing a meaning for it.
+     */
+    private function emailVerified(OidcUser $oidcUser): bool
+    {
+        $claims = $oidcUser instanceof AbstractUser ? (array) $oidcUser->getRaw() : [];
+
+        $claim = $claims['email_verified'] ?? null;
+
+        if (is_bool($claim)) {
+            return $claim;
+        }
+
+        return match (is_string($claim) ? strtolower($claim) : null) {
+            'true' => true,
+            'false' => false,
+            default => ! config('sso.oidc.require_verified_email'),
+        };
     }
 
     /**

@@ -5,6 +5,7 @@ namespace App\Actions\Sso;
 use App\Actions\Teams\CreateTeam;
 use App\Enums\SecurityEventType;
 use App\Enums\TeamRole;
+use App\Exceptions\Sso\UnverifiedSsoEmailException;
 use App\Models\SsoIdentity;
 use App\Models\Team;
 use App\Models\User;
@@ -39,10 +40,23 @@ class ProvisionSsoUser
      * ignored rather than wiping the current one). Directories that push
      * attributes on each bind — LDAP/AD — opt in; a JIT-created account already
      * carries the supplied name, so only the returning-user paths need it.
+     *
+     * $emailVerified is the caller's assertion that the directory vouches for
+     * the email. Only OIDC passes it explicitly (derived from the UserInfo
+     * `email_verified` claim — see OidcController), because a lax IdP will mint
+     * tokens for a self-asserted address and email-matching would then hand the
+     * attacker an existing local account. SCIM and LDAP callers rely on the
+     * default: there the transport itself is the trust anchor (a bearer-token
+     * push from the IdP, or a successful directory bind) and no equivalent
+     * per-login claim exists to check. When the flag is false the sign-in is
+     * rejected outright — no link *and* no new account, so an unverified email
+     * cannot squat a future colleague's address either. The subject fast path
+     * (matching step 1) is deliberately exempt: that user's identity was
+     * already established, and their email is not being matched on.
      */
-    public function handle(string $provider, string $providerId, string $email, ?string $name, bool $syncName = false): User
+    public function handle(string $provider, string $providerId, string $email, ?string $name, bool $syncName = false, bool $emailVerified = true): User
     {
-        return DB::transaction(function () use ($provider, $providerId, $email, $name, $syncName): User {
+        return DB::transaction(function () use ($provider, $providerId, $email, $name, $syncName, $emailVerified): User {
             $email = strtolower($email);
 
             $identity = SsoIdentity::query()
@@ -56,6 +70,8 @@ class ProvisionSsoUser
 
                 return $user;
             }
+
+            throw_unless($emailVerified, UnverifiedSsoEmailException::class, 'The directory did not assert the email address as verified.');
 
             $user = User::query()->whereRaw('lower(email) = ?', [$email])->first();
 
