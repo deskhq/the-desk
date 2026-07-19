@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.10.1](https://github.com/emmpaul/the-desk/compare/v1.10.0...v1.10.1) (2026-07-19)
+
+
+### Bug Fixes
+
+* block SSRF in webhook delivery via redirects and DNS ([#566](https://github.com/emmpaul/the-desk/issues/566)) ([ef0eef6](https://github.com/emmpaul/the-desk/commit/ef0eef6177899ebaffd9a0bb3c17ad9a47ec8c65))
+* enforce OIDC email_verified before account linking ([#564](https://github.com/emmpaul/the-desk/issues/564)) ([92a98fa](https://github.com/emmpaul/the-desk/commit/92a98fa57ac1cd019369ab6b7be744676321fd76))
+* throttle the 2FA challenge and passkey endpoints ([#565](https://github.com/emmpaul/the-desk/issues/565)) ([0c3003c](https://github.com/emmpaul/the-desk/commit/0c3003c4be4cfe32f1eaaa1ab1e94be9c8881ff7))
+
 ## [1.10.0](https://github.com/emmpaul/the-desk/compare/v1.9.0...v1.10.0) (2026-07-19)
 
 
