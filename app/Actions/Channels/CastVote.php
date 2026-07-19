@@ -23,10 +23,19 @@ class CastVote
      * vote on this poll is cleared first, so at most one stands. A multiple-choice
      * poll toggles each option independently. The tally is then re-aggregated
      * without a viewer and broadcast, so every open timeline patches live.
+     *
+     * Single-choice votes first take a FOR UPDATE lock on the poll row: without
+     * it, two concurrent requests for different options can both pass the clear
+     * step and leave two standing votes. Locking the user's existing vote rows
+     * instead would not close the race — a first-time voter has none to lock.
      */
     public function handle(Channel $channel, Poll $poll, PollOption $option, User $user): void
     {
         DB::transaction(function () use ($poll, $option, $user): void {
+            if (! $poll->allow_multiple) {
+                Poll::query()->whereKey($poll->getKey())->lockForUpdate()->first();
+            }
+
             $existing = $option->votes()->where('user_id', $user->id)->first();
 
             if ($existing !== null) {

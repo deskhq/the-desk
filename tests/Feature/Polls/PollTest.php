@@ -13,6 +13,7 @@ use App\Models\PollVote;
 use App\Models\Team;
 use App\Models\User;
 use Database\Factories\PollFactory;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Str;
 
@@ -174,6 +175,51 @@ test('a single-choice vote can be cast, swapped, and retracted', function (): vo
 
     Event::assertDispatched(PollVoteChanged::class, fn (PollVoteChanged $event): bool => $event->messageId === $poll->message_id
         && $event->broadcastOn()[0]->name === 'private-channel.'.$general->id);
+});
+
+/**
+ * Collect the queries in the log that take a FOR UPDATE lock on the polls table.
+ *
+ * @param  list<array{query: string}>  $queryLog
+ * @return list<string>
+ */
+function pollRowLockQueries(array $queryLog): array
+{
+    return collect($queryLog)
+        ->map(fn (array $query): string => $query['query'])
+        ->filter(fn (string $sql): bool => str_contains($sql, 'from "polls"') && str_contains($sql, 'for update'))
+        ->values()
+        ->all();
+}
+
+// The double-vote race itself (two requests interleaving between the clear and
+// the insert) cannot be reproduced under RefreshDatabase — the test wraps in a
+// transaction a second connection could never see into — so these tests assert
+// the serializing poll-row lock that closes it. Locking the voter's existing
+// vote rows would not be enough: a first-time voter has none, so two concurrent
+// first votes on different options would each lock nothing and both insert.
+test('a single-choice vote locks the poll row so concurrent votes serialize', function (): void {
+    [$owner, $team, $general] = pollTeam();
+    $poll = makePoll($general, $owner, ['A', 'B']);
+
+    DB::enableQueryLog();
+    votePoll($owner, $team, $general, $poll, $poll->options[0])->assertRedirect();
+    $lockQueries = pollRowLockQueries(DB::getQueryLog());
+    DB::disableQueryLog();
+
+    expect($lockQueries)->not->toBeEmpty();
+});
+
+test('a multiple-choice vote does not lock the poll row', function (): void {
+    [$owner, $team, $general] = pollTeam();
+    $poll = makePoll($general, $owner, ['A', 'B'], fn ($f) => $f->multiChoice());
+
+    DB::enableQueryLog();
+    votePoll($owner, $team, $general, $poll, $poll->options[0])->assertRedirect();
+    $lockQueries = pollRowLockQueries(DB::getQueryLog());
+    DB::disableQueryLog();
+
+    expect($lockQueries)->toBeEmpty();
 });
 
 test('a multiple-choice vote toggles each option independently', function (): void {
