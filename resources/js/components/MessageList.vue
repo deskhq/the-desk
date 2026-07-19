@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import DOMPurify from 'dompurify';
 import { usePage } from '@inertiajs/vue3';
 import { Bot, Clock, Pin } from '@lucide/vue';
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
@@ -704,6 +705,15 @@ function confirmDelete(): void {
 
     pendingDelete.value = null;
 }
+
+function sanitizeHtml(html: string): string {
+    return html
+        ? DOMPurify.sanitize(html, {
+              ALLOWED_TAGS: ['span', 'p', 'strong', 'em', 'del', 'code', 'br', 'a', 'img'],
+              ALLOWED_ATTR: ['class', 'href', 'target', 'rel', 'src', 'alt', 'title'],
+          })
+        : '';
+}
 </script>
 
 <template>
@@ -1067,7 +1077,7 @@ function confirmDelete(): void {
                                     >
                                         <span
                                             v-if="segment.kind === 'html'"
-                                            v-html="segment.html"
+                                            v-html="sanitizeHtml(segment.html)"
                                         ></span>
                                         <InlineMarks
                                             v-else-if="
