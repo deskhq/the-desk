@@ -306,6 +306,17 @@ cmd_create() {
         upsert_env "${path}/.env" FORWARD_DB_PORT "$db_port"
         upsert_env "${path}/.env" COMPOSE_PROJECT_NAME "$project"
         upsert_env "${path}/.env" APP_URL "http://localhost:${app_port}"
+        # Auth toggles inherited from the main checkout can strip the register
+        # route (config/fortify.php gates Features::registration() on
+        # REGISTRATION_ENABLED / AUTH_SSO_ONLY / DEMO_MODE), and without it
+        # Wayfinder never emits resources/js/routes/register, so the bootstrap's
+        # `npm run build` dies on an unresolvable import (issue #563). Force the
+        # registration-friendly defaults; like the port overrides above, this
+        # only runs when generating a fresh .env, so a manually edited worktree
+        # .env is preserved on resume.
+        upsert_env "${path}/.env" DEMO_MODE false
+        upsert_env "${path}/.env" REGISTRATION_ENABLED true
+        upsert_env "${path}/.env" AUTH_SSO_ONLY false
     fi
 
     # --- compose override -----------------------------------------------------
