@@ -71,7 +71,7 @@ class DeliverWebhook implements ShouldQueue
     /**
      * Attempt one delivery.
      */
-    public function handle(AuditRecorder $recorder): void
+    public function handle(AuditRecorder $recorder, WebhookUrlGuard $guard): void
     {
         if (! config('integrations.enabled')) {
             return;
@@ -89,6 +89,14 @@ class DeliverWebhook implements ShouldQueue
             return;
         }
 
+        $pinnedIp = $guard->resolveDeliveryIp($subscription->url);
+
+        if ($pinnedIp === false) {
+            $this->recordFailure($subscription, $recorder, null, 'Blocked webhook URL resolving to a non-public address', 0);
+
+            return;
+        }
+
         $body = (string) json_encode($this->envelope);
         $timestamp = now()->getTimestamp();
         $startedAt = microtime(true);
@@ -101,7 +109,7 @@ class DeliverWebhook implements ShouldQueue
                 'X-Desk-Signature' => WebhookSignature::header($subscription->secret, $body, $timestamp),
             ])
                 ->timeout((int) config('integrations.webhooks.timeout'))
-                ->withOptions(['allow_redirects' => false])
+                ->withOptions($this->transportOptions($subscription->url, $pinnedIp))
                 ->withBody($body, 'application/json')
                 ->post($subscription->url);
         } catch (Throwable $exception) {
@@ -117,6 +125,32 @@ class DeliverWebhook implements ShouldQueue
         }
 
         $this->recordFailure($subscription, $recorder, $response->status(), 'HTTP '.$response->status(), $this->elapsedMs($startedAt));
+    }
+
+    /**
+     * Guzzle options for the delivery request: redirects disabled (a redirect
+     * would bounce the signed POST onto a target the URL guard never vetted),
+     * and — when the guard resolved a hostname — the connection pinned to the
+     * vetted IP so a DNS rebind between validation and connect can't retarget
+     * it either.
+     *
+     * @return array<string, mixed>
+     */
+    private function transportOptions(string $url, ?string $pinnedIp): array
+    {
+        $options = ['allow_redirects' => false];
+
+        if ($pinnedIp === null) {
+            return $options;
+        }
+
+        $parts = parse_url($url);
+        $host = (string) ($parts['host'] ?? '');
+        $port = (int) ($parts['port'] ?? (strtolower((string) ($parts['scheme'] ?? '')) === 'http' ? 80 : 443));
+
+        $options['curl'] = [CURLOPT_RESOLVE => [sprintf('%s:%d:%s', $host, $port, $pinnedIp)]];
+
+        return $options;
     }
 
     /**

@@ -186,7 +186,7 @@ tunable:
 | `WEBHOOKS_MAX_ATTEMPTS` | `5`     | Attempts per event before giving up, each retried with exponential backoff. |
 | `WEBHOOKS_TIMEOUT`      | `5`     | Seconds each delivery request may run before it counts as a failed attempt. |
 | `WEBHOOKS_DISABLE_AFTER`| `5`     | Consecutive failed deliveries (with no success in between) after which a subscription is **auto-disabled** and stops delivering. |
-| `WEBHOOKS_BLOCK_PRIVATE_URLS` | `true` | **SSRF guard.** Rejects webhook URLs that aren't public `http`/`https` addresses — loopback, private, link-local, and cloud-metadata (`169.254.169.254`) targets, plus `localhost`/`.local`/`.internal` hostnames — both when a subscription is registered and again before every delivery. Turn off only for a locked-down instance that deliberately targets internal endpoints. |
+| `WEBHOOKS_BLOCK_PRIVATE_URLS` | `true` | **SSRF guard.** Rejects webhook URLs that aren't public `http`/`https` addresses — loopback, private, link-local, and cloud-metadata (`169.254.169.254`) targets, plus `localhost`/`.local`/`.internal` hostnames — both when a subscription is registered and again before every delivery. Before connecting, delivery also resolves the hostname, blocks it if any resolved address is non-public, and pins the connection to the vetted IP (closing DNS-rebinding attacks); deliveries never follow HTTP redirects. Turn off only for a locked-down instance that deliberately targets internal endpoints. |
 
 Webhooks ride on the same `INTEGRATIONS_ENABLED` master switch — turning the
 platform off stops all delivery immediately, including jobs already queued.

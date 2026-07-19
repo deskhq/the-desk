@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Support\Webhooks;
 
+use App\Support\HostResolver;
+
 /**
  * Decides whether a webhook destination URL is safe to deliver to, guarding the
  * outgoing-webhook feature against SSRF: a bot-token holder (or settings admin)
@@ -17,16 +19,18 @@ namespace App\Support\Webhooks;
  *    switch. When false the guard passes everything, for a locked-down
  *    self-hosted instance that deliberately targets internal-only endpoints.
  *
- * The guard blocks by scheme, by literal non-public IP (v4 and v6), and by
- * local hostname — no DNS lookup, so it's deterministic and covers the common
- * SSRF targets (the cloud-metadata endpoint is a literal IP, loopback and
- * private ranges are literals, and `localhost`/`.local`/`.internal` are named).
- * It does not resolve arbitrary hostnames, so a public name that an attacker
- * points at a private address via DNS is out of scope here — front that with
- * network egress rules if it matters for your deployment.
+ * The static {@see self::isPublic()} check blocks by scheme, by literal
+ * non-public IP (v4 and v6), and by local hostname — no DNS lookup, so it's
+ * deterministic and cheap enough to run in the creation-time validation rule.
+ * The delivery-time {@see self::resolveDeliveryIp()} check is the authoritative
+ * one: it resolves the hostname and rejects the URL when any resolved address
+ * is non-public, returning the vetted IP so the delivery can pin its connection
+ * to it (closing the DNS-rebinding window between validation and connect).
  */
 class WebhookUrlGuard
 {
+    public function __construct(private readonly HostResolver $resolver) {}
+
     /**
      * Host names that always resolve to the local machine, rejected by name.
      *
@@ -69,6 +73,46 @@ class WebhookUrlGuard
         }
 
         return ! self::isBlockedHost($host);
+    }
+
+    /**
+     * Resolve the URL's host for delivery and decide whether to connect.
+     *
+     * Returns the vetted public IP to pin the connection to when the host is a
+     * hostname, `null` when there is nothing to pin (the guard is disabled, or
+     * the host is a literal IP already vetted by {@see self::isPublic()}), and
+     * `false` when the delivery must be blocked (the host does not resolve, or
+     * any resolved address is private/reserved).
+     */
+    public function resolveDeliveryIp(string $url): string|false|null
+    {
+        if (! (bool) config('integrations.webhooks.block_private_urls', true)) {
+            return null;
+        }
+
+        $host = trim((string) (parse_url($url, PHP_URL_HOST) ?? ''), '[]');
+
+        if ($host === '') {
+            return false;
+        }
+
+        if (filter_var($host, FILTER_VALIDATE_IP) !== false) {
+            return null;
+        }
+
+        $ips = $this->resolver->resolve($host);
+
+        if ($ips === []) {
+            return false;
+        }
+
+        foreach ($ips as $ip) {
+            if (! self::isPublicIp($ip)) {
+                return false;
+            }
+        }
+
+        return $ips[0];
     }
 
     /**
