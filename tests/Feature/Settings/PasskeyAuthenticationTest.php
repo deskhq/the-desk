@@ -189,6 +189,34 @@ test('guests can retrieve passkey login options for passwordless sign-in', funct
         ->assertJsonStructure(['options']);
 });
 
+test('the guest passkey login endpoints are rate limited', function (): void {
+    // The passwordless login ceremony is an unauthenticated entry point; the
+    // throttle keys on the IP since no identity exists yet.
+    config(['fortify.passkeys_enabled' => true, 'sso.enforced' => false]);
+
+    foreach (range(1, 5) as $attempt) {
+        $this->getJson(route('passkey.login-options'))->assertOk();
+    }
+
+    $this->getJson(route('passkey.login-options'))->assertTooManyRequests();
+});
+
+test('the authenticated passkey management endpoints are rate limited', function (): void {
+    // Once signed in, the throttle keys on the user id so one account cannot
+    // hammer the WebAuthn ceremony endpoints.
+    config(['fortify.passkeys_enabled' => true]);
+
+    $user = User::factory()->create();
+
+    $this->actingAs($user)->withSession(['auth.password_confirmed_at' => time()]);
+
+    foreach (range(1, 5) as $attempt) {
+        $this->getJson(route('passkey.registration-options'))->assertOk();
+    }
+
+    $this->getJson(route('passkey.registration-options'))->assertTooManyRequests();
+});
+
 test('passkey endpoints are blocked when the toggle is off', function (): void {
     // The routes stay registered (for a stable frontend build) but the
     // middleware short-circuits them so the disabled feature is truly off — the

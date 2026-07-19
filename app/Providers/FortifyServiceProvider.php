@@ -183,6 +183,18 @@ class FortifyServiceProvider extends ServiceProvider
             return Limit::perMinute(5)->by($throttleKey);
         });
 
+        // The 2FA challenge runs on a session already past the password step, so
+        // it is keyed by the pending login id — an attacker holding the password
+        // gets five TOTP/recovery-code guesses a minute, not free rein over the
+        // 6-digit space. Falls back to the IP when no login is pending.
+        RateLimiter::for('two-factor', fn (Request $request): Limit => Limit::perMinute(5)
+            ->by('two-factor|'.($request->session()->get('login.id') ?? $request->ip())));
+
+        // Passkey routes span the guest login ceremony (no identity yet — key by
+        // IP) and the authenticated management endpoints (key by user id).
+        RateLimiter::for('passkeys', fn (Request $request): Limit => Limit::perMinute(5)
+            ->by('passkeys|'.($request->user()?->getAuthIdentifier() ?? $request->ip())));
+
     }
 
     /**

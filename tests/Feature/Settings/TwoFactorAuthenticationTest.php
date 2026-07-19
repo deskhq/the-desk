@@ -232,3 +232,39 @@ test('a valid TOTP code completes the two factor challenge', function (): void {
 
     expect(auth()->check())->toBeTrue();
 });
+
+test('the two factor challenge submit is rate limited', function (): void {
+    // An attacker holding the password lands on the 2FA-pending session; without
+    // a throttle the 6-digit TOTP space is brute-forceable within its validity
+    // window, defeating the second factor.
+    config(['fortify.two_factor_enabled' => true]);
+
+    $user = enrolledTwoFactorUser();
+
+    $this->post(route('login.store'), [
+        'email' => $user->email,
+        'password' => 'password',
+    ]);
+
+    foreach (range(1, 5) as $attempt) {
+        $this->post(route('two-factor.login.store'), ['code' => '000000'])
+            ->assertRedirect();
+    }
+
+    $this->post(route('two-factor.login.store'), ['code' => '000000'])
+        ->assertTooManyRequests();
+});
+
+test('the two factor challenge throttle falls back to the IP without a pending login', function (): void {
+    // A direct hit with no 2FA-pending session has no login id to key on; the
+    // limiter must still resolve a key rather than fail open.
+    config(['fortify.two_factor_enabled' => true]);
+
+    foreach (range(1, 5) as $attempt) {
+        $this->post(route('two-factor.login.store'), ['code' => '000000'])
+            ->assertRedirect();
+    }
+
+    $this->post(route('two-factor.login.store'), ['code' => '000000'])
+        ->assertTooManyRequests();
+});
