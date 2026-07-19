@@ -44,6 +44,8 @@ const emit = defineEmits<{
     delete: [message: Message];
     forward: [message: Message];
     react: [message: Message, emoji: string];
+    vote: [message: Message, optionId: string];
+    closePoll: [message: Message];
     pin: [message: Message];
     unpin: [message: Message];
     remind: [message: Message, remindAt: string];
@@ -327,6 +329,10 @@ watch(
                     @delete="(message) => emit('delete', message)"
                     @forward="(message) => emit('forward', message)"
                     @react="(message, emoji) => emit('react', message, emoji)"
+                    @vote="
+                        (message, optionId) => emit('vote', message, optionId)
+                    "
+                    @close-poll="(message) => emit('closePoll', message)"
                     @pin="(message) => emit('pin', message)"
                     @unpin="(message) => emit('unpin', message)"
                     @remind="

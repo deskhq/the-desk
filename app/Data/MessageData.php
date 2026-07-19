@@ -34,6 +34,7 @@ class MessageData extends Data
         public array $linkPreviews,
         public array $reactions,
         public array $attachments,
+        public ?PollData $poll,
         public ?PinData $pin,
         public ?MessageReplyData $replyTo,
         public ?MessageForwardData $forwardedFrom,
@@ -71,8 +72,13 @@ class MessageData extends Data
      * elsewhere (broadcast payloads carry no viewer) they fall back to false and
      * the client keeps whatever state it already derived. `threadUnread` is the
      * conjunction of following the thread and it holding unread replies.
+     *
+     * `$viewerId` seeds a poll's per-viewer state (an anonymous poll's own
+     * selection, which its hidden roster can't convey). It is passed only on the
+     * viewer-scoped timeline load; a broadcast omits it, so the payload stays
+     * viewer-free and the client preserves the vote state it already holds.
      */
-    public static function fromMessage(Message $message): self
+    public static function fromMessage(Message $message, ?string $viewerId = null): self
     {
         $isDeleted = $message->trashed();
 
@@ -100,6 +106,9 @@ class MessageData extends Data
             // A tombstone hides its files just as it hides its body; the rows
             // survive (removed only on force-delete) but never reach the client.
             attachments: $isDeleted ? [] : $message->attachments->map(fn (Attachment $attachment): AttachmentData => AttachmentData::fromAttachment($attachment))->all(),
+            // A tombstone hides its poll just as it hides its body; the rows survive
+            // (removed only on force-delete) but never reach the client.
+            poll: ! $isDeleted && $message->poll !== null ? PollData::fromPoll($message->poll, $viewerId) : null,
             // A tombstone carries no pin; DeleteMessage also removes the pin row,
             // so a deleted message resolves to null either way.
             pin: ! $isDeleted && $message->pin !== null ? PinData::fromPin($message->pin) : null,

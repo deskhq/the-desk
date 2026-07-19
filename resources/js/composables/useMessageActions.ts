@@ -13,6 +13,10 @@ import {
     destroy as unpinMessageAction,
     store as pinMessageAction,
 } from '@/actions/App/Http/Controllers/Channels/PinController';
+import {
+    close as closePollAction,
+    vote as voteOnPollAction,
+} from '@/actions/App/Http/Controllers/Channels/PollController';
 import { store as toggleReactionAction } from '@/actions/App/Http/Controllers/Channels/ReactionController';
 import {
     destroy as destroyScheduledMessage,
@@ -25,6 +29,7 @@ import { optimisticMessage } from '@/composables/useMessageStream';
 import { useTranslations } from '@/composables/useTranslations';
 import { planForward } from '@/lib/forwardPlacement';
 import type { Outbox } from '@/lib/outbox';
+import { applyVote } from '@/lib/polls';
 import { toggleReaction } from '@/lib/reactions';
 import { generateUuid } from '@/lib/uuid';
 import type { Channel, Mention, Message, MessagePin } from '@/types';
@@ -125,6 +130,10 @@ export interface MessageActions {
     deleteMessage: (message: Message) => void;
     /** Toggle the viewer's reaction, optimistically, rolled back on error. */
     reactToMessage: (message: Message, emoji: string) => void;
+    /** Toggle the viewer's vote for a poll option, optimistically, rolled back on error. */
+    voteOnPoll: (message: Message, optionId: string) => void;
+    /** Close a poll, freezing its tally; the frozen state arrives over the broadcast. */
+    closePoll: (message: Message) => void;
     /** Pin a message to its channel, optimistically, rolled back on error. */
     pinMessage: (message: Message) => void;
     /** Unpin a message from its channel, optimistically, rolled back on error. */
@@ -409,6 +418,88 @@ export function useMessageActions(
                     );
                     toast.error(
                         t('Failed to update the reaction. Please try again.'),
+                    );
+                },
+            },
+        );
+    }
+
+    /**
+     * Toggle the viewer's vote for a poll option. The tally is applied
+     * optimistically to both streams (via the pure {@see applyVote}) and rolled
+     * back on error; the authoritative tally reaches every client — including this
+     * one — over the `PollVoteChanged` broadcast. A no-op when the message carries
+     * no poll.
+     */
+    function voteOnPoll(message: Message, optionId: string): void {
+        if (message.poll === null) {
+            return;
+        }
+
+        const channel = options.channel();
+        const previousMain = options.mainStream.getPatch(message.clientUuid);
+        const previousThread = options.threadStream.getPatch(
+            message.clientUuid,
+        );
+
+        const next = applyVote(message.poll, optionId, options.currentUser());
+        options.mainStream.patchThreadState(message.id, { poll: next });
+        options.threadStream.patchThreadState(message.id, { poll: next });
+
+        router.post(
+            voteOnPollAction({
+                team: options.teamSlug(),
+                channel: channel.slug,
+                poll: message.poll.id,
+            }).url,
+            { option_id: optionId },
+            {
+                preserveScroll: true,
+                preserveState: true,
+                only: ['channels'],
+                onError: () => {
+                    options.mainStream.restorePatch(
+                        message.clientUuid,
+                        previousMain,
+                    );
+                    options.threadStream.restorePatch(
+                        message.clientUuid,
+                        previousThread,
+                    );
+                    toast.error(
+                        t('Failed to record your vote. Please try again.'),
+                    );
+                },
+            },
+        );
+    }
+
+    /**
+     * Close a poll, freezing its tally. Non-optimistic: the frozen state reaches
+     * every client — including this one — over the `PollVoteChanged` broadcast, so
+     * nothing is patched locally up front. A no-op when the message carries no poll.
+     */
+    function closePoll(message: Message): void {
+        if (message.poll === null) {
+            return;
+        }
+
+        const channel = options.channel();
+
+        router.post(
+            closePollAction({
+                team: options.teamSlug(),
+                channel: channel.slug,
+                poll: message.poll.id,
+            }).url,
+            {},
+            {
+                preserveScroll: true,
+                preserveState: true,
+                only: ['channels'],
+                onError: () => {
+                    toast.error(
+                        t('Failed to close the poll. Please try again.'),
                     );
                 },
             },
@@ -779,6 +870,8 @@ export function useMessageActions(
         editMessage,
         deleteMessage,
         reactToMessage,
+        voteOnPoll,
+        closePoll,
         pinMessage,
         unpinMessage,
         forwardMessage,

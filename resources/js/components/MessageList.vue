@@ -7,6 +7,7 @@ import LinkPreview from '@/components/LinkPreview.vue';
 import MessageActions from '@/components/MessageActions.vue';
 import MessageAttachments from '@/components/MessageAttachments.vue';
 import MessageForward from '@/components/MessageForward.vue';
+import MessagePoll from '@/components/MessagePoll.vue';
 import MessageQuote from '@/components/MessageQuote.vue';
 import MessageReactions from '@/components/MessageReactions.vue';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -128,6 +129,8 @@ const emit = defineEmits<{
     reply: [message: Message];
     forward: [message: Message];
     react: [message: Message, emoji: string];
+    vote: [message: Message, optionId: string];
+    closePoll: [message: Message];
     pin: [message: Message];
     unpin: [message: Message];
     remind: [message: Message, remindAt: string];
@@ -1167,6 +1170,27 @@ function confirmDelete(): void {
                                     :author-name="message.user.name"
                                     :created-at="message.createdAt"
                                     :viewer-time-zone="viewerTimeZone"
+                                />
+
+                                <MessagePoll
+                                    v-if="
+                                        message.poll &&
+                                        !message.isDeleted &&
+                                        editingId !== message.id
+                                    "
+                                    :poll="message.poll"
+                                    :current-user-id="props.currentUserId"
+                                    :can-vote="canReactTo(message)"
+                                    :can-manage="
+                                        message.user.id ===
+                                            props.currentUserId ||
+                                        Boolean(props.canModerate)
+                                    "
+                                    @vote="
+                                        (optionId) =>
+                                            emit('vote', message, optionId)
+                                    "
+                                    @close="emit('closePoll', message)"
                                 />
 
                                 <span

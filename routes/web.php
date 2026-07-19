@@ -17,6 +17,7 @@ use App\Http\Controllers\Channels\HideDirectMessageController;
 use App\Http\Controllers\Channels\MessageController;
 use App\Http\Controllers\Channels\MessageReminderController;
 use App\Http\Controllers\Channels\PinController;
+use App\Http\Controllers\Channels\PollController;
 use App\Http\Controllers\Channels\ReactionController;
 use App\Http\Controllers\Channels\ScheduledMessageController;
 use App\Http\Controllers\Channels\SearchController;
@@ -29,6 +30,7 @@ use App\Http\Controllers\Teams\TeamInvitationController;
 use App\Http\Controllers\Webhooks\IncomingWebhookController;
 use App\Http\Middleware\EnsureGiphyEnabled;
 use App\Http\Middleware\EnsureIntegrationsEnabled;
+use App\Http\Middleware\EnsurePollsEnabled;
 use App\Http\Middleware\EnsureTeamMembership;
 use Illuminate\Support\Facades\Route;
 
@@ -161,6 +163,22 @@ Route::middleware(['auth', 'verified', EnsureTeamMembership::class])->group(func
     Route::post('t/{team}/c/{channel}/messages/{message}/reactions', [ReactionController::class, 'store'])
         ->scopeBindings()
         ->name('channels.messages.reactions.store');
+    // The poll builder: create a poll message, then vote on / close it. All three
+    // are hidden client-side and 404 server-side when polls are disabled. The vote
+    // and close routes scope-bind {poll} to {channel} (through Channel::polls()),
+    // so a poll from another channel 404s.
+    Route::post('t/{team}/c/{channel}/polls', [PollController::class, 'store'])
+        ->middleware(EnsurePollsEnabled::class)
+        ->scopeBindings()
+        ->name('channels.polls.store');
+    Route::post('t/{team}/c/{channel}/polls/{poll}/votes', [PollController::class, 'vote'])
+        ->middleware(EnsurePollsEnabled::class)
+        ->scopeBindings()
+        ->name('channels.polls.votes.store');
+    Route::post('t/{team}/c/{channel}/polls/{poll}/close', [PollController::class, 'close'])
+        ->middleware(EnsurePollsEnabled::class)
+        ->scopeBindings()
+        ->name('channels.polls.close');
     Route::post('t/{team}/c/{channel}/messages/{message}/pin', [PinController::class, 'store'])
         ->scopeBindings()
         ->name('channels.messages.pin.store');

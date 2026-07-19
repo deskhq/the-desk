@@ -979,6 +979,8 @@ const {
     editMessage,
     deleteMessage,
     reactToMessage,
+    voteOnPoll,
+    closePoll,
     pinMessage,
     unpinMessage,
     sendThreadReply,
@@ -1313,6 +1315,8 @@ function archive(): void {
                                 @reply="startReply"
                                 @forward="openForward"
                                 @react="reactToMessage"
+                                @vote="voteOnPoll"
+                                @close-poll="closePoll"
                                 @pin="pinMessage"
                                 @unpin="unpinMessage"
                                 @remind="remindWith"
@@ -1434,6 +1438,7 @@ function archive(): void {
                         :timezone="timezone"
                         :slash-commands="page.props.slashCommands"
                         :gif-picker-enabled="page.props.gifPickerEnabled"
+                        :polls-enabled="page.props.pollsEnabled"
                         @send="
                             (
                                 body,
@@ -1485,6 +1490,8 @@ function archive(): void {
                 @delete="deleteMessage"
                 @forward="openForward"
                 @react="reactToMessage"
+                @vote="voteOnPoll"
+                @close-poll="closePoll"
                 @pin="pinMessage"
                 @unpin="unpinMessage"
                 @remind="remindWith"

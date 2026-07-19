@@ -19,6 +19,8 @@ use App\Models\DataExport;
 use App\Models\Message;
 use App\Models\MessagePin;
 use App\Models\MessageReaction;
+use App\Models\Poll;
+use App\Models\PollVote;
 use App\Models\SecurityEvent;
 use App\Models\SsoIdentity;
 use App\Models\Team;
@@ -159,6 +161,7 @@ class WorkspaceSeeder extends Seeder
         $this->seedRichTextMessages($general, $admin, $demo);
         $this->seedReactions($generalMessages, [$demo, $admin, $member1]);
         $this->seedPins($general, $generalMessages, $admin);
+        $this->seedPolls($general, [$demo, $admin, $member1, $member2]);
         $this->seedCustomEmoji($acme, [$demo, $admin, $member1], $general);
         // A join and a leave system notice as the newest #general rows, so the
         // centered inert notice rendering has data on load. System notices are
@@ -629,6 +632,68 @@ class WorkspaceSeeder extends Seeder
 
         foreach ([$messages[count($messages) - 2], $messages[count($messages) - 8]] as $message) {
             MessagePin::factory()->for($message)->for($channel)->for($pinner, 'pinnedBy')->create();
+        }
+    }
+
+    /**
+     * Seed representative polls into #general so {@see Poll} rendering
+     * has data on load, covering every render state: an open single-choice public
+     * poll the demo user has voted in (the "you voted" highlight and a public
+     * roster), an open multiple-choice poll (some members picked more than one
+     * option), an anonymous poll (counts render, roster hidden), and a closed poll
+     * with a frozen tally and a marked winner.
+     *
+     * @param  array{0: User, 1: User, 2: User, 3: User}  $members  [demo, admin, member1, member2]
+     */
+    private function seedPolls(Channel $channel, array $members): void
+    {
+        [$demo, $admin, $member1, $member2] = $members;
+
+        $dinner = $this->seedPoll($channel, $admin, 'Where should the offsite dinner be?', ['Trattoria Nonna', 'Izakaya Rokku', 'Taqueria El Faro']);
+        $this->castVotes($dinner, [[$demo, 0], [$admin, 0], [$member1, 0], [$member2, 1]]);
+
+        $standup = $this->seedPoll($channel, $member1, 'Which weekdays work for the standup slot?', ['Tuesday', 'Wednesday', 'Thursday'], allowMultiple: true);
+        $this->castVotes($standup, [[$demo, 0], [$demo, 1], [$admin, 0], [$member2, 0], [$member1, 1]]);
+
+        $lunch = $this->seedPoll($channel, $member2, 'Team lunch cuisine?', ['Ramen', 'Tacos', 'Pizza'], isAnonymous: true);
+        $this->castVotes($lunch, [[$demo, 0], [$admin, 1], [$member1, 1], [$member2, 2]]);
+
+        $logo = $this->seedPoll($channel, $admin, 'Which logo direction do you prefer?', ['Bold serif', 'Minimal sans'], closed: true);
+        $this->castVotes($logo, [[$demo, 0], [$admin, 0], [$member1, 0], [$member2, 1]]);
+    }
+
+    /**
+     * Create one poll message authored by a user in the channel, with the given
+     * option labels in order. The poll message is created explicitly so the
+     * factory does not spin up its own default channel via its `message_id`.
+     *
+     * @param  list<string>  $labels
+     */
+    private function seedPoll(Channel $channel, User $author, string $question, array $labels, bool $allowMultiple = false, bool $isAnonymous = false, bool $closed = false): Poll
+    {
+        $message = Message::factory()->poll()->for($channel)->for($author)->create();
+
+        return Poll::factory()->withOptions($labels)->create([
+            'message_id' => $message->id,
+            'question' => $question,
+            'allow_multiple' => $allowMultiple,
+            'is_anonymous' => $isAnonymous,
+            'closed_at' => $closed ? now() : null,
+        ]);
+    }
+
+    /**
+     * Cast a set of votes on a poll, each as a `[user, optionIndex]` pair against
+     * the poll's options in position order.
+     *
+     * @param  list<array{0: User, 1: int}>  $votes
+     */
+    private function castVotes(Poll $poll, array $votes): void
+    {
+        $options = $poll->options;
+
+        foreach ($votes as [$user, $optionIndex]) {
+            PollVote::factory()->for($options[$optionIndex], 'option')->for($user)->create();
         }
     }
 

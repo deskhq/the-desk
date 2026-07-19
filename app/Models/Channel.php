@@ -13,6 +13,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 use Illuminate\Support\Carbon;
 
 /**
@@ -152,6 +153,20 @@ class Channel extends Model
     public function messages(): HasMany
     {
         return $this->hasMany(Message::class);
+    }
+
+    /**
+     * Get the polls posted to the channel, through their messages.
+     *
+     * Backs the scope-bound poll routes (vote / close): a poll has no direct
+     * `channel_id`, so this HasManyThrough lets route-model binding resolve a
+     * `{poll}` nested under `{channel}` to a poll that genuinely belongs to it.
+     *
+     * @return HasManyThrough<Poll, Message, $this>
+     */
+    public function polls(): HasManyThrough
+    {
+        return $this->hasManyThrough(Poll::class, Message::class);
     }
 
     /**

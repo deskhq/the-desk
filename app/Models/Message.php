@@ -46,6 +46,7 @@ use Laravel\Scout\Searchable;
  * @property-read Collection<int, User> $threadParticipants
  * @property-read Collection<int, User> $mentionedUsers
  * @property-read Collection<int, MessageReaction> $reactions
+ * @property-read Poll|null $poll
  * @property-read MessagePin|null $pin
  * @property-read Collection<int, Attachment> $attachments
  */
@@ -87,6 +88,9 @@ class Message extends Model
         'mentionedUsers',
         'linkPreviews',
         'reactions.user',
+        // A poll message's votable payload: its options in author order, each with
+        // the votes (and voters) that build the tally and roster.
+        'poll.options.votes.user',
         'pin.pinnedBy',
         'replyTo.user',
         'replyTo.mentionedUsers',
@@ -214,6 +218,20 @@ class Message extends Model
     public function reactions(): HasMany
     {
         return $this->hasMany(MessageReaction::class)->oldest()->orderBy('id');
+    }
+
+    /**
+     * Get this message's poll, if it is a poll message.
+     *
+     * At most one poll exists per message (enforced by the `polls` table's unique
+     * `message_id`), so this is a HasOne. Its options and votes are eager-loaded
+     * with the message payload so the tally and roster build without an N+1.
+     *
+     * @return HasOne<Poll, $this>
+     */
+    public function poll(): HasOne
+    {
+        return $this->hasOne(Poll::class);
     }
 
     /**
@@ -383,6 +401,10 @@ class Message extends Model
      * `team_id` is derived from the channel because messages carry no native
      * team column; the channel relation is eager-loaded when indexing in bulk.
      *
+     * A poll message has an empty body, so its question is folded into the indexed
+     * text (option labels are not) — the question is what a search should match,
+     * and the client highlights it through the same `body` snippet.
+     *
      * @return array<string, mixed>
      */
     public function toSearchableArray(): array
@@ -391,8 +413,9 @@ class Message extends Model
             'id' => $this->id,
             // Index the readable text (mentions unwrapped to their names) so a
             // search matches — and Meilisearch highlights — the name, not the raw
-            // `@[Name](id)` token.
-            'body' => MessagePlainText::from($this->body),
+            // `@[Name](id)` token. A poll folds its question in here (its body is
+            // empty), so a poll is found by its question, not its option labels.
+            'body' => trim(MessagePlainText::from($this->body).' '.($this->type === MessageType::Poll ? $this->poll->question : '')),
             'channel_id' => $this->channel_id,
             'user_id' => $this->user_id,
             'team_id' => $this->channel->team_id,

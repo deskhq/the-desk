@@ -24,14 +24,23 @@ enum MessageType: string
     case MemberLeft = 'member_left';
 
     /**
+     * A poll authored in the channel: the row's `body` is empty and the votable
+     * question, options, and tally live in the related `polls` table. Rendered as
+     * a first-class poll card, not a chat bubble.
+     */
+    case Poll = 'poll';
+
+    /**
      * Whether the type is a system notice rather than a user-authored message.
      *
      * The flag is what makes a row render as a centered, inert notice and keeps
      * it out of every message-interaction path (edit, delete, react, reply,
-     * thread, forward) and out of the unread / mention badges.
+     * thread, forward) and out of the unread / mention badges. A poll is
+     * user-authored and interactive, so it is not a system notice — only the
+     * member join/leave lines are.
      */
     public function isSystem(): bool
     {
-        return $this !== self::Standard;
+        return $this === self::MemberJoined || $this === self::MemberLeft;
     }
 }

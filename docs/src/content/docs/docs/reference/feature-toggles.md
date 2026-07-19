@@ -295,6 +295,24 @@ viewers' browsers fetch it directly from Giphy. See the privacy note under
 [Environment variables → GIFs (Giphy)](/docs/reference/environment-variables/#gifs-giphy).
 :::
 
+## Polls
+
+| Variable        | Default | Effect                          |
+| --------------- | ------- | ------------------------------- |
+| `POLLS_ENABLED` | `true`  | Enables the `/poll` builder.    |
+
+Polls are **on** by default. Typing `/poll` in the composer opens a builder —
+a question, two to ten options, and toggles for **multiple answers** and an
+**anonymous** poll — and posts the poll as a first-class message. Members vote
+inline (single- or multiple-choice), tallies update live, and the creator or a
+team admin can close a poll to freeze its results.
+
+Set `POLLS_ENABLED=false` to turn the feature **fully off**: the `/poll` command
+is absent from autocomplete, the builder never appears, and the create, vote, and
+close endpoints return **404**. Existing poll messages render their last-known
+tally read-only. See
+[Environment variables → Feature toggles](/docs/reference/environment-variables/#feature-toggles).
+
 ## Demo mode
 
 | Variable    | Default | Effect                                                          |

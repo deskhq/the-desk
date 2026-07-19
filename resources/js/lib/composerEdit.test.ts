@@ -22,6 +22,7 @@ function message(overrides: Partial<Message> = {}): Message {
         attachments: [],
         reactions: [],
         pin: null,
+        poll: null,
         replyTo: null,
         forwardedFrom: null,
         threadRootId: null,

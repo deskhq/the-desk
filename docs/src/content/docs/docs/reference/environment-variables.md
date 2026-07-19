@@ -112,6 +112,7 @@ production — see [Configuration](/docs/self-hosting/configuration/#reverb-webs
 | `REVERB_SCALING_ENABLED`     | `false` | [Feature toggles → Advanced Reverb](/docs/reference/feature-toggles/#advanced-reverb-options) |
 | `AUTH_SSO_ONLY`              | `false` | [Feature toggles → SSO-only mode](/docs/reference/feature-toggles/#sso-only-mode) |
 | `UPDATE_CHECK_ENABLED`       | `true`  | [Feature toggles → Update checks](/docs/reference/feature-toggles/#update-checks) |
+| `POLLS_ENABLED`              | `true`  | [Feature toggles → Polls](/docs/reference/feature-toggles/#polls) |
 | `INTEGRATIONS_ENABLED`       | `true`  | [Feature toggles → Integrations platform](/docs/reference/feature-toggles/#integrations-platform) |
 | `INTEGRATIONS_API_RATE_LIMIT`| `60`    | [Feature toggles → Integrations platform](/docs/reference/feature-toggles/#integrations-platform) |
 | `WEBHOOKS_MAX_ATTEMPTS`      | `5`     | [Feature toggles → Integrations platform](/docs/reference/feature-toggles/#outgoing-webhooks) |
