@@ -13,6 +13,7 @@ import type {
     Mention,
     Message,
     MessageAuthor,
+    Poll,
     Reaction,
 } from '@/types';
 
@@ -151,6 +152,21 @@ export function useChannelRealtime(options: ChannelRealtimeOptions): void {
                         options.threadStream.patchReactions(
                             event.messageId,
                             event.reactions,
+                        );
+                    },
+                )
+                .listen(
+                    'PollVoteChanged',
+                    (event: { messageId: string; poll: Poll }) => {
+                        // The authoritative, viewer-free tally; patch it into
+                        // whichever timeline renders the poll (no-op elsewhere).
+                        options.mainStream.patchPoll(
+                            event.messageId,
+                            event.poll,
+                        );
+                        options.threadStream.patchPoll(
+                            event.messageId,
+                            event.poll,
                         );
                     },
                 )

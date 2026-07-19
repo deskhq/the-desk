@@ -17,6 +17,7 @@ import { store as storeAttachment } from '@/actions/App/Http/Controllers/Channel
 import ComposerSendButton from '@/components/ComposerSendButton.vue';
 import GifPickerPanel from '@/components/GifPickerPanel.vue';
 import MessageQuote from '@/components/MessageQuote.vue';
+import PollComposerPanel from '@/components/PollComposerPanel.vue';
 import ScheduleMessageDialog from '@/components/ScheduleMessageDialog.vue';
 import { Button } from '@/components/ui/button';
 import {
@@ -102,6 +103,11 @@ const props = defineProps<{
      * When false, `/gif` is neither in the manifest nor intercepted here.
      */
     gifPickerEnabled?: boolean;
+    /**
+     * Whether the `/poll` builder is available (POLLS_ENABLED). When false,
+     * `/poll` is neither in the manifest nor intercepted here.
+     */
+    pollsEnabled?: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -521,9 +527,54 @@ function onGifSelected(attachment: AttachmentData): void {
     }
 }
 
+/**
+ * The other picker-backed command: `/poll` opens the poll builder instead of
+ * completing to text and posting through the command endpoint.
+ */
+const POLL_COMMAND_NAME = 'poll';
+
+/** The poll builder's open state. */
+const pollComposerOpen = ref(false);
+
+/**
+ * The builder is usable only when polls are enabled, when the composer knows its
+ * channel (the poll is posted to that channel), and while composing a new
+ * message — not editing an existing one.
+ */
+const pollComposerAvailable = computed(
+    () =>
+        Boolean(props.pollsEnabled) &&
+        Boolean(props.teamSlug) &&
+        Boolean(props.channelSlug) &&
+        !editingMessage.value,
+);
+
+/** Whether `text` is the `/poll` command and the builder is available. */
+function isPollCommand(text: string): boolean {
+    return pollComposerAvailable.value && /^\/poll(?:\s+.*)?$/i.test(text);
+}
+
+/** Open the poll builder, closing the slash menu and clearing the `/poll` text. */
+function openPollComposer(): void {
+    slashMenuOpen.value = false;
+    pollComposerOpen.value = true;
+    body.value = '';
+}
+
+function closePollComposer(): void {
+    pollComposerOpen.value = false;
+    nextTick(() => textarea.value?.focus());
+}
+
 function selectSlashCommand(command: App.Data.SlashCommandData): void {
     if (command.name === GIF_COMMAND_NAME && gifPickerAvailable.value) {
         openGifPicker('');
+
+        return;
+    }
+
+    if (command.name === POLL_COMMAND_NAME && pollComposerAvailable.value) {
+        openPollComposer();
 
         return;
     }
@@ -833,6 +884,14 @@ function submit(): void {
 
         if (gifQuery !== null) {
             openGifPicker(gifQuery);
+
+            return;
+        }
+
+        // `/poll` opens the builder rather than posting text; the composed poll
+        // is then posted as a first-class poll message through its own endpoint.
+        if (isPollCommand(trimmed)) {
+            openPollComposer();
 
             return;
         }
@@ -1223,6 +1282,13 @@ function onKeydown(event: KeyboardEvent): void {
                 :initial-query="gifPickerQuery"
                 @select="onGifSelected"
                 @close="closeGifPicker"
+            />
+
+            <PollComposerPanel
+                v-if="pollComposerOpen && pollComposerAvailable"
+                :team-slug="props.teamSlug ?? ''"
+                :channel-slug="props.channelSlug ?? ''"
+                @close="closePollComposer"
             />
 
             <div

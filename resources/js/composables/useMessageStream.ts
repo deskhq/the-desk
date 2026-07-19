@@ -5,6 +5,7 @@ import type {
     Message,
     MessageForward,
     MessagePin,
+    Poll,
     Reaction,
 } from '@/types';
 
@@ -161,6 +162,43 @@ export function useMessageStream(
         patchThreadState(id, { pin });
     }
 
+    /**
+     * Merge a rendered poll message's freshly aggregated poll in place, found by
+     * its message id (the id the `PollVoteChanged` broadcast carries). Used to
+     * patch the bars, counts, and closed state live as votes land, keeping every
+     * other message field intact.
+     *
+     * A public poll replaces wholesale — its roster is authoritative, so the card
+     * re-derives the viewer's own selection from it. An anonymous poll carries no
+     * roster and the broadcast is viewer-free (`votedByViewer` is false for
+     * everyone), so each option's existing `votedByViewer` is preserved: the
+     * viewer's own selection survives another member's vote, mirroring how the
+     * thread read-state is preserved across viewer-free broadcasts.
+     */
+    function patchPoll(id: string, poll: Poll): void {
+        const current = displayMessages.value.find((m) => m.id === id);
+
+        if (!current) {
+            return;
+        }
+
+        const next =
+            poll.isAnonymous && current.poll
+                ? {
+                      ...poll,
+                      options: poll.options.map((option) => ({
+                          ...option,
+                          votedByViewer:
+                              current.poll?.options.find(
+                                  (o) => o.id === option.id,
+                              )?.votedByViewer ?? option.votedByViewer,
+                      })),
+                  }
+                : poll;
+
+        patchThreadState(id, { poll: next });
+    }
+
     function getPatch(clientUuid: string): Message | undefined {
         return patches.value.get(clientUuid);
     }
@@ -200,6 +238,7 @@ export function useMessageStream(
         patchThreadState,
         patchReactions,
         patchPin,
+        patchPoll,
         getPatch,
         restorePatch,
         addPending,
@@ -245,6 +284,8 @@ export function optimisticMessage(params: {
         reactions: [],
         // A just-sent message isn't pinned.
         pin: null,
+        // An optimistic send is a normal message, never a poll.
+        poll: null,
         replyTo: target
             ? {
                   id: target.id,

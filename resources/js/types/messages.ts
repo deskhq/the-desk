@@ -19,7 +19,7 @@ export type MessageAuthor = {
  * notices the timeline renders as centered, localized lines rather than chat
  * bubbles, and which never carry interactions or advance unread badges.
  */
-export type MessageType = 'standard' | 'member_joined' | 'member_left';
+export type MessageType = 'standard' | 'member_joined' | 'member_left' | 'poll';
 
 /**
  * A team member referenced by an `@mention` in a message body. Mirrors the
@@ -124,6 +124,42 @@ export type MessagePin = {
     pinnedAt: string;
 };
 
+/**
+ * One option of a poll. Mirrors the `PollOptionData` DTO: the label, its
+ * `position` (the author's entry order), and its tally. `voters` is the roster
+ * for a public poll (the client derives "did I vote this" by checking its own id
+ * against it, like a reaction's reactors) and null for an anonymous poll.
+ * `votedByViewer` seeds the viewer's own selection on the initial load (the only
+ * signal an anonymous poll's hidden roster can't convey); it is false on the
+ * viewer-free broadcast, so the client preserves its own selection across patches.
+ */
+export type PollOption = {
+    id: string;
+    label: string;
+    position: number;
+    voteCount: number;
+    voters: Mention[] | null;
+    votedByViewer: boolean;
+};
+
+/**
+ * A poll carried by a `poll`-type message. Mirrors the `PollData` DTO: the
+ * question, the two creator toggles, `closedAt` (null while open; set freezes the
+ * tally), the options, and both totals — `totalVotes` (sum across options) and
+ * `voterCount` (distinct people), which diverge only for a multiple-choice poll.
+ * Viewer-free, so it rides the `PollVoteChanged` broadcast unchanged.
+ */
+export type Poll = {
+    id: string;
+    question: string;
+    allowMultiple: boolean;
+    isAnonymous: boolean;
+    closedAt: string | null;
+    options: PollOption[];
+    totalVotes: number;
+    voterCount: number;
+};
+
 export type Message = {
     id: string;
     clientUuid: string;
@@ -152,6 +188,12 @@ export type Message = {
      * and always null on a tombstone.
      */
     pin: MessagePin | null;
+    /**
+     * The poll carried by a `poll`-type message (mirrors the `MessageData` DTO's
+     * `poll`), or null for any other message. Drives the poll card's bars, vote
+     * buttons, and open/closed state. Patched live in place from `PollVoteChanged`.
+     */
+    poll: Poll | null;
     /**
      * Open Graph preview cards for the URLs in the body (mirrors the
      * `MessageData` DTO's `linkPreviews`), in order of appearance. Empty when the

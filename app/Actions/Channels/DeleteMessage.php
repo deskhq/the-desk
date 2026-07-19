@@ -29,6 +29,12 @@ class DeleteMessage
         // would otherwise linger unreachable behind the deleted message.
         $message->reactions()->delete();
 
+        // A poll dies with its message: hard-delete the poll so its options and
+        // votes cascade away, since the tombstone renders no poll and they would
+        // otherwise linger unreachable behind the deleted message. A no-op for a
+        // non-poll message.
+        $message->poll()->delete();
+
         // Likewise auto-remove any pin (a tombstone can't stay pinned) and
         // broadcast the unpin, so the masthead count and any open pins panel
         // update live. A no-op when the message wasn't pinned.

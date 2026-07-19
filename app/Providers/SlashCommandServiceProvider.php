@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Providers;
 
 use App\SlashCommands\Commands\GifCommand;
+use App\SlashCommands\Commands\PollCommand;
 use App\SlashCommands\Commands\ShrugCommand;
 use App\SlashCommands\Commands\TableflipCommand;
 use App\SlashCommands\Commands\UnflipCommand;
@@ -51,6 +52,13 @@ class SlashCommandServiceProvider extends ServiceProvider
         // with no key — honouring the fully-hidden-when-unconfigured contract.
         if ($this->app->make(GiphyClient::class)->isEnabled()) {
             $registry->register($this->app->make(GifCommand::class));
+        }
+
+        // The poll builder command only exists when polls are enabled, so `/poll`
+        // is absent from autocomplete (and posts as literal text) on a deployment
+        // with POLLS_ENABLED=false, matching the fully-hidden-when-off contract.
+        if (config('polls.enabled')) {
+            $registry->register($this->app->make(PollCommand::class));
         }
     }
 }

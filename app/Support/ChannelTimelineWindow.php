@@ -120,7 +120,7 @@ class ChannelTimelineWindow
             ->when($ceilingId, fn (Builder $query) => $query->where('id', '<=', $ceilingId))
             ->orderByDesc('id')
             ->cursorPaginate(self::MESSAGE_PAGE_SIZE)
-            ->through(fn (Message $message): MessageData => MessageData::fromMessage($message));
+            ->through(fn (Message $message): MessageData => MessageData::fromMessage($message, $this->viewer->id));
     }
 
     /**
@@ -140,7 +140,7 @@ class ChannelTimelineWindow
             return null;
         }
 
-        return ['root' => MessageData::fromMessage($root)];
+        return ['root' => MessageData::fromMessage($root, $this->viewer->id)];
     }
 
     /**
@@ -165,7 +165,7 @@ class ChannelTimelineWindow
         return $query
             ->orderByDesc('id')
             ->cursorPaginate(self::THREAD_PAGE_SIZE, ['*'], 'thread_cursor')
-            ->through(fn (Message $message): MessageData => MessageData::fromMessage($message));
+            ->through(fn (Message $message): MessageData => MessageData::fromMessage($message, $this->viewer->id));
     }
 
     /**

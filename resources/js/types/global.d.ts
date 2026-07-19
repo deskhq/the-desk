@@ -30,6 +30,7 @@ declare module '@inertiajs/core' {
             sso: { oidcEnabled: boolean; passwordLoginEnabled: boolean };
             attachments: { maxSizeMb: number; maxPerMessage: number };
             gifPickerEnabled: boolean;
+            pollsEnabled: boolean;
             sidebarPositions: SidebarPositionOption[];
             sidebarOpen: boolean;
             currentTeam: Team | null;
