@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { router } from '@inertiajs/vue3';
 import { BarChart3, Plus, X } from '@lucide/vue';
-import { computed, onMounted, ref } from 'vue';
+import { computed, nextTick, onMounted, ref, useTemplateRef } from 'vue';
 import { store as storePoll } from '@/actions/App/Http/Controllers/Channels/PollController';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -38,10 +38,10 @@ const allowMultiple = ref(false);
 const isAnonymous = ref(false);
 const posting = ref(false);
 
-const questionField = ref<HTMLInputElement | null>(null);
+const questionField = useTemplateRef('questionField');
 
 onMounted(() => {
-    questionField.value?.focus();
+    nextTick(() => questionField.value?.$el?.focus());
 });
 
 /** The trimmed, non-empty option labels, preserving row order. */
@@ -130,11 +130,13 @@ function submit(): void {
 </script>
 
 <template>
+    <!-- eslint-disable-next-line vuejs-accessibility/no-static-element-interactions -- the panel is a dialog; the key handler routes Escape to close it -->
     <div
         role="dialog"
         :aria-label="$t('Create a poll')"
         data-test="poll-builder"
         class="absolute bottom-full left-0 z-20 mb-2 flex w-[25rem] max-w-full flex-col overflow-hidden rounded-2xl border bg-popover shadow-[0_16px_40px_rgba(29,26,21,0.18)]"
+        @keydown.esc="emit('close')"
     >
         <div
             class="flex items-center gap-2 border-b border-border px-3.5 py-2.5"
