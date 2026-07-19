@@ -49,6 +49,12 @@ pest()->extend(TestCase::class)
     })
     ->in('Browser');
 
+// The plugin's default 5 s assertion timeout flakes on slow CI runners: the
+// 80-reply virtualized thread panel and the search page need longer to render
+// before their assertions can pass (#581). Assertions retry and return as soon
+// as they hold, so raising the ceiling only slows genuinely failing tests.
+pest()->browser()->timeout(15000);
+
 /*
 |--------------------------------------------------------------------------
 | Expectations
