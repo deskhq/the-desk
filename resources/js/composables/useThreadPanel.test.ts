@@ -145,6 +145,11 @@ describe('useThreadPanel', () => {
         vi.advanceTimersByTime(THREAD_READ_DEBOUNCE_MS);
         expect(post).toHaveBeenCalledOnce();
         expect(post.mock.calls[0][2].only).toEqual(['channels']);
+        // As a background write it must not interrupt an in-flight visit (an
+        // interrupted openThread GET would strand the panel empty, #581) nor
+        // let its redirect-follow rewrite the `?thread=` URL.
+        expect(post.mock.calls[0][2].async).toBe(true);
+        expect(post.mock.calls[0][2].preserveUrl).toBe(true);
     });
 
     it('does not mark a thread read while the tab is blurred', () => {

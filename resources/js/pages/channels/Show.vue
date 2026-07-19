@@ -632,7 +632,17 @@ const readPost = useDebouncedPost(
                 channel: props.channel.slug,
             }).url,
             {},
-            { preserveScroll: true, preserveState: true, only: ['channels'] },
+            {
+                // A background write: `async` keeps it from interrupting an
+                // in-flight visit (interrupting a thread-panel GET strands the
+                // panel empty, #581), and `preserveUrl` keeps its
+                // redirect-follow from dropping the `?thread=` param.
+                async: true,
+                preserveUrl: true,
+                preserveScroll: true,
+                preserveState: true,
+                only: ['channels'],
+            },
         );
     },
     { delay: 400, gate: () => document.hasFocus() },

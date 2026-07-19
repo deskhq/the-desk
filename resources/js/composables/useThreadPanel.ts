@@ -103,6 +103,12 @@ export function useThreadPanel(options: ThreadPanelOptions): ThreadPanel {
                 }).url,
                 {},
                 {
+                    // A background write: `async` keeps it from interrupting an
+                    // in-flight visit (interrupting the openThread GET strands
+                    // the panel empty, #581), and `preserveUrl` keeps its
+                    // redirect-follow from dropping the `?thread=` param.
+                    async: true,
+                    preserveUrl: true,
                     preserveScroll: true,
                     preserveState: true,
                     only: ['channels'],
