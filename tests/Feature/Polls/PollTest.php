@@ -13,6 +13,7 @@ use App\Models\PollVote;
 use App\Models\Team;
 use App\Models\User;
 use Database\Factories\PollFactory;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Str;
 
@@ -174,6 +175,73 @@ test('a single-choice vote can be cast, swapped, and retracted', function (): vo
 
     Event::assertDispatched(PollVoteChanged::class, fn (PollVoteChanged $event): bool => $event->messageId === $poll->message_id
         && $event->broadcastOn()[0]->name === 'private-channel.'.$general->id);
+});
+
+/**
+ * Record the queries a vote request runs, as full query-log entries.
+ *
+ * @return list<array{query: string, bindings: array<int, mixed>}>
+ */
+function voteQueryLog(User $actor, Team $team, Channel $channel, Poll $poll, PollOption $option): array
+{
+    DB::connection()->flushQueryLog();
+    DB::enableQueryLog();
+
+    try {
+        votePoll($actor, $team, $channel, $poll, $option)->assertRedirect();
+
+        return DB::getQueryLog();
+    } finally {
+        DB::disableQueryLog();
+    }
+}
+
+/**
+ * The index of the first log entry matching every given SQL fragment, or null.
+ *
+ * @param  list<array{query: string, bindings: array<int, mixed>}>  $queryLog
+ * @param  list<string>  $fragments
+ */
+function queryIndexMatching(array $queryLog, array $fragments): ?int
+{
+    $index = collect($queryLog)->search(
+        fn (array $entry): bool => collect($fragments)->every(
+            fn (string $fragment): bool => str_contains($entry['query'], $fragment),
+        ),
+    );
+
+    return $index === false ? null : $index;
+}
+
+// The double-vote race itself (two requests interleaving between the clear and
+// the insert) cannot be reproduced under RefreshDatabase — the test wraps in a
+// transaction a second connection could never see into — so these tests assert
+// the serializing poll-row lock that closes it. Locking the voter's existing
+// vote rows would not be enough: a first-time voter has none, so two concurrent
+// first votes on different options would each lock nothing and both insert.
+test('a single-choice vote locks the poll row so concurrent votes serialize', function (): void {
+    [$owner, $team, $general] = pollTeam();
+    $poll = makePoll($general, $owner, ['A', 'B']);
+
+    $queryLog = voteQueryLog($owner, $team, $general, $poll, $poll->options[0]);
+
+    $lockIndex = queryIndexMatching($queryLog, ['from "polls"', 'for update']);
+    $insertIndex = queryIndexMatching($queryLog, ['insert into "poll_votes"']);
+
+    expect($lockIndex)->not->toBeNull()
+        ->and($queryLog[$lockIndex]['bindings'])->toContain($poll->id)
+        ->and($insertIndex)->not->toBeNull()
+        ->and($lockIndex)->toBeLessThan($insertIndex);
+});
+
+test('a multiple-choice vote does not lock the poll row', function (): void {
+    [$owner, $team, $general] = pollTeam();
+    $poll = makePoll($general, $owner, ['A', 'B'], fn ($f) => $f->multiChoice());
+
+    $queryLog = voteQueryLog($owner, $team, $general, $poll, $poll->options[0]);
+
+    expect(queryIndexMatching($queryLog, ['from "polls"', 'for update']))->toBeNull()
+        ->and(queryIndexMatching($queryLog, ['insert into "poll_votes"']))->not->toBeNull();
 });
 
 test('a multiple-choice vote toggles each option independently', function (): void {
