@@ -114,7 +114,9 @@ abort_if(abs(time() - $t) > 300, 400, 'Timestamp outside tolerance');
 ## Retries and auto-disabling
 
 A delivery that does not return a `2xx` status (or times out) is retried with
-exponential backoff. If a subscription's deliveries fail
+exponential backoff. Redirects are never followed — a `3xx` response counts as
+a failed attempt, so register the final URL directly (e.g. `https://`, not an
+`http://` address that redirects to it). If a subscription's deliveries fail
 [`WEBHOOKS_DISABLE_AFTER`](/docs/reference/feature-toggles/#outgoing-webhooks)
 times in a row — with no success in between — it is **auto-disabled** and stops
 delivering. Its `status` (surfaced on the API resource, along with
