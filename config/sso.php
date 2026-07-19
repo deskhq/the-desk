@@ -70,11 +70,17 @@ return [
     | provider returns an id_token that cannot be validated (UserInfo-over-TLS
     | with a confidential client then remains the trust anchor).
     |
+    | `require_verified_email` hardens account linking: a login whose UserInfo
+    | reports `email_verified: false` is always rejected, and with this flag on
+    | a login whose UserInfo omits the claim entirely is rejected too. Off by
+    | default because many conformant IdPs never send the claim at all.
+    |
     */
 
     'oidc' => [
         'enabled' => $oidcConfigured,
         'validate_id_token' => (bool) env('SSO_OIDC_VALIDATE_ID_TOKEN', true),
+        'require_verified_email' => (bool) env('SSO_OIDC_REQUIRE_VERIFIED_EMAIL', false),
     ],
 
     /*

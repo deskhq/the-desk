@@ -2,6 +2,7 @@
 
 use App\Actions\Sso\ProvisionSsoUser;
 use App\Enums\TeamRole;
+use App\Models\SsoIdentity;
 use App\Models\Team;
 use App\Models\User;
 use GuzzleHttp\Handler\MockHandler;
@@ -10,9 +11,21 @@ use Laravel\Socialite\Facades\Socialite;
 use Laravel\Socialite\Two\InvalidStateException;
 use Laravel\Socialite\Two\User as SocialiteUser;
 
-function fakeOidcUser(?string $email = 'ada@example.com', string $id = 'sub-1', ?string $name = 'Ada Byte'): SocialiteUser
+/**
+ * A Socialite user shaped like the generic OIDC provider's output: mapped
+ * attributes plus the raw UserInfo claims. $emailVerified lands in the raw
+ * `email_verified` claim in whatever form it is given (bool or the string
+ * forms some IdPs emit); null omits the claim, as many conformant IdPs do.
+ */
+function fakeOidcUser(?string $email = 'ada@example.com', string $id = 'sub-1', ?string $name = 'Ada Byte', bool|string|null $emailVerified = null): SocialiteUser
 {
-    return (new SocialiteUser)->map([
+    $claims = ['sub' => $id, 'name' => $name, 'email' => $email];
+
+    if ($emailVerified !== null) {
+        $claims['email_verified'] = $emailVerified;
+    }
+
+    return (new SocialiteUser)->setRaw($claims)->map([
         'id' => $id,
         'name' => $name,
         'email' => $email,
@@ -105,6 +118,97 @@ test('identities are namespaced by issuer so the same subject at two issuers nev
         'provider_id' => 'shared-sub',
         'user_id' => $bob->id,
     ]);
+});
+
+test('an explicitly unverified email is rejected and the existing account is not taken over', function (): void {
+    config(['sso.oidc.enabled' => true, 'services.oidc.issuer' => 'https://idp.test']);
+    User::factory()->create(['email' => 'ada@example.com']);
+    Socialite::fake('oidc', fakeOidcUser(emailVerified: false));
+
+    $response = $this->get(route('sso.oidc.callback'));
+
+    $this->assertGuest();
+    $response->assertRedirect(route('login'));
+    $response->assertSessionHas('status');
+    $this->assertDatabaseCount('sso_identities', 0);
+});
+
+test('an explicitly unverified email never just-in-time provisions an account', function (): void {
+    config(['sso.oidc.enabled' => true, 'services.oidc.issuer' => 'https://idp.test']);
+    Team::factory()->create();
+    Socialite::fake('oidc', fakeOidcUser(emailVerified: false));
+
+    $response = $this->get(route('sso.oidc.callback'));
+
+    $this->assertGuest();
+    $response->assertRedirect(route('login'));
+    expect(User::query()->count())->toBe(0);
+});
+
+test('a verified email links and signs in as before', function (bool|string $claim): void {
+    config(['sso.oidc.enabled' => true, 'services.oidc.issuer' => 'https://idp.test']);
+    $existing = User::factory()->create(['email' => 'ada@example.com']);
+    Socialite::fake('oidc', fakeOidcUser(emailVerified: $claim));
+
+    $this->get(route('sso.oidc.callback'));
+
+    expect(auth()->id())->toBe($existing->id);
+})->with(['boolean true' => true, 'string "true"' => 'true']);
+
+test('a string "false" email_verified claim is coerced and rejected', function (): void {
+    config(['sso.oidc.enabled' => true, 'services.oidc.issuer' => 'https://idp.test']);
+    User::factory()->create(['email' => 'ada@example.com']);
+    Socialite::fake('oidc', fakeOidcUser(emailVerified: 'false'));
+
+    $response = $this->get(route('sso.oidc.callback'));
+
+    $this->assertGuest();
+    $response->assertRedirect(route('login'));
+    $this->assertDatabaseCount('sso_identities', 0);
+});
+
+test('an absent email_verified claim is accepted by default', function (): void {
+    config(['sso.oidc.enabled' => true, 'services.oidc.issuer' => 'https://idp.test']);
+    $existing = User::factory()->create(['email' => 'ada@example.com']);
+    Socialite::fake('oidc', fakeOidcUser());
+
+    $this->get(route('sso.oidc.callback'));
+
+    expect(auth()->id())->toBe($existing->id);
+});
+
+test('an absent email_verified claim is rejected when a verified email is required', function (): void {
+    config(['sso.oidc.enabled' => true, 'services.oidc.issuer' => 'https://idp.test', 'sso.oidc.require_verified_email' => true]);
+    Team::factory()->create();
+    Socialite::fake('oidc', fakeOidcUser());
+
+    $response = $this->get(route('sso.oidc.callback'));
+
+    $this->assertGuest();
+    $response->assertRedirect(route('login'));
+    $response->assertSessionHas('status');
+    expect(User::query()->count())->toBe(0);
+});
+
+test('an explicitly verified email still signs in when a verified email is required', function (): void {
+    config(['sso.oidc.enabled' => true, 'services.oidc.issuer' => 'https://idp.test', 'sso.oidc.require_verified_email' => true]);
+    Team::factory()->create();
+    Socialite::fake('oidc', fakeOidcUser(emailVerified: true));
+
+    $this->get(route('sso.oidc.callback'));
+
+    $this->assertAuthenticated();
+});
+
+test('a returning linked identity still signs in when the directory reports the email unverified', function (): void {
+    config(['sso.oidc.enabled' => true, 'services.oidc.issuer' => 'https://idp.test']);
+    $existing = User::factory()->create();
+    SsoIdentity::factory()->provider('oidc:https://idp.test')->for($existing)->create(['provider_id' => 'sub-1']);
+    Socialite::fake('oidc', fakeOidcUser(emailVerified: false));
+
+    $this->get(route('sso.oidc.callback'));
+
+    expect(auth()->id())->toBe($existing->id);
 });
 
 test('a callback with no email address fails gracefully back to login', function (): void {

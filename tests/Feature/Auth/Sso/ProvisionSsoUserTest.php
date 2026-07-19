@@ -3,6 +3,7 @@
 use App\Actions\Sso\ProvisionSsoUser;
 use App\Enums\SecurityEventType;
 use App\Enums\TeamRole;
+use App\Exceptions\Sso\UnverifiedSsoEmailException;
 use App\Models\Channel;
 use App\Models\SecurityEvent;
 use App\Models\SsoIdentity;
@@ -149,4 +150,33 @@ test('without syncName an existing matched user keeps their current name', funct
     app(ProvisionSsoUser::class)->handle('oidc', 'sub-123', 'jordan@example.com', 'Jordan Rivers');
 
     expect($existing->fresh()->name)->toBe('Kept Name');
+});
+
+test('an unverified email is rejected instead of linking to the existing account', function (): void {
+    User::factory()->create(['email' => 'jordan@example.com']);
+
+    expect(fn (): User => app(ProvisionSsoUser::class)->handle('oidc', 'sub-123', 'jordan@example.com', 'Jordan Rivers', emailVerified: false))
+        ->toThrow(UnverifiedSsoEmailException::class);
+
+    expect(SsoIdentity::query()->count())->toBe(0)
+        ->and(User::query()->count())->toBe(1);
+});
+
+test('an unverified email is rejected instead of just-in-time provisioning a new account', function (): void {
+    Team::factory()->create();
+
+    expect(fn (): User => app(ProvisionSsoUser::class)->handle('oidc', 'sub-123', 'jordan@example.com', 'Jordan Rivers', emailVerified: false))
+        ->toThrow(UnverifiedSsoEmailException::class);
+
+    expect(User::query()->count())->toBe(0)
+        ->and(SsoIdentity::query()->count())->toBe(0);
+});
+
+test('an already-linked identity still resolves when the directory reports the email unverified', function (): void {
+    $existing = User::factory()->create();
+    SsoIdentity::factory()->provider('oidc')->for($existing)->create(['provider_id' => 'sub-xyz']);
+
+    $user = app(ProvisionSsoUser::class)->handle('oidc', 'sub-xyz', 'someone-else@example.com', 'Someone Else', emailVerified: false);
+
+    expect($user->id)->toBe($existing->id);
 });
