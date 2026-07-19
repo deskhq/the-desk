@@ -1,7 +1,7 @@
-import DOMPurify from 'dompurify';
 import MarkdownIt from 'markdown-it';
 import { resolveCustomEmoji, SHORTCODE_PATTERN } from '@/lib/customEmoji';
 import type { CustomEmojiMap } from '@/lib/customEmoji';
+import { MESSAGE_BODY_SANITIZE_CONFIG, sanitizeHtml } from '@/lib/sanitizeHtml';
 import type { Mention } from '@/types';
 
 const HTML_ESCAPES: Record<string, string> = {
@@ -75,30 +75,14 @@ function wrapMarks(inner: string, marks: InlineMark[]): string {
 }
 
 /**
- * The fixed allowlist DOMPurify sanitizes emitted HTML against — the formatting
- * scaffold plus the mention/emoji/link markup this module builds. This is the
- * XSS trust boundary: every HTML string we hand to a `v-html`/rendered surface
- * passes through {@see sanitize} first, so an attacker-authored tag or
- * `javascript:` URL that somehow reached the output could never survive it.
- */
-const SANITIZE_CONFIG = {
-    ALLOWED_TAGS: ['strong', 'em', 'del', 'code', 'br', 'span', 'a', 'img'],
-    ALLOWED_ATTR: ['class', 'href', 'target', 'rel', 'src', 'alt', 'title'],
-};
-
-/**
- * Sanitize a run of emitted HTML against the fixed allowlist. In a browser (or
- * jsdom test) DOMPurify strips anything off-allowlist. A DOM-less SSR pass has
- * no `window` for DOMPurify to run against, so it is skipped there — still safe
- * because every string reaching here is built from escaped text and a closed set
- * of tags we author ourselves, and the client re-sanitizes on hydration.
+ * Sanitize a run of emitted HTML against the message-body allowlist — the
+ * formatting scaffold plus the mention/emoji/link markup this module builds.
+ * This is the XSS trust boundary: every HTML string we hand to a `v-html`
+ * surface passes through here first, so consumers must never re-sanitize with
+ * an allowlist of their own (a narrower one silently strips formatting).
  */
 function sanitize(html: string): string {
-    if (typeof window === 'undefined') {
-        return html;
-    }
-
-    return DOMPurify.sanitize(html, SANITIZE_CONFIG);
+    return sanitizeHtml(html, MESSAGE_BODY_SANITIZE_CONFIG);
 }
 
 /**
