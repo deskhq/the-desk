@@ -216,6 +216,21 @@ it('auto-disables a subscription whose hostname resolves private once it hits th
     expect($this->subscription->refresh()->status)->toBe(WebhookSubscriptionStatus::Disabled);
 });
 
+it('delivers to a hostname resolving to a public IPv6 address', function (): void {
+    $this->app->instance(HostResolver::class, webhookResolver(['example.test' => ['2606:4700::6810:84e5']]));
+    Http::fake(['example.test/*' => Http::response('', 200)]);
+
+    (new DeliverWebhook($this->subscription->id, [
+        'id' => (string) Str::uuid(),
+        'type' => WebhookEvent::MessageCreated->value,
+        'created_at' => now()->toIso8601String(),
+        'data' => [],
+    ]))->handle(app(AuditRecorder::class), app(WebhookUrlGuard::class));
+
+    Http::assertSentCount(1);
+    expect($this->subscription->deliveries()->sole()->succeeded)->toBeTrue();
+});
+
 it('delivers to a literal public IP without pinning', function (): void {
     $this->subscription->update(['url' => 'https://8.8.8.8/hook']);
     Http::fake(['8.8.8.8/*' => Http::response('', 200)]);

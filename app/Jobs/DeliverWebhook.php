@@ -148,7 +148,9 @@ class DeliverWebhook implements ShouldQueue
         $host = (string) ($parts['host'] ?? '');
         $port = (int) ($parts['port'] ?? (strtolower((string) ($parts['scheme'] ?? '')) === 'http' ? 80 : 443));
 
-        $options['curl'] = [CURLOPT_RESOLVE => [sprintf('%s:%d:%s', $host, $port, $pinnedIp)]];
+        $address = str_contains($pinnedIp, ':') ? '['.$pinnedIp.']' : $pinnedIp;
+
+        $options['curl'] = [CURLOPT_RESOLVE => [sprintf('%s:%d:%s', $host, $port, $address)]];
 
         return $options;
     }
