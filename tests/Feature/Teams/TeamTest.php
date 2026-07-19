@@ -4,6 +4,7 @@ use App\Enums\SecurityEventType;
 use App\Enums\TeamRole;
 use App\Models\SecurityEvent;
 use App\Models\Team;
+use App\Models\TeamInvitation;
 use App\Models\User;
 use Inertia\Testing\AssertableInertia as Assert;
 
@@ -70,6 +71,75 @@ test('the team edit page can be rendered', function (): void {
             ->where('team.role', TeamRole::Owner->value)
             ->where('members.0.role', TeamRole::Owner->value)
             ->where('members.0.role_label', TeamRole::Owner->label()),
+        );
+});
+
+test('the team edit page cannot be viewed by non-members', function (): void {
+    $owner = User::factory()->create();
+    $outsider = User::factory()->create();
+    $team = Team::factory()->create();
+
+    $team->members()->attach($owner, ['role' => TeamRole::Owner->value]);
+
+    $response = $this
+        ->actingAs($outsider)
+        ->get(route('teams.edit', $team));
+
+    $response->assertForbidden();
+});
+
+test('the team edit page hides member emails and invitations from plain members', function (): void {
+    $owner = User::factory()->create();
+    $member = User::factory()->create();
+    $team = Team::factory()->create();
+
+    $team->members()->attach($owner, ['role' => TeamRole::Owner->value]);
+    $team->members()->attach($member, ['role' => TeamRole::Member->value]);
+
+    TeamInvitation::factory()->create([
+        'team_id' => $team->id,
+        'invited_by' => $owner->id,
+    ]);
+
+    $response = $this
+        ->actingAs($member)
+        ->get(route('teams.edit', $team));
+
+    $response
+        ->assertOk()
+        ->assertInertia(fn (Assert $page): Assert => $page
+            ->component('teams/Edit')
+            ->where('members.0.email', null)
+            ->where('members.1.email', null)
+            ->where('invitations', []),
+        );
+});
+
+test('the team edit page shows member emails and invitations to admins', function (): void {
+    $owner = User::factory()->create();
+    $admin = User::factory()->create();
+    $team = Team::factory()->create();
+
+    $team->members()->attach($owner, ['role' => TeamRole::Owner->value]);
+    $team->members()->attach($admin, ['role' => TeamRole::Admin->value]);
+
+    $invitation = TeamInvitation::factory()->create([
+        'team_id' => $team->id,
+        'invited_by' => $owner->id,
+    ]);
+
+    $response = $this
+        ->actingAs($admin)
+        ->get(route('teams.edit', $team));
+
+    $response
+        ->assertOk()
+        ->assertInertia(fn (Assert $page): Assert => $page
+            ->component('teams/Edit')
+            ->where('members.0.email', $owner->email)
+            ->where('members.1.email', $admin->email)
+            ->where('invitations.0.email', $invitation->email)
+            ->where('invitations.0.role', $invitation->role->value),
         );
 });
 
