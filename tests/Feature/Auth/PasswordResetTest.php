@@ -76,3 +76,52 @@ test('password cannot be reset with invalid token', function (): void {
 
     $response->assertSessionHasErrors('email');
 });
+
+test('the forgot-password endpoint is rate limited by ip', function (): void {
+    Notification::fake();
+
+    $user = User::factory()->create();
+
+    foreach (range(1, 5) as $attempt) {
+        $this->post(route('password.email'), ['email' => $user->email])->assertRedirect();
+    }
+
+    $this->post(route('password.email'), ['email' => $user->email])->assertTooManyRequests();
+});
+
+test('the reset-password endpoint is rate limited by ip', function (): void {
+    $user = User::factory()->create();
+
+    foreach (range(1, 5) as $attempt) {
+        $this->post(route('password.update'), [
+            'token' => 'invalid-token',
+            'email' => $user->email,
+            'password' => 'newpassword123',
+            'password_confirmation' => 'newpassword123',
+        ])->assertRedirect();
+    }
+
+    $this->post(route('password.update'), [
+        'token' => 'invalid-token',
+        'email' => $user->email,
+        'password' => 'newpassword123',
+        'password_confirmation' => 'newpassword123',
+    ])->assertTooManyRequests();
+});
+
+test('the forgot-password and reset-password throttles use separate buckets', function (): void {
+    Notification::fake();
+
+    $user = User::factory()->create();
+
+    foreach (range(1, 5) as $attempt) {
+        $this->post(route('password.email'), ['email' => $user->email])->assertRedirect();
+    }
+
+    $this->post(route('password.update'), [
+        'token' => 'invalid-token',
+        'email' => $user->email,
+        'password' => 'newpassword123',
+        'password_confirmation' => 'newpassword123',
+    ])->assertRedirect();
+});

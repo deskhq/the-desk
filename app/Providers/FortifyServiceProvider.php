@@ -195,6 +195,15 @@ class FortifyServiceProvider extends ServiceProvider
         RateLimiter::for('passkeys', fn (Request $request): Limit => Limit::perMinute(5)
             ->by('passkeys|'.($request->user()?->getAuthIdentifier() ?? $request->ip())));
 
+        // Both password-reset POSTs are guest endpoints, so the IP is the only
+        // stable identity to key on. The route name is part of the key so the
+        // request and completion endpoints get independent buckets — burning the
+        // forgot-password limit must not lock a user out of finishing a reset.
+        // Applied by the ThrottlePasswordResetRequests web middleware (Fortify
+        // has no limiter hook for these routes).
+        RateLimiter::for('password-reset', fn (Request $request): Limit => Limit::perMinute(5)
+            ->by('password-reset|'.$request->route()?->getName().'|'.$request->ip()));
+
     }
 
     /**
