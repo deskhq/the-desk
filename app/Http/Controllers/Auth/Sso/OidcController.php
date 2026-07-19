@@ -102,12 +102,15 @@ class OidcController extends Controller
 
         $claim = $claims['email_verified'] ?? null;
 
-        if ($claim === null) {
-            return ! config('sso.oidc.require_verified_email');
+        if (is_bool($claim)) {
+            return $claim;
         }
 
-        return filter_var($claim, FILTER_VALIDATE_BOOL, FILTER_NULL_ON_FAILURE)
-            ?? ! config('sso.oidc.require_verified_email');
+        return match (is_string($claim) ? strtolower($claim) : null) {
+            'true' => true,
+            'false' => false,
+            default => ! config('sso.oidc.require_verified_email'),
+        };
     }
 
     /**
