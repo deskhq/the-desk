@@ -93,6 +93,12 @@ class HandleInertiaRequests extends Middleware
             // tooltip — the server enforces every block regardless (see
             // PreventDestructiveDemoActions), so this is UI affordance only.
             'demoMode' => (bool) config('demo.mode'),
+            // ISO-8601 instant of the next hourly demo wipe (top of the hour),
+            // so the banner's "Resets in X min" chip ticks against the real
+            // schedule (see routes/console.php). Null off the demo.
+            'demoResetsAt' => config('demo.mode')
+                ? now()->startOfHour()->addHour()->toIso8601String()
+                : null,
             // Single sign-on state for the login page: whether to show the
             // "Sign in with SSO" entry point (an OIDC provider is configured),
             // and whether the password form still applies (off only when SSO

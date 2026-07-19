@@ -72,6 +72,16 @@
     --color-brass-border: var(--brass-border);
     --color-brass-fill: var(--brass-fill);
     --color-brass-fill-foreground: var(--brass-fill-foreground);
+
+    /* Demo-mode banner — a slim brass-tinted strip pinned above the workspace. */
+    --color-demo-banner: var(--demo-banner);
+    --color-demo-banner-border: var(--demo-banner-border);
+    --color-demo-banner-foreground: var(--demo-banner-foreground);
+    --color-demo-banner-strong: var(--demo-banner-strong);
+    --color-demo-badge: var(--demo-badge);
+    --color-demo-badge-foreground: var(--demo-badge-foreground);
+    --color-demo-chip: var(--demo-chip);
+    --color-demo-chip-foreground: var(--demo-chip-foreground);
 }
 
 /*
@@ -139,6 +149,19 @@
     --brass-fill: rgba(201, 163, 92, 0.14);
     /* Reaction-pill text on the translucent brass fill — AA 4.5:1 (#269). */
     --brass-fill-foreground: #6a521e;
+    /* Demo banner (#547) — warm brass-tinted strip: badge is ink with a brass
+       glyph, copy sits on a soft sand fill, the reset chip is a white pill. */
+    --demo-banner: #f3eedd;
+    --demo-banner-border: #e3d5b3;
+    --demo-banner-foreground: #4a4436;
+    --demo-banner-strong: #1d1a15;
+    --demo-badge: #1d1a15;
+    --demo-badge-foreground: #c9a35c;
+    --demo-chip: #ffffff;
+    --demo-chip-foreground: #7d6023;
+    /* Height of the fixed demo strip, so the shell can reserve space beneath it
+       (the banner is `position: fixed`, out of flow). Theme-independent. */
+    --demo-banner-height: 2.5rem;
     --chart-1: #c9a35c;
     --chart-2: #7d6023;
     --chart-3: #8b8370;
@@ -185,6 +208,16 @@
     --brass-border: #c9a35c;
     --brass-fill: rgba(201, 163, 92, 0.14);
     --brass-fill-foreground: #dcb56a;
+    /* Demo banner (#547) — the strip flips to a brass badge on a translucent
+       brass fill; the reset chip becomes a dark pill with brass text. */
+    --demo-banner: rgba(201, 163, 92, 0.12);
+    --demo-banner-border: #3a3527;
+    --demo-banner-foreground: #cfc9ba;
+    --demo-banner-strong: #ece7da;
+    --demo-badge: #c9a35c;
+    --demo-badge-foreground: #1d1a15;
+    --demo-chip: #26231c;
+    --demo-chip-foreground: #c9a35c;
     --chart-1: #d4b06a;
     --chart-2: #b8923f;
     --chart-3: #9b937f;

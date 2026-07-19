@@ -2,6 +2,7 @@
 import { Link, usePage } from '@inertiajs/vue3';
 import { Lock, Mail } from '@lucide/vue';
 import AppLogoIcon from '@/components/AppLogoIcon.vue';
+import { useDemoMode } from '@/composables/useDemoMode';
 import { home } from '@/routes';
 
 const {
@@ -16,11 +17,15 @@ const {
 
 const page = usePage();
 const name = page.props.name;
+
+// Reserve space for the fixed demo banner so the centered card clears it.
+const { demoMode } = useDemoMode();
 </script>
 
 <template>
     <div
         class="flex min-h-svh flex-col items-center justify-center gap-6 bg-background p-6 md:p-10"
+        :class="{ 'pt-[calc(1.5rem+var(--demo-banner-height))]': demoMode }"
     >
         <div class="flex w-full max-w-sm flex-col items-center gap-5">
             <div

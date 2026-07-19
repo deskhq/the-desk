@@ -80,6 +80,7 @@ import { Toaster } from '@/components/ui/sonner';
 import UpdateIndicator from '@/components/UpdateIndicator.vue';
 import { adjacentSlug } from '@/composables/keyboardShortcuts';
 import { useChimeNotifications } from '@/composables/useChimeNotifications';
+import { useDemoMode } from '@/composables/useDemoMode';
 import { useInitials } from '@/composables/useInitials';
 import { useKeyboardShortcuts } from '@/composables/useKeyboardShortcuts';
 import { useKeyboardShortcutsModal } from '@/composables/useKeyboardShortcutsModal';
@@ -121,6 +122,10 @@ const isSettingsSection = computed(() => {
 
 // Chime for qualifying messages across every channel while the workspace is open.
 useChimeNotifications();
+
+// The demo banner is a fixed strip above the shell; reserve its height so the
+// sidebar and workspace pane sit below it rather than under it.
+const { demoMode } = useDemoMode();
 
 // Keep the sidebar unread/mention badges live as messages arrive in channels the
 // user is a member of but not currently viewing.
@@ -695,7 +700,7 @@ onMounted(() => {
 <template>
     <SidebarProvider
         :default-open="page.props.sidebarOpen"
-        class="bg-background"
+        :class="['bg-background', { 'pt-(--demo-banner-height)': demoMode }]"
         style="--sidebar-width: calc(272px + 1.75rem)"
     >
         <DemoBanner />
@@ -718,7 +723,13 @@ onMounted(() => {
             :side="sidebarPosition"
             collapsible="offcanvas"
             variant="floating"
-            class="p-3.5"
+            :class="[
+                'p-3.5',
+                {
+                    'md:top-(--demo-banner-height) md:h-[calc(100svh-var(--demo-banner-height))]':
+                        demoMode,
+                },
+            ]"
         >
             <SidebarHeader
                 class="gap-0 border-b border-sidebar-border p-3.5 pb-2.5"
@@ -1382,12 +1393,15 @@ onMounted(() => {
         <SidebarInset
             id="main"
             tabindex="-1"
-            class="flex h-svh flex-col overflow-hidden focus-visible:outline-none md:my-3.5 md:h-[calc(100svh-1.75rem)] md:rounded-[14px] md:border md:border-border md:bg-card md:shadow-sm"
-            :class="
+            class="flex flex-col overflow-hidden focus-visible:outline-none md:my-3.5 md:rounded-[14px] md:border md:border-border md:bg-card md:shadow-sm"
+            :class="[
                 sidebarPosition === 'right'
                     ? 'md:order-first md:ml-3.5'
-                    : 'md:mr-3.5'
-            "
+                    : 'md:mr-3.5',
+                demoMode
+                    ? 'h-[calc(100svh-var(--demo-banner-height))] md:h-[calc(100svh-1.75rem-var(--demo-banner-height))]'
+                    : 'h-svh md:h-[calc(100svh-1.75rem)]',
+            ]"
         >
             <slot />
         </SidebarInset>

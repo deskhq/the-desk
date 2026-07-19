@@ -10,6 +10,11 @@ export type UseDemoModeReturn = {
      * this is UI affordance only.
      */
     demoMode: ComputedRef<boolean>;
+    /**
+     * ISO-8601 instant of the next hourly demo wipe, shared by the backend so the
+     * banner countdown ticks against the real schedule. Null off the demo.
+     */
+    demoResetsAt: ComputedRef<string | null>;
 };
 
 export function useDemoMode(): UseDemoModeReturn {
@@ -17,5 +22,10 @@ export function useDemoMode(): UseDemoModeReturn {
 
     return {
         demoMode: computed(() => page.props.demoMode === true),
+        demoResetsAt: computed(() =>
+            typeof page.props.demoResetsAt === 'string'
+                ? page.props.demoResetsAt
+                : null,
+        ),
     };
 }

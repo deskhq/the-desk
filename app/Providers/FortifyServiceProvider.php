@@ -11,6 +11,7 @@ use App\Http\Responses\TwoFactorLoginResponse;
 use App\Http\Responses\VerifyEmailResponse;
 use App\Models\TeamInvitation;
 use App\Services\Sso\LdapAuthenticator;
+use Database\Seeders\DemoSeeder;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Http\Request;
@@ -137,6 +138,13 @@ class FortifyServiceProvider extends ServiceProvider
             // the deploy-time toggle is on and SSO is not enforcing an external
             // identity provider (which would own authentication).
             'canLoginWithPasskey' => (bool) config('fortify.passkeys_enabled') && ! config('sso.enforced'),
+            // On the public demo, everyone signs in as the same shared owner, so
+            // the login page advertises the credentials outright. Null (and the
+            // hint hidden) on a real deployment.
+            'demoCredentials' => config('demo.mode') ? [
+                'email' => DemoSeeder::DEMO_EMAIL,
+                'password' => DemoSeeder::DEMO_PASSWORD,
+            ] : null,
         ]));
 
         Fortify::resetPasswordView(fn (Request $request) => Inertia::render('auth/ResetPassword', [

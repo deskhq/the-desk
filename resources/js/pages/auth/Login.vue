@@ -31,6 +31,11 @@ defineProps<{
     canResetPassword: boolean;
     teamInvitation?: TeamInvitationContext | null;
     canLoginWithPasskey?: boolean;
+    /**
+     * The shared sign-in credentials for the public demo, advertised beneath the
+     * login button so visitors can get in. Null off the demo.
+     */
+    demoCredentials?: { email: string; password: string } | null;
 }>();
 
 // Passwordless sign-in: run the WebAuthn assertion against the Fortify passkey
@@ -193,6 +198,40 @@ const {
                 >
                     {{ $t('Log in') }}
                 </Button>
+
+                <div
+                    v-if="demoCredentials"
+                    data-test="demo-credentials"
+                    class="rounded-xl border border-demo-banner-border bg-demo-banner px-4 py-3 text-center text-sm text-demo-banner-foreground"
+                >
+                    <p class="font-semibold text-demo-banner-strong">
+                        {{ $t('Sign in with the shared demo account') }}
+                    </p>
+                    <dl class="mt-2 flex flex-col gap-1">
+                        <div class="flex items-center justify-center gap-2">
+                            <dt class="text-demo-banner-foreground/80">
+                                {{ $t('Email') }}
+                            </dt>
+                            <dd>
+                                <code
+                                    class="rounded bg-demo-chip px-1.5 py-0.5 font-mono text-demo-chip-foreground"
+                                    >{{ demoCredentials.email }}</code
+                                >
+                            </dd>
+                        </div>
+                        <div class="flex items-center justify-center gap-2">
+                            <dt class="text-demo-banner-foreground/80">
+                                {{ $t('Password') }}
+                            </dt>
+                            <dd>
+                                <code
+                                    class="rounded bg-demo-chip px-1.5 py-0.5 font-mono text-demo-chip-foreground"
+                                    >{{ demoCredentials.password }}</code
+                                >
+                            </dd>
+                        </div>
+                    </dl>
+                </div>
             </div>
 
             <div

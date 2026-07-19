@@ -19,6 +19,7 @@
 </p>
 
 <p align="center">
+  <a href="https://demo-the-desk.emmanuelpaul.com/"><strong>Live&nbsp;demo</strong></a> ·
   <a href="https://the-desk.emmanuelpaul.com">Website</a> ·
   <a href="https://the-desk.emmanuelpaul.com/docs/">Docs</a> ·
   <a href="https://the-desk.emmanuelpaul.com/docs/self-hosting/installation/">Install</a> ·
@@ -47,6 +48,8 @@ upgrades) live at
 **[the-desk.emmanuelpaul.com/docs](https://the-desk.emmanuelpaul.com/docs/)**.
 
 ### Public demo
+
+Try it live at **[demo-the-desk.emmanuelpaul.com](https://demo-the-desk.emmanuelpaul.com/)** — the login page shows the shared credentials.
 
 Set `DEMO_MODE=true` to run a public, single-shared-account demo off the seeded
 "Northwind Labs" workspace (`php artisan demo:seed`). Every visitor signs in as
@@ -125,28 +128,28 @@ sso`), then uncomment the matching dev values in `.env.example`:
   `oidc:8081` from both the browser and the app container so the derived issuer
   stays consistent, so add one line to your host's `/etc/hosts` once:
 
-  ```
-  127.0.0.1 oidc
-  ```
+    ```
+    127.0.0.1 oidc
+    ```
 
-  Then set `SSO_OIDC_ISSUER=http://oidc:8081`, `SSO_OIDC_CLIENT_ID=the-desk-dev`,
-  `SSO_OIDC_CLIENT_SECRET=the-desk-dev-secret` and use "Sign in with SSO".
+    Then set `SSO_OIDC_ISSUER=http://oidc:8081`, `SSO_OIDC_CLIENT_ID=the-desk-dev`,
+    `SSO_OIDC_CLIENT_SECRET=the-desk-dev-secret` and use "Sign in with SSO".
 
 - **LDAP** — an OpenLDAP directory ([osixia/openldap](https://github.com/osixia/docker-openldap))
   seeded with `ldap1@the-desk.local` … `ldap4@the-desk.local` (password
   `password`) under `dc=the-desk,dc=local`. Uncomment the dev block in
   `.env.example`:
 
-  ```
-  LDAP_HOST=ldap
-  LDAP_PORT=389
-  LDAP_BASE_DN="dc=the-desk,dc=local"
-  LDAP_USERNAME="cn=admin,dc=the-desk,dc=local"
-  LDAP_PASSWORD=adminpassword
-  LDAP_ATTR_GUID=entryuuid   # OpenLDAP's stable id, not AD's objectGUID
-  ```
+    ```
+    LDAP_HOST=ldap
+    LDAP_PORT=389
+    LDAP_BASE_DN="dc=the-desk,dc=local"
+    LDAP_USERNAME="cn=admin,dc=the-desk,dc=local"
+    LDAP_PASSWORD=adminpassword
+    LDAP_ATTR_GUID=entryuuid   # OpenLDAP's stable id, not AD's objectGUID
+    ```
 
-  Then sign in through the normal login form with a seeded email.
+    Then sign in through the normal login form with a seeded email.
 
 ## Contributing
 

@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { FlaskConical } from '@lucide/vue';
+import { FlaskConical, RotateCcw } from '@lucide/vue';
+import { computed, onMounted, onUnmounted, ref } from 'vue';
 import { useDemoMode } from '@/composables/useDemoMode';
 
 /**
@@ -10,8 +11,55 @@ import { useDemoMode } from '@/composables/useDemoMode';
  * disturbs the sidebar/auth layouts it sits inside — and it sits at `z-40`,
  * below the skip link's `z-50`, so the first-focusable skip link still surfaces
  * above it for keyboard users.
+ *
+ * A trailing chip counts down to the next hourly wipe, driven by the shared
+ * `demoResetsAt` timestamp so it stays honest against the real schedule.
  */
-const { demoMode } = useDemoMode();
+const { demoMode, demoResetsAt } = useDemoMode();
+
+const MS_PER_HOUR = 3_600_000;
+const MS_PER_MINUTE = 60_000;
+
+const nowMs = ref(Date.now());
+let ticker: ReturnType<typeof setInterval> | undefined;
+
+onMounted(() => {
+    ticker = setInterval(() => {
+        nowMs.value = Date.now();
+    }, MS_PER_MINUTE);
+});
+
+onUnmounted(() => {
+    if (ticker !== undefined) {
+        clearInterval(ticker);
+    }
+});
+
+/**
+ * Whole minutes until the next hourly wipe. Rolls a stale timestamp forward
+ * across any missed reset boundary so the chip never shows a zero or negative
+ * count between the wipe and the next server round-trip, and never dips below
+ * one minute.
+ */
+const minutesUntilReset = computed<number | null>(() => {
+    const resetsAt = demoResetsAt.value;
+
+    if (resetsAt === null) {
+        return null;
+    }
+
+    let target = Date.parse(resetsAt);
+
+    if (Number.isNaN(target)) {
+        return null;
+    }
+
+    while (target <= nowMs.value) {
+        target += MS_PER_HOUR;
+    }
+
+    return Math.max(1, Math.ceil((target - nowMs.value) / MS_PER_MINUTE));
+});
 </script>
 
 <template>
@@ -19,15 +67,35 @@ const { demoMode } = useDemoMode();
         v-if="demoMode"
         role="status"
         data-test="demo-banner"
-        class="fixed inset-x-0 top-0 z-40 flex items-center justify-center gap-2 border-b border-brass-border bg-brass px-4 py-1.5 text-center text-xs font-medium text-brass-foreground shadow-sm"
+        class="fixed inset-x-0 top-0 z-40 flex h-(--demo-banner-height) items-center gap-2.5 border-b border-demo-banner-border bg-demo-banner px-4 text-demo-banner-foreground shadow-sm"
     >
-        <FlaskConical class="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-        <span>
+        <span
+            class="flex size-5.5 shrink-0 items-center justify-center rounded-full bg-demo-badge"
+        >
+            <FlaskConical
+                class="size-2.75 text-demo-badge-foreground"
+                aria-hidden="true"
+            />
+        </span>
+        <span class="text-center text-[13px] leading-snug">
+            {{ $t("You're exploring a") }}
+            <strong class="font-semibold text-demo-banner-strong">{{
+                $t('live demo')
+            }}</strong>
             {{
                 $t(
-                    "You're exploring a live demo — everyone shares one account, it resets hourly, and some actions are disabled.",
+                    '— everyone shares one account, it resets hourly, and some actions are disabled.',
                 )
             }}
+        </span>
+        <span
+            v-if="minutesUntilReset !== null"
+            data-test="demo-reset-countdown"
+            aria-live="off"
+            class="ml-auto inline-flex h-6 shrink-0 items-center gap-1.5 rounded-full border border-demo-banner-border bg-demo-chip px-2.75 text-[11.5px] font-semibold whitespace-nowrap text-demo-chip-foreground"
+        >
+            <RotateCcw class="size-2.75" aria-hidden="true" />
+            {{ $t('Resets in :count min', { count: minutesUntilReset }) }}
         </span>
     </div>
 </template>
