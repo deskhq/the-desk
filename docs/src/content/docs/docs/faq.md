@@ -62,9 +62,15 @@ the near-term roadmap; if you need those now, see the
 
 ## Does it support SSO, OIDC, or LDAP?
 
-Not today — single sign-on and directory-managed users are on the roadmap but not
-available in v1.10.1. If your organization requires them now, a larger platform is <!-- x-release-please-version -->
-the safer choice for the moment. See the [comparison](/docs/comparison/).
+Yes. The Desk supports [OIDC single
+sign-on](/docs/reference/environment-variables/#single-sign-on-openid-connect)
+with just-in-time provisioning,
+[LDAP / Active Directory](/docs/reference/environment-variables/#single-sign-on-ldap--active-directory)
+bind authentication with directory sync, and
+[SCIM 2.0 provisioning](/docs/reference/environment-variables/#directory-provisioning-scim-20)
+for Okta, Entra ID, and OneLogin. You can also enforce
+[SSO-only sign-in](/docs/reference/feature-toggles/#sso-only-mode) to turn
+password logins off entirely.
 
 ## How do upgrades work?
 
