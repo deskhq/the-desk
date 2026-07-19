@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.10.2](https://github.com/emmpaul/the-desk/compare/v1.10.1...v1.10.2) (2026-07-19)
+
+
+### Bug Fixes
+
+* derive typing indicator identity server-side ([#576](https://github.com/emmpaul/the-desk/issues/576)) ([ae76c53](https://github.com/emmpaul/the-desk/commit/ae76c5338604a780bb339410d2a4fae140f6cf6d))
+* hide member emails and pending invitations from plain members on team edit page ([#570](https://github.com/emmpaul/the-desk/issues/570)) ([af3602e](https://github.com/emmpaul/the-desk/commit/af3602e39f5b911c08ff43709c1fd204cbef6058))
+* make Reverb allowed_origins env-configurable via REVERB_ALLOWED_ORIGINS ([#572](https://github.com/emmpaul/the-desk/issues/572)) ([741ce17](https://github.com/emmpaul/the-desk/commit/741ce1764e35572a77c9158f59696211b712b5e3))
+* prevent concurrent double-vote on single-choice polls ([#573](https://github.com/emmpaul/the-desk/issues/573)) ([f704deb](https://github.com/emmpaul/the-desk/commit/f704deb57e171bfa69dcfe90ca5f813a42460af7))
+* re-check channel participation in message edit/delete policy ([#568](https://github.com/emmpaul/the-desk/issues/568)) ([f62338e](https://github.com/emmpaul/the-desk/commit/f62338e3c513c7197041a66a3a2d2fa631800cbd))
+* repair the poll composer panel mounted focus crash and dead controls ([#580](https://github.com/emmpaul/the-desk/issues/580)) ([d6dc690](https://github.com/emmpaul/the-desk/commit/d6dc6906f3e4db9a8feddf6f2fc29f790d646253))
+* throttle the forgot-password and reset-password endpoints ([#569](https://github.com/emmpaul/the-desk/issues/569)) ([0fee953](https://github.com/emmpaul/the-desk/commit/0fee9538da07f8b91d24097a5b7212171d3fe53b))
+
 ## [1.10.1](https://github.com/emmpaul/the-desk/compare/v1.10.0...v1.10.1) (2026-07-19)
 
 

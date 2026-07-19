@@ -42,6 +42,15 @@ abstract class TestCase extends BaseTestCase
             }
         }
 
+        if ($this->originalEnv !== []) {
+            // Also reset the memoized env repository. Its immutable writer keeps
+            // a "loaded by Dotenv" ledger; any key still on that ledger would be
+            // re-written from .env on the next application boot, clobbering the
+            // values restored above. A fresh repository treats them as external
+            // definitions that reloading .env leaves untouched.
+            Env::enablePutenv();
+        }
+
         $this->originalEnv = [];
 
         // The LDAP directory-bind path registers a custom Fortify auth callback

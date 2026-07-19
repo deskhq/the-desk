@@ -81,6 +81,10 @@ Route::middleware(['auth', 'verified', EnsureTeamMembership::class])->group(func
     Route::post('t/{team}/c/{channel}/read', [ChannelController::class, 'read'])
         ->scopeBindings()
         ->name('channels.read');
+    Route::post('t/{team}/c/{channel}/typing', [ChannelController::class, 'typing'])
+        ->scopeBindings()
+        ->middleware('throttle:60,1')
+        ->name('channels.typing');
     Route::post('t/{team}/c/{channel}/threads/{message}/read', [ChannelController::class, 'readThread'])
         ->scopeBindings()
         ->withTrashed()

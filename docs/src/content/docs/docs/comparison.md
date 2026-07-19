@@ -31,29 +31,45 @@ established self-hosted alternatives. The Desk is the newcomer optimizing for
 
 - **Getting out of your way.** Channels, threads, and DMs plus the workflow
   features teams actually miss: [scheduled messages](/docs/), message reminders,
-  reactions and custom emoji, and instant full-text search.
+  [polls](/docs/reference/feature-toggles/#polls), reactions, custom emoji,
+  user-uploaded avatars, and instant full-text search.
 - **Being trivial to run.** A prebuilt image and a single compose file. No
   Kubernetes, no build step, no exotic dependencies — a small
   [2 vCPU / 2 GB VPS](/docs/self-hosting/requirements/) comfortably hosts a team.
 - **Being yours.** MIT-licensed, auditable, self-hosted. Your messages never
   leave your server, every user can export their data, and there's no per-seat
   meter.
-- **Real admin basics.** Roles, invitations, a moderation audit log, workspace
-  analytics, and device/session management are built in.
+- **Directory-managed logins.** [OIDC single
+  sign-on](/docs/reference/environment-variables/#single-sign-on-openid-connect)
+  with just-in-time provisioning,
+  [LDAP / Active Directory](/docs/reference/environment-variables/#single-sign-on-ldap--active-directory)
+  bind authentication with directory sync,
+  [SCIM 2.0 provisioning](/docs/reference/environment-variables/#directory-provisioning-scim-20)
+  for Okta / Entra ID / OneLogin, and an
+  [SSO-only mode](/docs/reference/feature-toggles/#sso-only-mode) that turns
+  password logins off entirely.
+- **Integrations you can build on.** [Bots and a versioned REST
+  API](/docs/reference/api/), plus
+  [incoming](/docs/reference/incoming-webhooks/) and
+  [outgoing](/docs/reference/webhooks/) webhooks, let external systems post into
+  a workspace and react to its events.
+- **Real admin basics.** Roles, invitations, optional
+  [two-factor authentication](/docs/reference/feature-toggles/#two-factor-authentication),
+  a moderation audit log, workspace analytics, and device/session management are
+  built in.
 
 ## When The Desk is *not* the right fit (yet)
 
-Being honest saves you a wasted afternoon. As of **v1.10.1**, The Desk does **not** <!-- x-release-please-version -->
+Being honest saves you a wasted afternoon. As of **v1.10.2**, The Desk does **not** <!-- x-release-please-version -->
 have:
 
 - **Voice or video calls** — not planned for the near term.
-- **SSO / OIDC / LDAP / SCIM** — on the roadmap, not available today. If your org
-  *requires* directory-managed logins now, Mattermost or Rocket.Chat are the
-  safer pick.
 - **Native mobile apps** — the web app is fully responsive, but there's no
   dedicated iOS/Android app or push notifications yet.
-- **A large integration/bot marketplace** — if your workflow depends on hundreds
-  of prebuilt integrations, a bigger platform will serve you better.
+- **A prebuilt-integrations marketplace** — bots, a [REST
+  API](/docs/reference/api/), and [webhooks](/docs/reference/webhooks/) are built
+  in, but there's no directory of hundreds of ready-made apps. If your workflow
+  depends on one, a bigger platform will serve you better.
 
 If none of those are dealbreakers and you want the lightest self-hosted chat that
 still feels finished, The Desk is built for you.

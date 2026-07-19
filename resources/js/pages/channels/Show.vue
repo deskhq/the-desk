@@ -14,6 +14,7 @@ import { toast } from 'vue-sonner';
 import {
     archive as archiveChannel,
     read as markChannelRead,
+    typing as postTypingSignal,
 } from '@/actions/App/Http/Controllers/Channels/ChannelController';
 import AddDirectMessagePeopleModal from '@/components/AddDirectMessagePeopleModal.vue';
 import ChannelEmptyState from '@/components/ChannelEmptyState.vue';
@@ -58,12 +59,12 @@ import { useThreadPanel } from '@/composables/useThreadPanel';
 import { useTimezone } from '@/composables/useTimezone';
 import { useTranslations } from '@/composables/useTranslations';
 import { useTypingIndicator } from '@/composables/useTypingIndicator';
-import type { TypingUser } from '@/composables/useTypingIndicator';
 import { useUnreadDivider } from '@/composables/useUnreadDivider';
 import { formatDayLabel } from '@/lib/datetime';
 import { groupDmMastheadName } from '@/lib/groupDm';
 import { createOutbox } from '@/lib/outbox';
 import { buildTimelineItems } from '@/lib/timeline';
+import { parseXsrfToken } from '@/lib/uploadAttachment';
 import {
     isDividerVisible,
     shouldShowUnreadJump,
@@ -154,11 +155,39 @@ const currentUser = computed(() => ({
 }));
 
 /**
- * Peers currently composing on this channel, driven by `typing` client
- * whispers over the same private channel as the message events.
+ * Peers currently composing on this channel, driven by the server-broadcast
+ * `UserTyping` event on the same private channel as the message events. The
+ * outbound signal is a plain fire-and-forget POST — the server derives the
+ * typist identity from the authenticated session, so a member cannot spoof
+ * another member's indicator — carrying the Echo socket id so the resulting
+ * broadcast skips this tab.
  */
-const typing = useTypingIndicator((user: TypingUser) => {
-    echo().private(channelName(props.channel.id)).whisper('typing', user);
+const typing = useTypingIndicator(() => {
+    const headers: Record<string, string> = {
+        'X-Requested-With': 'XMLHttpRequest',
+    };
+
+    const xsrfToken = parseXsrfToken(document.cookie);
+
+    if (xsrfToken) {
+        headers['X-XSRF-TOKEN'] = xsrfToken;
+    }
+
+    const socketId = echo().socketId();
+
+    if (socketId) {
+        headers['X-Socket-ID'] = socketId;
+    }
+
+    void fetch(
+        postTypingSignal({
+            team: props.team.slug,
+            channel: props.channel.slug,
+        }).url,
+        { method: 'POST', headers },
+    ).catch(() => {
+        // A lost typing beat is invisible; the next keystroke sends another.
+    });
 });
 
 const typingNames = typing.typingNames;
@@ -185,7 +214,7 @@ function seedReaders(): void {
 const channelReadersList = computed(() => Array.from(readers.value.values()));
 
 function onTyping(): void {
-    typing.signalTyping(currentUser.value);
+    typing.signalTyping();
 }
 
 // You can't @mention yourself, and bots have no inbox to reach, so drop the
@@ -588,10 +617,6 @@ const stickyDayLabel = computed<string | null>(() => {
 
     return null;
 });
-
-function channelName(id: string): string {
-    return `channel.${id}`;
-}
 
 /**
  * Advance the read pointer for the open channel so its sidebar badge clears.

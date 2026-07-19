@@ -33,6 +33,18 @@
         <env name="TELESCOPE_ENABLED" value="false"/>
         <env name="NIGHTWATCH_ENABLED" value="false"/>
         <!--
+            Keep the demo-mode tests hermetic. A developer previewing the public
+            demo locally has DEMO_MODE=true in their .env; without this pin that
+            ambient value boots every test with the destructive-action guard on
+            and the suite fails locally while CI (booting from .env.example)
+            stays green. Pinning also keeps DEMO_MODE defined at the process
+            level, so the immutable env repository never "adopts" the .env value
+            as its own and re-writes it on later application refreshes. `force`
+            makes the pin win even over an exported/process-level DEMO_MODE, so
+            the suite is deterministic no matter how the flag arrives.
+        -->
+        <env name="DEMO_MODE" value="false" force="true"/>
+        <!--
             Keep the SSO/LDAP feature tests hermetic. A developer running the
             `sso` dev-container profile has real LDAP_*/SSO_* values in their
             .env; without these pins that ambient config leaks into the test

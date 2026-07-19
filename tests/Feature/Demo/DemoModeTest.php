@@ -2,11 +2,6 @@
 
 use Inertia\Testing\AssertableInertia as Assert;
 
-afterEach(function (): void {
-    putenv('DEMO_MODE');
-    unset($_ENV['DEMO_MODE'], $_SERVER['DEMO_MODE']);
-});
-
 test('demo mode is off by default', function (): void {
     expect(config('demo.mode'))->toBeFalse();
 });
