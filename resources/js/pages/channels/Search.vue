@@ -26,6 +26,10 @@ import { useDebouncedPost } from '@/composables/useDebouncedPost';
 import { getInitials } from '@/composables/useInitials';
 import { useTranslations } from '@/composables/useTranslations';
 import { formatCalendarDate, formatDateTime } from '@/lib/datetime';
+import {
+    sanitizeHtml,
+    SEARCH_SNIPPET_SANITIZE_CONFIG,
+} from '@/lib/sanitizeHtml';
 import { groupSearchResults } from '@/lib/searchResultGroups';
 import {
     emptyFilters,
@@ -413,6 +417,16 @@ function jumpHref(result: MessageSearchResult): string {
         { team: result.teamSlug, channel: result.channelSlug },
         { query: { message: result.message.id } },
     ).url;
+}
+
+/**
+ * The snippet arrives fully escaped from `App\Support\MessageSnippet`, with
+ * `<mark>` as its only markup. Sanitizing it again on the client keeps the
+ * `v-html` surface behind the same trust boundary as every other one, so a
+ * future server-side change can't turn this into an injection point.
+ */
+function snippetHtml(snippet: string): string {
+    return sanitizeHtml(snippet, SEARCH_SNIPPET_SANITIZE_CONFIG);
 }
 </script>
 
@@ -864,7 +878,7 @@ function jumpHref(result: MessageSearchResult): string {
                             </div>
                             <p
                                 class="search-snippet mt-0.5 line-clamp-2 text-[14px] leading-[1.55] break-words text-foreground/90"
-                                v-html="result.snippet"
+                                v-html="snippetHtml(result.snippet)"
                             ></p>
                             <span
                                 v-if="result.message.threadReplyCount > 0"
