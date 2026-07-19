@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.11.0](https://github.com/emmpaul/the-desk/compare/v1.10.2...v1.11.0) (2026-07-19)
+
+
+### Features
+
+* report and offer to append new .env settings during upgrade ([#588](https://github.com/emmpaul/the-desk/issues/588)) ([c34ceb1](https://github.com/emmpaul/the-desk/commit/c34ceb13fc9a25d266fc8b23aee271be5fea1ecd))
+
+
+### Bug Fixes
+
+* raise browser suite assertion timeout to 15s for slow CI runners ([#583](https://github.com/emmpaul/the-desk/issues/583)) ([7c3f6cd](https://github.com/emmpaul/the-desk/commit/7c3f6cd0545991f31e4c2cae785ca30125f3aa6e))
+
 ## [1.10.2](https://github.com/emmpaul/the-desk/compare/v1.10.1...v1.10.2) (2026-07-19)
 
 
