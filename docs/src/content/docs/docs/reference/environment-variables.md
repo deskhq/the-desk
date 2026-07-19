@@ -98,6 +98,7 @@ production — see [Configuration](/docs/self-hosting/configuration/#reverb-webs
 | `REVERB_SCHEME_PUBLIC` | `https`       | Browser connects over TLS.                        |
 | `REVERB_PORT_PUBLIC`   | `443`         | Your proxy terminates `wss` on 443.               |
 | `REVERB_HOST_PUBLIC`   | *(APP_URL host)* | Only set for a dedicated WebSocket subdomain.  |
+| `REVERB_ALLOWED_ORIGINS` | `*`         | Comma-separated origins allowed to open a WebSocket connection. Lock to the app host in production (e.g. `chat.example.com`). |
 
 ## Feature toggles
 
