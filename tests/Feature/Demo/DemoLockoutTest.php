@@ -4,11 +4,6 @@ use App\Enums\TeamRole;
 use App\Models\Team;
 use App\Models\User;
 
-afterEach(function (): void {
-    putenv('DEMO_MODE');
-    unset($_ENV['DEMO_MODE'], $_SERVER['DEMO_MODE']);
-});
-
 /**
  * Attach the user to the team as its owner and make it their current team, the
  * shape every visitor lands in on the public demo.

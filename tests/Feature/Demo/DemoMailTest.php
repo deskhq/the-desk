@@ -3,15 +3,6 @@
 use Illuminate\Mail\Transport\ArrayTransport;
 use Illuminate\Support\Facades\Mail;
 
-afterEach(function (): void {
-    putenv('DEMO_MODE');
-    putenv('MAIL_MAILER');
-    unset(
-        $_ENV['DEMO_MODE'], $_SERVER['DEMO_MODE'],
-        $_ENV['MAIL_MAILER'], $_SERVER['MAIL_MAILER'],
-    );
-});
-
 test('demo mode forces the array mail transport regardless of the configured mailer', function (): void {
     $this->reloadWithEnv(['MAIL_MAILER' => 'smtp', 'DEMO_MODE' => true]);
 
