@@ -75,19 +75,36 @@ test('a base branch that exists only on the remote still forks the issue branch'
         ->and(runGit($clone, 'branch', '--list', 'develop')->getOutput())->toBe('');
 });
 
-test('a base branch that exists locally is forked from the local ref', function (): void {
+test('a local base branch behind its remote is fetched and forked from the remote', function (): void {
     [$clone, $root] = worktreeFixtureClone();
     runGit($clone, 'checkout', '--quiet', '-b', 'develop', 'origin/develop');
-    file_put_contents($clone.'/README.md', "local develop only\n");
-    runGit($clone, 'commit', '--quiet', '-am', 'local develop only');
     runGit($clone, 'checkout', '--quiet', 'master');
+
+    runGit($root.'/upstream', 'checkout', '--quiet', 'develop');
+    file_put_contents($root.'/upstream/README.md', "develop moved on\n");
+    runGit($root.'/upstream', 'commit', '--quiet', '-am', 'develop moved on');
+    runGit($root.'/upstream', 'checkout', '--quiet', 'master');
 
     $process = runWorktreeLib($clone, 'attach_worktree '.escapeshellarg($root.'/wt').' 619-slug develop');
 
     expect($process->getExitCode())->toBe(0)
         ->and(trim(runGit($root.'/wt', 'rev-parse', '--abbrev-ref', 'HEAD')->getOutput()))->toBe('619-slug')
-        ->and(gitRevision($root.'/wt', 'HEAD'))->toBe(gitRevision($clone, 'develop'))
-        ->and(gitRevision($root.'/wt', 'HEAD'))->not->toBe(gitRevision($clone, 'origin/develop'));
+        ->and(gitRevision($root.'/wt', 'HEAD'))->toBe(gitRevision($root.'/upstream', 'develop'))
+        ->and(gitRevision($root.'/wt', 'HEAD'))->not->toBe(gitRevision($clone, 'develop'));
+});
+
+test('a base branch that exists only locally is forked from that local branch', function (): void {
+    [$clone, $root] = worktreeFixtureClone();
+    runGit($clone, 'checkout', '--quiet', '-b', 'epic', 'origin/develop');
+    file_put_contents($clone.'/README.md', "epic only\n");
+    runGit($clone, 'commit', '--quiet', '-am', 'epic only');
+    runGit($clone, 'checkout', '--quiet', 'master');
+
+    $process = runWorktreeLib($clone, 'attach_worktree '.escapeshellarg($root.'/wt').' 619-slug epic');
+
+    expect($process->getExitCode())->toBe(0)
+        ->and(trim(runGit($root.'/wt', 'rev-parse', '--abbrev-ref', 'HEAD')->getOutput()))->toBe('619-slug')
+        ->and(gitRevision($root.'/wt', 'HEAD'))->toBe(gitRevision($clone, 'epic'));
 });
 
 test('HEAD as a base forks from the local checkout, not origin/HEAD', function (): void {

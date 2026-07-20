@@ -20,6 +20,9 @@
 #                         Prints the worktree's absolute path on stdout so it is
 #                         composable:  cd "$(bin/worktree create 441)"
 #                         `base` is the branch to fork from (default: master).
+#                         It is fetched and forked from its remote-tracking ref
+#                         when it has one, so a stale local branch of the same
+#                         name cannot be inherited as the baseline.
 #   list                  Show active worktrees with their slots and ports.
 #   remove <NNN>          Tear down containers + volumes, remove the git worktree,
 #                         and free the registry slot. Leaves the branch intact.
@@ -197,12 +200,14 @@ validate_issue() {
 # dropping -b. The worktree ends up on the shared release line, and every commit
 # made in it lands there (issue #619). Naming the remote-tracking ref explicitly
 # disables the guess, so resolve the base before handing it to git.
+#
+# The remote copy also WINS over a local branch of the same name: a local
+# `develop` that is merely behind origin silently forks the worktree from a
+# stale baseline, and the omission only surfaces later as a conflict or a
+# missing commit (issue #639). The local branch is used only when the base
+# exists nowhere on a remote.
 resolve_base_ref() {
     local base="$1"
-    if git -C "$MAIN_ROOT" show-ref --verify --quiet "refs/heads/${base}"; then
-        printf '%s' "$base"
-        return 0
-    fi
 
     # HEAD/@ name the current checkout, but refs/remotes/*/HEAD exists in any
     # clone, so the remote lookup below would silently redirect them to
@@ -213,6 +218,16 @@ resolve_base_ref() {
         printf '%s' "$base"
         return 0
     fi
+
+    # Refresh the remote-tracking refs so the branch below is the remote's
+    # current tip rather than whatever the last fetch left behind. Failures
+    # (offline, no such branch on that remote) are non-fatal: resolution then
+    # falls back to the refs already in the clone.
+    local remote
+    while read -r remote; do
+        [ -n "$remote" ] || continue
+        git -C "$MAIN_ROOT" fetch --quiet "$remote" "$base" >/dev/null 2>&1 || true
+    done <<< "$(git -C "$MAIN_ROOT" remote)"
 
     local remote_refs count
     remote_refs="$(git -C "$MAIN_ROOT" for-each-ref --format='%(refname:short)' "refs/remotes/*/${base}")"
