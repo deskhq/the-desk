@@ -41,6 +41,28 @@ CodeQL does not support PHP, so the Laravel backend is covered by PHPStan
 gates in the repository for details.
 :::
 
+## HTTPS is pinned once it is available
+
+Every response that arrives over HTTPS carries
+`Strict-Transport-Security: max-age=31536000; includeSubDomains`. A browser that
+has seen your instance once will not speak plain HTTP to it again for a year,
+which closes the SSL-strip window: without the header, a first visit or a URL
+typed without a scheme goes out unencrypted, and an attacker on the path can
+answer it themselves and take the session cookie before your redirect to HTTPS
+is ever reached.
+
+It is sent only when the request really was secure — the app reads your proxy's
+`X-Forwarded-Proto`. A deployment served over plain HTTP therefore never pins
+itself to a scheme it cannot answer on. Session cookies pick up the matching
+`Secure` flag by default whenever `APP_URL` is an `https://` URL, so a
+downgraded request carries no session at all.
+
+Both are configurable:
+[HTTPS enforcement (HSTS)](/docs/reference/feature-toggles/#https-enforcement-hsts)
+and [`SESSION_SECURE_COOKIE`](/docs/reference/environment-variables/#session-cookies).
+`preload` is opt-in and off by default: it is effectively irreversible for a
+domain and commits every subdomain with it.
+
 ## Content Security Policy
 
 Every web response carries a `Content-Security-Policy` header: the browser-side

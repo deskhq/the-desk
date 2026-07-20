@@ -107,10 +107,14 @@ both the view and future exports.
 A self-hosted deployment delegates several controls to you. An auditor will expect
 evidence for each of these from **your** environment, not from this project:
 
-- **TLS termination and HSTS.** The Desk's containers speak plain HTTP. Terminate
-  TLS at your reverse proxy, redirect HTTP to HTTPS, and set HSTS. See
-  [Reverse proxy & TLS](/docs/self-hosting/reverse-proxy/), and set
-  `SESSION_SECURE_COOKIE=true` and the browser-facing `REVERB_SCHEME_PUBLIC=https`.
+- **TLS termination.** The Desk's containers speak plain HTTP. Terminate TLS at
+  your reverse proxy and redirect HTTP to HTTPS. See
+  [Reverse proxy & TLS](/docs/self-hosting/reverse-proxy/), and set the
+  browser-facing `REVERB_SCHEME_PUBLIC=https`. HSTS and the `Secure` session
+  cookie are handled by the app once TLS is in front of it — see
+  [HTTPS enforcement (HSTS)](/docs/reference/feature-toggles/#https-enforcement-hsts)
+  and [`SESSION_SECURE_COOKIE`](/docs/reference/environment-variables/#session-cookies)
+  for the evidence an auditor will ask for.
 - **Encryption at rest.** Encrypt the disk or volume that holds the PostgreSQL
   database and the uploaded-files volume. This is provided by your host or storage
   layer, not the app.

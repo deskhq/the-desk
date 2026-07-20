@@ -124,6 +124,10 @@ production — see [Configuration](/docs/self-hosting/configuration/#reverb-webs
 | `CSP_ENABLED`                | `true`  | [Feature toggles → Content Security Policy](/docs/reference/feature-toggles/#content-security-policy) |
 | `CSP_REPORT_ONLY`            | `false` | [Feature toggles → Content Security Policy](/docs/reference/feature-toggles/#content-security-policy) |
 | `CSP_FRAME_ANCESTORS`        | `none`  | [Feature toggles → Clickjacking protection](/docs/reference/feature-toggles/#clickjacking-protection) |
+| `HSTS_ENABLED`               | `true`  | [Feature toggles → HTTPS enforcement (HSTS)](/docs/reference/feature-toggles/#https-enforcement-hsts) |
+| `HSTS_MAX_AGE`               | `31536000` | [Feature toggles → HTTPS enforcement (HSTS)](/docs/reference/feature-toggles/#https-enforcement-hsts) |
+| `HSTS_INCLUDE_SUBDOMAINS`    | `true`  | [Feature toggles → HTTPS enforcement (HSTS)](/docs/reference/feature-toggles/#https-enforcement-hsts) |
+| `HSTS_PRELOAD`               | `false` | [Feature toggles → HTTPS enforcement (HSTS)](/docs/reference/feature-toggles/#https-enforcement-hsts) |
 
 ## Content Security Policy
 
@@ -162,6 +166,21 @@ app may load:
 | Variable               | Default | Effect                                                                 |
 | ---------------------- | ------- | ---------------------------------------------------------------------- |
 | `CSP_FRAME_ANCESTORS`  | `none`  | Sends `frame-ancestors` and `X-Frame-Options`. See [Feature toggles → Clickjacking protection](/docs/reference/feature-toggles/#clickjacking-protection). |
+
+## Session cookies
+
+| Variable                | Default                         | Notes                                                                                              |
+| ----------------------- | ------------------------------- | -------------------------------------------------------------------------------------------------- |
+| `SESSION_SECURE_COOKIE` | *(derived from `APP_URL`)*      | Adds the `Secure` flag, so the browser never sends the session cookie over plain HTTP. Defaults to `true` when `APP_URL` starts with `https://`, `false` otherwise. |
+| `SESSION_LIFETIME`      | `120`                           | Minutes of inactivity before a session expires.                                                     |
+| `SESSION_ENCRYPT`       | `false`                         | Encrypt session payloads at rest in Redis.                                                          |
+| `SESSION_DOMAIN`        | `null`                          | Cookie domain. Leave unset unless you deliberately share the cookie across subdomains.              |
+
+You only need to set `SESSION_SECURE_COOKIE` explicitly if the scheme in
+`APP_URL` does not describe how browsers actually reach the app — for example
+when TLS is terminated at a hostname other than the one `APP_URL` names. Setting
+it to `true` on a deployment served over plain HTTP means the browser will never
+return the cookie and nobody can stay signed in.
 
 ## Single sign-on (OpenID Connect)
 

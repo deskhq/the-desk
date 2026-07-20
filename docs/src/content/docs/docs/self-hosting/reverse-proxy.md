@@ -125,6 +125,25 @@ little headroom for multipart encoding overhead:
 - **Caddy / Traefik:** no request-body cap by default, so nothing to change unless you added one.
 - **PHP:** `upload_max_filesize` and `post_max_size` must both comfortably exceed the cap.
 
+## HSTS
+
+Once TLS is terminated, the app sends
+`Strict-Transport-Security: max-age=31536000; includeSubDomains` on every
+response that arrived over HTTPS, so a browser that has seen your instance once
+refuses to speak plain HTTP to it again. Nothing to configure — it rides on the
+same `X-Forwarded-Proto: https` your proxy already sets, and is withheld
+entirely on plain-HTTP requests so a `http://` deployment cannot lock itself out
+of its own hostname.
+
+If your proxy already sends the header, set `HSTS_ENABLED=false` so the two do
+not disagree about the `max-age`. The knobs (`HSTS_MAX_AGE`,
+`HSTS_INCLUDE_SUBDOMAINS`, and the deliberately opt-in `HSTS_PRELOAD`) are in
+[Feature toggles → HTTPS enforcement (HSTS)](/docs/reference/feature-toggles/#https-enforcement-hsts).
+
+Session cookies pick up the matching `Secure` flag automatically when `APP_URL`
+is an `https://` URL — see
+[`SESSION_SECURE_COOKIE`](/docs/reference/environment-variables/#session-cookies).
+
 ## Verifying
 
 After wiring up the proxy:

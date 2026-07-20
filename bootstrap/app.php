@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Http\Middleware\AddContentSecurityPolicyHeaders;
+use App\Http\Middleware\AddStrictTransportSecurityHeader;
 use App\Http\Middleware\EnsureIntegrationsEnabled;
 use App\Http\Middleware\EnsurePasskeysEnabled;
 use App\Http\Middleware\EnsurePasswordLoginEnabled;
@@ -47,6 +48,12 @@ return Application::configure(basePath: dirname(__DIR__))
                 | Request::HEADER_X_FORWARDED_PORT
                 | Request::HEADER_X_FORWARDED_PROTO,
         );
+
+        // Global, not web-only: the HTTPS pin describes the transport, so the
+        // REST API and the /up health check carry it on the same terms as a
+        // page. It runs before the web group so a response short-circuited
+        // anywhere inside it still leaves with the header.
+        $middleware->append(AddStrictTransportSecurityHeader::class);
 
         $middleware->encryptCookies(except: ['appearance', 'sidebar_state']);
 

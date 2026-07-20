@@ -327,6 +327,44 @@ Under `CSP_REPORT_ONLY=true` the directive is reported but not enforced, and
 `X-Frame-Options` is withheld — it has no report-only form, so sending it would
 enforce the very thing the dry run is meant to only observe.
 
+## HTTPS enforcement (HSTS)
+
+Responses that arrive over HTTPS carry
+`Strict-Transport-Security`, which tells the browser to reach the host over
+HTTPS only from then on. Without it the first visit, or any later one typed
+without a scheme, still goes out as plain HTTP — the window an on-path attacker
+uses to strip TLS and read the session cookie before your redirect to HTTPS ever
+happens.
+
+| Variable                   | Default    | Effect                                                                 |
+| -------------------------- | ---------- | ---------------------------------------------------------------------- |
+| `HSTS_ENABLED`             | `true`     | Send the header at all. Turn off only if your reverse proxy sends it.  |
+| `HSTS_MAX_AGE`             | `31536000` | Seconds the browser remembers the pin (one year). `0` forgets the host. |
+| `HSTS_INCLUDE_SUBDOMAINS`  | `true`     | Extend the pin to every subdomain.                                     |
+| `HSTS_PRELOAD`             | `false`    | Add `preload`. See the warning below.                                  |
+
+The defaults send:
+
+```http
+Strict-Transport-Security: max-age=31536000; includeSubDomains
+```
+
+The header is **never** sent on a request that arrived over plain HTTP, so a LAN
+deployment served over `http://` cannot lock itself out of its own hostname.
+TLS is detected from your proxy's `X-Forwarded-Proto`, which the app already
+trusts — see [Reverse proxy & TLS](/docs/self-hosting/reverse-proxy/).
+
+:::caution
+`HSTS_PRELOAD` is effectively irreversible. Submitting a domain to
+[hstspreload.org](https://hstspreload.org) bakes it into browsers themselves, it
+commits **every** subdomain of the registrable domain to HTTPS, and removal takes
+months to reach users. Only enable it if you own the whole domain and intend to
+submit it deliberately.
+:::
+
+Turn `HSTS_INCLUDE_SUBDOMAINS` off if a subdomain of your app's host still has to
+answer over plain HTTP — the pin would otherwise make it unreachable too.
+
 ## Search analytics
 
 | Variable                   | Default | Effect                                             |
