@@ -483,17 +483,21 @@ const CREATED_PULL_REQUEST = 'https://github.com/emmpaul/the-desk/pull/99';
  * already open pull request, and the URL `pr create` prints.
  *
  * @param  list<string>|null  $branches  branches to list, or null to make `gh` fail
- * @param  int  $ahead  commits `master` is ahead of `develop` by
+ * @param  int|list<int>  $ahead  commits `master` is ahead of `develop` by; a list is answered one
+ *                                entry per call, the last repeating, which is how a back-merge
+ *                                landing part-way through a wait is played back
  * @param  string  $existing  number of an already open pull request, or none
  * @param  bool  $mergeFails  whether `pr merge` refuses, as it does on a repository without auto-merge
  * @param  bool  $createFails  whether `pr create` refuses, as it does when a pull request is already open
  * @param  string  $raced  number of a pull request that appears only once `pr create` has been refused
  * @return string the sandbox: `bin/gh` is the stub, `calls` its log
  */
-function ghSandbox(?array $branches = ['master', 'develop'], int $ahead = 1, string $existing = '', bool $mergeFails = false, bool $createFails = false, string $raced = ''): string
+function ghSandbox(?array $branches = ['master', 'develop'], int|array $ahead = 1, string $existing = '', bool $mergeFails = false, bool $createFails = false, string $raced = ''): string
 {
     $sandbox = sys_get_temp_dir().'/gh-'.bin2hex(random_bytes(6));
     mkdir($sandbox.'/bin', 0o777, true);
+
+    file_put_contents($sandbox.'/ahead', implode("\n", array_map(strval(...), (array) $ahead))."\n");
 
     $listing = $branches === null
         ? "echo 'gh: API rate limit exceeded' >&2; exit 1"
@@ -523,7 +527,13 @@ function ghSandbox(?array $branches = ['master', 'develop'], int $ahead = 1, str
         printf '%s\\n' "\$*" >> '{$sandbox}/calls'
         case "\$1 \${2-}" in
             'api '*/branches) {$listing} ;;
-            'api '*/compare/*) echo '{$ahead}' ;;
+            'api '*/compare/*)
+                head -n 1 '{$sandbox}/ahead'
+                if [ "\$(wc -l < '{$sandbox}/ahead')" -gt 1 ]; then
+                    tail -n +2 '{$sandbox}/ahead' > '{$sandbox}/ahead.next'
+                    mv '{$sandbox}/ahead.next' '{$sandbox}/ahead'
+                fi
+                ;;
             'pr list') {$lookup} ;;
             'pr create') {$create} ;;
             'pr merge') {$merge} ;;
@@ -557,6 +567,10 @@ function runBaselineSync(string $clone, string $version, string $sandbox): Proce
             'REPO' => 'emmpaul/the-desk',
             'GH_TOKEN' => 'stub',
             'VERSION' => $version,
+            // The wait for the back-merge is measured in half-hours on a runner;
+            // the test drives the same loop with the clock taken out of it.
+            'CONTAINMENT_ATTEMPTS' => '3',
+            'CONTAINMENT_INTERVAL' => '0',
         ],
     );
     $process->run();
@@ -650,7 +664,7 @@ test('an unreadable branch listing fails loudly rather than reporting develop ab
 
 test('a stable release proposes the new candidate baseline to develop', function (): void {
     [$clone, $origin] = developSandbox('{".":"1.11.0"}');
-    $sandbox = ghSandbox();
+    $sandbox = ghSandbox(ahead: 0);
 
     $process = runBaselineSync($clone, '1.12.0', $sandbox);
 
@@ -674,7 +688,7 @@ test('a stable release proposes the new candidate baseline to develop', function
 test('the candidate baseline is never pushed straight to develop', function (): void {
     [$clone, $origin] = developSandbox('{".":"1.11.0"}');
 
-    $process = runBaselineSync($clone, '1.12.0', ghSandbox());
+    $process = runBaselineSync($clone, '1.12.0', ghSandbox(ahead: 0));
 
     expect($process->isSuccessful())->toBeTrue()
         ->and(baselineOf($origin))->toBe('{".":"1.11.0"}')
@@ -688,7 +702,7 @@ test('the candidate baseline is never pushed straight to develop', function (): 
  */
 test('the baseline PR is queued to merge itself', function (): void {
     [$clone] = developSandbox('{".":"1.11.0"}');
-    $sandbox = ghSandbox();
+    $sandbox = ghSandbox(ahead: 0);
 
     runBaselineSync($clone, '1.12.0', $sandbox);
 
@@ -698,7 +712,7 @@ test('the baseline PR is queued to merge itself', function (): void {
 
 test('moving the baseline twice is a no-op the second time', function (): void {
     [$clone, $origin] = developSandbox('{".":"1.12.0"}');
-    $sandbox = ghSandbox();
+    $sandbox = ghSandbox(ahead: 0);
 
     $process = runBaselineSync($clone, '1.12.0', $sandbox);
 
@@ -715,7 +729,7 @@ test('moving the baseline twice is a no-op the second time', function (): void {
  */
 test('an open baseline PR is updated rather than duplicated', function (): void {
     [$clone, $origin] = developSandbox('{".":"1.11.0"}');
-    $sandbox = ghSandbox(existing: '7');
+    $sandbox = ghSandbox(ahead: 0, existing: '7');
 
     $process = runBaselineSync($clone, '1.12.0', $sandbox);
 
@@ -735,7 +749,7 @@ test('an open baseline PR is updated rather than duplicated', function (): void 
  */
 test('an open baseline PR is looked for on the branch it would be opened from', function (): void {
     [$clone] = developSandbox('{".":"1.11.0"}');
-    $sandbox = ghSandbox();
+    $sandbox = ghSandbox(ahead: 0);
 
     runBaselineSync($clone, '1.12.0', $sandbox);
 
@@ -760,7 +774,7 @@ test('the baseline is proposed on top of whatever develop has moved to', functio
     (new Process(['git', 'add', '.'], $origin))->mustRun();
     (new Process(['git', 'commit', '--quiet', '-m', 'feat: land something else'], $origin))->mustRun();
 
-    $process = runBaselineSync($clone, '1.12.0', ghSandbox());
+    $process = runBaselineSync($clone, '1.12.0', ghSandbox(ahead: 0));
     $branch = 'chore/candidate-baseline-1.12.0';
 
     expect($process->isSuccessful())->toBeTrue()
@@ -1073,4 +1087,184 @@ test('an integration pull request that cannot be queued is left open', function 
         ->and($process->getOutput())->toContain('by hand')
         ->and(ghCalls($sandbox))->toContain('pr merge')
         ->toContain('42');
+});
+
+/*
+ * The ordering the 1.0.0 proposal came out of (#637): the baseline PR merged 34
+ * seconds before the back-merge did, so `develop` carried a baseline of 1.12.2
+ * while `v1.12.2`'s commit — cut on `master` — was still unreachable from it.
+ * release-please matched the release by version, took its `master`-only sha,
+ * failed to find it walking `develop`, discarded the release and bootstrapped at
+ * its initial 1.0.0 with the whole history as release notes. The baseline is only
+ * safe to land once `master` is contained in `develop`, which is what the
+ * back-merge does — so the sync waits for it rather than racing it.
+ */
+test('the baseline is not merged before develop contains master', function (): void {
+    [$clone, $origin] = developSandbox('{".":"1.11.0"}');
+    $sandbox = ghSandbox(ahead: 1);
+
+    $process = runBaselineSync($clone, '1.12.0', $sandbox);
+
+    expect($process->isSuccessful())->toBeFalse()
+        ->and(ghCalls($sandbox))->toContain('pr create')
+        ->not->toContain('pr merge')
+        ->and($process->getErrorOutput())->toContain('back-merge')
+        // The proposal itself is sound and stays open: only merging it early is
+        // unsafe, so it is left for the back-merge to be followed by hand.
+        ->and(baselineOnBranch($origin, 'chore/candidate-baseline-1.12.0'))->toBe('{".":"1.12.0"}');
+});
+
+test('the baseline merges itself once the back-merge lands', function (): void {
+    [$clone] = developSandbox('{".":"1.11.0"}');
+    $sandbox = ghSandbox(ahead: [1, 1, 0]);
+
+    $process = runBaselineSync($clone, '1.12.0', $sandbox);
+
+    expect($process->isSuccessful())->toBeTrue()
+        ->and(ghCalls($sandbox))->toContain('pr merge')
+        ->toContain('--auto');
+});
+
+/**
+ * The shell body of the step that refuses a candidate below develop's baseline.
+ */
+function candidateGuardScript(): string
+{
+    $workflow = readWorkflow('release-please.yml');
+
+    /** @var array<int, array<string, mixed>> $steps */
+    $steps = $workflow['jobs']['candidate-guard']['steps'];
+
+    return (string) $steps[0]['run'];
+}
+
+/**
+ * Run the guard against a stubbed `gh` serving the two manifests it compares.
+ *
+ * @param  string|null  $proposed  version on the release-please branch, or null when no candidate PR is open
+ * @return array{closed: string|null, output: string, errors: string, succeeded: bool}
+ */
+function runCandidateGuard(?string $proposed, string $baseline = '1.12.2', string $number = '636'): array
+{
+    $sandbox = sys_get_temp_dir().'/guard-'.bin2hex(random_bytes(6));
+    mkdir($sandbox.'/bin', 0o777, true);
+
+    $open = $proposed === null ? '' : $number;
+
+    // The two reads differ only by the ref they ask for, which is exactly what
+    // the guard has to get right: the proposal lives on release-please's branch,
+    // the baseline on develop.
+    file_put_contents($sandbox.'/bin/gh', <<<BASH
+        #!/usr/bin/env bash
+        printf '%s\\n' "\$*" >> '{$sandbox}/calls'
+        case "\$1 \${2-}" in
+            'pr list') printf '%s' '{$open}' ;;
+            'api '*ref=release-please*) printf '{"."%s"%s"}\\n' ':' '{$proposed}' ;;
+            'api '*ref=develop*) printf '{"."%s"%s"}\\n' ':' '{$baseline}' ;;
+        esac
+        BASH);
+    chmod($sandbox.'/bin/gh', 0o755);
+
+    $process = new Process(
+        ['bash', '-c', candidateGuardScript()],
+        env: [
+            'PATH' => $sandbox.'/bin:'.getenv('PATH'),
+            'REPO' => 'emmpaul/the-desk',
+            'GH_TOKEN' => 'stub',
+        ],
+    );
+    $process->run();
+
+    return [
+        'closed' => collect(explode("\n", ghCalls($sandbox)))->first(fn (string $call): bool => str_starts_with($call, 'pr close')),
+        'output' => $process->getOutput(),
+        'errors' => $process->getErrorOutput(),
+        'succeeded' => $process->isSuccessful(),
+    ];
+}
+
+/*
+ * The proposal that has to be caught: below the baseline, and a stable tag at
+ * that — merging it would publish `v1.12.2`'s predecessor as a GitHub release and
+ * hand a GHCR image the moving `latest` aliases ahead of every real version.
+ */
+test('a candidate below the baseline is closed and fails the run', function (): void {
+    $result = runCandidateGuard('1.0.0');
+
+    expect($result['succeeded'])->toBeFalse()
+        ->and($result['closed'])->toContain('636')
+        ->and($result['errors'])->toContain('1.0.0')
+        ->toContain('1.12.2');
+});
+
+test('a candidate that merely repeats the baseline is refused too', function (): void {
+    $result = runCandidateGuard('1.12.2');
+
+    expect($result['succeeded'])->toBeFalse()
+        ->and($result['closed'])->toContain('636');
+});
+
+/*
+ * The stale-rc shape: a candidate for a version already released is behind the
+ * baseline under SemVer precedence even though it reads as the same number, so a
+ * plain string comparison would wave it through.
+ */
+test('a candidate for an already released version is refused', function (): void {
+    expect(runCandidateGuard('1.12.2-rc.0')['succeeded'])->toBeFalse();
+});
+
+test('a candidate ahead of the baseline is left alone', function (string $proposed): void {
+    $result = runCandidateGuard($proposed);
+
+    expect($result['succeeded'])->toBeTrue()
+        ->and($result['closed'])->toBeNull();
+})->with(['1.12.3-rc.0', '1.13.0-rc.0', '2.0.0-rc.0', '1.12.3']);
+
+test('a later candidate in the same series is left alone', function (): void {
+    expect(runCandidateGuard('1.12.0-rc.10', baseline: '1.12.0-rc.9'))
+        ->toMatchArray(['succeeded' => true, 'closed' => null]);
+});
+
+test('the guard passes when no candidate pull request is open', function (): void {
+    $result = runCandidateGuard(null);
+
+    expect($result['succeeded'])->toBeTrue()
+        ->and($result['closed'])->toBeNull();
+});
+
+/*
+ * A version the guard cannot parse is not evidence that the proposal is safe: it
+ * fails rather than passing, and closes nothing, since nothing was compared.
+ */
+test('an unreadable version fails the guard rather than passing it', function (string $proposed): void {
+    $result = runCandidateGuard($proposed);
+
+    expect($result['succeeded'])->toBeFalse()
+        ->and($result['closed'])->toBeNull();
+})->with(['', 'banana', '1.12', 'v1.12.3']);
+
+test('the guard runs after the candidate line, on develop only', function (): void {
+    $job = readWorkflow('release-please.yml')['jobs']['candidate-guard'];
+
+    expect($job['needs'])->toContain('prerelease')
+        ->and($job['if'])->toContain('refs/heads/develop');
+});
+
+/*
+ * The guard reads the proposal off release-please's own branch rather than
+ * trusting the action's outputs: a PR left open by an earlier run — which is how
+ * #636 survived the topology healing around it — is caught on the next push all
+ * the same.
+ */
+test('the guard inspects the release-please branch', function (): void {
+    expect(candidateGuardScript())
+        ->toContain('release-please--branches--develop')
+        ->toContain('.release-please-manifest.develop.json');
+});
+
+test('the guard talks to GitHub with the release token', function (): void {
+    /** @var array<int, array<string, mixed>> $steps */
+    $steps = readWorkflow('release-please.yml')['jobs']['candidate-guard']['steps'];
+
+    expect($steps[0]['env']['GH_TOKEN'])->toBe('${{ secrets.RELEASE_PLEASE_TOKEN }}');
 });
