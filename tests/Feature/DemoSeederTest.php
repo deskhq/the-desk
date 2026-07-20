@@ -42,6 +42,11 @@ function demoOwner(): User
 }
 
 beforeEach(function (): void {
+    // The seeder gives every fixture user a generated `identicon` avatar, which
+    // is a Gravatar URL — and the suite disables Gravatar by default so no test
+    // reaches gravatar.com. Opt back in for the seeded workspace.
+    config()->set('gravatar.enabled', true);
+
     artisan('demo:seed')->assertSuccessful();
 });
 

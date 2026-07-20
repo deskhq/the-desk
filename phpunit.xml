@@ -70,5 +70,11 @@
         <env name="SSO_DEFAULT_TEAM_ID" value=""/>
         <env name="SCIM_TOKEN" value=""/>
         <env name="GIPHY_API_KEY" value=""/>
+        <!-- Avatars resolve through the image proxy, which fetches the remote
+             image server-side. Left enabled, every rendered avatar would make the
+             suite reach gravatar.com — and in the browser tests that fetch blocks
+             the single-process app server the page is talking to. Tests that
+             exercise Gravatar itself opt back in with config()->set(). -->
+        <env name="GRAVATAR_ENABLED" value="false"/>
     </php>
 </phpunit>
