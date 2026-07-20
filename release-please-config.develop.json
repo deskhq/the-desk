@@ -6,6 +6,7 @@
       "prerelease": true,
       "prerelease-type": "rc.0",
       "versioning": "prerelease",
+      "skip-changelog": true,
       "changelog-sections": [
         { "type": "feat", "section": "Features" },
         { "type": "fix", "section": "Bug Fixes" },

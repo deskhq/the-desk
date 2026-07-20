@@ -60,6 +60,27 @@ test('the candidate config cuts numbered release candidates', function (): void 
         ->and($package['versioning'] ?? null)->toBe('prerelease');
 });
 
+/*
+ * CHANGELOG.md is master's, and it stays master's. If the candidate line wrote
+ * to it too, every promotion would carry a `1.12.0-rc.N` section into master and
+ * land it directly above the `1.12.0` section describing the same changes — a
+ * merge conflict at the top of the file on every release, and duplicated history
+ * whichever way it was resolved. `skip-changelog` suppresses only the file: the
+ * release notes are built before it is consulted, so an rc release still gets
+ * full notes on GitHub.
+ */
+test('the candidate line writes no changelog', function (): void {
+    expect(releaseConfigPackage('release-please-config.develop.json')['skip-changelog'] ?? null)
+        ->toBeTrue();
+});
+
+test('the stable line keeps ownership of the changelog', function (): void {
+    expect(releaseConfigPackage('release-please-config.json'))
+        ->not->toHaveKey('skip-changelog')
+        ->and(releaseConfigPackage('release-please-config.develop.json'))
+        ->not->toHaveKey('changelog-path');
+});
+
 test('the candidate config stamps no version references', function (): void {
     $package = releaseConfigPackage('release-please-config.develop.json');
 
