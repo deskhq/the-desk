@@ -72,6 +72,156 @@ jobs:
           config-file: release-please-config.develop.json
           manifest-file: .release-please-manifest.develop.json
 
+  # A candidate release pull request may only ever move the baseline forwards.
+  # release-please decides what to propose from the release it can reach walking
+  # `develop`, so a baseline naming a version whose tag was cut on `master` — the
+  # window between the baseline sync and the back-merge — leaves it unable to find
+  # any release at all, and it falls back to its initial 1.0.0 with the whole
+  # history as release notes. That happened at 1.12.2 (#637): the proposal is a
+  # *downgrade*, and merging it would tag `v1.0.0`, publish a GitHub release and
+  # let a GHCR image claim the moving `latest` aliases ahead of every real
+  # version.
+  #
+  # The sync below now waits for the back-merge, so the window is closed. This is
+  # the belt to that braces: it refuses to leave such a proposal open regardless
+  # of *why* release-please made it, and it reads the branch rather than the
+  # action's outputs so a proposal left over from an earlier run — which is how
+  # #636 outlived the topology that produced it — is caught on the next push too.
+  candidate-guard:
+    name: Refuse a candidate below the baseline
+    needs: prerelease
+    if: github.ref == 'refs/heads/develop'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Refuse a candidate that does not move the baseline forwards
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_PLEASE_TOKEN }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+
+          manifest=".release-please-manifest.develop.json"
+          branch="release-please--branches--develop"
+
+          number="$(gh pr list --repo "$REPO" --base develop --head "$branch" --state open --json number --jq '.[0].number // empty')"
+
+          if [ -z "$number" ]; then
+            echo "No candidate release pull request is open; there is nothing to check."
+            exit 0
+          fi
+
+          # The manifest is read off each ref rather than from a checkout: the
+          # proposal only exists on release-please's branch, and develop keeps
+          # moving while this runs.
+          baseline_on() {
+            gh api "repos/$REPO/contents/$manifest?ref=$1" -H 'Accept: application/vnd.github.raw' \
+              | sed -n 's/.*"\."[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p'
+          }
+
+          is_version() {
+            printf '%s' "$1" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$'
+          }
+
+          is_numeric() {
+            printf '%s' "$1" | grep -Eq '^[0-9]+$'
+          }
+
+          # SemVer precedence over the dot-separated identifiers of two prerelease
+          # strings: numeric ones compare as numbers and rank below alphanumeric
+          # ones, and a longer identifier list wins when the shorter is a prefix.
+          # Succeeds when the first ranks strictly higher.
+          prerelease_gt() {
+            local field=1 left right
+
+            while true; do
+              left="$(printf '%s' "$1" | cut -d. -f"$field")"
+              right="$(printf '%s' "$2" | cut -d. -f"$field")"
+
+              if [ -z "$left" ]; then
+                return 1
+              fi
+
+              if [ -z "$right" ]; then
+                return 0
+              fi
+
+              if [ "$left" != "$right" ]; then
+                if is_numeric "$left" && is_numeric "$right"; then
+                  [ "$left" -gt "$right" ]
+                  return
+                fi
+
+                if is_numeric "$left"; then
+                  return 1
+                fi
+
+                if is_numeric "$right"; then
+                  return 0
+                fi
+
+                [ "$left" \> "$right" ]
+                return
+              fi
+
+              field=$((field + 1))
+            done
+          }
+
+          # Succeeds when the first version ranks strictly higher than the second.
+          # A string comparison would not do: `1.12.2-rc.0` reads as the larger of
+          # the pair against `1.12.2`, and it is the exact shape a stale candidate
+          # takes once its version has been released.
+          version_gt() {
+            local left_core="${1%%-*}" right_core="${2%%-*}"
+            local left_pre="" right_pre=""
+            local field left right
+
+            case "$1" in *-*) left_pre="${1#*-}" ;; esac
+            case "$2" in *-*) right_pre="${2#*-}" ;; esac
+
+            for field in 1 2 3; do
+              left="$(printf '%s' "$left_core" | cut -d. -f"$field")"
+              right="$(printf '%s' "$right_core" | cut -d. -f"$field")"
+
+              if [ "$left" -ne "$right" ]; then
+                [ "$left" -gt "$right" ]
+                return
+              fi
+            done
+
+            # Same core version: a release outranks any candidate for it.
+            if [ -z "$left_pre" ]; then
+              [ -n "$right_pre" ]
+              return
+            fi
+
+            if [ -z "$right_pre" ]; then
+              return 1
+            fi
+
+            prerelease_gt "$left_pre" "$right_pre"
+          }
+
+          proposed="$(baseline_on "$branch")"
+          current="$(baseline_on develop)"
+
+          # An unreadable version is not evidence that the proposal is safe.
+          if ! is_version "$proposed" || ! is_version "$current"; then
+            echo "::error::Could not compare the candidate: read '$proposed' from $branch and '$current' from develop." >&2
+            exit 1
+          fi
+
+          if version_gt "$proposed" "$current"; then
+            echo "Candidate $proposed is ahead of the baseline $current."
+            exit 0
+          fi
+
+          gh pr close "$number" --repo "$REPO" --delete-branch \
+            --comment "Closed automatically: $proposed does not move develop's candidate baseline ($current) forwards, so merging it would tag a version below the one already released. See #637."
+
+          echo "::error::Candidate release PR #$number proposes $proposed, which is not ahead of develop's baseline $current; it has been closed." >&2
+          exit 1
+
   # The candidate manifest is a separate file, so nothing in a stable release
   # tells `develop` that the version it was building candidates for has shipped.
   # Left alone it would keep incrementing `1.12.0-rc.N` forever, long after
@@ -171,11 +321,48 @@ jobs:
           # on top of a develop that has moved; the branch is this job's alone.
           git push --quiet --force origin "$branch"
 
+          # The baseline may only land on develop *after* the back-merge has, and
+          # the two are queued in parallel — at 1.12.2 the baseline won that race
+          # by 34 seconds. It names a version whose tag was cut on `master`, so
+          # until master is contained in develop that tag is unreachable from the
+          # candidate line: release-please then finds no release at all, falls back
+          # to its initial 1.0.0, and proposes a downgrade (#637).
+          #
+          # So the merge is queued only once the comparison says develop already
+          # contains master. The interval and attempt count are overridable so the
+          # tests can drive the same loop without the clock; the defaults give the
+          # back-merge half an hour, which is the full CI suite several times over.
+          wait_for_containment() {
+            local attempts="${CONTAINMENT_ATTEMPTS:-60}"
+
+            while [ "$attempts" -gt 0 ]; do
+              if [ "$(gh api "repos/$REPO/compare/develop...master" --jq '.ahead_by')" -eq 0 ]; then
+                return 0
+              fi
+
+              sleep "${CONTAINMENT_INTERVAL:-30}"
+              attempts=$((attempts - 1))
+            done
+
+            return 1
+          }
+
           # A repository without auto-merge enabled must not fail a release that
           # has already been tagged and published — say so and move on. Asked for
           # on a reused PR too: the earlier run may have opened it at a point when
           # auto-merge could not be queued.
+          #
+          # A back-merge that never arrives is different: the proposal itself is
+          # sound and stays open, but nothing may merge it yet, so the run goes red
+          # rather than queueing it. The release is already tagged and published —
+          # only this follow-up is unfinished, and it is finished by merging the
+          # back-merge and then the PR this job left behind.
           queue_merge() {
+            if ! wait_for_containment; then
+              echo "::error::develop does not contain master yet, so the baseline PR must not merge; land the back-merge first, then merge it." >&2
+              return 1
+            fi
+
             gh pr merge --repo "$REPO" --auto --squash "$branch" \
               || echo "Could not queue the baseline PR to merge itself; merge it by hand."
           }
