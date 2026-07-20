@@ -1,5 +1,30 @@
 # Changelog
 
+## [1.13.0](https://github.com/emmpaul/the-desk/compare/v1.12.2...v1.13.0) (2026-07-20)
+
+
+### Features
+
+* add CSP_EXTRA_FONT_SRC to allow-list an external font host ([#654](https://github.com/emmpaul/the-desk/issues/654)) ([00f25ba](https://github.com/emmpaul/the-desk/commit/00f25ba06b08144bdfbe967a4f6f329b0a4be5b2))
+* declare base-uri, form-action and object-src in the csp ([#652](https://github.com/emmpaul/the-desk/issues/652)) ([86017d8](https://github.com/emmpaul/the-desk/commit/86017d8e67d405bafe32a9cd29dfe6f069e96e00))
+* deny framing by default with frame-ancestors and X-Frame-Options ([#656](https://github.com/emmpaul/the-desk/issues/656)) ([a4ec64f](https://github.com/emmpaul/the-desk/commit/a4ec64f883ad44377d9ebf0ede5a0b11f25371e4))
+* proxy remote images so img-src can drop the https: wildcard ([#655](https://github.com/emmpaul/the-desk/issues/655)) ([a65b3d6](https://github.com/emmpaul/the-desk/commit/a65b3d6e9a24a2a47b56bddc013d69f2e6e6ff73))
+* send hsts on secure responses and default the secure session cookie ([#659](https://github.com/emmpaul/the-desk/issues/659)) ([7ee77dd](https://github.com/emmpaul/the-desk/commit/7ee77ddf365bc2506ffc42c86639ae6e9a6be099))
+* set a content-security-policy header on web responses ([#650](https://github.com/emmpaul/the-desk/issues/650)) ([51bc293](https://github.com/emmpaul/the-desk/commit/51bc293ee0e647766315b39906435efd792f51eb))
+
+
+### Bug Fixes
+
+* fork worktrees from the remote base branch ([#642](https://github.com/emmpaul/the-desk/issues/642)) ([edf1639](https://github.com/emmpaul/the-desk/commit/edf163945a6d7459e370969022a866d4ce43551b)), closes [#639](https://github.com/emmpaul/the-desk/issues/639)
+* give the browser-written cookies samesite and secure flags ([#657](https://github.com/emmpaul/the-desk/issues/657)) ([082b967](https://github.com/emmpaul/the-desk/commit/082b9677f9649b20e3057fbc2a3745da3d32f562))
+* refuse a candidate release below develop's baseline ([#638](https://github.com/emmpaul/the-desk/issues/638)) ([87dbcb6](https://github.com/emmpaul/the-desk/commit/87dbcb63d10b93f1285c7d1839f867abcc79f714))
+* stop background writes from cancelling the visit in flight ([#646](https://github.com/emmpaul/the-desk/issues/646)) ([560e39f](https://github.com/emmpaul/the-desk/commit/560e39fe149300664c855890e184dafc3cea2fee))
+
+
+### Performance
+
+* run the local Pest gate in parallel like CI does ([#649](https://github.com/emmpaul/the-desk/issues/649)) ([4d4889c](https://github.com/emmpaul/the-desk/commit/4d4889cdb4d0f5d8e7e824d2c41249f28129b82b))
+
 ## [1.12.2](https://github.com/emmpaul/the-desk/compare/v1.12.1...v1.12.2) (2026-07-20)
 
 
