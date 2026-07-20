@@ -13,7 +13,8 @@
         { "type": "perf", "section": "Performance" },
         { "type": "refactor", "section": "Code Refactoring" },
         { "type": "deps", "section": "Dependencies" }
-      ]
+      ],
+      "extra-files": [{ "type": "generic", "path": "VERSION" }]
     }
   }
 }

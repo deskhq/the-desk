@@ -23,10 +23,12 @@ return [
     |--------------------------------------------------------------------------
     |
     | The running release, read from the committed VERSION file so a single
-    | built image knows which version it is at runtime. release-please keeps
-    | VERSION in lockstep with the git tag (see release-please-config.json),
-    | so this is the source of truth the update-available check compares
-    | against the latest published release.
+    | built image knows which version it is at runtime. Both release lines keep
+    | VERSION in lockstep with the git tag they cut — the stable one through
+    | release-please-config.json and the candidate one through
+    | release-please-config.develop.json — so a candidate build reports its own
+    | `-rc.N` version, and this stays the source of truth the update-available
+    | check compares against the latest published release.
     |
     */
 

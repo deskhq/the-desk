@@ -15,8 +15,11 @@ use Symfony\Component\Yaml\Yaml;
  *
  * These tests pin that arrangement to the checked-in files, because every failure
  * mode here is silent: a missing `prerelease` flag publishes a candidate as the
- * latest stable release, and an `extra-files` entry on the candidate config
- * stamps `-rc` strings into the install instructions we ship to self-hosters.
+ * latest stable release, and an operator-facing `extra-files` entry on the
+ * candidate config stamps `-rc` strings into the install instructions we ship to
+ * self-hosters. The candidate line stamps VERSION and nothing else — that file
+ * is the running build's self-description rather than an instruction, so it has
+ * to say `-rc.N` on a candidate build (#660).
  */
 function repositoryPath(string $relative): string
 {
@@ -81,10 +84,53 @@ test('the stable line keeps ownership of the changelog', function (): void {
         ->not->toHaveKey('changelog-path');
 });
 
-test('the candidate config stamps no version references', function (): void {
-    $package = releaseConfigPackage('release-please-config.develop.json');
+/**
+ * The paths a release line stamps the new version into, in config order.
+ *
+ * @return array<int, string>
+ */
+function stampedPaths(string $relative): array
+{
+    $package = releaseConfigPackage($relative);
 
-    expect($package)->not->toHaveKey('extra-files');
+    expect($package)->toHaveKey('extra-files');
+
+    /** @var array<int, array<string, mixed>> $files */
+    $files = $package['extra-files'];
+
+    return array_map(static fn (array $file): string => (string) $file['path'], $files);
+}
+
+/*
+ * The candidate line stamps exactly one file, and the allow-list is asserted as
+ * an equality rather than a "contains" so adding a second one fails here.
+ *
+ * VERSION is the running build's self-description — `config('app.version')`
+ * reads it, so an rc image that does not carry `-rc.N` misreports itself and
+ * feeds the update-available check a stale baseline (#660). That is the one
+ * file the candidate line *must* stamp.
+ */
+test('the candidate line stamps the running version', function (): void {
+    expect(stampedPaths('release-please-config.develop.json'))->toBe(['VERSION']);
+});
+
+/*
+ * Everything else the stable line stamps is operator-facing instruction — the
+ * `DEFAULT_VERSION` a plain `curl | sh` installs, the image pin in the env
+ * template, and the versions quoted in the published docs. Those must keep
+ * naming the latest *stable* release, so a candidate release must never rewrite
+ * them. Derived from the stable config rather than hardcoded, so a sixth
+ * operator-facing file added there is covered by this guard automatically.
+ */
+test('the candidate line stamps no operator-facing file', function (): void {
+    $operatorFacing = array_values(array_diff(stampedPaths('release-please-config.json'), ['VERSION']));
+
+    expect($operatorFacing)->not->toBeEmpty()
+        ->and(array_intersect($operatorFacing, stampedPaths('release-please-config.develop.json')))->toBeEmpty();
+});
+
+test('the stable line stamps the running version too', function (): void {
+    expect(stampedPaths('release-please-config.json'))->toContain('VERSION');
 });
 
 /*
