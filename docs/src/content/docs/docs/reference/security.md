@@ -158,6 +158,53 @@ the matching key: the host serving the stylesheet in `CSP_EXTRA_STYLE_SRC`, and
 the host serving the `@font-face` files in `CSP_EXTRA_FONT_SRC`. Google Fonts
 splits those across two hosts and so needs both.
 
+## Cookies
+
+The Desk sets four cookies. Every one of them is either HTTP-only or holds
+nothing worth reading, and all four are `SameSite=Lax`, so none is sent on a
+cross-site subrequest.
+
+| Cookie                | Set by         | Contents                       | `HttpOnly` | Encrypted |
+| --------------------- | -------------- | ------------------------------ | ---------- | --------- |
+| `the-desk-session`    | Server         | The session identifier         | Yes        | Yes       |
+| `XSRF-TOKEN`          | Server         | The CSRF token                 | No         | Yes       |
+| `appearance`          | Browser        | `light`, `dark` or `system`    | No         | No        |
+| `sidebar_state`       | Browser        | `true` or `false`              | No         | No        |
+
+All four are marked `Secure` when the page is served over HTTPS. For the two
+server-set cookies that comes from `SESSION_SECURE_COOKIE`, which you should set
+to `true` in any production deployment (see
+[reverse proxy & TLS](/docs/self-hosting/reverse-proxy/)); the two written by the
+browser pick it up from the page's own scheme.
+
+The session cookie name follows `APP_NAME`, so it reads `the-desk-session` on a
+default install and something else if you renamed the app.
+
+### `XSRF-TOKEN` is readable by JavaScript on purpose
+
+A surface scanner will flag `XSRF-TOKEN` as a cookie missing `HttpOnly`. That is
+expected behaviour, not a defect, and we have accepted it deliberately.
+
+Laravel's CSRF middleware sets that cookie precisely so the frontend can read it
+and echo the value back in an `X-XSRF-TOKEN` header. The server then compares the
+header against the token in the session. Making the cookie `HttpOnly` would put
+the value out of the frontend's reach and break every non-form request in the app:
+Inertia visits, posting a message, reactions, uploads. It is not the session
+cookie, and it is encrypted at rest in the browser: stealing it grants no session,
+only the ability to pass CSRF on a request you could already forge if you were
+running script on the page.
+
+Which is the real point. The threat this flag is meant to blunt is a malicious
+script running on your origin, and the answer to that is stopping the script from
+running at all. That is what the [Content Security Policy](#content-security-policy)
+above is for.
+
+The two browser-set cookies are exempt from Laravel's cookie encryption for the
+same practical reason: the frontend writes them and the server reads them as
+plain text. They hold a theme name and a boolean, so there is nothing in them to
+protect. Nothing else is exempt, and a regression test asserts that the exemption
+list stays those two.
+
 ## Hardening your deployment
 
 Most security outcomes for a self-hosted instance depend on how you run it. Follow
