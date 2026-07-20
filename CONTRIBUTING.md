@@ -196,15 +196,40 @@ contains both jobs, and the pushed branch decides which one runs.
 
 Two consequences worth knowing:
 
-- **The candidate config declares no `extra-files`**, so an rc bump never stamps
-  `1.12.0-rc.0` into `VERSION`, `.env.prod.example`, `docker/install.sh`, or the
-  docs pages that quote a version. Those lines only ever carry stable versions.
+- **The candidate config stamps `VERSION` and nothing else.** An rc bump never
+  writes `1.12.0-rc.0` into `.env.prod.example`, `docker/install.sh`, or the docs
+  pages that quote a version: those are install instructions, and a self-hoster
+  following them must land on the latest *stable* release. `VERSION` is the one
+  exception because it is not an instruction — it is the running build's
+  self-description, read by `config('app.version')` for the user-menu footer and
+  the update-available check, so an rc image has to report `-rc.N`. Leaving it
+  unstamped made every candidate image claim the previous stable version
+  ([#660](https://github.com/emmpaul/the-desk/issues/660)).
 - **The candidate config sets `skip-changelog`**, so `CHANGELOG.md` belongs to
   `master` alone. Candidates still get full release notes on their GitHub
   release; they just don't write them to the file.
 
 These invariants are enforced by `tests/Unit/ReleaseFlowTest.php` rather than by
 convention — change the release setup and that file will tell you what broke.
+
+#### `VERSION` is the one line both release lines write
+
+Because each line stamps `VERSION` from its own manifest, the two branches hold
+different values between releases, and that has two expected consequences worth
+recognising rather than reacting to:
+
+- **`master` briefly reads `-rc.N`.** A promotion carries `develop`'s candidate
+  value across, and `master` keeps it until the stable release PR rewrites it to
+  the released number. Only images built in that window are affected — that is
+  the moving `edge` tag, never a published release, which is built from the `v*`
+  tag cut after the stamp.
+- **A promotion can conflict on that single line.** It only happens when *both*
+  lines moved `VERSION` since their last common point — in practice a hotfix
+  released on `master` while `develop` was cutting candidates. Normal releases
+  merge cleanly, because only one side has touched the file. When it does
+  conflict, auto-merge on the promotion PR stops and the resolution is to take
+  `develop`'s candidate value: `master`'s own release PR stamps the stable
+  number over it moments later either way.
 
 After each stable release, a job moves `develop`'s candidate baseline onto the
 version just released, so the next feature there starts a fresh `-rc.0` series
