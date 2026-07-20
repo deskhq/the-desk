@@ -1,10 +1,11 @@
 name: commitlint
 
 on:
+  # `edited` matters: the PR title is the squash commit subject, so a title fixed
+  # after review has to re-run the check without needing a new commit. No branch
+  # filter — stacked-epic PRs target a foundation branch and need checking too.
   pull_request:
-    branches:
-      - develop
-      - master
+    types: [opened, edited, synchronize, reopened]
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -28,3 +29,39 @@ jobs:
         uses: wagoid/commitlint-github-action@b948419dd99f3fd78a6548d48f94e3df7f6bf3ed # v6.2.1
         with:
           configFile: commitlint.config.mjs
+
+  # The repo squash-merges with `squash_merge_commit_title = PR_TITLE`, so the PR
+  # title — not the individual commits the job above validates — is the commit
+  # release-please parses. An invalid title is dropped from CHANGELOG.md and the
+  # version bump silently, so it gets its own check. Keep the inputs below in sync
+  # with commitlint.config.mjs; tests/Unit/PullRequestTitleCheckTest.php fails the
+  # build if they drift.
+  pr-title:
+    name: Validate PR title
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate the PR title as a Conventional Commit
+        uses: amannn/action-semantic-pull-request@48f256284bd46cdaab1048c3721360e808335d50 # v6.1.1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          types: |
+            build
+            chore
+            ci
+            deps
+            docs
+            feat
+            fix
+            perf
+            refactor
+            revert
+            style
+            test
+          # Mirrors config-conventional's subject-case (no leading capital, which
+          # also covers acronym-led subjects) and subject-full-stop rules, so a
+          # title can never pass one check and fail the other.
+          subjectPattern: '^(?![A-Z])(?!.*\.$).+$'
+          subjectPatternError: |
+            The subject "{subject}" in the PR title "{title}" is invalid: it must not start with a
+            capital letter, and must not end with a full stop, e.g. "feat: edit the last message".

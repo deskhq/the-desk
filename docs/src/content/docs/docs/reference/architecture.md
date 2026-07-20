@@ -99,6 +99,12 @@ cache, so it works under the default Redis session driver with no need to switch
 | `redis-data`                  | Cache, session, queued jobs        |
 | `storage-app`                 | Uploaded files                     |
 
+`storage-app` is mounted by all four app-role services (`app`, `queue`,
+`reverb`, `scheduler`). On a fresh volume Docker seeds it from the image, so the
+three workers wait for `app` to start (`depends_on: app`) and exactly one
+container performs that seeding — starting them together makes the daemon race
+itself and one container fails with `mkdir …/_data/private: file exists`.
+
 These survive `docker compose down` / `up`. See
 [Upgrading](/docs/self-hosting/upgrading/) for how the version-scoped Meilisearch
 volume behaves across upgrades.
