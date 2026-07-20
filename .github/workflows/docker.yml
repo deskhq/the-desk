@@ -75,7 +75,17 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       # Image name tracks ${{ github.repository }} so it survives a repo rename.
-      # v* tags → X.Y.Z, X.Y, and latest; master → the moving `edge` tag.
+      # Stable v* tags → X.Y.Z, X.Y, and latest; master → the moving `edge` tag;
+      # candidate v*-rc.N tags → X.Y.Z-rc.N and the moving `rc` tag.
+      #
+      # A candidate must never take `latest` or the X.Y alias from the stable
+      # release it precedes. `type=semver` already guarantees that — metadata-action
+      # sets `latest` only on the non-prerelease path, and extends a prerelease to
+      # `{{version}}` alone. That guarantee is specific to `type=semver`: adding a
+      # `type=ref,event=tag` or `type=match` rule here would apply `latest`
+      # unconditionally, and since the flag is taken from the first rule that sets
+      # it, one such rule would hand `latest` to a candidate. Keep this list to
+      # `type=semver` plus explicitly-gated `type=raw` aliases.
       - name: Derive image tags and labels
         if: env.PUBLISH == 'true'
         id: meta
@@ -86,6 +96,7 @@ jobs:
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
             type=raw,value=edge,enable={{is_default_branch}}
+            type=raw,value=rc,enable=${{ startsWith(github.ref, 'refs/tags/v') && contains(github.ref_name, '-rc.') }}
 
       # amd64 only for now (arm64 emulation is deferred — see #205). No VITE_*
       # build args: the app name and browser-facing Reverb settings are served to
