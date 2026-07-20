@@ -63,11 +63,17 @@ MAIN_ROOT="$(dirname "$GIT_COMMON_DIR")"
 WORKTREES_DIR="$(dirname "$MAIN_ROOT")/the-desk-worktrees"
 
 # --- tooling checks ----------------------------------------------------------
-command -v jq >/dev/null 2>&1 || die "jq is required (brew install jq)"
-command -v docker >/dev/null 2>&1 || die "docker is required"
-# This script drives Compose v2 (`docker compose`, not the legacy v1
-# `docker-compose`) and relies on the `!override` merge tag (Compose >= 2.24).
-docker compose version >/dev/null 2>&1 || die "Docker Compose v2 is required ('docker compose' subcommand not found)"
+# Called from main(), not at load time, so the script can be sourced as a library
+# (WORKTREE_LIB=1) by tests that only drive its git helpers.
+require_tooling() {
+    command -v jq >/dev/null 2>&1 || die "jq is required (brew install jq)"
+    command -v docker >/dev/null 2>&1 || die "docker is required"
+    # This script drives Compose v2 (`docker compose`, not the legacy v1
+    # `docker-compose`) and relies on the `!override` merge tag (Compose >= 2.24).
+    docker compose version >/dev/null 2>&1 || die "Docker Compose v2 is required ('docker compose' subcommand not found)"
+    require_compose_version
+}
+
 require_compose_version() {
     local ver major minor rest
     ver="$(docker compose version --short 2>/dev/null | sed 's/^v//')"
@@ -79,7 +85,6 @@ require_compose_version() {
         die "Docker Compose >= 2.24 is required for the '!override' merge tag (found ${ver})"
     fi
 }
-require_compose_version
 
 # --- registry + locks --------------------------------------------------------
 ensure_registry() {
@@ -184,6 +189,60 @@ validate_issue() {
     esac
 }
 
+# Resolve a base branch to an unambiguous ref to fork from.
+#
+# `git worktree add -b <new> <path> <base>` looks safe but DWIMs when <base>
+# matches no local branch and exactly one remote-tracking branch: git then
+# creates a local <base> tracking the remote and checks THAT out, silently
+# dropping -b. The worktree ends up on the shared release line, and every commit
+# made in it lands there (issue #619). Naming the remote-tracking ref explicitly
+# disables the guess, so resolve the base before handing it to git.
+resolve_base_ref() {
+    local base="$1"
+    if git -C "$MAIN_ROOT" show-ref --verify --quiet "refs/heads/${base}"; then
+        printf '%s' "$base"
+        return 0
+    fi
+
+    local remote_refs count
+    remote_refs="$(git -C "$MAIN_ROOT" for-each-ref --format='%(refname:short)' "refs/remotes/*/${base}")"
+    count="$(printf '%s' "$remote_refs" | grep -c . || true)"
+    if [ "$count" -eq 1 ]; then
+        printf '%s' "$remote_refs"
+        return 0
+    fi
+    if [ "$count" -gt 1 ]; then
+        die "base '${base}' is ambiguous — it exists on several remotes ($(printf '%s' "$remote_refs" | tr '\n' ' ')); pass the remote-tracking ref explicitly"
+    fi
+
+    # Not a branch name: accept anything git can resolve to a commit (a tag, a
+    # SHA, or an already-qualified ref such as origin/develop).
+    git -C "$MAIN_ROOT" rev-parse --verify --quiet "${base}^{commit}" >/dev/null \
+        || die "base '${base}' does not exist locally or on any remote (fetch it first?)"
+    printf '%s' "$base"
+}
+
+# Put $path on branch $branch, forking from $base when the branch is new, and
+# refuse to continue unless the worktree really is on that branch.
+attach_worktree() {
+    local path="$1" branch="$2" base="$3"
+    if [ ! -d "$path" ]; then
+        if git -C "$MAIN_ROOT" show-ref --verify --quiet "refs/heads/${branch}"; then
+            log "attaching existing branch ${branch}"
+            git -C "$MAIN_ROOT" worktree add "$path" "$branch"
+        else
+            local base_ref
+            base_ref="$(resolve_base_ref "$base")"
+            log "creating branch ${branch} from ${base_ref}"
+            git -C "$MAIN_ROOT" worktree add -b "$branch" "$path" "$base_ref"
+        fi
+    fi
+
+    local head
+    head="$(git -C "$path" rev-parse --abbrev-ref HEAD 2>/dev/null || true)"
+    [ "$head" = "$branch" ] || die "worktree ${path} is on '${head:-<unknown>}', expected '${branch}' — refusing to continue, commits would land on the wrong branch"
+}
+
 # Insert or replace KEY=VALUE in an env file.
 upsert_env() {
     local file="$1" key="$2" value="$3"
@@ -282,15 +341,7 @@ cmd_create() {
 
     # --- git worktree (idempotent) -------------------------------------------
     mkdir -p "$WORKTREES_DIR"
-    if [ ! -d "$path" ]; then
-        if git show-ref --verify --quiet "refs/heads/${branch}"; then
-            log "attaching existing branch ${branch}"
-            git -C "$MAIN_ROOT" worktree add "$path" "$branch"
-        else
-            log "creating branch ${branch} from ${base}"
-            git -C "$MAIN_ROOT" worktree add -b "$branch" "$path" "$base"
-        fi
-    fi
+    attach_worktree "$path" "$branch" "$base"
 
     # --- .env (generated once; preserves manual edits on resume) -------------
     if [ ! -f "${path}/.env" ]; then
@@ -472,6 +523,8 @@ main() {
     trap 'exit 130' INT
     trap 'exit 143' TERM
 
+    require_tooling
+
     local cmd="${1:-}"
     [ -n "$cmd" ] || usage
     shift
@@ -484,4 +537,6 @@ main() {
     esac
 }
 
-main "$@"
+# Sourcing with WORKTREE_LIB=1 defines the helpers without dispatching a
+# subcommand, so tests can drive them directly (tests/Unit/WorktreeScriptTest.php).
+[ -n "${WORKTREE_LIB:-}" ] || main "$@"
