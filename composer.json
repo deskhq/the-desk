@@ -101,7 +101,7 @@
             "@lint:check",
             "@types:check",
             "@refactor:check",
-            "@php artisan test --coverage --min=100"
+            "@php artisan test --parallel --coverage --min=100"
         ],
         "test:browser": [
             "pest tests/Browser"

@@ -278,7 +278,8 @@ Vue components must have a single root element.
 ## Code Coverage
 
 - **100% code coverage is required — this is non-negotiable.** The test suite is gated at `--min=100` (see the `test` script in `composer.json`), so any line left uncovered fails the build.
-- **Always check coverage before pushing.** Run the full gate — which also runs Pint, PHPStan, and Rector — with `./vendor/bin/sail composer test` (this executes `lint:check`, `types:check`, `refactor:check`, and `php artisan test --coverage --min=100`). Do not push or open/update a PR until it reports `Total: 100.0 %` with a clean Rector dry-run.
+- **Always check coverage before pushing.** Run the full gate — which also runs Pint, PHPStan, and Rector — with `./vendor/bin/sail composer test` (this executes `lint:check`, `types:check`, `refactor:check`, and `php artisan test --parallel --coverage --min=100`). Do not push or open/update a PR until it reports `Total: 100.0 %` with a clean Rector dry-run.
+- **The gate runs the suite in parallel, like CI does.** Paratest gives each worker its own `testing_N` database and merges the per-worker PCOV reports, so `--min=100` still bites while the run takes roughly a third of the serial wall clock. The browser suite (`composer test:browser`) stays single-process — it binds Reverb and a live server, so it cannot be sharded.
 - If new code drops coverage, add or update tests until it is back at 100%. When a line reads as uncovered even though a test exercises it (e.g. the `: null` branch of a multi-line ternary is a known PCOV line-attribution quirk), collapse it onto a single line rather than leaving the gate red.
 
 ## Reporting Bugs Found While Doing Something Else
