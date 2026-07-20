@@ -34,7 +34,7 @@ function commitlintTypes(): array
 /**
  * The `with:` inputs of the PR-title validation step in the commitlint workflow.
  *
- * @return array<string, string>
+ * @return array{types?: string, subjectPattern?: string}
  */
 function pullRequestTitleStepInputs(): array
 {
@@ -104,6 +104,11 @@ test('the subject pattern mirrors commitlint subject-case and subject-full-stop'
     'lower-case subject' => ['add a thing', true],
     'digit-led subject' => ['2FA cleanup', true],
     'inner acronym' => ['re-check the SSO policy', true],
+    // Verified against commitlint itself: it accepts subjects that open on a
+    // symbol or a non-ASCII letter, so the pattern must not whitelist [a-z0-9].
+    'code-span-led subject' => ['`useFoo` composable', true],
+    'accented subject' => ['émoji support', true],
+    'symbol-led subject' => ['-webkit prefix handling', true],
     'sentence-case subject' => ['Add a thing', false],
     'acronym-led subject' => ['SSO login is broken', false],
     'trailing full stop' => ['add a thing.', false],

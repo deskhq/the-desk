@@ -105,6 +105,9 @@ reads to build `CHANGELOG.md` and pick the next version. A title like
 `Add message reminders` parses as nothing and is dropped from the release
 silently, so the title is validated by its own required check (the `pr-title` job
 in `.github/workflows/commitlint.yml`) using the same types and subject rules as
-commitlint. Editing the title re-runs the check — no new commit needed.
+commitlint above: `type(optional-scope): imperative subject`, with a lowercase
+type, no capital letter opening the subject, and no trailing period — e.g.
+`feat(messaging): add message reminders`. Editing the title re-runs the check, so
+a rejected title turns green without a new commit.
 
 A maintainer will review and merge. Thanks for helping make The Desk better!

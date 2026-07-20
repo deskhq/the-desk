@@ -63,5 +63,5 @@ jobs:
           # title can never pass one check and fail the other.
           subjectPattern: '^(?![A-Z])(?!.*\.$).+$'
           subjectPatternError: |
-            The subject "{subject}" in the PR title "{title}" is invalid: it must start with a lower-case
-            letter or a digit and must not end with a full stop, e.g. "feat: edit the last message".
+            The subject "{subject}" in the PR title "{title}" is invalid: it must not start with a
+            capital letter, and must not end with a full stop, e.g. "feat: edit the last message".
