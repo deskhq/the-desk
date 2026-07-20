@@ -93,9 +93,28 @@ capital letter (commitlint rejects sentence-case subjects).
 
 1. Branch off `develop` (e.g. `feat/message-reminders`, `fix/session-index`), and
    target `develop` — see [Releases](#releases) below.
-2. Keep the PR focused on a single concern; reference the issue it closes.
-3. Make sure both quality gates pass locally.
-4. Fill in what changed and why, and how you tested it.
+2. **Title the PR as a Conventional Commit** — see below.
+3. Keep the PR focused on a single concern; reference the issue it closes.
+4. Make sure both quality gates pass locally.
+5. Fill in what changed and why, and how you tested it.
+
+### The PR title is the release entry
+
+Feature PRs are squash-merged with the **PR title as the commit subject**, so the
+title — not your individual commits — is what
+[release-please](https://github.com/googleapis/release-please) reads to build the
+release notes and pick the next version. A title like `Add message reminders`
+parses as nothing and is dropped from the release silently, so the title is
+validated by its own required check (the `pr-title` job in
+`.github/workflows/commitlint.yml`) using the same types and subject rules as
+commitlint above: `type(optional-scope): imperative subject`, with a lowercase
+type, no capital letter opening the subject, and no trailing period — e.g.
+`feat(messaging): add message reminders`. Editing the title re-runs the check, so
+a rejected title turns green without a new commit.
+
+That squash subject lands on `develop`, where it becomes one entry in the next
+release candidate, and reaches `master` — and so `CHANGELOG.md` — when `develop`
+is promoted.
 
 A maintainer will review and merge. Thanks for helping make The Desk better!
 

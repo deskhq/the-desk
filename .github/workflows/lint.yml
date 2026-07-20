@@ -42,8 +42,20 @@ jobs:
         with:
           composer-options: '--no-scripts'
 
+      # `npm ci` (not `npm install`) so a lockfile that disagrees with
+      # package.json fails here instead of silently passing and only breaking
+      # the Docker image build minutes later (see #608).
       - name: Install Node Dependencies
-        run: npm install
+        run: npm ci
+
+      - name: Prepare Environment
+        run: cp .env.example .env
+
+      - name: Generate Application Key
+        run: php artisan key:generate
+
+      - name: Check Release Version References
+        run: php artisan release:check-version-refs
 
       - name: Run Pint
         run: composer lint
