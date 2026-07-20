@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.12.1](https://github.com/emmpaul/the-desk/compare/v1.12.0...v1.12.1) (2026-07-20)
+
+
+### Bug Fixes
+
+* **docs:** resync the docs lockfile so npm ci succeeds ([#621](https://github.com/emmpaul/the-desk/issues/621)) ([6e68bac](https://github.com/emmpaul/the-desk/commit/6e68bacfa81802dc553c3f965d15b8a1e333e179)), closes [#614](https://github.com/emmpaul/the-desk/issues/614)
+
 ## [1.12.0](https://github.com/emmpaul/the-desk/compare/v1.11.1...v1.12.0) (2026-07-20)
 
 
