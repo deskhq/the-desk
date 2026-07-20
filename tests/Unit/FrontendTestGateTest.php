@@ -15,10 +15,18 @@ function ciJobSteps(): array
     return Yaml::parseFile(dirname(__DIR__, 2).'/.github/workflows/tests.yml')['jobs']['ci']['steps'];
 }
 
+/**
+ * The step must *be* the command, not merely mention it: an echoed or
+ * `|| true`-suffixed invocation would satisfy a substring search while gating
+ * nothing.
+ */
+function runsFrontendTests(array $step): bool
+{
+    return trim((string) ($step['run'] ?? '')) === 'npm run test:js';
+}
+
 test('the ci job runs the frontend test suite', function (): void {
-    $step = collect(ciJobSteps())->first(
-        static fn (array $step): bool => str_contains($step['run'] ?? '', 'npm run test:js'),
-    );
+    $step = collect(ciJobSteps())->first(runsFrontendTests(...));
 
     expect($step)->not->toBeNull('the Vitest suite must run on every push and PR');
 });
@@ -26,7 +34,7 @@ test('the ci job runs the frontend test suite', function (): void {
 test('the frontend suite runs before the slower php suite so a regression fails fast', function (): void {
     $steps = collect(ciJobSteps());
 
-    $frontend = $steps->search(static fn (array $step): bool => str_contains($step['run'] ?? '', 'npm run test:js'));
+    $frontend = $steps->search(runsFrontendTests(...));
     $install = $steps->search(static fn (array $step): bool => ($step['run'] ?? '') === 'npm ci');
     $php = $steps->search(static fn (array $step): bool => str_contains($step['run'] ?? '', 'artisan test'));
 
@@ -44,7 +52,7 @@ test('the test:js script is the vitest entry point the gate assumes', function (
 
 test('the documented frontend gate names the frontend test suite', function (): void {
     foreach (['CONTRIBUTING.md', 'CLAUDE.md', 'README.md'] as $document) {
-        $documented = str_contains((string) file_get_contents(dirname(__DIR__, 2).'/'.$document), 'test:js');
+        $documented = str_contains((string) file_get_contents(dirname(__DIR__, 2).'/'.$document), 'npm run test:js');
 
         expect($documented)->toBeTrue($document.' must document the frontend suite contributors are gated on');
     }
