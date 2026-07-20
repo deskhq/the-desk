@@ -37,6 +37,35 @@
 # Reverb. The `redis` service below is always-on; every app process depends on
 # it being healthy before it starts.
 
+# The infrastructure every app-role service waits for. Split out of the *app
+# anchor so `queue`, `reverb`, and `scheduler` can add `app` to their own
+# `depends_on` without restating these three: a service that declares
+# `depends_on` replaces the anchor's value wholesale, it does not merge into it.
+x-infra-depends-on: &infra-depends-on
+  pgsql:
+    condition: service_healthy
+  redis:
+    condition: service_healthy
+  meilisearch:
+    condition: service_healthy
+
+# What the three worker services wait for: the infrastructure above, plus `app`.
+#
+# The four app-role services share the `storage-app` named volume. On a fresh
+# volume (a first install, or any `up -d` after `down -v`) the daemon seeds it
+# from the image's /app/storage/app — `private/` and `public/`. Four containers
+# created at the same instant all trigger that copy-up, race inside dockerd, and
+# one dies with `mkdir /var/lib/docker/volumes/…/_data/private: file exists`
+# (#609). Waiting on `app` means exactly one container ever seeds the volume.
+#
+# `service_started`, not `service_healthy`: the copy-up is done once the app
+# container is created and started, and the workers have no reason to sit
+# through app's migrations and HTTP start_period before picking up jobs.
+x-worker-depends-on: &worker-depends-on
+  <<: *infra-depends-on
+  app:
+    condition: service_started
+
 x-app: &app
   # Runs the prebuilt turnkey image from the GitHub Container Registry — `up -d`
   # pulls it, no build step. APP_VERSION (in .env) selects the tag, so upgrading
@@ -67,13 +96,7 @@ x-app: &app
     # owns and edits the file on the host.
     - ./.env:/app/.env:ro
     - storage-app:/app/storage/app
-  depends_on:
-    pgsql:
-      condition: service_healthy
-    redis:
-      condition: service_healthy
-    meilisearch:
-      condition: service_healthy
+  depends_on: *infra-depends-on
   networks:
     - app
 
@@ -98,6 +121,7 @@ services:
   reverb:
     <<: *app
     command: ['php', 'artisan', 'reverb:start', '--host=0.0.0.0', '--port=8080']
+    depends_on: *worker-depends-on
     ports:
       - '${APP_BIND:-127.0.0.1}:${REVERB_PORT:-8080}:8080'
     healthcheck:
@@ -114,12 +138,14 @@ services:
   queue:
     <<: *app
     command: ['php', 'artisan', 'queue:work', '--tries=3']
+    depends_on: *worker-depends-on
 
   # Scheduler (delivers due scheduled messages, prunes expired invitations).
   # Also no HTTP surface — same no-healthcheck rationale as `queue` above.
   scheduler:
     <<: *app
     command: ['php', 'artisan', 'schedule:work']
+    depends_on: *worker-depends-on
 
   pgsql:
     image: postgres:18-alpine
