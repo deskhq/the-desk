@@ -42,8 +42,11 @@ jobs:
         with:
           composer-options: '--no-scripts'
 
+      # `npm ci` (not `npm install`) so a lockfile that disagrees with
+      # package.json fails here instead of silently passing and only breaking
+      # the Docker image build minutes later (see #608).
       - name: Install Node Dependencies
-        run: npm install
+        run: npm ci
 
       - name: Run Pint
         run: composer lint
