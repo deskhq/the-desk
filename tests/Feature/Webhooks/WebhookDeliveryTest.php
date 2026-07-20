@@ -13,8 +13,8 @@ use App\Models\Team;
 use App\Models\WebhookSubscription;
 use App\Support\AuditRecorder;
 use App\Support\HostResolver;
+use App\Support\Http\OutboundUrlGuard;
 use App\Support\Webhooks\WebhookSignature;
-use App\Support\Webhooks\WebhookUrlGuard;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
@@ -146,7 +146,7 @@ it('skips an already-queued job once the platform is disabled', function (): voi
         'type' => WebhookEvent::MessageCreated->value,
         'created_at' => now()->toIso8601String(),
         'data' => [],
-    ]))->handle(app(AuditRecorder::class), app(WebhookUrlGuard::class));
+    ]))->handle(app(AuditRecorder::class), app(OutboundUrlGuard::class));
 
     Http::assertNothingSent();
     expect($this->subscription->deliveries()->count())->toBe(0);
@@ -162,7 +162,7 @@ it('refuses to deliver to a non-public URL and logs the blocked attempt', functi
             'type' => WebhookEvent::MessageCreated->value,
             'created_at' => now()->toIso8601String(),
             'data' => [],
-        ]))->handle(app(AuditRecorder::class), app(WebhookUrlGuard::class));
+        ]))->handle(app(AuditRecorder::class), app(OutboundUrlGuard::class));
     } catch (RuntimeException) {
         // expected retry signal
     }
@@ -184,7 +184,7 @@ it('blocks delivery when the hostname resolves to a private address', function (
             'type' => WebhookEvent::MessageCreated->value,
             'created_at' => now()->toIso8601String(),
             'data' => [],
-        ]))->handle(app(AuditRecorder::class), app(WebhookUrlGuard::class));
+        ]))->handle(app(AuditRecorder::class), app(OutboundUrlGuard::class));
     } catch (RuntimeException) {
         // expected retry signal
     }
@@ -210,7 +210,7 @@ it('auto-disables a subscription whose hostname resolves private once it hits th
         'type' => WebhookEvent::MessageCreated->value,
         'created_at' => now()->toIso8601String(),
         'data' => [],
-    ]))->handle(app(AuditRecorder::class), app(WebhookUrlGuard::class));
+    ]))->handle(app(AuditRecorder::class), app(OutboundUrlGuard::class));
 
     Http::assertNothingSent();
     expect($this->subscription->refresh()->status)->toBe(WebhookSubscriptionStatus::Disabled);
@@ -225,7 +225,7 @@ it('delivers to a hostname resolving to a public IPv6 address', function (): voi
         'type' => WebhookEvent::MessageCreated->value,
         'created_at' => now()->toIso8601String(),
         'data' => [],
-    ]))->handle(app(AuditRecorder::class), app(WebhookUrlGuard::class));
+    ]))->handle(app(AuditRecorder::class), app(OutboundUrlGuard::class));
 
     Http::assertSentCount(1);
     expect($this->subscription->deliveries()->sole()->succeeded)->toBeTrue();
@@ -240,7 +240,7 @@ it('delivers to a literal public IP without pinning', function (): void {
         'type' => WebhookEvent::MessageCreated->value,
         'created_at' => now()->toIso8601String(),
         'data' => [],
-    ]))->handle(app(AuditRecorder::class), app(WebhookUrlGuard::class));
+    ]))->handle(app(AuditRecorder::class), app(OutboundUrlGuard::class));
 
     Http::assertSentCount(1);
     expect($this->subscription->deliveries()->sole()->succeeded)->toBeTrue();
@@ -258,7 +258,7 @@ it('does not follow a redirect to an internal address and records the attempt as
             'type' => WebhookEvent::MessageCreated->value,
             'created_at' => now()->toIso8601String(),
             'data' => [],
-        ]))->handle(app(AuditRecorder::class), app(WebhookUrlGuard::class));
+        ]))->handle(app(AuditRecorder::class), app(OutboundUrlGuard::class));
     } catch (RuntimeException) {
         // expected retry signal
     }
@@ -286,7 +286,7 @@ it('auto-disables a subscription whose URL is blocked once it hits the threshold
         'type' => WebhookEvent::MessageCreated->value,
         'created_at' => now()->toIso8601String(),
         'data' => [],
-    ]))->handle(app(AuditRecorder::class), app(WebhookUrlGuard::class));
+    ]))->handle(app(AuditRecorder::class), app(OutboundUrlGuard::class));
 
     Http::assertNothingSent();
     expect($this->subscription->refresh()->status)->toBe(WebhookSubscriptionStatus::Disabled);
@@ -308,7 +308,7 @@ it('retries a failing endpoint, then auto-disables after the threshold and logs 
     // final attempt reaches the threshold and disables without throwing.
     for ($attempt = 1; $attempt < $threshold; $attempt++) {
         try {
-            (new DeliverWebhook($this->subscription->id, $envelope))->handle($recorder, app(WebhookUrlGuard::class));
+            (new DeliverWebhook($this->subscription->id, $envelope))->handle($recorder, app(OutboundUrlGuard::class));
         } catch (RuntimeException) {
             // expected retry signal
         }
@@ -318,7 +318,7 @@ it('retries a failing endpoint, then auto-disables after the threshold and logs 
             ->and($this->subscription->status)->toBe(WebhookSubscriptionStatus::Active);
     }
 
-    (new DeliverWebhook($this->subscription->id, $envelope))->handle($recorder, app(WebhookUrlGuard::class));
+    (new DeliverWebhook($this->subscription->id, $envelope))->handle($recorder, app(OutboundUrlGuard::class));
 
     $this->subscription->refresh();
     expect($this->subscription->status)->toBe(WebhookSubscriptionStatus::Disabled)
@@ -337,7 +337,7 @@ it('resets the failure streak after a success', function (): void {
         'type' => WebhookEvent::MessageCreated->value,
         'created_at' => now()->toIso8601String(),
         'data' => [],
-    ]))->handle(app(AuditRecorder::class), app(WebhookUrlGuard::class));
+    ]))->handle(app(AuditRecorder::class), app(OutboundUrlGuard::class));
 
     expect($this->subscription->refresh()->consecutive_failures)->toBe(0);
 });
@@ -351,7 +351,7 @@ it('records a transport error as a failed attempt with no status code', function
             'type' => WebhookEvent::MessageCreated->value,
             'created_at' => now()->toIso8601String(),
             'data' => [],
-        ]))->handle(app(AuditRecorder::class), app(WebhookUrlGuard::class));
+        ]))->handle(app(AuditRecorder::class), app(OutboundUrlGuard::class));
     } catch (RuntimeException) {
         // expected retry signal
     }
@@ -374,7 +374,7 @@ it('auto-disables on a transport error that reaches the threshold', function ():
         'type' => WebhookEvent::MessageCreated->value,
         'created_at' => now()->toIso8601String(),
         'data' => [],
-    ]))->handle(app(AuditRecorder::class), app(WebhookUrlGuard::class));
+    ]))->handle(app(AuditRecorder::class), app(OutboundUrlGuard::class));
 
     expect($this->subscription->refresh()->status)->toBe(WebhookSubscriptionStatus::Disabled);
 });
@@ -388,7 +388,7 @@ it('is a no-op when the subscription has since been disabled', function (): void
         'type' => WebhookEvent::MessageCreated->value,
         'created_at' => now()->toIso8601String(),
         'data' => [],
-    ]))->handle(app(AuditRecorder::class), app(WebhookUrlGuard::class));
+    ]))->handle(app(AuditRecorder::class), app(OutboundUrlGuard::class));
 
     Http::assertNothingSent();
     expect($this->subscription->deliveries()->count())->toBe(0);
@@ -402,7 +402,7 @@ it('is a no-op when the subscription no longer exists', function (): void {
         'type' => WebhookEvent::MessageCreated->value,
         'created_at' => now()->toIso8601String(),
         'data' => [],
-    ]))->handle(app(AuditRecorder::class), app(WebhookUrlGuard::class));
+    ]))->handle(app(AuditRecorder::class), app(OutboundUrlGuard::class));
 
     Http::assertNothingSent();
 });

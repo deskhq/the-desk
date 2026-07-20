@@ -10,6 +10,7 @@ use App\Enums\TeamRole;
 use App\Enums\UserType;
 use App\Observers\UserObserver;
 use App\Support\Gravatar;
+use App\Support\Images\ImageProxy;
 use Database\Factories\UserFactory;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Contracts\Translation\HasLocalePreference;
@@ -112,15 +113,17 @@ class User extends Authenticatable implements HasLocalePreference, MustVerifyEma
      * serialises a user (nav, team members, message authors, hover cards, read
      * receipts) reads this. An explicit `avatar_url` (an uploaded image, or the
      * demo seeder's generated identicons) wins; otherwise it derives from the
-     * email's Gravatar. Null when there is no stored URL and Gravatar is
-     * disabled, and — with the `404` default — a user without a Gravatar yields
-     * a URL that 404s so the frontend cleanly falls back to its initials avatar.
+     * email's Gravatar — routed through the first-party image proxy, so the
+     * browser never talks to gravatar.com and no reader's IP leaks to it. Null
+     * when there is no stored URL and Gravatar is disabled, and — with the `404`
+     * default — a user without a Gravatar yields a URL that 404s so the frontend
+     * cleanly falls back to its initials avatar.
      *
      * @return Attribute<covariant string|null, never>
      */
     protected function avatar(): Attribute
     {
-        return Attribute::get(fn (): ?string => $this->avatar_url ?? Gravatar::url($this->email));
+        return Attribute::get(fn (): ?string => $this->avatar_url ?? ImageProxy::url(Gravatar::url($this->email)));
     }
 
     /**

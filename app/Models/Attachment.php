@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Enums\AttachmentSource;
 use App\Enums\AttachmentStatus;
+use App\Support\Images\ImageProxy;
 use Database\Factories\AttachmentFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Casts\Attribute;
@@ -153,15 +154,17 @@ class Attachment extends Model
      * team are expected to be eager-loaded (via the message payload's relation
      * set) so building this per attachment stays N+1-free.
      *
-     * A remote attachment (Giphy) has no blob to serve, so its media is the
-     * CDN URL hotlinked directly — the blob-only serve route does not apply.
+     * A remote attachment (Giphy) has no blob to serve, so the blob-only serve
+     * route does not apply; its media goes through the first-party image proxy
+     * instead of being hotlinked, so the reader's IP never reaches Giphy's CDN
+     * and `img-src` needs no wildcard.
      *
      * @return Attribute<string, never>
      */
     protected function url(): Attribute
     {
         return Attribute::get(fn (): string => $this->source === AttachmentSource::Giphy
-            ? (string) $this->remote_url
+            ? (string) ImageProxy::url($this->remote_url)
             : route('channels.attachments.download', [
                 'team' => $this->channel->team->slug,
                 'channel' => $this->channel->slug,

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import { previewHost } from '@/lib/linkPreview';
 import type { MessagePreview } from '@/types';
 
@@ -12,6 +12,14 @@ const props = defineProps<{
 const siteLabel = computed(
     () => props.preview.siteName ?? previewHost(props.preview.url),
 );
+
+/**
+ * Whether the thumbnail failed to load. The image is fetched server-side by the
+ * first-party proxy, which 404s when the source site is unreachable (an
+ * air-gapped instance, a dead link), so the card drops the image entirely rather
+ * than showing a broken-image glyph.
+ */
+const thumbnailFailed = ref(false);
 </script>
 
 <template>
@@ -28,11 +36,12 @@ const siteLabel = computed(
     </div>
     <div v-else data-test="link-preview">
         <img
-            v-if="preview.imageUrl"
+            v-if="preview.imageUrl && !thumbnailFailed"
             :src="preview.imageUrl"
             alt=""
             loading="lazy"
             class="w-full"
+            @error="thumbnailFailed = true"
         />
         <div class="px-3.75 py-3.25">
             <p

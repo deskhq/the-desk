@@ -9,6 +9,7 @@ use App\Models\Attachment;
 use App\Models\Channel;
 use App\Models\Team;
 use App\Models\User;
+use App\Support\Images\ImageProxy;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
 
@@ -111,7 +112,7 @@ test('picking a GIF re-resolves its id and stores a pending remote attachment', 
 
     $response->assertCreated()
         ->assertJsonPath('source', 'giphy')
-        ->assertJsonPath('url', 'https://media.giphy.com/abc/200.gif')
+        ->assertJsonPath('url', ImageProxy::url('https://media.giphy.com/abc/200.gif'))
         ->assertJsonPath('description', 'a dog waving')
         ->assertJsonPath('isImage', true)
         ->assertJsonPath('mimeType', 'image/gif');

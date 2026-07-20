@@ -2,22 +2,26 @@
 
 declare(strict_types=1);
 
-namespace App\Support\Webhooks;
+namespace App\Support\Http;
 
 use App\Support\HostResolver;
 
 /**
- * Decides whether a webhook destination URL is safe to deliver to, guarding the
- * outgoing-webhook feature against SSRF: a bot-token holder (or settings admin)
- * could otherwise point a subscription at `http://169.254.169.254/` (cloud
- * metadata), `http://localhost/`, or an internal service and have the app POST a
- * signed workspace event straight to it.
+ * Decides whether a member-controlled URL is safe for the server to open a
+ * connection to, guarding every outbound fetch against SSRF: a bot-token holder
+ * (or settings admin) could otherwise point a webhook subscription at
+ * `http://169.254.169.254/` (cloud metadata), `http://localhost/`, or an
+ * internal service and have the app POST a signed workspace event straight to
+ * it — and the image proxy fetches whatever URL a link preview or Giphy
+ * rendition points at.
  *
  * One config knob tunes the guard (see `config/integrations.php`):
  *
  *  - `integrations.webhooks.block_private_urls` (default true) — the master
  *    switch. When false the guard passes everything, for a locked-down
  *    self-hosted instance that deliberately targets internal-only endpoints.
+ *    The key kept its webhook-era name so existing `.env` files keep working;
+ *    it now governs every outbound fetch, not just webhook delivery.
  *
  * The static {@see self::isPublic()} check blocks by scheme, by literal
  * non-public IP (v4 and v6), and by local hostname — no DNS lookup, so it's
@@ -27,7 +31,7 @@ use App\Support\HostResolver;
  * is non-public, returning the vetted IP so the delivery can pin its connection
  * to it (closing the DNS-rebinding window between validation and connect).
  */
-class WebhookUrlGuard
+class OutboundUrlGuard
 {
     public function __construct(private readonly HostResolver $resolver) {}
 
@@ -113,6 +117,35 @@ class WebhookUrlGuard
         }
 
         return $ips[0];
+    }
+
+    /**
+     * Guzzle options for an outbound request the guard has vetted: redirects
+     * disabled (a redirect would bounce the request onto a target the guard
+     * never saw), and — when the guard resolved a hostname — the connection
+     * pinned to the vetted IP so a DNS rebind between the check and the connect
+     * can't retarget it either.
+     *
+     * @param  string|null  $pinnedIp  the value {@see self::resolveDeliveryIp()} returned
+     * @return array<string, mixed>
+     */
+    public function transportOptions(string $url, ?string $pinnedIp): array
+    {
+        $options = ['allow_redirects' => false];
+
+        if ($pinnedIp === null) {
+            return $options;
+        }
+
+        $parts = parse_url($url);
+        $host = (string) ($parts['host'] ?? '');
+        $port = (int) ($parts['port'] ?? (strtolower((string) ($parts['scheme'] ?? '')) === 'http' ? 80 : 443));
+
+        $address = str_contains($pinnedIp, ':') ? '['.$pinnedIp.']' : $pinnedIp;
+
+        $options['curl'] = [CURLOPT_RESOLVE => [sprintf('%s:%d:%s', $host, $port, $address)]];
+
+        return $options;
     }
 
     /**

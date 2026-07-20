@@ -2,13 +2,14 @@
 
 use App\Models\User;
 use App\Support\Gravatar;
+use App\Support\Images\ImageProxy;
 
 test('a user exposes its gravatar url as the avatar attribute', function (): void {
     config()->set('gravatar.enabled', true);
 
     $user = User::factory()->create(['email' => 'person@example.com']);
 
-    expect($user->avatar)->toBe(Gravatar::url('person@example.com'));
+    expect($user->avatar)->toBe(ImageProxy::url(Gravatar::url('person@example.com')));
 });
 
 test('the avatar is appended to the serialised user so every frontend surface receives it', function (): void {
@@ -17,7 +18,7 @@ test('the avatar is appended to the serialised user so every frontend surface re
     $user = User::factory()->create(['email' => 'person@example.com']);
 
     expect($user->toArray())
-        ->toHaveKey('avatar', Gravatar::url('person@example.com'));
+        ->toHaveKey('avatar', ImageProxy::url(Gravatar::url('person@example.com')));
 });
 
 test('the avatar attribute is null when gravatar is disabled', function (): void {

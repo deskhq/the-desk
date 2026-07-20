@@ -56,11 +56,12 @@ final class TheDeskPolicy implements Preset
             // unsupported on Safari < 15.4. Script execution, the threat CSP is
             // bought for, is covered by script-src above.
             ->add(Directive::STYLE, [Keyword::SELF, Keyword::UNSAFE_INLINE])
-            // Accepted residual: link-preview thumbnails are scraped from
-            // arbitrary sites, Giphy results are hotlinked, and the Gravatar base
-            // URL is operator-configurable, so no enumerable host list exists.
-            // data:/blob: cover local upload previews.
-            ->add(Directive::IMG, [Keyword::SELF, Scheme::DATA, Scheme::BLOB, Scheme::HTTPS])
+            // No remote hosts: link-preview thumbnails, Giphy renditions and
+            // Gravatar avatars are all fetched server-side and re-served from
+            // our own origin (see App\Support\Images\ImageProxy), so nothing the
+            // browser loads is off-origin. data:/blob: cover local upload
+            // previews, which never leave the page.
+            ->add(Directive::IMG, [Keyword::SELF, Scheme::DATA, Scheme::BLOB])
             ->add(Directive::FONT, Keyword::SELF)
             ->add(Directive::CONNECT, Keyword::SELF)
             ->add(Directive::MEDIA, Keyword::SELF)
@@ -88,8 +89,7 @@ final class TheDeskPolicy implements Preset
             // an attacker origin without ever writing a <script src>.
             ->add(Directive::BASE, Keyword::SELF)
             // form-action: nothing in the app posts off-origin, so this closes
-            // the injected-form credential-phishing path outright, and bounds
-            // the exfiltration left open by the wide img-src.
+            // the injected-form credential-phishing path outright.
             ->add(Directive::FORM_ACTION, Keyword::SELF)
             // object-src does fall back to default-src, but 'self' is the wrong
             // answer for it: <object>/<embed> load plugin documents that

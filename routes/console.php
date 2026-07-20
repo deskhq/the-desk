@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Actions\Channels\DispatchDueMessageReminders;
 use App\Actions\Channels\DispatchDueScheduledMessages;
 use App\Actions\Channels\PurgeExpiredAttachments;
+use App\Actions\Images\PurgeCachedProxyImages;
 use App\Actions\Teams\PurgeExpiredAuditExports;
 use App\Models\TeamInvitation;
 use Illuminate\Support\Facades\Schedule;
@@ -39,6 +40,12 @@ Schedule::call(fn (PurgeExpiredAuditExports $purge): int => $purge->handle())
     ->daily()
     ->withoutOverlapping()
     ->description('Purge expired audit-log exports (files and rows)');
+
+Schedule::call(fn (PurgeCachedProxyImages $purge): int => $purge->handle())
+    ->name('purge-cached-proxy-images')
+    ->daily()
+    ->withoutOverlapping()
+    ->description('Purge proxied remote images past their cache TTL');
 
 Schedule::command('updates:check')
     ->daily()
