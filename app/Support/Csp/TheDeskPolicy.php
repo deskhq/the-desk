@@ -70,9 +70,10 @@ final class TheDeskPolicy implements Preset
             // baffling bug when something does.
             ->add(Directive::WORKER, Keyword::SELF)
             ->add(Directive::FRAME, Keyword::NONE)
-            // The three below do not fall back to default-src, so leaving them
-            // out leaves them unrestricted no matter how tight default-src is —
-            // the lesson a surface scan of the demo taught us the hard way.
+            // base-uri and form-action are document/navigation directives: they
+            // do not fall back to default-src, so omitting them leaves them
+            // unrestricted no matter how tight default-src is — the lesson a
+            // surface scan of the demo taught us the hard way.
             //
             // base-uri: an injected <base href> rewrites every relative URL on
             // the page, which turns a markup injection into script loading from
@@ -82,8 +83,10 @@ final class TheDeskPolicy implements Preset
             // the injected-form credential-phishing path outright, and bounds
             // the exfiltration left open by the wide img-src.
             ->add(Directive::FORM_ACTION, Keyword::SELF)
-            // object-src: <object>/<embed> can execute plugin content and are
-            // not covered by script-src. The app renders none.
+            // object-src does fall back to default-src, but 'self' is the wrong
+            // answer for it: <object>/<embed> load plugin documents that
+            // script-src never sees, and the app renders none, so state the
+            // stricter 'none' rather than inherit the laxer default.
             ->add(Directive::OBJECT, Keyword::NONE);
 
         $this->allowReverb($policy);

@@ -52,13 +52,20 @@ test('the directives that do not fall back to default-src are stated explicitly'
 
     expect($header)->toContain($directive);
 })->with([
-    // None of these inherit default-src, so a policy that omits them leaves the
-    // matching attack (a swapped <base href>, a form posted off-origin, a plugin
-    // document) entirely unrestricted — which is exactly what the scanner flags.
+    // Neither inherits default-src, so a policy that omits them leaves the
+    // matching attack (a swapped <base href>, a form posted off-origin)
+    // entirely unrestricted — which is exactly what the scanner flags.
     'base-uri' => ["base-uri 'self'"],
     'form-action' => ["form-action 'self'"],
-    'object-src' => ["object-src 'none'"],
 ]);
+
+test('object-src is denied outright rather than inheriting default-src', function (): void {
+    $header = (string) $this->get(route('home'))->headers->get('Content-Security-Policy');
+
+    // It would fall back to default-src 'self'; nothing here renders an
+    // <object>/<embed>, and their plugin documents are outside script-src.
+    expect($header)->toContain("object-src 'none'");
+});
 
 test('api responses carry no policy — they have no dom to protect', function (): void {
     $response = $this->getJson('/api/v1/channels');
