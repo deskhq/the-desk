@@ -4,27 +4,31 @@ declare(strict_types=1);
 use Symfony\Component\Yaml\Yaml;
 
 /**
- * `install-php-extensions` fetches `redis` from pecl.php.net on every image build,
- * so a PECL outage reds the whole Docker workflow on a commit that changed nothing
- * (issue #626). The fetch must be wrapped in a bounded retry: a transient failure
+ * Building the extensions reaches the network — GitHub, Alpine's mirrors — so a
+ * transient failure must not red a build on a commit that changed nothing
+ * (issue #626). Every fetch is wrapped in a bounded retry: a transient failure
  * clears on a later attempt, while a genuine one (a missing or incompatible
  * extension) still fails after a capped number of tries and a capped total wait.
+ * The source of those extensions is covered by DockerfileExtensionPinsTest.
  */
 function dockerfileContents(): string
 {
     return (string) file_get_contents(dirname(__DIR__, 2).'/Dockerfile');
 }
 
-test('every install-php-extensions invocation is wrapped in a retry loop', function (): void {
-    $invocations = array_filter(
-        array_map(trim(...), explode("\n", dockerfileContents())),
-        static fn (string $line): bool => str_contains($line, 'install-php-extensions') && ! str_starts_with($line, '#'),
+test('every network fetch in the runtime stage is wrapped in the retry helper', function (): void {
+    $runtimeStage = substr(dockerfileContents(), (int) strpos(dockerfileContents(), 'AS runtime'));
+
+    $fetches = array_filter(
+        array_map(trim(...), explode("\n", $runtimeStage)),
+        static fn (string $line): bool => (bool) preg_match('/^\S*\s*(install-php-extensions|git clone|apk add)/', $line)
+            && ! str_starts_with($line, '#'),
     );
 
-    expect($invocations)->not->toBeEmpty();
+    expect($fetches)->not->toBeEmpty();
 
-    foreach ($invocations as $line) {
-        expect($line)->toStartWith('until install-php-extensions');
+    foreach ($fetches as $line) {
+        expect($line)->toStartWith('retry ');
     }
 });
 
@@ -75,21 +79,21 @@ test('the build-only validation caches its layers so PECL is not refetched every
         ->and($build['with']['push'] ?? null)->toBeFalse();
 });
 
-test('the installed extension list is unchanged', function (): void {
+test('the bundled extension list is unchanged', function (): void {
     expect(preg_match('/install-php-extensions((?:\s+\\\\\s+[a-z_0-9]+)+)/', dockerfileContents(), $matches))->toBe(1);
 
     $extensions = preg_split('/[\s\\\\]+/', trim($matches[1]), flags: PREG_SPLIT_NO_EMPTY);
 
+    // redis and imagick are absent by design: they are the two extensions PHP
+    // does not bundle, and they are built from pinned sources further down.
     expect($extensions)->toBe([
         'pdo_pgsql',
-        'redis',
         'pcntl',
         'posix',
         'intl',
         'zip',
         'opcache',
         'gd',
-        'imagick',
         'ldap',
     ]);
 });

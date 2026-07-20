@@ -92,37 +92,63 @@ FROM dunglas/frankenphp:1-php${PHP_VERSION}-alpine AS runtime
 # ldap: directory bind authentication (LdapRecord); required by the package even
 # when LDAP is not configured, since the extension is a hard dependency.
 #
-# The redis extension is fetched from pecl.php.net, so a PECL outage reds the
-# whole Docker workflow on a commit that changed nothing (#626). CI caches this
-# layer, so an outage is only ever reached on a real rebuild; retry with linear
-# backoff to ride out the rest. A genuine error (a missing or incompatible
-# extension) fails without touching the network, so it costs at most the 100s of
-# backoff before giving up — bounded, not a multi-minute hang.
+# Nothing here is resolved through pecl.php.net (#641). Everything but redis and
+# imagick is bundled with PHP and compiled from the local source; those two are
+# built from pinned GitHub sources instead. A PECL outage used to red the whole
+# Docker workflow on a commit that changed nothing (#626), and the bounded retry
+# below could only ride out a short one — `Upgrade script (build from source)`
+# builds cold and uncached on purpose, so it had no other shield and failed
+# through a multi-hour outage.
+#
+# The pins are compared against upstream monthly by
+# .github/workflows/extension-pins.yml, which opens an issue when either falls
+# behind: a silently frozen extension is its own defect.
+ARG IMAGICK_VERSION=3.8.1
+ARG PHPREDIS_VERSION=6.3.0
+
+# The retry still earns its place — the clone, the archive fetch and apk all
+# reach the network. A genuine error (a missing or incompatible extension) fails
+# without touching the network, so it costs at most the 100s of backoff before
+# giving up — bounded, not a multi-minute hang.
+#
+# phpredis is cloned rather than fetched as an archive: the codeload tarball
+# omits the liblzf submodule and the build fails on the missing sources.
 RUN set -eu; \
     max_attempts=5; \
     retry_delay=10; \
-    attempt=1; \
-    until install-php-extensions \
+    retry() { \
+        attempt=1; \
+        until "$@"; do \
+            if [ "$attempt" -ge "$max_attempts" ]; then \
+                echo "$1 failed after $max_attempts attempts; giving up" >&2; \
+                exit 1; \
+            fi; \
+            delay=$((attempt * retry_delay)); \
+            echo "$1 failed (attempt $attempt/$max_attempts); retrying in ${delay}s" >&2; \
+            sleep "$delay"; \
+            attempt=$((attempt + 1)); \
+        done; \
+    }; \
+    retry apk add --no-cache --virtual .phpredis-source git; \
+    retry git clone \
+            --depth 1 \
+            --recurse-submodules \
+            --branch "$PHPREDIS_VERSION" \
+            https://github.com/phpredis/phpredis.git /tmp/phpredis; \
+    retry install-php-extensions \
             pdo_pgsql \
-            redis \
             pcntl \
             posix \
             intl \
             zip \
             opcache \
             gd \
-            imagick \
-            ldap; do \
-        if [ "$attempt" -ge "$max_attempts" ]; then \
-            echo "php extension install failed after $max_attempts attempts; giving up" >&2; \
-            exit 1; \
-        fi; \
-        delay=$((attempt * retry_delay)); \
-        echo "php extension install failed (attempt $attempt/$max_attempts); retrying in ${delay}s" >&2; \
-        sleep "$delay"; \
-        attempt=$((attempt + 1)); \
-    done; \
-    apk add --no-cache curl
+            ldap \
+            /tmp/phpredis \
+            "https://github.com/Imagick/imagick/archive/refs/tags/${IMAGICK_VERSION}.tar.gz"; \
+    apk del --no-network .phpredis-source; \
+    rm -rf /tmp/phpredis; \
+    retry apk add --no-cache curl
 
 # Production PHP/OPcache tuning.
 COPY docker/php/production.ini $PHP_INI_DIR/conf.d/zz-production.ini

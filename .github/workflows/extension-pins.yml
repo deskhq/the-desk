@@ -1,0 +1,82 @@
+name: extension-pins
+
+# The production image builds phpredis and imagick from pinned GitHub sources,
+# so that no pecl.php.net outage can red a build (#641). Nothing bumps those
+# pins on its own — dependabot sees GitHub Actions and lockfiles, not a Dockerfile
+# ARG — and a silently frozen extension is its own defect. So compare both pins
+# against upstream once a month and open an issue when either falls behind.
+
+on:
+  schedule:
+    - cron: "0 6 1 * *"
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  check-pins:
+    name: Check the pinned PHP extension sources
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      issues: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+
+      - name: Compare each pin against its latest upstream release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TITLE: "deps: bump the pinned PHP extension sources"
+        run: |
+          set -euo pipefail
+
+          stale=''
+
+          for pin in PHPREDIS_VERSION:phpredis/phpredis IMAGICK_VERSION:Imagick/imagick; do
+            arg="${pin%%:*}"
+            repo="${pin#*:}"
+
+            pinned="$(sed -nE "s/^ARG ${arg}=(.+)$/\1/p" Dockerfile)"
+            if [ -z "$pinned" ]; then
+              echo "no ARG ${arg} in the Dockerfile — the pin was renamed or dropped" >&2
+              exit 1
+            fi
+
+            latest="$(gh api "repos/${repo}/releases/latest" --jq .tag_name | sed -E 's/^v//')"
+
+            if [ "$pinned" = "$latest" ]; then
+              echo "${repo}: up to date ($pinned)"
+              continue
+            fi
+
+            echo "${repo}: pinned at $pinned, latest is $latest"
+            stale="${stale}- \`${arg}\` (\`${repo}\`): pinned \`${pinned}\`, latest \`${latest}\`"$'\n'
+          done
+
+          if [ -z "$stale" ]; then
+            echo 'both pins are current'
+            exit 0
+          fi
+
+          # printf rather than a quoted literal: this whole script is a YAML block
+          # scalar, so an indented body would reach GitHub as a markdown code block.
+          body="$(printf '%s\n\n%s\n%s\n\n%s\n' \
+            'The production image builds these extensions from pinned GitHub sources (see `Dockerfile`). They have fallen behind upstream:' \
+            "$stale" \
+            'Bump the `ARG` values in `Dockerfile`, then let the Docker workflow rebuild the image.' \
+            'Opened by `.github/workflows/extension-pins.yml`.')"
+
+          # One rolling issue: comment on the open one rather than filing a
+          # duplicate every month the pins stay behind.
+          existing="$(gh issue list --state open --search "in:title \"$TITLE\"" --json number --jq '.[0].number // empty')"
+
+          if [ -n "$existing" ]; then
+            gh issue comment "$existing" --body "$body"
+          else
+            gh issue create --title "$TITLE" --label tech-debt --body "$body"
+          fi
