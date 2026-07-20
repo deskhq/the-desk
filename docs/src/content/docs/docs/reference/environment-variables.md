@@ -141,16 +141,18 @@ are additive only: none of them can remove the script nonce or
 | `CSP_EXTRA_FRAME_SRC`   | *(none)* | `frame-src`   |
 | `CSP_EXTRA_FONT_SRC`    | *(none)* | `font-src`    |
 
-An external font provider needs **both** halves, because the stylesheet and the
-font files it points at are served from different hosts and governed by
-different directives:
+A stylesheet origin belongs in `CSP_EXTRA_STYLE_SRC` and a font-file origin in
+`CSP_EXTRA_FONT_SRC`, independently. Google Fonts serves the two from different
+hosts, so it needs both:
 
 ```bash
 CSP_EXTRA_STYLE_SRC="https://fonts.googleapis.com"
 CSP_EXTRA_FONT_SRC="https://fonts.gstatic.com"
 ```
 
-One without the other still fails. The app self-hosts its own fonts, so you only
+There, one without the other still fails. A provider serving both from one
+origin needs that origin in both keys, and a font referenced from your own CSS
+needs only `CSP_EXTRA_FONT_SRC`. The app self-hosts its own fonts, so you only
 need this if you deliberately add a web font of your own.
 
 ## Single sign-on (OpenID Connect)

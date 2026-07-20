@@ -258,19 +258,23 @@ CSP_EXTRA_SCRIPT_SRC="https://analytics.example.com"
 CSP_EXTRA_CONNECT_SRC="https://analytics.example.com"
 ```
 
-An external font provider takes **two** keys, because the stylesheet and the
-font files it references live on different hosts and are governed by different
-directives. Google Fonts is the worked example:
+An external font is governed by two directives, because a stylesheet and the
+font files it references are different resource types: the host serving the CSS
+goes in `CSP_EXTRA_STYLE_SRC`, and the host serving the `@font-face` files goes
+in `CSP_EXTRA_FONT_SRC`. Google Fonts splits those across two hosts, so it needs
+both:
 
 ```bash
 CSP_EXTRA_STYLE_SRC="https://fonts.googleapis.com"
 CSP_EXTRA_FONT_SRC="https://fonts.gstatic.com"
 ```
 
-Setting only `CSP_EXTRA_STYLE_SRC` lets the stylesheet load and then blocks
-every `@font-face` file it asks for, so the text still falls back. You need
-both, or neither. The app self-hosts its own fonts, so reach for this only if
-you deliberately add a web font of your own — see
+Setting only `CSP_EXTRA_STYLE_SRC` there lets the stylesheet load and then
+blocks every `@font-face` file it asks for, so the text still falls back — the
+half-configured case is the one that looks mysterious. A provider that serves
+both from a single origin needs that origin in both keys; a font referenced from
+your own CSS needs only `CSP_EXTRA_FONT_SRC`. The app self-hosts its own fonts,
+so reach for this only if you deliberately add a web font of your own — see
 [Security → Content Security Policy](/docs/reference/security/#content-security-policy).
 
 :::note
