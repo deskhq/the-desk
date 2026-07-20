@@ -91,18 +91,38 @@ FROM dunglas/frankenphp:1-php${PHP_VERSION}-alpine AS runtime
 # driver (ATTACHMENT_IMAGE_DRIVER); GD is the fallback.
 # ldap: directory bind authentication (LdapRecord); required by the package even
 # when LDAP is not configured, since the extension is a hard dependency.
-RUN install-php-extensions \
-        pdo_pgsql \
-        redis \
-        pcntl \
-        posix \
-        intl \
-        zip \
-        opcache \
-        gd \
-        imagick \
-        ldap \
-    && apk add --no-cache curl
+#
+# The redis extension is fetched from pecl.php.net, so a PECL outage reds the
+# whole Docker workflow on a commit that changed nothing (#626). CI caches this
+# layer, so an outage is only ever reached on a real rebuild; retry with linear
+# backoff to ride out the rest. A genuine error (a missing or incompatible
+# extension) fails without touching the network, so it costs at most the 100s of
+# backoff before giving up — bounded, not a multi-minute hang.
+RUN set -eu; \
+    max_attempts=5; \
+    retry_delay=10; \
+    attempt=1; \
+    until install-php-extensions \
+            pdo_pgsql \
+            redis \
+            pcntl \
+            posix \
+            intl \
+            zip \
+            opcache \
+            gd \
+            imagick \
+            ldap; do \
+        if [ "$attempt" -ge "$max_attempts" ]; then \
+            echo "php extension install failed after $max_attempts attempts; giving up" >&2; \
+            exit 1; \
+        fi; \
+        delay=$((attempt * retry_delay)); \
+        echo "php extension install failed (attempt $attempt/$max_attempts); retrying in ${delay}s" >&2; \
+        sleep "$delay"; \
+        attempt=$((attempt + 1)); \
+    done; \
+    apk add --no-cache curl
 
 # Production PHP/OPcache tuning.
 COPY docker/php/production.ini $PHP_INI_DIR/conf.d/zz-production.ini
