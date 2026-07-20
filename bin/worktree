@@ -15,6 +15,11 @@
 # laravel.test's depends_on to pgsql; `sail up -d laravel.test` then starts those
 # two containers only.
 #
+# The Browser suite (tests/Browser) is the exception: it drives a real Chromium
+# and points the broadcaster at a live Reverb. So the bootstrap also installs the
+# Playwright browsers into the app container and brings `reverb` (and, via its
+# own depends_on, `redis`) up — four containers in total.
+#
 # Subcommands:
 #   create <NNN> [base]   Create (or re-enter) an isolated worktree for issue NNN.
 #                         Prints the worktree's absolute path on stdout so it is
@@ -362,7 +367,11 @@ cmd_create() {
         release_lock
     fi
 
-    log "issue #${nnn} -> slot ${slot} (project ${project}); ports app=${app_port} vite=${vite_port} reverb=${reverb_port} db=${db_port}"
+    # Derived rather than stored: the whole block comes from the slot anyway, and
+    # deriving keeps registry entries written by older versions readable on resume.
+    local redis_port=$((db_port + 1))
+
+    log "issue #${nnn} -> slot ${slot} (project ${project}); ports app=${app_port} vite=${vite_port} reverb=${reverb_port} db=${db_port} redis=${redis_port}"
 
     # --- git worktree (idempotent) -------------------------------------------
     mkdir -p "$WORKTREES_DIR"
@@ -370,33 +379,16 @@ cmd_create() {
 
     # --- .env (generated once; preserves manual edits on resume) -------------
     if [ ! -f "${path}/.env" ]; then
-        if [ -f "${MAIN_ROOT}/.env" ]; then
-            cp "${MAIN_ROOT}/.env" "${path}/.env"
-        else
+        local env_source="${MAIN_ROOT}/.env"
+        if [ ! -f "$env_source" ]; then
             log "no .env in main checkout; falling back to .env.example"
-            cp "${path}/.env.example" "${path}/.env"
+            env_source="${path}/.env.example"
         fi
-        upsert_env "${path}/.env" APP_PORT "$app_port"
-        upsert_env "${path}/.env" VITE_PORT "$vite_port"
-        upsert_env "${path}/.env" REVERB_PORT "$reverb_port"
-        upsert_env "${path}/.env" FORWARD_DB_PORT "$db_port"
-        upsert_env "${path}/.env" COMPOSE_PROJECT_NAME "$project"
-        upsert_env "${path}/.env" APP_URL "http://localhost:${app_port}"
-        # Auth toggles inherited from the main checkout can strip the register
-        # route (config/fortify.php gates Features::registration() on
-        # REGISTRATION_ENABLED / AUTH_SSO_ONLY / DEMO_MODE), and without it
-        # Wayfinder never emits resources/js/routes/register, so the bootstrap's
-        # `npm run build` dies on an unresolvable import (issue #563). Force the
-        # registration-friendly defaults; like the port overrides above, this
-        # only runs when generating a fresh .env, so a manually edited worktree
-        # .env is preserved on resume.
-        upsert_env "${path}/.env" DEMO_MODE false
-        upsert_env "${path}/.env" REGISTRATION_ENABLED true
-        upsert_env "${path}/.env" AUTH_SSO_ONLY false
+        write_env "$path" "$env_source" "$app_port" "$vite_port" "$db_port" "$redis_port" "$project"
     fi
 
     # --- compose override -----------------------------------------------------
-    write_override "$path" "$nnn"
+    write_override "$path" "$nnn" "$reverb_port"
 
     # --- dependencies ---------------------------------------------------------
     # The lightweight composer image lacks the app's runtime extensions
@@ -428,6 +420,16 @@ cmd_create() {
     log "installing JS dependencies via Sail (Linux-only native bindings)"
     (cd "$path" && ./vendor/bin/sail npm install --no-progress)
 
+    install_playwright_browsers "$path"
+
+    # The Browser suite points the broadcaster at the reverb container
+    # (tests/Pest.php calls useReverbForBrowserTests for the whole suite), so a
+    # worktree that can only run Unit+Feature is not enough. Started here rather
+    # than through laravel.test's depends_on so it boots after APP_KEY exists —
+    # reverb:start exits on a missing key and nothing would restart it.
+    log "starting reverb (+ redis) for the Browser suite"
+    (cd "$path" && ./vendor/bin/sail up -d reverb)
+
     # The feature suite renders Inertia pages, which fail with a 500 unless a Vite
     # manifest exists, so a testable worktree must build assets. Regenerate the
     # git-ignored App.Data/App.Enums ambient types first (the transformer needs
@@ -443,22 +445,94 @@ cmd_create() {
     printf '%s\n' "$path"
 }
 
+# Playwright ships its browser binaries out of band: `npm install` fetches the
+# driver but not Chromium, so every tests/Browser run in a fresh worktree dies
+# with "Playwright is outdated" (issue #579). The shared libraries Chromium links
+# against are installed with apt and need root, hence root-shell; the browser
+# itself installs as the sail user so it is readable by the test run. Both steps
+# are slow, so skip them when the build is already unpacked — that keeps
+# re-entry fast.
+#
+# Where "unpacked" is depends on PLAYWRIGHT_BROWSERS_PATH (the Sail image pins it
+# to 0, which means inside node_modules rather than a shared ~/.cache), so ask
+# Playwright itself where the build belongs instead of hardcoding a directory.
+PLAYWRIGHT_PROBE='loc=$(npx playwright install --dry-run chromium 2>/dev/null | sed -n "s/^ *Install location: *//p" | head -1); [ -n "$loc" ] && [ -d "$loc" ]'
+
+install_playwright_browsers() {
+    local path="$1"
+
+    if (cd "$path" && ./vendor/bin/sail shell -c "$PLAYWRIGHT_PROBE" >/dev/null 2>&1); then
+        log "Playwright chromium already present — skipping browser install"
+        return 0
+    fi
+
+    log "installing Playwright chromium and its system dependencies"
+    (cd "$path" && ./vendor/bin/sail root-shell -c "npx playwright install-deps chromium")
+    (cd "$path" && ./vendor/bin/sail npx playwright install chromium)
+}
+
+# Copy $source to the worktree's .env, offsetting the ports it publishes on the
+# host and pinning the ones that are container-internal.
+write_env() {
+    local path="$1" source="$2" app_port="$3" vite_port="$4" db_port="$5" redis_port="$6" project="$7"
+
+    cp "$source" "${path}/.env"
+    upsert_env "${path}/.env" APP_PORT "$app_port"
+    upsert_env "${path}/.env" VITE_PORT "$vite_port"
+    upsert_env "${path}/.env" FORWARD_DB_PORT "$db_port"
+    # reverb pulls redis in through its own depends_on, and redis publishes
+    # '${FORWARD_REDIS_PORT:-6379}:6379' — so without an offset the second
+    # worktree to start reverb dies on "Bind for :::6379 failed".
+    upsert_env "${path}/.env" FORWARD_REDIS_PORT "$redis_port"
+    upsert_env "${path}/.env" COMPOSE_PROJECT_NAME "$project"
+    upsert_env "${path}/.env" APP_URL "http://localhost:${app_port}"
+
+    # REVERB_PORT is overloaded in compose.yaml: it is BOTH the host side of
+    # '${REVERB_PORT}:8080' and — via config/broadcasting.php — the port the app
+    # dials at reverb:<port>. Offsetting it per worktree therefore points the
+    # broadcaster at a port nothing listens on, and the realtime browser tests
+    # hang. Pin the container-internal value (the reverb container is started
+    # with --port=8080) and let write_override remap the host side instead.
+    upsert_env "${path}/.env" REVERB_PORT 8080
+
+    # Auth toggles inherited from the main checkout can strip the register
+    # route (config/fortify.php gates Features::registration() on
+    # REGISTRATION_ENABLED / AUTH_SSO_ONLY / DEMO_MODE), and without it
+    # Wayfinder never emits resources/js/routes/register, so the bootstrap's
+    # `npm run build` dies on an unresolvable import (issue #563). Force the
+    # registration-friendly defaults; like the port overrides above, this
+    # only runs when generating a fresh .env, so a manually edited worktree
+    # .env is preserved on resume.
+    upsert_env "${path}/.env" DEMO_MODE false
+    upsert_env "${path}/.env" REGISTRATION_ENABLED true
+    upsert_env "${path}/.env" AUTH_SSO_ONLY false
+}
+
 write_override() {
-    local path="$1" nnn="$2"
+    local path="$1" nnn="$2" reverb_port="$3"
     cat > "${path}/compose.override.yaml" <<EOF
 # Generated by bin/worktree for issue #${nnn} — do not edit by hand.
 #
 # Trims laravel.test to the test-runner essentials: the gate only touches
-# Postgres (phpunit.xml uses array/sync/collection/null drivers), so redis,
-# meilisearch, mailpit, reverb and queue are never needed. With depends_on cut
-# to pgsql, \`sail up -d laravel.test\` starts exactly two containers.
+# Postgres (phpunit.xml uses array/sync/collection/null drivers), so
+# meilisearch, mailpit and queue are never needed. With depends_on cut to
+# pgsql, \`sail up -d laravel.test\` starts exactly two containers. The Browser
+# suite additionally needs a live WebSocket server, so bin/worktree starts
+# reverb (and, through its own depends_on, redis) as a separate step.
 #
-# Host ports and COMPOSE_PROJECT_NAME are offset per worktree in .env; Compose
-# auto-loads this override file alongside compose.yaml.
+# .env pins REVERB_PORT to the container-internal 8080 because the app dials
+# reverb:\${REVERB_PORT}; the per-worktree host offset lives here instead, so
+# concurrent worktrees still don't fight over the host port.
+#
+# Other host ports and COMPOSE_PROJECT_NAME are offset per worktree in .env;
+# Compose auto-loads this override file alongside compose.yaml.
 services:
     laravel.test:
         depends_on: !override
             - pgsql
+    reverb:
+        ports: !override
+            - '${reverb_port}:8080'
 EOF
 }
 
