@@ -15,7 +15,6 @@
         { "type": "generic", "path": ".env.prod.example" },
         { "type": "generic", "path": "docker/install.sh" },
         { "type": "generic", "path": "docs/src/content/docs/docs/comparison.md" },
-        { "type": "generic", "path": "docs/src/content/docs/docs/faq.md" },
         { "type": "generic", "path": "docs/src/content/docs/docs/self-hosting/installation.md" },
         { "type": "generic", "path": "docs/src/content/docs/docs/self-hosting/upgrading.md" }
       ]

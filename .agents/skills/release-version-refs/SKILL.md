@@ -62,6 +62,15 @@ Every annotated file must appear under `extra-files` in `release-please-config.j
 
 If you add a version reference to a brand-new file, add that file here too.
 
+## The CI guard backs this up
+
+`php artisan release:check-version-refs` (run by the `linter` workflow, issue #604) turns this skill's instruction into an invariant. It fails the build when:
+
+- a path registered under `extra-files` is missing, or contains no `x-release-please-*` marker (release-please would open it and stamp nothing);
+- an operator-facing file (`README.md`, `.env.example`, `.env.prod.example`, `docker/`, `docs/src/content/docs/`) names a semver on a line that is neither annotated nor inside an `x-release-please-start-version` block, or is annotated in a file that is not registered.
+
+Run it locally before pushing: `./vendor/bin/sail artisan release:check-version-refs`. A genuinely historical or illustrative version reference goes in the commented `ALLOWLIST` in `app/Console/Commands/CheckVersionRefsCommand.php` — each entry is a deliberate exemption, so keep the reason with it.
+
 ## Before opening the PR — grep the diff
 
 Catch any un-annotated version string you (or a sibling edit) introduced:
