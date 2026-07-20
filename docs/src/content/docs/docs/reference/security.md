@@ -68,6 +68,7 @@ The policy sent is:
 | `media-src`   | `'self'`                                     |
 | `worker-src`  | `'self'`                                     |
 | `frame-src`   | `'none'`                                     |
+| `frame-ancestors` | `'none'`, or whatever `CSP_FRAME_ANCESTORS` names |
 | `base-uri`    | `'self'`                                     |
 | `form-action` | `'self'`                                     |
 | `object-src`  | `'none'`                                     |
@@ -85,6 +86,16 @@ post credentials off-origin. `object-src` does fall back, but only to
 `default-src 'self'`; nothing in The Desk renders an `<object>` or `<embed>`,
 and the plugin documents they load are outside what `script-src` governs, so it
 is denied outright instead.
+
+`frame-ancestors` is the same kind of directive and answers the opposite
+question to `frame-src`: not what the app may embed, but who may embed *it*. It
+defaults to `'none'`, which is what stops an attacker overlaying an invisible
+frame of your instance on their own page and steering a signed-in member's
+clicks into real controls. It is paired with `X-Frame-Options: DENY` for
+browsers that do not support CSP Level 2 `frame-ancestors`, and both are
+configurable through
+[`CSP_FRAME_ANCESTORS`](/docs/reference/feature-toggles/#clickjacking-protection)
+if you embed the app in a portal of your own.
 
 `img-src` allows no remote host, which is only possible because the app never
 asks the browser to load one. See [Remote images are proxied](#remote-images-are-proxied)
@@ -131,6 +142,21 @@ Obfuscation, Rocket Loader, a managed challenge — serve those scripts from
 any of them, either turn that Cloudflare feature off for the app's hostname or
 allow-list it with `CSP_EXTRA_SCRIPT_SRC` (and `CSP_EXTRA_FRAME_SRC` for a
 challenge that renders in a frame).
+
+### Fonts are self-hosted
+
+The app ships its own font files: they are downloaded at build time and served
+from your own origin, which is why `font-src` defaults to `'self'` — anything
+you add with `CSP_EXTRA_FONT_SRC` is appended to it. The app never requests
+`fonts.googleapis.com` or `fonts.gstatic.com`.
+
+So a Google Fonts violation in the browser console does **not** come from the
+app. Something else is injecting stylesheets into the page — a browser
+extension, or an edge feature that rewrites your HTML. Check those first. If you
+have genuinely added a web font of your own, allow-list each origin it uses in
+the matching key: the host serving the stylesheet in `CSP_EXTRA_STYLE_SRC`, and
+the host serving the `@font-face` files in `CSP_EXTRA_FONT_SRC`. Google Fonts
+splits those across two hosts and so needs both.
 
 ## Hardening your deployment
 

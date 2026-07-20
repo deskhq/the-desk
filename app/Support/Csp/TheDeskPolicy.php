@@ -34,6 +34,7 @@ final class TheDeskPolicy implements Preset
         'img-src' => Directive::IMG,
         'connect-src' => Directive::CONNECT,
         'frame-src' => Directive::FRAME,
+        'font-src' => Directive::FONT,
     ];
 
     public function configure(Policy $policy): void
@@ -71,6 +72,13 @@ final class TheDeskPolicy implements Preset
             // baffling bug when something does.
             ->add(Directive::WORKER, Keyword::SELF)
             ->add(Directive::FRAME, Keyword::NONE)
+            // frame-ancestors is the anti-clickjacking control: without it any
+            // site can embed the app in an invisible iframe and steer a
+            // signed-in member's clicks into real controls. It does not fall
+            // back to default-src either, and it is operator-configurable
+            // because an intranet portal embedding the app is a legitimate
+            // deployment.
+            ->add(Directive::FRAME_ANCESTORS, FrameAncestors::sources())
             // base-uri and form-action are document/navigation directives: they
             // do not fall back to default-src, so omitting them leaves them
             // unrestricted no matter how tight default-src is — the lesson a

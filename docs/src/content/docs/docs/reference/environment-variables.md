@@ -123,12 +123,14 @@ production — see [Configuration](/docs/self-hosting/configuration/#reverb-webs
 | `DEMO_MODE`                  | `false` | [Feature toggles → Demo mode](/docs/reference/feature-toggles/#demo-mode) |
 | `CSP_ENABLED`                | `true`  | [Feature toggles → Content Security Policy](/docs/reference/feature-toggles/#content-security-policy) |
 | `CSP_REPORT_ONLY`            | `false` | [Feature toggles → Content Security Policy](/docs/reference/feature-toggles/#content-security-policy) |
+| `CSP_FRAME_ANCESTORS`        | `none`  | [Feature toggles → Clickjacking protection](/docs/reference/feature-toggles/#clickjacking-protection) |
 
 ## Content Security Policy
 
 Comma-separated origins **appended** to the shipped policy, for a script,
-stylesheet, image host, API or embedded frame of your own. They are additive
-only: none of them can remove the script nonce or `'strict-dynamic'`. See
+stylesheet, image host, API, embedded frame or font provider of your own. They
+are additive only: none of them can remove the script nonce or
+`'strict-dynamic'`. See
 [Feature toggles → Content Security Policy](/docs/reference/feature-toggles/#content-security-policy).
 
 | Variable                | Default | Adds to       |
@@ -138,6 +140,28 @@ only: none of them can remove the script nonce or `'strict-dynamic'`. See
 | `CSP_EXTRA_IMG_SRC`     | *(none)* | `img-src`     |
 | `CSP_EXTRA_CONNECT_SRC` | *(none)* | `connect-src` |
 | `CSP_EXTRA_FRAME_SRC`   | *(none)* | `frame-src`   |
+| `CSP_EXTRA_FONT_SRC`    | *(none)* | `font-src`    |
+
+A stylesheet origin belongs in `CSP_EXTRA_STYLE_SRC` and a font-file origin in
+`CSP_EXTRA_FONT_SRC`, independently. Google Fonts serves the two from different
+hosts, so it needs both:
+
+```bash
+CSP_EXTRA_STYLE_SRC="https://fonts.googleapis.com"
+CSP_EXTRA_FONT_SRC="https://fonts.gstatic.com"
+```
+
+There, one without the other still fails. A provider serving both from one
+origin needs that origin in both keys, and a font referenced from your own CSS
+needs only `CSP_EXTRA_FONT_SRC`. The app self-hosts its own fonts, so you only
+need this if you deliberately add a web font of your own.
+
+One more key controls who may embed the app **in** a frame, rather than what the
+app may load:
+
+| Variable               | Default | Effect                                                                 |
+| ---------------------- | ------- | ---------------------------------------------------------------------- |
+| `CSP_FRAME_ANCESTORS`  | `none`  | Sends `frame-ancestors` and `X-Frame-Options`. See [Feature toggles → Clickjacking protection](/docs/reference/feature-toggles/#clickjacking-protection). |
 
 ## Single sign-on (OpenID Connect)
 

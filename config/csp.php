@@ -41,6 +41,27 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Who may embed the app in a frame
+    |--------------------------------------------------------------------------
+    |
+    | Drives the CSP's frame-ancestors directive and the X-Frame-Options header
+    | that older browsers read instead. The default denies every framer, which
+    | closes the clickjacking path where an attacker overlays an invisible frame
+    | of the app on their own page and steers a signed-in member into clicking
+    | real controls.
+    |
+    | Accepts the keywords `none` and `self`, or a comma-separated list of
+    | origins for an operator embedding the app in their own portal. A list of
+    | origins sends no X-Frame-Options: that header cannot express an allow-list
+    | (its ALLOW-FROM was never supported by Chrome and Firefox dropped it), so
+    | anything sent there would either break the embed or misstate the policy.
+    |
+    */
+
+    'frame_ancestors' => env('CSP_FRAME_ANCESTORS', 'none'),
+
+    /*
+    |--------------------------------------------------------------------------
     | Extra allowed sources
     |--------------------------------------------------------------------------
     |
@@ -53,6 +74,10 @@ return [
     | script-src, so an extra script host only takes effect for a script tag that
     | is itself loaded by an already-trusted (nonced) script.
     |
+    | An external font provider needs both halves: the stylesheet host on
+    | CSP_EXTRA_STYLE_SRC and the host its @font-face src: URLs point at on
+    | CSP_EXTRA_FONT_SRC. One without the other still fails.
+    |
     */
 
     'extra' => [
@@ -61,6 +86,7 @@ return [
         'img-src' => env('CSP_EXTRA_IMG_SRC', ''),
         'connect-src' => env('CSP_EXTRA_CONNECT_SRC', ''),
         'frame-src' => env('CSP_EXTRA_FRAME_SRC', ''),
+        'font-src' => env('CSP_EXTRA_FONT_SRC', ''),
     ],
 
     /*

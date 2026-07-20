@@ -240,11 +240,11 @@ it on permanently protects nobody.
 
 ### Allow-listing your own origins
 
-If you add a script, stylesheet, image host, API or embedded frame of your own,
-name it in the matching key rather than disabling the policy. Values are
-comma-separated and **appended** to the defaults — they can never remove the
-script nonce or `'strict-dynamic'`, so an allow-list entry cannot silently
-un-harden the app.
+If you add a script, stylesheet, image host, API, embedded frame or font
+provider of your own, name it in the matching key rather than disabling the
+policy. Values are comma-separated and **appended** to the defaults — they can
+never remove the script nonce or `'strict-dynamic'`, so an allow-list entry
+cannot silently un-harden the app.
 
 | Variable                | Adds to       |
 | ----------------------- | ------------- |
@@ -253,11 +253,31 @@ un-harden the app.
 | `CSP_EXTRA_IMG_SRC`     | `img-src`     |
 | `CSP_EXTRA_CONNECT_SRC` | `connect-src` |
 | `CSP_EXTRA_FRAME_SRC`   | `frame-src`   |
+| `CSP_EXTRA_FONT_SRC`    | `font-src`    |
 
 ```bash
 CSP_EXTRA_SCRIPT_SRC="https://analytics.example.com"
 CSP_EXTRA_CONNECT_SRC="https://analytics.example.com"
 ```
+
+An external font is governed by two directives, because a stylesheet and the
+font files it references are different resource types: the host serving the CSS
+goes in `CSP_EXTRA_STYLE_SRC`, and the host serving the `@font-face` files goes
+in `CSP_EXTRA_FONT_SRC`. Google Fonts splits those across two hosts, so it needs
+both:
+
+```bash
+CSP_EXTRA_STYLE_SRC="https://fonts.googleapis.com"
+CSP_EXTRA_FONT_SRC="https://fonts.gstatic.com"
+```
+
+Setting only `CSP_EXTRA_STYLE_SRC` there lets the stylesheet load and then
+blocks every `@font-face` file it asks for, so the text still falls back — the
+half-configured case is the one that looks mysterious. A provider that serves
+both from a single origin needs that origin in both keys; a font referenced from
+your own CSS needs only `CSP_EXTRA_FONT_SRC`. The app self-hosts its own fonts,
+so reach for this only if you deliberately add a web font of your own — see
+[Security → Content Security Policy](/docs/reference/security/#content-security-policy).
 
 :::note
 `script-src` uses `'strict-dynamic'`, and browsers that understand it ignore host
@@ -269,6 +289,43 @@ it — set `CSP_ENABLED=false` and serve your own policy from the reverse proxy.
 
 There is deliberately no key that replaces the whole policy: an override that
 could drop the nonce would leave a header that looks protective and is not.
+
+## Clickjacking protection
+
+Nothing may embed the app in a frame by default. That closes **clickjacking**:
+an attacker loads your instance in an invisible iframe over their own page, and
+a signed-in member who thinks they are clicking that page is really clicking
+your controls — leaving a workspace, deleting a channel, revoking a token.
+
+| Variable              | Default | Effect                                                                     |
+| --------------------- | ------- | -------------------------------------------------------------------------- |
+| `CSP_FRAME_ANCESTORS` | `none`  | Who may frame the app. Always sets the CSP `frame-ancestors` directive; also sends `X-Frame-Options` when the value maps to `DENY` or `SAMEORIGIN` and the policy is enforcing. |
+
+Accepted values:
+
+| Value                     | `frame-ancestors`         | `X-Frame-Options` |
+| ------------------------- | ------------------------- | ----------------- |
+| `none` *(default)*        | `'none'` — nobody          | `DENY`            |
+| `self`                    | `'self'` — your own origin | `SAMEORIGIN`      |
+| One or more origins       | those origins             | *(not sent)*      |
+
+```bash
+# Embed the app in your intranet portal
+CSP_FRAME_ANCESTORS="https://portal.example.com"
+```
+
+:::note
+`X-Frame-Options` has no allow-list form — its `ALLOW-FROM` was never supported
+by Chrome and Firefox dropped it — so naming origins sends `frame-ancestors`
+alone. Every browser released in the last several years honours it; the legacy
+header is only a fallback for the ones that do not.
+:::
+
+Both headers ride on `CSP_ENABLED`. Turning the app policy off means you have
+taken ownership of these headers at your reverse proxy, so set them there too.
+Under `CSP_REPORT_ONLY=true` the directive is reported but not enforced, and
+`X-Frame-Options` is withheld — it has no report-only form, so sending it would
+enforce the very thing the dry run is meant to only observe.
 
 ## Search analytics
 
