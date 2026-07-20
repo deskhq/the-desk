@@ -194,9 +194,10 @@ convention — change the release setup and that file will tell you what broke.
 
 After each stable release, a job moves `develop`'s candidate baseline onto the
 version just released, so the next feature there starts a fresh `-rc.0` series
-instead of incrementing the previous one forever. It arrives as a small
-auto-merging pull request rather than a push, because `develop` — like `master` —
-only accepts changes through one.
+instead of incrementing the previous one forever. It arrives as a small pull
+request rather than a push, because `develop` — like `master` — only accepts
+changes through one; the job asks for auto-merge, so unless the repository has it
+turned off the PR merges itself once the checks pass.
 
 ### Hotfixes: releasing when develop is not releasable
 
@@ -228,21 +229,33 @@ When it does apply:
 
 #### Why step 4 is not optional
 
-The fix now exists only on `master`. `develop` still holds an older ancestor of
-the same files, so the next `develop` → `master` promotion overwrites the fix and
-production breaks a second time, for the same reason, with nothing in the diff
-pointing at the cause. The back-merge is what prevents that.
+The fix now exists only on `master`, and `develop` carries the broken version of
+those files. A merge-commit promotion does not throw the fix away by itself —
+git sees it as a change only `master` made and keeps it — so the failure is
+quieter than that, and comes in three forms:
 
-It is not left to memory: every stable release runs the `backmerge` job, which
-opens a `master` → `develop` pull request whenever `master` carries commits
-`develop` does not. After a normal promotion there is nothing to send back and
-the job does nothing; after a hotfix it leaves an open PR. If one is already
-open, it tracks `master` rather than being duplicated.
+- **Work built on the wrong code.** Anything written on `develop` that touches
+  those files is written against the defect, so a later promotion can reintroduce
+  it, or land as a conflict that has to be resolved by someone reconstructing the
+  hotfix from memory.
+- **A promotion that isn't a merge commit.** Squash the promotion — or rebuild
+  those files wholesale from `develop` — and `develop`'s tree wins outright. The
+  fix is gone, and nothing in the diff says why production broke a second time.
+- **Divergence that grows.** Every release after an un-back-merged hotfix starts
+  further from `develop`, and each promotion carries more of that gap.
+
+The back-merge closes all three at once, and it is not left to memory: every
+stable release runs the `backmerge` job, which opens a `master` → `develop` pull
+request whenever `master` carries commits `develop` does not. After a normal
+promotion there is nothing to send back and the job does nothing; after a hotfix
+it leaves an open PR. If one is already open, it tracks `master` rather than
+being duplicated.
 
 **Merge that PR with a merge commit, never a squash** — for the same reason a
 promotion is never squashed, plus a sharper one: a squash would flatten `master`'s
-history into a single new commit on `develop`, leaving the two branches
-permanently diverged and every later back-merge conflicting.
+history into a single new commit that shares no ancestry with it, so git stops
+seeing the two branches as related and later merges duplicate changes or conflict
+instead of fast-forwarding past them.
 
 A hotfix does not need a candidate of its own. The back-merge puts it on
 `develop`, and the next candidate cut there includes it.

@@ -154,23 +154,37 @@ jobs:
 
           printf '{".":"%s"}\n' "$VERSION" > "$manifest"
 
-          if git diff --quiet -- "$manifest"; then
+          # Staged before the comparison: an unstaged `git diff` reports no change
+          # for a file that is merely untracked, which would read as "already at
+          # this version" if the manifest ever went missing from develop.
+          git add "$manifest"
+
+          if git diff --quiet --cached -- "$manifest"; then
             echo "The candidate baseline is already $VERSION; nothing to do."
             exit 0
           fi
 
           git checkout --quiet -B "$branch"
-          git add "$manifest"
           git commit --quiet -m "chore: move the candidate baseline to $VERSION"
 
           # Forced because a re-run for the same version rewrites the same branch
           # on top of a develop that has moved; the branch is this job's alone.
           git push --quiet --force origin "$branch"
 
+          # A repository without auto-merge enabled must not fail a release that
+          # has already been tagged and published — say so and move on. Asked for
+          # on a reused PR too: the earlier run may have opened it at a point when
+          # auto-merge could not be queued.
+          queue_merge() {
+            gh pr merge --repo "$REPO" --auto --squash "$branch" \
+              || echo "Could not queue the baseline PR to merge itself; merge it by hand."
+          }
+
           existing="$(gh pr list --repo "$REPO" --base develop --head "$branch" --state open --json number --jq '.[0].number // empty')"
 
           if [ -n "$existing" ]; then
             echo "Baseline PR #$existing is already open; it now carries $VERSION."
+            queue_merge
             exit 0
           fi
 
@@ -189,10 +203,7 @@ jobs:
           BODY
           )"
 
-          # A repository without auto-merge enabled must not fail a release that
-          # has already been tagged and published — say so and move on.
-          gh pr merge --repo "$REPO" --auto --squash "$branch" \
-            || echo "Could not queue the baseline PR to merge itself; merge it by hand."
+          queue_merge
 
   # Ordinarily `master` only ever receives what `develop` already has, so there is
   # nothing to send back. A hotfix released straight from `master` breaks that:

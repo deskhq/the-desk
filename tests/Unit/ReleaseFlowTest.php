@@ -695,7 +695,27 @@ test('an open baseline PR is updated rather than duplicated', function (): void 
     expect($process->isSuccessful())->toBeTrue()
         ->and($process->getOutput())->toContain('#7')
         ->and(baselineOnBranch($origin, 'chore/candidate-baseline-1.12.0'))->toBe('{".":"1.12.0"}')
-        ->and(ghCalls($sandbox))->not->toContain('pr create');
+        ->and(ghCalls($sandbox))->not->toContain('pr create')
+        // The run that opened it may have been unable to queue auto-merge, so a
+        // reused PR is asked again rather than left for someone to notice.
+        ->toContain('pr merge');
+});
+
+/*
+ * The lookup has to be pinned to this job's own branch: an unscoped one would
+ * find any open PR against develop and conclude the baseline was already
+ * proposed.
+ */
+test('an open baseline PR is looked for on the branch it would be opened from', function (): void {
+    [$clone] = developSandbox('{".":"1.11.0"}');
+    $sandbox = ghSandbox();
+
+    runBaselineSync($clone, '1.12.0', $sandbox);
+
+    expect(collect(explode("\n", ghCalls($sandbox)))->first(fn (string $call): bool => str_starts_with($call, 'pr list')))
+        ->toContain('--base develop')
+        ->toContain('--head chore/candidate-baseline-1.12.0')
+        ->toContain('--state open');
 });
 
 /*
@@ -772,7 +792,7 @@ function backmergeScript(): string
  * @param  list<string>|null  $branches  branches to list, or null to make `gh` fail
  * @param  int  $ahead  commits `master` is ahead of `develop` by
  * @param  string  $existing  number of an already open back-merge PR, or none
- * @return array{created: string|null, output: string, succeeded: bool}
+ * @return array{created: string|null, output: string, errors: string, succeeded: bool}
  */
 function runBackmerge(?array $branches, int $ahead = 1, string $existing = ''): array
 {
@@ -795,6 +815,7 @@ function runBackmerge(?array $branches, int $ahead = 1, string $existing = ''): 
     return [
         'created' => $created,
         'output' => $process->getOutput(),
+        'errors' => $process->getErrorOutput(),
         'succeeded' => $process->isSuccessful(),
     ];
 }
@@ -841,7 +862,8 @@ test('an unreadable branch listing fails the back-merge loudly', function (): vo
     $result = runBackmerge(null);
 
     expect($result['succeeded'])->toBeFalse()
-        ->and($result['created'])->toBeNull();
+        ->and($result['created'])->toBeNull()
+        ->and($result['errors'])->toContain('rate limit');
 });
 
 /*
