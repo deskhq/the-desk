@@ -34,6 +34,7 @@ final class TheDeskPolicy implements Preset
         'img-src' => Directive::IMG,
         'connect-src' => Directive::CONNECT,
         'frame-src' => Directive::FRAME,
+        'font-src' => Directive::FONT,
     ];
 
     public function configure(Policy $policy): void

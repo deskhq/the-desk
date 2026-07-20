@@ -111,6 +111,19 @@ any of them, either turn that Cloudflare feature off for the app's hostname or
 allow-list it with `CSP_EXTRA_SCRIPT_SRC` (and `CSP_EXTRA_FRAME_SRC` for a
 challenge that renders in a frame).
 
+### Fonts are self-hosted
+
+The app ships its own font files: they are downloaded at build time and served
+from your own origin, which is why `font-src` is just `'self'`. The app never
+requests `fonts.googleapis.com` or `fonts.gstatic.com`.
+
+So a Google Fonts violation in the browser console does **not** come from the
+app. Something else is injecting stylesheets into the page — a browser
+extension, or an edge feature that rewrites your HTML. Check those first. If you
+have genuinely added a web font of your own, allow-list both halves of it with
+`CSP_EXTRA_STYLE_SRC` (the stylesheet host) and `CSP_EXTRA_FONT_SRC` (the host
+the `@font-face` files come from); one without the other still fails.
+
 ## Hardening your deployment
 
 Most security outcomes for a self-hosted instance depend on how you run it. Follow

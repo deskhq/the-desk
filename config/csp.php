@@ -53,6 +53,10 @@ return [
     | script-src, so an extra script host only takes effect for a script tag that
     | is itself loaded by an already-trusted (nonced) script.
     |
+    | An external font provider needs both halves: the stylesheet host on
+    | CSP_EXTRA_STYLE_SRC and the host its @font-face src: URLs point at on
+    | CSP_EXTRA_FONT_SRC. One without the other still fails.
+    |
     */
 
     'extra' => [
@@ -61,6 +65,7 @@ return [
         'img-src' => env('CSP_EXTRA_IMG_SRC', ''),
         'connect-src' => env('CSP_EXTRA_CONNECT_SRC', ''),
         'frame-src' => env('CSP_EXTRA_FRAME_SRC', ''),
+        'font-src' => env('CSP_EXTRA_FONT_SRC', ''),
     ],
 
     /*

@@ -127,8 +127,9 @@ production — see [Configuration](/docs/self-hosting/configuration/#reverb-webs
 ## Content Security Policy
 
 Comma-separated origins **appended** to the shipped policy, for a script,
-stylesheet, image host, API or embedded frame of your own. They are additive
-only: none of them can remove the script nonce or `'strict-dynamic'`. See
+stylesheet, image host, API, embedded frame or font provider of your own. They
+are additive only: none of them can remove the script nonce or
+`'strict-dynamic'`. See
 [Feature toggles → Content Security Policy](/docs/reference/feature-toggles/#content-security-policy).
 
 | Variable                | Default | Adds to       |
@@ -138,6 +139,19 @@ only: none of them can remove the script nonce or `'strict-dynamic'`. See
 | `CSP_EXTRA_IMG_SRC`     | *(none)* | `img-src`     |
 | `CSP_EXTRA_CONNECT_SRC` | *(none)* | `connect-src` |
 | `CSP_EXTRA_FRAME_SRC`   | *(none)* | `frame-src`   |
+| `CSP_EXTRA_FONT_SRC`    | *(none)* | `font-src`    |
+
+An external font provider needs **both** halves, because the stylesheet and the
+font files it points at are served from different hosts and governed by
+different directives:
+
+```bash
+CSP_EXTRA_STYLE_SRC="https://fonts.googleapis.com"
+CSP_EXTRA_FONT_SRC="https://fonts.gstatic.com"
+```
+
+One without the other still fails. The app self-hosts its own fonts, so you only
+need this if you deliberately add a web font of your own.
 
 ## Single sign-on (OpenID Connect)
 

@@ -30,6 +30,7 @@ beforeEach(function (): void {
             'img-src' => '',
             'connect-src' => '',
             'frame-src' => '',
+            'font-src' => '',
         ],
     ]);
 });
@@ -164,7 +165,21 @@ test('each extra source is appended without dropping our defaults', function (st
     'image' => ['img-src', 'img-src', 'https://images.example.test'],
     'connect' => ['connect-src', 'connect-src', 'https://api.example.test'],
     'frame' => ['frame-src', 'frame-src', 'https://embed.example.test'],
+    'font' => ['font-src', 'font-src', 'https://fonts.example.test'],
 ]);
+
+test('allow-listing an external font pairing takes both the stylesheet host and the font host', function (): void {
+    config([
+        'csp.extra.style-src' => 'https://fonts.googleapis.test',
+        'csp.extra.font-src' => 'https://fonts.gstatic.test',
+    ]);
+
+    $header = (string) $this->get(route('home'))->headers->get('Content-Security-Policy');
+
+    expect($header)
+        ->toContain("style-src 'self' 'unsafe-inline' https://fonts.googleapis.test")
+        ->toContain("font-src 'self' https://fonts.gstatic.test");
+});
 
 test('a comma-separated extra list allow-lists every origin in it', function (): void {
     config(['csp.extra.img-src' => 'https://one.example.test, https://two.example.test']);

@@ -238,11 +238,11 @@ it on permanently protects nobody.
 
 ### Allow-listing your own origins
 
-If you add a script, stylesheet, image host, API or embedded frame of your own,
-name it in the matching key rather than disabling the policy. Values are
-comma-separated and **appended** to the defaults — they can never remove the
-script nonce or `'strict-dynamic'`, so an allow-list entry cannot silently
-un-harden the app.
+If you add a script, stylesheet, image host, API, embedded frame or font
+provider of your own, name it in the matching key rather than disabling the
+policy. Values are comma-separated and **appended** to the defaults — they can
+never remove the script nonce or `'strict-dynamic'`, so an allow-list entry
+cannot silently un-harden the app.
 
 | Variable                | Adds to       |
 | ----------------------- | ------------- |
@@ -251,11 +251,27 @@ un-harden the app.
 | `CSP_EXTRA_IMG_SRC`     | `img-src`     |
 | `CSP_EXTRA_CONNECT_SRC` | `connect-src` |
 | `CSP_EXTRA_FRAME_SRC`   | `frame-src`   |
+| `CSP_EXTRA_FONT_SRC`    | `font-src`    |
 
 ```bash
 CSP_EXTRA_SCRIPT_SRC="https://analytics.example.com"
 CSP_EXTRA_CONNECT_SRC="https://analytics.example.com"
 ```
+
+An external font provider takes **two** keys, because the stylesheet and the
+font files it references live on different hosts and are governed by different
+directives. Google Fonts is the worked example:
+
+```bash
+CSP_EXTRA_STYLE_SRC="https://fonts.googleapis.com"
+CSP_EXTRA_FONT_SRC="https://fonts.gstatic.com"
+```
+
+Setting only `CSP_EXTRA_STYLE_SRC` lets the stylesheet load and then blocks
+every `@font-face` file it asks for, so the text still falls back. You need
+both, or neither. The app self-hosts its own fonts, so reach for this only if
+you deliberately add a web font of your own — see
+[Security → Content Security Policy](/docs/reference/security/#content-security-policy).
 
 :::note
 `script-src` uses `'strict-dynamic'`, and browsers that understand it ignore host
