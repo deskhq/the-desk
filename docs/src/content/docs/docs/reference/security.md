@@ -68,11 +68,21 @@ The policy sent is:
 | `media-src`   | `'self'`                                     |
 | `worker-src`  | `'self'`                                     |
 | `frame-src`   | `'none'`                                     |
+| `base-uri`    | `'self'`                                     |
+| `form-action` | `'self'`                                     |
+| `object-src`  | `'none'`                                     |
 
 Scripts are the directive that matters, and they carry no `'unsafe-inline'`: the
 app's own inline script runs only because it carries a per-request nonce, and the
 page chunks the app loads as you navigate run only because `'strict-dynamic'`
 extends that trust to them. Injected markup gets neither.
+
+The last three are stated separately for a reason: `base-uri`, `form-action` and
+`object-src` do **not** fall back to `default-src`. A policy that omits them
+leaves them wide open however tight `default-src` is, so an injected
+`<base href="//attacker">` could still repoint every relative URL on the page, a
+fake login form could still post credentials off-origin, and `<object>` could
+still load plugin content that `script-src` never sees.
 
 ### Accepted residuals
 

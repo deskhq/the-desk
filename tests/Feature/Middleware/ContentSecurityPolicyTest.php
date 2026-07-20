@@ -47,6 +47,19 @@ test('web responses carry the policy', function (): void {
         ->toContain("frame-src 'none'");
 });
 
+test('the directives that do not fall back to default-src are stated explicitly', function (string $directive): void {
+    $header = (string) $this->get(route('home'))->headers->get('Content-Security-Policy');
+
+    expect($header)->toContain($directive);
+})->with([
+    // None of these inherit default-src, so a policy that omits them leaves the
+    // matching attack (a swapped <base href>, a form posted off-origin, a plugin
+    // document) entirely unrestricted — which is exactly what the scanner flags.
+    'base-uri' => ["base-uri 'self'"],
+    'form-action' => ["form-action 'self'"],
+    'object-src' => ["object-src 'none'"],
+]);
+
 test('api responses carry no policy — they have no dom to protect', function (): void {
     $response = $this->getJson('/api/v1/channels');
 
