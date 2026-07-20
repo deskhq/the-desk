@@ -472,9 +472,66 @@ function developSandbox(string $baseline): array
     return [$clone, $origin];
 }
 
-function runBaselineSync(string $clone, string $version): Process
+/**
+ * A `gh` stub that records every call and answers the reads the release workflow
+ * makes: the branch listing, the develop-to-master comparison, and the lookup for
+ * an already open pull request.
+ *
+ * @param  list<string>|null  $branches  branches to list, or null to make `gh` fail
+ * @param  int  $ahead  commits `master` is ahead of `develop` by
+ * @param  string  $existing  number of an already open pull request, or none
+ * @return string the sandbox: `bin/gh` is the stub, `calls` its log
+ */
+function ghSandbox(?array $branches = ['master', 'develop'], int $ahead = 1, string $existing = ''): string
 {
-    $process = new Process(['bash', '-c', baselineSyncScript()], $clone, env: ['VERSION' => $version]);
+    $sandbox = sys_get_temp_dir().'/gh-'.bin2hex(random_bytes(6));
+    mkdir($sandbox.'/bin', 0o777, true);
+
+    $listing = $branches === null
+        ? "echo 'gh: API rate limit exceeded' >&2; exit 1"
+        : 'printf '."'%s\\n' ".implode(' ', array_map(escapeshellarg(...), $branches));
+
+    // Matched on the subcommand and its first argument only: a pull request body
+    // may itself mention branches, so a looser pattern would swallow `pr create`.
+    file_put_contents($sandbox.'/bin/gh', <<<BASH
+        #!/usr/bin/env bash
+        printf '%s\\n' "\$*" >> '{$sandbox}/calls'
+        case "\$1 \${2-}" in
+            'api '*/branches) {$listing} ;;
+            'api '*/compare/*) echo '{$ahead}' ;;
+            'pr list') printf '%s' '{$existing}' ;;
+        esac
+        BASH);
+    chmod($sandbox.'/bin/gh', 0o755);
+
+    return $sandbox;
+}
+
+/**
+ * Every `gh` invocation the stub saw, one per line.
+ */
+function ghCalls(string $sandbox): string
+{
+    $calls = $sandbox.'/calls';
+
+    return file_exists($calls) ? (string) file_get_contents($calls) : '';
+}
+
+/**
+ * @param  string  $sandbox  a {@see ghSandbox()} the script's `gh` calls land in
+ */
+function runBaselineSync(string $clone, string $version, string $sandbox): Process
+{
+    $process = new Process(
+        ['bash', '-c', baselineSyncScript()],
+        $clone,
+        env: [
+            'PATH' => $sandbox.'/bin:'.getenv('PATH'),
+            'REPO' => 'emmpaul/the-desk',
+            'GH_TOKEN' => 'stub',
+            'VERSION' => $version,
+        ],
+    );
     $process->run();
 
     return $process;
@@ -483,6 +540,14 @@ function runBaselineSync(string $clone, string $version): Process
 function baselineOf(string $repository): string
 {
     return trim((string) file_get_contents($repository.'/.release-please-manifest.develop.json'));
+}
+
+/**
+ * The baseline as it stands on a branch of the throwaway origin.
+ */
+function baselineOnBranch(string $origin, string $branch): string
+{
+    return trim((new Process(['git', 'show', $branch.':.release-please-manifest.develop.json'], $origin))->mustRun()->getOutput());
 }
 
 /**
@@ -556,43 +621,257 @@ test('an unreadable branch listing fails loudly rather than reporting develop ab
         ->and($result['exists'])->not->toBe('false');
 });
 
-test('a stable release moves the candidate baseline onto it', function (): void {
+test('a stable release proposes the new candidate baseline to develop', function (): void {
     [$clone, $origin] = developSandbox('{".":"1.11.0"}');
+    $sandbox = ghSandbox();
 
-    $process = runBaselineSync($clone, '1.12.0');
+    $process = runBaselineSync($clone, '1.12.0', $sandbox);
 
     expect($process->isSuccessful())->toBeTrue()
-        ->and(baselineOf($origin))->toBe('{".":"1.12.0"}');
+        ->and(baselineOnBranch($origin, 'chore/candidate-baseline-1.12.0'))->toBe('{".":"1.12.0"}')
+        ->and(ghCalls($sandbox))->toContain('pr create')
+        ->toContain('--base develop')
+        ->toContain('--head chore/candidate-baseline-1.12.0')
+        // The title is what release-please would read off the squashed commit, so
+        // it has to parse as a Conventional Commit like any other PR title.
+        ->toContain('chore: move the candidate baseline to 1.12.0');
+});
+
+/*
+ * The failure this guards against, seen in production at 1.12.0: `develop` is
+ * covered by a ruleset requiring pull requests, so a direct push is rejected with
+ * GH013 and the whole stable release run goes red *after* the release has already
+ * been tagged and published. The baseline has to travel the same way every other
+ * change to develop does.
+ */
+test('the candidate baseline is never pushed straight to develop', function (): void {
+    [$clone, $origin] = developSandbox('{".":"1.11.0"}');
+
+    $process = runBaselineSync($clone, '1.12.0', ghSandbox());
+
+    expect($process->isSuccessful())->toBeTrue()
+        ->and(baselineOf($origin))->toBe('{".":"1.11.0"}')
+        ->and(baselineSyncScript())->not->toContain('push origin develop');
+});
+
+/*
+ * Nothing merges the baseline PR on its own, and a release must not wait on a
+ * human to notice it — so auto-merge is asked for, and a repository that cannot
+ * grant it says so rather than failing the release.
+ */
+test('the baseline PR is queued to merge itself', function (): void {
+    [$clone] = developSandbox('{".":"1.11.0"}');
+    $sandbox = ghSandbox();
+
+    runBaselineSync($clone, '1.12.0', $sandbox);
+
+    expect(ghCalls($sandbox))->toContain('pr merge')
+        ->toContain('--auto');
 });
 
 test('moving the baseline twice is a no-op the second time', function (): void {
     [$clone, $origin] = developSandbox('{".":"1.12.0"}');
+    $sandbox = ghSandbox();
 
-    $process = runBaselineSync($clone, '1.12.0');
+    $process = runBaselineSync($clone, '1.12.0', $sandbox);
 
     expect($process->isSuccessful())->toBeTrue()
         ->and($process->getOutput())->toContain('already 1.12.0')
-        ->and(baselineOf($origin))->toBe('{".":"1.12.0"}');
+        ->and(baselineOf($origin))->toBe('{".":"1.12.0"}')
+        ->and(ghCalls($sandbox))->not->toContain('pr create');
 });
 
 /*
- * develop keeps moving while a release is cut, so this push can be rejected as
- * non-fast-forward. Re-deriving the baseline on top of whatever landed is always
- * correct because the value is absolute, not a delta — which is why the retry
- * resets rather than rebases, and cannot conflict with the commit it lands on.
+ * A baseline PR left open from an earlier release must be updated in place rather
+ * than joined by a second one: two open PRs writing the same one-line file would
+ * conflict with each other.
  */
-test('the baseline still lands when develop moves underneath it', function (): void {
+test('an open baseline PR is updated rather than duplicated', function (): void {
+    [$clone, $origin] = developSandbox('{".":"1.11.0"}');
+    $sandbox = ghSandbox(existing: '7');
+
+    $process = runBaselineSync($clone, '1.12.0', $sandbox);
+
+    expect($process->isSuccessful())->toBeTrue()
+        ->and($process->getOutput())->toContain('#7')
+        ->and(baselineOnBranch($origin, 'chore/candidate-baseline-1.12.0'))->toBe('{".":"1.12.0"}')
+        ->and(ghCalls($sandbox))->not->toContain('pr create')
+        // The run that opened it may have been unable to queue auto-merge, so a
+        // reused PR is asked again rather than left for someone to notice.
+        ->toContain('pr merge');
+});
+
+/*
+ * The lookup has to be pinned to this job's own branch: an unscoped one would
+ * find any open PR against develop and conclude the baseline was already
+ * proposed.
+ */
+test('an open baseline PR is looked for on the branch it would be opened from', function (): void {
+    [$clone] = developSandbox('{".":"1.11.0"}');
+    $sandbox = ghSandbox();
+
+    runBaselineSync($clone, '1.12.0', $sandbox);
+
+    expect(collect(explode("\n", ghCalls($sandbox)))->first(fn (string $call): bool => str_starts_with($call, 'pr list')))
+        ->toContain('--base develop')
+        ->toContain('--head chore/candidate-baseline-1.12.0')
+        ->toContain('--state open');
+});
+
+/*
+ * develop keeps moving while a release is cut. Re-deriving the baseline on top of
+ * whatever landed is always correct because the value is absolute, not a delta —
+ * which is why the branch is cut fresh from `origin/develop` rather than from the
+ * checkout the job started with.
+ */
+test('the baseline is proposed on top of whatever develop has moved to', function (): void {
     [$clone, $origin] = developSandbox('{".":"1.11.0"}');
 
-    // Land an unrelated commit on origin *after* the clone, so the first push
-    // attempt is rejected exactly as a concurrent merge to develop would do.
+    // Land an unrelated commit on origin *after* the clone, exactly as a merge to
+    // develop during the release would.
     file_put_contents($origin.'/somebody-elses-work.txt', "meanwhile\n");
     (new Process(['git', 'add', '.'], $origin))->mustRun();
     (new Process(['git', 'commit', '--quiet', '-m', 'feat: land something else'], $origin))->mustRun();
 
-    $process = runBaselineSync($clone, '1.12.0');
+    $process = runBaselineSync($clone, '1.12.0', ghSandbox());
+    $branch = 'chore/candidate-baseline-1.12.0';
 
     expect($process->isSuccessful())->toBeTrue()
-        ->and(baselineOf($origin))->toBe('{".":"1.12.0"}')
-        ->and(file_exists($origin.'/somebody-elses-work.txt'))->toBeTrue();
+        ->and(baselineOnBranch($origin, $branch))->toBe('{".":"1.12.0"}')
+        ->and((new Process(['git', 'show', $branch.':somebody-elses-work.txt'], $origin))->run())->toBe(0);
+});
+
+/*
+ * A hotfix released straight from `master` exists only there. The next
+ * `develop` -> `master` promotion carries an older ancestor of the same files, so
+ * without a back-merge it silently reverts the fix and production breaks a second
+ * time for no visible reason. The job below is what makes that step unmissable.
+ */
+test('a stable release opens a back-merge into develop', function (): void {
+    $job = readWorkflow('release-please.yml')['jobs']['backmerge'];
+
+    expect($job['if'])->toContain("needs.release-please.outputs.release_created == 'true'")
+        ->and($job['needs'])->toContain('release-please');
+});
+
+/*
+ * The two jobs touch different things — one proposes a one-line manifest bump,
+ * the other proposes a merge — so ordering them buys nothing, and chaining them
+ * would let a failing baseline sync suppress the back-merge in exactly the
+ * release where a hotfix makes it matter.
+ */
+test('the back-merge does not wait on the candidate baseline', function (): void {
+    expect(readWorkflow('release-please.yml')['jobs']['backmerge']['needs'])
+        ->not->toContain('sync-candidate-baseline');
+});
+
+/**
+ * The shell body of the step that opens the `master` -> `develop` back-merge PR.
+ */
+function backmergeScript(): string
+{
+    $workflow = readWorkflow('release-please.yml');
+
+    /** @var array<int, array<string, mixed>> $steps */
+    $steps = $workflow['jobs']['backmerge']['steps'];
+
+    foreach ($steps as $step) {
+        $run = (string) ($step['run'] ?? '');
+
+        if (str_contains($run, 'gh pr create')) {
+            return $run;
+        }
+    }
+
+    throw new RuntimeException('release-please.yml has no step opening the back-merge PR.');
+}
+
+/**
+ * Run the back-merge step against a stubbed `gh`, and report what it did.
+ *
+ * @param  list<string>|null  $branches  branches to list, or null to make `gh` fail
+ * @param  int  $ahead  commits `master` is ahead of `develop` by
+ * @param  string  $existing  number of an already open back-merge PR, or none
+ * @return array{created: string|null, output: string, errors: string, succeeded: bool}
+ */
+function runBackmerge(?array $branches, int $ahead = 1, string $existing = ''): array
+{
+    $sandbox = ghSandbox($branches, $ahead, $existing);
+
+    $process = new Process(
+        ['bash', '-c', backmergeScript()],
+        env: [
+            'PATH' => $sandbox.'/bin:'.getenv('PATH'),
+            'REPO' => 'emmpaul/the-desk',
+            'GH_TOKEN' => 'stub',
+            'VERSION' => '1.12.1',
+        ],
+    );
+    $process->run();
+
+    $calls = ghCalls($sandbox);
+    $created = collect(explode("\n", $calls))->first(fn (string $call): bool => str_starts_with($call, 'pr create'));
+
+    return [
+        'created' => $created,
+        'output' => $process->getOutput(),
+        'errors' => $process->getErrorOutput(),
+        'succeeded' => $process->isSuccessful(),
+    ];
+}
+
+test('a released master is proposed for merge back into develop', function (): void {
+    $result = runBackmerge(['master', 'develop']);
+
+    expect($result['succeeded'])->toBeTrue()
+        ->and($result['created'])->toContain('--base develop')
+        ->toContain('--head master')
+        // The PR title is the one release-please would read if this were ever
+        // squashed, so it has to parse as a Conventional Commit like any other.
+        ->toContain('chore: merge master back into develop after 1.12.1');
+});
+
+test('nothing is opened when develop already contains master', function (): void {
+    $result = runBackmerge(['master', 'develop'], ahead: 0);
+
+    expect($result['succeeded'])->toBeTrue()
+        ->and($result['created'])->toBeNull()
+        ->and($result['output'])->toContain('already contains master');
+});
+
+test('an open back-merge is left to track master rather than duplicated', function (): void {
+    $result = runBackmerge(['master', 'develop'], existing: '42');
+
+    expect($result['succeeded'])->toBeTrue()
+        ->and($result['created'])->toBeNull()
+        ->and($result['output'])->toContain('#42');
+});
+
+test('a stable release succeeds when there is no develop branch to back-merge into', function (): void {
+    $result = runBackmerge(['master']);
+
+    expect($result['succeeded'])->toBeTrue()
+        ->and($result['created'])->toBeNull();
+});
+
+/*
+ * Same failure mode the baseline sync guards against: a refused API call must not
+ * read as "no develop" and skip the back-merge silently.
+ */
+test('an unreadable branch listing fails the back-merge loudly', function (): void {
+    $result = runBackmerge(null);
+
+    expect($result['succeeded'])->toBeFalse()
+        ->and($result['created'])->toBeNull()
+        ->and($result['errors'])->toContain('rate limit');
+});
+
+/*
+ * Squashing a back-merge would flatten master's history into a single new commit
+ * on develop, leaving the branches permanently diverged and every later
+ * back-merge conflicting. The instruction has to travel with the PR.
+ */
+test('the back-merge PR says it must not be squashed', function (): void {
+    expect(backmergeScript())->toContain('merge commit')
+        ->toContain('squash');
 });
