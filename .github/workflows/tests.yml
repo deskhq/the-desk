@@ -115,6 +115,13 @@ jobs:
       - name: Run Type Analysis
         run: composer types:check
 
+      # Vitest covers the layer the PHP coverage gate cannot reach (composables,
+      # lib helpers, the custom eslint rules). It needs no database, no Reverb and
+      # no browser, and finishes in seconds — so it runs ahead of the multi-minute
+      # PHP suite and a frontend regression fails fast (see #644).
+      - name: Run Frontend Tests
+        run: npm run test:js
+
       # Parallel Pest (paratest): Laravel provisions one `testing_{n}` Postgres
       # database per worker automatically — the `laravel` service user owns the
       # server, so CREATE DATABASE works out of the box. The split of the ci job

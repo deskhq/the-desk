@@ -76,8 +76,14 @@ Run the quality gate before pushing:
 
 ```bash
 ./vendor/bin/sail composer test        # Pint, PHPStan, Rector (dry-run), and tests at 100% coverage
-./vendor/bin/sail npm run lint:check    # ESLint / Prettier / vue-tsc / build
+./vendor/bin/sail npm run lint:check   # ESLint
+./vendor/bin/sail npm run format:check # Prettier
+./vendor/bin/sail npm run types:check  # vue-tsc
+./vendor/bin/sail npm run test:js      # Vitest unit suite (composables, lib helpers, eslint rules)
+./vendor/bin/sail npm run build        # Vite build
 ```
+
+`./vendor/bin/sail composer ci:check` runs both gates in one command.
 
 [Rector](https://github.com/rectorphp/rector) handles automated structural
 refactoring (the semantic counterpart to Pint's formatter). The gate runs it in
