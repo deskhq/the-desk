@@ -68,6 +68,7 @@ The policy sent is:
 | `media-src`   | `'self'`                                     |
 | `worker-src`  | `'self'`                                     |
 | `frame-src`   | `'none'`                                     |
+| `frame-ancestors` | `'none'`, or whatever `CSP_FRAME_ANCESTORS` names |
 | `base-uri`    | `'self'`                                     |
 | `form-action` | `'self'`                                     |
 | `object-src`  | `'none'`                                     |
@@ -85,6 +86,16 @@ post credentials off-origin. `object-src` does fall back, but only to
 `default-src 'self'`; nothing in The Desk renders an `<object>` or `<embed>`,
 and the plugin documents they load are outside what `script-src` governs, so it
 is denied outright instead.
+
+`frame-ancestors` is the same kind of directive and answers the opposite
+question to `frame-src`: not what the app may embed, but who may embed *it*. It
+defaults to `'none'`, which is what stops an attacker overlaying an invisible
+frame of your instance on their own page and steering a signed-in member's
+clicks into real controls. It is paired with `X-Frame-Options: DENY` for
+browsers that do not support CSP Level 2 `frame-ancestors`, and both are
+configurable through
+[`CSP_FRAME_ANCESTORS`](/docs/reference/feature-toggles/#clickjacking-protection)
+if you embed the app in a portal of your own.
 
 ### Accepted residuals
 

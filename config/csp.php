@@ -41,6 +41,27 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Who may embed the app in a frame
+    |--------------------------------------------------------------------------
+    |
+    | Drives the CSP's frame-ancestors directive and the X-Frame-Options header
+    | that older browsers read instead. The default denies every framer, which
+    | closes the clickjacking path where an attacker overlays an invisible frame
+    | of the app on their own page and steers a signed-in member into clicking
+    | real controls.
+    |
+    | Accepts the keywords `none` and `self`, or a comma-separated list of
+    | origins for an operator embedding the app in their own portal. A list of
+    | origins sends no X-Frame-Options: that header cannot express an allow-list
+    | (its ALLOW-FROM was never supported by Chrome and Firefox dropped it), so
+    | anything sent there would either break the embed or misstate the policy.
+    |
+    */
+
+    'frame_ancestors' => env('CSP_FRAME_ANCESTORS', 'none'),
+
+    /*
+    |--------------------------------------------------------------------------
     | Extra allowed sources
     |--------------------------------------------------------------------------
     |

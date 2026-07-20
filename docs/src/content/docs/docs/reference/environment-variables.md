@@ -123,6 +123,7 @@ production — see [Configuration](/docs/self-hosting/configuration/#reverb-webs
 | `DEMO_MODE`                  | `false` | [Feature toggles → Demo mode](/docs/reference/feature-toggles/#demo-mode) |
 | `CSP_ENABLED`                | `true`  | [Feature toggles → Content Security Policy](/docs/reference/feature-toggles/#content-security-policy) |
 | `CSP_REPORT_ONLY`            | `false` | [Feature toggles → Content Security Policy](/docs/reference/feature-toggles/#content-security-policy) |
+| `CSP_FRAME_ANCESTORS`        | `none`  | [Feature toggles → Clickjacking protection](/docs/reference/feature-toggles/#clickjacking-protection) |
 
 ## Content Security Policy
 
@@ -154,6 +155,13 @@ There, one without the other still fails. A provider serving both from one
 origin needs that origin in both keys, and a font referenced from your own CSS
 needs only `CSP_EXTRA_FONT_SRC`. The app self-hosts its own fonts, so you only
 need this if you deliberately add a web font of your own.
+
+One more key controls who may embed the app **in** a frame, rather than what the
+app may load:
+
+| Variable               | Default | Effect                                                                 |
+| ---------------------- | ------- | ---------------------------------------------------------------------- |
+| `CSP_FRAME_ANCESTORS`  | `none`  | Sends `frame-ancestors` and `X-Frame-Options`. See [Feature toggles → Clickjacking protection](/docs/reference/feature-toggles/#clickjacking-protection). |
 
 ## Single sign-on (OpenID Connect)
 

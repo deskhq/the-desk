@@ -24,6 +24,7 @@ beforeEach(function (): void {
     config([
         'csp.enabled' => true,
         'csp.report_only' => false,
+        'csp.frame_ancestors' => 'none',
         'csp.extra' => [
             'script-src' => '',
             'style-src' => '',
