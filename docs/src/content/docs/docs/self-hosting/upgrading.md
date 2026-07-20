@@ -27,9 +27,10 @@ released version rather than overriding `APP_IMAGE` to `edge` for a stable deplo
 ## Release candidates
 
 Some releases are preceded by **release candidates** — versions tagged
-`X.Y.Z-rc.N` (for example the third candidate for 1.12.0 is `1.12.0-rc.2`). They
-are cut from the `develop` branch as changes accumulate, and they exist so the
-next stable release can be tested before it ships.
+`X.Y.Z-rc.N`, where `X.Y.Z` is the release being prepared and `N` counts up from
+zero as further candidates are cut. They come from the `develop` branch as
+changes accumulate, and they exist so the next stable release can be tested
+before it ships.
 
 :::caution[Not supported for production]
 A candidate is not a release. It has not finished testing, it can change
