@@ -49,6 +49,9 @@ return [
         | commits every subdomain of the registrable domain, not just this app.
         | Only turn it on if you own the whole domain and intend to submit it at
         | https://hstspreload.org.
+        |
+        | The directive is only emitted when the rest of the policy would pass
+        | that submission — a max-age of at least a year, subdomains included.
         */
         'preload' => (bool) env('HSTS_PRELOAD', false),
 

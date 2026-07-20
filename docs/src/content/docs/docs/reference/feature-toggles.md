@@ -362,6 +362,12 @@ months to reach users. Only enable it if you own the whole domain and intend to
 submit it deliberately.
 :::
 
+`preload` is only sent when the rest of the policy would actually qualify for
+the list — `HSTS_MAX_AGE` of at least `31536000` **and**
+`HSTS_INCLUDE_SUBDOMAINS=true`. Set it beside a shorter max-age or with
+subdomains excluded and the directive is left off rather than advertising an
+intent the policy cannot back.
+
 Turn `HSTS_INCLUDE_SUBDOMAINS` off if a subdomain of your app's host still has to
 answer over plain HTTP — the pin would otherwise make it unreachable too.
 

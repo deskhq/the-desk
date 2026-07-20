@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Support\Http\SecureSessionCookie;
 use Illuminate\Testing\TestResponse;
 use Symfony\Component\HttpFoundation\Cookie;
 
@@ -19,7 +20,7 @@ function sessionCookie(TestResponse $response): Cookie
     return $cookie;
 }
 
-test('the session cookie is withheld from plain http once the flag is on', function (): void {
+test('the session cookie is marked Secure once the flag is on, so a browser withholds it from plain http', function (): void {
     config(['session.secure' => true]);
 
     expect(sessionCookie($this->get('https://localhost/'))->isSecure())->toBeTrue();
@@ -29,4 +30,11 @@ test('the flag can be turned off for a deployment that never speaks https', func
     config(['session.secure' => false]);
 
     expect(sessionCookie($this->get('https://localhost/'))->isSecure())->toBeFalse();
+});
+
+test('the flag is wired to APP_URL rather than left at Laravel’s insecure default', function (): void {
+    // config/session.php is the only place the two are joined up, and nothing
+    // else would notice if that expression were dropped: Laravel's own default
+    // resolves to false, which is exactly the gap this closes.
+    expect(config('session.secure'))->toBe(SecureSessionCookie::defaultFor(env('APP_URL')));
 });

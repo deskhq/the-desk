@@ -56,6 +56,35 @@ test('preload is opt-in only — it is effectively irreversible for a domain', f
         ->toBe('max-age=31536000; includeSubDomains; preload');
 });
 
+test('preload is withheld when the rest of the policy would not qualify for the list', function (array $overrides): void {
+    config(['security.hsts.preload' => true, ...$overrides]);
+
+    // hstspreload.org rejects a submission whose max-age is under a year or
+    // whose subdomains are excluded. Advertising `preload` anyway states an
+    // intent the policy cannot back, so send the directives that are true.
+    expect($this->get('https://localhost/')->headers->get('Strict-Transport-Security'))
+        ->not->toContain('preload');
+})->with([
+    'max-age under a year' => [['security.hsts.max_age' => 300]],
+    'subdomains excluded' => [['security.hsts.include_subdomains' => false]],
+]);
+
+test('an error response is pinned too — it is the same connection', function (): void {
+    // The pin has to survive the paths a visitor hits by accident, or a browser
+    // that only ever saw a 404 stays willing to downgrade.
+    $response = $this->get('https://localhost/definitely-not-a-route')->assertNotFound();
+
+    expect($response->headers->get('Strict-Transport-Security'))
+        ->toBe('max-age=31536000; includeSubDomains');
+});
+
+test('the health check is pinned too — it answers before any route', function (): void {
+    $response = $this->get('https://localhost/up')->assertOk();
+
+    expect($response->headers->get('Strict-Transport-Security'))
+        ->toBe('max-age=31536000; includeSubDomains');
+});
+
 test('the header is dropped entirely when the operator owns it at the proxy', function (): void {
     config(['security.hsts.enabled' => false]);
 

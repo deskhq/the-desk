@@ -19,6 +19,12 @@ use Symfony\Component\HttpFoundation\Response;
 final class AddStrictTransportSecurityHeader
 {
     /**
+     * The shortest max-age (one year, in seconds) the browsers' preload list
+     * accepts a submission with.
+     */
+    private const int PRELOAD_MINIMUM_MAX_AGE = 31536000;
+
+    /**
      * @param  Closure(Request): Response  $next
      */
     public function handle(Request $request, Closure $next): Response
@@ -41,13 +47,19 @@ final class AddStrictTransportSecurityHeader
     {
         // Floored at zero: a negative max-age is a typo the browser rejects,
         // and it would take the whole header down with it.
-        $directives = ['max-age='.max(0, (int) config('security.hsts.max_age'))];
+        $maxAge = max(0, (int) config('security.hsts.max_age'));
+        $includeSubdomains = (bool) config('security.hsts.include_subdomains');
 
-        if (config('security.hsts.include_subdomains')) {
+        $directives = ['max-age='.$maxAge];
+
+        if ($includeSubdomains) {
             $directives[] = 'includeSubDomains';
         }
 
-        if (config('security.hsts.preload')) {
+        // The preload list rejects anything under a year or excluding
+        // subdomains, so advertising `preload` beside either states an intent
+        // the policy cannot back. Send what is true instead.
+        if (config('security.hsts.preload') && $includeSubdomains && $maxAge >= self::PRELOAD_MINIMUM_MAX_AGE) {
             $directives[] = 'preload';
         }
 
