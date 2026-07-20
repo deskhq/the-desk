@@ -1,6 +1,7 @@
 import { router, usePage } from '@inertiajs/vue3';
 import { echo } from '@laravel/echo-vue';
 import { computed, onBeforeUnmount, onMounted } from 'vue';
+import { backgroundVisit } from '@/lib/backgroundVisit';
 
 /**
  * Surface a brand-new direct message in the sidebar live.
@@ -30,7 +31,9 @@ export function useNewDirectMessages(): void {
         echo()
             .private(channelName())
             .listen('DirectMessageStarted', () => {
-                router.reload({ only: ['channels'] });
+                // A teammate's action schedules this, so it fires at a moment the
+                // viewer did not choose; see {@see backgroundVisit}.
+                router.reload({ ...backgroundVisit, only: ['channels'] });
             });
     });
 

@@ -2,6 +2,7 @@ import { router } from '@inertiajs/vue3';
 import { watch } from 'vue';
 import { update as saveChannelDraft } from '@/actions/App/Http/Controllers/Channels/ChannelDraftController';
 import { useDebouncedPost } from '@/composables/useDebouncedPost';
+import { backgroundVisit } from '@/lib/backgroundVisit';
 
 /**
  * How long to coalesce composer keystrokes before persisting the draft. Long
@@ -46,7 +47,15 @@ export function useChannelDraft(options: ChannelDraftOptions): ChannelDraft {
         router.patch(
             saveChannelDraft({ team: options.teamSlug(), channel: slug }).url,
             { body },
-            { preserveScroll: true, preserveState: true, only: ['channels'] },
+            {
+                // The channel-switch watcher below flushes this save *during* the
+                // navigation it must not cancel, so it can never ride the
+                // synchronous queue; see {@see backgroundVisit}.
+                ...backgroundVisit,
+                preserveScroll: true,
+                preserveState: true,
+                only: ['channels'],
+            },
         );
     }
 

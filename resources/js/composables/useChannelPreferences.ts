@@ -5,6 +5,7 @@ import type { ComputedRef, Ref } from 'vue';
 import { toast } from 'vue-sonner';
 import { update as updateChannelPreferences } from '@/actions/App/Http/Controllers/Channels/ChannelPreferenceController';
 import { update as updateChannelStar } from '@/actions/App/Http/Controllers/Channels/ChannelStarController';
+import { backgroundVisit } from '@/lib/backgroundVisit';
 import { notificationIndicator } from '@/lib/notificationIndicator';
 import type { NotificationIndicator } from '@/lib/notificationIndicator';
 import type { Channel, NotificationLevel } from '@/types';
@@ -94,6 +95,10 @@ export function useChannelPreferences(
             }).url,
             { starred: starred.value },
             {
+                // Applied optimistically, so nothing on screen waits for it: it
+                // must not interrupt the navigation a user often fires right
+                // after starring; see {@see backgroundVisit}.
+                ...backgroundVisit,
                 preserveScroll: true,
                 preserveState: true,
                 only: ['channels'],
@@ -115,6 +120,9 @@ export function useChannelPreferences(
             }).url,
             { muted: muted.value, notification_level: notificationLevel.value },
             {
+                // Optimistic like the star above, and dismissing the menu often
+                // coincides with a navigation; see {@see backgroundVisit}.
+                ...backgroundVisit,
                 preserveScroll: true,
                 preserveState: true,
                 only: ['channels'],

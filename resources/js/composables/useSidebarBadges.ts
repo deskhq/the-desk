@@ -2,6 +2,7 @@ import { router, usePage } from '@inertiajs/vue3';
 import { computed } from 'vue';
 import { useChannelFleetSubscription } from '@/composables/useChannelFleetSubscription';
 import { useDebouncedPost } from '@/composables/useDebouncedPost';
+import { backgroundVisit } from '@/lib/backgroundVisit';
 import { shouldRefreshSidebar } from '@/lib/shouldRefreshSidebar';
 
 /** Coalesce a burst of arrivals into a single sidebar reload. */
@@ -30,9 +31,16 @@ export function useSidebarBadges(): void {
 
     // reload defaults to preserving scroll and page state; it re-evaluates the
     // shared `channels` prop to recompute every badge count, plus the aggregate
-    // `hasUnreadThreads` flag behind the sidebar's Threads dot.
+    // `hasUnreadThreads` flag behind the sidebar's Threads dot. A teammate's
+    // message decides when it fires, so it runs as a background visit
+    // ({@see backgroundVisit}) — otherwise an arrival landing mid-navigation
+    // cancels the visit the user actually asked for.
     const refresh = useDebouncedPost(
-        () => router.reload({ only: ['channels', 'hasUnreadThreads'] }),
+        () =>
+            router.reload({
+                ...backgroundVisit,
+                only: ['channels', 'hasUnreadThreads'],
+            }),
         { delay: REFRESH_DEBOUNCE_MS },
     );
 

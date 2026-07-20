@@ -1,5 +1,6 @@
 import { router, usePage } from '@inertiajs/vue3';
 import { computed } from 'vue';
+import { backgroundVisit } from '@/lib/backgroundVisit';
 import { update } from '@/routes/timezone';
 
 /**
@@ -20,15 +21,20 @@ export function useTimezone() {
         () => page.props.auth.user.timezone ?? null,
     );
 
-    /**
-     * Persist a timezone choice (manual override or auto-detection).
-     */
-    function setTimezone(value: string): void {
+    function persist(value: string, options: Record<string, unknown>): void {
         router.patch(
             update().url,
             { timezone: value },
-            { preserveScroll: true, preserveState: true },
+            { preserveScroll: true, preserveState: true, ...options },
         );
+    }
+
+    /**
+     * Persist a manual timezone choice. The user picked it and is watching the
+     * settings form, so this stays a foreground visit.
+     */
+    function setTimezone(value: string): void {
+        persist(value, {});
     }
 
     /**
@@ -45,7 +51,10 @@ export function useTimezone() {
         const detected = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
         if (detected) {
-            setTimezone(detected);
+            // Nobody asked for this write and it lands moments after the first
+            // authenticated render, when the user is most likely mid-click; see
+            // {@see backgroundVisit}.
+            persist(detected, backgroundVisit);
         }
     }
 

@@ -60,6 +60,7 @@ import { useTimezone } from '@/composables/useTimezone';
 import { useTranslations } from '@/composables/useTranslations';
 import { useTypingIndicator } from '@/composables/useTypingIndicator';
 import { useUnreadDivider } from '@/composables/useUnreadDivider';
+import { backgroundVisit } from '@/lib/backgroundVisit';
 import { formatDayLabel } from '@/lib/datetime';
 import { groupDmMastheadName } from '@/lib/groupDm';
 import { createOutbox } from '@/lib/outbox';
@@ -633,12 +634,10 @@ const readPost = useDebouncedPost(
             }).url,
             {},
             {
-                // A background write: `async` keeps it from interrupting an
-                // in-flight visit (interrupting a thread-panel GET strands the
-                // panel empty, #581), and `preserveUrl` keeps its
-                // redirect-follow from dropping the `?thread=` param.
-                async: true,
-                preserveUrl: true,
+                // Interrupting a thread-panel GET strands the panel empty (#581)
+                // and the redirect-follow would drop the `?thread=` param; see
+                // {@see backgroundVisit}.
+                ...backgroundVisit,
                 preserveScroll: true,
                 preserveState: true,
                 only: ['channels'],
@@ -1049,7 +1048,9 @@ connection.onConnected(({ isReconnect }) => {
         return;
     }
 
-    router.reload({ only: ['messages'] });
+    // A reconnect is the socket's timing, not the user's; see
+    // {@see backgroundVisit}.
+    router.reload({ ...backgroundVisit, only: ['messages'] });
 
     if (flushed > 0) {
         toast.success(

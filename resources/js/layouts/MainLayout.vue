@@ -96,6 +96,7 @@ import { useTeamPresence } from '@/composables/useTeamPresence';
 import { useTeamSwitch } from '@/composables/useTeamSwitch';
 import { useTimezone } from '@/composables/useTimezone';
 import { useTranslations } from '@/composables/useTranslations';
+import { backgroundVisit } from '@/lib/backgroundVisit';
 import {
     partitionChannels,
     toggleCollapsedSection,
@@ -682,8 +683,10 @@ const { timezone, syncDetectedTimezone } = useTimezone();
 const { sidebarPosition } = useSidebarPosition();
 
 onMounted(() => {
-    // Lazily pull the (optional) shared invitations so the post-login prompt appears.
-    router.reload({ only: ['pendingInvitations'] });
+    // Lazily pull the (optional) shared invitations so the post-login prompt
+    // appears. It lands moments after the first render, when the user may already
+    // be navigating, so it stays off the synchronous queue ({@see backgroundVisit}).
+    router.reload({ ...backgroundVisit, only: ['pendingInvitations'] });
 
     // Persist the browser's timezone on first login when none is stored yet.
     syncDetectedTimezone();

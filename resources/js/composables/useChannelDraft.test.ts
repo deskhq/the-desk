@@ -11,6 +11,7 @@ import {
     useChannelDraft,
 } from '@/composables/useChannelDraft';
 import type { ChannelDraft } from '@/composables/useChannelDraft';
+import { backgroundVisit } from '@/lib/backgroundVisit';
 
 /**
  * Run the composable inside a disposable effect scope so its channel-switch
@@ -98,6 +99,17 @@ describe('useChannelDraft', () => {
 
         expect(patch).toHaveBeenCalledOnce();
         expect(patch.mock.calls[0][1]).toEqual({ body: 'outlives unmount' });
+    });
+
+    it('saves in the background so it never interrupts a navigation', () => {
+        const { draft } = withScope(ref('alpha'), ref('id-alpha'));
+
+        draft.onDraftChange('typed while leaving');
+        vi.advanceTimersByTime(DRAFT_DEBOUNCE_MS);
+
+        // A draft save flushes on the very channel switch it must not cancel, so
+        // it has to stay off the synchronous queue (#586).
+        expect(patch.mock.calls[0][2]).toMatchObject(backgroundVisit);
     });
 
     it('clears the saved draft immediately, dropping any pending save', () => {

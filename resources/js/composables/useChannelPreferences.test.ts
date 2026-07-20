@@ -12,6 +12,7 @@ vi.mock('vue-sonner', () => ({ toast: { error: toastError } }));
 
 import { useChannelPreferences } from '@/composables/useChannelPreferences';
 import type { ChannelPreferences } from '@/composables/useChannelPreferences';
+import { backgroundVisit } from '@/lib/backgroundVisit';
 import type { Channel, NotificationLevel } from '@/types';
 
 type PrefState = Pick<Channel, 'notificationLevel' | 'muted' | 'starred'>;
@@ -128,6 +129,21 @@ describe('useChannelPreferences', () => {
         failPatch();
         expect(prefs.muted.value).toBe(false);
         expect(toastError).toHaveBeenCalledOnce();
+    });
+
+    it('saves every preference in the background so none interrupts a navigation', () => {
+        const { prefs } = withScope(ref(channelState()), ref('id-1'));
+
+        // The UI has already moved on optimistically, so nothing waits on these
+        // writes — and a star clicked on the way out of a channel must not cancel
+        // the navigation that follows it (#586).
+        prefs.toggleStar();
+        prefs.onMuteChange(true);
+        prefs.onNotificationLevelChange('mentions' as NotificationLevel);
+
+        for (const call of patch.mock.calls) {
+            expect(call[2]).toMatchObject(backgroundVisit);
+        }
     });
 
     it('suppresses thread-unread dots when muted or below "all"', () => {

@@ -15,6 +15,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useTimezone } from '@/composables/useTimezone';
 import { useTranslations } from '@/composables/useTranslations';
+import { backgroundVisit } from '@/lib/backgroundVisit';
 import { formatDateTime } from '@/lib/datetime';
 import { i18n, translate } from '@/lib/i18n';
 import { edit, index } from '@/routes/teams';
@@ -148,7 +149,8 @@ let pollTimer: ReturnType<typeof setInterval> | undefined;
 onMounted(() => {
     pollTimer = setInterval(() => {
         if (hasPending.value) {
-            router.reload({ only: ['exports'] });
+            // A timer tick, not a click; see {@see backgroundVisit}.
+            router.reload({ ...backgroundVisit, only: ['exports'] });
         }
     }, 4000);
 });

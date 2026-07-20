@@ -2,6 +2,7 @@ import { router } from '@inertiajs/vue3';
 import { echo } from '@laravel/echo-vue';
 import { onBeforeUnmount, onMounted, ref, toValue, watch } from 'vue';
 import type { MaybeRefOrGetter } from 'vue';
+import { backgroundVisit } from '@/lib/backgroundVisit';
 
 /**
  * How long to coalesce a burst of profile updates before reloading, so many
@@ -39,11 +40,13 @@ export function useTeamPresence(teamId: MaybeRefOrGetter<string | undefined>) {
 
     // A teammate changed their profile (today: their avatar). Reload the current
     // page's props so every avatar surface re-reads the new image, preserving
-    // scroll and local state so the refresh is invisible.
+    // scroll and local state so the refresh is invisible. A teammate's timing is
+    // not the viewer's, and this one reloads *every* prop, so interrupting a
+    // visit with it is especially costly; see {@see backgroundVisit}.
     function scheduleProfileReload(): void {
         clearTimeout(profileReloadTimer);
         profileReloadTimer = setTimeout(() => {
-            router.reload();
+            router.reload({ ...backgroundVisit });
         }, PROFILE_RELOAD_DEBOUNCE_MS);
     }
 

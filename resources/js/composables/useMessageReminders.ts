@@ -1,6 +1,7 @@
 import { router, usePage } from '@inertiajs/vue3';
 import { echo } from '@laravel/echo-vue';
 import { computed, onBeforeUnmount, onMounted } from 'vue';
+import { backgroundVisit } from '@/lib/backgroundVisit';
 
 /**
  * Slide in a reminder nudge the moment one comes due.
@@ -30,7 +31,13 @@ export function useMessageReminders(): void {
         echo()
             .private(channelName())
             .listen('MessageReminderDue', () => {
-                router.reload({ only: ['reminders', 'firedReminders'] });
+                // The per-minute dispatcher decides when this lands, so it must
+                // not interrupt whatever the user is doing; see
+                // {@see backgroundVisit}.
+                router.reload({
+                    ...backgroundVisit,
+                    only: ['reminders', 'firedReminders'],
+                });
             });
     });
 
