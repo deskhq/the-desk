@@ -36,6 +36,11 @@ jobs:
   build:
     runs-on: ubuntu-latest
 
+    # Whether this ref is a release candidate, decided once (see the classify
+    # step) so the image tags and the release notes cannot disagree about it.
+    outputs:
+      is_candidate: ${{ steps.tag.outputs.is_candidate }}
+
     # `contents: read` to check out; `packages: write` to publish to GHCR. The
     # push steps below only run for master / `v*`-tag pushes, so PR and fork code
     # is built but never published.
@@ -60,6 +65,26 @@ jobs:
       - name: Build production image
         if: env.PUBLISH != 'true'
         run: docker build --tag the-desk:ci --file Dockerfile .
+
+      # Decide once whether this tag is a candidate, and decide it strictly.
+      # A substring test for `-rc.` would also match a tag that merely contains
+      # it — `v1.12.0+build-rc.1` is a stable release by SemVer, and treating it
+      # as a candidate would hand it the moving `rc` tag and stamp a candidate
+      # warning onto a stable release. release-please only ever cuts candidates
+      # as `vX.Y.Z-rc.N`, so match exactly that and nothing else.
+      - name: Classify the release tag
+        if: startsWith(github.ref, 'refs/tags/v')
+        id: tag
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+
+          if [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+-rc\.[0-9]+$ ]]; then
+            echo 'is_candidate=true' >> "$GITHUB_OUTPUT"
+          else
+            echo 'is_candidate=false' >> "$GITHUB_OUTPUT"
+          fi
 
       # ---- Publish to GitHub Container Registry (master + v* tags) ----
       - name: Set up Docker Buildx
@@ -96,7 +121,7 @@ jobs:
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
             type=raw,value=edge,enable={{is_default_branch}}
-            type=raw,value=rc,enable=${{ startsWith(github.ref, 'refs/tags/v') && contains(github.ref_name, '-rc.') }}
+            type=raw,value=rc,enable=${{ steps.tag.outputs.is_candidate == 'true' }}
 
       # amd64 only for now (arm64 emulation is deferred — see #205). No VITE_*
       # build args: the app name and browser-facing Reverb settings are served to
@@ -144,6 +169,9 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAG: ${{ github.ref_name }}
           REPO: ${{ github.repository }}
+          # Taken from `build` rather than re-derived here, so the warning on the
+          # notes and the moving `rc` image tag can never disagree.
+          IS_CANDIDATE: ${{ needs.build.outputs.is_candidate }}
         run: |
           set -euo pipefail
 
@@ -164,18 +192,14 @@ jobs:
           # GitHub "Pre-release" badge says so only in the releases list; anyone
           # arriving from a direct link sees the notes alone, so the warning
           # belongs in the body, above the pull command rather than after it.
-          case "$version" in
-            *-rc.*)
-              # Command substitution strips trailing newlines, so the blank line
-              # separating this from the image heading lives in the note format
-              # below, not here.
-              # shellcheck disable=SC2016  # printf format is intentionally literal; values are the %s args.
-              heading="$(printf '### 🚧 Release candidate\n\nThis is a **release candidate**, published for testing ahead of %s. It is **not supported for production** — run it against a copy of your data, not your live workspace, and expect it to be superseded without notice. Self-hosters should stay on the [latest stable release](https://github.com/%s/releases/latest).' "${version%%-rc.*}" "$REPO")"
-              ;;
-            *)
-              heading=""
-              ;;
-          esac
+          heading=""
+          if [ "${IS_CANDIDATE:-false}" = "true" ]; then
+            # Command substitution strips trailing newlines, so the blank line
+            # separating this from the image heading lives in the note format
+            # below, not here.
+            # shellcheck disable=SC2016  # printf format is intentionally literal; values are the %s args.
+            heading="$(printf '### 🚧 Release candidate\n\nThis is a **release candidate**, published for testing ahead of %s. It is **not supported for production** — run it against a copy of your data, not your live workspace, and expect it to be superseded without notice. Self-hosters should stay on the [latest stable release](https://github.com/%s/releases/latest).' "${version%%-rc.*}" "$REPO")"
+          fi
 
           # shellcheck disable=SC2016  # printf format is intentionally literal; values are the %s args.
           note="$(printf '\n\n%s\n\n---\n\n%s\n\n### 📦 Docker image\n\nThis release is published to the GitHub Container Registry:\n\n```\n%s\n```\n\nPull it directly or browse the [package page](%s). See the [upgrade guide](https://the-desk.emmanuelpaul.com/docs/self-hosting/upgrading/) for self-hosting steps.\n' "$marker" "$heading" "$image" "$package_url")"

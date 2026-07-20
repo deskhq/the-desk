@@ -91,6 +91,15 @@ jobs:
           ref: develop
           token: ${{ secrets.RELEASE_PLEASE_TOKEN }}
 
+      # develop keeps moving while a release is being cut, so this push can lose
+      # a race and be rejected as non-fast-forward. That must not need a human:
+      # the release has already happened by this point, and a develop left on a
+      # stale baseline silently keeps incrementing the previous rc series.
+      #
+      # Each attempt resets onto the current develop and writes the baseline out
+      # again. The value is absolute rather than a delta, so re-deriving it on
+      # top of whatever landed meanwhile is always correct — and, unlike a
+      # rebase, it cannot conflict.
       - name: Point the candidate baseline at the released version
         env:
           VERSION: ${{ needs.release-please.outputs.version }}
@@ -98,15 +107,31 @@ jobs:
           set -euo pipefail
 
           manifest=".release-please-manifest.develop.json"
-          printf '{".":"%s"}\n' "$VERSION" > "$manifest"
-
-          if git diff --quiet -- "$manifest"; then
-            echo "The candidate baseline is already $VERSION; nothing to do."
-            exit 0
-          fi
 
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add "$manifest"
-          git commit -m "chore: move the candidate baseline to $VERSION"
-          git push origin develop
+
+          for attempt in 1 2 3; do
+            git fetch --quiet origin develop
+            git reset --quiet --hard origin/develop
+
+            printf '{".":"%s"}\n' "$VERSION" > "$manifest"
+
+            if git diff --quiet -- "$manifest"; then
+              echo "The candidate baseline is already $VERSION; nothing to do."
+              exit 0
+            fi
+
+            git add "$manifest"
+            git commit --quiet -m "chore: move the candidate baseline to $VERSION"
+
+            if git push origin develop; then
+              echo "Moved the candidate baseline to $VERSION."
+              exit 0
+            fi
+
+            echo "develop moved while pushing (attempt $attempt); retrying."
+          done
+
+          echo "Could not move the candidate baseline to $VERSION after 3 attempts." >&2
+          exit 1

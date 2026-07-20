@@ -156,11 +156,11 @@ test('candidate tags publish a moving rc alias', function (): void {
     expect(imageTagRules())->toContain('type=raw,value=rc,enable=');
 });
 
-test('the moving rc alias is gated on a candidate tag', function (): void {
+test('the moving rc alias is gated on the classified tag', function (): void {
     $rule = collect(explode("\n", imageTagRules()))
         ->first(fn (string $line): bool => str_contains($line, 'value=rc,'));
 
-    expect($rule)->toContain("contains(github.ref_name, '-rc.')");
+    expect($rule)->toContain("steps.tag.outputs.is_candidate == 'true'");
 });
 
 test('the moving edge tag stays on the default branch', function (): void {
@@ -243,6 +243,66 @@ function releaseNoteScript(): string
     return (string) $steps[0]['run'];
 }
 
+/**
+ * The shell body of the step that decides whether a tag is a candidate.
+ */
+function tagClassifierScript(): string
+{
+    $workflow = readWorkflow('docker.yml');
+
+    /** @var array<int, array<string, mixed>> $steps */
+    $steps = $workflow['jobs']['build']['steps'];
+
+    foreach ($steps as $step) {
+        if (($step['id'] ?? null) === 'tag') {
+            return (string) $step['run'];
+        }
+    }
+
+    throw new RuntimeException('docker.yml has no `tag` step classifying the release tag.');
+}
+
+/**
+ * Run the classifier against a tag and return the `is_candidate` value it wrote.
+ */
+function classifyTag(string $tag): string
+{
+    $output = tempnam(sys_get_temp_dir(), 'gh-output-');
+
+    $process = new Process(
+        ['bash', '-c', tagClassifierScript()],
+        env: ['TAG' => $tag, 'GITHUB_OUTPUT' => $output],
+    );
+    $process->mustRun();
+
+    $written = trim((string) file_get_contents((string) $output));
+    unlink((string) $output);
+
+    return str_replace('is_candidate=', '', $written);
+}
+
+/*
+ * A substring test for `-rc.` is not the same predicate as "is a candidate".
+ * `v1.12.0+build-rc.1` is a stable release under SemVer, and misreading it would
+ * hand a stable release the moving `rc` tag and stamp a candidate warning onto
+ * its notes. Only the exact shape release-please cuts counts.
+ */
+test('a candidate tag is recognised', function (string $tag): void {
+    expect(classifyTag($tag))->toBe('true');
+})->with(['v1.12.0-rc.0', 'v1.12.0-rc.7', 'v2.0.0-rc.12', 'v10.20.30-rc.400']);
+
+test('anything that is not exactly a candidate tag is treated as stable', function (string $tag): void {
+    expect(classifyTag($tag))->toBe('false');
+})->with([
+    'v1.12.0',
+    'v1.12.0+build-rc.1',
+    'v1.12.0-rc',
+    'v1.12.0-rc.',
+    'v1.12.0-rc.1-extra',
+    'v1.12.0-beta.1',
+    'rc.1',
+]);
+
 /*
  * `link-release-image` fires for every `v*` tag, candidates included — which is
  * what we want, since a candidate-tester needs the pull reference more than
@@ -250,9 +310,17 @@ function releaseNoteScript(): string
  * candidate has to say plainly that it is not supported in production.
  */
 test('candidate releases warn against running them in production', function (): void {
-    expect(releaseNoteScript())
-        ->toContain('-rc.')
-        ->toContain('not supported for production');
+    expect(releaseNoteScript())->toContain('not supported for production');
+});
+
+/*
+ * The notes and the image tags must agree about what a candidate is, so the note
+ * step consumes the classification the build job made rather than repeating the
+ * test against the tag itself.
+ */
+test('the release notes reuse the classification the build job made', function (): void {
+    expect(readWorkflow('docker.yml')['jobs']['link-release-image']['steps'][0]['env']['IS_CANDIDATE'])
+        ->toBe('${{ needs.build.outputs.is_candidate }}');
 });
 
 /**
@@ -265,7 +333,7 @@ test('candidate releases warn against running them in production', function (): 
  * trailing blank line renders glued to the section that follows it. Executing
  * the script is the only way to see what a reader actually gets.
  */
-function renderReleaseNote(string $tag): string
+function renderReleaseNote(string $tag, bool $isCandidate): string
 {
     $sandbox = sys_get_temp_dir().'/release-note-'.bin2hex(random_bytes(6));
     mkdir($sandbox.'/bin', 0o777, true);
@@ -296,6 +364,7 @@ function renderReleaseNote(string $tag): string
             'TAG' => $tag,
             'REPO' => 'emmpaul/the-desk',
             'GH_TOKEN' => 'stub',
+            'IS_CANDIDATE' => $isCandidate ? 'true' : 'false',
         ],
     );
     $process->mustRun();
@@ -304,7 +373,7 @@ function renderReleaseNote(string $tag): string
 }
 
 test('a candidate release note warns before it invites a pull', function (): void {
-    $body = renderReleaseNote('v1.12.0-rc.3');
+    $body = renderReleaseNote('v1.12.0-rc.3', isCandidate: true);
 
     expect($body)
         ->toContain('🚧 Release candidate')
@@ -314,12 +383,12 @@ test('a candidate release note warns before it invites a pull', function (): voi
 });
 
 test('the candidate warning is a section of its own, not glued to the next one', function (): void {
-    expect(renderReleaseNote('v1.12.0-rc.3'))
+    expect(renderReleaseNote('v1.12.0-rc.3', isCandidate: true))
         ->toContain("releases/latest).\n\n### 📦 Docker image");
 });
 
 test('a stable release note carries no candidate warning', function (): void {
-    $body = renderReleaseNote('v1.12.0');
+    $body = renderReleaseNote('v1.12.0', isCandidate: false);
 
     expect($body)->not->toContain('Release candidate')
         ->and($body)->toContain('ghcr.io/emmpaul/the-desk:1.12.0')
@@ -327,11 +396,108 @@ test('a stable release note carries no candidate warning', function (): void {
 });
 
 test('the note is appended to the notes release-please wrote, not replacing them', function (): void {
-    expect(renderReleaseNote('v1.12.0'))->toStartWith("### Features\n\n* something shipped");
+    expect(renderReleaseNote('v1.12.0', isCandidate: false))->toStartWith("### Features\n\n* something shipped");
 });
 
 test('the release note still links the image for a candidate', function (): void {
     expect(readWorkflow('docker.yml')['jobs']['link-release-image']['if'])
         ->toContain("startsWith(github.ref, 'refs/tags/v')")
         ->not->toContain('-rc.');
+});
+
+/**
+ * The shell body of the step that moves develop's candidate baseline.
+ */
+function baselineSyncScript(): string
+{
+    $workflow = readWorkflow('release-please.yml');
+
+    /** @var array<int, array<string, mixed>> $steps */
+    $steps = $workflow['jobs']['sync-candidate-baseline']['steps'];
+
+    return (string) $steps[1]['run'];
+}
+
+/**
+ * Build a throwaway origin with a `develop` branch, and a clone of it standing in
+ * for the workflow's checkout.
+ *
+ * @return array{0: string, 1: string} the clone and the origin
+ */
+function developSandbox(string $baseline): array
+{
+    $root = sys_get_temp_dir().'/baseline-'.bin2hex(random_bytes(6));
+    $origin = $root.'/origin';
+    $clone = $root.'/clone';
+    mkdir($origin, 0o777, true);
+
+    $git = function (string $cwd, string ...$arguments): void {
+        (new Process(['git', ...$arguments], $cwd))->mustRun();
+    };
+
+    $git($origin, 'init', '--quiet', '--initial-branch=develop');
+    $git($origin, 'config', 'user.name', 'Origin');
+    $git($origin, 'config', 'user.email', 'origin@example.test');
+    $git($origin, 'config', 'receive.denyCurrentBranch', 'updateInstead');
+    file_put_contents($origin.'/.release-please-manifest.develop.json', $baseline."\n");
+    $git($origin, 'add', '.');
+    $git($origin, 'commit', '--quiet', '-m', 'chore: seed');
+
+    $git($root, 'clone', '--quiet', $origin, $clone);
+
+    return [$clone, $origin];
+}
+
+function runBaselineSync(string $clone, string $version): Process
+{
+    $process = new Process(['bash', '-c', baselineSyncScript()], $clone, env: ['VERSION' => $version]);
+    $process->run();
+
+    return $process;
+}
+
+function baselineOf(string $repository): string
+{
+    return trim((string) file_get_contents($repository.'/.release-please-manifest.develop.json'));
+}
+
+test('a stable release moves the candidate baseline onto it', function (): void {
+    [$clone, $origin] = developSandbox('{".":"1.11.0"}');
+
+    $process = runBaselineSync($clone, '1.12.0');
+
+    expect($process->isSuccessful())->toBeTrue()
+        ->and(baselineOf($origin))->toBe('{".":"1.12.0"}');
+});
+
+test('moving the baseline twice is a no-op the second time', function (): void {
+    [$clone, $origin] = developSandbox('{".":"1.12.0"}');
+
+    $process = runBaselineSync($clone, '1.12.0');
+
+    expect($process->isSuccessful())->toBeTrue()
+        ->and($process->getOutput())->toContain('already 1.12.0')
+        ->and(baselineOf($origin))->toBe('{".":"1.12.0"}');
+});
+
+/*
+ * develop keeps moving while a release is cut, so this push can be rejected as
+ * non-fast-forward. Re-deriving the baseline on top of whatever landed is always
+ * correct because the value is absolute, not a delta — which is why the retry
+ * resets rather than rebases, and cannot conflict with the commit it lands on.
+ */
+test('the baseline still lands when develop moves underneath it', function (): void {
+    [$clone, $origin] = developSandbox('{".":"1.11.0"}');
+
+    // Land an unrelated commit on origin *after* the clone, so the first push
+    // attempt is rejected exactly as a concurrent merge to develop would do.
+    file_put_contents($origin.'/somebody-elses-work.txt', "meanwhile\n");
+    (new Process(['git', 'add', '.'], $origin))->mustRun();
+    (new Process(['git', 'commit', '--quiet', '-m', 'feat: land something else'], $origin))->mustRun();
+
+    $process = runBaselineSync($clone, '1.12.0');
+
+    expect($process->isSuccessful())->toBeTrue()
+        ->and(baselineOf($origin))->toBe('{".":"1.12.0"}')
+        ->and(file_exists($origin.'/somebody-elses-work.txt'))->toBeTrue();
 });
