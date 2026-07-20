@@ -253,7 +253,8 @@ Vue components must have a single root element.
 
 - **Always run Node/npm tooling through Sail** — `./vendor/bin/sail npm run <script>`, never bare `npm` on the host. `node_modules` is installed inside the Linux container, so its native bindings (`@unrs/resolver-*`, `@rolldown/binding-*`) are Linux-only. Running `npm run build`, `lint`, etc. directly on macOS fails with `Cannot find native binding` (the npm optional-dependencies bug); Sail runs them in the matching Linux environment where the bindings exist.
 - `vue-tsc` (`npm run types:check`) doesn't use those native bindings, so it can run on the host, but prefer Sail for consistency.
-- The frontend quality gate is `./vendor/bin/sail npm run lint:check`, `format:check`, `types:check`, and `build` — all four must pass before pushing. Use `sail npm run lint` / `format` (the write variants) to auto-fix violations.
+- The frontend quality gate is `./vendor/bin/sail npm run lint:check`, `format:check`, `types:check`, `test:js`, and `build` — all five must pass before pushing, and CI runs them too. Use `sail npm run lint` / `format` (the write variants) to auto-fix violations.
+- **`test:js` is the Vitest suite** covering `resources/js/composables`, `components`, `lib`, `theme`, and the custom `eslint-rules` — the layer the PHP `--min=100` coverage gate cannot reach. It needs no database, Reverb, or browser and runs in seconds. It is not part of `composer test` (which stays the backend gate and must not require Node); run it with the frontend gate above, or run both at once with `./vendor/bin/sail composer ci:check`.
 
 ## Code Comments (JS/TS) — no redundant inline `//`
 

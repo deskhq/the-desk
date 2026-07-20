@@ -44,14 +44,19 @@ Both gates must pass. CI runs them too, so a red gate blocks the merge.
 If Rector reports pending changes, apply them with `./vendor/bin/sail composer refactor`,
 review the diff, and re-run. Fix any Pint issues with `./vendor/bin/sail composer lint`.
 
-**Frontend** — ESLint, Prettier, `vue-tsc`, and the build:
+**Frontend** — ESLint, Prettier, `vue-tsc`, the [Vitest](https://vitest.dev) unit
+suite, and the build:
 
 ```bash
 ./vendor/bin/sail npm run lint:check
 ./vendor/bin/sail npm run format:check
 ./vendor/bin/sail npm run types:check
+./vendor/bin/sail npm run test:js
 ./vendor/bin/sail npm run build
 ```
+
+`test:js` covers the composables, lib helpers, and custom eslint rules that sit
+below the PHP coverage gate. It needs no database and runs in seconds.
 
 Auto-fix with `./vendor/bin/sail npm run lint` and `./vendor/bin/sail npm run format`.
 
