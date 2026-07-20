@@ -123,48 +123,152 @@ jobs:
           ref: develop
           token: ${{ secrets.RELEASE_PLEASE_TOKEN }}
 
-      # develop keeps moving while a release is being cut, so this push can lose
-      # a race and be rejected as non-fast-forward. That must not need a human:
-      # the release has already happened by this point, and a develop left on a
-      # stale baseline silently keeps incrementing the previous rc series.
+      # The bump travels as a pull request, not a push: `develop` is covered by a
+      # ruleset that requires one, so a direct push is rejected with GH013 and
+      # fails the release run *after* the version has already been tagged and
+      # published. Auto-merge is then asked for, because nothing else would merge
+      # it and a develop left on a stale baseline silently keeps incrementing the
+      # previous rc series.
       #
-      # Each attempt resets onto the current develop and writes the baseline out
-      # again. The value is absolute rather than a delta, so re-deriving it on
-      # top of whatever landed meanwhile is always correct — and, unlike a
-      # rebase, it cannot conflict.
-      - name: Point the candidate baseline at the released version
+      # The branch is cut fresh from `origin/develop` rather than from the commit
+      # this job checked out, since develop keeps moving while a release is being
+      # cut. The baseline is absolute rather than a delta, so re-deriving it on
+      # top of whatever landed meanwhile is always correct.
+      - name: Propose the released version as the candidate baseline
         if: steps.develop.outputs.exists == 'true'
         env:
+          GH_TOKEN: ${{ secrets.RELEASE_PLEASE_TOKEN }}
+          REPO: ${{ github.repository }}
           VERSION: ${{ needs.release-please.outputs.version }}
         run: |
           set -euo pipefail
 
           manifest=".release-please-manifest.develop.json"
+          branch="chore/candidate-baseline-$VERSION"
 
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-          for attempt in 1 2 3; do
-            git fetch --quiet origin develop
-            git reset --quiet --hard origin/develop
+          git fetch --quiet origin develop
+          git reset --quiet --hard origin/develop
 
-            printf '{".":"%s"}\n' "$VERSION" > "$manifest"
+          printf '{".":"%s"}\n' "$VERSION" > "$manifest"
 
-            if git diff --quiet -- "$manifest"; then
-              echo "The candidate baseline is already $VERSION; nothing to do."
-              exit 0
-            fi
+          # Staged before the comparison: an unstaged `git diff` reports no change
+          # for a file that is merely untracked, which would read as "already at
+          # this version" if the manifest ever went missing from develop.
+          git add "$manifest"
 
-            git add "$manifest"
-            git commit --quiet -m "chore: move the candidate baseline to $VERSION"
+          if git diff --quiet --cached -- "$manifest"; then
+            echo "The candidate baseline is already $VERSION; nothing to do."
+            exit 0
+          fi
 
-            if git push origin develop; then
-              echo "Moved the candidate baseline to $VERSION."
-              exit 0
-            fi
+          git checkout --quiet -B "$branch"
+          git commit --quiet -m "chore: move the candidate baseline to $VERSION"
 
-            echo "develop moved while pushing (attempt $attempt); retrying."
-          done
+          # Forced because a re-run for the same version rewrites the same branch
+          # on top of a develop that has moved; the branch is this job's alone.
+          git push --quiet --force origin "$branch"
 
-          echo "Could not move the candidate baseline to $VERSION after 3 attempts." >&2
-          exit 1
+          # A repository without auto-merge enabled must not fail a release that
+          # has already been tagged and published — say so and move on. Asked for
+          # on a reused PR too: the earlier run may have opened it at a point when
+          # auto-merge could not be queued.
+          queue_merge() {
+            gh pr merge --repo "$REPO" --auto --squash "$branch" \
+              || echo "Could not queue the baseline PR to merge itself; merge it by hand."
+          }
+
+          existing="$(gh pr list --repo "$REPO" --base develop --head "$branch" --state open --json number --jq '.[0].number // empty')"
+
+          if [ -n "$existing" ]; then
+            echo "Baseline PR #$existing is already open; it now carries $VERSION."
+            queue_merge
+            exit 0
+          fi
+
+          gh pr create \
+            --repo "$REPO" \
+            --base develop \
+            --head "$branch" \
+            --title "chore: move the candidate baseline to $VERSION" \
+            --body "$(cat <<'BODY'
+          `master` has released a stable version, so the candidate line needs a new
+          baseline: without this, `develop` keeps incrementing the rc series of the
+          version that has already shipped instead of starting a fresh one.
+
+          Opened automatically by the release run; it merges itself once the checks
+          pass.
+          BODY
+          )"
+
+          queue_merge
+
+  # Ordinarily `master` only ever receives what `develop` already has, so there is
+  # nothing to send back. A hotfix released straight from `master` breaks that:
+  # the fix exists only there, and the next promotion — which carries an older
+  # ancestor of the same files — silently reverts it. Production then breaks a
+  # second time, for the same reason, with nothing pointing at the cause.
+  #
+  # So rather than trusting anyone to remember the back-merge during an incident,
+  # every stable release proposes it. When develop already contains master (the
+  # normal case, straight after a promotion) the job finds nothing to do and
+  # costs nothing; after a hotfix it leaves an open PR that is hard to miss.
+  backmerge:
+    name: Merge the released master back into develop
+    needs: release-please
+    if: needs.release-please.outputs.release_created == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      # No checkout: the PR is opened from `master` itself, so GitHub keeps it in
+      # step with the branch as it moves and there is no working copy to manage.
+      # The branch listing is preferred over probing `branches/develop` for the
+      # same reason as in the baseline sync — a direct probe answers 404 both when
+      # the branch is absent and when the call was refused, so an API problem
+      # would read as "no develop" and skip the back-merge silently.
+      - name: Open a back-merge PR when develop is behind master
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_PLEASE_TOKEN }}
+          REPO: ${{ github.repository }}
+          VERSION: ${{ needs.release-please.outputs.version }}
+        run: |
+          set -euo pipefail
+
+          branches="$(gh api "repos/$REPO/branches" --paginate --jq '.[].name')"
+
+          if ! printf '%s\n' "$branches" | grep -qx develop; then
+            echo "No develop branch; there is nothing to back-merge into."
+            exit 0
+          fi
+
+          ahead="$(gh api "repos/$REPO/compare/develop...master" --jq '.ahead_by')"
+
+          if [ "$ahead" -eq 0 ]; then
+            echo "develop already contains master; nothing to back-merge."
+            exit 0
+          fi
+
+          existing="$(gh pr list --repo "$REPO" --base develop --head master --state open --json number --jq '.[0].number // empty')"
+
+          if [ -n "$existing" ]; then
+            echo "Back-merge PR #$existing is already open; it tracks master as it moves."
+            exit 0
+          fi
+
+          gh pr create \
+            --repo "$REPO" \
+            --base develop \
+            --head master \
+            --title "chore: merge master back into develop after $VERSION" \
+            --body "$(cat <<'BODY'
+          `master` carries commits `develop` does not — a hotfix released straight
+          from the stable line. Merge this so the fix survives the next promotion:
+          left alone, `develop` -> `master` would carry an older ancestor of the
+          same files and silently revert it.
+
+          **Merge this with a merge commit, never a squash.** A squash would flatten
+          `master`'s history into one new commit on `develop`, leaving the branches
+          permanently diverged and every later back-merge conflicting.
+          BODY
+          )"

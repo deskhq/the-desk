@@ -17,7 +17,7 @@ cd "$(bin/worktree create NNN)"   # prints the worktree path on stdout; cd into 
 ```
 
 - **Run this first, from the main checkout.** `create` prints the absolute worktree path as its only stdout line, so `cd "$(bin/worktree create NNN)"` drops you straight into the isolated worktree. Everything after this — reading the issue, TDD, the gate, CodeRabbit, the PR — happens **inside that worktree**, against its own Sail instance (`./vendor/bin/sail composer test` there runs fully isolated).
-- **Base branch.** Feature work forks from **`develop`**, not `master` — `develop` is the staging line that cuts release candidates, and `master` only receives promotions from it. Pass it explicitly: `bin/worktree create NNN develop`. If §1 reveals this is a **stacked-epic child**, fork from the foundation branch instead: `bin/worktree create NNN <foundation-branch>`. (Reading the issue with `gh` is safe from anywhere, so peek if you're unsure before creating.)
+- **Base branch.** Feature work forks from **`develop`**, not `master` — `develop` is the staging line that cuts release candidates, and `master` only receives promotions from it. Pass it explicitly: `bin/worktree create NNN develop`. If §1 reveals this is a **stacked-epic child**, fork from the foundation branch instead: `bin/worktree create NNN <foundation-branch>`; if it is a **hotfix** (see §1), fork from `master`: `bin/worktree create NNN master`. (Reading the issue with `gh` is safe from anywhere, so peek if you're unsure before creating.)
 - **Refuse to implement in the main checkout.** If you find yourself about to edit product code while `pwd` is the main checkout (`.../the-desk`, not `.../the-desk-worktrees/...`), stop and bootstrap the worktree first. The one exception is changing the isolation tooling itself (`bin/worktree`, this skill) — that bootstrapping work necessarily happens in the main checkout.
 - **Idempotent re-entry.** Re-running `bin/worktree create NNN` on an existing, ready worktree just re-prints its path (fast); if a previous bootstrap was interrupted it resumes. So a fresh session can rejoin an in-progress issue with the same one-liner.
 - **One Claude Code session per agent.** Each agent runs in its own session and its own worktree; don't drive two issues from one session (they would fight over `cd`). Use `bin/worktree list` to see active worktrees and their ports.
@@ -33,7 +33,9 @@ gh issue view NNN --comments
 
 Read it in full: the acceptance criteria, any **Decisions** section, linked issues (epics/parents/children), and every comment — later comments often revise the original ask. Note the Conventional-Commit type the work implies (`feat`/`fix`/…) for the eventual PR title.
 
-**Confirm the base branch — the default is `develop`, and it is never `master`.** Releases run on two lines (see `CONTRIBUTING.md` → *Releases*): `develop` accumulates features and cuts `vX.Y.Z-rc.N` candidates, and is promoted to `master` — which cuts the stable release — by a **merge commit**. Feature work therefore targets `develop`; a PR opened against `master` bypasses the candidate line entirely, and nothing errors to tell you.
+**Confirm the base branch — the default is `develop`, and `master` is only ever a deliberate exception.** Releases run on two lines (see `CONTRIBUTING.md` → *Releases*): `develop` accumulates features and cuts `vX.Y.Z-rc.N` candidates, and is promoted to `master` — which cuts the stable release — by a **merge commit**. Feature work therefore targets `develop`; a PR opened against `master` bypasses the candidate line entirely, and nothing errors to tell you.
+
+**Recognising a hotfix.** The single case that legitimately targets `master` is a fix for a **broken production release that cannot wait for the normal flow** — both halves must hold: a released version is broken (or has a security hole) in production, **and** `develop` is not promotable as it stands (unfinished work sits on it, and promoting is all-or-nothing). An issue merely labelled `bug`, or urgent-sounding, is not enough — nearly all `fix:` work still goes through `develop`. If you think you have one, say so and confirm with the user before branching; then branch off `master`, target `master`, and use a `fix:` title. `CONTRIBUTING.md` → *Hotfixes* has the full path, including the `master` → `develop` back-merge that must follow the release (a `backmerge` job opens that PR for you).
 
 This repo also runs stacked epics (e.g. SSO, attachments) where a child issue branches off a **foundation branch** and its PR targets that branch. If the issue is a child of such an epic, find the foundation branch (`git branch -a`, the epic issue, or the parent PR) and use that instead.
 
@@ -117,7 +119,7 @@ Commit your work to the feature branch as you reach green milestones.
 Before opening the PR, run a **local** CodeRabbit pass so it opens clean. Ensure the CLI is on PATH (`export PATH="$HOME/.local/bin:$PATH"`), then review this branch against the base branch you confirmed in §1 (`develop` for ordinary feature work):
 
 ```bash
-coderabbit review --agent --base develop   # or the foundation branch, per §1
+coderabbit review --agent --base <base>   # the base confirmed in §1: develop, a foundation branch, or master for a hotfix
 ```
 
 - `--agent` emits agent-actionable findings; add `-c CLAUDE.md` to feed conventions if a finding looks off.
