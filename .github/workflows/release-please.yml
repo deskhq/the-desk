@@ -11,19 +11,23 @@ concurrency:
   group: ${{ github.workflow }}
   cancel-in-progress: false
 
+# Every API call below is made with RELEASE_PLEASE_TOKEN, so GITHUB_TOKEN needs no
+# scopes at all. Don't grant any back: the PAT's scopes are what this workflow
+# runs on, and an ambient write-capable GITHUB_TOKEN would only widen the blast
+# radius of a compromised action.
 permissions: {}
 
 jobs:
   release-please:
     runs-on: ubuntu-latest
-    permissions: {}
     steps:
       # Use a PAT (not the built-in GITHUB_TOKEN) so the `v*` tag release-please
       # pushes triggers downstream workflows — notably docker.yml's GHCR publish.
       # GitHub deliberately suppresses `on: push` triggers for refs created by
       # GITHUB_TOKEN, so with the default token a release would tag but never
-      # publish the versioned image. RELEASE_PLEASE_TOKEN needs `contents: write`
-      # and `pull-requests: write`.
+      # publish the versioned image. RELEASE_PLEASE_TOKEN itself needs the
+      # `contents: write` and `pull-requests: write` PAT scopes — those are the
+      # token's own scopes, unrelated to the `permissions:` block above.
       - uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5.0.0
         with:
           token: ${{ secrets.RELEASE_PLEASE_TOKEN }}
