@@ -274,7 +274,12 @@ jobs:
           # merge call. Re-querying for it instead would race the API's own
           # indexing, and a lookup that came back empty would leave the PR
           # silently unqueued.
-          created="$(gh pr create \
+          #
+          # It can still lose a race to a human opening the back-merge by hand
+          # between the lookup above and this call, which GitHub refuses. That is
+          # not a broken release: the pull request exists, so find it and queue
+          # that one instead of failing a run whose release has already shipped.
+          if ! created="$(gh pr create \
             --repo "$REPO" \
             --base develop \
             --head master \
@@ -285,11 +290,21 @@ jobs:
           left alone, `develop` -> `master` would carry an older ancestor of the
           same files and silently revert it.
 
-          **This merges with a merge commit, never a squash** — auto-merge is
-          queued for it below, so the method is not a choice. A squash would flatten
+          **Merge this with a merge commit, never a squash.** The release run asks
+          GitHub to merge it that way on its own; if that could not be arranged, do
+          it by hand — and still with a merge commit. A squash would flatten
           `master`'s history into one new commit on `develop`, leaving the branches
           permanently diverged and every later back-merge conflicting.
           BODY
-          )" | tail -n 1)"
+          )" | tail -n 1)"; then
+            created="$(gh pr list --repo "$REPO" --base develop --head master --state open --json number --jq '.[0].number // empty')"
+
+            if [ -z "$created" ]; then
+              echo "Could not open the back-merge PR, and none is open." >&2
+              exit 1
+            fi
+
+            echo "Back-merge PR #$created was opened while this run was preparing one."
+          fi
 
           queue_merge "$created"

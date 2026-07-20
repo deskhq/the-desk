@@ -486,9 +486,11 @@ const CREATED_PULL_REQUEST = 'https://github.com/emmpaul/the-desk/pull/99';
  * @param  int  $ahead  commits `master` is ahead of `develop` by
  * @param  string  $existing  number of an already open pull request, or none
  * @param  bool  $mergeFails  whether `pr merge` refuses, as it does on a repository without auto-merge
+ * @param  bool  $createFails  whether `pr create` refuses, as it does when a pull request is already open
+ * @param  string  $raced  number of a pull request that appears only once `pr create` has been refused
  * @return string the sandbox: `bin/gh` is the stub, `calls` its log
  */
-function ghSandbox(?array $branches = ['master', 'develop'], int $ahead = 1, string $existing = '', bool $mergeFails = false): string
+function ghSandbox(?array $branches = ['master', 'develop'], int $ahead = 1, string $existing = '', bool $mergeFails = false, bool $createFails = false, string $raced = ''): string
 {
     $sandbox = sys_get_temp_dir().'/gh-'.bin2hex(random_bytes(6));
     mkdir($sandbox.'/bin', 0o777, true);
@@ -503,6 +505,17 @@ function ghSandbox(?array $branches = ['master', 'develop'], int $ahead = 1, str
 
     $created = CREATED_PULL_REQUEST;
 
+    // A refused creation stands for a pull request somebody opened between the
+    // lookup and the creation, so only the lookup made *after* `pr create` sees
+    // it — and sees nothing at all when the refusal had another cause.
+    $create = $createFails
+        ? "echo 'gh: a pull request for these commits already exists' >&2; exit 1"
+        : "printf '%s\\n' '{$created}'";
+
+    $lookup = $createFails
+        ? "grep -q '^pr create' '{$sandbox}/calls' && printf '%s' '{$raced}' || printf '%s' '{$existing}'"
+        : "printf '%s' '{$existing}'";
+
     // Matched on the subcommand and its first argument only: a pull request body
     // may itself mention branches, so a looser pattern would swallow `pr create`.
     file_put_contents($sandbox.'/bin/gh', <<<BASH
@@ -511,8 +524,8 @@ function ghSandbox(?array $branches = ['master', 'develop'], int $ahead = 1, str
         case "\$1 \${2-}" in
             'api '*/branches) {$listing} ;;
             'api '*/compare/*) echo '{$ahead}' ;;
-            'pr list') printf '%s' '{$existing}' ;;
-            'pr create') printf '%s\\n' '{$created}' ;;
+            'pr list') {$lookup} ;;
+            'pr create') {$create} ;;
             'pr merge') {$merge} ;;
         esac
         BASH);
@@ -807,11 +820,13 @@ function backmergeScript(): string
  * @param  int  $ahead  commits `master` is ahead of `develop` by
  * @param  string  $existing  number of an already open back-merge PR, or none
  * @param  bool  $mergeFails  whether auto-merge cannot be queued
+ * @param  bool  $createFails  whether the back-merge cannot be opened
+ * @param  string  $raced  number of a back-merge opened by hand mid-run, found by the lookup that follows the refusal
  * @return array{created: string|null, queued: string|null, output: string, errors: string, succeeded: bool}
  */
-function runBackmerge(?array $branches, int $ahead = 1, string $existing = '', bool $mergeFails = false): array
+function runBackmerge(?array $branches, int $ahead = 1, string $existing = '', bool $mergeFails = false, bool $createFails = false, string $raced = ''): array
 {
-    $sandbox = ghSandbox($branches, $ahead, $existing, $mergeFails);
+    $sandbox = ghSandbox($branches, $ahead, $existing, $mergeFails, $createFails, $raced);
 
     $process = new Process(
         ['bash', '-c', backmergeScript()],
@@ -935,7 +950,34 @@ test('a back-merge that cannot queue itself still leaves the PR open', function 
 
     expect($result['succeeded'])->toBeTrue()
         ->and($result['created'])->not->toBeNull()
+        ->and($result['queued'])->toContain(CREATED_PULL_REQUEST)
         ->and($result['output'])->toContain('by hand');
+});
+
+/*
+ * Somebody can open the back-merge by hand between the lookup and the creation,
+ * and GitHub refuses the second one. The release has already shipped by then, so
+ * the run finds the pull request that does exist and queues that rather than
+ * going red with an unqueued back-merge behind it.
+ */
+test('a back-merge opened by hand mid-run is queued instead of failing the release', function (): void {
+    $result = runBackmerge(['master', 'develop'], createFails: true, raced: '77');
+
+    expect($result['succeeded'])->toBeTrue()
+        ->and($result['queued'])->toContain('77')
+        ->and($result['output'])->toContain('#77');
+});
+
+/*
+ * A refused creation with no pull request to show for it is a real failure — the
+ * back-merge would otherwise be dropped in silence.
+ */
+test('a back-merge that can neither be opened nor found fails loudly', function (): void {
+    $result = runBackmerge(['master', 'develop'], createFails: true);
+
+    expect($result['succeeded'])->toBeFalse()
+        ->and($result['queued'])->toBeNull()
+        ->and($result['errors'])->toContain('none is open');
 });
 
 /**
