@@ -1,0 +1,65 @@
+name: integration-merge
+
+# The two pull requests that move code between the release branches — the
+# `develop` -> `master` promotion and the `master` -> `develop` back-merge — must
+# be merged with a merge commit. A squashed promotion collapses a release worth of
+# Conventional Commits into one, so the changelog loses every entry but that one;
+# a squashed back-merge flattens `master`'s history into a commit sharing no
+# ancestry with `develop`, and the branches never fast-forward past each other
+# again.
+#
+# Neither can be enforced by configuration: `allowed_merge_methods` is per branch,
+# and both branches also take ordinary squashed feature PRs, so neither can be
+# narrowed to a single method. What can be decided is the method *this* pull
+# request merges with — so it is queued the moment it is opened, and the button is
+# never presented.
+on:
+  pull_request:
+    types: [opened, reopened]
+    branches:
+      - master
+      - develop
+
+# Keyed on the pull request rather than the workflow, so a promotion and a
+# back-merge queued at the same time never wait on each other.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
+# The one call below is made with RELEASE_PLEASE_TOKEN, so GITHUB_TOKEN needs no
+# scopes at all.
+permissions: {}
+
+jobs:
+  auto-merge:
+    name: Merge the release branches with a merge commit
+    # Only the pair of branches that integrate the release lines: every other pull
+    # request against them is a feature PR, which squashes as usual. The head has
+    # to be this repository's own branch — a fork can name its branch `develop`
+    # too, and that PR is an ordinary contribution.
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository
+      && (
+        (github.base_ref == 'master' && github.head_ref == 'develop')
+        || (github.base_ref == 'develop' && github.head_ref == 'master')
+      )
+    runs-on: ubuntu-latest
+    steps:
+      # The PAT, not GITHUB_TOKEN: GitHub suppresses `on: push` for refs written
+      # by the built-in token, so a promotion merged under it would land on
+      # `master` without release-please ever seeing it — the release would simply
+      # never be cut.
+      #
+      # Failing to queue is not a failure of this run: a required check that has
+      # never run before is not registered yet, and auto-merge can be refused
+      # outright. The pull request is open either way and can be merged by hand.
+      - name: Queue the pull request to merge itself with a merge commit
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_PLEASE_TOKEN }}
+          REPO: ${{ github.repository }}
+          NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          set -euo pipefail
+
+          gh pr merge "$NUMBER" --repo "$REPO" --auto --merge \
+            || echo "Could not queue PR #$NUMBER to merge itself; merge it by hand, with a merge commit."

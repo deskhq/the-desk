@@ -157,11 +157,20 @@ after the line it targets.
 A release PR that never gets merged is not a failure state; it just means the
 next version has not been cut yet.
 
-**Promote `develop` to `master` with a merge commit, never a squash.** Everything
-else in this repo is squash-merged, and that is exactly the problem here:
-release-please reads the individual Conventional Commits, so squashing a
-promotion would collapse an entire release worth of `feat:`/`fix:` subjects into
-one, and the changelog would lose every entry but that one.
+**A promotion of `develop` to `master` merges with a merge commit, never a
+squash.** Everything else in this repo is squash-merged, and that is exactly the
+problem here: release-please reads the individual Conventional Commits, so
+squashing a promotion would collapse an entire release worth of `feat:`/`fix:`
+subjects into one, and the changelog would lose every entry but that one. Open the
+promotion PR and the `integration-merge` workflow queues auto-merge with `--merge`
+on it, so it merges itself the right way once the checks pass — no button to get
+wrong. If auto-merge cannot be queued the PR is simply left open; merge it by
+hand, with a merge commit.
+
+`develop` deliberately does *not* require a branch to be up to date before merging,
+while `master` does. A back-merge can never satisfy that requirement on `develop`:
+the only way to bring `master` up to date with `develop` is to merge `develop` into
+`master` — an unsanctioned promotion. Requiring it there deadlocks the back-merge.
 
 ### Why the two lines cannot contaminate each other
 
@@ -251,11 +260,22 @@ promotion there is nothing to send back and the job does nothing; after a hotfix
 it leaves an open PR. If one is already open, it tracks `master` rather than
 being duplicated.
 
-**Merge that PR with a merge commit, never a squash** — for the same reason a
-promotion is never squashed, plus a sharper one: a squash would flatten `master`'s
-history into a single new commit that shares no ancestry with it, so git stops
-seeing the two branches as related and later merges duplicate changes or conflict
-instead of fast-forwarding past them.
+**That PR merges with a merge commit, never a squash** — and you do not have to
+remember it: the job queues auto-merge with `--merge`, so GitHub merges it that
+way once the checks pass and the method is never a choice. The `integration-merge`
+workflow does the same for the `develop` → `master` promotion, which is opened by
+hand and carries the identical constraint. Both are best-effort: if auto-merge
+cannot be queued the release still succeeds and the PR is left open to merge by
+hand — with a merge commit.
+
+Why it has to work this way rather than being a setting: allowed merge methods are
+per branch, and neither release branch can be narrowed to one method. `develop`
+takes squashed feature PRs *and* the back-merge; `master` takes squashed
+feature/hotfix PRs *and* the promotion. The squash a merge commit would replace is
+not a hypothetical — it would flatten `master`'s history into a single new commit
+that shares no ancestry with it, so git stops seeing the two branches as related
+and later merges duplicate changes or conflict instead of fast-forwarding past
+them.
 
 A hotfix does not need a candidate of its own. The back-merge puts it on
 `develop`, and the next candidate cut there includes it.
