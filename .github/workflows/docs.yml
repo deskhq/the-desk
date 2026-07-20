@@ -1,0 +1,61 @@
+name: docs
+
+on:
+  push:
+    branches:
+      - develop
+      - master
+    paths:
+      - 'docs/**'
+      - '.github/workflows/docs.yml'
+  pull_request:
+    branches:
+      - develop
+      - master
+    paths:
+      - 'docs/**'
+      - '.github/workflows/docs.yml'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  # `docs/` is a self-contained npm project excluded from every app quality gate,
+  # and its lockfile is generated on the author's machine (usually macOS) while
+  # Cloudflare Pages builds on Linux. A macOS-resolved lock can omit the
+  # top-level `@emnapi/*` entries Linux needs, so `npm ci` aborts with EUSAGE —
+  # which is how #614 broke the deploy, surfacing only in the Cloudflare build
+  # log after merge. This job reproduces that environment before merge (#622).
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      # A full checkout, not a sparse `docs/` one: the content config reads the
+      # repo-root `.release-please-manifest.json` to stamp the released version.
+      - name: Checkout code
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+
+      # From `docs/.nvmrc`, so CI, Cloudflare, and contributors all resolve the
+      # lockfile with the same Node (and the npm it bundles).
+      - name: Setup Node
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
+        with:
+          node-version-file: 'docs/.nvmrc'
+          cache: 'npm'
+          cache-dependency-path: 'docs/package-lock.json'
+
+      # `npm ci` (not `npm install`) so a lockfile that disagrees with
+      # package.json fails here instead of at deploy time.
+      - name: Install Docs Dependencies
+        run: npm ci
+        working-directory: docs
+
+      - name: Build Docs Site
+        run: npm run build
+        working-directory: docs

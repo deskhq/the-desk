@@ -16,14 +16,25 @@ The site has two parts:
 
 ## Local development
 
-All commands run from **this `docs/` directory** (not the repo root). Node 18+ is
-required.
+All commands run from **this `docs/` directory** (not the repo root), and on the
+Node version pinned in `docs/.nvmrc` — **22.16.0**, matching the Cloudflare Pages
+builder (which bundles npm 10.9.2). The same pin is declared in `engines` here
+and used by the `docs` CI workflow.
 
 ```bash
 cd docs
+nvm use            # or `fnm use` — picks up docs/.nvmrc
 npm install        # first time only
 npm run dev        # dev server with hot reload at http://localhost:4321
 ```
+
+**Regenerate `package-lock.json` on that pinned Node, never on another version.**
+The lockfile is resolved on the contributor's machine but consumed on Linux, and
+platform-gated optional dependencies mean a lock resolved elsewhere can omit
+entries Linux needs — `npm ci` then aborts with `EUSAGE` and the Cloudflare
+deploy fails after merge (see #614). The `docs` workflow runs `npm ci` and
+`npm run build` on `ubuntu-latest` for any PR touching `docs/**` so that desync
+is caught before it lands.
 
 ## Build
 
