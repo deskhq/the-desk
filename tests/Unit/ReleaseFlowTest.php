@@ -473,16 +473,24 @@ function developSandbox(string $baseline): array
 }
 
 /**
+ * The URL `gh pr create` prints for a pull request it has just opened.
+ */
+const CREATED_PULL_REQUEST = 'https://github.com/emmpaul/the-desk/pull/99';
+
+/**
  * A `gh` stub that records every call and answers the reads the release workflow
- * makes: the branch listing, the develop-to-master comparison, and the lookup for
- * an already open pull request.
+ * makes: the branch listing, the develop-to-master comparison, the lookup for an
+ * already open pull request, and the URL `pr create` prints.
  *
  * @param  list<string>|null  $branches  branches to list, or null to make `gh` fail
  * @param  int  $ahead  commits `master` is ahead of `develop` by
  * @param  string  $existing  number of an already open pull request, or none
+ * @param  bool  $mergeFails  whether `pr merge` refuses, as it does on a repository without auto-merge
+ * @param  bool  $createFails  whether `pr create` refuses, as it does when a pull request is already open
+ * @param  string  $raced  number of a pull request that appears only once `pr create` has been refused
  * @return string the sandbox: `bin/gh` is the stub, `calls` its log
  */
-function ghSandbox(?array $branches = ['master', 'develop'], int $ahead = 1, string $existing = ''): string
+function ghSandbox(?array $branches = ['master', 'develop'], int $ahead = 1, string $existing = '', bool $mergeFails = false, bool $createFails = false, string $raced = ''): string
 {
     $sandbox = sys_get_temp_dir().'/gh-'.bin2hex(random_bytes(6));
     mkdir($sandbox.'/bin', 0o777, true);
@@ -490,6 +498,23 @@ function ghSandbox(?array $branches = ['master', 'develop'], int $ahead = 1, str
     $listing = $branches === null
         ? "echo 'gh: API rate limit exceeded' >&2; exit 1"
         : 'printf '."'%s\\n' ".implode(' ', array_map(escapeshellarg(...), $branches));
+
+    $merge = $mergeFails
+        ? "echo 'gh: Auto-merge is not allowed for this repository' >&2; exit 1"
+        : ':';
+
+    $created = CREATED_PULL_REQUEST;
+
+    // A refused creation stands for a pull request somebody opened between the
+    // lookup and the creation, so only the lookup made *after* `pr create` sees
+    // it — and sees nothing at all when the refusal had another cause.
+    $create = $createFails
+        ? "echo 'gh: a pull request for these commits already exists' >&2; exit 1"
+        : "printf '%s\\n' '{$created}'";
+
+    $lookup = $createFails
+        ? "grep -q '^pr create' '{$sandbox}/calls' && printf '%s' '{$raced}' || printf '%s' '{$existing}'"
+        : "printf '%s' '{$existing}'";
 
     // Matched on the subcommand and its first argument only: a pull request body
     // may itself mention branches, so a looser pattern would swallow `pr create`.
@@ -499,7 +524,9 @@ function ghSandbox(?array $branches = ['master', 'develop'], int $ahead = 1, str
         case "\$1 \${2-}" in
             'api '*/branches) {$listing} ;;
             'api '*/compare/*) echo '{$ahead}' ;;
-            'pr list') printf '%s' '{$existing}' ;;
+            'pr list') {$lookup} ;;
+            'pr create') {$create} ;;
+            'pr merge') {$merge} ;;
         esac
         BASH);
     chmod($sandbox.'/bin/gh', 0o755);
@@ -792,11 +819,14 @@ function backmergeScript(): string
  * @param  list<string>|null  $branches  branches to list, or null to make `gh` fail
  * @param  int  $ahead  commits `master` is ahead of `develop` by
  * @param  string  $existing  number of an already open back-merge PR, or none
- * @return array{created: string|null, output: string, errors: string, succeeded: bool}
+ * @param  bool  $mergeFails  whether auto-merge cannot be queued
+ * @param  bool  $createFails  whether the back-merge cannot be opened
+ * @param  string  $raced  number of a back-merge opened by hand mid-run, found by the lookup that follows the refusal
+ * @return array{created: string|null, queued: string|null, output: string, errors: string, succeeded: bool}
  */
-function runBackmerge(?array $branches, int $ahead = 1, string $existing = ''): array
+function runBackmerge(?array $branches, int $ahead = 1, string $existing = '', bool $mergeFails = false, bool $createFails = false, string $raced = ''): array
 {
-    $sandbox = ghSandbox($branches, $ahead, $existing);
+    $sandbox = ghSandbox($branches, $ahead, $existing, $mergeFails, $createFails, $raced);
 
     $process = new Process(
         ['bash', '-c', backmergeScript()],
@@ -809,11 +839,11 @@ function runBackmerge(?array $branches, int $ahead = 1, string $existing = ''): 
     );
     $process->run();
 
-    $calls = ghCalls($sandbox);
-    $created = collect(explode("\n", $calls))->first(fn (string $call): bool => str_starts_with($call, 'pr create'));
+    $calls = collect(explode("\n", ghCalls($sandbox)));
 
     return [
-        'created' => $created,
+        'created' => $calls->first(fn (string $call): bool => str_starts_with($call, 'pr create')),
+        'queued' => $calls->first(fn (string $call): bool => str_starts_with($call, 'pr merge')),
         'output' => $process->getOutput(),
         'errors' => $process->getErrorOutput(),
         'succeeded' => $process->isSuccessful(),
@@ -874,4 +904,173 @@ test('an unreadable branch listing fails the back-merge loudly', function (): vo
 test('the back-merge PR says it must not be squashed', function (): void {
     expect(backmergeScript())->toContain('merge commit')
         ->toContain('squash');
+});
+
+/*
+ * The instruction in the body is enforced by nothing but the reader, and the
+ * repository allows squash and merge commit alike on `develop` — it has to, since
+ * the same branch takes squashed feature PRs. Queuing the merge with `--merge`
+ * takes the choice away: GitHub merges it with a merge commit once the checks
+ * pass, and nobody is offered the wrong button.
+ */
+test('the back-merge PR is queued to merge itself with a merge commit', function (): void {
+    $result = runBackmerge(['master', 'develop']);
+
+    expect($result['succeeded'])->toBeTrue()
+        ->and($result['queued'])->toContain('--auto')
+        ->toContain('--merge')
+        ->not->toContain('--squash');
+});
+
+/*
+ * The number comes from the `pr create` that just printed it rather than from a
+ * fresh lookup: re-querying would race the API's own indexing, and a lookup that
+ * came back empty would silently leave the PR unqueued.
+ */
+test('the back-merge queues the pull request it just opened', function (): void {
+    expect(runBackmerge(['master', 'develop'])['queued'])->toContain(CREATED_PULL_REQUEST);
+});
+
+/*
+ * The run that opened an earlier back-merge may have been unable to queue it —
+ * a required check that had never run before registers only once it has. So a
+ * reused PR is asked again rather than left for someone to notice.
+ */
+test('an open back-merge is queued again rather than left unattended', function (): void {
+    expect(runBackmerge(['master', 'develop'], existing: '42')['queued'])->toContain('42');
+});
+
+/*
+ * The release has already been tagged and published by the time this runs, so a
+ * repository that cannot queue auto-merge must not turn it red. The PR is still
+ * open and still mergeable by hand.
+ */
+test('a back-merge that cannot queue itself still leaves the PR open', function (): void {
+    $result = runBackmerge(['master', 'develop'], mergeFails: true);
+
+    expect($result['succeeded'])->toBeTrue()
+        ->and($result['created'])->not->toBeNull()
+        ->and($result['queued'])->toContain(CREATED_PULL_REQUEST)
+        ->and($result['output'])->toContain('by hand');
+});
+
+/*
+ * Somebody can open the back-merge by hand between the lookup and the creation,
+ * and GitHub refuses the second one. The release has already shipped by then, so
+ * the run finds the pull request that does exist and queues that rather than
+ * going red with an unqueued back-merge behind it.
+ */
+test('a back-merge opened by hand mid-run is queued instead of failing the release', function (): void {
+    $result = runBackmerge(['master', 'develop'], createFails: true, raced: '77');
+
+    expect($result['succeeded'])->toBeTrue()
+        ->and($result['queued'])->toContain('77')
+        ->and($result['output'])->toContain('#77');
+});
+
+/*
+ * A refused creation with no pull request to show for it is a real failure — the
+ * back-merge would otherwise be dropped in silence.
+ */
+test('a back-merge that can neither be opened nor found fails loudly', function (): void {
+    $result = runBackmerge(['master', 'develop'], createFails: true);
+
+    expect($result['succeeded'])->toBeFalse()
+        ->and($result['queued'])->toBeNull()
+        ->and($result['errors'])->toContain('none is open');
+});
+
+/**
+ * The job that queues an integration PR — a promotion or a back-merge — to merge
+ * itself with a merge commit.
+ *
+ * @return array<string, mixed>
+ */
+function integrationMergeJob(): array
+{
+    /** @var array<string, mixed> $job */
+    $job = readWorkflow('integration-merge.yml')['jobs']['auto-merge'];
+
+    return $job;
+}
+
+/**
+ * The shell body of the step that queues the integration PR.
+ */
+function integrationMergeScript(): string
+{
+    /** @var array<int, array<string, mixed>> $steps */
+    $steps = integrationMergeJob()['steps'];
+
+    return (string) $steps[0]['run'];
+}
+
+/*
+ * The promotion carries the identical constraint to the back-merge and nothing
+ * opens it for us — it is raised by hand — so the method is chosen the moment the
+ * PR appears rather than at merge time by whoever is looking.
+ */
+test('an integration pull request is queued the moment it is opened', function (): void {
+    $workflow = readWorkflow('integration-merge.yml');
+
+    expect($workflow['on']['pull_request']['types'])->toContain('opened')
+        ->and($workflow['on']['pull_request']['branches'])->toEqualCanonicalizing(['master', 'develop']);
+});
+
+/*
+ * Both directions between the release branches are never squashed: `develop` ->
+ * `master` would collapse a release worth of Conventional Commits into one
+ * changelog entry, and `master` -> `develop` would leave the branches with no
+ * shared ancestry. Every other pair — a feature PR against either branch — must
+ * be left alone to squash as usual.
+ */
+test('only the two release branches merge themselves', function (string $condition): void {
+    expect((string) integrationMergeJob()['if'])->toContain($condition);
+})->with([
+    "github.base_ref == 'master' && github.head_ref == 'develop'",
+    "github.base_ref == 'develop' && github.head_ref == 'master'",
+    'github.event.pull_request.head.repo.full_name == github.repository',
+]);
+
+test('an integration pull request merges with a merge commit', function (): void {
+    expect(integrationMergeScript())->toContain('--merge')
+        ->toContain('--auto')
+        ->not->toContain('--squash');
+});
+
+/*
+ * The merge has to be attributed to the PAT, not to GITHUB_TOKEN: a merge queued
+ * with the built-in token pushes to `master` without triggering `on: push`, so
+ * release-please would never see the promotion it exists to release.
+ */
+test('the integration merge is queued with the token that triggers a release', function (): void {
+    /** @var array<int, array<string, mixed>> $steps */
+    $steps = integrationMergeJob()['steps'];
+
+    expect($steps[0]['env']['GH_TOKEN'])->toBe('${{ secrets.RELEASE_PLEASE_TOKEN }}');
+});
+
+/*
+ * A PR that cannot be queued — a required check not yet registered, auto-merge
+ * turned off — must be left open and mergeable by hand rather than reported as a
+ * broken workflow run.
+ */
+test('an integration pull request that cannot be queued is left open', function (): void {
+    $sandbox = ghSandbox(mergeFails: true);
+
+    $process = new Process(
+        ['bash', '-c', integrationMergeScript()],
+        env: [
+            'PATH' => $sandbox.'/bin:'.getenv('PATH'),
+            'REPO' => 'emmpaul/the-desk',
+            'GH_TOKEN' => 'stub',
+            'NUMBER' => '42',
+        ],
+    );
+    $process->run();
+
+    expect($process->isSuccessful())->toBeTrue()
+        ->and($process->getOutput())->toContain('by hand')
+        ->and(ghCalls($sandbox))->toContain('pr merge')
+        ->toContain('42');
 });
