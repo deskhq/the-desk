@@ -20,9 +20,11 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: false
 
-permissions:
-  contents: write
-  pull-requests: write
+# Every API call below is made with RELEASE_PLEASE_TOKEN, so GITHUB_TOKEN needs no
+# scopes at all. Don't grant any back: the PAT's scopes are what this workflow
+# runs on, and an ambient write-capable GITHUB_TOKEN would only widen the blast
+# radius of a compromised action.
+permissions: {}
 
 jobs:
   release-please:
@@ -38,8 +40,9 @@ jobs:
       # pushes triggers downstream workflows — notably docker.yml's GHCR publish.
       # GitHub deliberately suppresses `on: push` triggers for refs created by
       # GITHUB_TOKEN, so with the default token a release would tag but never
-      # publish the versioned image. RELEASE_PLEASE_TOKEN needs `contents: write`
-      # and `pull-requests: write`.
+      # publish the versioned image. RELEASE_PLEASE_TOKEN itself needs the
+      # `contents: write` and `pull-requests: write` PAT scopes — those are the
+      # token's own scopes, unrelated to the `permissions:` block above.
       #
       # No `target-branch` here on purpose: this job releases the branch it was
       # pushed from, and the `if` above is what pins that to master. Naming the
@@ -80,22 +83,31 @@ jobs:
     needs: release-please
     if: needs.release-please.outputs.release_created == 'true'
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
     steps:
       # A stable release must not be reported as failed just because there is no
       # candidate line to update — `develop` is created separately from this
       # workflow, and until it exists (or if it is ever retired) there is simply
       # nothing to sync.
+      #
+      # Listing the branches rather than probing `branches/develop` directly is
+      # deliberate: a direct probe answers 404 both when the branch is absent and
+      # when the call was refused, so a token or API problem would read as "no
+      # develop" and skip the sync silently. Listing fails loudly instead, and
+      # only a successful listing that lacks `develop` counts as absent.
+      #
+      # It uses the PAT for the same reason every other call here does: the
+      # workflow grants GITHUB_TOKEN no scopes at all.
       - name: Check whether develop exists
         id: develop
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.RELEASE_PLEASE_TOKEN }}
           REPO: ${{ github.repository }}
         run: |
           set -euo pipefail
 
-          if gh api "repos/$REPO/branches/develop" --silent 2>/dev/null; then
+          branches="$(gh api "repos/$REPO/branches" --paginate --jq '.[].name')"
+
+          if printf '%s\n' "$branches" | grep -qx develop; then
             echo 'exists=true' >> "$GITHUB_OUTPUT"
           else
             echo 'exists=false' >> "$GITHUB_OUTPUT"

@@ -485,6 +485,77 @@ function baselineOf(string $repository): string
     return trim((string) file_get_contents($repository.'/.release-please-manifest.develop.json'));
 }
 
+/**
+ * Run the develop-existence check against a stubbed `gh` that either lists the
+ * repository's branches or fails, and return the step's outcome.
+ *
+ * @param  list<string>|null  $branches  branches to list, or null to make `gh` fail
+ * @return array{exists: string|null, succeeded: bool}
+ */
+function checkDevelopExists(?array $branches): array
+{
+    $sandbox = sys_get_temp_dir().'/develop-check-'.bin2hex(random_bytes(6));
+    mkdir($sandbox.'/bin', 0o777, true);
+
+    $stub = $branches === null
+        ? "#!/usr/bin/env bash\necho 'gh: API rate limit exceeded' >&2\nexit 1\n"
+        : "#!/usr/bin/env bash\nprintf '%s\\n' ".implode(' ', array_map(escapeshellarg(...), $branches))."\n";
+
+    file_put_contents($sandbox.'/bin/gh', $stub);
+    chmod($sandbox.'/bin/gh', 0o755);
+
+    $output = $sandbox.'/output';
+    touch($output);
+
+    $workflow = readWorkflow('release-please.yml');
+
+    /** @var array<int, array<string, mixed>> $steps */
+    $steps = $workflow['jobs']['sync-candidate-baseline']['steps'];
+
+    $script = (string) collect($steps)->firstWhere('id', 'develop')['run'];
+
+    $process = new Process(
+        ['bash', '-c', $script],
+        env: [
+            'PATH' => $sandbox.'/bin:'.getenv('PATH'),
+            'REPO' => 'emmpaul/the-desk',
+            'GH_TOKEN' => 'stub',
+            'GITHUB_OUTPUT' => $output,
+        ],
+    );
+    $process->run();
+
+    $written = trim((string) file_get_contents($output));
+
+    return [
+        'exists' => $written === '' ? null : str_replace('exists=', '', $written),
+        'succeeded' => $process->isSuccessful(),
+    ];
+}
+
+test('develop is found when the branch listing contains it', function (): void {
+    expect(checkDevelopExists(['master', 'develop', 'feat/thing']))
+        ->toMatchArray(['exists' => 'true', 'succeeded' => true]);
+});
+
+test('develop is absent when a successful listing does not contain it', function (): void {
+    expect(checkDevelopExists(['master', 'feat/thing']))
+        ->toMatchArray(['exists' => 'false', 'succeeded' => true]);
+});
+
+/*
+ * The failure mode this guards against: probing `branches/develop` directly
+ * answers 404 both when the branch is absent and when the call was refused, so a
+ * token or API problem would read as "no develop" and skip the baseline sync
+ * without anyone noticing. An unreadable listing has to fail the step instead.
+ */
+test('an unreadable branch listing fails loudly rather than reporting develop absent', function (): void {
+    $result = checkDevelopExists(null);
+
+    expect($result['succeeded'])->toBeFalse()
+        ->and($result['exists'])->not->toBe('false');
+});
+
 test('a stable release moves the candidate baseline onto it', function (): void {
     [$clone, $origin] = developSandbox('{".":"1.11.0"}');
 
