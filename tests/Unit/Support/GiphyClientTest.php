@@ -1,6 +1,7 @@
 <?php
 
 use App\Support\GiphyClient;
+use App\Support\Images\ImageProxy;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
@@ -50,7 +51,9 @@ it('fetches trending when the query is blank and normalizes the renditions', fun
     $gif = $page->results[0];
     expect($gif->id)->toBe('abc')
         ->and($gif->url)->toBe('https://media.giphy.com/abc/200.gif')
-        ->and($gif->previewUrl)->toBe('https://media.giphy.com/abc/100.gif')
+        // The grid tile is proxied; `url` stays the raw CDN URL because it is
+        // what CreateGiphyAttachment stores as the attachment's remote_url.
+        ->and($gif->previewUrl)->toBe(ImageProxy::url('https://media.giphy.com/abc/100.gif'))
         ->and($gif->width)->toBe(360)
         ->and($gif->height)->toBe(200)
         ->and($gif->description)->toBe('a happy cat');

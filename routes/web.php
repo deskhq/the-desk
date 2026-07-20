@@ -23,6 +23,7 @@ use App\Http\Controllers\Channels\ScheduledMessageController;
 use App\Http\Controllers\Channels\SearchController;
 use App\Http\Controllers\Channels\SlashCommandController;
 use App\Http\Controllers\Channels\ThreadsController;
+use App\Http\Controllers\ImageProxyController;
 use App\Http\Controllers\LocaleCatalogController;
 use App\Http\Controllers\OnboardingController;
 use App\Http\Controllers\SidebarSectionController;
@@ -198,6 +199,16 @@ Route::middleware(['auth', 'verified', EnsureTeamMembership::class])->group(func
 });
 
 Route::middleware(['auth'])->group(function (): void {
+    // Every remote image (link-preview thumbnails, Giphy renditions, Gravatar)
+    // is served through here so the browser only ever loads images from our own
+    // origin. `signed:relative` pins the `url` parameter to one the server
+    // generated — without it an authenticated member could point the endpoint at
+    // any host — and stays relative so the signature survives a reverse proxy
+    // presenting a different host than APP_URL.
+    Route::get('images/proxy', ImageProxyController::class)
+        ->middleware('signed:relative')
+        ->name('images.proxy');
+
     Route::patch('sidebar/sections', [SidebarSectionController::class, 'update'])->name('sidebar.sections.update');
 
     Route::patch('onboarding', [OnboardingController::class, 'update'])->name('onboarding.update');

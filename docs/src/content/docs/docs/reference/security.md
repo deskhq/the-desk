@@ -62,7 +62,7 @@ The policy sent is:
 | `default-src` | `'self'`                                     |
 | `script-src`  | `'self' 'nonce-…' 'strict-dynamic'`          |
 | `style-src`   | `'self' 'unsafe-inline'`                     |
-| `img-src`     | `'self' data: blob: https:`                  |
+| `img-src`     | `'self' data: blob:`                         |
 | `font-src`    | `'self'`                                     |
 | `connect-src` | `'self'` plus your Reverb WebSocket origin   |
 | `media-src`   | `'self'`                                     |
@@ -86,9 +86,13 @@ post credentials off-origin. `object-src` does fall back, but only to
 and the plugin documents they load are outside what `script-src` governs, so it
 is denied outright instead.
 
+`img-src` allows no remote host, which is only possible because the app never
+asks the browser to load one. See [Remote images are proxied](#remote-images-are-proxied)
+below.
+
 ### Accepted residuals
 
-Two directives are deliberately looser than they look, and both are limited to
+One directive is deliberately looser than it looks, and it is limited to
 resources that cannot execute script:
 
 - **`style-src 'unsafe-inline'`.** Popovers, dropdowns and the emoji picker
@@ -96,11 +100,28 @@ resources that cannot execute script:
   would make browsers ignore `'unsafe-inline'` entirely, and the narrower
   `style-src-attr` is unsupported on Safari before 15.4, which would silently
   break every floating element. The exposure is CSS, not code execution.
-- **`img-src https:`.** Link-preview thumbnails are fetched from whatever site
-  was linked, Giphy results are hotlinked from Giphy's CDN, and the Gravatar
-  base URL is yours to configure — so there is no enumerable host list to write
-  down. Images cannot execute, and the risk this leaves (a crafted URL signalling
-  that a page was viewed) is bounded by the tight `connect-src`.
+
+### Remote images are proxied
+
+Three things The Desk renders are images it does not host: link-preview
+thumbnails scraped from whatever site someone linked, Giphy renditions, and
+Gravatar avatars. Loading those directly would hand every reader's IP address,
+user agent and referring page to those sites without the reader choosing to
+visit them, and would force `img-src` to allow any HTTPS host.
+
+Instead the server fetches each one and re-serves it from your own origin, under
+a signed, session-authenticated URL. The signature pins the target to a URL the
+server itself generated, so the endpoint cannot be used as an open proxy; the
+fetch goes through the same SSRF guard as outgoing webhooks (see
+[`WEBHOOKS_BLOCK_PRIVATE_URLS`](/docs/reference/environment-variables/)), with a
+5-second timeout, a 5 MB cap, redirects re-checked hop by hop, and a
+raster-images-only content-type allowlist that excludes SVG. Fetched bytes are
+cached on the private disk for seven days and swept daily.
+
+Nothing needs configuring, and there is no toggle: an instance with no outbound
+egress simply degrades — avatars fall back to initials and link previews render
+without a thumbnail — rather than hanging or erroring. Setting
+`GRAVATAR_ENABLED=false` stops the avatar fetch being attempted at all.
 
 ### Running behind Cloudflare or a script-injecting proxy
 

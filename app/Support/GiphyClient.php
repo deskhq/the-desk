@@ -4,8 +4,11 @@ declare(strict_types=1);
 
 namespace App\Support;
 
+use App\Actions\Channels\CreateGiphyAttachment;
 use App\Data\GiphyGifData;
 use App\Data\GiphySearchData;
+use App\Models\Attachment;
+use App\Support\Images\ImageProxy;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
@@ -54,7 +57,7 @@ class GiphyClient
         );
 
         return new GiphySearchData(
-            results: array_map(GiphyGifData::from(...), $payload['results']),
+            results: array_map($this->toData(...), $payload['results']),
             nextOffset: $payload['nextOffset'],
         );
     }
@@ -89,7 +92,25 @@ class GiphyClient
 
         $normalized = $this->normalize($gif);
 
-        return $normalized === null ? null : GiphyGifData::from($normalized);
+        return $normalized === null ? null : $this->toData($normalized);
+    }
+
+    /**
+     * Build the DTO from a normalized payload, routing the picker's grid preview
+     * through the first-party image proxy so the browser never loads a tile from
+     * Giphy's CDN (and `img-src` needs no wildcard). `url` deliberately stays the
+     * raw CDN URL: it is what {@see CreateGiphyAttachment}
+     * stores as the attachment's `remote_url`, and the proxying happens when that
+     * attachment is serialised (see {@see Attachment::url()}) so a
+     * stored row never carries a signature.
+     *
+     * @param  array<string, mixed>  $normalized
+     */
+    private function toData(array $normalized): GiphyGifData
+    {
+        $normalized['previewUrl'] = ImageProxy::url((string) $normalized['previewUrl']);
+
+        return GiphyGifData::from($normalized);
     }
 
     /**

@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 use App\Rules\PublicWebhookUrl;
 use App\Support\HostResolver;
-use App\Support\Webhooks\WebhookUrlGuard;
+use App\Support\Http\OutboundUrlGuard;
 use Illuminate\Support\Facades\Validator;
 
 /**
@@ -13,9 +13,9 @@ use Illuminate\Support\Facades\Validator;
  *
  * @param  array<int, string>  $ips
  */
-function guardResolving(array $ips): WebhookUrlGuard
+function guardResolving(array $ips): OutboundUrlGuard
 {
-    return new WebhookUrlGuard(new class($ips) extends HostResolver
+    return new OutboundUrlGuard(new class($ips) extends HostResolver
     {
         /**
          * @param  array<int, string>  $ips
@@ -30,22 +30,22 @@ function guardResolving(array $ips): WebhookUrlGuard
 }
 
 it('accepts a public https URL', function (): void {
-    expect(WebhookUrlGuard::isPublic('https://example.test/hooks'))->toBeTrue();
-    expect(WebhookUrlGuard::isPublic('http://example.test/hooks'))->toBeTrue();
+    expect(OutboundUrlGuard::isPublic('https://example.test/hooks'))->toBeTrue();
+    expect(OutboundUrlGuard::isPublic('http://example.test/hooks'))->toBeTrue();
 });
 
 it('rejects non-http schemes', function (): void {
-    expect(WebhookUrlGuard::isPublic('ftp://example.test/x'))->toBeFalse();
-    expect(WebhookUrlGuard::isPublic('file:///etc/passwd'))->toBeFalse();
+    expect(OutboundUrlGuard::isPublic('ftp://example.test/x'))->toBeFalse();
+    expect(OutboundUrlGuard::isPublic('file:///etc/passwd'))->toBeFalse();
 });
 
 it('rejects an unparseable URL or one missing a host', function (): void {
-    expect(WebhookUrlGuard::isPublic('http://:80'))->toBeFalse();
-    expect(WebhookUrlGuard::isPublic('not a url'))->toBeFalse();
+    expect(OutboundUrlGuard::isPublic('http://:80'))->toBeFalse();
+    expect(OutboundUrlGuard::isPublic('not a url'))->toBeFalse();
 });
 
 it('rejects literal private, loopback, link-local, and metadata IPs', function (string $url): void {
-    expect(WebhookUrlGuard::isPublic($url))->toBeFalse();
+    expect(OutboundUrlGuard::isPublic($url))->toBeFalse();
 })->with([
     'loopback' => 'http://127.0.0.1/x',
     'private-10' => 'http://10.0.0.5/x',
@@ -55,11 +55,11 @@ it('rejects literal private, loopback, link-local, and metadata IPs', function (
 ]);
 
 it('accepts a literal public IP', function (): void {
-    expect(WebhookUrlGuard::isPublic('https://8.8.8.8/x'))->toBeTrue();
+    expect(OutboundUrlGuard::isPublic('https://8.8.8.8/x'))->toBeTrue();
 });
 
 it('rejects local hostnames without a DNS lookup', function (string $url): void {
-    expect(WebhookUrlGuard::isPublic($url))->toBeFalse();
+    expect(OutboundUrlGuard::isPublic($url))->toBeFalse();
 })->with([
     'localhost' => 'http://localhost/x',
     'dot-localhost' => 'http://api.localhost/x',
@@ -71,7 +71,7 @@ it('rejects local hostnames without a DNS lookup', function (string $url): void 
 it('passes any URL when the guard is disabled', function (): void {
     config(['integrations.webhooks.block_private_urls' => false]);
 
-    expect(WebhookUrlGuard::isPublic('http://127.0.0.1/x'))->toBeTrue();
+    expect(OutboundUrlGuard::isPublic('http://127.0.0.1/x'))->toBeTrue();
 });
 
 it('resolves a hostname to its vetted public IP for delivery pinning', function (): void {

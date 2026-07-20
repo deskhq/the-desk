@@ -8,8 +8,8 @@ use App\Enums\AuditAction;
 use App\Enums\WebhookSubscriptionStatus;
 use App\Models\WebhookSubscription;
 use App\Support\AuditRecorder;
+use App\Support\Http\OutboundUrlGuard;
 use App\Support\Webhooks\WebhookSignature;
-use App\Support\Webhooks\WebhookUrlGuard;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Http\Client\Response;
@@ -71,7 +71,7 @@ class DeliverWebhook implements ShouldQueue
     /**
      * Attempt one delivery.
      */
-    public function handle(AuditRecorder $recorder, WebhookUrlGuard $guard): void
+    public function handle(AuditRecorder $recorder, OutboundUrlGuard $guard): void
     {
         if (! config('integrations.enabled')) {
             return;
@@ -83,7 +83,7 @@ class DeliverWebhook implements ShouldQueue
             return;
         }
 
-        if (! WebhookUrlGuard::isPublic($subscription->url)) {
+        if (! OutboundUrlGuard::isPublic($subscription->url)) {
             $this->recordFailure($subscription, $recorder, null, 'Blocked non-public webhook URL', 0);
 
             return;
@@ -109,7 +109,7 @@ class DeliverWebhook implements ShouldQueue
                 'X-Desk-Signature' => WebhookSignature::header($subscription->secret, $body, $timestamp),
             ])
                 ->timeout((int) config('integrations.webhooks.timeout'))
-                ->withOptions($this->transportOptions($subscription->url, $pinnedIp))
+                ->withOptions($guard->transportOptions($subscription->url, $pinnedIp))
                 ->withBody($body, 'application/json')
                 ->post($subscription->url);
         } catch (Throwable $exception) {
@@ -125,34 +125,6 @@ class DeliverWebhook implements ShouldQueue
         }
 
         $this->recordFailure($subscription, $recorder, $response->status(), 'HTTP '.$response->status(), $this->elapsedMs($startedAt));
-    }
-
-    /**
-     * Guzzle options for the delivery request: redirects disabled (a redirect
-     * would bounce the signed POST onto a target the URL guard never vetted),
-     * and — when the guard resolved a hostname — the connection pinned to the
-     * vetted IP so a DNS rebind between validation and connect can't retarget
-     * it either.
-     *
-     * @return array<string, mixed>
-     */
-    private function transportOptions(string $url, ?string $pinnedIp): array
-    {
-        $options = ['allow_redirects' => false];
-
-        if ($pinnedIp === null) {
-            return $options;
-        }
-
-        $parts = parse_url($url);
-        $host = (string) ($parts['host'] ?? '');
-        $port = (int) ($parts['port'] ?? (strtolower((string) ($parts['scheme'] ?? '')) === 'http' ? 80 : 443));
-
-        $address = str_contains($pinnedIp, ':') ? '['.$pinnedIp.']' : $pinnedIp;
-
-        $options['curl'] = [CURLOPT_RESOLVE => [sprintf('%s:%d:%s', $host, $port, $address)]];
-
-        return $options;
     }
 
     /**

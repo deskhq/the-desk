@@ -205,9 +205,11 @@ without a Gravatar falls back cleanly to their initials.
 | `GRAVATAR_DEFAULT`  | `404`                              | The `d=` fallback. `404` is what makes users without a Gravatar fall back to initials; `mp`, `identicon`, or a URL are alternatives. |
 
 :::tip
-Turning `GRAVATAR_ENABLED=false` is the privacy-conscious choice if you don't want
-your instance making per-user requests to gravatar.com — everyone then shows their
-initials.
+Avatars are fetched by the server and re-served from your own origin (see
+[Remote images are proxied](/docs/reference/security/#remote-images-are-proxied)),
+so no reader's browser ever talks to gravatar.com. Turning `GRAVATAR_ENABLED=false`
+goes further and stops the instance itself making per-user requests — everyone
+then shows their initials.
 :::
 
 ## Activity logging

@@ -2,6 +2,7 @@
 
 namespace App\Support;
 
+use App\Support\Http\AbsoluteUrl;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Symfony\Component\DomCrawler\Crawler;
@@ -97,7 +98,7 @@ class FetchLinkPreview
                     return null;
                 }
 
-                $url = $this->absolutize($url, $location);
+                $url = AbsoluteUrl::from($url, $location);
 
                 continue;
             }
@@ -175,7 +176,7 @@ class FetchLinkPreview
         return [
             'title' => $title,
             'description' => $this->metaContent($crawler, 'og:description'),
-            'image' => $image === null ? null : $this->absolutize($baseUrl, $image),
+            'image' => $image === null ? null : AbsoluteUrl::from($baseUrl, $image),
             'siteName' => $this->metaContent($crawler, 'og:site_name') ?? (parse_url($baseUrl, PHP_URL_HOST) ?: null),
         ];
     }
@@ -211,26 +212,5 @@ class FetchLinkPreview
         $text = trim($node->text());
 
         return $text === '' ? null : $text;
-    }
-
-    /**
-     * Resolve a possibly-relative URL against a base: absolute URLs pass through,
-     * protocol-relative URLs inherit the base scheme, and everything else is
-     * hung off the base origin.
-     */
-    private function absolutize(string $baseUrl, string $url): string
-    {
-        if (preg_match('#^https?://#i', $url) === 1) {
-            return $url;
-        }
-
-        $base = parse_url($baseUrl);
-        $scheme = $base['scheme'] ?? 'https';
-
-        if (str_starts_with($url, '//')) {
-            return $scheme.':'.$url;
-        }
-
-        return $scheme.'://'.($base['host'] ?? '').'/'.ltrim($url, '/');
     }
 }

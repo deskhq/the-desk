@@ -40,7 +40,7 @@ test('web responses carry the policy', function (): void {
     expect($header)
         ->toContain("default-src 'self'")
         ->toContain("style-src 'self' 'unsafe-inline'")
-        ->toContain("img-src 'self' data: blob: https:")
+        ->toContain("img-src 'self' data: blob:")
         ->toContain("font-src 'self'")
         ->toContain("media-src 'self'")
         ->toContain("worker-src 'self'")
