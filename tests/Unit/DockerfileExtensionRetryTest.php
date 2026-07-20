@@ -46,8 +46,16 @@ test('the extension install retries a bounded number of times with a bounded wai
     expect($totalWait)->toBeLessThanOrEqual(60, 'a genuine failure must not hang the build for minutes');
 });
 
-test('the retry gives up with a legible message instead of looping forever', function (): void {
-    expect(dockerfileContents())->toContain('failed after');
+test('the retry loop advances, backs off, and gives up with a legible message', function (): void {
+    $contents = dockerfileContents();
+
+    expect($contents)
+        ->toContain('attempt=$((attempt + 1))')
+        ->toContain('delay=$((attempt * retry_delay))')
+        ->toContain('sleep "$delay"')
+        ->toContain('if [ "$attempt" -ge "$max_attempts" ]; then')
+        ->toContain('exit 1')
+        ->toMatch('/echo "[^"]*failed after \$max_attempts attempts[^"]*" >&2/');
 });
 
 test('the installed extension list is unchanged', function (): void {
