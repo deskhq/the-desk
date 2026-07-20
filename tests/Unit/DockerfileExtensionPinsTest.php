@@ -17,6 +17,39 @@ function productionDockerfile(): string
 }
 
 /**
+ * Every argument handed to `install-php-extensions`, with line continuations
+ * folded in so an argument is found wherever it sits on the command.
+ *
+ * @return list<string>
+ */
+function installPhpExtensionsArguments(): array
+{
+    $folded = (string) preg_replace('/\\\\\s*\n\s*/', ' ', productionDockerfile());
+
+    $arguments = [];
+
+    foreach (explode("\n", $folded) as $line) {
+        $line = trim($line);
+        $position = strpos($line, 'install-php-extensions');
+        if (str_starts_with($line, '#')) {
+            continue;
+        }
+        if ($position === false) {
+            continue;
+        }
+
+        $tokens = preg_split('/\s+/', substr($line, $position), flags: PREG_SPLIT_NO_EMPTY) ?: [];
+        array_shift($tokens);
+
+        foreach ($tokens as $token) {
+            $arguments[] = rtrim($token, ';');
+        }
+    }
+
+    return $arguments;
+}
+
+/**
  * @return array<string, string>
  */
 function extensionPins(): array
@@ -37,15 +70,14 @@ test('both remote extensions are pinned to a concrete released version', functio
 });
 
 test('neither redis nor imagick is requested by the name that resolves through pecl', function (): void {
-    $arguments = collect(explode("\n", productionDockerfile()))
-        ->map(trim(...))
-        ->reject(static fn (string $line): bool => str_starts_with($line, '#'))
-        ->map(static fn (string $line): string => rtrim($line, '\\ '))
-        ->filter();
+    $arguments = installPhpExtensionsArguments();
 
-    foreach (['redis', 'imagick'] as $module) {
-        expect($arguments)->not->toContain($module, "a bare `$module` argument is fetched from pecl.php.net");
-    }
+    expect($arguments)->not->toBeEmpty();
+
+    // A bare module name is what sends install-php-extensions to pecl.php.net;
+    // a source path or archive URL is resolved without it.
+    expect($arguments)->not->toContain('redis');
+    expect($arguments)->not->toContain('imagick');
 });
 
 test('phpredis is built from its git tag with the submodule it needs', function (): void {
@@ -58,10 +90,9 @@ test('phpredis is built from its git tag with the submodule it needs', function 
         ->toContain('--branch "$PHPREDIS_VERSION"')
         ->toContain('--recurse-submodules');
 
-    expect($contents)->toMatch(
-        '/install-php-extensions(?:[^\n]|\\\\\n)*\s\/tmp\/phpredis(\s|\\\\)/',
-        'the cloned source directory must be handed to install-php-extensions instead of the module name',
-    );
+    // The cloned source directory is what install-php-extensions must be handed,
+    // in place of the module name it would otherwise resolve through pecl.
+    expect(installPhpExtensionsArguments())->toContain('/tmp/phpredis');
 });
 
 test('imagick is built from its GitHub release archive', function (): void {
@@ -94,4 +125,12 @@ test('a scheduled workflow flags a pin that has fallen behind upstream', functio
         ->toContain('PHPREDIS_VERSION')
         ->toContain('IMAGICK_VERSION')
         ->toContain('gh issue create');
+
+    // One rolling issue, not a fresh one every month: the open one is found
+    // first, commented on while the pins stay behind, and closed once they are
+    // current again.
+    expect($run)
+        ->toContain('gh issue list')
+        ->toContain('gh issue comment')
+        ->toContain('gh issue close');
 });

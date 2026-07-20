@@ -58,8 +58,16 @@ jobs:
             stale="${stale}- \`${arg}\` (\`${repo}\`): pinned \`${pinned}\`, latest \`${latest}\`"$'\n'
           done
 
+          # One rolling issue: comment on the open one rather than filing a
+          # duplicate every month the pins stay behind, and close it once the
+          # bump lands so a current repo has no stale reminder sitting open.
+          existing="$(gh issue list --state open --search "in:title \"$TITLE\"" --json number --jq '.[0].number // empty')"
+
           if [ -z "$stale" ]; then
             echo 'both pins are current'
+            if [ -n "$existing" ]; then
+              gh issue close "$existing" --comment 'Both pins now match their latest upstream release.'
+            fi
             exit 0
           fi
 
@@ -70,10 +78,6 @@ jobs:
             "$stale" \
             'Bump the `ARG` values in `Dockerfile`, then let the Docker workflow rebuild the image.' \
             'Opened by `.github/workflows/extension-pins.yml`.')"
-
-          # One rolling issue: comment on the open one rather than filing a
-          # duplicate every month the pins stay behind.
-          existing="$(gh issue list --state open --search "in:title \"$TITLE\"" --json number --jq '.[0].number // empty')"
 
           if [ -n "$existing" ]; then
             gh issue comment "$existing" --body "$body"

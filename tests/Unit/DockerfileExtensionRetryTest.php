@@ -17,7 +17,11 @@ function dockerfileContents(): string
 }
 
 test('every network fetch in the runtime stage is wrapped in the retry helper', function (): void {
-    $runtimeStage = substr(dockerfileContents(), (int) strpos(dockerfileContents(), 'AS runtime'));
+    $runtimeStageStart = strpos(dockerfileContents(), 'AS runtime');
+
+    expect($runtimeStageStart)->not->toBeFalse('the runtime stage must stay named, or this test silently scans nothing');
+
+    $runtimeStage = substr(dockerfileContents(), (int) $runtimeStageStart);
 
     $fetches = array_filter(
         array_map(trim(...), explode("\n", $runtimeStage)),
