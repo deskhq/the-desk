@@ -1,14 +1,23 @@
 name: release-please
 
+# Two release lines run from this one file. `master` cuts stable releases;
+# `develop` cuts `-rc` candidates ahead of them. Keeping both in a single
+# workflow — rather than a per-branch copy — is deliberate: the file is identical
+# on both branches, so merging `develop` into `master` cannot change how `master`
+# releases. Which line runs is decided by the branch that was pushed, not by
+# which version of the file happens to be checked out.
 on:
   push:
     branches:
       - master
+      - develop
 
-# Serialize release runs on master but never cancel an in-flight one — cancelling
-# release-please mid-run could leave a release PR or tag half-created.
+# Serialize release runs per branch but never cancel an in-flight one —
+# cancelling release-please mid-run could leave a release PR or tag half-created.
+# The two lines are independent, so they are keyed per ref rather than sharing
+# one queue.
 concurrency:
-  group: ${{ github.workflow }}
+  group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: false
 
 # Every API call below is made with RELEASE_PLEASE_TOKEN, so GITHUB_TOKEN needs no
@@ -19,7 +28,13 @@ permissions: {}
 
 jobs:
   release-please:
+    name: Release from master
+    if: github.ref == 'refs/heads/master'
     runs-on: ubuntu-latest
+    outputs:
+      release_created: ${{ steps.release.outputs.release_created }}
+      version: ${{ steps.release.outputs.version }}
+      tag_name: ${{ steps.release.outputs.tag_name }}
     steps:
       # Use a PAT (not the built-in GITHUB_TOKEN) so the `v*` tag release-please
       # pushes triggers downstream workflows — notably docker.yml's GHCR publish.
@@ -28,8 +43,128 @@ jobs:
       # publish the versioned image. RELEASE_PLEASE_TOKEN itself needs the
       # `contents: write` and `pull-requests: write` PAT scopes — those are the
       # token's own scopes, unrelated to the `permissions:` block above.
+      #
+      # No `target-branch` here on purpose: this job releases the branch it was
+      # pushed from, and the `if` above is what pins that to master. Naming the
+      # branch as well would keep working silently if the default branch were
+      # ever renamed, releasing a branch that no longer exists.
       - uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5.0.0
+        id: release
         with:
           token: ${{ secrets.RELEASE_PLEASE_TOKEN }}
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
+
+  prerelease:
+    name: Cut a release candidate from develop
+    if: github.ref == 'refs/heads/develop'
+    runs-on: ubuntu-latest
+    steps:
+      # The candidate line reads its own config *and* its own manifest, both of
+      # which release-please resolves from `target-branch`. That separation is
+      # what keeps the `prerelease` flag off master: the stable config is a
+      # different file, not a different revision of the same file, so a merge in
+      # either direction carries both configs across intact.
+      - uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5.0.0
+        with:
+          token: ${{ secrets.RELEASE_PLEASE_TOKEN }}
+          target-branch: develop
+          config-file: release-please-config.develop.json
+          manifest-file: .release-please-manifest.develop.json
+
+  # The candidate manifest is a separate file, so nothing in a stable release
+  # tells `develop` that the version it was building candidates for has shipped.
+  # Left alone it would keep incrementing `1.12.0-rc.N` forever, long after
+  # 1.12.0 was released. This job closes that loop: once master cuts a stable
+  # release, develop's baseline is moved to it, so the next feature there starts
+  # a fresh `1.13.0-rc.0` series.
+  sync-candidate-baseline:
+    name: Move the candidate baseline to the released version
+    needs: release-please
+    if: needs.release-please.outputs.release_created == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      # A stable release must not be reported as failed just because there is no
+      # candidate line to update — `develop` is created separately from this
+      # workflow, and until it exists (or if it is ever retired) there is simply
+      # nothing to sync.
+      #
+      # Listing the branches rather than probing `branches/develop` directly is
+      # deliberate: a direct probe answers 404 both when the branch is absent and
+      # when the call was refused, so a token or API problem would read as "no
+      # develop" and skip the sync silently. Listing fails loudly instead, and
+      # only a successful listing that lacks `develop` counts as absent.
+      #
+      # It uses the PAT for the same reason every other call here does: the
+      # workflow grants GITHUB_TOKEN no scopes at all.
+      - name: Check whether develop exists
+        id: develop
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_PLEASE_TOKEN }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+
+          branches="$(gh api "repos/$REPO/branches" --paginate --jq '.[].name')"
+
+          if printf '%s\n' "$branches" | grep -qx develop; then
+            echo 'exists=true' >> "$GITHUB_OUTPUT"
+          else
+            echo 'exists=false' >> "$GITHUB_OUTPUT"
+            echo "No develop branch; there is no candidate baseline to move."
+          fi
+
+      # The PAT is needed to push; `develop` is checked out directly because the
+      # only edit is a one-line baseline rewrite that never conflicts.
+      - name: Check out develop
+        if: steps.develop.outputs.exists == 'true'
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          ref: develop
+          token: ${{ secrets.RELEASE_PLEASE_TOKEN }}
+
+      # develop keeps moving while a release is being cut, so this push can lose
+      # a race and be rejected as non-fast-forward. That must not need a human:
+      # the release has already happened by this point, and a develop left on a
+      # stale baseline silently keeps incrementing the previous rc series.
+      #
+      # Each attempt resets onto the current develop and writes the baseline out
+      # again. The value is absolute rather than a delta, so re-deriving it on
+      # top of whatever landed meanwhile is always correct — and, unlike a
+      # rebase, it cannot conflict.
+      - name: Point the candidate baseline at the released version
+        if: steps.develop.outputs.exists == 'true'
+        env:
+          VERSION: ${{ needs.release-please.outputs.version }}
+        run: |
+          set -euo pipefail
+
+          manifest=".release-please-manifest.develop.json"
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          for attempt in 1 2 3; do
+            git fetch --quiet origin develop
+            git reset --quiet --hard origin/develop
+
+            printf '{".":"%s"}\n' "$VERSION" > "$manifest"
+
+            if git diff --quiet -- "$manifest"; then
+              echo "The candidate baseline is already $VERSION; nothing to do."
+              exit 0
+            fi
+
+            git add "$manifest"
+            git commit --quiet -m "chore: move the candidate baseline to $VERSION"
+
+            if git push origin develop; then
+              echo "Moved the candidate baseline to $VERSION."
+              exit 0
+            fi
+
+            echo "develop moved while pushing (attempt $attempt); retrying."
+          done
+
+          echo "Could not move the candidate baseline to $VERSION after 3 attempts." >&2
+          exit 1

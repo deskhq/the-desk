@@ -24,6 +24,48 @@ documented but not yet in that release is coming in a future one. Check the
 confirm which release a given feature shipped in, and keep `APP_VERSION` on a
 released version rather than overriding `APP_IMAGE` to `edge` for a stable deployment.
 
+## Release candidates
+
+Some releases are preceded by **release candidates** — versions tagged
+`X.Y.Z-rc.N`, where `X.Y.Z` is the release being prepared and `N` counts up from
+zero as further candidates are cut. They come from the `develop` branch as
+changes accumulate, and they exist so the next stable release can be tested
+before it ships.
+
+:::caution[Not supported for production]
+A candidate is not a release. It has not finished testing, it can change
+behaviour between one candidate and the next, and it may be withdrawn. Do not run
+one against a workspace you care about, and do not treat a candidate you are
+running as an upgrade path — the stable release that follows it is what you
+should end up on.
+:::
+
+You have to opt in explicitly; nothing pulls a candidate on its own. The moving
+`latest` tag and the `X.Y` alias always point at stable releases, and
+`./docker/upgrade.sh` only moves to the version you name.
+
+To try one, point `--target` at the candidate version:
+
+```bash
+./docker/upgrade.sh --target=X.Y.Z-rc.N /srv/backups
+```
+
+Candidates are listed on the [releases
+page](https://github.com/emmpaul/the-desk/releases) marked **Pre-release**, and
+each one's notes carry the exact `ghcr.io` pull reference. There is also a moving
+`rc` image tag that always points at the newest candidate — useful for a
+throwaway test instance, and a bad idea anywhere else, since it changes under you
+without warning:
+
+```bash
+APP_IMAGE=ghcr.io/emmpaul/the-desk:rc
+```
+
+If you are testing a candidate, do it on a copy: restore a backup into a separate
+stack rather than upgrading your live instance. Going back from a candidate to
+the stable release means restoring that backup, because migrations the candidate
+ran are not reversed.
+
 ## Upgrade
 
 Pass the release you want as `--target`; the script writes it to `APP_VERSION`,

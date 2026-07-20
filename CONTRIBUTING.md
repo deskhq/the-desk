@@ -91,7 +91,8 @@ capital letter (commitlint rejects sentence-case subjects).
 
 ## Pull requests
 
-1. Branch off `master` (e.g. `feat/message-reminders`, `fix/session-index`).
+1. Branch off `develop` (e.g. `feat/message-reminders`, `fix/session-index`), and
+   target `develop` — see [Releases](#releases) below.
 2. **Title the PR as a Conventional Commit** — see below.
 3. Keep the PR focused on a single concern; reference the issue it closes.
 4. Make sure both quality gates pass locally.
@@ -99,15 +100,96 @@ capital letter (commitlint rejects sentence-case subjects).
 
 ### The PR title is the release entry
 
-PRs are squash-merged with the **PR title as the commit subject**, so the title —
-not your individual commits — is what [release-please](https://github.com/googleapis/release-please)
-reads to build `CHANGELOG.md` and pick the next version. A title like
-`Add message reminders` parses as nothing and is dropped from the release
-silently, so the title is validated by its own required check (the `pr-title` job
-in `.github/workflows/commitlint.yml`) using the same types and subject rules as
+Feature PRs are squash-merged with the **PR title as the commit subject**, so the
+title — not your individual commits — is what
+[release-please](https://github.com/googleapis/release-please) reads to build the
+release notes and pick the next version. A title like `Add message reminders`
+parses as nothing and is dropped from the release silently, so the title is
+validated by its own required check (the `pr-title` job in
+`.github/workflows/commitlint.yml`) using the same types and subject rules as
 commitlint above: `type(optional-scope): imperative subject`, with a lowercase
 type, no capital letter opening the subject, and no trailing period — e.g.
 `feat(messaging): add message reminders`. Editing the title re-runs the check, so
 a rejected title turns green without a new commit.
 
+That squash subject lands on `develop`, where it becomes one entry in the next
+release candidate, and reaches `master` — and so `CHANGELOG.md` — when `develop`
+is promoted.
+
 A maintainer will review and merge. Thanks for helping make The Desk better!
+
+## Releases
+
+Two branches, two release lines, both cut by
+[release-please](https://github.com/googleapis/release-please) from the
+Conventional Commit history:
+
+| Branch | Cuts | Example tag | Docker tags |
+| --- | --- | --- | --- |
+| `develop` | Release candidates | `v1.12.0-rc.0` | `1.12.0-rc.0`, and the moving `rc` |
+| `master` | Stable releases | `v1.12.0` | `1.12.0`, `1.12`, and the moving `latest` |
+
+Work flows in one direction: a feature PR merges into `develop`, which cuts
+candidates as it accumulates changes; when a version is ready, `develop` is
+promoted to `master`, which cuts the stable release. Pushing to `master` also
+moves the `edge` image tag.
+
+**Nothing is tagged by a push.** On each line, release-please maintains a
+*release PR* — a running proposal for the next version, listing the changes it
+would include and updating itself as more land. That PR is the release: merging
+it is what writes the version, tags it, and publishes the image. Pushing to
+`develop` or `master` only updates the proposal.
+
+So a release is two merges, not one:
+
+1. Merge the feature PR into `develop`. release-please opens or updates the
+   candidate release PR (`release-please--branches--develop`).
+2. Merge that release PR when you want a candidate. Now `v1.12.0-rc.0` is
+   tagged, published, and marked as a pre-release on GitHub.
+
+Promoting works the same way: merge `develop` into `master`, then merge the
+stable release PR (`release-please--branches--master`) to cut `v1.12.0`. The two
+release PRs are independent and cannot collide — release-please names its branch
+after the line it targets.
+
+A release PR that never gets merged is not a failure state; it just means the
+next version has not been cut yet.
+
+**Promote `develop` to `master` with a merge commit, never a squash.** Everything
+else in this repo is squash-merged, and that is exactly the problem here:
+release-please reads the individual Conventional Commits, so squashing a
+promotion would collapse an entire release worth of `feat:`/`fix:` subjects into
+one, and the changelog would lose every entry but that one.
+
+### Why the two lines cannot contaminate each other
+
+release-please reads its config *and* its version manifest from the branch it
+targets, so each line gets its own pair:
+
+| | Stable (`master`) | Candidate (`develop`) |
+| --- | --- | --- |
+| Config | `release-please-config.json` | `release-please-config.develop.json` |
+| Manifest | `.release-please-manifest.json` | `.release-please-manifest.develop.json` |
+
+They are **separate files, not divergent copies of one file**. That distinction
+is the whole safety property: a merge in either direction carries both pairs
+across unchanged, so a promotion can never move the `prerelease` flag onto the
+stable config and turn a stable release into a candidate. Nothing about
+`.github/workflows/release-please.yml` differs per branch either — one file
+contains both jobs, and the pushed branch decides which one runs.
+
+Two consequences worth knowing:
+
+- **The candidate config declares no `extra-files`**, so an rc bump never stamps
+  `1.12.0-rc.0` into `VERSION`, `.env.prod.example`, `docker/install.sh`, or the
+  docs pages that quote a version. Those lines only ever carry stable versions.
+- **The candidate config sets `skip-changelog`**, so `CHANGELOG.md` belongs to
+  `master` alone. Candidates still get full release notes on their GitHub
+  release; they just don't write them to the file.
+
+These invariants are enforced by `tests/Unit/ReleaseFlowTest.php` rather than by
+convention — change the release setup and that file will tell you what broke.
+
+After each stable release, a job moves `develop`'s candidate baseline onto the
+version just released, so the next feature there starts a fresh `-rc.0` series
+instead of incrementing the previous one forever.
