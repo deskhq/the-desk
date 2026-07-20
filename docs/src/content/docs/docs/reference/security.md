@@ -68,11 +68,23 @@ The policy sent is:
 | `media-src`   | `'self'`                                     |
 | `worker-src`  | `'self'`                                     |
 | `frame-src`   | `'none'`                                     |
+| `base-uri`    | `'self'`                                     |
+| `form-action` | `'self'`                                     |
+| `object-src`  | `'none'`                                     |
 
 Scripts are the directive that matters, and they carry no `'unsafe-inline'`: the
 app's own inline script runs only because it carries a per-request nonce, and the
 page chunks the app loads as you navigate run only because `'strict-dynamic'`
 extends that trust to them. Injected markup gets neither.
+
+`base-uri` and `form-action` are stated separately for a reason: they do **not**
+fall back to `default-src`. A policy that omits them leaves them wide open
+however tight `default-src` is, so an injected `<base href="//attacker">` could
+still repoint every relative URL on the page, and a fake login form could still
+post credentials off-origin. `object-src` does fall back, but only to
+`default-src 'self'`; nothing in The Desk renders an `<object>` or `<embed>`,
+and the plugin documents they load are outside what `script-src` governs, so it
+is denied outright instead.
 
 ### Accepted residuals
 
