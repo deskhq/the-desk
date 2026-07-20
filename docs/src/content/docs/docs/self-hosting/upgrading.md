@@ -142,6 +142,21 @@ copy:
 It exits `0` when nothing is missing, `1` after reporting missing keys, and `2`
 on usage errors, so it also scripts cleanly.
 
+:::caution[Content Security Policy]
+A setting that defaults to *on* takes effect at the upgrade whether or not you
+adopt the new key, because the app falls back to its built-in default. The
+[Content Security Policy](/docs/reference/security/#content-security-policy) is
+one such setting: from the release that introduces it, every page is served with
+an enforcing policy.
+
+The app itself is tested against it, so nothing of ours breaks. What can break is
+JavaScript **you** added — an analytics snippet, or a script your CDN injects
+(Cloudflare's Email Obfuscation and Rocket Loader both do). If you run anything
+like that, set `CSP_REPORT_ONLY=true` for the first boot, browse the app with the
+browser console open, and allow-list what it reports with the `CSP_EXTRA_*` keys
+before turning enforcement back on.
+:::
+
 ### If it fails, it stops and hands you the backup
 
 The script **never rolls back on its own**, and that is deliberate.

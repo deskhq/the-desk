@@ -121,6 +121,23 @@ production — see [Configuration](/docs/self-hosting/configuration/#reverb-webs
 | `WEBHOOKS_DISABLE_AFTER`     | `5`     | [Feature toggles → Integrations platform](/docs/reference/feature-toggles/#outgoing-webhooks) |
 | `WEBHOOKS_BLOCK_PRIVATE_URLS`| `true`  | [Feature toggles → Integrations platform](/docs/reference/feature-toggles/#outgoing-webhooks) |
 | `DEMO_MODE`                  | `false` | [Feature toggles → Demo mode](/docs/reference/feature-toggles/#demo-mode) |
+| `CSP_ENABLED`                | `true`  | [Feature toggles → Content Security Policy](/docs/reference/feature-toggles/#content-security-policy) |
+| `CSP_REPORT_ONLY`            | `false` | [Feature toggles → Content Security Policy](/docs/reference/feature-toggles/#content-security-policy) |
+
+## Content Security Policy
+
+Comma-separated origins **appended** to the shipped policy, for a script,
+stylesheet, image host, API or embedded frame of your own. They are additive
+only: none of them can remove the script nonce or `'strict-dynamic'`. See
+[Feature toggles → Content Security Policy](/docs/reference/feature-toggles/#content-security-policy).
+
+| Variable                | Default | Adds to       |
+| ----------------------- | ------- | ------------- |
+| `CSP_EXTRA_SCRIPT_SRC`  | *(none)* | `script-src`  |
+| `CSP_EXTRA_STYLE_SRC`   | *(none)* | `style-src`   |
+| `CSP_EXTRA_IMG_SRC`     | *(none)* | `img-src`     |
+| `CSP_EXTRA_CONNECT_SRC` | *(none)* | `connect-src` |
+| `CSP_EXTRA_FRAME_SRC`   | *(none)* | `frame-src`   |
 
 ## Single sign-on (OpenID Connect)
 

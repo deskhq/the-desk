@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Http\Middleware\AddContentSecurityPolicyHeaders;
 use App\Http\Middleware\EnsureIntegrationsEnabled;
 use App\Http\Middleware\EnsurePasskeysEnabled;
 use App\Http\Middleware\EnsurePasswordLoginEnabled;
@@ -62,7 +63,12 @@ return Application::configure(basePath: dirname(__DIR__))
             'scope' => EnsureTokenScope::class,
         ]);
 
+        // AddContentSecurityPolicyHeaders comes first: it sets the request's CSP
+        // nonce on the Vite facade on the way in, so it has to run before
+        // HandleInertiaRequests renders the Blade shell. The API group is left
+        // out deliberately — a JSON response has no DOM for a policy to protect.
         $middleware->web(append: [
+            AddContentSecurityPolicyHeaders::class,
             EnsurePasswordLoginEnabled::class,
             EnsurePasskeysEnabled::class,
             ThrottlePasswordResetRequests::class,

@@ -219,6 +219,55 @@ The Desk records an activity log (audit trail) of notable actions.
 | `ACTIVITYLOG_ENABLED`       | `true`  | Records activity to the database. Set `false` to disable logging entirely. |
 | `ACTIVITYLOG_BUFFER_ENABLED`| `false` | Buffers log writes and flushes them in a batch (advanced; reduces write volume). |
 
+## Content Security Policy
+
+Every web response carries a `Content-Security-Policy` header — the browser-side
+allow-list that limits what injected markup could do. It is **on** by default and
+needs no proxy configuration. See
+[Security & compliance → Content Security Policy](/docs/reference/security/#content-security-policy)
+for the policy itself and the two accepted residuals.
+
+| Variable           | Default | Effect                                                        |
+| ------------------ | ------- | ------------------------------------------------------------- |
+| `CSP_ENABLED`      | `true`  | Sends the policy. Set `false` only to serve your own from the reverse proxy. |
+| `CSP_REPORT_ONLY`  | `false` | Sends it as `Content-Security-Policy-Report-Only`: violations are logged to the browser console but nothing is blocked. |
+
+Report-only is the safe way to try a change: turn it on, browse the app with the
+developer console open, fix whatever is reported, then turn it back off. Leaving
+it on permanently protects nobody.
+
+### Allow-listing your own origins
+
+If you add a script, stylesheet, image host, API or embedded frame of your own,
+name it in the matching key rather than disabling the policy. Values are
+comma-separated and **appended** to the defaults — they can never remove the
+script nonce or `'strict-dynamic'`, so an allow-list entry cannot silently
+un-harden the app.
+
+| Variable                | Adds to       |
+| ----------------------- | ------------- |
+| `CSP_EXTRA_SCRIPT_SRC`  | `script-src`  |
+| `CSP_EXTRA_STYLE_SRC`   | `style-src`   |
+| `CSP_EXTRA_IMG_SRC`     | `img-src`     |
+| `CSP_EXTRA_CONNECT_SRC` | `connect-src` |
+| `CSP_EXTRA_FRAME_SRC`   | `frame-src`   |
+
+```bash
+CSP_EXTRA_SCRIPT_SRC="https://analytics.example.com"
+CSP_EXTRA_CONNECT_SRC="https://analytics.example.com"
+```
+
+:::note
+`script-src` uses `'strict-dynamic'`, and browsers that understand it ignore host
+allow-lists in that directive. An extra script host therefore only takes effect
+for a tag loaded by an already-trusted script. If a third-party snippet has to be
+pasted into the page as inline `<script>`, there is no allow-list that reaches
+it — set `CSP_ENABLED=false` and serve your own policy from the reverse proxy.
+:::
+
+There is deliberately no key that replaces the whole policy: an override that
+could drop the nonce would leave a header that looks protective and is not.
+
 ## Search analytics
 
 | Variable                   | Default | Effect                                             |

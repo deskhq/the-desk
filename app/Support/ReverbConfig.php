@@ -34,4 +34,30 @@ class ReverbConfig
             'scheme' => (string) ($reverb['public_scheme'] ?: $options['scheme'] ?? 'https'),
         ];
     }
+
+    /**
+     * The browser-facing Reverb origin as a WebSocket URL (`wss://host:port`),
+     * derived from the very same values the SPA is handed by forFrontend() so the
+     * two cannot drift.
+     *
+     * This is what the Content-Security-Policy `connect-src` directive must
+     * allow-list: Echo opens its socket against this origin, and it is routinely
+     * a different port than the app itself (the common self-hosted layout serves
+     * the app on :443 and Reverb on :8080).
+     *
+     * Null when no browser-facing host can be resolved (neither an override nor a
+     * parseable APP_URL), in which case there is no origin to allow-list.
+     */
+    public static function websocketOrigin(): ?string
+    {
+        $connection = self::forFrontend();
+
+        if ($connection['host'] === null) {
+            return null;
+        }
+
+        $scheme = $connection['scheme'] === 'https' ? 'wss' : 'ws';
+
+        return "{$scheme}://{$connection['host']}:{$connection['port']}";
+    }
 }

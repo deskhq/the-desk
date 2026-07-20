@@ -28,6 +28,10 @@ pest()->extend(TestCase::class)->in('Unit/SlashCommands');
 // application booted (but no database).
 pest()->extend(TestCase::class)->in('Unit/Support/GiphyClientTest.php');
 
+// The Reverb config unit test reads the broadcasting config, so it needs the
+// application booted (but no database).
+pest()->extend(TestCase::class)->in('Unit/Support/ReverbConfigTest.php');
+
 /*
 |--------------------------------------------------------------------------
 | Browser (E2E) Test Case
