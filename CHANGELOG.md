@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.11.1](https://github.com/emmpaul/the-desk/compare/v1.11.0...v1.11.1) (2026-07-20)
+
+
+### Bug Fixes
+
+* serialise storage-app volume seeding behind the app service ([#611](https://github.com/emmpaul/the-desk/issues/611)) ([3cf9816](https://github.com/emmpaul/the-desk/commit/3cf98165eded36dfe5fc52d77a1804f51fba3a49))
+
+
+### Code Refactoring
+
+* centralise the v-html sanitize allowlist in one module ([#602](https://github.com/emmpaul/the-desk/issues/602)) ([652d901](https://github.com/emmpaul/the-desk/commit/652d90153ffda07e976565bb47ce019af976a992))
+
 ## [1.11.0](https://github.com/emmpaul/the-desk/compare/v1.10.2...v1.11.0) (2026-07-19)
 
 
