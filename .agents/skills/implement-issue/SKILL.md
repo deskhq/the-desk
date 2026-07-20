@@ -17,7 +17,7 @@ cd "$(bin/worktree create NNN)"   # prints the worktree path on stdout; cd into 
 ```
 
 - **Run this first, from the main checkout.** `create` prints the absolute worktree path as its only stdout line, so `cd "$(bin/worktree create NNN)"` drops you straight into the isolated worktree. Everything after this — reading the issue, TDD, the gate, CodeRabbit, the PR — happens **inside that worktree**, against its own Sail instance (`./vendor/bin/sail composer test` there runs fully isolated).
-- **Base branch.** The worktree forks from `master` by default. If §1 reveals this is a **stacked-epic child**, fork from the foundation branch instead: `bin/worktree create NNN <foundation-branch>`. (Reading the issue with `gh` is safe from anywhere, so peek if you're unsure before creating.)
+- **Base branch.** Feature work forks from **`develop`**, not `master` — `develop` is the staging line that cuts release candidates, and `master` only receives promotions from it. Pass it explicitly: `bin/worktree create NNN develop`. If §1 reveals this is a **stacked-epic child**, fork from the foundation branch instead: `bin/worktree create NNN <foundation-branch>`. (Reading the issue with `gh` is safe from anywhere, so peek if you're unsure before creating.)
 - **Refuse to implement in the main checkout.** If you find yourself about to edit product code while `pwd` is the main checkout (`.../the-desk`, not `.../the-desk-worktrees/...`), stop and bootstrap the worktree first. The one exception is changing the isolation tooling itself (`bin/worktree`, this skill) — that bootstrapping work necessarily happens in the main checkout.
 - **Idempotent re-entry.** Re-running `bin/worktree create NNN` on an existing, ready worktree just re-prints its path (fast); if a previous bootstrap was interrupted it resumes. So a fresh session can rejoin an in-progress issue with the same one-liner.
 - **One Claude Code session per agent.** Each agent runs in its own session and its own worktree; don't drive two issues from one session (they would fight over `cd`). Use `bin/worktree list` to see active worktrees and their ports.
@@ -33,7 +33,11 @@ gh issue view NNN --comments
 
 Read it in full: the acceptance criteria, any **Decisions** section, linked issues (epics/parents/children), and every comment — later comments often revise the original ask. Note the Conventional-Commit type the work implies (`feat`/`fix`/…) for the eventual PR title.
 
-**Confirm the base branch — it is not always `master`.** This repo runs stacked epics (e.g. SSO, attachments) where a child issue branches off a **foundation branch** and its PR targets that branch, so only one branch ever merges to `master`. If the issue is a child of such an epic, find the foundation branch (`git branch -a`, the epic issue, or the parent PR) and use it as the base everywhere: the `base` you passed to `bin/worktree create NNN <foundation>` in step 0 (re-create the worktree with the right base if you defaulted to `master` before realising), the `--base` for CodeRabbit (§5), and the PR base (§6, `gh pr create --base <foundation>`). Only default to `master` when the issue is standalone. Getting this wrong pollutes the diff with the parent's changes and points the PR at the wrong branch.
+**Confirm the base branch — the default is `develop`, and it is never `master`.** Releases run on two lines (see `CONTRIBUTING.md` → *Releases*): `develop` accumulates features and cuts `vX.Y.Z-rc.N` candidates, and is promoted to `master` — which cuts the stable release — by a **merge commit**. Feature work therefore targets `develop`; a PR opened against `master` bypasses the candidate line entirely, and nothing errors to tell you.
+
+This repo also runs stacked epics (e.g. SSO, attachments) where a child issue branches off a **foundation branch** and its PR targets that branch. If the issue is a child of such an epic, find the foundation branch (`git branch -a`, the epic issue, or the parent PR) and use that instead.
+
+Whichever it is, use the same base everywhere: the `base` you passed to `bin/worktree create NNN <base>` in step 0 (re-create the worktree with the right base if you got it wrong before realising), the `--base` for CodeRabbit (§5), and the PR base (§6, `gh pr create --base <base>`). Getting this wrong pollutes the diff with the parent's changes and points the PR at the wrong branch.
 
 **Check for existing work before starting — don't fork a second attempt.** Step 0 already put you on a fresh `NNN-<slug>` branch in the worktree (attaching that branch if it already existed). But an earlier attempt may live under a **different** branch name or an open PR:
 
@@ -110,28 +114,28 @@ Commit your work to the feature branch as you reach green milestones.
 
 ## 5. Local CodeRabbit review
 
-Before opening the PR, run a **local** CodeRabbit pass so it opens clean. Ensure the CLI is on PATH (`export PATH="$HOME/.local/bin:$PATH"`), then review this branch against `master`:
+Before opening the PR, run a **local** CodeRabbit pass so it opens clean. Ensure the CLI is on PATH (`export PATH="$HOME/.local/bin:$PATH"`), then review this branch against the base branch you confirmed in §1 (`develop` for ordinary feature work):
 
 ```bash
-coderabbit review --agent --base master
+coderabbit review --agent --base develop   # or the foundation branch, per §1
 ```
 
 - `--agent` emits agent-actionable findings; add `-c CLAUDE.md` to feed conventions if a finding looks off.
 - If auth has expired, the CLI says so — **the user** must run `coderabbit auth login` (interactive); surface that and pause, you can't complete it.
 - The free OSS tier is rate-limited; if you hit the limit, note it and lean on the app's PR review.
 
-**Judge, then apply — this is not blind auto-apply.** Read each finding; apply the correct, safe ones; **skip** false positives and anything that fights `CLAUDE.md` (hardcoding copy instead of `$t`/`__()`, dropping a type hint, bypassing Sail, touching a release-please-owned file) and note why. After fixes, **re-run the full gate** (a CodeRabbit fix still has to clear 100% coverage + Rector/PHPStan/Pint), then re-run `coderabbit review --agent --base master` until it's clean or only nits you've consciously declined remain.
+**Judge, then apply — this is not blind auto-apply.** Read each finding; apply the correct, safe ones; **skip** false positives and anything that fights `CLAUDE.md` (hardcoding copy instead of `$t`/`__()`, dropping a type hint, bypassing Sail, touching a release-please-owned file) and note why. After fixes, **re-run the full gate** (a CodeRabbit fix still has to clear 100% coverage + Rector/PHPStan/Pint), then re-run the same `coderabbit review` command until it's clean or only nits you've consciously declined remain.
 
 (This is the same review loop the `code-review` and `open-pr` skills describe — defer to them for detail.)
 
 ## 6. Open the PR
 
-Hand off to the **`open-pr`** skill. The one rule that bites: this repo squash-merges with **the PR title as the squash commit subject**, so the PR title MUST be a valid Conventional Commit (`type: imperative subject`, lowercase type, no trailing period) or the change is silently dropped from `CHANGELOG.md` and the version bump. Pick the type from what the diff ships (§1).
+Hand off to the **`open-pr`** skill. The one rule that bites: feature PRs are squash-merged with **the PR title as the squash commit subject**, so the PR title MUST be a valid Conventional Commit (`type: imperative subject`, lowercase type, no trailing period) or the change is silently dropped from `CHANGELOG.md` and the version bump. Pick the type from what the diff ships (§1).
 
-**Show the user the proposed title and get a quick confirm before creating the PR.** Because the title alone drives the changelog and the version bump, a wrong type or a sentence-style title has outsized cost — surface your proposed `type: subject` (and the base branch, if not `master`) and let the user correct it before `gh pr create` rather than after. Then push the branch and open it:
+**Show the user the proposed title and get a quick confirm before creating the PR.** Because the title alone drives the changelog and the version bump, a wrong type or a sentence-style title has outsized cost — surface your proposed `type: subject` and the base branch and let the user correct it before `gh pr create` rather than after. Then push the branch and open it:
 
 ```bash
-gh pr create --title "feat: <imperative subject>" --body "$(cat <<'EOF'
+gh pr create --base develop --title "feat: <imperative subject>" --body "$(cat <<'EOF'
 Closes #NNN.
 
 <what / why / how tested / i18n + docs updates>
