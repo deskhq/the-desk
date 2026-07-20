@@ -115,6 +115,27 @@ candidates as it accumulates changes; when a version is ready, `develop` is
 promoted to `master`, which cuts the stable release. Pushing to `master` also
 moves the `edge` image tag.
 
+**Nothing is tagged by a push.** On each line, release-please maintains a
+*release PR* — a running proposal for the next version, listing the changes it
+would include and updating itself as more land. That PR is the release: merging
+it is what writes the version, tags it, and publishes the image. Pushing to
+`develop` or `master` only updates the proposal.
+
+So a release is two merges, not one:
+
+1. Merge the feature PR into `develop`. release-please opens or updates the
+   candidate release PR (`release-please--branches--develop`).
+2. Merge that release PR when you want a candidate. Now `v1.12.0-rc.0` is
+   tagged, published, and marked as a pre-release on GitHub.
+
+Promoting works the same way: merge `develop` into `master`, then merge the
+stable release PR (`release-please--branches--master`) to cut `v1.12.0`. The two
+release PRs are independent and cannot collide — release-please names its branch
+after the line it targets.
+
+A release PR that never gets merged is not a failure state; it just means the
+next version has not been cut yet.
+
 **Promote `develop` to `master` with a merge commit, never a squash.** Everything
 else in this repo is squash-merged, and that is exactly the problem here:
 release-please reads the individual Conventional Commits, so squashing a
