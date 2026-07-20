@@ -34,7 +34,10 @@ bin/worktree remove <NNN>          # tear down containers + volumes, remove the
 a lock, and derives the whole port block from it (`WORKTREE_PORT_BASE`, default
 `20000`; slot 0 → app 20000 / vite 20001 / reverb 20002 / db 20003). It forks
 from `master` by default; pass a foundation branch as `base` for a stacked-epic
-child. The worktrees live in `../the-desk-worktrees/<NNN>-<slug>/` with an
+child. The base is fetched and resolved to its **remote-tracking** ref
+(`origin/<base>`) before forking, so a local branch lagging behind the remote
+cannot hand the worktree a stale baseline; a base that exists only locally is
+still forked from the local branch. The worktrees live in `../the-desk-worktrees/<NNN>-<slug>/` with an
 explicit `COMPOSE_PROJECT_NAME=desk-<NNN>`. State lives in
 `~/.the-desk/worktrees.json`.
 
