@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.12.2](https://github.com/emmpaul/the-desk/compare/v1.12.1...v1.12.2) (2026-07-20)
+
+
+### Bug Fixes
+
+* fork the worktree branch from a remote-only base ([#627](https://github.com/emmpaul/the-desk/issues/627)) ([a96002c](https://github.com/emmpaul/the-desk/commit/a96002c8b745651b5b731cae260035155921ccc6))
+
 ## [1.12.1](https://github.com/emmpaul/the-desk/compare/v1.12.0...v1.12.1) (2026-07-20)
 
 
