@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.12.0](https://github.com/emmpaul/the-desk/compare/v1.11.1...v1.12.0) (2026-07-20)
+
+
+### Features
+
+* cut release-candidate prereleases from develop ([#613](https://github.com/emmpaul/the-desk/issues/613)) ([7e12293](https://github.com/emmpaul/the-desk/commit/7e1229339113112d358352b216697d901e0aef55))
+
 ## [1.11.1](https://github.com/emmpaul/the-desk/compare/v1.11.0...v1.11.1) (2026-07-20)
 
 
