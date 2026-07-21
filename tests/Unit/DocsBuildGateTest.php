@@ -90,6 +90,24 @@ test('the declared engines agree with the node pin', function () use ($docsPath)
         ->and($engines['npm'])->toBe('10.9.2');
 });
 
+/**
+ * The OpenAPI document is hand-authored, so nothing but a validator proves it
+ * still parses as OpenAPI 3.1. `tests/Unit/OpenApiSpecTest.php` keeps it in
+ * lockstep with the routes; this lint is what keeps it a *valid* spec (#531).
+ */
+test('the docs job lints the openapi spec against the 3.1 schema', function () use ($docsJob): void {
+    $step = collect($docsJob()['steps'])->first(static fn (array $step): bool => runsInDocs($step, 'npm run openapi:lint'));
+
+    expect($step)->not->toBeNull('the hand-authored spec must be schema-validated in CI');
+});
+
+test('the docs project provides the openapi lint script and its linter', function () use ($docsPath): void {
+    $package = json_decode((string) file_get_contents($docsPath('package.json')), true);
+
+    expect($package['scripts'])->toHaveKey('openapi:lint')
+        ->and($package['devDependencies'] ?? [])->toHaveKey('@redocly/cli');
+});
+
 test('the docs readme documents the pin a contributor must regenerate the lockfile with', function () use ($docsPath): void {
     $readme = (string) file_get_contents($docsPath('README.md'));
 

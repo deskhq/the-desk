@@ -32,6 +32,10 @@ pest()->extend(TestCase::class)->in('Unit/Support/GiphyClientTest.php');
 // application booted (but no database).
 pest()->extend(TestCase::class)->in('Unit/Support/ReverbConfigTest.php');
 
+// The OpenAPI spec test diffs the document against the live route table, so it
+// needs the application booted (but no database).
+pest()->extend(TestCase::class)->in('Unit/OpenApiSpecTest.php');
+
 /*
 |--------------------------------------------------------------------------
 | Browser (E2E) Test Case

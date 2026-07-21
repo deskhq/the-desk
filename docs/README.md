@@ -13,6 +13,25 @@ The site has two parts:
 - **Documentation** under `/docs` — Starlight pages. Content lives in
   `src/content/docs/docs/`; site config (title, sidebar, edit links) is in
   `astro.config.mjs`.
+- **API reference** under `/docs/api-reference` — generated at build time by
+  [starlight-openapi](https://starlight-openapi.vercel.app/) from
+  `public/openapi.yaml`, the hand-authored OpenAPI 3.1 contract for the
+  application's `/api/v1` surface. Because the file sits in `public/`, it is
+  also served raw at `/openapi.yaml` for client generators.
+
+## The OpenAPI spec
+
+`public/openapi.yaml` is edited by hand, and two gates keep it honest:
+
+- `npm run openapi:lint` validates it against the OpenAPI 3.1 schema, using the
+  ruleset pinned in `redocly.yaml`. The `docs` CI workflow runs it before the
+  build.
+- `tests/Unit/OpenApiSpecTest.php` (in the **application's** PHP suite, not this
+  project) diffs every documented path, method, and scope against the live route
+  table, so adding an `/api/v1` route without documenting it fails the build.
+
+Edit the spec whenever `routes/api.php`, an `App\Http\Requests\Api\V1\*` rule, or
+an `App\Http\Resources\Api\V1\*` shape changes.
 
 ## Local development
 
@@ -57,6 +76,7 @@ automatically).
 | `npm run dev`     | Start the dev server at `localhost:4321`      |
 | `npm run build`   | Build the production site to `./dist/`        |
 | `npm run preview` | Preview the production build locally          |
+| `npm run openapi:lint` | Validate `public/openapi.yaml` against the OpenAPI 3.1 schema |
 
 ## Deployment (Cloudflare Pages)
 

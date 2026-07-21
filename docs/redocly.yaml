@@ -1,0 +1,4 @@
+# Pins the ruleset `npm run openapi:lint` enforces on public/openapi.yaml, so a
+# Redocly upgrade cannot silently change what the docs CI gate accepts.
+extends:
+  - recommended

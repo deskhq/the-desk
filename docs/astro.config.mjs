@@ -2,6 +2,7 @@
 import { defineConfig } from 'astro/config';
 import starlight from '@astrojs/starlight';
 import sitemap from '@astrojs/sitemap';
+import starlightOpenAPI, { openAPISidebarGroups } from 'starlight-openapi';
 import caddyfileGrammar from './src/grammars/caddyfile.tmLanguage.json' with { type: 'json' };
 import crontabGrammar from './src/grammars/crontab.tmLanguage.json' with { type: 'json' };
 
@@ -24,6 +25,19 @@ export default defineConfig({
 			],
 			// Brand theme override (The Desk): Newsreader/Instrument Sans + brass palette.
 			customCss: ['./src/styles/custom.css'],
+			// Renders `public/openapi.yaml` — the hand-authored, route-verified
+			// contract for /api/v1 — into a browsable reference at build time.
+			// The same file stays downloadable at /openapi.yaml because it lives
+			// in `public/`, so integrators can feed it straight to a generator.
+			plugins: [
+				starlightOpenAPI([
+					{
+						base: 'docs/api-reference',
+						label: 'API reference',
+						schema: './public/openapi.yaml',
+					},
+				]),
+			],
 			// Code blocks stay a dark terminal frame in BOTH light and dark site
 			// themes (per the design). A single dark syntax theme keeps the token
 			// colours readable in both modes; the frame background follows the
@@ -115,6 +129,9 @@ export default defineConfig({
 						{ label: 'SOC 2 & ISO 27001 control mapping', slug: 'docs/reference/security-and-compliance' },
 					],
 				},
+				// Generated from the OpenAPI document by starlight-openapi: one
+				// group per tag, listing every operation.
+				...openAPISidebarGroups,
 			],
 		}),
 	],
