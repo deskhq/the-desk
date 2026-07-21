@@ -49,11 +49,16 @@ function liveApiOperations(): array
     $operations = [];
 
     foreach (Route::getRoutes() as $route) {
-        if (! str_starts_with((string) $route->getName(), 'api.v1.')) {
+        // Selected by URI, not by route name: a route registered under /api/v1
+        // with some other name would otherwise be invisible to this gate, which
+        // is precisely the drift it exists to catch.
+        $uri = trim((string) $route->uri(), '/');
+
+        if ($uri !== 'api/v1' && ! str_starts_with($uri, 'api/v1/')) {
             continue;
         }
 
-        $path = '/'.trim(Str::after($route->uri(), 'api/v1'), '/');
+        $path = '/'.trim(Str::after($uri, 'api/v1'), '/');
 
         foreach ($route->methods() as $method) {
             if (in_array($method, ['HEAD', 'OPTIONS'], true)) {
@@ -152,6 +157,20 @@ test('the spec documents exactly the live /api/v1 surface', function () use ($sp
 
 test('every documented operation declares the scope its route enforces', function () use ($spec): void {
     expect(documentedApiOperations($spec()))->toBe(liveApiOperations());
+});
+
+test('every /api/v1 route is named under the api.v1 prefix', function (): void {
+    $unnamed = [];
+
+    foreach (Route::getRoutes() as $route) {
+        $uri = trim((string) $route->uri(), '/');
+
+        if (str_starts_with($uri, 'api/v1/') && ! str_starts_with((string) $route->getName(), 'api.v1.')) {
+            $unnamed[] = $uri;
+        }
+    }
+
+    expect($unnamed)->toBeEmpty('these routes must be named api.v1.*: '.implode(', ', $unnamed));
 });
 
 test('the documented scopes all come from the IntegrationScope vocabulary', function () use ($spec): void {
