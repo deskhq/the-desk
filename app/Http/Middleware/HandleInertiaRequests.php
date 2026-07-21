@@ -21,6 +21,7 @@ use App\Models\Team;
 use App\Models\TeamInvitation;
 use App\Models\User;
 use App\SlashCommands\SlashCommandRegistry;
+use App\Support\FrequentEmoji;
 use App\Support\ReverbConfig;
 use App\Support\TranslationCatalog;
 use App\Support\UpdateChecker;
@@ -177,6 +178,12 @@ class HandleInertiaRequests extends Middleware
             // bodies and reaction pills can resolve `:name:` shortcodes to images.
             // A revoked emoji is simply absent, so its token falls back to text.
             'customEmojis' => fn (): array => $this->customEmojisForWorkspace($request, $user),
+            // The viewer's five most-used emoji in their current workspace,
+            // feeding the hover bar's quick-react cluster and the picker's
+            // "Frequently used" strip. Derived from reaction history per visit
+            // (frequently-used is slow-moving, so it is eventually consistent —
+            // a live reaction doesn't re-rank until the next Inertia visit).
+            'frequentEmojis' => fn (): array => FrequentEmoji::forUser($user),
             // The current team's mentionable user groups, feeding the composer's
             // `@` menu and the anti-spoof check that decides whether a
             // `group:<id>` token renders as a pill or as plain text. A deleted
