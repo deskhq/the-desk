@@ -1,5 +1,30 @@
 # Changelog
 
+## [1.14.0](https://github.com/emmpaul/the-desk/compare/v1.13.0...v1.14.0) (2026-07-21)
+
+
+### Features
+
+* add an OpenAPI 3.1 spec for the public REST API v1 ([#677](https://github.com/emmpaul/the-desk/issues/677)) ([d960e04](https://github.com/emmpaul/the-desk/commit/d960e0440df7bf624ff1f50347729355bb36fc87))
+* mention user groups to notify everyone in them at once ([#679](https://github.com/emmpaul/the-desk/issues/679)) ([67550b6](https://github.com/emmpaul/the-desk/commit/67550b672512c64843dc485dadde9aba74574c60))
+* quick-react shortcuts and a frequently-used emoji strip ([#686](https://github.com/emmpaul/the-desk/issues/686)) ([37291da](https://github.com/emmpaul/the-desk/commit/37291da1660b61f77876da316746a5efc0d0d91b))
+* replace the native date inputs with shadcn date pickers ([#673](https://github.com/emmpaul/the-desk/issues/673)) ([302066d](https://github.com/emmpaul/the-desk/commit/302066d7a4f89943abe3fea6f4259ea835e7e670))
+* voice messages in the composer, with an inline waveform player ([#681](https://github.com/emmpaul/the-desk/issues/681)) ([8e52dea](https://github.com/emmpaul/the-desk/commit/8e52dea42b1bd1f9b0c027badb20623e464f196c))
+
+
+### Bug Fixes
+
+* anchor bare calendar days to the viewer's local midnight ([#674](https://github.com/emmpaul/the-desk/issues/674)) ([b8ec20d](https://github.com/emmpaul/the-desk/commit/b8ec20d483ab36d7403a2fa87162a83ed0b89efc))
+* hide reminders for messages the viewer can no longer access ([#689](https://github.com/emmpaul/the-desk/issues/689)) ([cfcc2ed](https://github.com/emmpaul/the-desk/commit/cfcc2ed8bf08562f82407c4d817b3ef7ab60f9b0))
+* point worktree env away from services the bootstrap leaves down ([#691](https://github.com/emmpaul/the-desk/issues/691)) ([cddaf4f](https://github.com/emmpaul/the-desk/commit/cddaf4fd084dbcbf649f65a925ff7eb3bdaf0570))
+* stamp the running version on the candidate release line ([#668](https://github.com/emmpaul/the-desk/issues/668)) ([5332e5e](https://github.com/emmpaul/the-desk/commit/5332e5ec329ac2e24c221cc5b69956262385e36b))
+* target the built version in the upgrade CI jobs ([#682](https://github.com/emmpaul/the-desk/issues/682)) ([f4fa4d0](https://github.com/emmpaul/the-desk/commit/f4fa4d01c0db0560e58ec46cf797a8ee72a2e143))
+
+
+### Dependencies
+
+* clear the open Dependabot alerts (guzzle, shell-quote) ([#688](https://github.com/emmpaul/the-desk/issues/688)) ([204a51a](https://github.com/emmpaul/the-desk/commit/204a51a64494aa96a01ed64957faef3e91d1a564))
+
 ## [1.13.0](https://github.com/emmpaul/the-desk/compare/v1.12.2...v1.13.0) (2026-07-20)
 
 
