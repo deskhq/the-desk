@@ -376,12 +376,16 @@ jobs:
           persist-credentials: false
 
       # The build overlay retags the app image to the-desk:latest and builds it
-      # from this checkout, so APP_IMAGE is not involved on this path.
+      # from this checkout, so APP_IMAGE is not involved on this path. APP_VERSION
+      # still is: it is what upgrade.sh targets, and the template gen-secrets.sh
+      # copies names the last stable release on `develop` while the image built
+      # from this checkout reports the candidate, so it comes from VERSION here.
       - name: Prepare a build-from-source .env
         run: |
           ./docker/gen-secrets.sh
           sed -i 's|^COMPOSE_FILE=.*|COMPOSE_FILE=docker-compose.prod.yml:docker-compose.build.yml|' .env
           echo "APP_URL=http://localhost:8000" >> .env
+          echo "APP_VERSION=$(sed -e 's/#.*//' VERSION | tr -d '[:space:]')" >> .env
           grep '^COMPOSE_FILE=' .env
 
       - name: Start the stack from source
@@ -443,12 +447,19 @@ jobs:
           tags: the-desk:ci
           cache-from: type=gha
 
+      # APP_VERSION is taken from the VERSION file rather than from the
+      # .env.prod.example gen-secrets.sh copies. The candidate line stamps
+      # VERSION alone (see tests/Unit/ReleaseFlowTest.php), so on `develop` the
+      # template still names the last stable release while the image built above
+      # reports the candidate — upgrade.sh would target a version the container
+      # never claims and fail its identity check. The last assignment wins.
       - name: Prepare a production .env
         run: |
           ./docker/gen-secrets.sh
           {
             echo "APP_IMAGE=the-desk:ci"
             echo "APP_URL=http://localhost:8000"
+            echo "APP_VERSION=$(sed -e 's/#.*//' VERSION | tr -d '[:space:]')"
           } >> .env
 
       # Start from a running stack, which is what an operator upgrades from.

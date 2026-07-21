@@ -133,6 +133,36 @@ test('the stable line stamps the running version too', function (): void {
     expect(stampedPaths('release-please-config.json'))->toContain('VERSION');
 });
 
+/**
+ * The shell of the step in `$job` that seeds `.env` with gen-secrets.sh.
+ */
+function envPreparationScript(string $job): string
+{
+    /** @var array<int, array<string, mixed>> $steps */
+    $steps = readWorkflow('docker.yml')['jobs'][$job]['steps'];
+
+    foreach ($steps as $step) {
+        if (str_contains((string) ($step['run'] ?? ''), 'gen-secrets.sh')) {
+            return (string) $step['run'];
+        }
+    }
+
+    throw new RuntimeException("docker.yml job `{$job}` has no step seeding .env.");
+}
+
+/*
+ * The two upgrade jobs run an image built from the checkout, and upgrade.sh
+ * targets APP_VERSION in .env — which gen-secrets.sh seeds from
+ * .env.prod.example, an operator-facing file the candidate line deliberately
+ * leaves naming the last *stable* release. So on `develop` the target would be
+ * 1.13.0 while the container reports 1.14.0-rc.0, and upgrade.sh would fail its
+ * identity check on every push. Overriding APP_VERSION from VERSION is what
+ * keeps the two agreeing on both lines.
+ */
+test('the upgrade jobs target the version the image under test reports', function (string $job): void {
+    expect(envPreparationScript($job))->toContain("APP_VERSION=$(sed -e 's/#.*//' VERSION | tr -d '[:space:]')");
+})->with(['upgrade', 'upgrade-build-from-source']);
+
 /*
  * The acceptance criterion this file exists for: merging `develop` into `master`
  * must not be able to make `master` cut a candidate. It cannot, because the two
