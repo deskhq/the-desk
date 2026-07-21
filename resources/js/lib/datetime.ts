@@ -40,6 +40,23 @@ export function formatDateTime(
     });
 }
 
+/** A bare calendar day with no time part, e.g. `2026-07-10`. */
+const CALENDAR_DAY = /^\d{4}-\d{2}-\d{2}$/;
+
+/**
+ * Read a date input as a `Date`, anchoring a bare `YYYY-MM-DD` calendar day to
+ * local midnight: the spec parses such a day as UTC midnight, which renders as
+ * the previous day in any behind-UTC zone. `Date` objects and full timestamps
+ * carry their own instant and are passed through untouched.
+ */
+function toLocalDate(date: Date | string): Date {
+    if (typeof date === 'string' && CALENDAR_DAY.test(date)) {
+        return new Date(`${date}T00:00:00`);
+    }
+
+    return new Date(date);
+}
+
 /**
  * Format a date as an abbreviated month and day (e.g. "Jul 10"), for chart axes
  * and other date-only labels.
@@ -48,7 +65,7 @@ export function formatCalendarDate(
     date: Date | string,
     locale: string = i18n.locale,
 ): string {
-    return new Date(date).toLocaleDateString(locale, {
+    return toLocalDate(date).toLocaleDateString(locale, {
         month: 'short',
         day: 'numeric',
     });
@@ -66,7 +83,7 @@ export function formatIsoDay(
     day: string,
     locale: string = i18n.locale,
 ): string {
-    return new Date(`${day}T00:00:00`).toLocaleDateString(locale, {
+    return toLocalDate(day).toLocaleDateString(locale, {
         month: 'short',
         day: 'numeric',
         year: 'numeric',

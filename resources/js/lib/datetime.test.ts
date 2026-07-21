@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+    formatCalendarDate,
     formatDateTime,
     formatIsoDay,
     formatLocalTime,
@@ -38,6 +39,38 @@ describe('formatDateTime', () => {
     it('rolls over to the next day in a far-ahead zone', () => {
         expect(formatDateTime(INSTANT, 'Asia/Tokyo')).toContain('11');
         expect(formatDateTime(INSTANT, 'Asia/Tokyo')).toContain('12:30');
+    });
+});
+
+describe('formatCalendarDate', () => {
+    /**
+     * The search date-facet chip formats the bare `YYYY-MM-DD` the user filtered
+     * on. `new Date()` reads such a day as UTC midnight, so a behind-UTC viewer
+     * saw the chip name the day *before* the one the results were filtered from.
+     */
+    it('keeps a bare calendar day stable in a behind-UTC time zone', () => {
+        const zone = process.env.TZ;
+        process.env.TZ = 'America/Los_Angeles';
+
+        try {
+            expect(formatCalendarDate('2026-01-01', 'en-US')).toBe('Jan 1');
+        } finally {
+            process.env.TZ = zone;
+        }
+    });
+
+    it('leaves Date objects and full timestamps on their existing behaviour', () => {
+        const zone = process.env.TZ;
+        process.env.TZ = 'UTC';
+
+        try {
+            expect(formatCalendarDate(new Date(INSTANT), 'en-US')).toBe(
+                'Jul 10',
+            );
+            expect(formatCalendarDate(INSTANT, 'en-US')).toBe('Jul 10');
+        } finally {
+            process.env.TZ = zone;
+        }
     });
 });
 
