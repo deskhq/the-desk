@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Download, FileText } from '@lucide/vue';
 import { computed, ref } from 'vue';
+import AudioPlayer from '@/components/AudioPlayer.vue';
 import MessageLightbox from '@/components/MessageLightbox.vue';
 import { Button } from '@/components/ui/button';
 import { useTranslations } from '@/composables/useTranslations';
@@ -29,6 +30,7 @@ const { t } = useTranslations();
 
 const partitioned = computed(() => partitionAttachments(props.attachments));
 const images = computed(() => partitioned.value.images);
+const audios = computed(() => partitioned.value.audios);
 const files = computed(() => partitioned.value.files);
 const tiles = computed(() => imageGridTiles(images.value));
 const gridColumns = computed(() => imageGridColumns(images.value.length));
@@ -159,6 +161,16 @@ function isSvg(attachment: AttachmentData): boolean {
                 >
             </Button>
         </div>
+
+        <!-- Every audio/* attachment plays inline rather than downloading —
+             a clip recorded in the composer and a dropped audio file alike; the
+             player itself drops the filename line for the former. -->
+        <AudioPlayer
+            v-for="clip in audios"
+            :key="clip.id"
+            :src="clip.url"
+            :filename="clip.filename"
+        />
 
         <!-- Non-image files (SVG included): a download card each. -->
         <a

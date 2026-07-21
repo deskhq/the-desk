@@ -198,6 +198,23 @@ describe('useAttachmentUploads', () => {
         expect(uploads.items.value[1].previewUrl).toBeNull();
     });
 
+    it('previews an audio row via an object URL so the tray can play it back', () => {
+        uploads.addFiles([
+            fakeFile('voice-message-1721318675.webm', 'audio/webm;codecs=opus'),
+            fakeFile('standup-jingle.mp3', 'audio/mpeg'),
+            fakeFile('doc.pdf', 'application/pdf'),
+        ]);
+
+        expect(uploads.items.value[0].isAudio).toBe(true);
+        expect(uploads.items.value[0].isImage).toBe(false);
+        expect(uploads.items.value[0].previewUrl).toBe(
+            'blob:voice-message-1721318675.webm',
+        );
+        expect(uploads.items.value[1].isAudio).toBe(true);
+        expect(uploads.items.value[2].isAudio).toBe(false);
+        expect(uploads.items.value[2].previewUrl).toBeNull();
+    });
+
     it('tracks upload progress on the row', () => {
         uploads.addFiles([fakeFile('a.pdf', 'application/pdf')]);
         calls[0].onProgress(64);

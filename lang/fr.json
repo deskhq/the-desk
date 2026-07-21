@@ -1137,5 +1137,14 @@
   "Sign in with the shared demo account": "Connectez-vous avec le compte de démonstration partagé",
   "You're exploring a": "Vous explorez une",
   "live demo": "démo en direct",
-  "— everyone shares one account, it resets hourly, and some actions are disabled.": "— tout le monde partage un seul compte, elle est réinitialisée toutes les heures, et certaines actions sont désactivées."
+  "— everyone shares one account, it resets hourly, and some actions are disabled.": "— tout le monde partage un seul compte, elle est réinitialisée toutes les heures, et certaines actions sont désactivées.",
+  "Record a voice message": "Enregistrer un message vocal",
+  "Stop recording": "Arrêter l’enregistrement",
+  "Discard recording": "Supprimer l’enregistrement",
+  "Microphone unavailable": "Micro indisponible",
+  "Allow microphone access in your browser to record a voice message.": "Autorisez l’accès au micro dans votre navigateur pour enregistrer un message vocal.",
+  "Play": "Lire",
+  "Pause": "Mettre en pause",
+  "Seek": "Se déplacer dans la piste",
+  ":elapsed of :total": ":elapsed sur :total"
 }

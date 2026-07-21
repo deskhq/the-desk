@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { createSSRApp, h } from 'vue';
 import { renderToString } from 'vue/server-renderer';
+import { translate } from '@/lib/i18n';
 import type { AttachmentData } from '@/types/attachments';
 import MessageAttachments from './MessageAttachments.vue';
 
@@ -35,6 +36,18 @@ function file(overrides: Partial<AttachmentData> = {}): AttachmentData {
     };
 }
 
+function audio(overrides: Partial<AttachmentData> = {}): AttachmentData {
+    return {
+        ...file(),
+        id: `audio-${Math.random()}`,
+        filename: 'standup-jingle.mp3',
+        mimeType: 'audio/mpeg',
+        sizeBytes: 1_048_576,
+        url: 'https://desk.test/jingle.mp3',
+        ...overrides,
+    };
+}
+
 async function render(attachments: AttachmentData[]): Promise<string> {
     const app = createSSRApp({
         render: () =>
@@ -44,6 +57,8 @@ async function render(attachments: AttachmentData[]): Promise<string> {
                 createdAt: '2024-01-01T11:02:00.000Z',
             }),
     });
+
+    app.config.globalProperties.$t = translate;
 
     return renderToString(app);
 }
@@ -118,6 +133,37 @@ describe('MessageAttachments', () => {
         const html = await render([image(), file()]);
 
         expect(html).toContain('data-test="attachment-image"');
+        expect(html).toContain('data-test="attachment-file"');
+    });
+
+    it('renders a dropped audio file as an inline player keeping its filename', async () => {
+        const html = await render([audio()]);
+
+        expect(html).toContain('data-test="audio-player"');
+        expect(html).toContain('standup-jingle.mp3');
+        expect(html).toContain('src="https://desk.test/jingle.mp3"');
+        // Audio never falls through to the download card.
+        expect(html).not.toContain('data-test="attachment-file"');
+    });
+
+    it('renders a recorded clip as an inline player with no filename line', async () => {
+        const html = await render([
+            audio({
+                filename: 'voice-message-1721318675.webm',
+                mimeType: 'audio/webm;codecs=opus',
+            }),
+        ]);
+
+        expect(html).toContain('data-test="audio-player"');
+        expect(html).not.toContain('data-test="audio-player-filename"');
+        expect(html).not.toContain('voice-message-1721318675.webm');
+    });
+
+    it('renders a voice clip alongside body attachments of other kinds', async () => {
+        const html = await render([image(), audio(), file()]);
+
+        expect(html).toContain('data-test="attachment-image"');
+        expect(html).toContain('data-test="audio-player"');
         expect(html).toContain('data-test="attachment-file"');
     });
 });

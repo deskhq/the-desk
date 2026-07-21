@@ -36,6 +36,25 @@ describe('partitionAttachments', () => {
         expect(images.map((a) => a.id)).toEqual(['img']);
         expect(files.map((a) => a.id)).toEqual(['svg', 'pdf']);
     });
+
+    it('splits every audio attachment out, recorded or dropped', () => {
+        const clip = attachment({
+            id: 'clip',
+            filename: 'voice-message-1721318675.webm',
+            mimeType: 'audio/webm;codecs=opus',
+        });
+        const song = attachment({
+            id: 'song',
+            filename: 'standup-jingle.mp3',
+            mimeType: 'audio/mpeg',
+        });
+        const pdf = attachment({ id: 'pdf', mimeType: 'application/pdf' });
+
+        const { audios, files } = partitionAttachments([clip, song, pdf]);
+
+        expect(audios.map((a) => a.id)).toEqual(['clip', 'song']);
+        expect(files.map((a) => a.id)).toEqual(['pdf']);
+    });
 });
 
 describe('singleImageSize', () => {

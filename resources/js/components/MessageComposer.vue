@@ -7,13 +7,16 @@ import {
     Code,
     FileText,
     Italic,
+    Mic,
     Pencil,
     Plus,
+    Square,
     Strikethrough,
     X,
 } from '@lucide/vue';
 import { computed, nextTick, onMounted, ref, watch } from 'vue';
 import { store as storeAttachment } from '@/actions/App/Http/Controllers/Channels/AttachmentController';
+import AudioPlayer from '@/components/AudioPlayer.vue';
 import ComposerSendButton from '@/components/ComposerSendButton.vue';
 import GifPickerPanel from '@/components/GifPickerPanel.vue';
 import MessageQuote from '@/components/MessageQuote.vue';
@@ -33,7 +36,13 @@ import type {
     SendCallbacks,
 } from '@/composables/useMessageActions';
 import { useTranslations } from '@/composables/useTranslations';
+import { useVoiceRecorder } from '@/composables/useVoiceRecorder';
 import { formatFileSize } from '@/lib/attachments';
+import {
+    VOICE_MAX_DURATION_SECONDS,
+    formatClock,
+    isVoiceRecordingSupported,
+} from '@/lib/audio';
 import {
     isComposerEditTrigger,
     resolveComposerEditTarget,
@@ -233,6 +242,43 @@ const canSubmit = computed(() => {
 
     return body.value.trim() !== '' || uploads.attachmentIds.value.length > 0;
 });
+
+/**
+ * A voice clip is nothing but an audio attachment, so recording rides the tray
+ * above: the finished clip is staged exactly like a dropped file and uploads
+ * through the same endpoint. Capability is read once — `MediaRecorder` and a
+ * secure-context `getUserMedia` don't appear mid-session — and where either is
+ * missing the mic slot is absent rather than present-and-broken.
+ */
+const voiceRecordingSupported = isVoiceRecordingSupported();
+const canRecord = computed(
+    () => attachmentsEnabled.value && voiceRecordingSupported,
+);
+
+const recorder = useVoiceRecorder({
+    onRecorded: (clip) => uploads.addFiles([clip]),
+});
+
+/** The recording strip's `elapsed / 5:00` ceiling. */
+const recordingLimit = formatClock(VOICE_MAX_DURATION_SECONDS);
+
+/**
+ * The live input-level meter's bars (design 1b). Purely ephemeral chrome: the
+ * levels are read from the mic in real time and nothing is kept with the clip.
+ */
+const LEVEL_BARS = 10;
+const levelBars = computed(() =>
+    Array.from({ length: LEVEL_BARS }, (_, index) => {
+        // Stagger the bars around the current level so the meter reads as a
+        // moving waveform rather than a single block rising and falling.
+        const offset = ((index % 3) + 1) / 4;
+
+        return Math.min(
+            Math.max(recorder.level.value * (0.5 + offset), 0.1),
+            1,
+        );
+    }),
+);
 
 /** The hidden native file input the "Add attachment" button proxies to. */
 const fileInput = ref<HTMLInputElement | null>(null);
@@ -1454,6 +1500,43 @@ function onKeydown(event: KeyboardEvent): void {
                             </Button>
                         </div>
 
+                        <!-- Audio chip: the same inline player the timeline
+                             uses, previewing the local blob before send. A
+                             recorded clip drops its filename line inside the
+                             player, so the tray reads as "a voice message". -->
+                        <div
+                            v-else-if="item.isAudio && item.previewUrl"
+                            data-test="composer-attachment"
+                            :data-status="item.status"
+                            class="group relative"
+                        >
+                            <AudioPlayer
+                                :src="item.previewUrl"
+                                :filename="item.name"
+                                compact
+                            />
+                            <div
+                                v-if="item.status === 'uploading'"
+                                class="absolute inset-x-3 bottom-1.5 h-0.75 overflow-hidden rounded-full bg-border"
+                            >
+                                <div
+                                    class="h-full rounded-full bg-brass"
+                                    :style="{ width: `${item.progress}%` }"
+                                ></div>
+                            </div>
+                            <Button
+                                variant="unstyled"
+                                size="none"
+                                type="button"
+                                data-test="composer-attachment-remove"
+                                :aria-label="$t('Remove attachment')"
+                                class="absolute top-1.5 right-1.5 rounded-full p-1 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 hover:text-foreground focus:opacity-100"
+                                @click="uploads.remove(item.localId)"
+                            >
+                                <X class="size-3" />
+                            </Button>
+                        </div>
+
                         <!-- Non-image file chip (uploading or done). -->
                         <div
                             v-else
@@ -1507,8 +1590,73 @@ function onKeydown(event: KeyboardEvent): void {
                     </template>
                 </div>
 
+                <!-- Recording strip: while the mic is open the input row gives
+                     way to a live readout — a pulsing record dot, the elapsed
+                     time against the five-minute cap, an ephemeral input-level
+                     meter, and discard/stage controls. -->
+                <div
+                    v-if="recorder.isRecording.value"
+                    data-test="composer-recording"
+                    class="flex h-13 items-center gap-2.5 py-2 pr-2 pl-4.5"
+                >
+                    <span
+                        class="size-2.5 shrink-0 animate-pulse rounded-full bg-destructive"
+                        aria-hidden="true"
+                    ></span>
+                    <span
+                        data-test="composer-recording-elapsed"
+                        :data-warning="
+                            recorder.isNearingLimit.value ? 'true' : 'false'
+                        "
+                        class="text-sm font-semibold tabular-nums"
+                        :class="
+                            recorder.isNearingLimit.value
+                                ? 'text-destructive'
+                                : 'text-foreground'
+                        "
+                        aria-live="off"
+                    >
+                        {{ formatClock(recorder.elapsedSeconds.value) }}
+                    </span>
+                    <span
+                        class="text-[12.5px] text-muted-foreground tabular-nums"
+                    >
+                        / {{ recordingLimit }}
+                    </span>
+                    <div
+                        class="flex min-w-0 flex-1 items-center gap-0.75 px-1.5"
+                        aria-hidden="true"
+                    >
+                        <span
+                            v-for="(bar, index) in levelBars"
+                            :key="index"
+                            class="w-0.75 rounded-full bg-destructive/60"
+                            :style="{ height: `${bar * 20}px` }"
+                        ></span>
+                    </div>
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        data-test="composer-recording-cancel"
+                        class="size-8.5 shrink-0 rounded-full text-muted-foreground"
+                        :aria-label="$t('Discard recording')"
+                        @click="recorder.cancel"
+                    >
+                        <X class="size-3.75" />
+                    </Button>
+                    <Button
+                        size="icon"
+                        data-test="composer-recording-stop"
+                        class="size-8.5 shrink-0 rounded-full bg-primary text-brass hover:bg-primary/90"
+                        :aria-label="$t('Stop recording')"
+                        @click="recorder.stop"
+                    >
+                        <Square class="size-3" fill="currentColor" />
+                    </Button>
+                </div>
+
                 <!-- Input row -->
-                <div class="flex items-end gap-2.5 py-2 pr-2 pl-4.5">
+                <div v-else class="flex items-end gap-2.5 py-2 pr-2 pl-4.5">
                     <textarea
                         ref="textarea"
                         v-model="body"
@@ -1645,6 +1793,20 @@ function onKeydown(event: KeyboardEvent): void {
                             @click="openFilePicker"
                         >
                             <Plus class="size-3.5" />
+                        </Button>
+                        <!-- The mic sits last before send, and only where the
+                             browser can actually record (MediaRecorder +
+                             getUserMedia in a secure context). -->
+                        <Button
+                            v-if="canRecord"
+                            variant="ghost"
+                            size="icon"
+                            data-test="message-composer-record"
+                            class="size-7 shrink-0 rounded-full text-muted-foreground"
+                            :aria-label="$t('Record a voice message')"
+                            @click="recorder.start"
+                        >
+                            <Mic class="size-3.5" />
                         </Button>
                         <!-- Split send button: a primary Send plus a caret
                              opening the "Send later" menu (quick presets +

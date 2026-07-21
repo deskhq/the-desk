@@ -1,3 +1,4 @@
+import { isAudioMime } from '@/lib/audio';
 import type { AttachmentData } from '@/types/attachments';
 
 /** The single-image preview box, matching design panel 1c (≤ 380 × 240). */
@@ -8,22 +9,32 @@ const SINGLE_MAX_HEIGHT = 240;
 const MAX_GRID_TILES = 4;
 
 /**
- * Split a message's attachments into the inline images and the download-card
- * files, preserving order. The `isImage` flag is computed server-side (false for
- * SVG and every non-image type), so the client never re-derives it.
+ * Split a message's attachments into the inline images, the inline audio
+ * players, and the download-card files, preserving order. The `isImage` flag is
+ * computed server-side (false for SVG and every non-image type), so the client
+ * never re-derives it; audio is recognised from the MIME type alone, since a
+ * voice message is an ordinary audio attachment with no distinguishing data.
  */
 export function partitionAttachments(attachments: AttachmentData[]): {
     images: AttachmentData[];
+    audios: AttachmentData[];
     files: AttachmentData[];
 } {
     const images: AttachmentData[] = [];
+    const audios: AttachmentData[] = [];
     const files: AttachmentData[] = [];
 
     for (const attachment of attachments) {
-        (attachment.isImage ? images : files).push(attachment);
+        if (attachment.isImage) {
+            images.push(attachment);
+        } else if (isAudioMime(attachment.mimeType)) {
+            audios.push(attachment);
+        } else {
+            files.push(attachment);
+        }
     }
 
-    return { images, files };
+    return { images, audios, files };
 }
 
 /**
