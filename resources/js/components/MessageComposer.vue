@@ -29,12 +29,12 @@ import {
 } from '@/components/ui/tooltip';
 import { useAttachmentUploads } from '@/composables/useAttachmentUploads';
 import { useInitials } from '@/composables/useInitials';
-import { useUserGroups } from '@/composables/useUserGroups';
 import type {
     CommandCallbacks,
     SendCallbacks,
 } from '@/composables/useMessageActions';
 import { useTranslations } from '@/composables/useTranslations';
+import { useUserGroups } from '@/composables/useUserGroups';
 import { formatFileSize } from '@/lib/attachments';
 import {
     isComposerEditTrigger,

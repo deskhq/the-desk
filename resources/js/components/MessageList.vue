@@ -28,11 +28,11 @@ import {
 } from '@/components/ui/hover-card';
 import UserHoverCard from '@/components/UserHoverCard.vue';
 import { useCustomEmojis } from '@/composables/useCustomEmojis';
-import { useUserGroups } from '@/composables/useUserGroups';
 import { useInitials } from '@/composables/useInitials';
 import { NEAR_BOTTOM_THRESHOLD } from '@/composables/useScrollPin';
 import { useTimelineVirtualizer } from '@/composables/useTimelineVirtualizer';
 import { useTranslations } from '@/composables/useTranslations';
+import { useUserGroups } from '@/composables/useUserGroups';
 import { formatDayLabel, formatTimeOfDay } from '@/lib/datetime';
 import { canReactToMessage, showsThreadSummary } from '@/lib/messageActions';
 import type { MessageActionContext } from '@/lib/messageActions';

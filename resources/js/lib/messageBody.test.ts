@@ -321,7 +321,12 @@ describe('group mentions', () => {
 
     it('falls back to plain text for a group that no longer exists', () => {
         expect(
-            tokenizeMessageBody(`ping @[dev-team](group:${devs.id})`, [], {}, []),
+            tokenizeMessageBody(
+                `ping @[dev-team](group:${devs.id})`,
+                [],
+                {},
+                [],
+            ),
         ).toEqual([
             { kind: 'html', html: 'ping ' },
             { kind: 'html', html: '@dev-team' },
@@ -362,12 +367,9 @@ describe('group mentions', () => {
 
     it('does not resolve a group mention inside inline code', () => {
         expect(
-            tokenizeMessageBody(
-                `\`@[dev-team](group:${devs.id})\``,
-                [],
-                {},
-                [devs],
-            ),
+            tokenizeMessageBody(`\`@[dev-team](group:${devs.id})\``, [], {}, [
+                devs,
+            ]),
         ).toEqual([
             {
                 kind: 'html',
@@ -378,12 +380,9 @@ describe('group mentions', () => {
 
     it('carries the surrounding marks onto the group segment', () => {
         expect(
-            tokenizeMessageBody(
-                `**@[dev-team](group:${devs.id})**`,
-                [],
-                {},
-                [devs],
-            ),
+            tokenizeMessageBody(`**@[dev-team](group:${devs.id})**`, [], {}, [
+                devs,
+            ]),
         ).toEqual([
             {
                 kind: 'groupMention',
@@ -408,12 +407,9 @@ describe('group mentions', () => {
 
     it('renders a bold group pill wrapped in <strong>', () => {
         expect(
-            renderMessageBody(
-                `**@[dev-team](group:${devs.id})**`,
-                [],
-                {},
-                [devs],
-            ),
+            renderMessageBody(`**@[dev-team](group:${devs.id})**`, [], {}, [
+                devs,
+            ]),
         ).toMatch(/^<strong><span[^>]*>@dev-team<\/span><\/strong>$/);
     });
 

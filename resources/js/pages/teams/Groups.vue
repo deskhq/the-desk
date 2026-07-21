@@ -18,7 +18,12 @@ import { Input } from '@/components/ui/input';
 import { useInitials } from '@/composables/useInitials';
 import { translate } from '@/lib/i18n';
 import { edit, index } from '@/routes/teams';
-import { destroy, index as groupsIndex, store, update } from '@/routes/teams/groups';
+import {
+    destroy,
+    index as groupsIndex,
+    store,
+    update,
+} from '@/routes/teams/groups';
 import {
     destroy as removeMember,
     store as addMember,
@@ -131,8 +136,7 @@ const candidates = computed<Member[]>(() => {
         .filter(
             (member) =>
                 !already.has(member.id) &&
-                (needle === '' ||
-                    member.name.toLowerCase().includes(needle)),
+                (needle === '' || member.name.toLowerCase().includes(needle)),
         )
         .slice(0, 8);
 });
@@ -178,12 +182,15 @@ function confirmRemoval(): void {
         return;
     }
 
-    removalForm.delete(destroy({ team: props.team.slug, group: group.id }).url, {
-        preserveScroll: true,
-        onFinish: () => {
-            pendingRemoval.value = null;
+    removalForm.delete(
+        destroy({ team: props.team.slug, group: group.id }).url,
+        {
+            preserveScroll: true,
+            onFinish: () => {
+                pendingRemoval.value = null;
+            },
         },
-    });
+    );
 }
 </script>
 
@@ -278,7 +285,7 @@ function confirmRemoval(): void {
             {{ $t('No user groups yet.') }}
         </p>
 
-        <ul v-else class="space-y-2" role="list" data-test="group-list">
+        <ul v-else class="space-y-2" data-test="group-list">
             <li
                 v-for="group in filteredGroups"
                 :key="group.id"
@@ -391,7 +398,7 @@ function confirmRemoval(): void {
                 >
                     {{ $t('This group has no members yet.') }}
                 </p>
-                <ul v-else class="flex flex-wrap gap-2" role="list">
+                <ul v-else class="flex flex-wrap gap-2">
                     <li
                         v-for="member in editing?.members ?? []"
                         :key="member.id"
@@ -433,7 +440,6 @@ function confirmRemoval(): void {
                 <ul
                     v-if="candidates.length > 0"
                     class="flex flex-col gap-1"
-                    role="list"
                     data-test="group-member-candidates"
                 >
                     <li v-for="member in candidates" :key="member.id">

@@ -7,8 +7,8 @@ import {
 } from '@/actions/App/Http/Controllers/Channels/ChannelController';
 import { SidebarTrigger } from '@/components/ui/sidebar';
 import { useCustomEmojis } from '@/composables/useCustomEmojis';
-import { useUserGroups } from '@/composables/useUserGroups';
 import { getInitials } from '@/composables/useInitials';
+import { useUserGroups } from '@/composables/useUserGroups';
 import { formatDateTime } from '@/lib/datetime';
 import { renderMessageBody } from '@/lib/messageBody';
 import type { Message, ThreadInboxItem, ThreadInboxPage } from '@/types';
