@@ -13,6 +13,9 @@
         "types:check": "vue-tsc --noEmit",
         "test:js": "vitest run"
     },
+    "overrides": {
+        "shell-quote": "^1.9.0"
+    },
     "devDependencies": {
         "@eslint/js": "^9.19.0",
         "@laravel/echo-vue": "^2.3.7",

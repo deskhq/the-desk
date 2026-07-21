@@ -1175,6 +1175,9 @@
   "Pause": "Mettre en pause",
   "Seek": "Se déplacer dans la piste",
   ":elapsed of :total": ":elapsed sur :total",
+  "Frequently used": "Utilisés fréquemment",
+  "React with :emoji": "Réagir avec :emoji",
+  "Remove your :emoji": "Retirer votre :emoji",
   "No longer available": "Plus disponible",
   "You no longer have access to this channel.": "Vous n’avez plus accès à ce canal."
 }
