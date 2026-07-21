@@ -20,6 +20,24 @@ isolated worktree runs just **`laravel.test` + `pgsql`** (2 containers). A
 generated `compose.override.yaml` trims `laravel.test`'s `depends_on` to
 `pgsql`, and `sail up -d laravel.test` then starts exactly those two.
 
+The **Browser suite** (`tests/Browser`) is the exception: it drives a real
+Chromium and `tests/Pest.php` points the broadcaster at a live Reverb for the
+whole suite. So the bootstrap additionally installs the Playwright browsers into
+the app container and starts `reverb` (which pulls in `redis` through its own
+`depends_on`) — four containers in total. Two details make that work:
+
+- Playwright's browser binaries ship out of band; `npm install` fetches only the
+  driver. They install in two steps because the shared libraries Chromium links
+  against need `apt` and therefore root (`sail root-shell -c "npx playwright
+  install-deps chromium"`), while the browser itself installs as the `sail` user
+  so its cache lands in the `HOME` Pest reads it back from. Re-entry probes the
+  cache and skips both when a chromium build is already unpacked.
+- `REVERB_PORT` is overloaded in `compose.yaml`: it is both the host side of
+  `${REVERB_PORT}:8080` and — via `config/broadcasting.php` — the port the app
+  dials at `reverb:<port>`. The generated `.env` therefore pins it to the
+  container-internal `8080`, and the per-worktree host offset moves into the
+  override's `reverb.ports`, so concurrent worktrees still don't fight over it.
+
 ## Commands
 
 ```bash
@@ -32,7 +50,8 @@ bin/worktree remove <NNN>          # tear down containers + volumes, remove the
 
 `create` allocates the lowest free **slot** (default 10, `WORKTREE_SLOTS`) under
 a lock, and derives the whole port block from it (`WORKTREE_PORT_BASE`, default
-`20000`; slot 0 → app 20000 / vite 20001 / reverb 20002 / db 20003). It forks
+`20000`; slot 0 → app 20000 / vite 20001 / reverb 20002 / db 20003 / redis
+20004). It forks
 from `master` by default; pass a foundation branch as `base` for a stacked-epic
 child. The base is fetched and resolved to its **remote-tracking** ref
 (`origin/<base>`) before forking, so a local branch lagging behind the remote

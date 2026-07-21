@@ -59,6 +59,63 @@ function worktreeFixtureClone(): array
     return [$root.'/main', $root];
 }
 
+/**
+ * A throwaway directory that is itself a git repository, so it can serve as the
+ * cwd for runWorktreeLib: sourcing bin/worktree aborts unless it is invoked from
+ * inside a work tree. The repo root is not usable here — inside a worktree's
+ * container its .git file points at a host path that does not exist there.
+ */
+function tempGitDir(string $prefix): string
+{
+    $path = sys_get_temp_dir().'/'.$prefix.'-'.bin2hex(random_bytes(6));
+    mkdir($path, 0o755, true);
+    runGit($path, 'init', '--quiet', '--initial-branch=master', '.');
+
+    return $path;
+}
+
+/**
+ * Stand up a throwaway worktree directory whose ./vendor/bin/sail is a stub that
+ * records every invocation, so the Playwright bootstrap can be driven without
+ * Docker. The stub answers the "is chromium already there?" probe (`sail shell`)
+ * with $probeExit and succeeds for everything else.
+ *
+ * @return array{0: string, 1: string} the fake worktree path and its call log
+ */
+function fakeSailWorktree(int $probeExit): array
+{
+    $path = tempGitDir('worktree-sail');
+    mkdir($path.'/vendor/bin', 0o755, true);
+
+    $log = $path.'/sail-calls.log';
+    file_put_contents($path.'/vendor/bin/sail', <<<BASH
+        #!/usr/bin/env bash
+        printf '%s\n' "\$*" >> {$log}
+        [ "\$1" = "shell" ] && exit {$probeExit}
+        exit 0
+        BASH);
+    chmod($path.'/vendor/bin/sail', 0o755);
+
+    return [$path, $log];
+}
+
+/**
+ * The stub's recorded invocations, one per line, so a test can assert on whole
+ * commands instead of substrings (the "already installed?" probe shells out to
+ * `playwright install --dry-run`, so a substring match cannot tell a probe from
+ * a real install).
+ *
+ * @return list<string>
+ */
+function sailCalls(string $log): array
+{
+    if (! is_file($log)) {
+        return [];
+    }
+
+    return array_values(array_filter(explode("\n", (string) file_get_contents($log)), strlen(...)));
+}
+
 function gitRevision(string $cwd, string $revision): string
 {
     return trim(runGit($cwd, 'rev-parse', $revision)->getOutput());
@@ -172,4 +229,56 @@ test('a worktree sitting on the wrong branch aborts the bootstrap', function ():
     expect($process->getExitCode())->not->toBe(0)
         ->and($process->getErrorOutput())->toContain('619-slug')
         ->and($process->getErrorOutput())->toContain('other');
+});
+
+test('a fresh worktree installs the Playwright system deps as root and the chromium browser', function (): void {
+    [$path, $log] = fakeSailWorktree(probeExit: 1);
+
+    $process = runWorktreeLib($path, 'install_playwright_browsers '.escapeshellarg($path));
+
+    expect($process->getExitCode())->toBe(0)
+        ->and(sailCalls($log))->toContain('root-shell -c npx playwright install-deps chromium')
+        ->and(sailCalls($log))->toContain('npx playwright install chromium');
+});
+
+test('a worktree that already has chromium skips the Playwright install', function (): void {
+    [$path, $log] = fakeSailWorktree(probeExit: 0);
+
+    $process = runWorktreeLib($path, 'install_playwright_browsers '.escapeshellarg($path));
+
+    expect($process->getExitCode())->toBe(0)
+        ->and(sailCalls($log))->not->toContain('root-shell -c npx playwright install-deps chromium')
+        ->and(sailCalls($log))->not->toContain('npx playwright install chromium');
+});
+
+test('the generated override rebinds Reverb to the worktree host port and keeps the container on 8080', function (): void {
+    $path = tempGitDir('worktree-override');
+
+    $process = runWorktreeLib($path, 'write_override '.escapeshellarg($path).' 579 20002');
+    $override = (string) file_get_contents($path.'/compose.override.yaml');
+
+    expect($process->getExitCode())->toBe(0)
+        ->and($override)->toContain("'20002:8080'")
+        ->and($override)->toContain('ports: !override');
+});
+
+test('the generated env pins the container-internal Reverb port while offsetting the host ports', function (): void {
+    $path = tempGitDir('worktree-env');
+    file_put_contents($path.'/source.env', "APP_NAME=Desk\nAPP_PORT=80\nREVERB_PORT=443\nDEMO_MODE=true\n");
+
+    $process = runWorktreeLib(
+        $path,
+        'write_env '.escapeshellarg($path).' '.escapeshellarg($path.'/source.env').' 20000 20001 20003 20004 desk-579',
+    );
+    $env = (string) file_get_contents($path.'/.env');
+
+    expect($process->getExitCode())->toBe(0)
+        ->and($env)->toContain("\nREVERB_PORT=8080\n")
+        ->and($env)->toContain("\nAPP_PORT=20000\n")
+        ->and($env)->toContain("\nVITE_PORT=20001\n")
+        ->and($env)->toContain("\nFORWARD_DB_PORT=20003\n")
+        ->and($env)->toContain("\nFORWARD_REDIS_PORT=20004\n")
+        ->and($env)->toContain("\nCOMPOSE_PROJECT_NAME=desk-579\n")
+        ->and($env)->toContain("\nAPP_URL=http://localhost:20000\n")
+        ->and($env)->toContain("\nDEMO_MODE=false\n");
 });
