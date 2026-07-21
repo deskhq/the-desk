@@ -33,6 +33,12 @@ The site has two parts:
 Edit the spec whenever `routes/api.php`, an `App\Http\Requests\Api\V1\*` rule, or
 an `App\Http\Resources\Api\V1\*` shape changes.
 
+`starlight-openapi` renders code samples through `httpsnippet`, which pins
+`form-data` to an exact version — so when that pin lands on a version carrying an
+advisory, npm cannot resolve it away and the repo's `dependency-review` gate
+fails the PR. The `form-data` entry in `overrides` forces a patched release
+instead. Drop it once `httpsnippet` pins a clean version on its own.
+
 ## Local development
 
 All commands run inside **this `docs/` directory** (`cd docs` from the repo root
