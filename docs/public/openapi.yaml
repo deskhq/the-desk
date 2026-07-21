@@ -1,0 +1,1175 @@
+# The machine-readable contract for The Desk's public REST API v1.
+#
+# This document is hand-authored and kept in lockstep with the live surface by
+# tests/Unit/OpenApiSpecTest.php, which diffs every path, method, and scope
+# against the routes registered in routes/api.php. Adding a route without
+# documenting it here fails the build, and so does documenting one that does not
+# exist. `npm run openapi:lint` (docs/) validates it against the OpenAPI 3.1
+# schema on every docs CI run.
+openapi: 3.1.0
+
+info:
+  title: The Desk REST API
+  version: '1.0.0'
+  summary: Read and write into a The Desk workspace from an external system.
+  description: |
+    The Desk exposes a small, URI-versioned REST API so external systems can read
+    and post into a workspace. It is part of the integrations platform and shares
+    its `INTEGRATIONS_ENABLED` master switch: with the platform off, every route
+    below returns `404`.
+
+    Requests authenticate with a bearer token minted from **Team settings →
+    Integrations**, which is either a **bot token** (acting as a non-human
+    workspace member, limited to the channels it belongs to) or a **personal
+    access token** (acting as the human who created it, with their own
+    memberships and permissions). Tokens are displayed once at creation and
+    stored only as a hash.
+
+    Every operation requires exactly one `resource:action` scope, granted to the
+    token when it is minted. A token missing the scope an operation requires is
+    answered with `403`.
+  license:
+    name: MIT
+    identifier: MIT
+
+servers:
+  - url: https://{host}/api/v1
+    description: A self-hosted The Desk instance.
+    variables:
+      host:
+        default: desk.example.com
+        description: The host your instance is served from (its `APP_URL`).
+
+security:
+  - bearerAuth: []
+
+tags:
+  - name: Channels
+    description: Read, create, and archive channels.
+  - name: Messages
+    description: Read, post, edit, and delete messages in a channel.
+  - name: Reactions
+    description: Add and remove emoji reactions on a message.
+  - name: Members
+    description: Read and manage channel membership.
+  - name: Webhooks
+    description: Manage outgoing-webhook subscriptions for the workspace.
+
+paths:
+  /channels:
+    get:
+      operationId: listChannels
+      summary: List channels
+      description: |
+        **Required scope:** `channels:read`
+
+        Lists the channels the token's subject may view within its acting team,
+        ordered by name. A bot sees only the channels it belongs to; a personal
+        access token sees what the person sees in the app — every public channel
+        in the team plus the private ones they belong to.
+      tags: [Channels]
+      security:
+        - bearerAuth: []
+      x-required-scope: channels:read
+      responses:
+        '200':
+          description: The channels the subject may view.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Channel'
+                required: [data]
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+
+    post:
+      operationId: createChannel
+      summary: Create a channel
+      description: |
+        **Required scope:** `channels:write`
+
+        Creates a channel in the subject's acting team and seeds the subject as
+        its first member. A leading `#` in the name is stripped; a name that
+        slugs to an existing channel in the team is rejected with `422`.
+      tags: [Channels]
+      security:
+        - bearerAuth: []
+      x-required-scope: channels:write
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  maxLength: 255
+                  description: The channel name, without a leading `#`.
+                  examples: ['deploys']
+                visibility:
+                  $ref: '#/components/schemas/ChannelVisibility'
+                topic:
+                  type: [string, 'null']
+                  maxLength: 255
+                  examples: ['Release announcements']
+              required: [name, visibility]
+      responses:
+        '201':
+          description: The channel was created.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChannelEnvelope'
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/ValidationFailed' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+
+  /channels/{channel}:
+    get:
+      operationId: showChannel
+      summary: Show a channel
+      description: |
+        **Required scope:** `channels:read`
+      tags: [Channels]
+      security:
+        - bearerAuth: []
+      x-required-scope: channels:read
+      parameters:
+        - name: channel
+          in: path
+          required: true
+          description: The channel's id.
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: The channel.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChannelEnvelope'
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+
+  /channels/{channel}/archive:
+    post:
+      operationId: archiveChannel
+      summary: Archive a channel
+      description: |
+        **Required scope:** `channels:write`
+
+        Archives a channel, making it read-only. A bot may archive only a
+        channel it created, and never `#general`, a direct message, or an
+        already-archived channel. A personal access token defers to the same
+        rule the app applies: the channel's creator, or a team admin or above.
+      tags: [Channels]
+      security:
+        - bearerAuth: []
+      x-required-scope: channels:write
+      parameters:
+        - name: channel
+          in: path
+          required: true
+          description: The channel's id.
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: The archived channel.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChannelEnvelope'
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+
+  /channels/{channel}/messages:
+    get:
+      operationId: listMessages
+      summary: List a channel's messages
+      description: |
+        **Required scope:** `messages:read`
+
+        A page of the channel's messages, newest first, 50 per page.
+      tags: [Messages]
+      security:
+        - bearerAuth: []
+      x-required-scope: messages:read
+      parameters:
+        - name: channel
+          in: path
+          required: true
+          description: The channel's id.
+          schema:
+            type: string
+            format: uuid
+        - name: page
+          in: query
+          required: false
+          description: The page to fetch, 1-based.
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+      responses:
+        '200':
+          description: A page of messages.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Message'
+                    required: [data]
+                  - $ref: '#/components/schemas/Pagination'
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+
+    post:
+      operationId: postMessage
+      summary: Post a message
+      description: |
+        **Required scope:** `messages:write`
+
+        Posts a message to the channel as the token's subject. Supply
+        `client_uuid` to make the call idempotent: resending the same uuid
+        resolves to the message already created rather than a duplicate.
+      tags: [Messages]
+      security:
+        - bearerAuth: []
+      x-required-scope: messages:write
+      parameters:
+        - name: channel
+          in: path
+          required: true
+          description: The channel's id.
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                body:
+                  type: string
+                  maxLength: 8000
+                  description: The message text. Surrounding whitespace is trimmed.
+                  examples: ['Deploy finished ✅']
+                client_uuid:
+                  type: [string, 'null']
+                  format: uuid
+                  description: |
+                    An idempotency key you generate. One is generated for you
+                    when omitted.
+                reply_to_id:
+                  type: [string, 'null']
+                  format: uuid
+                  description: The id of a live standard message in this channel to reply to inline.
+                thread_root_id:
+                  type: [string, 'null']
+                  format: uuid
+                  description: |
+                    The id of a live standard message in this channel to reply to
+                    in a thread. The target must not itself be a thread reply —
+                    threads are one level deep.
+                sent_to_channel:
+                  type: boolean
+                  default: false
+                  description: Whether a thread reply is also echoed into the channel.
+              required: [body]
+      responses:
+        '201':
+          description: The message was posted.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageEnvelope'
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/ValidationFailed' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+
+  /channels/{channel}/messages/{message}:
+    get:
+      operationId: showMessage
+      summary: Show a message
+      description: |
+        **Required scope:** `messages:read`
+      tags: [Messages]
+      security:
+        - bearerAuth: []
+      x-required-scope: messages:read
+      parameters:
+        - name: channel
+          in: path
+          required: true
+          description: The channel's id.
+          schema:
+            type: string
+            format: uuid
+        - name: message
+          in: path
+          required: true
+          description: The message's id.
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: The message.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageEnvelope'
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+
+    patch:
+      operationId: editMessage
+      summary: Edit a message
+      description: |
+        **Required scope:** `messages:write`
+
+        Only the message's own author may edit it.
+      tags: [Messages]
+      security:
+        - bearerAuth: []
+      x-required-scope: messages:write
+      parameters:
+        - name: channel
+          in: path
+          required: true
+          description: The channel's id.
+          schema:
+            type: string
+            format: uuid
+        - name: message
+          in: path
+          required: true
+          description: The message's id.
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                body:
+                  type: string
+                  maxLength: 8000
+                  description: The replacement text. Surrounding whitespace is trimmed.
+              required: [body]
+      responses:
+        '200':
+          description: The edited message, carrying an `edited_at` stamp.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageEnvelope'
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/ValidationFailed' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+
+    delete:
+      operationId: deleteMessage
+      summary: Delete a message
+      description: |
+        **Required scope:** `messages:write`
+
+        Deletes a message, leaving a tombstone in the channel so the
+        conversation keeps its shape. Only the message's own author may delete
+        it.
+      tags: [Messages]
+      security:
+        - bearerAuth: []
+      x-required-scope: messages:write
+      parameters:
+        - name: channel
+          in: path
+          required: true
+          description: The channel's id.
+          schema:
+            type: string
+            format: uuid
+        - name: message
+          in: path
+          required: true
+          description: The message's id.
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: The message was deleted.
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+
+  /channels/{channel}/messages/{message}/reactions/{emoji}:
+    put:
+      operationId: addReaction
+      summary: Add a reaction
+      description: |
+        **Required scope:** `reactions:write`
+
+        Adds the subject's reaction to a message. Idempotent — re-adding a
+        reaction the subject already left is a no-op. System messages cannot be
+        reacted to.
+      tags: [Reactions]
+      security:
+        - bearerAuth: []
+      x-required-scope: reactions:write
+      parameters:
+        - name: channel
+          in: path
+          required: true
+          description: The channel's id.
+          schema:
+            type: string
+            format: uuid
+        - name: message
+          in: path
+          required: true
+          description: The message's id.
+          schema:
+            type: string
+            format: uuid
+        - name: emoji
+          in: path
+          required: true
+          description: |
+            A native unicode emoji, or a `:name:` shortcode naming a custom
+            emoji that exists in the workspace. URL-encode the segment.
+          schema:
+            type: string
+            maxLength: 32
+          examples:
+            unicode:
+              value: '🎉'
+            custom:
+              value: ':shipit:'
+      responses:
+        '204':
+          description: The reaction is present.
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/ValidationFailed' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+
+    delete:
+      operationId: removeReaction
+      summary: Remove a reaction
+      description: |
+        **Required scope:** `reactions:write`
+
+        Removes the subject's reaction from a message. Idempotent — removing a
+        reaction that is not there is a no-op.
+      tags: [Reactions]
+      security:
+        - bearerAuth: []
+      x-required-scope: reactions:write
+      parameters:
+        - name: channel
+          in: path
+          required: true
+          description: The channel's id.
+          schema:
+            type: string
+            format: uuid
+        - name: message
+          in: path
+          required: true
+          description: The message's id.
+          schema:
+            type: string
+            format: uuid
+        - name: emoji
+          in: path
+          required: true
+          description: The reaction to remove. URL-encode the segment.
+          schema:
+            type: string
+            maxLength: 32
+      responses:
+        '204':
+          description: The reaction is absent.
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+
+  /channels/{channel}/members:
+    get:
+      operationId: listChannelMembers
+      summary: List a channel's members
+      description: |
+        **Required scope:** `members:read`
+
+        The channel's members, ordered by name.
+      tags: [Members]
+      security:
+        - bearerAuth: []
+      x-required-scope: members:read
+      parameters:
+        - name: channel
+          in: path
+          required: true
+          description: The channel's id.
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: The channel's members.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/User'
+                required: [data]
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+
+    post:
+      operationId: addChannelMember
+      summary: Add a channel member
+      description: |
+        **Required scope:** `members:write`
+
+        Adds a team member to a private channel. A bot may do this on any
+        private channel it belongs to; a personal access token defers to the
+        same rule the app applies — an existing member of the private channel,
+        or a team admin or above.
+      tags: [Members]
+      security:
+        - bearerAuth: []
+      x-required-scope: members:write
+      parameters:
+        - name: channel
+          in: path
+          required: true
+          description: The channel's id.
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                user_id:
+                  type: string
+                  format: uuid
+                  description: The id of a team member who is not already in the channel.
+              required: [user_id]
+      responses:
+        '201':
+          description: The member was added.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserEnvelope'
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/ValidationFailed' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+
+  /channels/{channel}/members/{user}:
+    delete:
+      operationId: removeChannelMember
+      summary: Remove a channel member
+      description: |
+        **Required scope:** `members:write`
+
+        Removes a member from a private channel. A member who is not in the
+        channel is answered with `404`.
+      tags: [Members]
+      security:
+        - bearerAuth: []
+      x-required-scope: members:write
+      parameters:
+        - name: channel
+          in: path
+          required: true
+          description: The channel's id.
+          schema:
+            type: string
+            format: uuid
+        - name: user
+          in: path
+          required: true
+          description: The member's user id.
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: The member was removed.
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+
+  /webhooks:
+    get:
+      operationId: listWebhookSubscriptions
+      summary: List webhook subscriptions
+      description: |
+        **Required scope:** `webhooks:read`
+
+        The workspace's outgoing-webhook subscriptions, newest first.
+      tags: [Webhooks]
+      security:
+        - bearerAuth: []
+      x-required-scope: webhooks:read
+      responses:
+        '200':
+          description: The workspace's subscriptions.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/WebhookSubscription'
+                required: [data]
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+
+    post:
+      operationId: createWebhookSubscription
+      summary: Create a webhook subscription
+      description: |
+        **Required scope:** `webhooks:write`
+
+        Registers an outgoing-webhook subscription in the workspace. The signing
+        secret is returned in plaintext here **exactly once** and never again —
+        store it now; it is what you verify delivery signatures with.
+      tags: [Webhooks]
+      security:
+        - bearerAuth: []
+      x-required-scope: webhooks:write
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  maxLength: 255
+                  examples: ['Deploy bot']
+                url:
+                  type: string
+                  format: uri
+                  maxLength: 2048
+                  description: |
+                    A publicly reachable `http://` or `https://` endpoint.
+                    Loopback, private, link-local, and cloud-metadata addresses
+                    are rejected.
+                  examples: ['https://hooks.example.com/the-desk']
+                events:
+                  type: array
+                  minItems: 1
+                  items:
+                    $ref: '#/components/schemas/WebhookEvent'
+                channel_ids:
+                  type: [array, 'null']
+                  description: |
+                    Restrict delivery to these channels, all of which must belong
+                    to the workspace. Omit to subscribe workspace-wide.
+                  items:
+                    type: string
+                    format: uuid
+              required: [name, url, events]
+      responses:
+        '201':
+          description: The subscription was created, with its one-time signing secret.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/WebhookSubscription'
+                  secret:
+                    type: string
+                    description: The signing secret, shown only here.
+                required: [data, secret]
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/ValidationFailed' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+
+  /webhooks/{webhookSubscription}:
+    get:
+      operationId: showWebhookSubscription
+      summary: Show a webhook subscription
+      description: |
+        **Required scope:** `webhooks:read`
+
+        The subscription, with its 20 most recent delivery attempts.
+      tags: [Webhooks]
+      security:
+        - bearerAuth: []
+      x-required-scope: webhooks:read
+      parameters:
+        - name: webhookSubscription
+          in: path
+          required: true
+          description: The subscription's id.
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: The subscription and its recent deliveries.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    allOf:
+                      - $ref: '#/components/schemas/WebhookSubscription'
+                      - type: object
+                        properties:
+                          deliveries:
+                            type: array
+                            items:
+                              $ref: '#/components/schemas/WebhookDelivery'
+                        required: [deliveries]
+                required: [data]
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+
+    delete:
+      operationId: revokeWebhookSubscription
+      summary: Revoke a webhook subscription
+      description: |
+        **Required scope:** `webhooks:write`
+
+        Deletes the subscription, stopping all future delivery.
+      tags: [Webhooks]
+      security:
+        - bearerAuth: []
+      x-required-scope: webhooks:write
+      parameters:
+        - name: webhookSubscription
+          in: path
+          required: true
+          description: The subscription's id.
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: The subscription was revoked.
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      description: |
+        A bot token or personal access token minted from **Team settings →
+        Integrations**, sent as `Authorization: Bearer <token>`.
+
+        OpenAPI 3.1 requires the security requirement array to be empty for a
+        scheme that is not `oauth2` or `openIdConnect`, so the one scope each
+        operation demands is carried in its `x-required-scope` extension (and
+        repeated at the top of its description).
+
+  schemas:
+    ChannelVisibility:
+      type: string
+      enum: [public, private]
+      description: Whether the channel is open to the whole team or invite-only.
+
+    MessageType:
+      type: string
+      enum: [standard, member_joined, member_left, poll]
+      description: |
+        `standard` is an authored message; `member_joined` and `member_left` are
+        system notices the app writes itself.
+
+    UserType:
+      type: string
+      enum: [human, bot]
+
+    WebhookEvent:
+      type: string
+      enum:
+        - message.created
+        - message.updated
+        - message.deleted
+        - reaction.added
+        - channel.member_added
+      description: An event an outgoing-webhook subscription can listen for.
+
+    WebhookSubscriptionStatus:
+      type: string
+      enum: [active, disabled]
+      description: |
+        A subscription is disabled automatically after repeated delivery
+        failures.
+
+    Channel:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        slug:
+          type: string
+        visibility:
+          $ref: '#/components/schemas/ChannelVisibility'
+        topic:
+          type: [string, 'null']
+        is_general:
+          type: boolean
+          description: Whether this is the workspace's default channel.
+        is_archived:
+          type: boolean
+        is_direct:
+          type: boolean
+          description: Whether this is a direct-message conversation.
+        created_at:
+          type: [string, 'null']
+          format: date-time
+      required:
+        - id
+        - name
+        - slug
+        - visibility
+        - topic
+        - is_general
+        - is_archived
+        - is_direct
+        - created_at
+
+    User:
+      type: object
+      description: A workspace member, human or bot.
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        type:
+          $ref: '#/components/schemas/UserType'
+      required: [id, name, type]
+
+    ReactionSummary:
+      type: object
+      description: One emoji and how many members reacted with it.
+      properties:
+        emoji:
+          type: string
+        count:
+          type: integer
+          minimum: 1
+      required: [emoji, count]
+
+    Message:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        channel_id:
+          type: string
+          format: uuid
+        body:
+          type: string
+        type:
+          $ref: '#/components/schemas/MessageType'
+        author:
+          $ref: '#/components/schemas/User'
+        reply_to_id:
+          type: [string, 'null']
+          format: uuid
+        thread_root_id:
+          type: [string, 'null']
+          format: uuid
+        reactions:
+          type: array
+          items:
+            $ref: '#/components/schemas/ReactionSummary'
+        created_at:
+          type: [string, 'null']
+          format: date-time
+        edited_at:
+          type: [string, 'null']
+          format: date-time
+          description: Null until the message is edited.
+      required:
+        - id
+        - channel_id
+        - body
+        - type
+        - author
+        - reply_to_id
+        - thread_root_id
+        - reactions
+        - created_at
+        - edited_at
+
+    WebhookDelivery:
+      type: object
+      description: One attempt to deliver an event to a subscription's endpoint.
+      properties:
+        id:
+          type: string
+          format: uuid
+        event_type:
+          $ref: '#/components/schemas/WebhookEvent'
+        event_id:
+          type: string
+          format: uuid
+          description: The id of the event delivered, for de-duplicating on your side.
+        succeeded:
+          type: boolean
+        response_status:
+          type: [integer, 'null']
+          description: The endpoint's HTTP status, or null when the request never completed.
+        error:
+          type: [string, 'null']
+        created_at:
+          type: [string, 'null']
+          format: date-time
+      required: [id, event_type, event_id, succeeded, response_status, error, created_at]
+
+    WebhookSubscription:
+      type: object
+      description: |
+        An outgoing-webhook subscription. The signing secret is deliberately
+        absent — it is returned only by the create operation.
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        url:
+          type: string
+          format: uri
+        events:
+          type: array
+          items:
+            $ref: '#/components/schemas/WebhookEvent'
+        channel_ids:
+          type: [array, 'null']
+          description: Null when the subscription is workspace-wide.
+          items:
+            type: string
+            format: uuid
+        status:
+          $ref: '#/components/schemas/WebhookSubscriptionStatus'
+        consecutive_failures:
+          type: integer
+          minimum: 0
+        last_success_at:
+          type: [string, 'null']
+          format: date-time
+        disabled_at:
+          type: [string, 'null']
+          format: date-time
+        created_at:
+          type: [string, 'null']
+          format: date-time
+      required:
+        - id
+        - name
+        - url
+        - events
+        - channel_ids
+        - status
+        - consecutive_failures
+        - last_success_at
+        - disabled_at
+        - created_at
+
+    ChannelEnvelope:
+      type: object
+      properties:
+        data:
+          $ref: '#/components/schemas/Channel'
+      required: [data]
+
+    MessageEnvelope:
+      type: object
+      properties:
+        data:
+          $ref: '#/components/schemas/Message'
+      required: [data]
+
+    UserEnvelope:
+      type: object
+      properties:
+        data:
+          $ref: '#/components/schemas/User'
+      required: [data]
+
+    Pagination:
+      type: object
+      description: The page cursor a paginated collection carries alongside its `data`.
+      properties:
+        links:
+          type: object
+          properties:
+            first:
+              type: [string, 'null']
+            last:
+              type: [string, 'null']
+            prev:
+              type: [string, 'null']
+            next:
+              type: [string, 'null']
+        meta:
+          type: object
+          properties:
+            current_page:
+              type: integer
+            from:
+              type: [integer, 'null']
+            last_page:
+              type: integer
+            path:
+              type: string
+            per_page:
+              type: integer
+            to:
+              type: [integer, 'null']
+            total:
+              type: integer
+
+    Error:
+      type: object
+      description: The shape every error response carries.
+      properties:
+        message:
+          type: string
+      required: [message]
+
+    ValidationError:
+      type: object
+      properties:
+        message:
+          type: string
+        errors:
+          type: object
+          description: The failing fields, each mapped to its messages.
+          additionalProperties:
+            type: array
+            items:
+              type: string
+      required: [message, errors]
+
+  responses:
+    Unauthorized:
+      description: The token is missing, malformed, or revoked.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+    Forbidden:
+      description: |
+        The token lacks the scope this operation requires, or its subject may
+        see the resource but not perform this action on it.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+    NotFound:
+      description: |
+        The resource does not exist, is outside the token's workspace, or the
+        integrations platform is disabled. A channel the subject cannot see is
+        reported here rather than as a `403`, so the API never leaks its
+        existence.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+    ValidationFailed:
+      description: The request body failed validation.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ValidationError'
+
+    TooManyRequests:
+      description: |
+        The per-token rate limit (`INTEGRATIONS_API_RATE_LIMIT` requests per
+        minute) was exceeded. Retry after the `Retry-After` header.
+      headers:
+        Retry-After:
+          description: Seconds to wait before retrying.
+          schema:
+            type: integer
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'

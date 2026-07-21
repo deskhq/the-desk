@@ -9,10 +9,30 @@ platform](/docs/reference/feature-toggles/#integrations-platform) and shares its
 `INTEGRATIONS_ENABLED` master switch — with the platform off, every route below
 returns **404**.
 
+This page is the narrative introduction. The full operation-by-operation
+contract — request bodies, response schemas, and the exact scope each endpoint
+requires — lives in the generated
+**[API reference](/docs/api-reference/)**.
+
 ## Base URL and versioning
 
 All endpoints live under `${APP_URL}/api/v1`. The version is in the path, so a
 future `v2` never breaks a `v1` client.
+
+## Machine-readable spec
+
+The API is described by an **OpenAPI 3.1** document, published on this site at
+[`/openapi.yaml`](/openapi.yaml) (not on your own instance). Point a generator
+at it to get a typed client in your language, or import it into Postman or
+Insomnia:
+
+```bash
+curl -O https://the-desk.emmanuelpaul.com/openapi.yaml
+```
+
+The document is kept in lockstep with the running code by a test that diffs
+every path, method, and scope against the application's route table, so an
+endpoint cannot change without the spec changing with it.
 
 ## Authenticating
 
@@ -53,6 +73,8 @@ Every endpoint requires exactly one scope; a token missing it gets a `403`.
 | `webhooks:write`   | Create and revoke outgoing-webhook subscriptions. |
 
 ## Endpoints
+
+Each one is documented in full in the [API reference](/docs/api-reference/).
 
 | Method & path                                        | Scope             |
 | ---------------------------------------------------- | ----------------- |

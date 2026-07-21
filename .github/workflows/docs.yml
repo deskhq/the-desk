@@ -62,6 +62,13 @@ jobs:
         run: npm ci
         working-directory: docs
 
+      # `docs/public/openapi.yaml` is hand-authored. The PHP suite keeps it in
+      # lockstep with the route table; this is what proves it is still a valid
+      # OpenAPI 3.1 document before the site renders it (#531).
+      - name: Lint OpenAPI Spec
+        run: npm run openapi:lint
+        working-directory: docs
+
       - name: Build Docs Site
         run: npm run build
         working-directory: docs
