@@ -44,7 +44,10 @@ test('web responses carry the policy', function (): void {
         ->toContain("style-src 'self' 'unsafe-inline'")
         ->toContain("img-src 'self' data: blob:")
         ->toContain("font-src 'self'")
-        ->toContain("media-src 'self'")
+        // blob: lets a composer recording play back and have its waveform
+        // decoded before it is ever uploaded.
+        ->toContain("connect-src 'self' blob:")
+        ->toContain("media-src 'self' blob:")
         ->toContain("worker-src 'self'")
         ->toContain("frame-src 'none'");
 });
@@ -117,7 +120,7 @@ test('connect-src allow-lists the derived reverb websocket origin', function ():
 
     $header = (string) $this->get(route('home'))->headers->get('Content-Security-Policy');
 
-    expect($header)->toContain("connect-src 'self' wss://chat.example.test:8080");
+    expect($header)->toContain("connect-src 'self' blob: wss://chat.example.test:8080");
 });
 
 test('connect-src falls back to self when no websocket origin resolves', function (): void {
@@ -128,7 +131,7 @@ test('connect-src falls back to self when no websocket origin resolves', functio
 
     $header = (string) $this->get(route('home'))->headers->get('Content-Security-Policy');
 
-    expect($header)->toContain("connect-src 'self';");
+    expect($header)->toContain("connect-src 'self' blob:;");
 });
 
 test('the policy is not sent when csp is disabled', function (): void {

@@ -27,6 +27,12 @@ The single hard requirement beyond normal HTTPS termination is that your proxy
 **forwards WebSocket upgrade requests** to Reverb. Without it, the app loads but
 real-time updates (new messages, typing indicators, presence) never arrive.
 
+> **Voice messages need HTTPS.** Browsers only grant microphone access in a
+> [secure context](https://developer.mozilla.org/en-US/docs/Web/Security/Secure_Contexts),
+> so the composer's mic button is **hidden entirely** on a plain-HTTP origin
+> (`localhost` excepted). There is no setting to turn it on — terminate TLS and
+> it appears. Playing and uploading audio files works either way.
+
 Make sure the browser-facing Reverb settings match your proxy — see
 [Configuration](/docs/self-hosting/configuration/#reverb-websockets--mind-the-browser-vs-server-split).
 

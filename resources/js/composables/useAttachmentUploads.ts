@@ -3,6 +3,7 @@ import type { ComputedRef, Ref } from 'vue';
 import { toast } from 'vue-sonner';
 import { useTranslations } from '@/composables/useTranslations';
 import { formatFileSize, isImageMime } from '@/lib/attachments';
+import { isPlayableAudio } from '@/lib/audio';
 import { xhrUpload } from '@/lib/uploadAttachment';
 import type { Uploader } from '@/lib/uploadAttachment';
 import { generateUuid } from '@/lib/uuid';
@@ -25,7 +26,15 @@ export interface PendingAttachment {
     sizeBytes: number;
     /** Whether to preview inline as an image (false for SVG and non-images). */
     isImage: boolean;
-    /** An object URL for the local image preview, or null for a non-image. */
+    /**
+     * Whether to preview inline with the audio player — a clip recorded in the
+     * composer or a dropped audio file, which are the same thing here.
+     */
+    isAudio: boolean;
+    /**
+     * An object URL for the local image or audio preview, or null for a file
+     * that previews as a plain chip.
+     */
     previewUrl: string | null;
     /** Where the upload is in its lifecycle. */
     status: AttachmentUploadStatus;
@@ -44,7 +53,7 @@ export interface AttachmentUploadsOptions {
     maxPerMessage: () => number;
     /** The upload transport; defaults to the real XHR uploader, faked in tests. */
     uploader?: Uploader;
-    /** Create a local preview URL for an image file; injectable for tests. */
+    /** Create a local preview URL for a previewable file; injectable for tests. */
     createObjectUrl?: (file: File) => string | null;
     /** Release a preview URL created above; injectable for tests. */
     revokeObjectUrl?: (url: string) => void;
@@ -261,13 +270,18 @@ export function useAttachmentUploads(
 
             const localId = generateUuid();
             const isImage = isImageMime(file.type);
+            const isAudio = isPlayableAudio({
+                mimeType: file.type,
+                filename: file.name,
+            });
 
             items.value.push({
                 localId,
                 name: file.name,
                 sizeBytes: file.size,
                 isImage,
-                previewUrl: isImage ? createObjectUrl(file) : null,
+                isAudio,
+                previewUrl: isImage || isAudio ? createObjectUrl(file) : null,
                 status: 'uploading',
                 progress: 0,
                 attachment: null,
@@ -296,6 +310,7 @@ export function useAttachmentUploads(
             name: attachment.description ?? t('GIF'),
             sizeBytes: attachment.sizeBytes,
             isImage: attachment.isImage,
+            isAudio: false,
             previewUrl: attachment.thumbUrl ?? attachment.url,
             status: 'done',
             progress: 100,

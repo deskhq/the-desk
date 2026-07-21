@@ -63,8 +63,12 @@ final class TheDeskPolicy implements Preset
             // previews, which never leave the page.
             ->add(Directive::IMG, [Keyword::SELF, Scheme::DATA, Scheme::BLOB])
             ->add(Directive::FONT, Keyword::SELF)
-            ->add(Directive::CONNECT, Keyword::SELF)
-            ->add(Directive::MEDIA, Keyword::SELF)
+            // blob: covers the composer's own recordings and audio previews: a
+            // staged clip plays from a local object URL, and its waveform is
+            // decoded by fetching that same URL. Both are bytes this page just
+            // created — nothing off-origin becomes reachable.
+            ->add(Directive::CONNECT, [Keyword::SELF, Scheme::BLOB])
+            ->add(Directive::MEDIA, [Keyword::SELF, Scheme::BLOB])
             // worker-src does not fall back to default-src — the chain is
             // worker-src → child-src → script-src, and our script-src carries a
             // nonce plus 'strict-dynamic', under which new Worker() is blocked.
