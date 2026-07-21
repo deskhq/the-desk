@@ -14,6 +14,7 @@ import {
 import { useAppearance } from '@/composables/useAppearance';
 import { useCustomEmojis } from '@/composables/useCustomEmojis';
 import { useEmojiPickerA11y } from '@/composables/useEmojiPickerA11y';
+import { useFrequentEmojis } from '@/composables/useFrequentEmojis';
 import { useTranslations } from '@/composables/useTranslations';
 import type { CustomEmojiEntry } from '@/lib/customEmoji';
 
@@ -67,7 +68,12 @@ const open = ref(false);
 // picker. Selecting one emits its `:name:` token (the same opaque-string
 // contract as a native glyph), so reactions store it and the composer inserts it
 // with no downstream changes.
-const { list: customEmojis } = useCustomEmojis();
+const { list: customEmojis, parseToken } = useCustomEmojis();
+
+// The viewer's own ranked shortlist, surfaced as a strip above "Custom". Its
+// entries are opaque strings just like a reaction value — a native glyph or a
+// `:name:` token — so picking one goes through the same `select` contract.
+const { list: frequentEmojis } = useFrequentEmojis();
 
 /**
  * The picker's `select` event carries the chosen emoji as `.i`; surface it and
@@ -75,6 +81,15 @@ const { list: customEmojis } = useCustomEmojis();
  */
 function onPick(payload: { i: string }): void {
     emit('select', payload.i);
+    open.value = false;
+}
+
+/**
+ * Emit a chosen frequently-used entry verbatim (glyph or `:name:` token), then
+ * close — identical in effect to any other pick.
+ */
+function onPickFrequent(emoji: string): void {
+    emit('select', emoji);
     open.value = false;
 }
 
@@ -109,6 +124,38 @@ function onPickCustom(entry: CustomEmojiEntry): void {
                 :collision-padding="8"
                 class="emoji-picker-shell z-50 overflow-hidden rounded-2xl border bg-popover shadow-[0_10px_28px_rgba(29,26,21,0.14)] outline-none"
             >
+                <div
+                    v-if="frequentEmojis.length > 0"
+                    data-test="frequent-emoji-strip"
+                    class="border-b border-border px-3 py-2.5"
+                >
+                    <p
+                        class="mb-1.5 text-[10.5px] font-semibold tracking-[0.1em] text-muted-foreground uppercase"
+                    >
+                        {{ $t('Frequently used') }}
+                    </p>
+                    <div class="grid grid-cols-7 gap-1">
+                        <!-- eslint-disable-next-line local/no-raw-button -- bespoke emoji-grid cell -->
+                        <button
+                            v-for="emoji in frequentEmojis"
+                            :key="emoji"
+                            type="button"
+                            data-test="frequent-emoji-option"
+                            :title="emoji"
+                            :aria-label="emoji"
+                            class="flex aspect-square items-center justify-center rounded-lg text-[17px] leading-none hover:bg-accent"
+                            @click="onPickFrequent(emoji)"
+                        >
+                            <img
+                                v-if="parseToken(emoji)"
+                                :src="parseToken(emoji)!.url"
+                                :alt="emoji"
+                                class="custom-emoji size-5"
+                            />
+                            <span v-else aria-hidden="true">{{ emoji }}</span>
+                        </button>
+                    </div>
+                </div>
                 <div
                     v-if="customEmojis.length > 0"
                     data-test="custom-emoji-strip"

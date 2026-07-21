@@ -1174,5 +1174,8 @@
   "Play": "Lire",
   "Pause": "Mettre en pause",
   "Seek": "Se déplacer dans la piste",
-  ":elapsed of :total": ":elapsed sur :total"
+  ":elapsed of :total": ":elapsed sur :total",
+  "Frequently used": "Utilisés fréquemment",
+  "React with :emoji": "Réagir avec :emoji",
+  "Remove your :emoji": "Retirer votre :emoji"
 }

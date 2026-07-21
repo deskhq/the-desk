@@ -19,6 +19,10 @@ import {
     TooltipProvider,
     TooltipTrigger,
 } from '@/components/ui/tooltip';
+import { useCustomEmojis } from '@/composables/useCustomEmojis';
+import { useFrequentEmojis } from '@/composables/useFrequentEmojis';
+import { useTranslations } from '@/composables/useTranslations';
+import type { CustomEmojiEntry } from '@/lib/customEmoji';
 import {
     canDeleteMessage,
     canEditMessage,
@@ -31,6 +35,7 @@ import {
     hasAnyMessageAction,
 } from '@/lib/messageActions';
 import type { MessageActionContext } from '@/lib/messageActions';
+import { hasReacted } from '@/lib/reactions';
 import type { Message } from '@/types';
 
 const props = defineProps<{
@@ -98,19 +103,76 @@ const showBar = computed(() =>
     hasAnyMessageAction(props.message, context.value),
 );
 
+const { t } = useTranslations();
+const { parseToken } = useCustomEmojis();
+const { list: frequentEmojis } = useFrequentEmojis();
+
 /**
- * The hairline divider only earns its place when it sits between two clusters:
- * the react/reply group and the forward/edit/delete group.
+ * The one-click shortcuts leading the bar. The thread panel is roughly half the
+ * channel's width, so it takes the leading three of the same ranked list rather
+ * than a list of its own.
  */
+const quickEmojis = computed(() =>
+    props.inThread ? frequentEmojis.value.slice(0, 3) : frequentEmojis.value,
+);
+
+/** The emoji the viewer has already reacted with on this message. */
+const ownReactions = computed(
+    () =>
+        new Set(
+            props.message.reactions
+                .filter((reaction) => hasReacted(reaction, props.currentUserId))
+                .map((reaction) => reaction.emoji),
+        ),
+);
+
+/**
+ * When a shortcut is a resolvable custom-emoji `:name:` token, its image entry;
+ * otherwise null (a native glyph, rendered as text).
+ */
+function quickCustomEmoji(emoji: string): CustomEmojiEntry | null {
+    return parseToken(emoji);
+}
+
+/** A pressed shortcut retracts on click, so its label flips with the state. */
+function quickLabel(emoji: string): string {
+    return ownReactions.value.has(emoji)
+        ? t('Remove your :emoji', { emoji })
+        : t('React with :emoji', { emoji });
+}
+
+/** Whether any of the trailing forward…delete cluster renders. */
+const showTrailingActions = computed(
+    () =>
+        showForward.value ||
+        showPin.value ||
+        showRemind.value ||
+        showEdit.value ||
+        showDelete.value,
+);
+
+/**
+ * A hairline divider only earns its place between two rendered clusters. The
+ * first sits after the quick-react cluster, the second after the thread/reply
+ * pair — each one folds away when either side of it is empty.
+ */
+const showQuickDivider = computed(
+    () =>
+        showReact.value &&
+        (showStartThread.value || showReply.value || showTrailingActions.value),
+);
 const showDivider = computed(
     () =>
-        (showReact.value || showStartThread.value || showReply.value) &&
-        (showForward.value ||
-            showPin.value ||
-            showRemind.value ||
-            showEdit.value ||
-            showDelete.value),
+        (showStartThread.value || showReply.value) && showTrailingActions.value,
 );
+
+/**
+ * The quick shortcuts share the bar's ghost icon button, adding the pressed
+ * (already-reacted) treatment: the brass inset ring + fill the reaction pill
+ * uses for the viewer's own reaction, driven by the same `aria-pressed`.
+ */
+const quickButtonClass =
+    'text-muted-foreground aria-pressed:bg-brass-fill aria-pressed:text-brass-fill-foreground aria-pressed:inset-ring-1 aria-pressed:inset-ring-brass-border';
 
 /**
  * The bar's icon buttons ride the `<Button variant="ghost" size="icon-sm">`
@@ -143,23 +205,62 @@ const deleteButtonClass =
         <div
             class="pointer-events-none absolute -top-4 right-3 z-10 flex items-center gap-0.5 rounded-lg border border-border bg-background p-0.5 opacity-0 shadow-md group-focus-within/message:pointer-events-auto group-focus-within/message:animate-in group-focus-within/message:opacity-100 group-focus-within/message:duration-100 group-focus-within/message:fade-in-0 group-focus-within/message:zoom-in-95 group-hover/message:pointer-events-auto group-hover/message:animate-in group-hover/message:opacity-100 group-hover/message:duration-100 group-hover/message:fade-in-0 group-hover/message:zoom-in-95 has-[[data-open]]:pointer-events-auto has-[[data-open]]:opacity-100"
         >
-            <EmojiPickerPopover
-                v-if="showReact"
-                v-slot="{ open }"
-                @select="(emoji) => emit('react', emoji)"
-            >
-                <Button
-                    variant="ghost"
-                    size="icon-sm"
-                    type="button"
-                    data-test="message-react"
-                    :data-open="open || undefined"
-                    :aria-label="$t('Add reaction')"
-                    :class="open ? openStateClass : iconButtonClass"
+            <template v-if="showReact">
+                <Tooltip v-for="emoji in quickEmojis" :key="emoji">
+                    <TooltipTrigger as-child>
+                        <Button
+                            variant="ghost"
+                            size="icon-sm"
+                            type="button"
+                            data-test="quick-react"
+                            :data-emoji="emoji"
+                            :aria-pressed="ownReactions.has(emoji)"
+                            :aria-label="quickLabel(emoji)"
+                            :class="quickButtonClass"
+                            @click="emit('react', emoji)"
+                        >
+                            <img
+                                v-if="quickCustomEmoji(emoji)"
+                                :src="quickCustomEmoji(emoji)!.url"
+                                :alt="emoji"
+                                class="custom-emoji size-4"
+                            />
+                            <span
+                                v-else
+                                class="text-[15px] leading-none"
+                                aria-hidden="true"
+                                >{{ emoji }}</span
+                            >
+                        </Button>
+                    </TooltipTrigger>
+                    <TooltipContent side="top" :side-offset="6">
+                        {{ quickLabel(emoji) }}
+                    </TooltipContent>
+                </Tooltip>
+
+                <EmojiPickerPopover
+                    v-slot="{ open }"
+                    @select="(emoji) => emit('react', emoji)"
                 >
-                    <SmilePlus />
-                </Button>
-            </EmojiPickerPopover>
+                    <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        type="button"
+                        data-test="message-react"
+                        :data-open="open || undefined"
+                        :aria-label="$t('Add reaction')"
+                        :class="open ? openStateClass : iconButtonClass"
+                    >
+                        <SmilePlus />
+                    </Button>
+                </EmojiPickerPopover>
+            </template>
+
+            <div
+                v-if="showQuickDivider"
+                aria-hidden="true"
+                class="mx-0.5 h-4 w-px bg-border"
+            ></div>
 
             <Tooltip v-if="showStartThread">
                 <TooltipTrigger as-child>
