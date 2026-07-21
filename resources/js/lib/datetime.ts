@@ -55,6 +55,25 @@ export function formatCalendarDate(
 }
 
 /**
+ * Format a `YYYY-MM-DD` calendar day as an abbreviated date with its year
+ * (e.g. "Jul 10, 2026"), for date fields and date-range summaries.
+ *
+ * The day is anchored to local midnight before formatting: `new Date()` reads a
+ * bare `YYYY-MM-DD` as UTC midnight, which renders as the previous day in any
+ * behind-UTC zone.
+ */
+export function formatIsoDay(
+    day: string,
+    locale: string = i18n.locale,
+): string {
+    return new Date(`${day}T00:00:00`).toLocaleDateString(locale, {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+    });
+}
+
+/**
  * Format a date as an abbreviated month (e.g. "Jul"), for month-grouped charts.
  */
 export function formatMonthLabel(

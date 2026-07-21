@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
     formatDateTime,
+    formatIsoDay,
     formatLocalTime,
     formatRelativeTime,
     formatTimeOfDay,
@@ -37,6 +38,34 @@ describe('formatDateTime', () => {
     it('rolls over to the next day in a far-ahead zone', () => {
         expect(formatDateTime(INSTANT, 'Asia/Tokyo')).toContain('11');
         expect(formatDateTime(INSTANT, 'Asia/Tokyo')).toContain('12:30');
+    });
+});
+
+describe('formatIsoDay', () => {
+    it('renders a calendar day with its month and year', () => {
+        expect(formatIsoDay('2026-07-10')).toBe('Jul 10, 2026');
+    });
+
+    it('follows the requested locale', () => {
+        expect(formatIsoDay('2026-07-10', 'fr')).toContain('juil');
+    });
+
+    /**
+     * A bare `YYYY-MM-DD` is parsed as UTC midnight by `new Date()`, which reads
+     * as the previous day in any behind-UTC zone. The helper anchors the day to
+     * local midnight instead, so a calendar day never shifts under the reader.
+     * Run in a behind-UTC zone, since the bug is invisible at or ahead of UTC.
+     */
+    it('keeps the day stable in a behind-UTC time zone', () => {
+        const zone = process.env.TZ;
+        process.env.TZ = 'America/Los_Angeles';
+
+        try {
+            // The naive `new Date('2026-01-01')` would render "Dec 31, 2025" here.
+            expect(formatIsoDay('2026-01-01', 'en-US')).toBe('Jan 1, 2026');
+        } finally {
+            process.env.TZ = zone;
+        }
     });
 });
 

@@ -15,12 +15,18 @@ import {
 } from '@/actions/App/Http/Controllers/Channels/ChannelController';
 import { index as search } from '@/actions/App/Http/Controllers/Channels/SearchController';
 import { Button } from '@/components/ui/button';
+import { DatePicker } from '@/components/ui/date-picker';
 import {
     DropdownMenu,
     DropdownMenuContent,
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
+import {
+    Popover,
+    PopoverContent,
+    PopoverTrigger,
+} from '@/components/ui/popover';
 import { SidebarTrigger } from '@/components/ui/sidebar';
 import { useDebouncedPost } from '@/composables/useDebouncedPost';
 import { getInitials } from '@/composables/useInitials';
@@ -668,8 +674,13 @@ function snippetHtml(snippet: string): string {
                         <X class="size-3" aria-hidden="true" />
                     </Button>
                 </span>
-                <DropdownMenu v-else>
-                    <DropdownMenuTrigger as-child>
+                <!--
+                    A Popover, not a DropdownMenu, because the custom range
+                    nests date pickers: a menu treats a click inside their
+                    portalled calendar as an outside click and closes itself.
+                -->
+                <Popover v-else>
+                    <PopoverTrigger as-child>
                         <Button
                             variant="unstyled"
                             size="none"
@@ -681,8 +692,8 @@ function snippetHtml(snippet: string): string {
                             {{ $t('Date') }}
                             <ChevronDown class="size-3" aria-hidden="true" />
                         </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="start" class="w-60 p-1.5">
+                    </PopoverTrigger>
+                    <PopoverContent align="start" class="w-60 p-1.5">
                         <Button
                             v-for="preset in datePresets"
                             :key="preset.key"
@@ -708,46 +719,43 @@ function snippetHtml(snippet: string): string {
                         </Button>
                         <div
                             v-if="showCustomRange"
-                            class="flex flex-col gap-1.5 border-t border-border px-2 pt-2"
-                            @click.stop
+                            class="flex flex-col gap-2 border-t border-border px-2 pt-2"
                         >
-                            <label
+                            <div
                                 class="flex flex-col gap-1 text-[11px] text-muted-foreground"
                             >
                                 {{ $t('After') }}
-                                <input
-                                    type="date"
-                                    :value="after ?? ''"
-                                    class="rounded-md border border-border bg-background px-2 py-1 text-xs text-foreground"
-                                    @change="
-                                        setDateRange(
-                                            ($event.target as HTMLInputElement)
-                                                .value || null,
-                                            before,
-                                        )
+                                <DatePicker
+                                    :model-value="after"
+                                    :placeholder="$t('Pick a date')"
+                                    :field-label="$t('After')"
+                                    :max="before"
+                                    class="w-full text-xs"
+                                    data-test="facet-date-after"
+                                    @update:model-value="
+                                        setDateRange($event, before)
                                     "
                                 />
-                            </label>
-                            <label
+                            </div>
+                            <div
                                 class="flex flex-col gap-1 text-[11px] text-muted-foreground"
                             >
                                 {{ $t('Before') }}
-                                <input
-                                    type="date"
-                                    :value="before ?? ''"
-                                    class="rounded-md border border-border bg-background px-2 py-1 text-xs text-foreground"
-                                    @change="
-                                        setDateRange(
-                                            after,
-                                            ($event.target as HTMLInputElement)
-                                                .value || null,
-                                        )
+                                <DatePicker
+                                    :model-value="before"
+                                    :placeholder="$t('Pick a date')"
+                                    :field-label="$t('Before')"
+                                    :min="after"
+                                    class="w-full text-xs"
+                                    data-test="facet-date-before"
+                                    @update:model-value="
+                                        setDateRange(after, $event)
                                     "
                                 />
-                            </label>
+                            </div>
                         </div>
-                    </DropdownMenuContent>
-                </DropdownMenu>
+                    </PopoverContent>
+                </Popover>
 
                 <Button
                     variant="unstyled"
