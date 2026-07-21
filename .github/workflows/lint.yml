@@ -57,6 +57,15 @@ jobs:
       - name: Check Release Version References
         run: php artisan release:check-version-refs
 
+      # `resources/js/actions` and `resources/js/routes` are git-ignored Wayfinder
+      # output, normally produced as a side effect of `npm run build` — which this
+      # job does not run. Without them, eslint cannot resolve `@/actions/*` and
+      # `@/routes/*`, and `import/order` mis-groups those imports against `@/types`,
+      # failing on sources that are clean locally. `--with-form` matches the
+      # `formVariants` option vite.config.ts passes the plugin (see #414).
+      - name: Generate Wayfinder Routes
+        run: php artisan wayfinder:generate --with-form
+
       - name: Run Pint
         run: composer lint
 
@@ -67,4 +76,4 @@ jobs:
         run: npm run format:check
 
       - name: Lint Frontend
-        run: npm run lint
+        run: npm run lint:check
