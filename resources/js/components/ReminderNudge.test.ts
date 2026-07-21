@@ -34,16 +34,15 @@ async function render(
 
 describe('ReminderNudge inaccessible reminders', () => {
     it('drops the open and snooze actions once the channel is out of reach', async () => {
-        const html = await render({
-            isAccessible: false,
-            body: '',
-            authorName: '',
-            channelName: null,
-            channelSlug: '',
-        });
+        // The payload is left populated on purpose: the nudge must not surface
+        // the body or the author even if the server ever stopped blanking them.
+        const html = await render({ isAccessible: false, channelName: null });
 
         expect(html).not.toContain('data-test="reminder-nudge-open"');
         expect(html).not.toContain('data-test="reminder-nudge-snooze"');
+        expect(html).not.toContain('Jordan West');
+        expect(html).not.toContain('the secret plan');
+        expect(html).toContain('No longer available');
         expect(html).toContain('You no longer have access to this channel.');
         // Acknowledging is the one thing still on offer.
         expect(html).toContain('data-test="reminder-nudge-done"');
