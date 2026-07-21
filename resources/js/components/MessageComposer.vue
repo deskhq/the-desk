@@ -331,6 +331,12 @@ const MENTION_QUERY = /(?:^|\s)@([^\s@[\]()]*)$/;
 const MAX_SUGGESTIONS = 8;
 
 /**
+ * How many of those slots user groups may claim. Capped so the menu stays a
+ * people-picker first, but never so low that a matching group is crowded out.
+ */
+const MAX_GROUP_SUGGESTIONS = 3;
+
+/**
  * One row of the `@` menu: a person, or a user group that fans the mention out
  * to everyone in it. Both live in one list so the keyboard model, the active
  * index, and the ARIA wiring stay single-source.
@@ -398,7 +404,16 @@ function refreshSuggestions(): void {
         group,
     }));
 
-    suggestions.value = [...people, ...groups].slice(0, MAX_SUGGESTIONS);
+    // Groups get reserved slots at the tail rather than whatever the people list
+    // leaves over: a plain `[...people, ...groups].slice(MAX)` would hide a
+    // matching group entirely behind eight matching names, making it
+    // unreachable from the menu.
+    const groupSlots = Math.min(groups.length, MAX_GROUP_SUGGESTIONS);
+
+    suggestions.value = [
+        ...people.slice(0, MAX_SUGGESTIONS - groupSlots),
+        ...groups.slice(0, groupSlots),
+    ];
     activeIndex.value = 0;
     menuOpen.value = suggestions.value.length > 0;
 }
