@@ -914,6 +914,7 @@
   "Format": "Format",
   "From %s": "À partir du %s",
   "From :date": "À partir du :date",
+  ":start – :end": "du :start au :end",
   "Generating…": "Génération…",
   "JSON": "JSON",
   "Learn more": "En savoir plus",

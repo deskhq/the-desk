@@ -190,7 +190,10 @@ function rangeText(entry: AuditExport): string {
         return t('From :date', { date: formatIsoDay(entry.rangeStart) });
     }
 
-    return `${formatIsoDay(entry.rangeStart)} – ${formatIsoDay(entry.rangeEnd)}`;
+    return t(':start – :end', {
+        start: formatIsoDay(entry.rangeStart),
+        end: formatIsoDay(entry.rangeEnd),
+    });
 }
 
 function requestedAt(entry: AuditExport): string {
