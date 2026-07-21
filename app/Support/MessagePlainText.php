@@ -16,10 +16,12 @@ use App\Actions\Channels\SyncMentions;
 final class MessagePlainText
 {
     /**
-     * A mention token: `@[Display Name](user-id)`, the id a 36-char UUID. Mirrors
-     * the composer's token shape used by {@see SyncMentions}.
+     * A mention token: `@[Display Name](user-id)` for a member, or
+     * `@[handle](group:group-id)` for a user group, the id a 36-char UUID.
+     * Mirrors the composer's token shape used by {@see SyncMentions}; both
+     * unwrap to the readable label a reader sees.
      */
-    private const string MENTION = '/@\[([^\]]+)\]\([0-9a-fA-F-]{36}\)/';
+    private const string MENTION = '/@\[([^\]]+)\]\((?:group:)?[0-9a-fA-F-]{36}\)/';
 
     /**
      * Unwrap mention tokens in the body to their display names.

@@ -20,6 +20,7 @@ readonly class TeamPermissions
         public bool $canViewAnalytics,
         public bool $canManageEmojis,
         public bool $canManageIntegrations,
+        public bool $canManageUserGroups,
     ) {
         //
     }

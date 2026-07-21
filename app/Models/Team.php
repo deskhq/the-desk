@@ -29,6 +29,7 @@ use Illuminate\Support\Carbon;
  * @property-read Collection<int, User> $members
  * @property-read Collection<int, Channel> $channels
  * @property-read Collection<int, CustomEmoji> $customEmojis
+ * @property-read Collection<int, UserGroup> $userGroups
  * @property-read Collection<int, WebhookSubscription> $webhookSubscriptions
  */
 #[Fillable(['name', 'slug', 'is_personal'])]
@@ -153,6 +154,16 @@ class Team extends Model
     public function customEmojis(): HasMany
     {
         return $this->hasMany(CustomEmoji::class);
+    }
+
+    /**
+     * Get the mentionable user groups curated in this workspace.
+     *
+     * @return HasMany<UserGroup, $this>
+     */
+    public function userGroups(): HasMany
+    {
+        return $this->hasMany(UserGroup::class);
     }
 
     /**

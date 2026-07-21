@@ -77,6 +77,7 @@ use Laravel\Sanctum\HasApiTokens;
  * @property-read Collection<int, ChannelSection> $channelSections
  * @property-read Collection<int, DataExport> $dataExports
  * @property-read Collection<int, Passkey> $passkeys
+ * @property-read Collection<int, UserGroup> $userGroups
  */
 #[Appends(['avatar'])]
 #[Fillable(['name', 'email', 'avatar_url', 'pronouns', 'title', 'phone', 'timezone', 'locale', 'password', 'current_team_id', 'chime_sound', 'share_read_receipts', 'sidebar_position', 'onboarding_completed_at', 'collapsed_channel_sections', 'is_tombstone'])]
@@ -282,6 +283,17 @@ class User extends Authenticatable implements HasLocalePreference, MustVerifyEma
         return $this->belongsToMany(Channel::class, 'channel_members')
             ->withPivot(['last_read_message_id', 'muted', 'notification_level', 'draft', 'starred', 'section_id', 'position'])
             ->withTimestamps();
+    }
+
+    /**
+     * Get the mentionable user groups this user has been added to, across all of
+     * their workspaces. Callers scope by team where that matters.
+     *
+     * @return BelongsToMany<UserGroup, $this>
+     */
+    public function userGroups(): BelongsToMany
+    {
+        return $this->belongsToMany(UserGroup::class, 'user_group_user')->withTimestamps();
     }
 
     /**

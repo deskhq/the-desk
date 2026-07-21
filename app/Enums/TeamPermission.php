@@ -17,4 +17,6 @@ enum TeamPermission: string
     case CancelInvitation = 'invitation:cancel';
 
     case ManageIntegrations = 'integrations:manage';
+
+    case ManageUserGroups = 'user-group:manage';
 }
