@@ -129,3 +129,10 @@ test('the ranking rides every inertia response as a shared prop', function (): v
             ->where('frequentEmojis.0', '🚀')
         );
 });
+
+test('a guest still receives the default set on an inertia response', function (): void {
+    $this->get(route('login'))
+        ->assertInertia(fn (Assert $page): Assert => $page
+            ->where('frequentEmojis', ['👍', '❤️', '😂', '🎉', '👀'])
+        );
+});
