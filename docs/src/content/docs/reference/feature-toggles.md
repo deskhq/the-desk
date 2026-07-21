@@ -23,7 +23,7 @@ links are hidden. Existing users and email invitations still work.
 
 :::tip
 Create your own account **before** turning registration off, then invite everyone
-else. See [First user & workspace](/docs/self-hosting/first-user/#locking-down-registration).
+else. See [First user & workspace](/self-hosting/first-user/#locking-down-registration).
 :::
 
 ## Email verification
@@ -37,7 +37,7 @@ logs the new user straight in, and every account is treated as verified.
 
 Set `EMAIL_VERIFICATION_ENABLED=true` to require confirmation. New accounts must
 click the verification link before they can use the app, so your
-[SMTP settings](/docs/self-hosting/configuration/#mail-smtp) **must work** or new users
+[SMTP settings](/self-hosting/configuration/#mail-smtp) **must work** or new users
 will be stuck.
 
 :::caution
@@ -104,8 +104,8 @@ authentication, so the app-native passkey option stays hidden.
 | --------------- | ------- | --------------------------------------------------------------------- |
 | `AUTH_SSO_ONLY` | `false` | Route **all** access through single sign-on.                          |
 
-Single sign-on — [OpenID Connect](/docs/reference/environment-variables/#single-sign-on-openid-connect)
-or [LDAP / Active Directory](/docs/reference/environment-variables/#single-sign-on-ldap--active-directory) —
+Single sign-on — [OpenID Connect](/reference/environment-variables/#single-sign-on-openid-connect)
+or [LDAP / Active Directory](/reference/environment-variables/#single-sign-on-ldap--active-directory) —
 sits **alongside** password login by default, so a break-glass password account
 keeps working during an outage. Set `AUTH_SSO_ONLY=true` to funnel everyone
 through the directory instead: Fortify **registration** and the **local-password
@@ -135,7 +135,7 @@ A deactivation **tombstones** the account — access is revoked and sessions end
 but history is retained — and it can be reversed by a later `active: true`. Leave
 `SCIM_TOKEN` blank and the endpoint is not mounted at all.
 
-See [Environment variables → Directory provisioning (SCIM 2.0)](/docs/reference/environment-variables/#directory-provisioning-scim-20)
+See [Environment variables → Directory provisioning (SCIM 2.0)](/reference/environment-variables/#directory-provisioning-scim-20)
 for the full setup.
 
 :::caution
@@ -177,7 +177,7 @@ The toggle takes effect immediately with no data migration.
 
 A bot with the `webhooks:write` scope can register subscriptions (via
 `POST /api/v1/webhooks`) that deliver a signed POST to an external URL whenever
-a subscribed event happens. See the [outgoing webhooks reference](/docs/reference/webhooks/)
+a subscribed event happens. See the [outgoing webhooks reference](/reference/webhooks/)
 for the event set, payload shapes, and signature verification. Delivery is
 tunable:
 
@@ -206,7 +206,7 @@ without a Gravatar falls back cleanly to their initials.
 
 :::tip
 Avatars are fetched by the server and re-served from your own origin (see
-[Remote images are proxied](/docs/reference/security/#remote-images-are-proxied)),
+[Remote images are proxied](/reference/security/#remote-images-are-proxied)),
 so no reader's browser ever talks to gravatar.com. Turning `GRAVATAR_ENABLED=false`
 goes further and stops the instance itself making per-user requests — everyone
 then shows their initials.
@@ -226,7 +226,7 @@ The Desk records an activity log (audit trail) of notable actions.
 Every web response carries a `Content-Security-Policy` header — the browser-side
 allow-list that limits what injected markup could do. It is **on** by default and
 needs no proxy configuration. See
-[Security & compliance → Content Security Policy](/docs/reference/security/#content-security-policy)
+[Security & compliance → Content Security Policy](/reference/security/#content-security-policy)
 for the policy itself and the two accepted residuals.
 
 | Variable           | Default | Effect                                                        |
@@ -277,7 +277,7 @@ half-configured case is the one that looks mysterious. A provider that serves
 both from a single origin needs that origin in both keys; a font referenced from
 your own CSS needs only `CSP_EXTRA_FONT_SRC`. The app self-hosts its own fonts,
 so reach for this only if you deliberately add a web font of your own — see
-[Security → Content Security Policy](/docs/reference/security/#content-security-policy).
+[Security → Content Security Policy](/reference/security/#content-security-policy).
 
 :::note
 `script-src` uses `'strict-dynamic'`, and browsers that understand it ignore host
@@ -352,7 +352,7 @@ Strict-Transport-Security: max-age=31536000; includeSubDomains
 The header is **never** sent on a request that arrived over plain HTTP, so a LAN
 deployment served over `http://` cannot lock itself out of its own hostname.
 TLS is detected from your proxy's `X-Forwarded-Proto`, which the app already
-trusts — see [Reverse proxy & TLS](/docs/self-hosting/reverse-proxy/).
+trusts — see [Reverse proxy & TLS](/self-hosting/reverse-proxy/).
 
 :::caution
 `HSTS_PRELOAD` is effectively irreversible. Submitting a domain to
@@ -396,7 +396,7 @@ deployments. Most single-host instances leave them alone.
 | Variable                        | Default          | Effect                                                       |
 | ------------------------------- | ---------------- | ------------------------------------------------------------ |
 | `UPDATE_CHECK_ENABLED`          | `true`           | Check daily whether a newer stable release is available.     |
-| `UPDATE_CHECK_REPOSITORY`       | `emmpaul/the-desk` | The GitHub `owner/repo` to check and link release notes to. |
+| `UPDATE_CHECK_REPOSITORY`       | `deskhq/the-desk` | The GitHub `owner/repo` to check and link release notes to. |
 | `UPDATE_CHECK_CACHE_TTL_HOURS`  | `12`             | How long a successful check is trusted before the next one.  |
 
 Update checks are **on** by default. Once a day a scheduled command asks the
@@ -439,12 +439,12 @@ browser.
 `GIPHY_CONTENT_RATING` (default `g`) caps the strictest rating Giphy may
 return — `g`, `pg`, `pg-13`, or `r`. `g` keeps results workplace-safe; loosen it
 for a casual community. See
-[Environment variables → GIFs (Giphy)](/docs/reference/environment-variables/#gifs-giphy).
+[Environment variables → GIFs (Giphy)](/reference/environment-variables/#gifs-giphy).
 
 :::note
 A sent GIF is **hotlinked** from Giphy's CDN, not stored on your server, so
 viewers' browsers fetch it directly from Giphy. See the privacy note under
-[Environment variables → GIFs (Giphy)](/docs/reference/environment-variables/#gifs-giphy).
+[Environment variables → GIFs (Giphy)](/reference/environment-variables/#gifs-giphy).
 :::
 
 ## Polls
@@ -463,7 +463,7 @@ Set `POLLS_ENABLED=false` to turn the feature **fully off**: the `/poll` command
 is absent from autocomplete, the builder never appears, and the create, vote, and
 close endpoints return **404**. Existing poll messages render their last-known
 tally read-only. See
-[Environment variables → Feature toggles](/docs/reference/environment-variables/#feature-toggles).
+[Environment variables → Feature toggles](/reference/environment-variables/#feature-toggles).
 
 ## Demo mode
 
@@ -497,7 +497,7 @@ Set `DEMO_MODE=true` to enable all of the following at once:
   account with its own unguarded personal team and sidestep the rails.
 - **The workspace heals hourly.** A scheduled `demo:seed` runs every hour to wipe
   and rebuild "Northwind Labs", undoing whatever visitors changed. Make sure the
-  [scheduler](/docs/self-hosting/configuration/) is running.
+  [scheduler](/self-hosting/configuration/) is running.
 
 :::caution
 The hourly reset **force-deletes** the demo team and its accounts, so any

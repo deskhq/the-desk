@@ -5,7 +5,7 @@
 # template) plus the operational scripts, generates secrets, pins the release,
 # and leaves you one edit away from `docker compose up -d`:
 #
-#   curl -fsSL https://raw.githubusercontent.com/emmpaul/the-desk/master/docker/install.sh | sh
+#   curl -fsSL https://raw.githubusercontent.com/deskhq/the-desk/master/docker/install.sh | sh
 #
 # or, from a checkout:
 #
@@ -27,7 +27,7 @@ set -eu
 # The release installed when --version is not given. Tracks the latest release.
 DEFAULT_VERSION="1.14.0" # x-release-please-version
 
-REPO="emmpaul/the-desk"
+REPO="deskhq/the-desk"
 VERSION=""
 REF=""
 TARGET_DIR=""

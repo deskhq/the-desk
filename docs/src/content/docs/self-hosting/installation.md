@@ -11,20 +11,20 @@ The stack **pulls a prebuilt image** by default, and can optionally **build from
 source** — both driven by the same `.env`:
 
 - **[Pull the published image](#pull-the-published-image)** from the GitHub
-  Container Registry (`ghcr.io/emmpaul/the-desk`) — the default, no build step.
+  Container Registry (`ghcr.io/deskhq/the-desk`) — the default, no build step.
   Every setting, including the browser-facing Reverb values, is read at
   **runtime**, so one published image works for any host.
 - **[Build from source](#build-from-source)** at a release tag — layer a build
   overlay to compile the image locally.
 
 :::note
-Make sure you meet the [requirements](/docs/self-hosting/requirements/) first — Docker
+Make sure you meet the [requirements](/self-hosting/requirements/) first — Docker
 24+, a domain, a TLS reverse proxy, and working SMTP.
 :::
 
 ## Pull the published image
 
-The image comes from the GitHub Container Registry (`ghcr.io/emmpaul/the-desk`;
+The image comes from the GitHub Container Registry (`ghcr.io/deskhq/the-desk`;
 tags `X.Y.Z`, `X.Y`, and `latest`, with `edge` tracking the tip of `master`), and
 `up -d` pulls and runs it with **no build step**. The release to run lives in
 `.env` as `APP_VERSION`, and the compose file pins the image to it — so **no git
@@ -37,7 +37,7 @@ scripts, generates your secrets, and pins `APP_VERSION` for you:
 
 ```bash
 # 1. Download and run the installer (reads nothing, writes only into this dir).
-curl -fsSL https://raw.githubusercontent.com/emmpaul/the-desk/master/docker/install.sh | sh
+curl -fsSL https://raw.githubusercontent.com/deskhq/the-desk/master/docker/install.sh | sh
 
 # 2. Edit .env — set APP_URL, mail credentials, and REVERB_*_PUBLIC.
 
@@ -50,14 +50,14 @@ specific one, or a target directory as the last argument (it installs into the
 current directory otherwise):
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/emmpaul/the-desk/master/docker/install.sh \
+curl -fsSL https://raw.githubusercontent.com/deskhq/the-desk/master/docker/install.sh \
   | sh -s -- --version=1.14.0 /srv/the-desk # x-release-please-version
 ```
 
 To run a tag on another registry, an air-gapped mirror, or a floating tag like
-`edge`, set `APP_IMAGE=ghcr.io/emmpaul/the-desk:<tag>` in `.env` — it overrides
+`edge`, set `APP_IMAGE=ghcr.io/deskhq/the-desk:<tag>` in `.env` — it overrides
 `APP_VERSION` entirely. Upgrades bump `APP_VERSION` and restart — see
-[Upgrading](/docs/self-hosting/upgrading/).
+[Upgrading](/self-hosting/upgrading/).
 
 ## The COMPOSE_FILE variable
 
@@ -100,7 +100,7 @@ app services (they share one image):
 
 ```bash
 # 1. Clone and check out the latest release tag.
-git clone https://github.com/emmpaul/the-desk.git
+git clone https://github.com/deskhq/the-desk.git
 cd the-desk
 git fetch --tags
 git checkout v1.14.0 # x-release-please-version         (the desired release tag)
@@ -154,5 +154,5 @@ docker run --rm dunglas/frankenphp:1-php8.5-alpine \
   php -r "echo 'base64:'.base64_encode(random_bytes(32)).PHP_EOL;"
 ```
 
-Next, tune your instance in [Configuration](/docs/self-hosting/configuration/), then
-[create the first user and workspace](/docs/self-hosting/first-user/).
+Next, tune your instance in [Configuration](/self-hosting/configuration/), then
+[create the first user and workspace](/self-hosting/first-user/).

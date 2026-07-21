@@ -16,7 +16,7 @@ docker compose logs app reverb --tail=100
 ```
 
 The bare `docker compose` needs no `-f` because `.env` sets `COMPOSE_FILE`. See
-[the COMPOSE_FILE variable](/docs/self-hosting/installation/#the-compose_file-variable).
+[the COMPOSE_FILE variable](/self-hosting/installation/#the-compose_file-variable).
 
 ## "Reconnecting…" after login / WebSocket won't connect
 
@@ -43,11 +43,11 @@ WebSocket **upgrade** requests produces the same banner.
    `REVERB_SCHEME_PUBLIC=https`. The browser-facing host follows `APP_URL`; set
    `REVERB_HOST_PUBLIC` only if you serve Reverb from a dedicated WebSocket
    subdomain. See
-   [Configuration → Reverb](/docs/self-hosting/configuration/#reverb-websockets--mind-the-browser-vs-server-split).
+   [Configuration → Reverb](/self-hosting/configuration/#reverb-websockets--mind-the-browser-vs-server-split).
 3. **The reverse proxy forwards WebSocket upgrades** to the `reverb` service. Open
    the browser dev tools **Network → WS** tab and confirm the connection opens
    instead of failing repeatedly, following the
-   [reverse-proxy verification steps](/docs/self-hosting/reverse-proxy/#verifying).
+   [reverse-proxy verification steps](/self-hosting/reverse-proxy/#verifying).
 
 :::caution
 After editing `APP_URL` or any `REVERB_*` value, you must **recreate** the
@@ -81,7 +81,7 @@ docker compose up -d --force-recreate
 
 A plain `docker compose up -d` usually recreates the affected containers on its own
 (Compose detects the changed `env_file`); `--force-recreate` guarantees it. See
-[Configuration → Applying changes](/docs/self-hosting/configuration/#applying-changes).
+[Configuration → Applying changes](/self-hosting/configuration/#applying-changes).
 
 If you would rather not restart everything, rebuild the cache in place and bounce
 only the background services (their entrypoints re-cache from the live file on

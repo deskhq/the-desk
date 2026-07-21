@@ -12,7 +12,7 @@ use Inertia\Testing\AssertableInertia as Assert;
 function fakeLatestRelease(string $tag): void
 {
     Http::fake([
-        'api.github.com/repos/emmpaul/the-desk/releases/latest' => Http::response(['tag_name' => $tag]),
+        'api.github.com/repos/deskhq/the-desk/releases/latest' => Http::response(['tag_name' => $tag]),
     ]);
 }
 
@@ -20,7 +20,7 @@ beforeEach(function (): void {
     config([
         'app.version' => '1.4.2',
         'updates.enabled' => true,
-        'updates.repository' => 'emmpaul/the-desk',
+        'updates.repository' => 'deskhq/the-desk',
     ]);
 });
 
@@ -37,7 +37,7 @@ test('a newer stable release flags an update as available', function (): void {
 
     expect($status->latest)->toBe('1.6.0')
         ->and($status->updateAvailable)->toBeTrue()
-        ->and($status->notesUrl)->toBe('https://github.com/emmpaul/the-desk/releases/tag/v1.6.0');
+        ->and($status->notesUrl)->toBe('https://github.com/deskhq/the-desk/releases/tag/v1.6.0');
 });
 
 test('the same or an older release is not flagged as an update', function (string $tag): void {

@@ -13,17 +13,17 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/emmpaul/the-desk/actions/workflows/tests.yml"><img src="https://img.shields.io/github/actions/workflow/status/emmpaul/the-desk/tests.yml?branch=master&label=tests" alt="Tests"></a>
-  <a href="https://github.com/emmpaul/the-desk/releases"><img src="https://img.shields.io/github/v/release/emmpaul/the-desk?color=c9a35c" alt="Latest release"></a>
-  <a href="LICENSE"><img src="https://img.shields.io/github/license/emmpaul/the-desk?color=c9a35c" alt="License: MIT"></a>
+  <a href="https://github.com/deskhq/the-desk/actions/workflows/tests.yml"><img src="https://img.shields.io/github/actions/workflow/status/deskhq/the-desk/tests.yml?branch=master&label=tests" alt="Tests"></a>
+  <a href="https://github.com/deskhq/the-desk/releases"><img src="https://img.shields.io/github/v/release/deskhq/the-desk?color=c9a35c" alt="Latest release"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/github/license/deskhq/the-desk?color=c9a35c" alt="License: MIT"></a>
 </p>
 
 <p align="center">
   <a href="https://demo-the-desk.emmanuelpaul.com/"><strong>Live&nbsp;demo</strong></a> ·
-  <a href="https://the-desk.emmanuelpaul.com">Website</a> ·
-  <a href="https://the-desk.emmanuelpaul.com/docs/">Docs</a> ·
-  <a href="https://the-desk.emmanuelpaul.com/docs/self-hosting/installation/">Install</a> ·
-  <a href="https://the-desk.emmanuelpaul.com/docs/comparison/">vs&nbsp;Slack</a> ·
+  <a href="https://thedeskhq.app">Website</a> ·
+  <a href="https://docs.thedeskhq.app/">Docs</a> ·
+  <a href="https://docs.thedeskhq.app/self-hosting/installation/">Install</a> ·
+  <a href="https://docs.thedeskhq.app/comparison/">vs&nbsp;Slack</a> ·
   <a href="LICENSE">MIT&nbsp;License</a>
 </p>
 
@@ -38,14 +38,14 @@ installer fetches the compose file, generates secrets, and pins the latest
 release, then `up -d` runs it with no build step:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/emmpaul/the-desk/master/docker/install.sh | sh
+curl -fsSL https://raw.githubusercontent.com/deskhq/the-desk/master/docker/install.sh | sh
 # edit .env (APP_URL, mail, REVERB_*_PUBLIC), then:
 docker compose up -d
 ```
 
 Full operator docs (requirements, configuration, reverse proxy & TLS, and
 upgrades) live at
-**[the-desk.emmanuelpaul.com/docs](https://the-desk.emmanuelpaul.com/docs/)**.
+**[docs.thedeskhq.app](https://docs.thedeskhq.app/)**.
 
 ### Public demo
 
@@ -57,14 +57,14 @@ the same owner, so the mode adds guard rails: destructive owner actions are
 blocked, all outbound email is swallowed, message/attachment writes are
 rate-limited per IP, self-registration is forced off, and an hourly reset heals
 the workspace. It defaults to `false` — leave it off on any real deployment. See
-**[Running a public demo](https://the-desk.emmanuelpaul.com/docs/self-hosting/demo/)**.
+**[Running a public demo](https://docs.thedeskhq.app/self-hosting/demo/)**.
 
 ## Development
 
 Local development uses [Laravel Sail](https://laravel.com/docs/sail):
 
 ```bash
-git clone https://github.com/emmpaul/the-desk.git
+git clone https://github.com/deskhq/the-desk.git
 cd the-desk
 cp .env.example .env
 composer install
@@ -167,11 +167,11 @@ Conventional Commits convention, and the PR workflow.
 ## Security
 
 Found a vulnerability? Please report it privately through GitHub's
-[private vulnerability reporting](https://github.com/emmpaul/the-desk/security/advisories/new)
+[private vulnerability reporting](https://github.com/deskhq/the-desk/security/advisories/new)
 rather than opening a public issue. See **[SECURITY.md](SECURITY.md)** for the
 full policy, supported versions, and response timeline. The codebase is scanned
 continuously with CodeQL, dependency review, and Dependabot; findings surface in
-the [Security tab](https://github.com/emmpaul/the-desk/security).
+the [Security tab](https://github.com/deskhq/the-desk/security).
 
 ## License
 

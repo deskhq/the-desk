@@ -5,9 +5,9 @@ description: Give an external system a secret URL that posts a message into one 
 
 An **incoming webhook** is the simplest way to get a message _into_ The Desk: a
 secret URL that, when `POST`ed to, posts a message into **one channel as a
-[bot](/docs/reference/feature-toggles/#integrations-platform)**. No token, no
+[bot](/reference/feature-toggles/#integrations-platform)**. No token, no
 scopes — the URL itself is the credential. Incoming webhooks are part of the
-[integrations platform](/docs/reference/feature-toggles/#integrations-platform)
+[integrations platform](/reference/feature-toggles/#integrations-platform)
 and share its `INTEGRATIONS_ENABLED` master switch; with the platform off the
 ingest endpoint returns **404**.
 

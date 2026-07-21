@@ -53,14 +53,14 @@ Turning the flag on activates all of the following at once:
 - **Writes are rate-limited per IP** — message sends (~30/min) and attachment
   uploads (~10/min), keyed by IP address since every visitor shares one account.
 - **Self-registration is forced off** regardless of
-  [`REGISTRATION_ENABLED`](/docs/reference/feature-toggles/#open-registration), so
+  [`REGISTRATION_ENABLED`](/reference/feature-toggles/#open-registration), so
   a visitor can't register a fresh unguarded account and sidestep the rails.
 
 ## The hourly reset
 
 A scheduled `demo:seed` runs **every hour** to wipe and rebuild the workspace,
 undoing whatever visitors changed. It relies on the
-[scheduler](/docs/self-hosting/configuration/) running (the bundled stack runs it
+[scheduler](/self-hosting/configuration/) running (the bundled stack runs it
 for you). You can also reset on demand at any time:
 
 ```bash
@@ -73,5 +73,5 @@ session breaks when it runs. That's expected for a throwaway demo and is never
 appropriate for real data — keep `DEMO_MODE=false` on a genuine deployment.
 :::
 
-See [Feature toggles → Demo mode](/docs/reference/feature-toggles/#demo-mode) for
+See [Feature toggles → Demo mode](/reference/feature-toggles/#demo-mode) for
 the toggle reference.

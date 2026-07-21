@@ -10,8 +10,8 @@ separate admin bootstrap step.
 
 1. Visit your `APP_URL` and go to **`/register`** to create the first account.
 2. By default (`EMAIL_VERIFICATION_ENABLED=false`) registration logs you straight
-   in. If you have [enabled email verification](/docs/reference/feature-toggles/#email-verification),
-   make sure your [SMTP settings](/docs/self-hosting/configuration/#mail-smtp) work,
+   in. If you have [enabled email verification](/reference/feature-toggles/#email-verification),
+   make sure your [SMTP settings](/self-hosting/configuration/#mail-smtp) work,
    then click the verification link before continuing.
 3. Create your first workspace from **Settings → Teams**, then invite teammates.
 
@@ -31,4 +31,4 @@ Public sign-ups are open by default. To run a **private / invite-only** instance
 
 With it off, `/register` returns **404** and the "sign up" links are hidden —
 existing users and email invitations still work. See
-[Feature toggles](/docs/reference/feature-toggles/#open-registration) for details.
+[Feature toggles](/reference/feature-toggles/#open-registration) for details.

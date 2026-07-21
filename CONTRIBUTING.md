@@ -5,7 +5,7 @@ contributions of all kinds are welcome — bug reports, docs fixes, and code.
 
 ## Ways to contribute
 
-- **Report a bug** or request a feature by [opening an issue](https://github.com/emmpaul/the-desk/issues).
+- **Report a bug** or request a feature by [opening an issue](https://github.com/deskhq/the-desk/issues).
   Search existing issues first to avoid duplicates.
 - **Improve the docs** — the operator/self-hosting docs live in `docs/` (an Astro
   Starlight site); everything else is inline in the codebase.
@@ -18,7 +18,7 @@ See the [Development section of the README](README.md#development) for the full
 first-run steps. In short:
 
 ```bash
-git clone git@github.com:emmpaul/the-desk.git
+git clone git@github.com:deskhq/the-desk.git
 cd the-desk
 cp .env.example .env
 composer install
@@ -204,7 +204,7 @@ Two consequences worth knowing:
   self-description, read by `config('app.version')` for the user-menu footer and
   the update-available check, so an rc image has to report `-rc.N`. Leaving it
   unstamped made every candidate image claim the previous stable version
-  ([#660](https://github.com/emmpaul/the-desk/issues/660)).
+  ([#660](https://github.com/deskhq/the-desk/issues/660)).
 - **The candidate config sets `skip-changelog`**, so `CHANGELOG.md` belongs to
   `master` alone. Candidates still get full release notes on their GitHub
   release; they just don't write them to the file.
@@ -248,7 +248,7 @@ the baseline naming a version it cannot find, it concludes there has been no
 release at all, falls back to its initial `1.0.0`, and proposes that — a
 *downgrade*, whose merge would tag `v1.0.0`, publish a GitHub release, and let a
 GHCR image claim the moving `latest` aliases ahead of every real version. That is
-what happened at 1.12.2 ([#637](https://github.com/emmpaul/the-desk/issues/637)),
+what happened at 1.12.2 ([#637](https://github.com/deskhq/the-desk/issues/637)),
 where the baseline PR won the race by 34 seconds. So the sync job waits for the
 comparison to say `develop` already contains `master` before it queues its own
 merge; if that never happens it leaves the PR open and goes red rather than

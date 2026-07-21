@@ -30,31 +30,31 @@ established self-hosted alternatives. The Desk is the newcomer optimizing for
 ## What The Desk is good at
 
 - **Getting out of your way.** Channels, threads, and DMs plus the workflow
-  features teams actually miss: [scheduled messages](/docs/), message reminders,
-  [polls](/docs/reference/feature-toggles/#polls), reactions, custom emoji,
+  features teams actually miss: [scheduled messages](/), message reminders,
+  [polls](/reference/feature-toggles/#polls), reactions, custom emoji,
   user-uploaded avatars, and instant full-text search.
 - **Being trivial to run.** A prebuilt image and a single compose file. No
   Kubernetes, no build step, no exotic dependencies — a small
-  [2 vCPU / 2 GB VPS](/docs/self-hosting/requirements/) comfortably hosts a team.
+  [2 vCPU / 2 GB VPS](/self-hosting/requirements/) comfortably hosts a team.
 - **Being yours.** MIT-licensed, auditable, self-hosted. Your messages never
   leave your server, every user can export their data, and there's no per-seat
   meter.
 - **Directory-managed logins.** [OIDC single
-  sign-on](/docs/reference/environment-variables/#single-sign-on-openid-connect)
+  sign-on](/reference/environment-variables/#single-sign-on-openid-connect)
   with just-in-time provisioning,
-  [LDAP / Active Directory](/docs/reference/environment-variables/#single-sign-on-ldap--active-directory)
+  [LDAP / Active Directory](/reference/environment-variables/#single-sign-on-ldap--active-directory)
   bind authentication with directory sync,
-  [SCIM 2.0 provisioning](/docs/reference/environment-variables/#directory-provisioning-scim-20)
+  [SCIM 2.0 provisioning](/reference/environment-variables/#directory-provisioning-scim-20)
   for Okta / Entra ID / OneLogin, and an
-  [SSO-only mode](/docs/reference/feature-toggles/#sso-only-mode) that turns
+  [SSO-only mode](/reference/feature-toggles/#sso-only-mode) that turns
   password logins off entirely.
 - **Integrations you can build on.** [Bots and a versioned REST
-  API](/docs/reference/api/), plus
-  [incoming](/docs/reference/incoming-webhooks/) and
-  [outgoing](/docs/reference/webhooks/) webhooks, let external systems post into
+  API](/reference/api/), plus
+  [incoming](/reference/incoming-webhooks/) and
+  [outgoing](/reference/webhooks/) webhooks, let external systems post into
   a workspace and react to its events.
 - **Real admin basics.** Roles, invitations, optional
-  [two-factor authentication](/docs/reference/feature-toggles/#two-factor-authentication),
+  [two-factor authentication](/reference/feature-toggles/#two-factor-authentication),
   a moderation audit log, workspace analytics, and device/session management are
   built in.
 
@@ -67,7 +67,7 @@ have:
 - **Native mobile apps** — the web app is fully responsive, but there's no
   dedicated iOS/Android app or push notifications yet.
 - **A prebuilt-integrations marketplace** — bots, a [REST
-  API](/docs/reference/api/), and [webhooks](/docs/reference/webhooks/) are built
+  API](/reference/api/), and [webhooks](/reference/webhooks/) are built
   in, but there's no directory of hundreds of ready-made apps. If your workflow
   depends on one, a bigger platform will serve you better.
 
@@ -76,5 +76,5 @@ still feels finished, The Desk is built for you.
 
 ## Ready to try it?
 
-[Deploy The Desk in about five minutes](/docs/self-hosting/installation/) — or
-skim the [requirements](/docs/self-hosting/requirements/) first.
+[Deploy The Desk in about five minutes](/self-hosting/installation/) — or
+skim the [requirements](/self-hosting/requirements/) first.

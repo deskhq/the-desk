@@ -3,7 +3,7 @@ import { defineCollection, z } from 'astro:content';
 import { docsLoader } from '@astrojs/starlight/loaders';
 import { docsSchema } from '@astrojs/starlight/schema';
 
-const repo = 'https://github.com/emmpaul/the-desk';
+const repo = 'https://github.com/deskhq/the-desk';
 
 // The site deploys from `master` (Cloudflare Pages) on every push, so it always
 // describes trunk — but the released Docker image self-hosters run only ships

@@ -1,19 +1,18 @@
 # The Desk — Documentation site
 
-The public documentation site for [The Desk](https://github.com/emmpaul/the-desk),
+The public documentation site for [The Desk](https://github.com/deskhq/the-desk),
 built with [Astro Starlight](https://starlight.astro.build/). It lives inside the
 main repo under `docs/` but is a **self-contained project** with its own
 `package.json` and `node_modules` — completely isolated from the Laravel/Vite
 application and its quality gates.
 
-The site has two parts:
+It is served from `docs.thedeskhq.app`, and the documentation sits at the root of
+that origin. The site has two parts:
 
-- **Marketing landing page** at `/` — a standalone Astro page (not Starlight) in
-  `src/pages/index.astro`, with its own self-contained styles.
-- **Documentation** under `/docs` — Starlight pages. Content lives in
-  `src/content/docs/docs/`; site config (title, sidebar, edit links) is in
+- **Documentation** at `/` — Starlight pages. Content lives in
+  `src/content/docs/`; site config (title, sidebar, edit links) is in
   `astro.config.mjs`.
-- **API reference** under `/docs/api-reference` — generated at build time by
+- **API reference** under `/api-reference` — generated at build time by
   [starlight-openapi](https://starlight-openapi.vercel.app/) from
   `public/openapi.yaml`, the hand-authored OpenAPI 3.1 contract for the
   application's `/api/v1` surface. Because the file sits in `public/`, it is

@@ -7,13 +7,13 @@ body:
     attributes:
       value: |
         The operator/self-hosting docs live at
-        [the-desk.emmanuelpaul.com/docs](https://the-desk.emmanuelpaul.com/docs/).
+        [docs.thedeskhq.app](https://docs.thedeskhq.app/).
   - type: input
     id: page
     attributes:
       label: Which page?
       description: The URL or file path of the page with the problem.
-      placeholder: "https://the-desk.emmanuelpaul.com/docs/self-hosting/installation/"
+      placeholder: "https://docs.thedeskhq.app/self-hosting/installation/"
     validations:
       required: true
   - type: textarea

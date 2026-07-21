@@ -12,7 +12,7 @@ with [FrankenPHP](https://frankenphp.dev/). By default the four app-role service
 (`app`, `reverb`, `queue`, `scheduler`) share one **prebuilt image** pulled from
 the registry; the optional `docker-compose.build.yml` overlay replaces that pull
 with a local build from source (see
-[Installation](/docs/self-hosting/installation/#build-from-source)).
+[Installation](/self-hosting/installation/#build-from-source)).
 
 ## Services
 
@@ -61,17 +61,17 @@ a genuine outage flips them to `unhealthy`.
 ## Integrations platform
 
 External systems reach a workspace through the **integrations platform**, gated
-by the [`INTEGRATIONS_ENABLED`](/docs/reference/feature-toggles/#integrations-platform)
+by the [`INTEGRATIONS_ENABLED`](/reference/feature-toggles/#integrations-platform)
 toggle (with it off, the API and webhook endpoints `404` and the management UI
 hides):
 
-- The versioned [**REST API**](/docs/reference/api/) under `/api/v1` is served by
+- The versioned [**REST API**](/reference/api/) under `/api/v1` is served by
   `app`, authenticated by hashed bearer tokens and throttled per token.
 - **Bots** are workspace users of a `bot` type, scoped to a team; they post
   through the API exactly like a person, gated by channel membership.
-- [**Incoming webhooks**](/docs/reference/incoming-webhooks/) accept a `POST` to an
+- [**Incoming webhooks**](/reference/incoming-webhooks/) accept a `POST` to an
   opaque secret URL and post it into one channel as a bot.
-- [**Outgoing webhooks**](/docs/reference/webhooks/) deliver subscribed events as
+- [**Outgoing webhooks**](/reference/webhooks/) deliver subscribed events as
   signed `POST`s from the `queue` worker, with retries, per-attempt logging, and
   auto-disable on repeated failure.
 
@@ -106,5 +106,5 @@ container performs that seeding — starting them together makes the daemon race
 itself and one container fails with `mkdir …/_data/private: file exists`.
 
 These survive `docker compose down` / `up`. See
-[Upgrading](/docs/self-hosting/upgrading/) for how the version-scoped Meilisearch
+[Upgrading](/self-hosting/upgrading/) for how the version-scoped Meilisearch
 volume behaves across upgrades.

@@ -109,13 +109,13 @@ evidence for each of these from **your** environment, not from this project:
 
 - **TLS termination.** The Desk's containers speak plain HTTP. Terminate TLS at
   your reverse proxy and redirect HTTP to HTTPS. See
-  [Reverse proxy & TLS](/docs/self-hosting/reverse-proxy/), and set the
+  [Reverse proxy & TLS](/self-hosting/reverse-proxy/), and set the
   browser-facing `REVERB_SCHEME_PUBLIC=https`. The app then sends HSTS itself on
   every request that arrived over HTTPS, and marks the session cookie `Secure`
   whenever `APP_URL` is an `https://` URL — so make sure `APP_URL` names the
   HTTPS address, or set `SESSION_SECURE_COOKIE=true` explicitly. See
-  [HTTPS enforcement (HSTS)](/docs/reference/feature-toggles/#https-enforcement-hsts)
-  and [`SESSION_SECURE_COOKIE`](/docs/reference/environment-variables/#session-cookies)
+  [HTTPS enforcement (HSTS)](/reference/feature-toggles/#https-enforcement-hsts)
+  and [`SESSION_SECURE_COOKIE`](/reference/environment-variables/#session-cookies)
   for the evidence an auditor will ask for.
 - **Encryption at rest.** Encrypt the disk or volume that holds the PostgreSQL
   database and the uploaded-files volume. This is provided by your host or storage
@@ -123,7 +123,7 @@ evidence for each of these from **your** environment, not from this project:
 - **Backups.** Take, encrypt, test, and off-site the database and file-volume
   backups. `docker/backup.sh` and `docker/restore.sh` handle the taking and the
   restoring, including a `--keep=N` retention flag and a host-cron example; see
-  [Upgrading](/docs/self-hosting/upgrading/#backups). Encrypting and
+  [Upgrading](/self-hosting/upgrading/#backups). Encrypting and
   off-siting the resulting files remains yours.
 - **Secret management.** `APP_KEY`, `DB_PASSWORD`, `MEILISEARCH_KEY`, the
   `REVERB_*` credentials, and any `SCIM_TOKEN` are full secrets. Generate them
@@ -132,14 +132,14 @@ evidence for each of these from **your** environment, not from this project:
 - **Network isolation.** Expose only the web port publicly; keep PostgreSQL,
   Redis, Meilisearch, and Reverb on an internal network. Restrict administrative
   and database access to trusted operators.
-- **Patching.** Stay on the [latest release](/docs/self-hosting/upgrading/) so you
+- **Patching.** Stay on the [latest release](/self-hosting/upgrading/) so you
   receive security fixes, and keep the host OS and reverse proxy patched.
 
 ## Related reference
 
-- [Feature toggles](/docs/reference/feature-toggles/) for the switches that turn
+- [Feature toggles](/reference/feature-toggles/) for the switches that turn
   registration, SSO-only mode, SCIM provisioning, and audit logging on or off.
-- [Environment variables](/docs/reference/environment-variables/) for the exact
+- [Environment variables](/reference/environment-variables/) for the exact
   `.env` settings behind every control above.
-- [Security & vulnerability reporting](/docs/reference/security/) for how to report
+- [Security & vulnerability reporting](/reference/security/) for how to report
   a problem privately and the automated scanning that guards the codebase.
