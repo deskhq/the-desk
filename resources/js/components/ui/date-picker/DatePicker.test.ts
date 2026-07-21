@@ -94,28 +94,4 @@ describe('DatePicker', () => {
 
         expect(selected.value).toBe('2026-07-15');
     });
-
-    it('clears the value when the clear control is used', async () => {
-        const selected = ref<string | null>('2026-07-10');
-
-        mount({
-            modelValue: selected.value,
-            clearable: true,
-            clearLabel: 'Clear date',
-            'onUpdate:modelValue': (day: string | null) => {
-                selected.value = day;
-            },
-        });
-
-        const clear = document.querySelector<HTMLElement>(
-            '[data-slot="date-picker-clear"]',
-        );
-
-        expect(clear).not.toBeNull();
-
-        clear?.click();
-        await nextTick();
-
-        expect(selected.value).toBeNull();
-    });
 });

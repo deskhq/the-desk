@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { DateValue } from 'reka-ui';
 import type { HTMLAttributes } from 'vue';
-import { Calendar as CalendarIcon, X } from '@lucide/vue';
+import { Calendar as CalendarIcon } from '@lucide/vue';
 import { computed, ref } from 'vue';
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
@@ -36,10 +36,6 @@ const props = withDefaults(
         /** Marks the trigger `aria-invalid`, e.g. when the range it belongs to is backwards. */
         invalid?: boolean;
         disabled?: boolean;
-        /** Renders an inline control that resets the value to `null`. */
-        clearable?: boolean;
-        /** Accessible name for the clear control. */
-        clearLabel?: string;
         class?: HTMLAttributes['class'];
     }>(),
     {
@@ -50,8 +46,6 @@ const props = withDefaults(
         ariaLabel: undefined,
         invalid: false,
         disabled: false,
-        clearable: false,
-        clearLabel: undefined,
         class: undefined,
     },
 );
@@ -81,8 +75,7 @@ function select(value: DateValue | undefined): void {
 </script>
 
 <template>
-    <div class="inline-flex items-center gap-1">
-        <Popover v-model:open="open">
+    <Popover v-model:open="open">
             <PopoverTrigger as-child>
                 <Button
                     variant="outline"
@@ -115,18 +108,5 @@ function select(value: DateValue | undefined): void {
                     @update:model-value="select"
                 />
             </PopoverContent>
-        </Popover>
-        <Button
-            v-if="clearable && modelValue"
-            variant="ghost"
-            size="icon-sm"
-            type="button"
-            class="rounded-full text-muted-foreground"
-            :aria-label="clearLabel"
-            data-slot="date-picker-clear"
-            @click="select(undefined)"
-        >
-            <X class="size-3.5" />
-        </Button>
-    </div>
+    </Popover>
 </template>
