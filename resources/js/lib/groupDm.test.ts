@@ -17,6 +17,7 @@ function participant(id: string, name: string): DmParticipant {
         isBot: false,
         status: null,
         presence: 'active',
+        isDnd: false,
     };
 }
 
