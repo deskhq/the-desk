@@ -58,9 +58,9 @@ const SIZES = {
 
 const dims = computed(() => SIZES[props.size]);
 
-// Per-size dot geometry, matching the ring the avatars already carry so the dot
-// reads as part of the same stack rather than floating over it.
-const DOT_SIZES = { sm: 'size-2', md: 'size-2.5' } as const;
+// The avatar diameter each stack size draws, handed to PresenceDot so it owns
+// the badge geometry (diameter, ring width, corner placement, stacking).
+const DOT_SIZES = { sm: '18', md: '28' } as const;
 </script>
 
 <template>
@@ -92,8 +92,8 @@ const DOT_SIZES = { sm: 'size-2', md: 'size-2.5' } as const;
                 data-test="stack-presence-dot"
                 :presence="presenceFor(member.id)"
                 :surface-class="surfaceClass"
-                class="absolute -right-0.5 -bottom-0.5 ring-2"
-                :class="[DOT_SIZES[size], ringClass]"
+                :size="DOT_SIZES[size]"
+                :class="ringClass"
             />
         </span>
         <span

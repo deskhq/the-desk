@@ -71,7 +71,8 @@ const ownPresence = computed<RenderedPresence>(
                                 data-test="nav-user-presence"
                                 :presence="ownPresence"
                                 surface-class="bg-popover group-hover/nav-user:bg-secondary group-data-[state=open]/nav-user:bg-sidebar-primary"
-                                class="absolute -right-0.5 -bottom-0.5 size-2.25 ring-2 ring-popover group-hover/nav-user:ring-secondary group-data-[state=open]/nav-user:ring-sidebar-primary"
+                                size="30"
+                                class="ring-popover group-hover/nav-user:ring-secondary group-data-[state=open]/nav-user:ring-sidebar-primary"
                             />
                         </span>
                         <span

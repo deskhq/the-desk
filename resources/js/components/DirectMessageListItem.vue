@@ -158,7 +158,7 @@ function hide(): void {
                         :surface-class="
                             isActive ? 'bg-sidebar-primary' : 'bg-sidebar'
                         "
-                        class="absolute -right-0.5 -bottom-0.5 size-2 ring-2"
+                        size="18"
                         :class="
                             isActive ? 'ring-sidebar-primary' : 'ring-sidebar'
                         "

@@ -186,7 +186,8 @@ const handleLogout = () => {
                         data-test="user-menu-presence"
                         :presence="ownPresence"
                         surface-class="bg-muted"
-                        class="absolute right-0 bottom-0 size-2.75 ring-2 ring-muted"
+                        size="42"
+                        class="ring-muted"
                     />
                 </span>
                 <div class="min-w-0 flex-1">
