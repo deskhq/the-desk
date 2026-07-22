@@ -214,8 +214,15 @@ Route::middleware(['auth'])->group(function (): void {
 
     // The idle detector's two writes. Not settings — the browser reports these
     // on its own, and they describe one tab rather than a stored preference.
-    Route::post('presence/connection', [PresenceConnectionController::class, 'store'])->name('presence.report');
-    Route::post('presence/connection/release', [PresenceConnectionController::class, 'destroy'])->name('presence.release');
+    // Throttled like the typing signal: an honest client posts a handful of
+    // times an hour, so a cap this generous is invisible to it while bounding
+    // how fast one account can grow its own connection index.
+    Route::post('presence/connection', [PresenceConnectionController::class, 'store'])
+        ->middleware('throttle:60,1')
+        ->name('presence.report');
+    Route::post('presence/connection/release', [PresenceConnectionController::class, 'destroy'])
+        ->middleware('throttle:60,1')
+        ->name('presence.release');
 
     Route::patch('onboarding', [OnboardingController::class, 'update'])->name('onboarding.update');
 

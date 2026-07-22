@@ -2,6 +2,7 @@
 
 use App\Enums\PresenceState;
 use App\Support\PresenceRegistry;
+use Illuminate\Contracts\Cache\Repository;
 
 beforeEach(function (): void {
     $this->registry = app(PresenceRegistry::class);
@@ -80,3 +81,32 @@ test('forgetting an unknown connection is a no-op', function (): void {
 
     expect($this->registry->aggregate('user-1'))->toBe(PresenceState::Away);
 });
+
+test('an unreachable cache reads as active rather than failing the page', function (): void {
+    $cache = Mockery::mock(Repository::class);
+    $cache->shouldReceive('get')->andThrow(new RuntimeException('redis is down'));
+
+    expect((new PresenceRegistry($cache))->aggregate('user-1'))->toBe(PresenceState::Active);
+});
+
+test('an unreachable cache swallows a write, which the next heartbeat re-states', function (): void {
+    $cache = Mockery::mock(Repository::class);
+    $cache->shouldReceive('get')->andReturn([]);
+    $cache->shouldReceive('put')->andThrow(new RuntimeException('redis is down'));
+
+    $registry = new PresenceRegistry($cache);
+
+    $registry->record('user-1', 'tab-a', PresenceState::Away);
+
+    expect($registry->aggregate('user-1'))->toBe(PresenceState::Active);
+});
+
+test('an unreachable cache swallows a release too', function (): void {
+    $cache = Mockery::mock(Repository::class);
+    $cache->shouldReceive('get')->andReturn(['tab-a' => ['state' => 'away', 'last_seen' => now()->getTimestamp()]]);
+    $cache->shouldReceive('forget')->andThrow(new RuntimeException('redis is down'));
+
+    $registry = new PresenceRegistry($cache);
+
+    $registry->forget('user-1', 'tab-a');
+})->throwsNoExceptions();

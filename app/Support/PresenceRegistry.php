@@ -6,6 +6,7 @@ namespace App\Support;
 
 use App\Enums\PresenceState;
 use Illuminate\Contracts\Cache\Repository as Cache;
+use Throwable;
 
 /**
  * An owned, per-user index of live browser connections and how active each one is.
@@ -110,8 +111,17 @@ class PresenceRegistry
      */
     private function load(string $userId): array
     {
-        /** @var array<string, ConnectionMeta> $connections */
-        $connections = $this->cache->get($this->key($userId), []);
+        try {
+            /** @var array<string, ConnectionMeta> $connections */
+            $connections = $this->cache->get($this->key($userId), []);
+        } catch (Throwable $exception) {
+            // Failing open is the whole contract: a dot is not worth 500ing a
+            // page render over, and an unreachable cache reads as "no idle
+            // connections", which is exactly the pre-feature behaviour.
+            report($exception);
+
+            return [];
+        }
 
         $threshold = now()->subMinutes($this->ttlMinutes())->getTimestamp();
 
@@ -127,13 +137,19 @@ class PresenceRegistry
     {
         unset($this->resolved[$userId]);
 
-        if ($connections === []) {
-            $this->cache->forget($this->key($userId));
+        try {
+            if ($connections === []) {
+                $this->cache->forget($this->key($userId));
 
-            return;
+                return;
+            }
+
+            $this->cache->put($this->key($userId), $connections, now()->addMinutes($this->ttlMinutes()));
+        } catch (Throwable $exception) {
+            // A dropped write is recoverable on its own: every connection
+            // re-states itself on its next heartbeat.
+            report($exception);
         }
-
-        $this->cache->put($this->key($userId), $connections, now()->addMinutes($this->ttlMinutes()));
     }
 
     /**

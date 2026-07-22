@@ -1,6 +1,7 @@
 import { usePage } from '@inertiajs/vue3';
 import { onBeforeUnmount, onMounted } from 'vue';
 import { parseXsrfToken } from '@/lib/uploadAttachment';
+import { generateUuid } from '@/lib/uuid';
 import { release, report } from '@/routes/presence';
 
 /**
@@ -140,7 +141,7 @@ export function usePresenceReporter(): void {
     onMounted(() => {
         connectionId =
             sessionStorage.getItem(PRESENCE_CONNECTION_STORAGE_KEY) ??
-            crypto.randomUUID();
+            generateUuid();
         sessionStorage.setItem(PRESENCE_CONNECTION_STORAGE_KEY, connectionId);
 
         // Register before the first transition: a freshly opened tab that never

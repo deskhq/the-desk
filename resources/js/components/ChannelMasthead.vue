@@ -39,7 +39,7 @@ import type { ConnectionPill } from '@/composables/useConnectionState';
 import { getInitials } from '@/composables/useInitials';
 import { memberAvatarStack } from '@/lib/memberAvatars';
 import type { NotificationIndicator } from '@/lib/notificationIndicator';
-import { presenceLabelKey } from '@/lib/presence';
+import { dmParticipantPresence, presenceLabelKey } from '@/lib/presence';
 import type { RenderedPresence } from '@/lib/presence';
 import type {
     Channel,
@@ -135,10 +135,12 @@ const dmAvatar = computed(() =>
  * the team roster. A DM is a fixed set, so the "who's in the channel" facepile is
  * meaningless and hidden.
  */
-const dmParticipantPresence = computed<RenderedPresence>(() =>
-    props.channel.dmUserId != null
-        ? props.presenceFor(props.channel.dmUserId)
-        : 'offline',
+const dmPresence = computed<RenderedPresence>(() =>
+    dmParticipantPresence(
+        props.channel.dmUserId,
+        props.presenceFor,
+        page.props.auth.user.presence,
+    ),
 );
 
 /**
@@ -204,7 +206,7 @@ const groupParticipantCount = computed(
                     </Avatar>
                     <PresenceDot
                         data-test="masthead-dm-presence"
-                        :presence="dmParticipantPresence"
+                        :presence="dmPresence"
                         surface-class="bg-card"
                         class="absolute -right-0.5 -bottom-0.5 size-2.5 ring-2 ring-card"
                     />
@@ -212,7 +214,7 @@ const groupParticipantCount = computed(
                          an aria-label on the role-less dot, which assistive tech
                          ignores on a bare <span>. -->
                     <span class="sr-only">{{
-                        $t(presenceLabelKey(dmParticipantPresence))
+                        $t(presenceLabelKey(dmPresence))
                     }}</span>
                 </span>
                 <span v-else class="text-brass italic">#</span>
