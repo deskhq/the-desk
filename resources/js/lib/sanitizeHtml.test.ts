@@ -4,9 +4,35 @@
 import { describe, expect, it } from 'vitest';
 import {
     MESSAGE_BODY_SANITIZE_CONFIG,
+    QR_CODE_SANITIZE_CONFIG,
+    SANITIZE_CONFIGS,
     sanitizeHtml,
     SEARCH_SNIPPET_SANITIZE_CONFIG,
 } from '@/lib/sanitizeHtml';
+
+/**
+ * A shortened but structurally faithful sample of what Fortify's
+ * `twoFactorQrCodeSvg()` emits — every element and attribute the real output
+ * carries is represented, so the allowlist is asserted against the actual shape
+ * rather than an invented one.
+ */
+const QR_SVG =
+    '<svg xmlns="http://www.w3.org/2000/svg" version="1.1" width="192" height="192" viewBox="0 0 192 192">' +
+    '<rect x="0" y="0" width="192" height="192" fill="#ffffff"/>' +
+    '<g transform="scale(4.683)"><g transform="translate(0,0)">' +
+    '<path fill-rule="evenodd" d="M8 0L8 1L9 1L9 0Z" fill="#2d3748"/>' +
+    '</g></g></svg>';
+
+/**
+ * The same QR code as DOMPurify re-serializes it: identical elements and
+ * attributes, with the self-closing `<rect/>`/`<path/>` written as explicit
+ * open/close pairs. The distinction is textual only — both parse to the same DOM
+ * and render the same code.
+ */
+const QR_SVG_REPARSED = QR_SVG.replace(
+    /<(rect|path)([^>]*)\/>/g,
+    '<$1$2></$1>',
+);
 
 describe('sanitizeHtml', () => {
     it('keeps the tags and attributes on the allowlist', () => {
@@ -63,5 +89,33 @@ describe('sanitizeHtml', () => {
                 SEARCH_SNIPPET_SANITIZE_CONFIG,
             ),
         ).toBe('<mark>hit</mark>');
+    });
+
+    it('keeps every element and attribute a two-factor QR code carries', () => {
+        expect(sanitizeHtml(QR_SVG, QR_CODE_SANITIZE_CONFIG)).toBe(
+            QR_SVG_REPARSED,
+        );
+    });
+
+    it('strips scripting smuggled into a QR code SVG', () => {
+        expect(
+            sanitizeHtml(
+                '<svg viewBox="0 0 1 1"><script>alert(1)</script>' +
+                    '<rect x="0" y="0" onload="alert(1)"/>' +
+                    '<foreignObject><iframe src="https://evil.test"></iframe></foreignObject>' +
+                    '</svg>',
+                QR_CODE_SANITIZE_CONFIG,
+            ),
+        ).toBe('<svg viewBox="0 0 1 1"><rect x="0" y="0"></rect></svg>');
+    });
+});
+
+describe('SANITIZE_CONFIGS', () => {
+    it('exposes each allowlist under its variant name', () => {
+        expect(SANITIZE_CONFIGS).toEqual({
+            messageBody: MESSAGE_BODY_SANITIZE_CONFIG,
+            searchSnippet: SEARCH_SNIPPET_SANITIZE_CONFIG,
+            qrCode: QR_CODE_SANITIZE_CONFIG,
+        });
     });
 });
