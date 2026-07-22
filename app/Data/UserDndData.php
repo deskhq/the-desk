@@ -25,11 +25,14 @@ class UserDndData extends Data
         /** Daily window bounds as `HH:MM` wall-clock strings in the user's own timezone. */
         public ?string $startsAt,
         public ?string $endsAt,
+        /** ISO-8601 instant a schedule snooze lapses, or null when none is running. */
+        public ?string $scheduleSnoozedUntil,
     ) {}
 
     /**
-     * Build the DTO from a user's columns. A lapsed pause reads as absent
-     * immediately, without waiting for the scheduled sweep to null the column.
+     * Build the DTO from a user's columns. A lapsed pause or snooze reads as
+     * absent immediately, without waiting for the scheduled sweep to null the
+     * column.
      */
     public static function forUser(User $user): self
     {
@@ -40,6 +43,7 @@ class UserDndData extends Data
             scheduleEnabled: $user->dnd_schedule_enabled ?? false,
             startsAt: $user->dnd_starts_at,
             endsAt: $user->dnd_ends_at,
+            scheduleSnoozedUntil: $user->dnd_schedule_snoozed_until?->isFuture() ? $user->dnd_schedule_snoozed_until->toIso8601String() : null,
         );
     }
 }

@@ -14,6 +14,7 @@ function dnd(
         scheduleEnabled: false,
         startsAt: null,
         endsAt: null,
+        scheduleSnoozedUntil: null,
         ...overrides,
     };
 }
@@ -54,6 +55,46 @@ describe('isDndActiveNow', () => {
         expect(
             isDndActiveNow(schedule, 'UTC', new Date('2026-07-22T18:30:00Z')),
         ).toBe(false);
+    });
+
+    it('is inactive inside a window while a snooze is still ahead', () => {
+        const schedule = dnd({
+            scheduleEnabled: true,
+            startsAt: '09:00',
+            endsAt: '17:00',
+            scheduleSnoozedUntil: '2026-07-22T17:00:00Z',
+        });
+
+        expect(
+            isDndActiveNow(schedule, 'UTC', new Date('2026-07-22T12:00:00Z')),
+        ).toBe(false);
+    });
+
+    it('honours the window again once the snooze lapses', () => {
+        const schedule = dnd({
+            scheduleEnabled: true,
+            startsAt: '09:00',
+            endsAt: '17:00',
+            scheduleSnoozedUntil: '2026-07-22T17:00:00Z',
+        });
+
+        expect(
+            isDndActiveNow(schedule, 'UTC', new Date('2026-07-23T12:00:00Z')),
+        ).toBe(true);
+    });
+
+    it('never mutes a manual pause with a snooze', () => {
+        const paused = dnd({
+            until: '2026-07-22T14:00:00Z',
+            scheduleEnabled: true,
+            startsAt: '09:00',
+            endsAt: '17:00',
+            scheduleSnoozedUntil: '2026-07-22T17:00:00Z',
+        });
+
+        expect(
+            isDndActiveNow(paused, 'UTC', new Date('2026-07-22T12:00:00Z')),
+        ).toBe(true);
     });
 
     it('starts the window inclusive and ends it exclusive', () => {

@@ -32,6 +32,40 @@ test('a user pauses notifications from the presence menu and resumes in place', 
         ->and($alice->isDndActive())->toBeFalse();
 });
 
+test('a user snoozes the quiet-hours schedule for today from the paused card', function (): void {
+    ['owner' => $alice] = browserTeamWithChannel();
+
+    // A window straddling this very minute, so the card is showing whenever
+    // the suite happens to run — near midnight the bounds wrap, which the
+    // evaluator treats as an overnight window.
+    $now = now('UTC');
+
+    $alice->forceFill([
+        'timezone' => 'UTC',
+        'dnd_schedule_enabled' => true,
+        'dnd_starts_at' => $now->subMinutes(10)->format('H:i'),
+        'dnd_ends_at' => $now->addMinutes(10)->format('H:i'),
+    ])->save();
+
+    $page = signInThroughBrowser($alice)
+        ->click('@sidebar-menu-button')
+        ->assertPresent('@dnd-paused-card')
+        ->assertSee('quiet hours')
+        // No manual pause runs, so the card offers the snooze pill in place of
+        // Resume: one tap lifts tonight's window without touching the schedule.
+        ->assertNotPresent('@dnd-resume-menu-item')
+        ->click('@dnd-snooze-menu-item')
+        ->wait(0.5)
+        ->assertNotPresent('@dnd-paused-card')
+        ->assertPresent('@pause-notifications-menu-item');
+
+    $alice->refresh();
+
+    expect($alice->dnd_schedule_snoozed_until)->not->toBeNull()
+        ->and($alice->isDndActive())->toBeFalse()
+        ->and($alice->dnd_schedule_enabled)->toBeTrue();
+});
+
 test('the custom pause dialog stores the picked instant', function (): void {
     ['owner' => $alice] = browserTeamWithChannel();
 

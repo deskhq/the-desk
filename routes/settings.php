@@ -8,6 +8,7 @@ use App\Http\Controllers\Settings\AvatarController;
 use App\Http\Controllers\Settings\DataExportController;
 use App\Http\Controllers\Settings\DndController;
 use App\Http\Controllers\Settings\DndScheduleController;
+use App\Http\Controllers\Settings\DndScheduleSnoozeController;
 use App\Http\Controllers\Settings\LocaleController;
 use App\Http\Controllers\Settings\NotificationController;
 use App\Http\Controllers\Settings\PersonalAccessTokenController;
@@ -62,6 +63,7 @@ Route::middleware(['auth'])->group(function (): void {
     Route::put('settings/dnd', [DndController::class, 'update'])->name('dnd.update');
     Route::delete('settings/dnd', [DndController::class, 'destroy'])->name('dnd.destroy');
     Route::put('settings/dnd-schedule', [DndScheduleController::class, 'update'])->name('dnd-schedule.update');
+    Route::put('settings/dnd-schedule/snooze', [DndScheduleSnoozeController::class, 'update'])->name('dnd-schedule.snooze');
 
     Route::patch('settings/timezone', [TimezoneController::class, 'update'])->name('timezone.update');
 

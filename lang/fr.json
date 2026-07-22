@@ -1229,5 +1229,7 @@
   "From": "De",
   "to": "à",
   "crosses midnight — ends tomorrow morning": "passe minuit — se termine demain matin",
-  "Could not update your quiet hours.": "Impossible de mettre à jour vos heures calmes."
+  "Could not update your quiet hours.": "Impossible de mettre à jour vos heures calmes.",
+  "Snooze schedule today": "Suspendre l'horaire aujourd'hui",
+  "Could not snooze your quiet hours.": "Impossible de suspendre vos heures calmes."
 }

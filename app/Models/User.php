@@ -17,6 +17,7 @@ use App\Observers\UserObserver;
 use App\Support\Gravatar;
 use App\Support\Images\ImageProxy;
 use App\Support\PresenceRegistry;
+use Carbon\CarbonInterface;
 use Database\Factories\UserFactory;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Contracts\Translation\HasLocalePreference;
@@ -75,6 +76,7 @@ use Laravel\Sanctum\HasApiTokens;
  * @property bool $dnd_schedule_enabled
  * @property string|null $dnd_starts_at
  * @property string|null $dnd_ends_at
+ * @property Carbon|null $dnd_schedule_snoozed_until
  * @property Carbon|null $onboarding_completed_at
  * @property bool $is_tombstone
  * @property Carbon|null $deactivated_at
@@ -98,7 +100,7 @@ use Laravel\Sanctum\HasApiTokens;
  */
 #[Appends(['avatar', 'status', 'presence', 'dnd'])]
 #[Fillable(['name', 'email', 'avatar_url', 'pronouns', 'title', 'phone', 'timezone', 'locale', 'password', 'current_team_id', 'chime_sound', 'share_read_receipts', 'sidebar_position', 'presence_state', 'onboarding_completed_at', 'collapsed_channel_sections', 'is_tombstone'])]
-#[Hidden(['password', 'two_factor_secret', 'two_factor_recovery_codes', 'remember_token', 'avatar_url', 'avatar_path', 'status_emoji', 'status_text', 'status_expires_at', 'dnd_until', 'dnd_schedule_enabled', 'dnd_starts_at', 'dnd_ends_at'])]
+#[Hidden(['password', 'two_factor_secret', 'two_factor_recovery_codes', 'remember_token', 'avatar_url', 'avatar_path', 'status_emoji', 'status_text', 'status_expires_at', 'dnd_until', 'dnd_schedule_enabled', 'dnd_starts_at', 'dnd_ends_at', 'dnd_schedule_snoozed_until'])]
 #[ObservedBy(UserObserver::class)]
 class User extends Authenticatable implements HasLocalePreference, MustVerifyEmail, PasskeyUser
 {
@@ -185,10 +187,17 @@ class User extends Authenticatable implements HasLocalePreference, MustVerifyEma
      * timezone, so the window follows them when they travel. Start is
      * inclusive and end exclusive, and a window whose end precedes its start
      * wraps across midnight (22:00–07:00 covers the night, not an empty set).
+     * A snooze still ahead of its lapse suppresses the window outright — it is
+     * set to the instant the running window next closes, so the schedule
+     * resumes on its own without a re-enable step.
      */
     private function isInsideDndScheduleWindow(): bool
     {
         if (! $this->dnd_schedule_enabled || $this->dnd_starts_at === null || $this->dnd_ends_at === null) {
+            return false;
+        }
+
+        if ($this->dnd_schedule_snoozed_until?->isFuture()) {
             return false;
         }
 
@@ -199,6 +208,36 @@ class User extends Authenticatable implements HasLocalePreference, MustVerifyEma
         }
 
         return $now >= $this->dnd_starts_at || $now < $this->dnd_ends_at;
+    }
+
+    /**
+     * The instant the quiet-hours window covering this moment next closes, or
+     * null when no window covers it.
+     *
+     * This is what a snooze suppresses the schedule until: an overnight window
+     * entered before midnight closes tomorrow morning, its morning tail closes
+     * today. Null outside the window (or while already snoozed) so a stale
+     * request can never suppress a window that has not opened. Computed on the
+     * user's own wall clock but returned in the app timezone, because Eloquent
+     * persists a datetime's wall-clock reading without converting it first.
+     */
+    public function dndScheduleClosesAt(): ?CarbonInterface
+    {
+        if (! $this->isInsideDndScheduleWindow()) {
+            return null;
+        }
+
+        $now = now($this->timezone ?? config('app.timezone'));
+
+        $closes = $now->setTimeFromTimeString((string) $this->dnd_ends_at);
+
+        // Inside the window the end is always ahead on the wall clock; an end
+        // reading behind now means tonight's window closes tomorrow morning.
+        if ($closes->lessThanOrEqualTo($now)) {
+            $closes = $closes->addDay();
+        }
+
+        return $closes->setTimezone(config('app.timezone'));
     }
 
     /**
@@ -295,6 +334,7 @@ class User extends Authenticatable implements HasLocalePreference, MustVerifyEma
             'presence_state' => PresenceState::class,
             'dnd_until' => 'datetime',
             'dnd_schedule_enabled' => 'boolean',
+            'dnd_schedule_snoozed_until' => 'datetime',
             'onboarding_completed_at' => 'datetime',
             'status_expires_at' => 'datetime',
             'is_tombstone' => 'boolean',

@@ -10,8 +10,8 @@ import type { WallTime } from './scheduleTime';
  * time — a pause that lapsed two minutes ago, or a quiet-hours window that
  * opened one minute ago, must take effect without waiting for a server
  * round-trip. Keep the semantics in lockstep with the server: start inclusive,
- * end exclusive, and a window whose end precedes its start wraps across
- * midnight.
+ * end exclusive, a window whose end precedes its start wraps across midnight,
+ * and a snooze still ahead of its lapse suppresses the window outright.
  */
 export function isDndActiveNow(
     dnd: App.Data.UserDndData | null | undefined,
@@ -27,6 +27,13 @@ export function isDndActiveNow(
     }
 
     if (!dnd.scheduleEnabled || dnd.startsAt === null || dnd.endsAt === null) {
+        return false;
+    }
+
+    if (
+        dnd.scheduleSnoozedUntil !== null &&
+        new Date(dnd.scheduleSnoozedUntil) > at
+    ) {
         return false;
     }
 

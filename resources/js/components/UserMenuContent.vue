@@ -20,6 +20,7 @@ import {
     destroy as destroyDndPause,
     update as updateDndPause,
 } from '@/actions/App/Http/Controllers/Settings/DndController';
+import { update as snoozeDndSchedule } from '@/actions/App/Http/Controllers/Settings/DndScheduleSnoozeController';
 import { update as updatePresence } from '@/actions/App/Http/Controllers/Settings/PresenceController';
 import { destroy as destroyStatus } from '@/actions/App/Http/Controllers/Settings/StatusController';
 import MenuSegmentedControl from '@/components/MenuSegmentedControl.vue';
@@ -247,6 +248,25 @@ function resumeNotifications(event: Event): void {
     });
 }
 
+/**
+ * Lift tonight's quiet-hours window from the card's snooze pill, without
+ * disabling the standing schedule — the server suppresses the window until it
+ * next closes, then the schedule resumes on its own. Kept in place (no menu
+ * dismissal) so the card collapses back to the plain rows.
+ */
+function snoozeSchedule(event: Event): void {
+    event.preventDefault();
+
+    router.put(
+        snoozeDndSchedule().url,
+        {},
+        {
+            preserveScroll: true,
+            onError: () => toast.error(t('Could not snooze your quiet hours.')),
+        },
+    );
+}
+
 const handleLogout = () => {
     router.flushAll();
 };
@@ -350,9 +370,9 @@ const handleLogout = () => {
             >{{ $t('Status') }}</DropdownMenuLabel
         >
         <!-- While in DND the section leads with the paused card: crescent,
-             when it lifts in italic serif, and — for a manual pause — the
-             one-tap Resume pill. Quiet hours name their window instead; ending
-             those early is a schedule edit, not a tap (see the flyout link). -->
+             when it lifts in italic serif, and a one-tap pill — Resume for a
+             manual pause, Snooze for quiet hours (lifts tonight's window and
+             lets the standing schedule resume on its own). -->
         <div
             v-if="isDnd"
             data-test="dnd-paused-card"
@@ -395,6 +415,22 @@ const handleLogout = () => {
                     class="inline-flex h-6.5 cursor-pointer items-center rounded-full border border-border px-3 text-[11.5px] font-semibold text-muted-foreground hover:text-foreground"
                 >
                     {{ $t('Resume') }}
+                </Button>
+            </DropdownMenuItem>
+            <DropdownMenuItem
+                v-else-if="quietHoursUntil"
+                :as-child="true"
+                class="shrink-0 rounded-full p-0 focus:bg-transparent"
+                data-test="dnd-snooze-menu-item"
+                @select="snoozeSchedule"
+            >
+                <Button
+                    variant="unstyled"
+                    size="none"
+                    type="button"
+                    class="inline-flex h-6.5 cursor-pointer items-center rounded-full border border-border px-3 text-[11.5px] font-semibold text-muted-foreground hover:text-foreground"
+                >
+                    {{ $t('Snooze schedule today') }}
                 </Button>
             </DropdownMenuItem>
         </div>
