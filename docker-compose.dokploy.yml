@@ -1,7 +1,9 @@
-# Production stack for a container-network PaaS: Dokploy, and anything else
-# that fronts compose services with an injected Traefik network. Point Dokploy's
-# Compose Path at this file and never edit YAML; the walkthrough is at
-# https://docs.thedeskhq.app/self-hosting/dokploy/.
+# Production stack for Dokploy, which fronts compose services with its own
+# injected Traefik network. Point Dokploy's Compose Path at this file and never
+# edit YAML; the walkthrough is at
+# https://docs.thedeskhq.app/self-hosting/dokploy/. Another PaaS of the same
+# shape (Coolify, say) needs this file with its own network name in place of
+# dokploy-network.
 #
 # It is docker-compose.prod.yml (read that file for the rationale behind every
 # setting) with exactly two differences, which

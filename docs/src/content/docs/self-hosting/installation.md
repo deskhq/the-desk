@@ -23,9 +23,9 @@ Make sure you meet the [requirements](/self-hosting/requirements/) first — Doc
 :::
 
 :::tip[Deploying on a PaaS instead?]
-Dokploy, Coolify, and CapRover front your containers with their own Traefik, which
-needs a slightly different compose file. `docker-compose.dokploy.yml` is shipped
-for that: see [Deploying on Dokploy](/self-hosting/dokploy/) and skip this page's
+Dokploy and Coolify front your containers with their own Traefik, which needs a
+slightly different compose file. `docker-compose.dokploy.yml` is shipped for
+that: see [Deploying on Dokploy](/self-hosting/dokploy/) and skip this page's
 host-port setup.
 :::
 

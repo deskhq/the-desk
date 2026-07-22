@@ -16,23 +16,24 @@ declare(strict_types=1);
  * Commented-out settings are checked too — they are the lines an operator
  * uncomments, so a hazard parked behind a `#` is a hazard shipped.
  *
- * @return list<array{key: string, value: string, line: int}>
+ * @return list<array{key: string, value: string, line: int, commented: bool}>
  */
 $settings = function (): array {
     $template = (string) file_get_contents(dirname(__DIR__, 2).'/.env.prod.example');
     $settings = [];
 
     foreach (explode("\n", $template) as $index => $line) {
-        if (preg_match('/^#?\s*([A-Z][A-Z0-9_]*)=(.*)$/', trim($line), $matches) !== 1) {
+        if (preg_match('/^(#?)\s*([A-Z][A-Z0-9_]*)=(.*)$/', trim($line), $matches) !== 1) {
             continue;
         }
 
         $settings[] = [
-            'key' => $matches[1],
+            'commented' => $matches[1] === '#',
+            'key' => $matches[2],
             // Drop the trailing inline comment dotenv itself strips, so an
             // annotation such as `# x-release-please-version` is not read as
             // whitespace inside the value.
-            'value' => (string) preg_replace('/\s+#.*$/', '', $matches[2]),
+            'value' => (string) preg_replace('/\s+#.*$/', '', $matches[3]),
             'line' => $index + 1,
         ];
     }
@@ -42,8 +43,9 @@ $settings = function (): array {
 
 /**
  * The one setting whose value cannot be expressed without spaces: Socialite is
- * handed `explode(' ', …)` of it. It ships commented out, and the Dokploy guide
- * tells PaaS operators to leave it that way.
+ * handed `explode(' ', …)` of it. The exemption is deliberately narrowed to the
+ * commented-out example it ships as, so activating it in the template would have
+ * to be a conscious decision rather than an inherited licence.
  *
  * @var list<string>
  */
@@ -58,7 +60,7 @@ test('no setting breaks when a PaaS strips its quotes', function () use ($settin
         static fn (array $setting): string => $setting['key'].' (line '.$setting['line'].')',
         array_filter(
             $settings(),
-            static fn (array $setting): bool => ! in_array($setting['key'], $quotedByNecessity, true)
+            static fn (array $setting): bool => (! $setting['commented'] || ! in_array($setting['key'], $quotedByNecessity, true))
                 && preg_match('/\s/', $setting['value']) === 1,
         ),
     ));

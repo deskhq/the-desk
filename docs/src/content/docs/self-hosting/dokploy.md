@@ -8,7 +8,9 @@ Compose stacks behind its own Traefik. The repository ships
 `docker-compose.dokploy.yml` for it, so a deploy is four screens of settings and
 no YAML editing.
 
-That file is [`docker-compose.prod.yml`](/self-hosting/installation/) with two
+That file is
+[`docker-compose.prod.yml`](https://github.com/deskhq/the-desk/blob/master/docker-compose.prod.yml),
+the stack described in [Installation](/self-hosting/installation/), with two
 differences:
 
 1. **No `ports:`.** Traefik reaches the containers over Dokploy's own
@@ -18,10 +20,13 @@ differences:
 2. **`app` and `reverb` join `dokploy-network`** explicitly, next to the stack's
    own `default` network.
 
-:::note
-The same shape applies to Coolify, CapRover, and anything else that fronts
-compose services with an injected proxy network. The file works there too; only
-the names of the screens differ.
+:::note[Another PaaS?]
+This file is written for Dokploy, and the external network it declares is
+Dokploy's own. Any other platform that runs a compose stack behind an injected
+proxy network (Coolify, for instance) needs the same two changes with **its**
+network name in place of `dokploy-network`, so copy the file and rename that one
+reference. Platforms that do not run plain Compose at all, such as CapRover with
+its Swarm and NGINX layout, are not covered here.
 :::
 
 ## Before you start
