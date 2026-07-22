@@ -5,6 +5,7 @@ import {
     index,
     show,
 } from '@/actions/App/Http/Controllers/Channels/ChannelController';
+import SafeHtml from '@/components/SafeHtml.vue';
 import { SidebarTrigger } from '@/components/ui/sidebar';
 import { useCustomEmojis } from '@/composables/useCustomEmojis';
 import { getInitials } from '@/composables/useInitials';
@@ -131,8 +132,8 @@ function formatTimestamp(iso: string): string {
                                     v-if="!item.root.isDeleted"
                                     class="mt-0.5 line-clamp-2 text-[14px] leading-[1.5] break-words text-foreground/90"
                                 >
-                                    <span
-                                        v-html="
+                                    <SafeHtml
+                                        :html="
                                             renderMessageBody(
                                                 item.root.body,
                                                 item.root.mentions,
@@ -140,7 +141,8 @@ function formatTimestamp(iso: string): string {
                                                 userGroups,
                                             )
                                         "
-                                    ></span>
+                                        variant="messageBody"
+                                    />
                                 </p>
 
                                 <div

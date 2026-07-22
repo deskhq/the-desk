@@ -37,6 +37,11 @@ test('a user can start two-factor enrolment from the security page', function ()
         ->click('@enable-two-factor-button')
         ->assertPresent('@two-factor-setup')
         ->assertPresent('@two-factor-qr')
+        // The QR is server-rendered SVG sanitized against the `qrCode` allowlist
+        // on its way through `<SafeHtml>`; assert the scannable markup itself
+        // survives, not just the box it sits in — an allowlist that dropped
+        // `<path>` would leave an empty container that still passes the check above.
+        ->assertPresent('[data-test="two-factor-qr"] svg path')
         ->assertPresent('@two-factor-recovery-codes')
         ->assertPresent('@confirm-two-factor-button');
 });

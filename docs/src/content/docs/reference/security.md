@@ -63,14 +63,42 @@ and [`SESSION_SECURE_COOKIE`](/reference/environment-variables/#session-cookies)
 `preload` is opt-in and off by default: it is effectively irreversible for a
 domain and commits every subdomain with it.
 
+## Rendered HTML is sanitized
+
+A chat app has to turn what people type into markup: bold text, mention pills,
+autolinked URLs, custom emoji, highlighted search hits. That is the classic
+cross-site-scripting surface, where a crafted message becomes script running in
+every reader's session.
+
+The Desk handles it in two stages. The code that builds that markup escapes
+every character of user input before it goes anywhere near a tag, and only ever
+emits tags it writes itself. Then, whatever it produced is sanitized with
+[DOMPurify](https://github.com/cure53/DOMPurify) against a fixed allow-list of
+tags and attributes just before the browser renders it.
+
+The second stage runs in exactly one component, `SafeHtml`, which is the only
+place in the interface allowed to render a string as markup. Every surface goes
+through it: message bodies, forwarded and quoted messages, the quick switcher,
+the threads list, search snippets, and the two-factor QR code. Each names the
+allow-list it renders under, so a search snippet can carry a highlight and
+nothing else, and a QR code can carry SVG shapes but no script.
+
+That rule is enforced mechanically rather than by review: the linter fails the
+build on any other component using Vue's `v-html` directive, so a new component
+cannot add a second, unsanitized rendering path by accident.
+
+None of this is configurable, and there is nothing to switch on. It is
+described here because it is the control that the policy below exists to back
+up.
+
 ## Content Security Policy
 
 Every web response carries a `Content-Security-Policy` header: the browser-side
 allow-list that decides which scripts, styles, images and connections a page may
-use. It does not replace output escaping. It caps the damage when escaping fails,
-which matters here because The Desk renders user-authored content nearly
-everywhere: messages, markdown, emoji names, link-preview titles, uploaded file
-names.
+use. It does not replace the output escaping and sanitization described above.
+It caps the damage if those ever fail, which matters here because The Desk
+renders user-authored content nearly everywhere: messages, markdown, emoji
+names, link-preview titles, uploaded file names.
 
 It is **on by default** and ships in the image, so every deployment inherits it
 without extra proxy configuration. See

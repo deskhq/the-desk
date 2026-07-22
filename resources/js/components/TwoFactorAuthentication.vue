@@ -3,6 +3,7 @@ import { router, useForm } from '@inertiajs/vue3';
 import { computed, ref } from 'vue';
 import DemoLock from '@/components/DemoLock.vue';
 import FormField from '@/components/FormField.vue';
+import SafeHtml from '@/components/SafeHtml.vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { confirm, disable, enable, recoveryCodes } from '@/routes/two-factor';
@@ -98,11 +99,13 @@ function regenerateRecoveryCodes(): void {
                 }}
             </p>
 
-            <div
+            <SafeHtml
                 v-if="state.qrSvg"
+                as="div"
                 class="inline-flex rounded-xl border border-border bg-white p-4"
                 data-test="two-factor-qr"
-                v-html="state.qrSvg"
+                :html="state.qrSvg"
+                variant="qrCode"
             />
 
             <p v-if="state.secretKey" class="text-sm text-muted-foreground">

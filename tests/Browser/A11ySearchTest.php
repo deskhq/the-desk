@@ -52,6 +52,24 @@ test('the search page highlights matches, groups them by date, and has no seriou
         ->assertSee('Today')
         ->assertNoAccessibilityIssues();
 
+    // The highlight styling is scoped CSS reaching through `<SafeHtml>`'s root
+    // into markup it rendered; assert it actually lands, since a browser-default
+    // <mark> would still satisfy the presence check above while losing the brass
+    // palette this test audits for contrast.
+    $highlight = $page->script(<<<'JS'
+    () => {
+        const mark = document.querySelector('[data-test="search-result"] mark');
+        const styles = getComputedStyle(mark);
+
+        return {
+            fontWeight: styles.fontWeight,
+            borderRadius: styles.borderRadius,
+        };
+    }
+    JS);
+
+    expect($highlight)->toBe(['fontWeight' => '600', 'borderRadius' => '3px']);
+
     // Re-audit the results against the dark palette (localStorage before the
     // class, so the appearance controller doesn't re-resolve to light mid-audit).
     $page->script(<<<'JS'

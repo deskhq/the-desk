@@ -14,6 +14,7 @@ import {
     show,
 } from '@/actions/App/Http/Controllers/Channels/ChannelController';
 import { index as search } from '@/actions/App/Http/Controllers/Channels/SearchController';
+import SafeHtml from '@/components/SafeHtml.vue';
 import { Button } from '@/components/ui/button';
 import { DatePicker } from '@/components/ui/date-picker';
 import {
@@ -32,10 +33,6 @@ import { useDebouncedPost } from '@/composables/useDebouncedPost';
 import { getInitials } from '@/composables/useInitials';
 import { useTranslations } from '@/composables/useTranslations';
 import { formatCalendarDate, formatDateTime } from '@/lib/datetime';
-import {
-    sanitizeHtml,
-    SEARCH_SNIPPET_SANITIZE_CONFIG,
-} from '@/lib/sanitizeHtml';
 import { groupSearchResults } from '@/lib/searchResultGroups';
 import {
     emptyFilters,
@@ -423,16 +420,6 @@ function jumpHref(result: MessageSearchResult): string {
         { team: result.teamSlug, channel: result.channelSlug },
         { query: { message: result.message.id } },
     ).url;
-}
-
-/**
- * The snippet arrives fully escaped from `App\Support\MessageSnippet`, with
- * `<mark>` as its only markup. Sanitizing it again on the client keeps the
- * `v-html` surface behind the same trust boundary as every other one, so a
- * future server-side change can't turn this into an injection point.
- */
-function snippetHtml(snippet: string): string {
-    return sanitizeHtml(snippet, SEARCH_SNIPPET_SANITIZE_CONFIG);
 }
 </script>
 
@@ -884,10 +871,12 @@ function snippetHtml(snippet: string): string {
                                     }}
                                 </span>
                             </div>
-                            <p
+                            <SafeHtml
+                                as="p"
                                 class="search-snippet mt-0.5 line-clamp-2 text-[14px] leading-[1.55] break-words text-foreground/90"
-                                v-html="snippetHtml(result.snippet)"
-                            ></p>
+                                :html="result.snippet"
+                                variant="searchSnippet"
+                            />
                             <span
                                 v-if="result.message.threadReplyCount > 0"
                                 class="mt-1.5 inline-flex items-center gap-1.5 text-[11px] text-muted-foreground"
@@ -915,9 +904,9 @@ function snippetHtml(snippet: string): string {
 
 <style scoped>
 /*
- * Server-sanitized `<mark>` highlights ride in via v-html; style them with the
- * brass reaction-pill tokens, which carry an AA-contrast foreground in both
- * light and dark themes.
+ * Server-built `<mark>` highlights are rendered through `<SafeHtml>`; style them
+ * with the brass reaction-pill tokens, which carry an AA-contrast foreground in
+ * both light and dark themes.
  */
 .search-snippet :deep(mark) {
     background-color: var(--brass-fill);

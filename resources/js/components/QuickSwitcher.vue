@@ -8,6 +8,7 @@ import {
     index as searchPage,
     suggest as suggestMessages,
 } from '@/actions/App/Http/Controllers/Channels/SearchController';
+import SafeHtml from '@/components/SafeHtml.vue';
 import {
     CommandDialog,
     CommandGroup,
@@ -315,8 +316,8 @@ function openReminders(): void {
                         <p
                             class="mt-0.5 line-clamp-1 text-[13px] text-foreground/80"
                         >
-                            <span
-                                v-html="
+                            <SafeHtml
+                                :html="
                                     renderMessageBody(
                                         result.message.body,
                                         result.message.mentions,
@@ -324,7 +325,8 @@ function openReminders(): void {
                                         userGroups,
                                     )
                                 "
-                            ></span>
+                                variant="messageBody"
+                            />
                         </p>
                     </div>
                 </CommandItem>

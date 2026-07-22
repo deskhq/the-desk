@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Forward } from '@lucide/vue';
 import { computed } from 'vue';
+import SafeHtml from '@/components/SafeHtml.vue';
 import { useCustomEmojis } from '@/composables/useCustomEmojis';
 import { useUserGroups } from '@/composables/useUserGroups';
 import { renderMessageBody } from '@/lib/messageBody';
@@ -65,7 +66,7 @@ const rendered = computed(() =>
                 <p
                     class="mt-0.5 text-[13.5px] leading-[1.5] break-words whitespace-pre-wrap text-foreground/85"
                 >
-                    <span v-html="rendered"></span>
+                    <SafeHtml :html="rendered" variant="messageBody" />
                 </p>
             </template>
         </div>

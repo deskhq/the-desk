@@ -10,6 +10,7 @@ import MessageForward from '@/components/MessageForward.vue';
 import MessagePoll from '@/components/MessagePoll.vue';
 import MessageQuote from '@/components/MessageQuote.vue';
 import MessageReactions from '@/components/MessageReactions.vue';
+import SafeHtml from '@/components/SafeHtml.vue';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import {
@@ -1068,10 +1069,11 @@ function confirmDelete(): void {
                                         )"
                                         :key="index"
                                     >
-                                        <span
+                                        <SafeHtml
                                             v-if="segment.kind === 'html'"
-                                            v-html="segment.html"
-                                        ></span>
+                                            :html="segment.html"
+                                            variant="messageBody"
+                                        />
                                         <InlineMarks
                                             v-else-if="
                                                 segment.kind === 'mention'

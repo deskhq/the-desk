@@ -86,6 +86,27 @@ export default defineConfigWithVueTs(
             // `./vendor/bin/sail npm run lint`) because every occurrence was
             // migrated to `text-destructive-text`, so the gate stays clean.
             'local/no-destructive-fill-as-text': 'error',
+            // XSS trust boundary. Every run of HTML the client renders as markup
+            // must go through `<SafeHtml>`, which sanitizes it with DOMPurify
+            // against a named allowlist; a raw `v-html` anywhere else would
+            // bypass that boundary with nothing to catch it. Exempted for
+            // `SafeHtml.vue` itself just below — the one place the directive is
+            // allowed to appear.
+            'vue/no-v-html': 'error',
+        },
+    },
+    {
+        // `<SafeHtml>` owns the app's only `v-html`: it sanitizes its input
+        // before rendering it, which is precisely what the rule exists to
+        // guarantee everywhere else.
+        files: ['resources/js/components/SafeHtml.vue'],
+        rules: {
+            'vue/no-v-html': 'off',
+            // The directive sits on a `<component :is="as">`, which the rule
+            // reads as a component (where `v-html` would not render). `as` is
+            // typed to a closed set of plain HTML tags, so the case the rule
+            // guards against is unreachable here.
+            'vue/no-v-text-v-html-on-component': 'off',
         },
     },
     {
