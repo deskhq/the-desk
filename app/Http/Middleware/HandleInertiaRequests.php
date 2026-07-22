@@ -509,8 +509,9 @@ class HandleInertiaRequests extends Middleware
             ->where('messages.user_id', '!=', $user->id)
             // System notices (member joined / left) are ambient: they never
             // advance the unread badge or raise a mention, so they are excluded
-            // from both the unread and mention counts.
-            ->where('messages.type', MessageType::Standard->value)
+            // from both the unread and mention counts. Every other type counts —
+            // a poll is user-authored and badges the channel like a message.
+            ->whereNotIn('messages.type', MessageType::systemValues())
             ->where(fn (Builder $query) => $query
                 ->whereNull('channel_members.last_read_message_id')
                 ->orWhereColumn('messages.id', '>', 'channel_members.last_read_message_id'));

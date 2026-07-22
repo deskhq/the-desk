@@ -223,9 +223,9 @@ class ChannelTimelineWindow
 
         $firstUnreadId = $this->mainTimeline()
             ->where('id', '>', $this->lastReadMessageId)
-            // The "New messages" boundary sits at the first unread user message;
-            // ambient system notices never open the boundary.
-            ->where('type', MessageType::Standard->value)
+            // The "New messages" boundary sits at the first unread user message —
+            // a poll included; only the ambient system notices never open it.
+            ->whereNotIn('type', MessageType::systemValues())
             ->orderBy('id')
             ->value('id');
 

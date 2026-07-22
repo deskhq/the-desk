@@ -73,6 +73,24 @@ it('renders system notices in the timeline but never as the unread boundary', fu
         ->and($window->messages()->items()[0]->id)->toBe($notice->id);
 });
 
+it('anchors the unread boundary on a first-unread poll', function (): void {
+    ['user' => $user, 'general' => $general] = windowFixture();
+    $read = windowMessages($general, $user, 30);
+    Message::factory()->for($general)->for($user)->poll()->create();
+    $unread = windowMessages($general, $user, 70);
+
+    $window = new ChannelTimelineWindow(
+        channel: $general,
+        viewer: $user,
+        lastReadMessageId: $read[29]->id,
+    );
+
+    // The poll is the first unread message, so it opens the boundary and the
+    // window caps 39 rows past it — one row earlier than it would had the
+    // boundary skipped the poll and landed on the message after it.
+    expect($window->ceilingId())->toBe($unread[39]->id);
+});
+
 it('opens at newest with no ceiling on a never-read channel', function (): void {
     ['user' => $user, 'general' => $general] = windowFixture();
     windowMessages($general, $user, 60);

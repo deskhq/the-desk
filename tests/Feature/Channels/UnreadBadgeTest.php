@@ -137,6 +137,33 @@ test('system notices are ambient and never advance the unread or mention badge',
         ->toMatchArray(['unreadCount' => 0, 'mentionCount' => 0]);
 });
 
+test('a poll badges the channel like any other user-authored message', function (): void {
+    [$owner, $team, $general] = unreadTeamWithGeneral();
+    $member = unreadChannelMember($team, $general, 'Ada Lovelace');
+
+    $read = unreadPost($general, $owner);
+    markReadUpTo($member, $general, $read);
+
+    // A poll is user-authored and interactive, so it advances the badge; only the
+    // ambient join/leave notices posted alongside it stay out of the count.
+    Message::factory()->for($general)->for($owner)->poll()->create();
+    Message::factory()->for($general)->for($owner)->memberJoined()->create();
+
+    expect(sidebarChannel($member, $team, $general))
+        ->toMatchArray(['unreadCount' => 1, 'mentionCount' => 0]);
+});
+
+test('a poll that mentions the user raises the mention badge', function (): void {
+    [$owner, $team, $general] = unreadTeamWithGeneral();
+    $member = unreadChannelMember($team, $general, 'Grace Hopper');
+
+    $poll = Message::factory()->for($general)->for($owner)->poll()->create();
+    $poll->mentionedUsers()->attach($member->id);
+
+    expect(sidebarChannel($member, $team, $general))
+        ->toMatchArray(['unreadCount' => 1, 'mentionCount' => 1]);
+});
+
 test('the mention count only counts unread messages that mention the user', function (): void {
     [$owner, $team, $general] = unreadTeamWithGeneral();
     $member = unreadChannelMember($team, $general, 'Grace Hopper');
