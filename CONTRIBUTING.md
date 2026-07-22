@@ -177,6 +177,32 @@ while `master` does. A back-merge can never satisfy that requirement on `develop
 the only way to bring `master` up to date with `develop` is to merge `develop` into
 `master` — an unsanctioned promotion. Requiring it there deadlocks the back-merge.
 
+### Dependabot follows the same rule, with two exceptions
+
+`.github/dependabot.yml` sets `target-branch: "develop"` on every ecosystem, so a
+routine version bump arrives on the candidate line like any other change and is
+exercised on an rc before it ships. `tests/Unit/ReleaseFlowTest.php` asserts that
+over every entry, so a second ecosystem cannot be added without the redirect —
+along with the `deps` commit prefix, which is what makes Dependabot's subjects
+parse as Conventional Commits for commitlint and the `pr-title` check.
+
+Two things that setting does *not* do, both worth knowing before you go looking
+for a bug that is not there:
+
+- **Dependabot reads `.github/dependabot.yml` from the default branch only** —
+  `master`. Editing it on `develop` changes nothing until that change has been
+  promoted; until then Dependabot keeps behaving exactly as it did, with nothing
+  to signal that the setting is inert. If Dependabot PRs are still arriving on
+  `master`, check whether the config has actually reached `master` before
+  changing it again.
+- **Security updates ignore `target-branch` entirely** and always open against
+  the default branch. Alert-driven PRs will keep arriving on `master`, which is
+  arguably where a security fix belongs anyway — but that leaves `master` ahead
+  of `develop`, so one has to be merged back the same way a hotfix is (see
+  [Hotfixes](#hotfixes-releasing-when-develop-is-not-releasable), step 4). Only
+  a stable release opens that back-merge for you; a security PR merged on its
+  own does not, so raise it by hand.
+
 ### Why the two lines cannot contaminate each other
 
 release-please reads its config *and* its version manifest from the branch it

@@ -1344,3 +1344,49 @@ test('the guard talks to GitHub with the release token', function (): void {
 
     expect($steps[0]['env']['GH_TOKEN'])->toBe('${{ secrets.RELEASE_PLEASE_TOKEN }}');
 });
+
+/**
+ * The per-ecosystem `updates` entries of the Dependabot configuration.
+ *
+ * @return array<int, array<string, mixed>>
+ */
+function dependabotUpdates(): array
+{
+    /** @var array<string, mixed> $config */
+    $config = Yaml::parseFile(repositoryPath('.github/dependabot.yml'));
+
+    expect($config)->toHaveKey('updates');
+
+    /** @var array<int, array<string, mixed>> $updates */
+    $updates = $config['updates'];
+
+    expect($updates)->not->toBeEmpty();
+
+    return $updates;
+}
+
+/*
+ * Dependabot opens against the repository's default branch unless an entry says
+ * otherwise, and that default is `master` — the stable line. A bump landing
+ * there is never exercised on a candidate, and leaves `develop` behind until the
+ * next back-merge carries it across: the same "PR against master bypasses the
+ * candidate line, and nothing errors to tell you" failure every other change is
+ * routed away from. Asserted over *every* entry rather than the one that exists
+ * today, so a second ecosystem cannot be added without the redirect.
+ */
+test('every dependabot ecosystem targets the candidate line', function (): void {
+    expect(collect(dependabotUpdates())->pluck('target-branch')->all())
+        ->each->toBe('develop');
+});
+
+/*
+ * `target-branch` moves where the PR lands, not what it is called, and the
+ * subject still has to satisfy commitlint and the `pr-title` check on develop.
+ * Dependabot's own default subjects are not Conventional Commits, so the prefix
+ * is what makes them parse — and `deps` is the type release-please folds into
+ * the Dependencies section without bumping a version on its own.
+ */
+test('every dependabot ecosystem commits under the deps type', function (): void {
+    expect(collect(dependabotUpdates())->pluck('commit-message.prefix')->all())
+        ->each->toBe('deps');
+});

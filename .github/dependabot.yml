@@ -2,6 +2,13 @@ version: 2
 updates:
   - package-ecosystem: "github-actions"
     directory: "/"
+    # `develop` is the line every ordinary change goes through; `master` only
+    # takes promotions from it. Without this, dependabot opens against the
+    # repository's default branch — `master` — and the bump ships without ever
+    # being exercised on a release candidate. Note that dependabot reads this
+    # file from the default branch only, so the setting takes effect once this
+    # change has been promoted to `master`, and *security* updates ignore it.
+    target-branch: "develop"
     schedule:
       interval: "weekly"
     # `deps` is our changelog type for dependency bumps: release-please folds it
