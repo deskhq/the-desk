@@ -169,6 +169,7 @@ function addedAt(iso: string): string {
                             type="file"
                             accept="image/png,image/gif"
                             data-test="emoji-image-input"
+                            :aria-label="$t('Emoji image')"
                             class="block w-full text-sm text-muted-foreground file:mr-3 file:rounded-full file:border file:border-border file:bg-background file:px-3 file:py-1.5 file:text-sm file:font-medium hover:file:bg-muted"
                             @change="onFileChange"
                         />

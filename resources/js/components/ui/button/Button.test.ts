@@ -61,13 +61,18 @@ describe("Button variants and sizes", () => {
     expect(buttonVariants({ size: "pill" })).toContain("rounded-full")
   })
 
-  it("carries the destructive token on the link-destructive variant", () => {
-    const classes = buttonVariants({ variant: "linkDestructive" })
+  it("carries the accessible destructive-text token on the link-destructive variant", () => {
+    const classNames = buttonVariants({ variant: "linkDestructive" }).split(/\s+/)
 
-    expect(classes).toContain("text-destructive")
-    expect(classes).toContain("hover:underline")
+    // The dedicated text form of the destructive colour, tuned to clear WCAG AA
+    // on card/background surfaces at small sizes — not the `--destructive` fill,
+    // which is too low-contrast as inline text on the dark card (#678).
+    expect(classNames).toContain("text-destructive-text")
+    // Guard against a revert to the low-contrast fill token as inline text.
+    expect(classNames).not.toContain("text-destructive")
+    expect(classNames).toContain("hover:underline")
     // Not the default primary link colour.
-    expect(classes).not.toContain("text-primary")
+    expect(classNames).not.toContain("text-primary")
   })
 
   it("drops the button silhouette for the unstyled escape hatch but keeps the focus ring", () => {

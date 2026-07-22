@@ -31,8 +31,10 @@ export const buttonVariants = cva(interaction, {
       ghost: `${shape} hover:bg-accent hover:text-accent-foreground dark:hover:bg-accent/50`,
       link: `${shape} text-primary underline-offset-4 hover:underline`,
       // Same underline treatment as `link` but carrying the destructive token,
-      // for inline "Remove"/"Clear all"/"Discard" actions that read as text.
-      linkDestructive: `${shape} text-destructive underline-offset-4 hover:underline`,
+      // for inline "Remove"/"Clear all"/"Discard" actions that read as text. Uses
+      // the accessible `--destructive-text` form (not the `--destructive` fill),
+      // so it clears WCAG AA on card/background surfaces even at text-xs (#678).
+      linkDestructive: `${shape} text-destructive-text underline-offset-4 hover:underline`,
       // Radio-like toggle in a segmented control. The selected option is driven
       // by `aria-pressed`, so call-sites bind `:aria-pressed` and drop their
       // hand-rolled `selected ? … : …` class ternary.

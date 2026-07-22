@@ -45,6 +45,7 @@
 
     --color-destructive: var(--destructive);
     --color-destructive-foreground: var(--destructive-foreground);
+    --color-destructive-text: var(--destructive-text);
 
     --color-border: var(--border);
     --color-input: var(--input);
@@ -136,6 +137,11 @@
     --accent-foreground: #1d1a15;
     --destructive: hsl(0 72% 45%);
     --destructive-foreground: #f3efe4;
+    /* Destructive as inline *text* (the `linkDestructive` <Button> variant, down
+       to text-xs). Darkened a touch from --destructive so it clears WCAG AA
+       4.5:1 on both --card and --background, which the fill token only just met
+       on the page background (#678). */
+    --destructive-text: #bd1f1f;
     --border: #e3dfd5;
     --input: #e0dbcd;
     /* Focus indicator — decoupled from --brass and darkened to a bronze so the
@@ -198,6 +204,10 @@
     --accent-foreground: #f3efe4;
     --destructive: hsl(0 72% 55%);
     --destructive-foreground: #f3efe4;
+    /* Lightened from --destructive so destructive inline text (the
+       `linkDestructive` variant) clears WCAG AA 4.5:1 on the dark card; the fill
+       token measured 3.92:1 as text there (#678). */
+    --destructive-text: #e75555;
     --border: #2e2a21;
     --input: #2a271f;
     --ring: #c9a35c;

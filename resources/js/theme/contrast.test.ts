@@ -223,4 +223,35 @@ describe('theme contrast (WCAG AA)', () => {
             ).toBeGreaterThanOrEqual(AA_TEXT);
         },
     );
+
+    // The `linkDestructive` <Button> variant paints --destructive-text as inline
+    // text (e.g. the "Delete"/"Revoke" row action in teams/Emojis.vue), down to
+    // `text-xs`. Reusing the --destructive *fill* token there measured 3.92:1 on
+    // the dark card (#678); this dedicated text form must clear body-text AA on
+    // both the card row and the bare page background, in each theme.
+    const destructiveTextSurfaces = ['card', 'background'] as const;
+
+    it.each(destructiveTextSurfaces)(
+        'light --destructive-text meets AA on --%s',
+        (surface) => {
+            expect(
+                contrast(
+                    hexToRgb(light['destructive-text']),
+                    hexToRgb(light[surface]),
+                ),
+            ).toBeGreaterThanOrEqual(AA_TEXT);
+        },
+    );
+
+    it.each(destructiveTextSurfaces)(
+        'dark --destructive-text meets AA on --%s',
+        (surface) => {
+            expect(
+                contrast(
+                    hexToRgb(dark['destructive-text']),
+                    hexToRgb(dark[surface]),
+                ),
+            ).toBeGreaterThanOrEqual(AA_TEXT);
+        },
+    );
 });
