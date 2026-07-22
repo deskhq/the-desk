@@ -7,7 +7,9 @@ use App\Actions\Channels\DispatchDueScheduledMessages;
 use App\Actions\Channels\PurgeExpiredAttachments;
 use App\Actions\Images\PurgeCachedProxyImages;
 use App\Actions\Teams\PurgeExpiredAuditExports;
+use App\Actions\Users\BroadcastDndScheduleEdges;
 use App\Actions\Users\ClearExpiredUserStatuses;
+use App\Actions\Users\ClearLapsedDndPauses;
 use App\Models\TeamInvitation;
 use Illuminate\Support\Facades\Schedule;
 
@@ -35,6 +37,18 @@ Schedule::call(fn (ClearExpiredUserStatuses $clear): int => $clear->handle())
     ->everyMinute()
     ->withoutOverlapping()
     ->description('Clear lapsed custom statuses');
+
+Schedule::call(fn (ClearLapsedDndPauses $clear): int => $clear->handle())
+    ->name('clear-lapsed-dnd-pauses')
+    ->everyMinute()
+    ->withoutOverlapping()
+    ->description('Clear lapsed do-not-disturb pauses');
+
+Schedule::call(fn (BroadcastDndScheduleEdges $broadcast): int => $broadcast->handle())
+    ->name('broadcast-dnd-schedule-edges')
+    ->everyMinute()
+    ->withoutOverlapping()
+    ->description('Broadcast quiet-hours windows opening or closing');
 
 Schedule::call(fn (PurgeExpiredAttachments $purge): int => $purge->handle())
     ->name('purge-expired-pending-attachments')
