@@ -22,7 +22,7 @@ defineProps<{
             <div class="flex min-w-0 flex-col gap-0.5">
                 <h3
                     class="font-serif text-[17px] font-semibold"
-                    :class="destructive ? 'text-destructive' : ''"
+                    :class="destructive ? 'text-destructive-text' : ''"
                 >
                     {{ title
                     }}<span

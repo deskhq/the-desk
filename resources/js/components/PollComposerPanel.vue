@@ -234,7 +234,7 @@ function submit(): void {
                         <span
                             v-if="isDuplicate(index)"
                             data-test="poll-duplicate-error"
-                            class="pl-0.5 text-[12px] text-destructive"
+                            class="pl-0.5 text-[12px] text-destructive-text"
                         >
                             {{
                                 $t('Options must be different from each other.')

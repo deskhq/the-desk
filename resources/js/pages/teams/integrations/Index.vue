@@ -454,7 +454,7 @@ function submitOutgoing(): void {
                     </span>
                     <span
                         v-else
-                        class="inline-flex shrink-0 items-center gap-1.5 text-xs font-semibold text-destructive"
+                        class="inline-flex shrink-0 items-center gap-1.5 text-xs font-semibold text-destructive-text"
                     >
                         <span
                             class="size-1.5 rounded-full bg-destructive"

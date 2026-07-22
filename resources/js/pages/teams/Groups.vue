@@ -335,7 +335,7 @@ function confirmRemoval(): void {
                     type="button"
                     :data-test="`group-remove-${group.slug}`"
                     :aria-label="$t('Delete :name', { name: group.name })"
-                    class="shrink-0 rounded-full text-destructive"
+                    class="shrink-0 rounded-full text-destructive-text"
                     @click="pendingRemoval = group"
                 >
                     <Trash2 class="size-4" />

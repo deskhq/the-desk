@@ -6,6 +6,7 @@ use App\Models\SecurityEvent;
 use App\Models\Team;
 use App\Models\TeamInvitation;
 use App\Models\User;
+use Illuminate\Support\Collection;
 use Inertia\Testing\AssertableInertia as Assert;
 
 test('the teams index page can be rendered', function (): void {
@@ -136,8 +137,14 @@ test('the team edit page shows member emails and invitations to admins', functio
         ->assertOk()
         ->assertInertia(fn (Assert $page): Assert => $page
             ->component('teams/Edit')
-            ->where('members.0.email', $owner->email)
-            ->where('members.1.email', $admin->email)
+            // The roster query carries no ORDER BY, so Postgres is free to hand
+            // the rows back in any order (issue #722). What this test is about is
+            // that an admin sees every member's email, not where each one lands.
+            ->has('members', 2)
+            ->where('members', fn (Collection $members): bool => $members->pluck('email')
+                ->sort()
+                ->values()
+                ->all() === collect([$owner->email, $admin->email])->sort()->values()->all())
             ->where('invitations.0.email', $invitation->email)
             ->where('invitations.0.role', $invitation->role->value),
         );

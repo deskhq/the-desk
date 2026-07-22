@@ -6,7 +6,7 @@ defineProps<{
 
 <template>
     <div v-show="message">
-        <p class="text-sm text-destructive">
+        <p class="text-sm text-destructive-text">
             {{ message }}
         </p>
     </div>

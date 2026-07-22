@@ -40,8 +40,14 @@ test('the docs job installs from the lockfile and builds the site', function (st
     expect($step)->not->toBeNull($command.' must run inside docs/ on every docs change');
 })->with(['npm ci', 'npm run build']);
 
+/**
+ * Only the operating system matters here, not who hosts the runner: the guard
+ * exists so a lockfile resolved on macOS is proven against the Linux Cloudflare
+ * builder. GitHub's own `ubuntu-*` labels and Blacksmith's `blacksmith-*-ubuntu-*`
+ * ones both satisfy that, so match the family rather than one exact label.
+ */
 test('the docs job builds on linux so it reproduces the cloudflare builder', function () use ($docsJob): void {
-    expect($docsJob()['runs-on'])->toBe('ubuntu-latest');
+    expect($docsJob()['runs-on'])->toMatch('/(^|-)ubuntu-/');
 });
 
 test('the docs guard runs on pull requests touching the docs project', function () use ($docsWorkflow): void {

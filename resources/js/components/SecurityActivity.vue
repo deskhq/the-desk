@@ -60,7 +60,7 @@ function occurredAt(iso: string): string {
                     <span class="truncate">{{ event.label }}</span>
                     <span
                         v-if="event.isNewDevice"
-                        class="inline-flex h-4.75 shrink-0 items-center rounded-full border border-destructive/25 bg-destructive/10 px-2.5 text-[10.5px] font-semibold tracking-[0.05em] text-destructive uppercase"
+                        class="inline-flex h-4.75 shrink-0 items-center rounded-full border border-destructive/25 bg-destructive/10 px-2.5 text-[10.5px] font-semibold tracking-[0.05em] text-destructive-text uppercase"
                         data-test="new-device-badge"
                     >
                         {{ $t('New device') }}

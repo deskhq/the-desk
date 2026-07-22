@@ -492,7 +492,7 @@ const groupParticipantCount = computed(
                         />
                         <DropdownMenuItem
                             data-test="archive-channel"
-                            class="text-destructive focus:text-destructive"
+                            class="text-destructive-text focus:text-destructive-text"
                             @select="emit('archive')"
                         >
                             <Archive class="size-4" />
@@ -507,7 +507,7 @@ const groupParticipantCount = computed(
                         />
                         <DropdownMenuItem
                             data-test="leave-channel"
-                            class="text-destructive focus:text-destructive"
+                            class="text-destructive-text focus:text-destructive-text"
                             @select="emit('leave')"
                         >
                             <LogOut class="size-4" />

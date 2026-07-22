@@ -139,7 +139,7 @@ function confirmRevoke(): void {
                     </h1>
                     <span
                         v-if="isDisabled"
-                        class="inline-flex items-center gap-1.5 rounded-full border border-destructive/35 bg-destructive/10 px-2.5 py-0.5 text-xs font-semibold text-destructive"
+                        class="inline-flex items-center gap-1.5 rounded-full border border-destructive/35 bg-destructive/10 px-2.5 py-0.5 text-xs font-semibold text-destructive-text"
                     >
                         <span
                             class="size-1.5 rounded-full bg-destructive"
@@ -183,7 +183,7 @@ function confirmRevoke(): void {
         <!-- Auto-disable banner -->
         <div
             v-if="isDisabled"
-            class="flex items-start gap-2 rounded-xl border border-destructive/25 bg-destructive/10 px-4 py-3 text-sm text-destructive"
+            class="flex items-start gap-2 rounded-xl border border-destructive/25 bg-destructive/10 px-4 py-3 text-sm text-destructive-text"
             data-test="auto-disable-banner"
         >
             <TriangleAlert class="mt-0.5 size-4 shrink-0" />
@@ -269,7 +269,7 @@ function confirmRevoke(): void {
                                 :class="
                                     delivery.succeeded
                                         ? 'text-green-600 dark:text-green-500'
-                                        : 'text-destructive'
+                                        : 'text-destructive-text'
                                 "
                             >
                                 {{
@@ -330,7 +330,7 @@ function confirmRevoke(): void {
             <Button
                 type="button"
                 variant="outline"
-                class="self-start rounded-full border-destructive/40 text-destructive hover:bg-destructive/10"
+                class="self-start rounded-full border-destructive/40 text-destructive-text hover:bg-destructive/10"
                 data-test="revoke-subscription-button"
                 @click="showRevoke = true"
             >

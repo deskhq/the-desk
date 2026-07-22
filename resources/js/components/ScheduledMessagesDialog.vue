@@ -229,7 +229,7 @@ function bodyPreview(body: string): string {
                                     type="button"
                                     :aria-label="$t('Cancel scheduled message')"
                                     data-test="scheduled-cancel"
-                                    class="size-7 rounded-full text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                                    class="size-7 rounded-full text-muted-foreground hover:bg-destructive/10 hover:text-destructive-text"
                                     @click="cancelSend(scheduled)"
                                 >
                                     <Trash2 class="size-3.5" />

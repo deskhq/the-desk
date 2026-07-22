@@ -133,7 +133,7 @@ function formatDate(iso: string): string {
                 </p>
             </template>
             <template v-else-if="hasFailed">
-                <p class="text-sm font-semibold text-destructive">
+                <p class="text-sm font-semibold text-destructive-text">
                     {{ $t("We couldn't prepare your last export") }}
                 </p>
                 <p class="text-xs text-muted-foreground">

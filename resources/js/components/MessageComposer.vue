@@ -1508,7 +1508,7 @@ function onKeydown(event: KeyboardEvent): void {
                             class="relative flex h-19 min-w-50 items-center gap-2.5 rounded-xl border border-destructive/40 bg-destructive/10 px-3"
                         >
                             <span
-                                class="flex size-9.5 shrink-0 items-center justify-center rounded-[10px] bg-destructive/15 text-destructive"
+                                class="flex size-9.5 shrink-0 items-center justify-center rounded-[10px] bg-destructive/15 text-destructive-text"
                             >
                                 <CircleAlert class="size-4.5" />
                             </span>
@@ -1518,7 +1518,7 @@ function onKeydown(event: KeyboardEvent): void {
                                 >
                                     {{ item.name }}
                                 </span>
-                                <span class="text-[11px] text-destructive">
+                                <span class="text-[11px] text-destructive-text">
                                     {{ $t('Upload failed') }} ·
                                     <Button
                                         variant="unstyled"
@@ -1695,7 +1695,7 @@ function onKeydown(event: KeyboardEvent): void {
                         class="text-sm font-semibold tabular-nums"
                         :class="
                             recorder.isNearingLimit.value
-                                ? 'text-destructive'
+                                ? 'text-destructive-text'
                                 : 'text-foreground'
                         "
                         aria-live="off"

@@ -186,7 +186,7 @@ const openStateClass = 'bg-accent text-accent-foreground';
 
 /** Delete recolors to the destructive token on hover instead of neutral. */
 const deleteButtonClass =
-    'text-muted-foreground hover:bg-destructive/10 hover:text-destructive';
+    'text-muted-foreground hover:bg-destructive/10 hover:text-destructive-text';
 </script>
 
 <template>

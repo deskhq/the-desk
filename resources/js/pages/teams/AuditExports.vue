@@ -353,7 +353,7 @@ function downloadUrl(entry: AuditExport): string {
 
             <p
                 v-if="rangeError"
-                class="flex items-center gap-1.5 text-xs font-medium text-destructive"
+                class="flex items-center gap-1.5 text-xs font-medium text-destructive-text"
                 data-test="audit-export-range-error"
             >
                 <AlertCircle class="size-3.5" />
@@ -496,7 +496,7 @@ function downloadUrl(entry: AuditExport): string {
                         <!-- Failed -->
                         <template v-else-if="rowState(entry) === 'failed'">
                             <span
-                                class="inline-flex items-center rounded-full border border-destructive/25 bg-destructive/10 px-3 py-1 text-[11.5px] font-semibold text-destructive"
+                                class="inline-flex items-center rounded-full border border-destructive/25 bg-destructive/10 px-3 py-1 text-[11.5px] font-semibold text-destructive-text"
                                 data-test="audit-export-status-failed"
                             >
                                 {{ $t('Failed') }}

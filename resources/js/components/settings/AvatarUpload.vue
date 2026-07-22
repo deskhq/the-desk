@@ -121,7 +121,7 @@ function removePhoto(): void {
                     type="button"
                     variant="outline"
                     size="sm"
-                    class="rounded-full text-destructive hover:text-destructive"
+                    class="rounded-full text-destructive-text hover:text-destructive-text"
                     :disabled="uploadForm.processing || removeForm.processing"
                     data-test="remove-avatar-button"
                     @click="removePhoto"
@@ -133,7 +133,7 @@ function removePhoto(): void {
             <p
                 v-if="uploadForm.errors.photo"
                 role="alert"
-                class="text-sm text-destructive"
+                class="text-sm text-destructive-text"
                 data-test="avatar-error"
             >
                 {{ uploadForm.errors.photo }}

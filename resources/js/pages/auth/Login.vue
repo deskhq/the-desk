@@ -112,7 +112,7 @@ const {
                 <p
                     v-if="passkeyError"
                     role="alert"
-                    class="text-center text-sm text-destructive"
+                    class="text-center text-sm text-destructive-text"
                     data-test="passkey-login-error"
                 >
                     {{ passkeyError }}

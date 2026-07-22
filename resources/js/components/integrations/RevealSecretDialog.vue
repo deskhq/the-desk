@@ -124,7 +124,7 @@ function close(): void {
                         </Button>
                     </div>
                     <p
-                        class="flex items-start gap-1.5 text-xs text-destructive"
+                        class="flex items-start gap-1.5 text-xs text-destructive-text"
                     >
                         <TriangleAlert class="mt-0.5 size-3.5 shrink-0" />
                         <span>{{ caption }}</span>

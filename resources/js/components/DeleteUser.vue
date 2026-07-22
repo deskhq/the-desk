@@ -14,7 +14,7 @@ const { demoMode } = useDemoMode();
     <DemoLock v-if="demoMode" v-slot="{ disabled }">
         <Button
             variant="outline"
-            class="rounded-full border-destructive/40 text-destructive hover:border-destructive/60 hover:bg-destructive/10 hover:text-destructive"
+            class="rounded-full border-destructive/40 text-destructive-text hover:border-destructive/60 hover:bg-destructive/10 hover:text-destructive-text"
             data-test="delete-user-button"
             :disabled="disabled"
             >{{ $t('Delete account…') }}</Button
@@ -32,7 +32,7 @@ const { demoMode } = useDemoMode();
         <template #trigger>
             <Button
                 variant="outline"
-                class="rounded-full border-destructive/40 text-destructive hover:border-destructive/60 hover:bg-destructive/10 hover:text-destructive"
+                class="rounded-full border-destructive/40 text-destructive-text hover:border-destructive/60 hover:bg-destructive/10 hover:text-destructive-text"
                 data-test="delete-user-button"
                 >{{ $t('Delete account…') }}</Button
             >

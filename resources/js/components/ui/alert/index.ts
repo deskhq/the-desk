@@ -11,8 +11,11 @@ export const alertVariants = cva(
     variants: {
       variant: {
         default: "bg-card text-card-foreground",
+        // --destructive-text, not the --destructive fill: the fill reads at
+        // 3.93:1 as body copy on the dark card (#717). The description keeps the
+        // same token at full opacity — dimming it to /90 dropped it to 4.35:1.
         destructive:
-          "text-destructive bg-card [&>svg]:text-current *:data-[slot=alert-description]:text-destructive/90",
+          "text-destructive-text bg-card [&>svg]:text-current *:data-[slot=alert-description]:text-destructive-text",
       },
     },
     defaultVariants: {

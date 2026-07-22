@@ -772,7 +772,9 @@ const confirmTransferOwnership = (member: TeamMember) => {
             class="py-6"
         >
             <div class="mb-3">
-                <h2 class="font-serif text-lg font-semibold text-destructive">
+                <h2
+                    class="font-serif text-lg font-semibold text-destructive-text"
+                >
                     {{ $t('Delete team') }}
                 </h2>
                 <p class="mt-0.5 max-w-xl text-sm text-muted-foreground">
@@ -787,7 +789,7 @@ const confirmTransferOwnership = (member: TeamMember) => {
                 <Button
                     data-test="delete-team-button"
                     variant="outline"
-                    class="rounded-full border-destructive/40 text-destructive hover:border-destructive/60 hover:bg-destructive/10 hover:text-destructive"
+                    class="rounded-full border-destructive/40 text-destructive-text hover:border-destructive/60 hover:bg-destructive/10 hover:text-destructive-text"
                     :disabled="disabled"
                     @click="deleteDialogOpen = true"
                     >{{ $t('Delete team…') }}</Button

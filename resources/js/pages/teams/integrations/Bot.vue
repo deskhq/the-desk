@@ -382,7 +382,9 @@ function confirmDeleteBot(): void {
         <!-- Danger zone -->
         <section class="flex flex-col gap-3 border-t border-border pt-6">
             <div class="flex flex-col gap-0.5">
-                <h2 class="font-serif text-lg font-semibold text-destructive">
+                <h2
+                    class="font-serif text-lg font-semibold text-destructive-text"
+                >
                     {{ $t('Delete bot') }}
                 </h2>
                 <p class="text-xs text-muted-foreground">
@@ -396,7 +398,7 @@ function confirmDeleteBot(): void {
             <Button
                 type="button"
                 variant="outline"
-                class="self-start rounded-full border-destructive/40 text-destructive hover:bg-destructive/10"
+                class="self-start rounded-full border-destructive/40 text-destructive-text hover:bg-destructive/10"
                 data-test="delete-bot-button"
                 @click="showDeleteBot = true"
             >

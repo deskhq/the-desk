@@ -293,7 +293,7 @@ function confirm(): void {
                 <p
                     v-else-if="preview"
                     data-test="schedule-past"
-                    class="text-[12.5px] text-destructive"
+                    class="text-[12.5px] text-destructive-text"
                 >
                     {{ $t('Pick a time in the future.') }}
                 </p>

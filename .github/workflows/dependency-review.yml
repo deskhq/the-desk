@@ -17,7 +17,7 @@ permissions:
 
 jobs:
   dependency-review:
-    runs-on: ubuntu-latest
+    runs-on: blacksmith-4vcpu-ubuntu-2404
     permissions:
       contents: read
       # Allows the action to post its summary comment on the PR when it fails.
