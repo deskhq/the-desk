@@ -8,6 +8,7 @@ import ScrollableMessageList from '@/components/ScrollableMessageList.vue';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useScrollPin } from '@/composables/useScrollPin';
+import type { RenderedPresence } from '@/lib/presence';
 import type { Mention, Message } from '@/types';
 
 const props = defineProps<{
@@ -32,7 +33,8 @@ const props = defineProps<{
     canModerate?: boolean;
     canReact?: boolean;
     canPin?: boolean;
-    onlineIds?: Set<string>;
+    /** How each author reads on the team presence roster, passed straight down. */
+    presenceFor?: (userId: string) => RenderedPresence;
     loading?: boolean;
     readOnly?: boolean;
 }>();
@@ -321,7 +323,7 @@ watch(
                     :can-moderate="props.canModerate"
                     :can-react="props.canReact"
                     :can-pin="props.canPin"
-                    :online-ids="props.onlineIds"
+                    :presence-for="props.presenceFor"
                     :editing-message-id="editingMessageId"
                     in-thread
                     @load-older="loadOlderReplies"

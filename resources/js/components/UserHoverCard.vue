@@ -2,6 +2,7 @@
 import { Link } from '@inertiajs/vue3';
 import { AtSign, MessageSquare, UserRound } from '@lucide/vue';
 import { computed, ref } from 'vue';
+import PresenceDot from '@/components/PresenceDot.vue';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -15,6 +16,8 @@ import { useInitials } from '@/composables/useInitials';
 import { useOpenDirectMessage } from '@/composables/useOpenDirectMessage';
 import { fetchUserProfile } from '@/composables/useUserProfileCard';
 import { formatLocalTime, formatTimeOfDay } from '@/lib/datetime';
+import { presenceLabelKey } from '@/lib/presence';
+import type { RenderedPresence } from '@/lib/presence';
 import { show } from '@/routes/teams/members';
 import type { UserProfile } from '@/types';
 
@@ -22,7 +25,11 @@ const props = defineProps<{
     teamSlug: string;
     userId: string;
     name: string;
-    online?: boolean;
+    /**
+     * How the member reads on the team presence roster. Absent on the surfaces
+     * that open a card without a roster to hand, which then show no dot at all.
+     */
+    presence?: RenderedPresence;
 }>();
 
 const emit = defineEmits<{
@@ -105,16 +112,12 @@ function onMessage(): void {
                                 getInitials(profile?.name ?? name)
                             }}</AvatarFallback>
                         </Avatar>
-                        <span
+                        <PresenceDot
+                            v-if="presence"
                             data-test="hover-card-presence"
-                            :data-online="online === true"
-                            :aria-label="online ? $t('Online') : $t('Offline')"
-                            class="absolute right-0 bottom-0 size-3 rounded-full ring-[2.5px] ring-popover"
-                            :class="
-                                online
-                                    ? 'bg-emerald-500'
-                                    : 'bg-muted-foreground/60'
-                            "
+                            :presence="presence"
+                            surface-class="bg-popover"
+                            class="absolute right-0 bottom-0 size-3 ring-[2.5px] ring-popover"
                         />
                     </div>
                     <div class="min-w-0 flex-1">
@@ -145,6 +148,26 @@ function onMessage(): void {
                             >
                                 {{ profile.roleLabel }}
                             </Badge>
+                            <!-- The card is the one surface with room to spell
+                                 the presence out, so away gets the word beside
+                                 its ring rather than only the dot's shape. -->
+                            <span
+                                v-if="presence"
+                                data-test="hover-card-presence-label"
+                                class="flex items-center gap-1.5 text-xs"
+                                :class="
+                                    presence === 'away'
+                                        ? 'font-serif text-muted-foreground italic'
+                                        : 'text-muted-foreground'
+                                "
+                            >
+                                <PresenceDot
+                                    :presence="presence"
+                                    surface-class="bg-popover"
+                                    class="size-2"
+                                />
+                                {{ $t(presenceLabelKey(presence)) }}
+                            </span>
                             <span
                                 v-if="localTime()"
                                 class="text-xs text-muted-foreground"

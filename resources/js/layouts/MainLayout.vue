@@ -91,6 +91,7 @@ import {
     shouldAutoStartTour,
     useOnboardingTour,
 } from '@/composables/useOnboardingTour';
+import { usePresenceReporter } from '@/composables/usePresenceReporter';
 import { useSidebarBadges } from '@/composables/useSidebarBadges';
 import { useSidebarPosition } from '@/composables/useSidebarPosition';
 import { useTeamPresence } from '@/composables/useTeamPresence';
@@ -104,6 +105,7 @@ import {
     toggleCollapsedSection,
 } from '@/lib/channelSections';
 import type { SidebarSectionKey } from '@/lib/channelSections';
+import { dmParticipantPresence } from '@/lib/presence';
 import type { Channel, ChannelSection } from '@/types/channels';
 import type { MessageReminder } from '@/types/messages';
 import type { RoleOption } from '@/types/teams';
@@ -148,8 +150,12 @@ const currentUserId = computed(() => String(page.props.auth.user.id));
 /** The current team's members, feeding the DM entry points (people picker + ⌘K). */
 const teamMembers = computed(() => page.props.teamMembers ?? []);
 
-/** Online roster for the current team, driving the presence dot on each DM row. */
-const { onlineIds } = useTeamPresence(() => currentTeam.value?.id);
+/** Live presence for the current team, driving the dot on each DM row. */
+const { presenceFor } = useTeamPresence(() => currentTeam.value?.id);
+
+// Report this tab's own idle state from the layout every authenticated surface
+// mounts, so someone reading a settings page still counts as here.
+usePresenceReporter();
 
 /** The "New message" people picker opened from the "Direct messages" header. */
 const newDmOpen = ref(false);
@@ -1249,9 +1255,12 @@ onMounted(() => {
                                     :channel="dm"
                                     :team-slug="currentTeam?.slug ?? ''"
                                     :active-channel-slug="activeChannelSlug"
-                                    :online="
-                                        dm.dmUserId != null &&
-                                        onlineIds.has(dm.dmUserId)
+                                    :presence="
+                                        dmParticipantPresence(
+                                            dm.dmUserId,
+                                            presenceFor,
+                                            page.props.auth.user.presence,
+                                        )
                                     "
                                     :is-self="dm.dmUserId === currentUserId"
                                 />

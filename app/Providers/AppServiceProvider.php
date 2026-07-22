@@ -4,6 +4,7 @@ namespace App\Providers;
 
 use App\Models\PersonalAccessToken;
 use App\Support\IpGeolocator;
+use App\Support\PresenceRegistry;
 use Carbon\CarbonImmutable;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
@@ -31,6 +32,10 @@ class AppServiceProvider extends ServiceProvider
         $this->app->bind(IpGeolocator::class, fn (): IpGeolocator => new IpGeolocator(
             (string) config('geolocation.database_path'),
         ));
+
+        // One instance per request, so the presence aggregate a page needs for
+        // dozens of rendered users costs one cache read per distinct user.
+        $this->app->singleton(PresenceRegistry::class);
     }
 
     /**

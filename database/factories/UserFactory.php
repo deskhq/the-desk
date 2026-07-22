@@ -4,6 +4,7 @@ namespace Database\Factories;
 
 use App\Enums\AppLocale;
 use App\Enums\ChimeSound;
+use App\Enums\PresenceState;
 use App\Enums\SidebarPosition;
 use App\Enums\TeamRole;
 use App\Enums\UserType;
@@ -44,6 +45,7 @@ class UserFactory extends Factory
             'chime_sound' => ChimeSound::Ping->value,
             'share_read_receipts' => true,
             'sidebar_position' => SidebarPosition::Left->value,
+            'presence_state' => PresenceState::Active->value,
             // Factory users are onboarded by default so the first-run tour never
             // auto-fires in unrelated feature/browser tests; opt into the pre-tour
             // state with the notOnboarded() helper below.

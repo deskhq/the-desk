@@ -1208,5 +1208,10 @@
   "Could not save your status.": "Impossible d’enregistrer votre statut.",
   "Could not clear your status.": "Impossible d’effacer votre statut.",
   "Status updated.": "Statut mis à jour.",
-  "Status cleared.": "Statut effacé."
+  "Status cleared.": "Statut effacé.",
+  "Away": "Absent",
+  ":active of :total active": ":active sur :total actifs",
+  "Set yourself away": "Se marquer absent",
+  "Set yourself active": "Se marquer actif",
+  "Could not change your presence.": "Impossible de modifier votre présence."
 }

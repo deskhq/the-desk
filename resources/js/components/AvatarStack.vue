@@ -1,9 +1,11 @@
 <script setup lang="ts">
 import { computed } from 'vue';
+import PresenceDot from '@/components/PresenceDot.vue';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { getInitials } from '@/composables/useInitials';
 import { memberAvatarStack } from '@/lib/memberAvatars';
 import type { StackMember } from '@/lib/memberAvatars';
+import type { RenderedPresence } from '@/lib/presence';
 
 const props = withDefaults(
     defineProps<{
@@ -21,8 +23,19 @@ const props = withDefaults(
          * `ring-sidebar`, `ring-sidebar-primary`).
          */
         ringClass?: string;
+        /**
+         * How each stacked member reads on the presence roster. Omitted on the
+         * stacks where presence is meaningless (a poll's voters, a group DM's
+         * fixed participant list), which then render no dots at all.
+         */
+        presenceFor?: (userId: string) => RenderedPresence;
+        /**
+         * Background class matching the surface behind the stack, for the hollow
+         * centre of an away dot. Pairs with `ringClass`.
+         */
+        surfaceClass?: string;
     }>(),
-    { max: 3, size: 'md', ringClass: 'ring-card' },
+    { max: 3, size: 'md', ringClass: 'ring-card', surfaceClass: 'bg-card' },
 );
 
 const stack = computed(() => memberAvatarStack(props.members, props.max));
@@ -44,28 +57,45 @@ const SIZES = {
 } as const;
 
 const dims = computed(() => SIZES[props.size]);
+
+// Per-size dot geometry, matching the ring the avatars already carry so the dot
+// reads as part of the same stack rather than floating over it.
+const DOT_SIZES = { sm: 'size-2', md: 'size-2.5' } as const;
 </script>
 
 <template>
     <span class="flex shrink-0" aria-hidden="true">
-        <Avatar
+        <!-- A member with presence gets a positioned wrapper so their dot can sit
+             on the avatar's corner; without one the avatar stacks directly, as
+             it always has. -->
+        <span
             v-for="member in stack.visible"
             :key="member.id"
-            class="ring-2 select-none"
-            :class="[dims.box, ringClass]"
+            class="relative"
+            :class="dims.box"
         >
-            <AvatarImage
-                v-if="member.avatar"
-                :src="member.avatar"
-                :alt="member.name"
+            <Avatar class="size-full ring-2 select-none" :class="ringClass">
+                <AvatarImage
+                    v-if="member.avatar"
+                    :src="member.avatar"
+                    :alt="member.name"
+                />
+                <AvatarFallback
+                    class="font-semibold text-primary"
+                    :class="dims.text"
+                >
+                    {{ getInitials(member.name) }}
+                </AvatarFallback>
+            </Avatar>
+            <PresenceDot
+                v-if="presenceFor"
+                data-test="stack-presence-dot"
+                :presence="presenceFor(member.id)"
+                :surface-class="surfaceClass"
+                class="absolute -right-0.5 -bottom-0.5 ring-2"
+                :class="[DOT_SIZES[size], ringClass]"
             />
-            <AvatarFallback
-                class="font-semibold text-primary"
-                :class="dims.text"
-            >
-                {{ getInitials(member.name) }}
-            </AvatarFallback>
-        </Avatar>
+        </span>
         <span
             v-if="stack.overflow > 0"
             class="flex items-center justify-center rounded-full bg-muted font-semibold text-muted-foreground ring-2 select-none"

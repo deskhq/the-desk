@@ -12,6 +12,11 @@ export type User = {
     timezone: string | null;
     /** The viewer's own live custom status; null when unset or already lapsed. */
     status: App.Data.UserStatusData | null;
+    /**
+     * The viewer's own effective presence — their manual override, or what their
+     * live connections say when they have set none.
+     */
+    presence: App.Enums.PresenceState;
     locale: AppLocale;
     avatar?: string;
     email_verified_at: string | null;

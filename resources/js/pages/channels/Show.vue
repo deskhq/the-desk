@@ -194,10 +194,10 @@ const typing = useTypingIndicator(() => {
 const typingNames = typing.typingNames;
 
 /**
- * Live roster of team members currently online, driving the presence dots on
- * message avatars. Follows the team across channel switches.
+ * Live presence for the team, driving the dots on message avatars, the masthead
+ * and the facepile. Follows the team across channel switches.
  */
-const { onlineIds } = useTeamPresence(() => props.team.id);
+const { presenceFor } = useTeamPresence(() => props.team.id);
 
 /**
  * Read positions of the channel's other members who share read receipts, keyed
@@ -1170,7 +1170,7 @@ function archive(): void {
                 :channel="props.channel"
                 :team-slug="props.team.slug"
                 :members="props.members"
-                :online-ids="onlineIds"
+                :presence-for="presenceFor"
                 :title="mastheadTitle"
                 :can-manage-preferences="props.canManagePreferences"
                 :can-archive="props.canArchive"
@@ -1348,7 +1348,7 @@ function archive(): void {
                                 :can-moderate="canModerate"
                                 :can-react="props.canReact"
                                 :can-pin="props.canReact"
-                                :online-ids="onlineIds"
+                                :presence-for="presenceFor"
                                 :readers="channelReadersList"
                                 :highlight-message-id="highlightedMessageId"
                                 :unread-divider-id="unreadDividerId"
@@ -1525,7 +1525,7 @@ function archive(): void {
                 :can-moderate="canModerate"
                 :can-react="props.canReact"
                 :can-pin="props.canReact"
-                :online-ids="onlineIds"
+                :presence-for="presenceFor"
                 :loading="threadLoading"
                 :read-only="props.channel.isArchived"
                 @close="closeThread"

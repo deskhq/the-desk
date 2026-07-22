@@ -8,12 +8,14 @@ use App\Data\UserData;
 use App\Data\UserStatusData;
 use App\Enums\AppLocale;
 use App\Enums\ChimeSound;
+use App\Enums\PresenceState;
 use App\Enums\SidebarPosition;
 use App\Enums\TeamRole;
 use App\Enums\UserType;
 use App\Observers\UserObserver;
 use App\Support\Gravatar;
 use App\Support\Images\ImageProxy;
+use App\Support\PresenceRegistry;
 use Database\Factories\UserFactory;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Contracts\Translation\HasLocalePreference;
@@ -67,6 +69,7 @@ use Laravel\Sanctum\HasApiTokens;
  * @property ChimeSound $chime_sound
  * @property bool $share_read_receipts
  * @property SidebarPosition $sidebar_position
+ * @property PresenceState $presence_state
  * @property Carbon|null $onboarding_completed_at
  * @property bool $is_tombstone
  * @property Carbon|null $deactivated_at
@@ -75,6 +78,7 @@ use Laravel\Sanctum\HasApiTokens;
  * @property Carbon|null $updated_at
  * @property-read string|null $avatar
  * @property-read UserStatusData|null $status
+ * @property-read PresenceState $presence
  * @property-read Team|null $currentTeam
  * @property-read Team|null $ownerTeam
  * @property-read Collection<int, Team> $ownedTeams
@@ -86,8 +90,8 @@ use Laravel\Sanctum\HasApiTokens;
  * @property-read Collection<int, Passkey> $passkeys
  * @property-read Collection<int, UserGroup> $userGroups
  */
-#[Appends(['avatar', 'status'])]
-#[Fillable(['name', 'email', 'avatar_url', 'pronouns', 'title', 'phone', 'timezone', 'locale', 'password', 'current_team_id', 'chime_sound', 'share_read_receipts', 'sidebar_position', 'onboarding_completed_at', 'collapsed_channel_sections', 'is_tombstone'])]
+#[Appends(['avatar', 'status', 'presence'])]
+#[Fillable(['name', 'email', 'avatar_url', 'pronouns', 'title', 'phone', 'timezone', 'locale', 'password', 'current_team_id', 'chime_sound', 'share_read_receipts', 'sidebar_position', 'presence_state', 'onboarding_completed_at', 'collapsed_channel_sections', 'is_tombstone'])]
 #[Hidden(['password', 'two_factor_secret', 'two_factor_recovery_codes', 'remember_token', 'avatar_url', 'avatar_path', 'status_emoji', 'status_text', 'status_expires_at'])]
 #[ObservedBy(UserObserver::class)]
 class User extends Authenticatable implements HasLocalePreference, MustVerifyEmail, PasskeyUser
@@ -167,6 +171,37 @@ class User extends Authenticatable implements HasLocalePreference, MustVerifyEma
     }
 
     /**
+     * How reachable the user is right now, as teammates should see them.
+     *
+     * A manual away is an override and wins outright — that is the whole point
+     * of setting it, and it survives reconnects because it lives on the row.
+     * Otherwise the answer is derived from the user's live browser connections,
+     * which is away only once every one of them has gone idle.
+     */
+    public function effectivePresence(): PresenceState
+    {
+        // Null only on a freshly-made instance the column default has not been
+        // read back into yet, which is never away.
+        if (($this->presence_state ?? PresenceState::Active) === PresenceState::Away) {
+            return PresenceState::Away;
+        }
+
+        return app(PresenceRegistry::class)->aggregate($this->id);
+    }
+
+    /**
+     * The user's effective presence, appended to every serialisation of the
+     * model so the viewer's own `auth.user` prop carries the same answer that
+     * {@see UserData::$presence} gives their teammates.
+     *
+     * @return Attribute<covariant PresenceState, never>
+     */
+    protected function presence(): Attribute
+    {
+        return Attribute::get(fn (): PresenceState => $this->effectivePresence());
+    }
+
+    /**
      * Get the recipient's preferred locale so mail and notifications render
      * in the language they chose in their settings.
      *
@@ -196,6 +231,7 @@ class User extends Authenticatable implements HasLocalePreference, MustVerifyEma
             'chime_sound' => ChimeSound::class,
             'share_read_receipts' => 'boolean',
             'sidebar_position' => SidebarPosition::class,
+            'presence_state' => PresenceState::class,
             'onboarding_completed_at' => 'datetime',
             'status_expires_at' => 'datetime',
             'is_tombstone' => 'boolean',

@@ -10,6 +10,7 @@ import MessageForward from '@/components/MessageForward.vue';
 import MessagePoll from '@/components/MessagePoll.vue';
 import MessageQuote from '@/components/MessageQuote.vue';
 import MessageReactions from '@/components/MessageReactions.vue';
+import PresenceDot from '@/components/PresenceDot.vue';
 import SafeHtml from '@/components/SafeHtml.vue';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
@@ -40,6 +41,8 @@ import { canReactToMessage, showsThreadSummary } from '@/lib/messageActions';
 import type { MessageActionContext } from '@/lib/messageActions';
 import { tokenizeMessageBody } from '@/lib/messageBody';
 import type { MessageBodySegment } from '@/lib/messageBody';
+import { presenceLabelKey } from '@/lib/presence';
+import type { RenderedPresence } from '@/lib/presence';
 import { readersForMessage } from '@/lib/readReceipts';
 import { buildTimelineItems, messageAccessibleName } from '@/lib/timeline';
 import type { TimelineGroup, TimelineItem } from '@/lib/timeline';
@@ -82,7 +85,11 @@ const props = defineProps<{
      * channel); the "Pinned by" indicator still renders read-only when false.
      */
     canPin?: boolean;
-    onlineIds?: Set<string>;
+    /**
+     * How each author reads on the team presence roster. Absent on the surfaces
+     * that render a timeline without one, where every author reads as offline.
+     */
+    presenceFor?: (userId: string) => RenderedPresence;
     highlightMessageId?: string | null;
     /**
      * The message the "New messages" divider sits above — the first unread on
@@ -255,10 +262,10 @@ const viewerTimeZone = computed(
 );
 
 /**
- * Whether a message author is currently present on the team presence roster.
+ * How a message author reads on the team presence roster.
  */
-function isOnline(authorId: string): boolean {
-    return props.onlineIds?.has(authorId) ?? false;
+function presenceOf(authorId: string): RenderedPresence {
+    return props.presenceFor?.(authorId) ?? 'offline';
 }
 
 /**
@@ -812,7 +819,7 @@ function confirmDelete(): void {
                             :team-slug="props.teamSlug"
                             :user-id="item.author.id"
                             :name="item.author.name"
-                            :online="isOnline(item.author.id)"
+                            :presence="presenceOf(item.author.id)"
                             @mention="(member) => emit('mention', member)"
                         >
                             <div class="relative size-8.5 cursor-pointer">
@@ -855,17 +862,12 @@ function confirmDelete(): void {
                                      via the sr-only text beside the name below,
                                      so this repeated dot is decorative to AT. A bot
                                      has no presence, so it shows no dot. -->
-                                <span
+                                <PresenceDot
                                     v-if="!item.author.isBot"
                                     data-test="presence-dot"
-                                    :data-online="isOnline(item.author.id)"
-                                    aria-hidden="true"
-                                    class="absolute right-0 bottom-0 size-2.5 rounded-full ring-2 ring-card"
-                                    :class="
-                                        isOnline(item.author.id)
-                                            ? 'bg-emerald-500'
-                                            : 'bg-muted-foreground/60'
-                                    "
+                                    :presence="presenceOf(item.author.id)"
+                                    surface-class="bg-card"
+                                    class="absolute right-0 bottom-0 size-2.5 ring-2 ring-card"
                                 />
                             </div>
                         </UserHoverCard>
@@ -886,7 +888,7 @@ function confirmDelete(): void {
                             :team-slug="props.teamSlug"
                             :user-id="item.author.id"
                             :name="item.author.name"
-                            :online="isOnline(item.author.id)"
+                            :presence="presenceOf(item.author.id)"
                             @mention="(member) => emit('mention', member)"
                         >
                             <span
@@ -912,9 +914,7 @@ function confirmDelete(): void {
                             >{{ $t('Bot') }}</span
                         >
                         <span v-else class="sr-only">{{
-                            isOnline(item.author.id)
-                                ? $t('Online')
-                                : $t('Offline')
+                            $t(presenceLabelKey(presenceOf(item.author.id)))
                         }}</span>
                         <div role="list">
                             <div

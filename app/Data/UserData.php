@@ -2,6 +2,7 @@
 
 namespace App\Data;
 
+use App\Enums\PresenceState;
 use App\Models\User;
 use Spatie\LaravelData\Data;
 use Spatie\TypeScriptTransformer\Attributes\TypeScript;
@@ -22,6 +23,12 @@ class UserData extends Data
         // can show the emoji inline beside their name. Null when they have set
         // none or theirs has lapsed, and the surface then renders nothing.
         public ?UserStatusData $status = null,
+        // How reachable the author is, composed with the Reverb roster on the
+        // client: the roster answers "connected at all", this refines a
+        // connected user into active or away. Carried in the initial props so a
+        // freshly loaded client — which has no broadcast history — still paints
+        // the right dot before any UserPresenceChanged event arrives.
+        public PresenceState $presence = PresenceState::Active,
     ) {}
 
     /**
@@ -35,6 +42,7 @@ class UserData extends Data
             avatar: $user->avatar,
             isBot: $user->isBot(),
             status: UserStatusData::forUser($user),
+            presence: $user->effectivePresence(),
         );
     }
 }

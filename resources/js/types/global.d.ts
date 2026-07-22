@@ -32,6 +32,7 @@ declare module '@inertiajs/core' {
             gifPickerEnabled: boolean;
             pollsEnabled: boolean;
             sidebarPositions: SidebarPositionOption[];
+            presence: { awayAfterMinutes: number };
             sidebarOpen: boolean;
             currentTeam: Team | null;
             teams: Team[];

@@ -6,6 +6,7 @@ import { toast } from 'vue-sonner';
 import { show } from '@/actions/App/Http/Controllers/Channels/ChannelController';
 import { store as hideDirectMessage } from '@/actions/App/Http/Controllers/Channels/HideDirectMessageController';
 import AvatarStack from '@/components/AvatarStack.vue';
+import PresenceDot from '@/components/PresenceDot.vue';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { SidebarMenuButton, SidebarMenuItem } from '@/components/ui/sidebar';
@@ -19,14 +20,16 @@ import { useInitials } from '@/composables/useInitials';
 import { useTranslations } from '@/composables/useTranslations';
 import { groupDmSidebarName } from '@/lib/groupDm';
 import { notificationIndicator } from '@/lib/notificationIndicator';
+import { presenceLabelKey } from '@/lib/presence';
+import type { RenderedPresence } from '@/lib/presence';
 import type { Channel } from '@/types/channels';
 
 const props = defineProps<{
     channel: Channel;
     teamSlug: string;
     activeChannelSlug: string | null;
-    /** Whether the DM's participant is currently on the team presence roster. */
-    online: boolean;
+    /** How the DM's participant reads on the team presence roster. */
+    presence: RenderedPresence;
     /** Whether this is the viewer's own self-DM (renders "You"). */
     isSelf: boolean;
 }>();
@@ -149,23 +152,22 @@ function hide(): void {
                             {{ getInitials(channel.name) }}
                         </AvatarFallback>
                     </Avatar>
-                    <span
+                    <PresenceDot
                         data-test="dm-presence-dot"
-                        :data-online="online"
-                        aria-hidden="true"
-                        class="absolute -right-0.5 -bottom-0.5 size-2 rounded-full ring-2"
-                        :class="[
-                            online
-                                ? 'bg-emerald-500'
-                                : 'bg-muted-foreground/50',
-                            isActive ? 'ring-sidebar-primary' : 'ring-sidebar',
-                        ]"
+                        :presence="presence"
+                        :surface-class="
+                            isActive ? 'bg-sidebar-primary' : 'bg-sidebar'
+                        "
+                        class="absolute -right-0.5 -bottom-0.5 size-2 ring-2"
+                        :class="
+                            isActive ? 'ring-sidebar-primary' : 'ring-sidebar'
+                        "
                     />
                     <!-- The presence is announced through a screen-reader-only
                          label rather than an aria-label on the role-less dot,
                          which assistive tech ignores on a bare <span>. -->
                     <span data-test="dm-presence-label" class="sr-only">{{
-                        online ? $t('Online') : $t('Offline')
+                        $t(presenceLabelKey(presence))
                     }}</span>
                 </span>
                 <span

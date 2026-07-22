@@ -2,6 +2,7 @@
 import { usePage } from '@inertiajs/vue3';
 import { ChevronsUpDown } from '@lucide/vue';
 import { computed } from 'vue';
+import PresenceDot from '@/components/PresenceDot.vue';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
     DropdownMenu,
@@ -16,6 +17,7 @@ import {
 } from '@/components/ui/sidebar';
 import UserMenuContent from '@/components/UserMenuContent.vue';
 import { useInitials } from '@/composables/useInitials';
+import type { RenderedPresence } from '@/lib/presence';
 import type { Team } from '@/types';
 
 const page = usePage();
@@ -25,6 +27,15 @@ const { getInitials } = useInitials();
 
 const currentTeam = computed(() => page.props.currentTeam as Team | null);
 const hasAvatar = computed(() => !!user.avatar && user.avatar !== '');
+
+/**
+ * The viewer's own effective presence, read from the shared `auth.user` prop so
+ * the trigger's dot mirrors the menu's readout and the flip lands here without
+ * the chip remounting. Never "offline" — you are, by definition, looking at it.
+ */
+const ownPresence = computed<RenderedPresence>(
+    () => page.props.auth.user.presence ?? 'active',
+);
 </script>
 
 <template>
@@ -52,9 +63,15 @@ const hasAvatar = computed(() => !!user.avatar && user.avatar !== '');
                                     {{ getInitials(user.name) }}
                                 </AvatarFallback>
                             </Avatar>
-                            <span
-                                aria-hidden="true"
-                                class="absolute -right-0.5 -bottom-0.5 size-2.25 rounded-full border-2 border-popover bg-emerald-600 group-hover/nav-user:border-secondary group-data-[state=open]/nav-user:border-sidebar-primary"
+                            <!-- The halo tracks the chip's own surface, which
+                                 changes on hover and while the menu is open, so
+                                 an away dot's hollow centre keeps matching what
+                                 is actually behind it. -->
+                            <PresenceDot
+                                data-test="nav-user-presence"
+                                :presence="ownPresence"
+                                surface-class="bg-popover group-hover/nav-user:bg-secondary group-data-[state=open]/nav-user:bg-sidebar-primary"
+                                class="absolute -right-0.5 -bottom-0.5 size-2.25 ring-2 ring-popover group-hover/nav-user:ring-secondary group-data-[state=open]/nav-user:ring-sidebar-primary"
                             />
                         </span>
                         <span

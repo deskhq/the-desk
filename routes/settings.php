@@ -9,6 +9,7 @@ use App\Http\Controllers\Settings\DataExportController;
 use App\Http\Controllers\Settings\LocaleController;
 use App\Http\Controllers\Settings\NotificationController;
 use App\Http\Controllers\Settings\PersonalAccessTokenController;
+use App\Http\Controllers\Settings\PresenceController;
 use App\Http\Controllers\Settings\ProfileController;
 use App\Http\Controllers\Settings\ReadReceiptsController;
 use App\Http\Controllers\Settings\SecurityController;
@@ -49,6 +50,10 @@ Route::middleware(['auth'])->group(function (): void {
     // the plain `auth` group rather than behind the verified-email gate.
     Route::put('settings/status', [StatusController::class, 'update'])->name('status.update');
     Route::delete('settings/status', [StatusController::class, 'destroy'])->name('status.destroy');
+
+    // The manual away toggle sits beside the status in the same presence menu,
+    // and is reachable from every workspace surface for the same reason.
+    Route::put('settings/presence', [PresenceController::class, 'update'])->name('presence.update');
 
     Route::patch('settings/timezone', [TimezoneController::class, 'update'])->name('timezone.update');
 

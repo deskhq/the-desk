@@ -16,8 +16,10 @@ import {
 import type { Component } from 'vue';
 import { computed } from 'vue';
 import { toast } from 'vue-sonner';
+import { update as updatePresence } from '@/actions/App/Http/Controllers/Settings/PresenceController';
 import { destroy as destroyStatus } from '@/actions/App/Http/Controllers/Settings/StatusController';
 import MenuSegmentedControl from '@/components/MenuSegmentedControl.vue';
+import PresenceDot from '@/components/PresenceDot.vue';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import {
@@ -35,6 +37,8 @@ import { useTranslations } from '@/composables/useTranslations';
 import { useUpdateStatus } from '@/composables/useUpdateStatus';
 import { useUserStatusDialog } from '@/composables/useUserStatusDialog';
 import { formatTimeOfDay } from '@/lib/datetime';
+import { presenceLabelKey } from '@/lib/presence';
+import type { RenderedPresence } from '@/lib/presence';
 import { logout } from '@/routes';
 import { edit } from '@/routes/profile';
 import type { Appearance, SidebarPosition, Team, User } from '@/types';
@@ -93,6 +97,19 @@ const hasAvatar = computed(
 // than the `user` prop so it tracks a set/clear without the menu remounting.
 const ownStatus = computed(() => page.props.auth.user.status ?? null);
 
+/**
+ * The viewer's own effective presence, from the same shared prop for the same
+ * reason. Never "offline" — the menu is open, so they are plainly here.
+ */
+const ownPresence = computed<RenderedPresence>(
+    () => page.props.auth.user.presence ?? 'active',
+);
+
+/** The state the toggle would switch to, which is also the glyph it previews. */
+const togglesTo = computed<RenderedPresence>(() =>
+    ownPresence.value === 'away' ? 'active' : 'away',
+);
+
 // When the status clears, as a time of day in the viewer's own zone. Null for a
 // status that never clears, which then shows no second line at all.
 const clearsAt = computed(() =>
@@ -121,6 +138,26 @@ function clearStatus(event: Event): void {
     });
 }
 
+/**
+ * Flip the manual away override.
+ *
+ * The default select behaviour closes the menu; prevented here so the row and
+ * the masthead readout above it flip in place, the way the theme and sidebar
+ * switchers apply without dismissing the menu.
+ */
+function togglePresence(event: Event): void {
+    event.preventDefault();
+
+    router.put(
+        updatePresence().url,
+        { state: togglesTo.value },
+        {
+            preserveScroll: true,
+            onError: () => toast.error(t('Could not change your presence.')),
+        },
+    );
+}
+
 const handleLogout = () => {
     router.flushAll();
 };
@@ -145,9 +182,11 @@ const handleLogout = () => {
                             {{ getInitials(user.name) }}
                         </AvatarFallback>
                     </Avatar>
-                    <span
-                        aria-hidden="true"
-                        class="absolute right-0 bottom-0 size-2.75 rounded-full border-2 border-muted bg-emerald-600"
+                    <PresenceDot
+                        data-test="user-menu-presence"
+                        :presence="ownPresence"
+                        surface-class="bg-muted"
+                        class="absolute right-0 bottom-0 size-2.75 ring-2 ring-muted"
                     />
                 </span>
                 <div class="min-w-0 flex-1">
@@ -166,8 +205,26 @@ const handleLogout = () => {
                             decorative
                         />
                     </div>
-                    <div class="mt-0.5 truncate text-xs text-muted-foreground">
-                        {{ user.email }}
+                    <!-- The subtitle doubles as the current-state readout: a
+                         green "Active" or an italic serif "Away", ahead of the
+                         address the viewer is signed in as. -->
+                    <div
+                        class="mt-0.5 flex min-w-0 items-baseline gap-1.5 text-xs text-muted-foreground"
+                    >
+                        <span
+                            data-test="user-menu-presence-label"
+                            class="shrink-0 font-medium"
+                            :class="
+                                ownPresence === 'away'
+                                    ? 'font-serif text-muted-foreground italic'
+                                    : 'text-emerald-700 dark:text-emerald-400'
+                            "
+                            >{{ $t(presenceLabelKey(ownPresence)) }}</span
+                        >
+                        <span aria-hidden="true" class="shrink-0"
+                            >&middot;</span
+                        >
+                        <span class="truncate">{{ user.email }}</span>
                     </div>
                 </div>
             </div>
@@ -259,6 +316,27 @@ const handleLogout = () => {
                 </Button>
             </DropdownMenuItem>
         </div>
+        <!-- The manual away toggle. Its leading glyph previews the state it
+             would switch *to*, so the row reads as an action rather than as a
+             second copy of the readout above. -->
+        <DropdownMenuItem
+            class="group/item mt-0.5 flex h-9 cursor-pointer items-center gap-2.5 rounded-[10px] px-2.5 py-0 text-[13.5px] font-normal text-foreground focus:bg-primary focus:text-primary-foreground"
+            data-test="toggle-presence-menu-item"
+            @select="togglePresence"
+        >
+            <span class="flex w-3.75 justify-center">
+                <PresenceDot
+                    :presence="togglesTo"
+                    surface-class="bg-popover group-focus/item:bg-primary"
+                    class="size-2.25"
+                />
+            </span>
+            {{
+                togglesTo === 'away'
+                    ? $t('Set yourself away')
+                    : $t('Set yourself active')
+            }}
+        </DropdownMenuItem>
     </div>
 
     <!-- Appearance: quick theme + sidebar switchers, grouped ahead of navigation.

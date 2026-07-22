@@ -337,3 +337,29 @@ To enable it, download a free **GeoLite2 City** database from
 required) and mount the `.mmdb` file at `GEOIP_DATABASE_PATH`. The database is not
 bundled: MaxMind's licence does not allow redistribution, and it is refreshed
 regularly, so you keep it up to date yourself.
+
+## Presence
+
+Every member sees a small dot beside their teammates' avatars: **filled** when
+someone is active, a **hollow ring** when they are away, and none at all when
+they are not connected. Away has two sources — a member can set it by hand from
+the user menu (which persists until they unset it), and each browser tab reports
+itself idle after a stretch with no pointer, keyboard, scroll, or focus activity.
+Someone counts as away only once **every** device they are signed in on has gone
+idle, so a laptop in use keeps them active however long a phone has been asleep.
+
+| Variable                      | Default | Notes                                                                                                 |
+| ----------------------------- | ------- | ------------------------------------------------------------------------------------------------------ |
+| `PRESENCE_AWAY_AFTER_MINUTES` | `10`    | Minutes a tab may go without activity before it reports itself idle. Floored at `1`; there is no "never". |
+
+Idle detection runs in the browser, so the threshold is served to each client
+with the page rather than baked into the build — changing it takes effect on
+every client's next page load, with no rebuild.
+
+:::note[Presence needs no extra service]
+Who is *connected* comes from the Reverb presence channel the app already uses;
+active-versus-away is tracked in the cache (Redis in the bundled production
+stack). Nothing is written to the database except a member's own manual away
+setting, and if the cache is unavailable everyone simply reads as active — the
+same as before the feature existed.
+:::

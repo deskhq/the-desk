@@ -15,6 +15,7 @@ import type { AcceptableValue } from 'reka-ui';
 import { computed } from 'vue';
 import { index as searchMessages } from '@/actions/App/Http/Controllers/Channels/SearchController';
 import AvatarStack from '@/components/AvatarStack.vue';
+import PresenceDot from '@/components/PresenceDot.vue';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import {
@@ -38,6 +39,8 @@ import type { ConnectionPill } from '@/composables/useConnectionState';
 import { getInitials } from '@/composables/useInitials';
 import { memberAvatarStack } from '@/lib/memberAvatars';
 import type { NotificationIndicator } from '@/lib/notificationIndicator';
+import { dmParticipantPresence, presenceLabelKey } from '@/lib/presence';
+import type { RenderedPresence } from '@/lib/presence';
 import type {
     Channel,
     Mention,
@@ -53,8 +56,8 @@ const props = defineProps<{
      * overlapping member facepile.
      */
     members: Mention[];
-    /** Ids of team members currently online, driving the DM presence dot. */
-    onlineIds: Set<string>;
+    /** How each team member reads on the presence roster, driving every dot here. */
+    presenceFor: (userId: string) => RenderedPresence;
     /**
      * The viewer-relative title (self-DM reads "You"); the page also feeds it to
      * `<Head>`, so it is resolved once there and passed down.
@@ -132,10 +135,26 @@ const dmAvatar = computed(() =>
  * the team roster. A DM is a fixed set, so the "who's in the channel" facepile is
  * meaningless and hidden.
  */
-const dmParticipantOnline = computed(
+const dmPresence = computed<RenderedPresence>(() =>
+    dmParticipantPresence(
+        props.channel.dmUserId,
+        props.presenceFor,
+        page.props.auth.user.presence,
+    ),
+);
+
+/**
+ * How many of the channel's members are active right now.
+ *
+ * Away counts as present but not active, which is the whole point of the third
+ * state: the readout answers "who could answer me now", not "who has the tab
+ * open".
+ */
+const activeMemberCount = computed(
     () =>
-        props.channel.dmUserId != null &&
-        props.onlineIds.has(props.channel.dmUserId),
+        props.members.filter(
+            (member) => props.presenceFor(member.id) === 'active',
+        ).length,
 );
 
 /** The group's participant count, including the viewer, for the subtitle. */
@@ -185,18 +204,18 @@ const groupParticipantCount = computed(
                             {{ getInitials(props.channel.name) }}
                         </AvatarFallback>
                     </Avatar>
-                    <span
-                        :data-online="dmParticipantOnline"
-                        :aria-label="
-                            dmParticipantOnline ? $t('Online') : $t('Offline')
-                        "
-                        class="absolute -right-0.5 -bottom-0.5 size-2.5 rounded-full ring-2 ring-card"
-                        :class="
-                            dmParticipantOnline
-                                ? 'bg-emerald-500'
-                                : 'bg-muted-foreground/50'
-                        "
+                    <PresenceDot
+                        data-test="masthead-dm-presence"
+                        :presence="dmPresence"
+                        surface-class="bg-card"
+                        class="absolute -right-0.5 -bottom-0.5 size-2.5 ring-2 ring-card"
                     />
+                    <!-- Announced through a screen-reader-only label rather than
+                         an aria-label on the role-less dot, which assistive tech
+                         ignores on a bare <span>. -->
+                    <span class="sr-only">{{
+                        $t(presenceLabelKey(dmPresence))
+                    }}</span>
                 </span>
                 <span v-else class="text-brass italic">#</span>
                 <span class="truncate">{{ props.title }}</span>
@@ -296,54 +315,71 @@ const groupParticipantCount = computed(
                     mastheadAvatars.visible.length > 0
                 "
                 data-test="masthead-members"
-                class="flex -space-x-1.5"
+                class="flex items-center gap-2"
             >
-                <span class="sr-only">
-                    {{
-                        props.members.length === 1
-                            ? $t(':count member', {
-                                  count: props.members.length,
-                              })
-                            : $t(':count members', {
-                                  count: props.members.length,
-                              })
-                    }}
-                </span>
-                <!-- A bot in the roster squares its avatar (rounded-md vs a
-                     human's circle) and shows a glyph, so it reads as non-human
-                     even at this size — matching its message-row treatment. -->
-                <Avatar
-                    v-for="member in mastheadAvatars.visible"
-                    :key="member.id"
-                    class="size-6 text-[9px] ring-2 ring-card"
-                    :class="member.isBot ? 'rounded-md' : ''"
-                    :title="member.name"
-                    aria-hidden="true"
-                >
-                    <AvatarImage
-                        v-if="member.avatar && !member.isBot"
-                        :src="member.avatar"
-                        :alt="member.name"
-                    />
-                    <AvatarFallback
-                        :class="
-                            member.isBot
-                                ? 'rounded-md bg-muted-foreground text-background'
-                                : 'bg-primary/10 font-semibold text-primary'
-                        "
+                <span class="flex -space-x-1.5">
+                    <!-- A bot in the roster squares its avatar (rounded-md vs a
+                         human's circle) and shows a glyph, so it reads as
+                         non-human even at this size — matching its message-row
+                         treatment. A bot has no presence, so it shows no dot. -->
+                    <span
+                        v-for="member in mastheadAvatars.visible"
+                        :key="member.id"
+                        class="relative size-6"
+                        :title="member.name"
+                        aria-hidden="true"
                     >
-                        <Bot v-if="member.isBot" class="size-3" />
-                        <template v-else>{{
-                            getInitials(member.name)
-                        }}</template>
-                    </AvatarFallback>
-                </Avatar>
+                        <Avatar
+                            class="size-6 text-[9px] ring-2 ring-card"
+                            :class="member.isBot ? 'rounded-md' : ''"
+                        >
+                            <AvatarImage
+                                v-if="member.avatar && !member.isBot"
+                                :src="member.avatar"
+                                :alt="member.name"
+                            />
+                            <AvatarFallback
+                                :class="
+                                    member.isBot
+                                        ? 'rounded-md bg-muted-foreground text-background'
+                                        : 'bg-primary/10 font-semibold text-primary'
+                                "
+                            >
+                                <Bot v-if="member.isBot" class="size-3" />
+                                <template v-else>{{
+                                    getInitials(member.name)
+                                }}</template>
+                            </AvatarFallback>
+                        </Avatar>
+                        <PresenceDot
+                            v-if="!member.isBot"
+                            data-test="masthead-member-presence"
+                            :presence="props.presenceFor(member.id)"
+                            surface-class="bg-card"
+                            class="absolute -right-0.5 -bottom-0.5 size-2 ring-2 ring-card"
+                        />
+                    </span>
+                    <span
+                        v-if="mastheadAvatars.overflow > 0"
+                        class="flex size-6 items-center justify-center rounded-full bg-muted text-[9px] font-semibold text-muted-foreground ring-2 ring-card select-none"
+                        aria-hidden="true"
+                    >
+                        +{{ mastheadAvatars.overflow }}
+                    </span>
+                </span>
+                <!-- The one readout of the facepile, and the only place the
+                     member count is spelled out — away counts as present but not
+                     active, so the two numbers can differ. -->
                 <span
-                    v-if="mastheadAvatars.overflow > 0"
-                    class="flex size-6 items-center justify-center rounded-full bg-muted text-[9px] font-semibold text-muted-foreground ring-2 ring-card select-none"
-                    aria-hidden="true"
+                    data-test="masthead-active-count"
+                    class="text-[11.5px] text-muted-foreground"
                 >
-                    +{{ mastheadAvatars.overflow }}
+                    {{
+                        $t(':active of :total active', {
+                            active: activeMemberCount,
+                            total: props.members.length,
+                        })
+                    }}
                 </span>
             </span>
 

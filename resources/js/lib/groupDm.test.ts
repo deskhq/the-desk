@@ -10,7 +10,14 @@ import {
 import type { Channel, DmParticipant } from '@/types/channels';
 
 function participant(id: string, name: string): DmParticipant {
-    return { id, name, avatar: null, isBot: false, status: null };
+    return {
+        id,
+        name,
+        avatar: null,
+        isBot: false,
+        status: null,
+        presence: 'active',
+    };
 }
 
 function dmChannel(id: string, participants: DmParticipant[]): Channel {

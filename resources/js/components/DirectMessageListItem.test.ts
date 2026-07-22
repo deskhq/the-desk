@@ -91,7 +91,7 @@ async function render(overrides: Partial<Channel> = {}): Promise<string> {
                 channel: channel(overrides),
                 teamSlug: 'acme',
                 activeChannelSlug: null,
-                online: true,
+                presence: 'active',
                 isSelf: false,
             }),
     });
