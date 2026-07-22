@@ -142,6 +142,12 @@ class HandleInertiaRequests extends Middleware
             // is the single source of truth, shared the same way the settings page
             // sources its own options.
             'sidebarPositions' => SidebarPosition::options(),
+            // The auto-idle threshold rides every request because the detector
+            // that enforces it runs in the browser: a tab has to know how long
+            // "no activity" may last before it reports itself away.
+            'presence' => [
+                'awayAfterMinutes' => max((int) config('presence.away_after_minutes'), 1),
+            ],
             'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',
             'currentTeam' => fn () => $user?->currentTeam ? $user->toUserTeam($user->currentTeam) : null,
             'teams' => fn () => $user?->toUserTeams(includeCurrent: true) ?? [],

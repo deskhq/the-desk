@@ -26,6 +26,7 @@ use App\Http\Controllers\Channels\ThreadsController;
 use App\Http\Controllers\ImageProxyController;
 use App\Http\Controllers\LocaleCatalogController;
 use App\Http\Controllers\OnboardingController;
+use App\Http\Controllers\PresenceConnectionController;
 use App\Http\Controllers\SidebarSectionController;
 use App\Http\Controllers\Teams\TeamInvitationController;
 use App\Http\Controllers\Webhooks\IncomingWebhookController;
@@ -210,6 +211,11 @@ Route::middleware(['auth'])->group(function (): void {
         ->name('images.proxy');
 
     Route::patch('sidebar/sections', [SidebarSectionController::class, 'update'])->name('sidebar.sections.update');
+
+    // The idle detector's two writes. Not settings — the browser reports these
+    // on its own, and they describe one tab rather than a stored preference.
+    Route::post('presence/connection', [PresenceConnectionController::class, 'store'])->name('presence.report');
+    Route::post('presence/connection/release', [PresenceConnectionController::class, 'destroy'])->name('presence.release');
 
     Route::patch('onboarding', [OnboardingController::class, 'update'])->name('onboarding.update');
 
