@@ -7,6 +7,7 @@ use App\Actions\Channels\DispatchDueScheduledMessages;
 use App\Actions\Channels\PurgeExpiredAttachments;
 use App\Actions\Images\PurgeCachedProxyImages;
 use App\Actions\Teams\PurgeExpiredAuditExports;
+use App\Actions\Users\ClearExpiredUserStatuses;
 use App\Models\TeamInvitation;
 use Illuminate\Support\Facades\Schedule;
 
@@ -28,6 +29,12 @@ Schedule::call(fn (DispatchDueMessageReminders $dispatch) => $dispatch->handle()
     ->everyMinute()
     ->withoutOverlapping()
     ->description('Fire due message reminders');
+
+Schedule::call(fn (ClearExpiredUserStatuses $clear): int => $clear->handle())
+    ->name('clear-expired-user-statuses')
+    ->everyMinute()
+    ->withoutOverlapping()
+    ->description('Clear lapsed custom statuses');
 
 Schedule::call(fn (PurgeExpiredAttachments $purge): int => $purge->handle())
     ->name('purge-expired-pending-attachments')

@@ -23,6 +23,8 @@ class UserProfileData extends Data
         public ?string $roleLabel,
         public ?string $memberSince,
         public bool $isYou,
+        /** The member's live custom status, shown in full on the card and page. */
+        public ?UserStatusData $status = null,
     ) {}
 
     /**
@@ -46,6 +48,7 @@ class UserProfileData extends Data
             roleLabel: $membership->role->label(),
             memberSince: $membership->created_at?->toIso8601String(),
             isYou: $member->is($viewer),
+            status: UserStatusData::forUser($member),
         );
     }
 }

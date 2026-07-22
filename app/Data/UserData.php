@@ -18,6 +18,10 @@ class UserData extends Data
         // badge and squared avatar, and the composer can exclude it from @mention
         // autocomplete.
         public bool $isBot = false,
+        // The author's live custom status, so every surface that renders a user
+        // can show the emoji inline beside their name. Null when they have set
+        // none or theirs has lapsed, and the surface then renders nothing.
+        public ?UserStatusData $status = null,
     ) {}
 
     /**
@@ -30,6 +34,7 @@ class UserData extends Data
             name: $user->name,
             avatar: $user->avatar,
             isBot: $user->isBot(),
+            status: UserStatusData::forUser($user),
         );
     }
 }

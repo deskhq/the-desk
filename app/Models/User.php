@@ -2,7 +2,10 @@
 
 namespace App\Models;
 
+use App\Actions\Users\ClearExpiredUserStatuses;
 use App\Concerns\HasTeams;
+use App\Data\UserData;
+use App\Data\UserStatusData;
 use App\Enums\AppLocale;
 use App\Enums\ChimeSound;
 use App\Enums\SidebarPosition;
@@ -48,6 +51,9 @@ use Laravel\Sanctum\HasApiTokens;
  * @property string|null $pronouns
  * @property string|null $title
  * @property string|null $phone
+ * @property string|null $status_emoji
+ * @property string|null $status_text
+ * @property Carbon|null $status_expires_at
  * @property string|null $timezone
  * @property AppLocale $locale
  * @property Carbon|null $email_verified_at
@@ -68,6 +74,7 @@ use Laravel\Sanctum\HasApiTokens;
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  * @property-read string|null $avatar
+ * @property-read UserStatusData|null $status
  * @property-read Team|null $currentTeam
  * @property-read Team|null $ownerTeam
  * @property-read Collection<int, Team> $ownedTeams
@@ -79,9 +86,9 @@ use Laravel\Sanctum\HasApiTokens;
  * @property-read Collection<int, Passkey> $passkeys
  * @property-read Collection<int, UserGroup> $userGroups
  */
-#[Appends(['avatar'])]
+#[Appends(['avatar', 'status'])]
 #[Fillable(['name', 'email', 'avatar_url', 'pronouns', 'title', 'phone', 'timezone', 'locale', 'password', 'current_team_id', 'chime_sound', 'share_read_receipts', 'sidebar_position', 'onboarding_completed_at', 'collapsed_channel_sections', 'is_tombstone'])]
-#[Hidden(['password', 'two_factor_secret', 'two_factor_recovery_codes', 'remember_token', 'avatar_url', 'avatar_path'])]
+#[Hidden(['password', 'two_factor_secret', 'two_factor_recovery_codes', 'remember_token', 'avatar_url', 'avatar_path', 'status_emoji', 'status_text', 'status_expires_at'])]
 #[ObservedBy(UserObserver::class)]
 class User extends Authenticatable implements HasLocalePreference, MustVerifyEmail, PasskeyUser
 {
@@ -128,6 +135,38 @@ class User extends Authenticatable implements HasLocalePreference, MustVerifyEma
     }
 
     /**
+     * Whether the user's custom status is currently showing.
+     *
+     * This is the lazy half of expiry: a status whose `status_expires_at` has
+     * passed reads as absent everywhere from the instant it lapses, without
+     * waiting for {@see ClearExpiredUserStatuses} to null the
+     * columns and broadcast the clear.
+     */
+    public function hasLiveStatus(): bool
+    {
+        if ($this->status_emoji === null) {
+            return false;
+        }
+
+        return $this->status_expires_at === null || $this->status_expires_at->isFuture();
+    }
+
+    /**
+     * The user's live custom status, or null when they have none.
+     *
+     * Appended to every serialisation of the model — the shared `auth.user`
+     * prop above all — so the viewer's own menu reads it the same way teammates'
+     * surfaces read {@see UserData::$status}. The raw columns stay
+     * hidden so a lapsed status can never leak through them.
+     *
+     * @return Attribute<covariant UserStatusData|null, never>
+     */
+    protected function status(): Attribute
+    {
+        return Attribute::get(fn (): ?UserStatusData => UserStatusData::forUser($this));
+    }
+
+    /**
      * Get the recipient's preferred locale so mail and notifications render
      * in the language they chose in their settings.
      *
@@ -158,6 +197,7 @@ class User extends Authenticatable implements HasLocalePreference, MustVerifyEma
             'share_read_receipts' => 'boolean',
             'sidebar_position' => SidebarPosition::class,
             'onboarding_completed_at' => 'datetime',
+            'status_expires_at' => 'datetime',
             'is_tombstone' => 'boolean',
             'deactivated_at' => 'datetime',
             'collapsed_channel_sections' => 'array',

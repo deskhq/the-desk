@@ -14,6 +14,7 @@ use App\Http\Controllers\Settings\ReadReceiptsController;
 use App\Http\Controllers\Settings\SecurityController;
 use App\Http\Controllers\Settings\SessionController;
 use App\Http\Controllers\Settings\SidebarPositionController;
+use App\Http\Controllers\Settings\StatusController;
 use App\Http\Controllers\Settings\TimezoneController;
 use App\Http\Controllers\Teams\AnalyticsController;
 use App\Http\Controllers\Teams\AuditController;
@@ -42,6 +43,12 @@ Route::middleware(['auth'])->group(function (): void {
 
     Route::post('settings/avatar', [AvatarController::class, 'store'])->name('avatar.store');
     Route::delete('settings/avatar', [AvatarController::class, 'destroy'])->name('avatar.destroy');
+
+    // The custom status is set from the user menu's presence section, which is
+    // reachable from every workspace surface — so it sits beside the avatar in
+    // the plain `auth` group rather than behind the verified-email gate.
+    Route::put('settings/status', [StatusController::class, 'update'])->name('status.update');
+    Route::delete('settings/status', [StatusController::class, 'destroy'])->name('status.destroy');
 
     Route::patch('settings/timezone', [TimezoneController::class, 'update'])->name('timezone.update');
 
