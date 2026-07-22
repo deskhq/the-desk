@@ -52,6 +52,21 @@ test('the authenticated channel page has no serious accessibility violations in 
         ->assertNoAccessibilityIssues();
 });
 
+test('an open dropdown menu has no serious accessibility violations', function (): void {
+    ['owner' => $alice] = browserTeamWithChannel();
+
+    // Opening a reka dropdown marks the whole shell `aria-hidden` so assistive
+    // tech stays inside the menu. Everything it hides must leave the tab order
+    // with it, or the skip link, sidebar and composer stay keyboard-reachable
+    // from inside an ARIA-hidden region (`aria-hidden-focus`, #730).
+    signInThroughBrowser($alice)
+        ->click('@sidebar-menu-button')
+        ->assertPresent('@settings-menu-item')
+        // Let the menu's entrance transition settle before axe reads the DOM.
+        ->wait(0.5)
+        ->assertNoAccessibilityIssues();
+});
+
 test('the unread jump-to-unread pill has no serious accessibility violations in either theme', function (): void {
     ['owner' => $alice, 'member' => $bob, 'channel' => $channel] = browserTeamWithChannel();
 

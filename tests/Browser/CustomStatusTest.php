@@ -165,7 +165,7 @@ test('the status dialog passes the axe audit in either theme', function (): void
     $page->wait(0.5)->assertNoAccessibilityIssues();
 });
 
-test('the status card exposes menu semantics and a named clear control', function (): void {
+test('the status card passes the axe audit and exposes menu semantics', function (): void {
     ['owner' => $alice] = browserTeamWithChannel();
 
     $alice->forceFill([
@@ -174,12 +174,13 @@ test('the status card exposes menu semantics and a named clear control', functio
         'status_expires_at' => now()->addHour(),
     ])->save();
 
-    // A whole-page axe audit cannot run with a dropdown menu open: reka marks
-    // the rest of the shell aria-hidden, which traps the focusable skip link and
-    // trips `aria-hidden-focus` on untouched code (#730). Until that is fixed,
-    // pin the card's own semantics directly instead.
     signInThroughBrowser($alice)
         ->click('@sidebar-menu-button')
+        ->assertPresent('@edit-status-menu-item')
+        // Let the menu's entrance transition settle before axe reads the DOM,
+        // so a mid-animation opacity never manufactures a contrast failure.
+        ->wait(0.5)
+        ->assertNoAccessibilityIssues()
         // Both rows are real menu items, so arrow-key navigation reaches them and
         // Enter/Space activates them.
         ->assertAttribute('[data-test="edit-status-menu-item"]', 'role', 'menuitem')

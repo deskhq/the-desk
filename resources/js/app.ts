@@ -9,6 +9,7 @@ import type { ReverbRuntimeConfig } from '@/lib/echo';
 import { initializeFlashToast } from '@/lib/flashToast';
 import { setMessages, translate } from '@/lib/i18n';
 import type { Messages } from '@/lib/i18n';
+import { initializeOverlayInert } from '@/lib/overlayInert';
 
 /**
  * Seeded from the server-shared props at boot (see `withApp`), so both Echo and
@@ -70,3 +71,5 @@ void createInertiaApp({
 initializeTheme();
 
 initializeFlashToast();
+
+initializeOverlayInert();

@@ -58,6 +58,34 @@ test('the shell exposes a skip link targeting a focusable main region', function
         );
 });
 
+test('an open dropdown menu takes the shell out of the tab order and hands it back on close', function (): void {
+    ['owner' => $alice] = browserTeamWithChannel();
+
+    $page = signInThroughBrowser($alice)
+        ->click('@sidebar-menu-button')
+        ->assertPresent('@settings-menu-item')
+        ->wait(0.5)
+        // The menu hides the shell from assistive tech, so the skip link has to
+        // leave the tab order with it rather than stay focusable inside an
+        // `aria-hidden` region (#730).
+        ->assertScript(
+            'document.querySelector(\'a[data-test="skip-to-content"]\').closest("[inert]") !== null',
+        );
+
+    $page->keys('[data-test="settings-menu-item"]', 'Escape')
+        ->wait(0.5)
+        ->assertNotPresent('@settings-menu-item')
+        // Closing restores both halves: the skip link is reachable again, and
+        // focus lands back on the trigger it left from.
+        ->assertScript(
+            'document.querySelector(\'a[data-test="skip-to-content"]\').closest("[inert]") === null',
+        )
+        ->assertScript(
+            'document.activeElement?.getAttribute("data-test")',
+            'sidebar-menu-button',
+        );
+});
+
 test('the sidebar wraps channel navigation in a landmark with an accessible name', function (): void {
     ['owner' => $alice] = browserTeamWithChannel();
 
