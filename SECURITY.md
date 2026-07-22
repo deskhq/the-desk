@@ -24,9 +24,9 @@ risk.
 Report vulnerabilities privately through GitHub's **private vulnerability
 reporting**:
 
-1. Open the repository's [**Security** tab](https://github.com/emmpaul/the-desk/security).
+1. Open the repository's [**Security** tab](https://github.com/deskhq/the-desk/security).
 2. Click **Report a vulnerability**, or use the direct link:
-   [github.com/emmpaul/the-desk/security/advisories/new](https://github.com/emmpaul/the-desk/security/advisories/new).
+   [github.com/deskhq/the-desk/security/advisories/new](https://github.com/deskhq/the-desk/security/advisories/new).
 3. Describe the issue with enough detail to reproduce it: affected version, a
    proof of concept or steps, and the impact you observed.
 
@@ -65,7 +65,7 @@ Out of scope:
 - Findings that require a misconfigured, out-of-date, or otherwise non-default
   deployment (for example, running with `APP_DEBUG=true` in production, or exposing
   internal services without a reverse proxy). See the
-  [self-hosting docs](https://the-desk.emmanuelpaul.com/docs/self-hosting/installation/)
+  [self-hosting docs](https://docs.thedeskhq.app/self-hosting/installation/)
   for the recommended setup.
 - Social engineering, physical attacks, and denial-of-service testing against any
   hosted instance you do not own.

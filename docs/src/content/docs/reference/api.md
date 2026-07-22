@@ -5,14 +5,14 @@ description: Authenticate a bot or personal access token, understand the scope v
 
 The Desk exposes a small, versioned **REST API** so external systems can read and
 post into a workspace. It is part of the [integrations
-platform](/docs/reference/feature-toggles/#integrations-platform) and shares its
+platform](/reference/feature-toggles/#integrations-platform) and shares its
 `INTEGRATIONS_ENABLED` master switch — with the platform off, every route below
 returns **404**.
 
 This page is the narrative introduction. The full operation-by-operation
 contract — request bodies, response schemas, and the exact scope each endpoint
 requires — lives in the generated
-**[API reference](/docs/api-reference/)**.
+**[API reference](/api-reference/)**.
 
 ## Base URL and versioning
 
@@ -27,7 +27,7 @@ at it to get a typed client in your language, or import it into Postman or
 Insomnia:
 
 ```bash
-curl -O https://the-desk.emmanuelpaul.com/openapi.yaml
+curl -O https://docs.thedeskhq.app/openapi.yaml
 ```
 
 The document is kept in lockstep with the running code by a test that diffs
@@ -45,7 +45,7 @@ curl https://desk.example.com/api/v1/channels \
 
 A token is one of two kinds, both minted from **Team settings → Integrations**:
 
-- A **bot token** acts as a [bot](/docs/reference/feature-toggles/#integrations-platform)
+- A **bot token** acts as a [bot](/reference/feature-toggles/#integrations-platform)
   — a non-human workspace member. The bot posts as itself and can only act in
   channels it belongs to.
 - A **personal access token** acts as the human who created it, with their own
@@ -74,7 +74,7 @@ Every endpoint requires exactly one scope; a token missing it gets a `403`.
 
 ## Endpoints
 
-Each one is documented in full in the [API reference](/docs/api-reference/).
+Each one is documented in full in the [API reference](/api-reference/).
 
 | Method & path                                        | Scope             |
 | ---------------------------------------------------- | ----------------- |
@@ -107,12 +107,12 @@ curl -X POST https://desk.example.com/api/v1/channels/$CHANNEL/messages \
 ```
 
 Managing outgoing-webhook subscriptions over the API is documented under
-[Outgoing webhooks](/docs/reference/webhooks/).
+[Outgoing webhooks](/reference/webhooks/).
 
 ## Rate limiting
 
 Requests are throttled **per token** at
-[`INTEGRATIONS_API_RATE_LIMIT`](/docs/reference/feature-toggles/#integrations-platform)
+[`INTEGRATIONS_API_RATE_LIMIT`](/reference/feature-toggles/#integrations-platform)
 requests per minute. Exceeding it returns **429** with a `Retry-After` header.
 
 ## Errors

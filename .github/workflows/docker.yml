@@ -220,7 +220,7 @@ jobs:
           fi
 
           # shellcheck disable=SC2016  # printf format is intentionally literal; values are the %s args.
-          note="$(printf '\n\n%s\n\n---\n\n%s\n\n### 📦 Docker image\n\nThis release is published to the GitHub Container Registry:\n\n```\n%s\n```\n\nPull it directly or browse the [package page](%s). See the [upgrade guide](https://the-desk.emmanuelpaul.com/docs/self-hosting/upgrading/) for self-hosting steps.\n' "$marker" "$heading" "$image" "$package_url")"
+          note="$(printf '\n\n%s\n\n---\n\n%s\n\n### 📦 Docker image\n\nThis release is published to the GitHub Container Registry:\n\n```\n%s\n```\n\nPull it directly or browse the [package page](%s). See the [upgrade guide](https://docs.thedeskhq.app/self-hosting/upgrading/) for self-hosting steps.\n' "$marker" "$heading" "$image" "$package_url")"
 
           gh release edit "$TAG" --repo "$REPO" --notes "${body}${note}"
           echo "Linked $image on release $TAG."

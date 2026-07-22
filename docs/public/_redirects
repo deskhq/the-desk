@@ -1,0 +1,5 @@
+# The docs used to live under a /docs path prefix on a shared origin. They now
+# sit at the root of docs.thedeskhq.app, so every old deep link is one level
+# deeper than its new home. Cloudflare Pages serves this file; the splat keeps
+# anchors and query strings intact.
+/docs/* /:splat 301

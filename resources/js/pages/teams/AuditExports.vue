@@ -60,7 +60,7 @@ const { timezone } = useTimezone();
 // Operator docs page covering the export capability and the security-log
 // scoping caveat surfaced in the footnote's "Learn more" link.
 const DOCS_URL =
-    'https://the-desk.emmanuelpaul.com/docs/reference/security-and-compliance/#audit-log-exports';
+    'https://docs.thedeskhq.app/reference/security-and-compliance/#audit-log-exports';
 
 const selectedLogType = ref(props.logTypeOptions[0]?.value ?? 'audit');
 const selectedFormat = ref(props.formatOptions[0]?.value ?? 'csv');

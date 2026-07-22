@@ -438,7 +438,7 @@ function renderReleaseNote(string $tag, bool $isCandidate): string
             'PATH' => $sandbox.'/bin:'.getenv('PATH'),
             'SANDBOX' => $sandbox,
             'TAG' => $tag,
-            'REPO' => 'emmpaul/the-desk',
+            'REPO' => 'deskhq/the-desk',
             'GH_TOKEN' => 'stub',
             'IS_CANDIDATE' => $isCandidate ? 'true' : 'false',
         ],
@@ -455,7 +455,7 @@ test('a candidate release note warns before it invites a pull', function (): voi
         ->toContain('🚧 Release candidate')
         ->toContain('published for testing ahead of 1.12.0')
         ->toContain('not supported for production')
-        ->toContain('ghcr.io/emmpaul/the-desk:1.12.0-rc.3');
+        ->toContain('ghcr.io/deskhq/the-desk:1.12.0-rc.3');
 });
 
 test('the candidate warning is a section of its own, not glued to the next one', function (): void {
@@ -467,7 +467,7 @@ test('a stable release note carries no candidate warning', function (): void {
     $body = renderReleaseNote('v1.12.0', isCandidate: false);
 
     expect($body)->not->toContain('Release candidate')
-        ->and($body)->toContain('ghcr.io/emmpaul/the-desk:1.12.0')
+        ->and($body)->toContain('ghcr.io/deskhq/the-desk:1.12.0')
         ->and($body)->toContain('### 📦 Docker image');
 });
 
@@ -551,7 +551,7 @@ function developSandbox(string $baseline): array
 /**
  * The URL `gh pr create` prints for a pull request it has just opened.
  */
-const CREATED_PULL_REQUEST = 'https://github.com/emmpaul/the-desk/pull/99';
+const CREATED_PULL_REQUEST = 'https://github.com/deskhq/the-desk/pull/99';
 
 /**
  * A `gh` stub that records every call and answers the reads the release workflow
@@ -640,7 +640,7 @@ function runBaselineSync(string $clone, string $version, string $sandbox): Proce
         $clone,
         env: [
             'PATH' => $sandbox.'/bin:'.getenv('PATH'),
-            'REPO' => 'emmpaul/the-desk',
+            'REPO' => 'deskhq/the-desk',
             'GH_TOKEN' => 'stub',
             'VERSION' => $version,
             // The wait for the back-merge is measured in half-hours on a runner;
@@ -700,7 +700,7 @@ function checkDevelopExists(?array $branches): array
         ['bash', '-c', $script],
         env: [
             'PATH' => $sandbox.'/bin:'.getenv('PATH'),
-            'REPO' => 'emmpaul/the-desk',
+            'REPO' => 'deskhq/the-desk',
             'GH_TOKEN' => 'stub',
             'GITHUB_OUTPUT' => $output,
         ],
@@ -922,7 +922,7 @@ function runBackmerge(?array $branches, int $ahead = 1, string $existing = '', b
         ['bash', '-c', backmergeScript()],
         env: [
             'PATH' => $sandbox.'/bin:'.getenv('PATH'),
-            'REPO' => 'emmpaul/the-desk',
+            'REPO' => 'deskhq/the-desk',
             'GH_TOKEN' => 'stub',
             'VERSION' => '1.12.1',
         ],
@@ -1152,7 +1152,7 @@ test('an integration pull request that cannot be queued is left open', function 
         ['bash', '-c', integrationMergeScript()],
         env: [
             'PATH' => $sandbox.'/bin:'.getenv('PATH'),
-            'REPO' => 'emmpaul/the-desk',
+            'REPO' => 'deskhq/the-desk',
             'GH_TOKEN' => 'stub',
             'NUMBER' => '42',
         ],
@@ -1245,7 +1245,7 @@ function runCandidateGuard(?string $proposed, string $baseline = '1.12.2', strin
         ['bash', '-c', candidateGuardScript()],
         env: [
             'PATH' => $sandbox.'/bin:'.getenv('PATH'),
-            'REPO' => 'emmpaul/the-desk',
+            'REPO' => 'deskhq/the-desk',
             'GH_TOKEN' => 'stub',
         ],
     );

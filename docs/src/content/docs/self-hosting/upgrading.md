@@ -9,6 +9,27 @@ verifies the instance is actually running it. There is no git checkout — the
 compose file pins the image to `APP_VERSION` — so a production box needs no
 repository at all. (Build-from-source is the exception; it still uses the tree.)
 
+## The image moved to the `deskhq` namespace
+
+The image is now published to `ghcr.io/deskhq/the-desk`, following the project's
+move to the [`deskhq`](https://github.com/deskhq) organisation. Every release from
+that move onward lands there, and the banner at the top of this site names the
+latest released version. The old `ghcr.io/emmpaul/the-desk` package is no longer
+updated. It is left published, so
+an instance pinned to it keeps running and keeps resolving the versions it
+already has, but it will never receive another release.
+
+If your `.env` sets `APP_IMAGE` explicitly, point it at the new namespace before
+your next upgrade:
+
+```bash
+APP_IMAGE=ghcr.io/deskhq/the-desk
+```
+
+Instances that never set `APP_IMAGE` need no action: the compose file already
+tracks the new path. The repository URL moved too, but GitHub redirects the old
+one, so existing clones and `UPDATE_CHECK_REPOSITORY` settings keep working.
+
 ## These docs track the in-development version
 
 This site is published from `master` on every change, so it always describes the
@@ -20,7 +41,7 @@ by the release automation on each `v*` tag, while `master` only moves the rollin
 That means a feature can be documented here before it appears in any released
 image. The site-wide banner names the **latest released version**; anything
 documented but not yet in that release is coming in a future one. Check the
-[CHANGELOG](https://github.com/emmpaul/the-desk/blob/master/CHANGELOG.md) to
+[CHANGELOG](https://github.com/deskhq/the-desk/blob/master/CHANGELOG.md) to
 confirm which release a given feature shipped in, and keep `APP_VERSION` on a
 released version rather than overriding `APP_IMAGE` to `edge` for a stable deployment.
 
@@ -51,14 +72,14 @@ To try one, point `--target` at the candidate version:
 ```
 
 Candidates are listed on the [releases
-page](https://github.com/emmpaul/the-desk/releases) marked **Pre-release**, and
+page](https://github.com/deskhq/the-desk/releases) marked **Pre-release**, and
 each one's notes carry the exact `ghcr.io` pull reference. There is also a moving
 `rc` image tag that always points at the newest candidate — useful for a
 throwaway test instance, and a bad idea anywhere else, since it changes under you
 without warning:
 
 ```bash
-APP_IMAGE=ghcr.io/emmpaul/the-desk:rc
+APP_IMAGE=ghcr.io/deskhq/the-desk:rc
 ```
 
 If you are testing a candidate, do it on a copy: restore a backup into a separate
@@ -145,7 +166,7 @@ on usage errors, so it also scripts cleanly.
 :::caution[Content Security Policy]
 A setting that defaults to *on* takes effect at the upgrade whether or not you
 adopt the new key, because the app falls back to its built-in default. The
-[Content Security Policy](/docs/reference/security/#content-security-policy) is
+[Content Security Policy](/reference/security/#content-security-policy) is
 one such setting: from the release that introduces it, every page is served with
 an enforcing policy.
 
@@ -315,13 +336,13 @@ docker compose up -d
 ```
 
 If you override `APP_IMAGE` in `.env`, point it at the new tag first (e.g.
-`APP_IMAGE=ghcr.io/emmpaul/the-desk:<tag>`) before restarting — it takes
+`APP_IMAGE=ghcr.io/deskhq/the-desk:<tag>`) before restarting — it takes
 precedence over `APP_VERSION`.
 
 :::note
 These commands need no `-f docker-compose.prod.yml` because `.env` sets
 `COMPOSE_FILE`. See
-[the COMPOSE_FILE variable](/docs/self-hosting/installation/#the-compose_file-variable).
+[the COMPOSE_FILE variable](/self-hosting/installation/#the-compose_file-variable).
 If your `.env` predates that variable, keep passing the flag as before, or add
 `COMPOSE_FILE=docker-compose.prod.yml` to your `.env` to drop it.
 :::
@@ -340,7 +361,7 @@ docker compose up -d --build
 ```
 
 This assumes your `.env` lists both files, as the
-[build-from-source install](/docs/self-hosting/installation/#build-from-source)
+[build-from-source install](/self-hosting/installation/#build-from-source)
 sets up:
 
 ```
@@ -401,7 +422,7 @@ docker volume rm the-desk-meili-<old-version>
 :::caution
 **Major version upgrades may contain breaking changes.** Before upgrading across
 a major version, read the
-[CHANGELOG](https://github.com/emmpaul/the-desk/blob/master/CHANGELOG.md) and the
-corresponding [GitHub Release notes](https://github.com/emmpaul/the-desk/releases)
+[CHANGELOG](https://github.com/deskhq/the-desk/blob/master/CHANGELOG.md) and the
+corresponding [GitHub Release notes](https://github.com/deskhq/the-desk/releases)
 for any required manual steps.
 :::

@@ -5,7 +5,7 @@ description: Reference for the .env variables that matter when self-hosting The 
 
 Every setting is read from `.env` at **runtime**. This reference covers the
 variables that matter when self-hosting. On/off feature switches have their own
-page: [Feature toggles](/docs/reference/feature-toggles/).
+page: [Feature toggles](/reference/feature-toggles/).
 
 :::note
 Run `./docker/gen-secrets.sh` to generate the required secrets — it fills
@@ -22,7 +22,7 @@ by the app:
 | -------------- | ------------------------- | --------------------------------------------------------------------- |
 | `COMPOSE_FILE` | `docker-compose.prod.yml` | Which compose file(s) a bare `docker compose` resolves. This is the value `.env.prod.example` ships, not a Compose default: with it **unset**, a bare `docker compose` picks up `compose.yaml`, the development stack. Setting it is why no command on this site passes `-f docker-compose.prod.yml`. Building from source? List both files separated by a colon: `docker-compose.prod.yml:docker-compose.build.yml`. |
 
-See [the COMPOSE_FILE variable](/docs/self-hosting/installation/#the-compose_file-variable)
+See [the COMPOSE_FILE variable](/self-hosting/installation/#the-compose_file-variable)
 for the caveat about a bare `docker compose down`, and for what to do if your
 `.env` predates this variable.
 
@@ -44,7 +44,7 @@ The stack **refuses to start** without these (no defaults):
 | `APP_NAME` | `The Desk`     | Shown in the UI and emails. Served at runtime.    |
 | `APP_PORT` | `8000`         | Host port the web app is published on (bound to `APP_BIND`). |
 | `APP_BIND` | `127.0.0.1`    | Address the published app/reverb ports bind to. `0.0.0.0` exposes the raw HTTP origin off-box. |
-| `APP_VERSION` | — **(required)** | The release to run. The compose file pins the image to `ghcr.io/emmpaul/the-desk:$APP_VERSION`, so upgrading is an `APP_VERSION` bump plus `docker compose pull && docker compose up -d` — no git checkout. It has no default: `up -d` fails fast with a clear message if it is unset. |
+| `APP_VERSION` | — **(required)** | The release to run. The compose file pins the image to `ghcr.io/deskhq/the-desk:$APP_VERSION`, so upgrading is an `APP_VERSION` bump plus `docker compose pull && docker compose up -d` — no git checkout. It has no default: `up -d` fails fast with a clear message if it is unset. |
 | `APP_IMAGE`| *(uses `APP_VERSION`)* | Full image override. Set it to run a tag on another registry (a fork, an air-gapped mirror) or a floating tag like `edge`. When set it wins completely and `APP_VERSION` is ignored. |
 
 ## Database
@@ -72,7 +72,7 @@ The stack **refuses to start** without these (no defaults):
 | Variable                   | Default  | Notes                                                    |
 | -------------------------- | -------- | -------------------------------------------------------- |
 | `MEILISEARCH_KEY`          | —        | Required secret (master key).                            |
-| `MEILISEARCH_VERSION`      | `v1.49`  | Pins the image tag **and** the version-scoped data volume. See [Upgrading](/docs/self-hosting/upgrading/#search-reindexing). |
+| `MEILISEARCH_VERSION`      | `v1.49`  | Pins the image tag **and** the version-scoped data volume. See [Upgrading](/self-hosting/upgrading/#search-reindexing). |
 | `MEILISEARCH_NO_ANALYTICS` | `true`   | Disable Meilisearch usage analytics.                     |
 
 ## Reverb — server-facing (container)
@@ -91,7 +91,7 @@ How the containers reach Reverb. Defaults are correct for the bundled stack.
 ## Reverb — browser-facing (public)
 
 How the **browser** reaches Reverb through your TLS proxy. Set these for
-production — see [Configuration](/docs/self-hosting/configuration/#reverb-websockets--mind-the-browser-vs-server-split).
+production — see [Configuration](/self-hosting/configuration/#reverb-websockets--mind-the-browser-vs-server-split).
 
 | Variable               | Set to        | Notes                                             |
 | ---------------------- | ------------- | ------------------------------------------------- |
@@ -104,30 +104,30 @@ production — see [Configuration](/docs/self-hosting/configuration/#reverb-webs
 
 | Variable                     | Default | See                                            |
 | ---------------------------- | ------- | ---------------------------------------------- |
-| `REGISTRATION_ENABLED`       | `true`  | [Feature toggles → Open registration](/docs/reference/feature-toggles/#open-registration) |
-| `EMAIL_VERIFICATION_ENABLED` | `false` | [Feature toggles → Email verification](/docs/reference/feature-toggles/#email-verification) |
-| `TWO_FACTOR_AUTH_ENABLED`    | `false` | [Feature toggles → Two-factor authentication](/docs/reference/feature-toggles/#two-factor-authentication) |
-| `PASSKEYS_ENABLED`           | `false` | [Feature toggles → Passkeys](/docs/reference/feature-toggles/#passkeys) |
-| `GRAVATAR_ENABLED`           | `true`  | [Feature toggles → Gravatar avatars](/docs/reference/feature-toggles/#gravatar-avatars) |
-| `ACTIVITYLOG_ENABLED`        | `true`  | [Feature toggles → Activity logging](/docs/reference/feature-toggles/#activity-logging) |
-| `REVERB_SCALING_ENABLED`     | `false` | [Feature toggles → Advanced Reverb](/docs/reference/feature-toggles/#advanced-reverb-options) |
-| `AUTH_SSO_ONLY`              | `false` | [Feature toggles → SSO-only mode](/docs/reference/feature-toggles/#sso-only-mode) |
-| `UPDATE_CHECK_ENABLED`       | `true`  | [Feature toggles → Update checks](/docs/reference/feature-toggles/#update-checks) |
-| `POLLS_ENABLED`              | `true`  | [Feature toggles → Polls](/docs/reference/feature-toggles/#polls) |
-| `INTEGRATIONS_ENABLED`       | `true`  | [Feature toggles → Integrations platform](/docs/reference/feature-toggles/#integrations-platform) |
-| `INTEGRATIONS_API_RATE_LIMIT`| `60`    | [Feature toggles → Integrations platform](/docs/reference/feature-toggles/#integrations-platform) |
-| `WEBHOOKS_MAX_ATTEMPTS`      | `5`     | [Feature toggles → Integrations platform](/docs/reference/feature-toggles/#outgoing-webhooks) |
-| `WEBHOOKS_TIMEOUT`           | `5`     | [Feature toggles → Integrations platform](/docs/reference/feature-toggles/#outgoing-webhooks) |
-| `WEBHOOKS_DISABLE_AFTER`     | `5`     | [Feature toggles → Integrations platform](/docs/reference/feature-toggles/#outgoing-webhooks) |
-| `WEBHOOKS_BLOCK_PRIVATE_URLS`| `true`  | [Feature toggles → Integrations platform](/docs/reference/feature-toggles/#outgoing-webhooks) |
-| `DEMO_MODE`                  | `false` | [Feature toggles → Demo mode](/docs/reference/feature-toggles/#demo-mode) |
-| `CSP_ENABLED`                | `true`  | [Feature toggles → Content Security Policy](/docs/reference/feature-toggles/#content-security-policy) |
-| `CSP_REPORT_ONLY`            | `false` | [Feature toggles → Content Security Policy](/docs/reference/feature-toggles/#content-security-policy) |
-| `CSP_FRAME_ANCESTORS`        | `none`  | [Feature toggles → Clickjacking protection](/docs/reference/feature-toggles/#clickjacking-protection) |
-| `HSTS_ENABLED`               | `true`  | [Feature toggles → HTTPS enforcement (HSTS)](/docs/reference/feature-toggles/#https-enforcement-hsts) |
-| `HSTS_MAX_AGE`               | `31536000` | [Feature toggles → HTTPS enforcement (HSTS)](/docs/reference/feature-toggles/#https-enforcement-hsts) |
-| `HSTS_INCLUDE_SUBDOMAINS`    | `true`  | [Feature toggles → HTTPS enforcement (HSTS)](/docs/reference/feature-toggles/#https-enforcement-hsts) |
-| `HSTS_PRELOAD`               | `false` | [Feature toggles → HTTPS enforcement (HSTS)](/docs/reference/feature-toggles/#https-enforcement-hsts) |
+| `REGISTRATION_ENABLED`       | `true`  | [Feature toggles → Open registration](/reference/feature-toggles/#open-registration) |
+| `EMAIL_VERIFICATION_ENABLED` | `false` | [Feature toggles → Email verification](/reference/feature-toggles/#email-verification) |
+| `TWO_FACTOR_AUTH_ENABLED`    | `false` | [Feature toggles → Two-factor authentication](/reference/feature-toggles/#two-factor-authentication) |
+| `PASSKEYS_ENABLED`           | `false` | [Feature toggles → Passkeys](/reference/feature-toggles/#passkeys) |
+| `GRAVATAR_ENABLED`           | `true`  | [Feature toggles → Gravatar avatars](/reference/feature-toggles/#gravatar-avatars) |
+| `ACTIVITYLOG_ENABLED`        | `true`  | [Feature toggles → Activity logging](/reference/feature-toggles/#activity-logging) |
+| `REVERB_SCALING_ENABLED`     | `false` | [Feature toggles → Advanced Reverb](/reference/feature-toggles/#advanced-reverb-options) |
+| `AUTH_SSO_ONLY`              | `false` | [Feature toggles → SSO-only mode](/reference/feature-toggles/#sso-only-mode) |
+| `UPDATE_CHECK_ENABLED`       | `true`  | [Feature toggles → Update checks](/reference/feature-toggles/#update-checks) |
+| `POLLS_ENABLED`              | `true`  | [Feature toggles → Polls](/reference/feature-toggles/#polls) |
+| `INTEGRATIONS_ENABLED`       | `true`  | [Feature toggles → Integrations platform](/reference/feature-toggles/#integrations-platform) |
+| `INTEGRATIONS_API_RATE_LIMIT`| `60`    | [Feature toggles → Integrations platform](/reference/feature-toggles/#integrations-platform) |
+| `WEBHOOKS_MAX_ATTEMPTS`      | `5`     | [Feature toggles → Integrations platform](/reference/feature-toggles/#outgoing-webhooks) |
+| `WEBHOOKS_TIMEOUT`           | `5`     | [Feature toggles → Integrations platform](/reference/feature-toggles/#outgoing-webhooks) |
+| `WEBHOOKS_DISABLE_AFTER`     | `5`     | [Feature toggles → Integrations platform](/reference/feature-toggles/#outgoing-webhooks) |
+| `WEBHOOKS_BLOCK_PRIVATE_URLS`| `true`  | [Feature toggles → Integrations platform](/reference/feature-toggles/#outgoing-webhooks) |
+| `DEMO_MODE`                  | `false` | [Feature toggles → Demo mode](/reference/feature-toggles/#demo-mode) |
+| `CSP_ENABLED`                | `true`  | [Feature toggles → Content Security Policy](/reference/feature-toggles/#content-security-policy) |
+| `CSP_REPORT_ONLY`            | `false` | [Feature toggles → Content Security Policy](/reference/feature-toggles/#content-security-policy) |
+| `CSP_FRAME_ANCESTORS`        | `none`  | [Feature toggles → Clickjacking protection](/reference/feature-toggles/#clickjacking-protection) |
+| `HSTS_ENABLED`               | `true`  | [Feature toggles → HTTPS enforcement (HSTS)](/reference/feature-toggles/#https-enforcement-hsts) |
+| `HSTS_MAX_AGE`               | `31536000` | [Feature toggles → HTTPS enforcement (HSTS)](/reference/feature-toggles/#https-enforcement-hsts) |
+| `HSTS_INCLUDE_SUBDOMAINS`    | `true`  | [Feature toggles → HTTPS enforcement (HSTS)](/reference/feature-toggles/#https-enforcement-hsts) |
+| `HSTS_PRELOAD`               | `false` | [Feature toggles → HTTPS enforcement (HSTS)](/reference/feature-toggles/#https-enforcement-hsts) |
 
 ## Content Security Policy
 
@@ -135,7 +135,7 @@ Comma-separated origins **appended** to the shipped policy, for a script,
 stylesheet, image host, API, embedded frame or font provider of your own. They
 are additive only: none of them can remove the script nonce or
 `'strict-dynamic'`. See
-[Feature toggles → Content Security Policy](/docs/reference/feature-toggles/#content-security-policy).
+[Feature toggles → Content Security Policy](/reference/feature-toggles/#content-security-policy).
 
 | Variable                | Default | Adds to       |
 | ----------------------- | ------- | ------------- |
@@ -165,7 +165,7 @@ app may load:
 
 | Variable               | Default | Effect                                                                 |
 | ---------------------- | ------- | ---------------------------------------------------------------------- |
-| `CSP_FRAME_ANCESTORS`  | `none`  | Sends `frame-ancestors` and `X-Frame-Options`. See [Feature toggles → Clickjacking protection](/docs/reference/feature-toggles/#clickjacking-protection). |
+| `CSP_FRAME_ANCESTORS`  | `none`  | Sends `frame-ancestors` and `X-Frame-Options`. See [Feature toggles → Clickjacking protection](/reference/feature-toggles/#clickjacking-protection). |
 
 ## Session cookies
 
@@ -203,7 +203,7 @@ email, otherwise created — into the default team as a **Member**. Leave
 | `SSO_OIDC_VALIDATE_ID_TOKEN` | `true`                       | When the provider returns an `id_token`, verify its signature (via the provider JWKS), issuer, audience, and expiry, and require its subject to match the UserInfo subject. Defence-in-depth; set `false` only for a non-conformant provider whose `id_token` cannot be validated. |
 | `SSO_OIDC_REQUIRE_VERIFIED_EMAIL` | `false`                 | A login whose UserInfo reports `email_verified: false` is **always** rejected — never linked to an existing account nor provisioned. Set `true` to also reject logins whose UserInfo **omits** the claim entirely (fail-closed). Off by default because many conformant IdPs never send the claim. |
 | `SSO_DEFAULT_TEAM_ID`    | *(sole team)*                    | Team new SSO users join as a Member. Blank uses the sole team when there is exactly one; otherwise the account gets its own workspace. Shared with LDAP. |
-| `AUTH_SSO_ONLY`          | `false`                          | Route **all** access through SSO (OIDC or LDAP). See [SSO-only mode](/docs/reference/feature-toggles/#sso-only-mode). |
+| `AUTH_SSO_ONLY`          | `false`                          | Route **all** access through SSO (OIDC or LDAP). See [SSO-only mode](/reference/feature-toggles/#sso-only-mode). |
 
 ## Single sign-on (LDAP / Active Directory)
 
@@ -294,7 +294,7 @@ whole request body, not just the file):
 - any reverse-proxy body-size limit in front of the app (for nginx, `client_max_body_size`).
 
 If these are lower than `ATTACHMENT_MAX_SIZE_MB`, large uploads are rejected by the server or proxy
-before the app ever sees them. See [Reverse proxy](/docs/self-hosting/reverse-proxy/).
+before the app ever sees them. See [Reverse proxy](/self-hosting/reverse-proxy/).
 :::
 
 ## GIFs (Giphy)
@@ -309,7 +309,7 @@ registered) return **404**.
 | `GIPHY_API_KEY`        | *(blank)* | A Giphy API key (free from developers.giphy.com). Blank hides the feature entirely.       |
 | `GIPHY_CONTENT_RATING` | `g`       | Strictest rating Giphy may return: `g`, `pg`, `pg-13`, or `r`. `g` is workplace-safe.     |
 
-See [Feature toggles → GIF picker](/docs/reference/feature-toggles/#gif-picker-giphy) for how the
+See [Feature toggles → GIF picker](/reference/feature-toggles/#gif-picker-giphy) for how the
 feature behaves once enabled.
 
 :::note[GIFs are hotlinked from Giphy's CDN]

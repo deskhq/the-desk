@@ -12,16 +12,16 @@ codebase.
 Please do not open a public issue for a security problem. Report it privately
 through GitHub's **private vulnerability reporting** instead:
 
-1. Open the [**Security** tab](https://github.com/emmpaul/the-desk/security) on the
+1. Open the [**Security** tab](https://github.com/deskhq/the-desk/security) on the
    repository.
 2. Click **Report a vulnerability**, or go straight to
-   [the advisory form](https://github.com/emmpaul/the-desk/security/advisories/new).
+   [the advisory form](https://github.com/deskhq/the-desk/security/advisories/new).
 3. Include the affected version, steps to reproduce, and the impact you observed.
 
 The report stays private between you and the maintainers until a fix is released.
 The full policy, including the response timeline, coordinated-disclosure
 expectations, and scope, lives in
-[SECURITY.md](https://github.com/emmpaul/the-desk/blob/master/SECURITY.md).
+[SECURITY.md](https://github.com/deskhq/the-desk/blob/master/SECURITY.md).
 
 ## Automated scanning
 
@@ -58,8 +58,8 @@ itself to a scheme it cannot answer on. Session cookies pick up the matching
 downgraded request carries no session at all.
 
 Both are configurable:
-[HTTPS enforcement (HSTS)](/docs/reference/feature-toggles/#https-enforcement-hsts)
-and [`SESSION_SECURE_COOKIE`](/docs/reference/environment-variables/#session-cookies).
+[HTTPS enforcement (HSTS)](/reference/feature-toggles/#https-enforcement-hsts)
+and [`SESSION_SECURE_COOKIE`](/reference/environment-variables/#session-cookies).
 `preload` is opt-in and off by default: it is effectively irreversible for a
 domain and commits every subdomain with it.
 
@@ -74,7 +74,7 @@ names.
 
 It is **on by default** and ships in the image, so every deployment inherits it
 without extra proxy configuration. See
-[Feature toggles → Content Security Policy](/docs/reference/feature-toggles/#content-security-policy)
+[Feature toggles → Content Security Policy](/reference/feature-toggles/#content-security-policy)
 for the switches.
 
 The policy sent is:
@@ -116,7 +116,7 @@ frame of your instance on their own page and steering a signed-in member's
 clicks into real controls. It is paired with `X-Frame-Options: DENY` for
 browsers that do not support CSP Level 2 `frame-ancestors`, and both are
 configurable through
-[`CSP_FRAME_ANCESTORS`](/docs/reference/feature-toggles/#clickjacking-protection)
+[`CSP_FRAME_ANCESTORS`](/reference/feature-toggles/#clickjacking-protection)
 if you embed the app in a portal of your own.
 
 `img-src` allows no remote host, which is only possible because the app never
@@ -146,7 +146,7 @@ Instead the server fetches each one and re-serves it from your own origin, under
 a signed, session-authenticated URL. The signature pins the target to a URL the
 server itself generated, so the endpoint cannot be used as an open proxy; the
 fetch goes through the same SSRF guard as outgoing webhooks (see
-[`WEBHOOKS_BLOCK_PRIVATE_URLS`](/docs/reference/environment-variables/)), with a
+[`WEBHOOKS_BLOCK_PRIVATE_URLS`](/reference/environment-variables/)), with a
 5-second timeout, a 5 MB cap, redirects re-checked hop by hop, and a
 raster-images-only content-type allowlist that excludes SVG. Fetched bytes are
 cached on the private disk for seven days and swept daily.
@@ -199,7 +199,7 @@ page with nothing to configure. The two the server sets are `Secure` only when
 `SESSION_SECURE_COOKIE=true`, which is **not** inferred from the request: set it
 explicitly in any production deployment, or your session cookie will keep being
 sent over plain HTTP. See
-[reverse proxy & TLS](/docs/self-hosting/reverse-proxy/).
+[reverse proxy & TLS](/self-hosting/reverse-proxy/).
 
 The session cookie name follows `APP_NAME`, so it reads `the-desk-session` on a
 default install and something else if you renamed the app.
@@ -232,7 +232,7 @@ list stays those two.
 ## Hardening your deployment
 
 Most security outcomes for a self-hosted instance depend on how you run it. Follow
-the [installation](/docs/self-hosting/installation/) and
-[reverse proxy & TLS](/docs/self-hosting/reverse-proxy/) guides, keep
+the [installation](/self-hosting/installation/) and
+[reverse proxy & TLS](/self-hosting/reverse-proxy/) guides, keep
 `APP_DEBUG=false` in production, and stay on the
-[latest release](/docs/self-hosting/upgrading/) so you receive security fixes.
+[latest release](/self-hosting/upgrading/) so you receive security fixes.

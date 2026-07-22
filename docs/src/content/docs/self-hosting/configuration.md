@@ -6,11 +6,11 @@ description: Configure your instance through .env — app URL, mail, and the bro
 Every setting is read from `.env` at **runtime**, so changing a value and
 restarting the affected containers applies it — no rebuild is needed. This page
 covers the settings you must set by hand after running `./docker/gen-secrets.sh`
-(which handles the [required secrets](/docs/self-hosting/installation/#required-secrets)).
+(which handles the [required secrets](/self-hosting/installation/#required-secrets)).
 
 For the full list of variables, see the
-[Environment variables reference](/docs/reference/environment-variables/). For
-on/off feature switches, see [Feature toggles](/docs/reference/feature-toggles/).
+[Environment variables reference](/reference/environment-variables/). For
+on/off feature switches, see [Feature toggles](/reference/feature-toggles/).
 
 ## Application
 
@@ -27,7 +27,7 @@ runtime, which is why one published image works for any host.
 ## Mail (SMTP)
 
 The Desk sends workspace invitations (and email verification, if you
-[enable it](/docs/reference/feature-toggles/#email-verification)), so SMTP must work.
+[enable it](/reference/feature-toggles/#email-verification)), so SMTP must work.
 Set the `MAIL_*` variables to your provider's credentials:
 
 ```dotenv
@@ -63,14 +63,14 @@ These are read at runtime, so a restart applies changes — no rebuild.
 :::caution
 Your reverse proxy **must forward WebSocket upgrade requests** to the `reverb`
 service, or real-time features silently stop working. See
-[Reverse proxy & TLS](/docs/self-hosting/reverse-proxy/).
+[Reverse proxy & TLS](/self-hosting/reverse-proxy/).
 :::
 
 ## Search (Meilisearch)
 
 `MEILISEARCH_KEY` is a required secret (generated for you). `MEILISEARCH_VERSION`
 pins both the image tag and the version-scoped data volume — see
-[Upgrading](/docs/self-hosting/upgrading/#search-reindexing) for why that matters.
+[Upgrading](/self-hosting/upgrading/#search-reindexing) for why that matters.
 
 ## Single sign-on (OpenID Connect)
 
@@ -88,8 +88,8 @@ A "Sign in with SSO" button appears on the login page. The first login
 just-in-time provisions the account into the default team as a Member (matched to
 an existing user by verified email). For the full list of options — default team,
 scopes, and routing **all** access through the directory with `AUTH_SSO_ONLY` —
-see [Environment variables → Single sign-on](/docs/reference/environment-variables/#single-sign-on-openid-connect)
-and [Feature toggles → SSO-only mode](/docs/reference/feature-toggles/#sso-only-mode).
+see [Environment variables → Single sign-on](/reference/environment-variables/#single-sign-on-openid-connect)
+and [Feature toggles → SSO-only mode](/reference/feature-toggles/#sso-only-mode).
 
 ## Single sign-on (LDAP / Active Directory)
 
@@ -123,8 +123,8 @@ LDAP_ATTR_NAME=displayname          # attribute used as the app display name
 LDAP_ATTR_GUID=objectguid           # objectguid (AD) or entryuuid (OpenLDAP)
 ```
 
-See [Environment variables → Single sign-on (LDAP)](/docs/reference/environment-variables/#single-sign-on-ldap--active-directory)
-for every attribute mapping, and [Feature toggles → SSO-only mode](/docs/reference/feature-toggles/#sso-only-mode)
+See [Environment variables → Single sign-on (LDAP)](/reference/environment-variables/#single-sign-on-ldap--active-directory)
+for every attribute mapping, and [Feature toggles → SSO-only mode](/reference/feature-toggles/#sso-only-mode)
 to require directory login.
 
 ## Directory provisioning (SCIM 2.0)
@@ -163,7 +163,7 @@ deactivate accounts. Keep it secret, only expose SCIM over HTTPS, and rotate it 
 it leaks. Leaving `SCIM_TOKEN` blank means the endpoint does not exist at all.
 :::
 
-See [Environment variables → Directory provisioning (SCIM 2.0)](/docs/reference/environment-variables/#directory-provisioning-scim-20)
+See [Environment variables → Directory provisioning (SCIM 2.0)](/reference/environment-variables/#directory-provisioning-scim-20)
 for the full reference.
 
 ## Applying changes
@@ -176,8 +176,8 @@ docker compose up -d
 
 The bare `docker compose` needs no `-f docker-compose.prod.yml` because `.env`
 sets `COMPOSE_FILE`. See
-[the COMPOSE_FILE variable](/docs/self-hosting/installation/#the-compose_file-variable).
+[the COMPOSE_FILE variable](/self-hosting/installation/#the-compose_file-variable).
 
 If an edit still seems to have no effect, the running containers are serving a
 boot-time config snapshot; add `--force-recreate` or see
-[Troubleshooting → Changed `.env` but nothing changed](/docs/self-hosting/troubleshooting/#changed-env-but-nothing-changed).
+[Troubleshooting → Changed `.env` but nothing changed](/self-hosting/troubleshooting/#changed-env-but-nothing-changed).

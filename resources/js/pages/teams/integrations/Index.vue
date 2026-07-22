@@ -73,7 +73,7 @@ defineOptions({
     }),
 });
 
-const DOCS_URL = 'https://the-desk.emmanuelpaul.com/docs/reference/api/';
+const DOCS_URL = 'https://docs.thedeskhq.app/reference/api/';
 
 const page = usePage();
 const currentUserId = computed(() => String(page.props.auth.user.id));

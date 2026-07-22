@@ -1,6 +1,6 @@
 ---
 name: release-version-refs
-description: Keep hardcoded release-version strings (APP_VERSION=X.Y.Z in .env, ghcr.io/emmpaul/the-desk:X.Y.Z image pins, git checkout vX.Y.Z, "as of vX.Y.Z" prose) from drifting. release-please only stamps the new version into lines carrying an x-release-please annotation in a file registered under extra-files. Use whenever a change adds or edits a quick-start / install / upgrade step, an image-pin example, an .env example, or any operator-facing sentence that names a released version — before opening the PR.
+description: Keep hardcoded release-version strings (APP_VERSION=X.Y.Z in .env, ghcr.io/deskhq/the-desk:X.Y.Z image pins, git checkout vX.Y.Z, "as of vX.Y.Z" prose) from drifting. release-please only stamps the new version into lines carrying an x-release-please annotation in a file registered under extra-files. Use whenever a change adds or edits a quick-start / install / upgrade step, an image-pin example, an .env example, or any operator-facing sentence that names a released version — before opening the PR.
 ---
 
 Stop hardcoded version strings from silently going stale.
@@ -15,7 +15,7 @@ The canonical stamped location is now **`.env.prod.example`'s `APP_VERSION`** (i
 
 ## The rule
 
-Any new **display** of a released version — an `APP_VERSION=X.Y.Z` pin in a `.env` example, an `APP_IMAGE=ghcr.io/emmpaul/the-desk:X.Y.Z` override, a `git checkout vX.Y.Z` (build-from-source only), prose like "as of vX.Y.Z" — must:
+Any new **display** of a released version — an `APP_VERSION=X.Y.Z` pin in a `.env` example, an `APP_IMAGE=ghcr.io/deskhq/the-desk:X.Y.Z` override, a `git checkout vX.Y.Z` (build-from-source only), prose like "as of vX.Y.Z" — must:
 
 1. **Carry an annotation** on its line so release-please rewrites the version, and
 2. **Live in a file registered** under `extra-files` in `release-please-config.json`.
@@ -94,7 +94,7 @@ grep -rlE 'x-release-please' --include='*.md' --include='*.yml' --include='*.env
 ## Verify
 
 - **Config is valid JSON:** `python3 -m json.tool release-please-config.json > /dev/null`.
-- **Dry-run the release PR** to see the stamped lines (needs a token/network; skip if unavailable): `npx release-please release-pr --dry-run --repo-url emmpaul/the-desk --config-file release-please-config.json --manifest-file .release-please-manifest.json`. Or just inspect the next release PR release-please opens — it should rewrite every annotated line with no manual edits.
+- **Dry-run the release PR** to see the stamped lines (needs a token/network; skip if unavailable): `npx release-please release-pr --dry-run --repo-url deskhq/the-desk --config-file release-please-config.json --manifest-file .release-please-manifest.json`. Or just inspect the next release PR release-please opens — it should rewrite every annotated line with no manual edits.
 - **Docs still build** if you touched `docs/`: `cd docs && npm run build`.
 
 ## See also

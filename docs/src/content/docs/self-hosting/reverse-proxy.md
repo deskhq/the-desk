@@ -34,7 +34,7 @@ real-time updates (new messages, typing indicators, presence) never arrive.
 > it appears. Playing and uploading audio files works either way.
 
 Make sure the browser-facing Reverb settings match your proxy — see
-[Configuration](/docs/self-hosting/configuration/#reverb-websockets--mind-the-browser-vs-server-split).
+[Configuration](/self-hosting/configuration/#reverb-websockets--mind-the-browser-vs-server-split).
 
 ## Caddy
 
@@ -122,7 +122,7 @@ once the service is reachable.
 
 ## Upload body size
 
-Message attachments are capped by [`ATTACHMENT_MAX_SIZE_MB`](/docs/reference/environment-variables/#attachments)
+Message attachments are capped by [`ATTACHMENT_MAX_SIZE_MB`](/reference/environment-variables/#attachments)
 (default 25 MB), but that limit only applies once the request reaches the app. Your proxy — and
 PHP itself — reject an oversized body first, so raise their limits to your configured cap plus a
 little headroom for multipart encoding overhead:
@@ -144,11 +144,11 @@ of its own hostname.
 If your proxy already sends the header, set `HSTS_ENABLED=false` so the two do
 not disagree about the `max-age`. The knobs (`HSTS_MAX_AGE`,
 `HSTS_INCLUDE_SUBDOMAINS`, and the deliberately opt-in `HSTS_PRELOAD`) are in
-[Feature toggles → HTTPS enforcement (HSTS)](/docs/reference/feature-toggles/#https-enforcement-hsts).
+[Feature toggles → HTTPS enforcement (HSTS)](/reference/feature-toggles/#https-enforcement-hsts).
 
 Session cookies pick up the matching `Secure` flag automatically when `APP_URL`
 is an `https://` URL — see
-[`SESSION_SECURE_COOKIE`](/docs/reference/environment-variables/#session-cookies).
+[`SESSION_SECURE_COOKIE`](/reference/environment-variables/#session-cookies).
 
 ## Verifying
 
@@ -159,4 +159,4 @@ After wiring up the proxy:
    WebSocket connection to your Reverb host. If it fails to connect or falls
    back repeatedly, re-check the upgrade headers and the `REVERB_*_PUBLIC`
    values. A persistent **"Reconnecting…"** banner has its own walkthrough in
-   [Troubleshooting](/docs/self-hosting/troubleshooting/#reconnecting-after-login--websocket-wont-connect).
+   [Troubleshooting](/self-hosting/troubleshooting/#reconnecting-after-login--websocket-wont-connect).

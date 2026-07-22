@@ -2,7 +2,7 @@
 # to run lives in .env as APP_VERSION, so upgrading is an .env edit plus a pull,
 # with no git checkout and no repository on the server at all:
 #
-#   curl -fsSL https://raw.githubusercontent.com/emmpaul/the-desk/master/docker/install.sh | sh
+#   curl -fsSL https://raw.githubusercontent.com/deskhq/the-desk/master/docker/install.sh | sh
 #   # edit .env (APP_URL, mail, REVERB_*_PUBLIC), then:
 #   docker compose up -d             # pulls the pinned image, no build
 #
@@ -83,7 +83,7 @@ x-app: &app
   # the locally built image):
   #   COMPOSE_FILE=docker-compose.prod.yml:docker-compose.build.yml   # in .env
   #   docker compose up -d --build
-  image: ${APP_IMAGE:-ghcr.io/emmpaul/the-desk:${APP_VERSION:?APP_VERSION is required — set it in .env (see .env.prod.example) or override APP_IMAGE}}
+  image: ${APP_IMAGE:-ghcr.io/deskhq/the-desk:${APP_VERSION:?APP_VERSION is required — set it in .env (see .env.prod.example) or override APP_IMAGE}}
   env_file:
     - .env
   restart: unless-stopped

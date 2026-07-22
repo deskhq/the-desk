@@ -8,7 +8,7 @@ import crontabGrammar from './src/grammars/crontab.tmLanguage.json' with { type:
 
 // Public URL the site is served from. Used for canonical links, the sitemap,
 // and social-card (Open Graph / Twitter) URLs. Update this if the site moves.
-const site = 'https://the-desk.emmanuelpaul.com';
+const site = 'https://docs.thedeskhq.app';
 const ogImage = `${site}/og-image.png`;
 
 // https://astro.build/config
@@ -21,7 +21,7 @@ export default defineConfig({
 			description:
 				'Self-hosting and operator documentation for The Desk — a real-time, self-hostable team chat application.',
 			social: [
-				{ icon: 'github', label: 'GitHub', href: 'https://github.com/emmpaul/the-desk' },
+				{ icon: 'github', label: 'GitHub', href: 'https://github.com/deskhq/the-desk' },
 			],
 			// Brand theme override (The Desk): Newsreader/Instrument Sans + brass palette.
 			customCss: ['./src/styles/custom.css'],
@@ -32,7 +32,7 @@ export default defineConfig({
 			plugins: [
 				starlightOpenAPI([
 					{
-						base: 'docs/api-reference',
+						base: 'api-reference',
 						label: 'API reference',
 						schema: './public/openapi.yaml',
 					},
@@ -92,41 +92,41 @@ export default defineConfig({
 			],
 			// "Edit this page" links point at the file on the default branch.
 			editLink: {
-				baseUrl: 'https://github.com/emmpaul/the-desk/edit/master/docs/',
+				baseUrl: 'https://github.com/deskhq/the-desk/edit/master/docs/',
 			},
 			sidebar: [
 				{
 					label: 'Start Here',
 					items: [
-						{ label: 'Introduction', slug: 'docs' },
-						{ label: 'The Desk vs Slack, Mattermost & Rocket.Chat', slug: 'docs/comparison' },
-						{ label: 'FAQ', slug: 'docs/faq' },
+						{ label: 'Introduction', link: '/' },
+						{ label: 'The Desk vs Slack, Mattermost & Rocket.Chat', slug: 'comparison' },
+						{ label: 'FAQ', slug: 'faq' },
 					],
 				},
 				{
 					label: 'Self-Hosting',
 					items: [
-						{ label: 'Requirements', slug: 'docs/self-hosting/requirements' },
-						{ label: 'Installation', slug: 'docs/self-hosting/installation' },
-						{ label: 'Configuration', slug: 'docs/self-hosting/configuration' },
-						{ label: 'Reverse proxy & TLS', slug: 'docs/self-hosting/reverse-proxy' },
-						{ label: 'First user & workspace', slug: 'docs/self-hosting/first-user' },
-						{ label: 'Running a public demo', slug: 'docs/self-hosting/demo' },
-						{ label: 'Upgrading', slug: 'docs/self-hosting/upgrading' },
-						{ label: 'Troubleshooting', slug: 'docs/self-hosting/troubleshooting' },
+						{ label: 'Requirements', slug: 'self-hosting/requirements' },
+						{ label: 'Installation', slug: 'self-hosting/installation' },
+						{ label: 'Configuration', slug: 'self-hosting/configuration' },
+						{ label: 'Reverse proxy & TLS', slug: 'self-hosting/reverse-proxy' },
+						{ label: 'First user & workspace', slug: 'self-hosting/first-user' },
+						{ label: 'Running a public demo', slug: 'self-hosting/demo' },
+						{ label: 'Upgrading', slug: 'self-hosting/upgrading' },
+						{ label: 'Troubleshooting', slug: 'self-hosting/troubleshooting' },
 					],
 				},
 				{
 					label: 'Reference',
 					items: [
-						{ label: 'Architecture', slug: 'docs/reference/architecture' },
-						{ label: 'Feature toggles', slug: 'docs/reference/feature-toggles' },
-						{ label: 'Environment variables', slug: 'docs/reference/environment-variables' },
-						{ label: 'REST API', slug: 'docs/reference/api' },
-						{ label: 'Incoming webhooks', slug: 'docs/reference/incoming-webhooks' },
-						{ label: 'Outgoing webhooks', slug: 'docs/reference/webhooks' },
-						{ label: 'Security & compliance', slug: 'docs/reference/security' },
-						{ label: 'SOC 2 & ISO 27001 control mapping', slug: 'docs/reference/security-and-compliance' },
+						{ label: 'Architecture', slug: 'reference/architecture' },
+						{ label: 'Feature toggles', slug: 'reference/feature-toggles' },
+						{ label: 'Environment variables', slug: 'reference/environment-variables' },
+						{ label: 'REST API', slug: 'reference/api' },
+						{ label: 'Incoming webhooks', slug: 'reference/incoming-webhooks' },
+						{ label: 'Outgoing webhooks', slug: 'reference/webhooks' },
+						{ label: 'Security & compliance', slug: 'reference/security' },
+						{ label: 'SOC 2 & ISO 27001 control mapping', slug: 'reference/security-and-compliance' },
 					],
 				},
 				// Generated from the OpenAPI document by starlight-openapi: one

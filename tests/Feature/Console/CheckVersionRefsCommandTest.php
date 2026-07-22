@@ -186,7 +186,7 @@ it('ignores dotted numbers that are not versions', function (): void {
 it('scans nested docs pages', function (): void {
     $root = fixtureRoot([
         'VERSION' => "1.2.3 # x-release-please-version\n",
-        'docs/src/content/docs/docs/self-hosting/upgrading.md' => "Move to v1.2.3.\n",
+        'docs/src/content/docs/self-hosting/upgrading.md' => "Move to v1.2.3.\n",
     ], ['VERSION']);
 
     [$exitCode, $output] = runGuard($root);

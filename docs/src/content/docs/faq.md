@@ -21,13 +21,13 @@ your own disk.
   speak plain HTTP.
 - Working **SMTP credentials** for invitations (and optional email verification).
 
-See [Requirements](/docs/self-hosting/requirements/) for the full list.
+See [Requirements](/self-hosting/requirements/) for the full list.
 
 ## How much server does it need?
 
 The Desk is modest. A small **2 vCPU / 2 GB RAM** VPS comfortably hosts a team;
 scale up as message volume and the search index grow. See the
-[Architecture reference](/docs/reference/architecture/) for what each service
+[Architecture reference](/reference/architecture/) for what each service
 does.
 
 ## How do I back it up?
@@ -38,16 +38,16 @@ is rebuilt from Postgres on boot and Redis holds only cache, sessions, and queue
 jobs, so neither needs backing up. `./docker/restore.sh` puts both back.
 
 Add `--keep=N` to prune old backups and drive it from host cron for a schedule.
-See [Backups](/docs/self-hosting/upgrading/#backups) for the details, and
-the [Architecture reference](/docs/reference/architecture/) for exactly what runs
+See [Backups](/self-hosting/upgrading/#backups) for the details, and
+the [Architecture reference](/reference/architecture/) for exactly what runs
 and where state lives.
 
 ## Can people sign up themselves, or is it invite-only?
 
 Both — you choose. Open registration is controlled by the
-[`REGISTRATION_ENABLED`](/docs/reference/feature-toggles/#open-registration)
+[`REGISTRATION_ENABLED`](/reference/feature-toggles/#open-registration)
 toggle. Turn it off and the workspace is invitation-only. You can also require
-[email verification](/docs/reference/feature-toggles/#email-verification).
+[email verification](/reference/feature-toggles/#email-verification).
 
 ## Is there a mobile app?
 
@@ -58,25 +58,25 @@ there's no dedicated iOS/Android app or mobile push notifications today.
 
 **File & image attachments** are supported. **Voice and video calls** are not on
 the near-term roadmap; if you need those now, see the
-[comparison page](/docs/comparison/).
+[comparison page](/comparison/).
 
 ## Does it support SSO, OIDC, or LDAP?
 
 Yes. The Desk supports [OIDC single
-sign-on](/docs/reference/environment-variables/#single-sign-on-openid-connect)
+sign-on](/reference/environment-variables/#single-sign-on-openid-connect)
 with just-in-time provisioning,
-[LDAP / Active Directory](/docs/reference/environment-variables/#single-sign-on-ldap--active-directory)
+[LDAP / Active Directory](/reference/environment-variables/#single-sign-on-ldap--active-directory)
 bind authentication with directory sync, and
-[SCIM 2.0 provisioning](/docs/reference/environment-variables/#directory-provisioning-scim-20)
+[SCIM 2.0 provisioning](/reference/environment-variables/#directory-provisioning-scim-20)
 for Okta, Entra ID, and OneLogin. You can also enforce
-[SSO-only sign-in](/docs/reference/feature-toggles/#sso-only-mode) to turn
+[SSO-only sign-in](/reference/feature-toggles/#sso-only-mode) to turn
 password logins off entirely.
 
 ## How do upgrades work?
 
 Upgrades are **tag-based** — you move to a new release tag and pull. Database
 migrations and version-scoped search reindexing run automatically. See
-[Upgrading](/docs/self-hosting/upgrading/) for the exact steps.
+[Upgrading](/self-hosting/upgrading/) for the exact steps.
 
 ## Is my data private?
 
@@ -88,4 +88,4 @@ can export their own data at any time. It's your database either way.
 
 Laravel 13, Inertia + Vue 3, Laravel Reverb (WebSockets), PostgreSQL,
 Meilisearch, and Redis — all in one compose file behind a FrankenPHP app image.
-The full picture is in the [Architecture reference](/docs/reference/architecture/).
+The full picture is in the [Architecture reference](/reference/architecture/).

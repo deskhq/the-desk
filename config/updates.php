@@ -29,7 +29,7 @@ return [
     |
     */
 
-    'repository' => env('UPDATE_CHECK_REPOSITORY', 'emmpaul/the-desk'),
+    'repository' => env('UPDATE_CHECK_REPOSITORY', 'deskhq/the-desk'),
 
     /*
     |--------------------------------------------------------------------------

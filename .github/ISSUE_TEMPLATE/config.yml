@@ -1,8 +1,8 @@
 blank_issues_enabled: true
 contact_links:
   - name: 📖 Documentation
-    url: https://the-desk.emmanuelpaul.com/docs/
+    url: https://docs.thedeskhq.app/
     about: Self-hosting, configuration, and reference docs — check here first.
   - name: 💬 Questions & discussion
-    url: https://github.com/emmpaul/the-desk/discussions
+    url: https://github.com/deskhq/the-desk/discussions
     about: For questions, ideas, and general help. Not sure it's a bug? Start here.

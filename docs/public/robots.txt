@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://the-desk.emmanuelpaul.com/sitemap-index.xml
+Sitemap: https://docs.thedeskhq.app/sitemap-index.xml
