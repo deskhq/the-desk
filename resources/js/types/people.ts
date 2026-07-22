@@ -5,6 +5,12 @@
 export type PersonRef = {
     id: string;
     name: string;
+    /**
+     * The server's resolved active/away answer for this member, seeding the dot
+     * surfaces for a client that has only just loaded. Absent on the hand-built
+     * refs some pickers assemble, which then read as active.
+     */
+    presence?: App.Enums.PresenceState;
 };
 
 /**
