@@ -86,5 +86,22 @@
              the single-process app server the page is talking to. Tests that
              exercise Gravatar itself opt back in with config()->set(). -->
         <env name="GRAVATAR_ENABLED" value="false"/>
+        <!--
+            Keep the browser-facing Reverb connection derived from the
+            server-facing one, as it is out of the box. App\Support\ReverbConfig
+            prefers these overrides over `options.*`, so any value in the host's
+            .env — which bin/worktree copies verbatim into every worktree —
+            shadows the config() overrides the reverb tests make, and they fail
+            on a machine-specific port ("Failed asserting that 20012 is
+            identical to 443", issue #732). Pinning them empty restores the
+            fallback; tests that exercise a real override opt back in with
+            config()->set(), and the browser suite sets all three explicitly.
+            `force` re-applies the pin even when the name is already defined at
+            the process level, so it also survives a `putenv` from an earlier
+            bootstrap.
+        -->
+        <env name="REVERB_HOST_PUBLIC" value="" force="true"/>
+        <env name="REVERB_PORT_PUBLIC" value="" force="true"/>
+        <env name="REVERB_SCHEME_PUBLIC" value="" force="true"/>
     </php>
 </phpunit>

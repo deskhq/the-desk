@@ -45,6 +45,21 @@ test('the websocket origin honours the browser-facing overrides', function (): v
     expect(ReverbConfig::websocketOrigin())->toBe('wss://ws.example.test:443');
 });
 
+/*
+ * Regression guard for #732. The browser-facing overrides come from
+ * REVERB_HOST_PUBLIC / REVERB_PORT_PUBLIC / REVERB_SCHEME_PUBLIC, and
+ * ReverbConfig prefers them over the server-facing connection — so any value in
+ * the host's .env (which bin/worktree copies verbatim into every worktree)
+ * shadows the config() overrides the tests above make, and the suite fails on a
+ * machine-specific port. phpunit.xml pins all three empty; this asserts the pin
+ * is in place, because without it the failure surfaces far from its cause.
+ */
+test('the browser-facing overrides are unset in the test environment', function (): void {
+    expect(config('broadcasting.connections.reverb.public_host'))->toBeEmpty()
+        ->and(config('broadcasting.connections.reverb.public_port'))->toBeEmpty()
+        ->and(config('broadcasting.connections.reverb.public_scheme'))->toBeEmpty();
+});
+
 test('the websocket origin is null when no browser-facing host can be resolved', function (): void {
     config([
         'app.url' => '',
