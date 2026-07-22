@@ -15,16 +15,20 @@ concurrent worktrees are **host port bindings** and each worktree's own on-host
 block and its own Compose project, and installs its deps.
 
 The test gate only touches Postgres — `phpunit.xml` sets cache/session to
-`array`, queue to `sync`, Scout to `collection`, and broadcast to `null`. So an
-isolated worktree runs just **`laravel.test` + `pgsql`** (2 containers). A
-generated `compose.override.yaml` trims `laravel.test`'s `depends_on` to
-`pgsql`, and `sail up -d laravel.test` then starts exactly those two.
+`array`, queue to `sync`, Scout to `collection`, and broadcast to `null`. The
+bootstrap's own `artisan` calls do not run under `phpunit.xml` though: they read
+the worktree's `.env`, where `CACHE_STORE` and `QUEUE_CONNECTION` are `redis`, so
+the demo seed reaches the cache (`WorkspaceSeeder` → `CreateChannel` →
+`JoinChannel`) and needs a live `redis` to talk to. An isolated worktree
+therefore runs **`laravel.test` + `pgsql` + `redis`** (3 containers): a generated
+`compose.override.yaml` trims `laravel.test`'s `depends_on` to those two backing
+services, and `sail up -d laravel.test` then starts exactly those three.
 
 The **Browser suite** (`tests/Browser`) is the exception: it drives a real
 Chromium and `tests/Pest.php` points the broadcaster at a live Reverb for the
 whole suite. So the bootstrap additionally installs the Playwright browsers into
-the app container and starts `reverb` (which pulls in `redis` through its own
-`depends_on`) — four containers in total. Two details make that work:
+the app container and starts `reverb` — four containers in total. Two details
+make that work:
 
 - Playwright's browser binaries ship out of band; `npm install` fetches only the
   driver. They install in two steps because the shared libraries Chromium links
@@ -77,6 +81,10 @@ cd "$(bin/worktree create 441)"    # drops you into the isolated worktree
   merged. The branch is left intact (it may have unpushed commits or an open PR).
 - **Re-entry is idempotent.** Re-running `create` on a ready worktree just
   re-prints its path; an interrupted bootstrap resumes on the next `create`.
+  The demo seed is guarded by a `.worktree-seeded` sentinel, and until that
+  sentinel exists the schema is rebuilt (`migrate:fresh --seed`) rather than
+  migrated in place — so a seed that died partway through cannot leave rows that
+  fail the unique constraints on the retry.
 
 ## Notes & limits
 
