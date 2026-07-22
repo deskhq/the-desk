@@ -76,12 +76,14 @@ import {
     SidebarMenuItem,
     SidebarProvider,
 } from '@/components/ui/sidebar';
+import DndPauseDialog from '@/components/DndPauseDialog.vue';
 import { Toaster } from '@/components/ui/sonner';
 import UpdateIndicator from '@/components/UpdateIndicator.vue';
 import UserStatusDialog from '@/components/UserStatusDialog.vue';
 import { adjacentSlug } from '@/composables/keyboardShortcuts';
 import { useChimeNotifications } from '@/composables/useChimeNotifications';
 import { useDemoMode } from '@/composables/useDemoMode';
+import { useDndPauseDialog } from '@/composables/useDndPauseDialog';
 import { useInitials } from '@/composables/useInitials';
 import { useKeyboardShortcuts } from '@/composables/useKeyboardShortcuts';
 import { useKeyboardShortcutsModal } from '@/composables/useKeyboardShortcutsModal';
@@ -561,6 +563,7 @@ const quickSwitcherOpen = ref(false);
 const { isOpen: shortcutsOpen, toggle: toggleShortcuts } =
     useKeyboardShortcutsModal();
 const { isOpen: statusDialogOpen } = useUserStatusDialog();
+const { isOpen: dndPauseDialogOpen } = useDndPauseDialog();
 
 /**
  * The viewer's still-pending reminders in this team, feeding the "Reminders"
@@ -1458,6 +1461,8 @@ onMounted(() => {
         <KeyboardShortcutsModal v-model:open="shortcutsOpen" />
 
         <UserStatusDialog v-model:open="statusDialogOpen" />
+
+        <DndPauseDialog v-model:open="dndPauseDialogOpen" />
 
         <RemindersDialog
             v-model:open="remindersDialogOpen"

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Link, router, usePage } from '@inertiajs/vue3';
 import {
+    ChevronRight,
     Compass,
     Keyboard,
     LogOut,
@@ -16,6 +17,10 @@ import {
 import type { Component } from 'vue';
 import { computed } from 'vue';
 import { toast } from 'vue-sonner';
+import {
+    destroy as destroyDndPause,
+    update as updateDndPause,
+} from '@/actions/App/Http/Controllers/Settings/DndController';
 import { update as updatePresence } from '@/actions/App/Http/Controllers/Settings/PresenceController';
 import { destroy as destroyStatus } from '@/actions/App/Http/Controllers/Settings/StatusController';
 import MenuSegmentedControl from '@/components/MenuSegmentedControl.vue';
@@ -25,7 +30,11 @@ import { Button } from '@/components/ui/button';
 import {
     DropdownMenuItem,
     DropdownMenuLabel,
+    DropdownMenuSeparator,
     DropdownMenuShortcut,
+    DropdownMenuSub,
+    DropdownMenuSubContent,
+    DropdownMenuSubTrigger,
 } from '@/components/ui/dropdown-menu';
 import UserStatusEmoji from '@/components/UserStatusEmoji.vue';
 import { useAppearance } from '@/composables/useAppearance';
@@ -33,13 +42,18 @@ import { useInitials } from '@/composables/useInitials';
 import { useKeyboardShortcutsModal } from '@/composables/useKeyboardShortcutsModal';
 import { useOnboardingTour } from '@/composables/useOnboardingTour';
 import { useSidebarPosition } from '@/composables/useSidebarPosition';
+import { useDndPauseDialog } from '@/composables/useDndPauseDialog';
 import { useTranslations } from '@/composables/useTranslations';
 import { useUpdateStatus } from '@/composables/useUpdateStatus';
 import { useUserStatusDialog } from '@/composables/useUserStatusDialog';
 import { formatTimeOfDay } from '@/lib/datetime';
+import { isDndActiveNow, quietHoursEndsAt } from '@/lib/dnd';
+import { DND_PAUSE_KEYS, dndPauseLabel, resolveDndPause } from '@/lib/dndPause';
+import type { DndPauseKey } from '@/lib/dndPause';
 import { presenceLabelKey } from '@/lib/presence';
 import type { RenderedPresence } from '@/lib/presence';
 import { logout } from '@/routes';
+import { edit as appearanceEdit } from '@/routes/appearance';
 import { edit } from '@/routes/profile';
 import type { Appearance, SidebarPosition, Team, User } from '@/types';
 
@@ -110,6 +124,39 @@ const togglesTo = computed<RenderedPresence>(() =>
     ownPresence.value === 'away' ? 'active' : 'away',
 );
 
+/** The viewer's own full DND configuration, from the shared `auth.user` prop. */
+const ownDnd = computed(() => page.props.auth.user.dnd ?? null);
+
+const ownTimezone = computed(() => page.props.auth.user.timezone ?? null);
+
+/** Whether the viewer is in DND right now — a running pause or quiet hours. */
+const isDnd = computed(() =>
+    isDndActiveNow(ownDnd.value, ownTimezone.value),
+);
+
+/** The running manual pause's lapse, formatted, or null when none runs. */
+const pausedUntil = computed(() =>
+    ownDnd.value?.until
+        ? formatTimeOfDay(ownDnd.value.until, ownTimezone.value ?? undefined)
+        : null,
+);
+
+/**
+ * When the covering quiet-hours window closes, formatted. Only read when no
+ * manual pause runs — a pause is the more specific claim, so its lapse wins
+ * the card's subtitle.
+ */
+const quietHoursUntil = computed(() => {
+    const closes = quietHoursEndsAt(ownDnd.value, ownTimezone.value);
+
+    return closes
+        ? formatTimeOfDay(
+              closes.toISOString(),
+              ownTimezone.value ?? undefined,
+          )
+        : null;
+});
+
 // When the status clears, as a time of day in the viewer's own zone. Null for a
 // status that never clears, which then shows no second line at all.
 const clearsAt = computed(() =>
@@ -158,6 +205,54 @@ function togglePresence(event: Event): void {
     );
 }
 
+const { open: openDndPauseDialog } = useDndPauseDialog();
+
+/** The flyout's preset rows: everything but Custom…, which opens the dialog. */
+const pausePresets = DND_PAUSE_KEYS.filter((key) => key !== 'custom');
+
+/**
+ * Start a pause from a flyout preset.
+ *
+ * The default select behaviour closes the menu; prevented here so the STATUS
+ * section grows the paused card in place — immediate proof the pause took.
+ */
+function choosePause(event: Event, key: DndPauseKey): void {
+    event.preventDefault();
+
+    const until = resolveDndPause(
+        key,
+        ownTimezone.value ??
+            new Intl.DateTimeFormat().resolvedOptions().timeZone,
+    );
+
+    if (until === null) {
+        return;
+    }
+
+    router.put(
+        updateDndPause().url,
+        { until },
+        {
+            preserveScroll: true,
+            onError: () =>
+                toast.error(t('Could not pause your notifications.')),
+        },
+    );
+}
+
+/**
+ * End the manual pause early from the card's Resume pill. Kept in place (no
+ * menu dismissal) so the card collapses back to the plain rows.
+ */
+function resumeNotifications(event: Event): void {
+    event.preventDefault();
+
+    router.delete(destroyDndPause().url, {
+        preserveScroll: true,
+        onError: () => toast.error(t('Could not resume your notifications.')),
+    });
+}
+
 const handleLogout = () => {
     router.flushAll();
 };
@@ -185,6 +280,7 @@ const handleLogout = () => {
                     <PresenceDot
                         data-test="user-menu-presence"
                         :presence="ownPresence"
+                        :is-dnd="isDnd"
                         surface-class="bg-muted"
                         class="absolute right-0 bottom-0 size-2.75 ring-2 ring-muted"
                     />
@@ -211,15 +307,22 @@ const handleLogout = () => {
                     <div
                         class="mt-0.5 flex min-w-0 items-baseline gap-1.5 text-xs text-muted-foreground"
                     >
+                        <!-- In DND the readout names the pause instead of the
+                             presence — the state the viewer most needs to know
+                             they are in — in the same italic serif as away. -->
                         <span
                             data-test="user-menu-presence-label"
                             class="shrink-0 font-medium"
                             :class="
-                                ownPresence === 'away'
+                                isDnd || ownPresence === 'away'
                                     ? 'font-serif text-muted-foreground italic'
                                     : 'text-emerald-700 dark:text-emerald-400'
                             "
-                            >{{ $t(presenceLabelKey(ownPresence)) }}</span
+                            >{{
+                                isDnd
+                                    ? $t('Notifications paused')
+                                    : $t(presenceLabelKey(ownPresence))
+                            }}</span
                         >
                         <span aria-hidden="true" class="shrink-0"
                             >&middot;</span
@@ -251,6 +354,54 @@ const handleLogout = () => {
             class="px-2.5 pb-1.5 text-[10px] font-semibold tracking-[0.12em] text-muted-foreground uppercase"
             >{{ $t('Status') }}</DropdownMenuLabel
         >
+        <!-- While in DND the section leads with the paused card: crescent,
+             when it lifts in italic serif, and — for a manual pause — the
+             one-tap Resume pill. Quiet hours name their window instead; ending
+             those early is a schedule edit, not a tap (see the flyout link). -->
+        <div
+            v-if="isDnd"
+            data-test="dnd-paused-card"
+            class="mb-1 flex min-h-11 items-center gap-2.5 rounded-[10px] border border-border bg-muted px-2.5 py-1.5"
+        >
+            <Moon class="size-4 shrink-0 text-muted-foreground" />
+            <span class="flex min-w-0 flex-1 flex-col">
+                <span class="truncate text-[13px] font-semibold text-foreground">{{
+                    $t('Paused')
+                }}</span>
+                <span
+                    v-if="pausedUntil"
+                    data-test="dnd-paused-until"
+                    class="truncate font-serif text-[11px] text-muted-foreground italic"
+                    >{{ $t('until :time', { time: pausedUntil }) }}</span
+                >
+                <span
+                    v-else-if="quietHoursUntil"
+                    data-test="dnd-paused-until"
+                    class="truncate font-serif text-[11px] text-muted-foreground italic"
+                    >{{
+                        $t('quiet hours · until :time', {
+                            time: quietHoursUntil,
+                        })
+                    }}</span
+                >
+            </span>
+            <DropdownMenuItem
+                v-if="pausedUntil"
+                :as-child="true"
+                class="shrink-0 rounded-full p-0 focus:bg-transparent"
+                data-test="dnd-resume-menu-item"
+                @select="resumeNotifications"
+            >
+                <Button
+                    variant="unstyled"
+                    size="none"
+                    type="button"
+                    class="inline-flex h-6.5 cursor-pointer items-center rounded-full border border-border px-3 text-[11.5px] font-semibold text-muted-foreground hover:text-foreground"
+                >
+                    {{ $t('Resume') }}
+                </Button>
+            </DropdownMenuItem>
+        </div>
         <DropdownMenuItem
             v-if="!ownStatus"
             class="group/item flex h-9 cursor-pointer items-center gap-2.5 rounded-[10px] px-2.5 py-0 text-[13.5px] font-normal text-foreground focus:bg-primary focus:text-primary-foreground"
@@ -337,6 +488,56 @@ const handleLogout = () => {
                     : $t('Set yourself active')
             }}
         </DropdownMenuItem>
+        <!-- Pause notifications: the crescent row below the away toggle, its
+             presets flowing out in a flyout. Choosing one applies in place;
+             Custom… trades the menu for the dialog, and the trailing row links
+             to the recurring schedule in Settings. -->
+        <DropdownMenuSub>
+            <DropdownMenuSubTrigger
+                class="group/item mt-0.5 flex h-9 cursor-pointer items-center gap-2.5 rounded-[10px] px-2.5 py-0 text-[13.5px] font-normal text-foreground data-[highlighted]:bg-primary data-[highlighted]:text-primary-foreground data-[state=open]:bg-primary data-[state=open]:text-primary-foreground"
+                data-test="pause-notifications-menu-item"
+            >
+                <Moon
+                    class="size-3.75 text-muted-foreground group-data-[highlighted]/item:text-brass group-data-[state=open]/item:text-brass"
+                />
+                {{ $t('Pause notifications') }}
+                <ChevronRight class="ml-auto size-3 text-muted-foreground" />
+            </DropdownMenuSubTrigger>
+            <DropdownMenuSubContent
+                class="min-w-47 rounded-[14px] p-1.25"
+                data-test="pause-notifications-submenu"
+            >
+                <DropdownMenuItem
+                    v-for="preset in pausePresets"
+                    :key="preset"
+                    class="flex h-8 cursor-pointer items-center rounded-[9px] px-2.75 text-[13px] focus:bg-primary focus:text-primary-foreground"
+                    :data-test="`pause-preset-${preset}`"
+                    @select="(event: Event) => choosePause(event, preset)"
+                >
+                    {{ dndPauseLabel(preset) }}
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                    class="flex h-8 cursor-pointer items-center rounded-[9px] px-2.75 text-[13px] focus:bg-primary focus:text-primary-foreground"
+                    data-test="pause-preset-custom"
+                    @select="openDndPauseDialog"
+                >
+                    {{ dndPauseLabel('custom') }}
+                </DropdownMenuItem>
+                <DropdownMenuSeparator class="mx-1.5" />
+                <DropdownMenuItem
+                    :as-child="true"
+                    class="flex h-8 cursor-pointer items-center justify-between rounded-[9px] px-2.75 text-[12.5px] text-muted-foreground focus:bg-primary focus:text-primary-foreground"
+                    data-test="quiet-hours-menu-item"
+                >
+                    <Link :href="appearanceEdit()">
+                        {{ $t('Quiet hours') }}
+                        <span class="text-[11px] opacity-70">{{
+                            $t('Settings')
+                        }}</span>
+                    </Link>
+                </DropdownMenuItem>
+            </DropdownMenuSubContent>
+        </DropdownMenuSub>
     </div>
 
     <!-- Appearance: quick theme + sidebar switchers, grouped ahead of navigation.
