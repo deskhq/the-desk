@@ -107,8 +107,14 @@ const clearsAt = computed(() =>
 /**
  * Clear the status outright from the menu row's ✕, with no trip through the
  * dialog — the one-tap undo for "that meeting ended early".
+ *
+ * The default select behaviour closes the menu; prevented here so the row flips
+ * back to "Set a status" in place, the way the theme and sidebar switchers above
+ * apply without dismissing the menu.
  */
-function clearStatus(): void {
+function clearStatus(event: Event): void {
+    event.preventDefault();
+
     router.delete(destroyStatus().url, {
         preserveScroll: true,
         onError: () => toast.error(t('Could not clear your status.')),
@@ -157,6 +163,7 @@ const handleLogout = () => {
                             :status="ownStatus"
                             :name="user.name"
                             class="text-sm"
+                            decorative
                         />
                     </div>
                     <div class="mt-0.5 truncate text-xs text-muted-foreground">
@@ -218,6 +225,7 @@ const handleLogout = () => {
                         :status="ownStatus"
                         :name="user.name"
                         class="text-base"
+                        decorative
                     />
                     <span class="flex min-w-0 flex-col">
                         <span

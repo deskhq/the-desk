@@ -275,6 +275,7 @@ function clear(): void {
                                 v-if="previewStatus"
                                 :status="previewStatus"
                                 :name="page.props.auth.user.name"
+                                decorative
                             />
                             <Smile
                                 v-else
@@ -303,14 +304,21 @@ function clear(): void {
                      fills emoji, text, and a sensible default expiry. -->
                 <div v-if="!isEditing" class="flex flex-col gap-1.75">
                     <span
+                        id="status-presets-label"
                         class="text-[10.5px] font-semibold tracking-[0.1em] text-muted-foreground uppercase"
                         >{{ $t('Quick picks') }}</span
                     >
-                    <div role="list" class="flex flex-col gap-px">
+                    <!-- A set of buttons, not a list: a `role="listitem"` on a
+                         <button> replaces its button role, so the group is named
+                         by the heading above it instead. -->
+                    <div
+                        role="group"
+                        aria-labelledby="status-presets-label"
+                        class="flex flex-col gap-px"
+                    >
                         <Button
                             v-for="preset in presets"
                             :key="preset.key"
-                            role="listitem"
                             variant="unstyled"
                             size="none"
                             type="button"
@@ -337,8 +345,9 @@ function clear(): void {
                         class="shrink-0 text-[13px] font-semibold text-muted-foreground"
                         >{{ $t('Clear after') }}</span
                     >
-                    <Select v-model="expiryKey" data-test="status-expiry">
+                    <Select v-model="expiryKey">
                         <SelectTrigger
+                            data-test="status-expiry"
                             aria-labelledby="status-expiry-label"
                             class="h-9 flex-1 rounded-[10px] text-[13.5px]"
                         >
@@ -376,8 +385,9 @@ function clear(): void {
                             class="size-3.5 shrink-0 text-muted-foreground"
                             aria-hidden="true"
                         />
-                        <Select v-model="hour" data-test="status-expiry-hour">
+                        <Select v-model="hour">
                             <SelectTrigger
+                                data-test="status-expiry-hour"
                                 :aria-label="$t('Hour')"
                                 class="h-8 gap-1.5 rounded-lg px-3 text-[13px] font-semibold"
                             >
@@ -396,11 +406,9 @@ function clear(): void {
                         <span aria-hidden="true" class="text-muted-foreground"
                             >:</span
                         >
-                        <Select
-                            v-model="minute"
-                            data-test="status-expiry-minute"
-                        >
+                        <Select v-model="minute">
                             <SelectTrigger
+                                data-test="status-expiry-minute"
                                 :aria-label="$t('Minute')"
                                 class="h-8 gap-1.5 rounded-lg px-3 text-[13px] font-semibold"
                             >

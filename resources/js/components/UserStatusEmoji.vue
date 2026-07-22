@@ -23,9 +23,16 @@ const props = withDefaults(
         name: string;
         /** Extra classes for the glyph, so each surface can size it to its row. */
         class?: string;
+        /**
+         * Render purely decoratively, with no role or label. For the status
+         * dialog's own preview square, whose button already names itself — a
+         * second "so-and-so is in a meeting" there would only be noise.
+         */
+        decorative?: boolean;
     }>(),
     {
         class: undefined,
+        decorative: false,
     },
 );
 
@@ -49,9 +56,10 @@ const label = computed(() =>
     <span
         v-if="status"
         data-test="user-status-emoji"
-        role="img"
-        :aria-label="label"
-        :title="status.text ?? undefined"
+        :role="decorative ? undefined : 'img'"
+        :aria-hidden="decorative ? 'true' : undefined"
+        :aria-label="decorative ? undefined : label"
+        :title="decorative ? undefined : (status.text ?? undefined)"
         class="inline-flex shrink-0 items-center leading-none"
         :class="props.class"
     >

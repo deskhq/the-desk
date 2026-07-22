@@ -890,6 +890,7 @@ function confirmDelete(): void {
                             @mention="(member) => emit('mention', member)"
                         >
                             <span
+                                data-test="message-author-name"
                                 class="cursor-pointer text-[14px] font-semibold text-foreground hover:underline"
                                 >{{ item.author.name }}</span
                             >
