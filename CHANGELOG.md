@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.15.1](https://github.com/deskhq/the-desk/compare/v1.15.0...v1.15.1) (2026-07-22)
+
+
+### Bug Fixes
+
+* point live-demo link at demo.thedeskhq.app ([#713](https://github.com/deskhq/the-desk/issues/713)) ([9776964](https://github.com/deskhq/the-desk/commit/9776964647828232a0eb7c244542682a8bc3df54))
+
 ## [1.15.0](https://github.com/deskhq/the-desk/compare/v1.14.0...v1.15.0) (2026-07-22)
 
 

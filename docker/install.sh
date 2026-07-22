@@ -25,7 +25,7 @@
 set -eu
 
 # The release installed when --version is not given. Tracks the latest release.
-DEFAULT_VERSION="1.15.0" # x-release-please-version
+DEFAULT_VERSION="1.15.1" # x-release-please-version
 
 REPO="deskhq/the-desk"
 VERSION=""
