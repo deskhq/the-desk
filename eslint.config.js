@@ -83,8 +83,8 @@ export default defineConfigWithVueTs(
             // Keep the `--destructive` fill token out of text colours: it reads
             // below WCAG AA as inline text on the dark card and on the
             // `bg-destructive/10` tint (#678, #717). `error` (auto-fixable via
-            // `npm run lint`) because every occurrence was migrated to
-            // `text-destructive-text`, so the gate stays clean.
+            // `./vendor/bin/sail npm run lint`) because every occurrence was
+            // migrated to `text-destructive-text`, so the gate stays clean.
             'local/no-destructive-fill-as-text': 'error',
         },
     },
