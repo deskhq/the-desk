@@ -71,6 +71,44 @@ test('the sweep clears every lapsed status in one pass', function (): void {
     expect(User::query()->whereNotNull('status_emoji')->count())->toBe(0);
 });
 
+test('a status replaced mid-sweep is left alone', function (): void {
+    User::factory()->count(2)->create([
+        'status_emoji' => '📅',
+        'status_text' => 'In a meeting',
+        'status_expires_at' => now()->subMinute(),
+    ]);
+
+    // Stand in for someone setting a fresh status in the window between the
+    // sweep's query and its write. The first clear the sweep performs is the
+    // trigger, so whichever user it reaches second is mutated behind it — while
+    // the model it already hydrated still carries the lapsed expiry.
+    Event::listen(UserProfileUpdated::class, function () use (&$replaced): void {
+        if ($replaced ?? false) {
+            return;
+        }
+
+        $replaced = true;
+
+        User::query()
+            ->whereNotNull('status_emoji')
+            ->update([
+                'status_emoji' => '🏠',
+                'status_text' => 'Working remotely',
+                'status_expires_at' => now()->addHour(),
+            ]);
+    });
+
+    // Only the first user is cleared; the replaced one is skipped, because its
+    // clear is conditional on the expiry the sweep actually read.
+    expect(app(ClearExpiredUserStatuses::class)->handle())->toBe(1);
+
+    $survivor = User::query()->whereNotNull('status_emoji')->sole();
+
+    expect($survivor->status_emoji)->toBe('🏠')
+        ->and($survivor->status_text)->toBe('Working remotely')
+        ->and($survivor->status_expires_at->isFuture())->toBeTrue();
+});
+
 test('the sweep is scheduled every minute', function (): void {
     $events = collect(app(Schedule::class)->events())
         ->filter(fn ($event): bool => $event->description === 'Clear lapsed custom statuses');

@@ -73,6 +73,27 @@ test('the menu row clears a status in one tap without opening the dialog', funct
         ->and($alice->status_expires_at)->toBeNull();
 });
 
+test('choosing a custom expiry opens on a saveable future time', function (): void {
+    ['owner' => $alice] = browserTeamWithChannel();
+
+    signInThroughBrowser($alice)
+        ->click('@sidebar-menu-button')
+        ->click('@set-status-menu-item')
+        ->type('@status-text-input', 'Heads down')
+        ->click('@status-expiry')
+        ->click('[role="option"]:has-text("Custom")')
+        ->assertPresent('@status-custom-expiry')
+        // Seeded a step ahead and snapped up onto the 5-minute grid, so the
+        // picker never opens already in the past with Save disabled.
+        ->assertNotPresent('@status-expiry-past')
+        ->click('@status-save')
+        ->wait(0.8)
+        ->assertNotPresent('@status-dialog');
+
+    expect($alice->refresh()->status_expires_at)->not->toBeNull()
+        ->and($alice->status_expires_at->isFuture())->toBeTrue();
+});
+
 test('a teammate status shows beside their name and in full on their hover card', function (): void {
     ['owner' => $alice, 'member' => $bob, 'channel' => $channel] = browserTeamWithChannel();
 

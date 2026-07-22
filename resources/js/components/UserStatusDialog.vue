@@ -105,6 +105,9 @@ const hour = ref(9);
 const minute = ref(0);
 const period = ref<'AM' | 'PM'>('AM');
 
+/** The grid the minute select offers, in milliseconds. */
+const MINUTE_STEP_MS = 5 * 60_000;
+
 /**
  * Point the custom controls at an instant, expressed in the viewer's zone.
  * Minutes snap down to the 5-minute grid the selects offer.
@@ -119,17 +122,31 @@ function applyInstant(iso: string): void {
 }
 
 /**
+ * The instant a fresh "Custom…" opens on: a whole step ahead of now, snapped up
+ * onto the grid. Seeding from the bare current time would snap *down* off the
+ * grid and land in the past, so choosing "Custom…" would open straight into
+ * "Pick a time in the future." with Save already disabled.
+ */
+function defaultCustomInstant(): string {
+    const stepAhead = Date.now() + MINUTE_STEP_MS;
+
+    return new Date(
+        Math.ceil(stepAhead / MINUTE_STEP_MS) * MINUTE_STEP_MS,
+    ).toISOString();
+}
+
+/**
  * Seed the form from the viewer's current status each time the dialog opens, so
  * reopening after a cancel never shows a half-edited draft. An existing expiry
  * has no preset to map back to, so it opens on "Custom…" with the controls
- * pointed at it.
+ * pointed at it — kept exactly as stored, never nudged forward.
  */
 function reset(): void {
     minDate.value = today(effectiveZone.value);
     emoji.value = status.value?.emoji ?? null;
     text.value = status.value?.text ?? '';
     expiryKey.value = status.value?.expiresAt ? 'custom' : 'never';
-    applyInstant(status.value?.expiresAt ?? new Date().toISOString());
+    applyInstant(status.value?.expiresAt ?? defaultCustomInstant());
 }
 
 watch(open, (isOpen) => {
