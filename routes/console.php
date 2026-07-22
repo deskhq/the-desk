@@ -10,6 +10,7 @@ use App\Actions\Teams\PurgeExpiredAuditExports;
 use App\Actions\Users\BroadcastDndScheduleEdges;
 use App\Actions\Users\ClearExpiredUserStatuses;
 use App\Actions\Users\ClearLapsedDndPauses;
+use App\Actions\Users\ClearLapsedDndScheduleSnoozes;
 use App\Models\TeamInvitation;
 use Illuminate\Support\Facades\Schedule;
 
@@ -43,6 +44,12 @@ Schedule::call(fn (ClearLapsedDndPauses $clear): int => $clear->handle())
     ->everyMinute()
     ->withoutOverlapping()
     ->description('Clear lapsed do-not-disturb pauses');
+
+Schedule::call(fn (ClearLapsedDndScheduleSnoozes $clear): int => $clear->handle())
+    ->name('clear-lapsed-dnd-schedule-snoozes')
+    ->everyMinute()
+    ->withoutOverlapping()
+    ->description('Clear lapsed quiet-hours snoozes');
 
 Schedule::call(fn (BroadcastDndScheduleEdges $broadcast): int => $broadcast->handle())
     ->name('broadcast-dnd-schedule-edges')

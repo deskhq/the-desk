@@ -108,6 +108,49 @@ test('the window is evaluated in the user timezone, not the server one', functio
     });
 });
 
+test('a snoozed quiet-hours window reads as no dnd', function (): void {
+    $user = User::factory()->create([
+        'timezone' => 'UTC',
+        'dnd_schedule_enabled' => true,
+        'dnd_starts_at' => '09:00',
+        'dnd_ends_at' => '17:00',
+        'dnd_schedule_snoozed_until' => Carbon::parse('2026-07-22 17:00:00', 'UTC'),
+    ]);
+
+    $this->travelTo(Carbon::parse('2026-07-22 12:00:00', 'UTC'), function () use ($user): void {
+        expect($user->isDndActive())->toBeFalse();
+    });
+});
+
+test('a lapsed snooze lets the window read as dnd again', function (): void {
+    $user = User::factory()->create([
+        'timezone' => 'UTC',
+        'dnd_schedule_enabled' => true,
+        'dnd_starts_at' => '09:00',
+        'dnd_ends_at' => '17:00',
+        'dnd_schedule_snoozed_until' => Carbon::parse('2026-07-22 17:00:00', 'UTC'),
+    ]);
+
+    $this->travelTo(Carbon::parse('2026-07-23 12:00:00', 'UTC'), function () use ($user): void {
+        expect($user->isDndActive())->toBeTrue();
+    });
+});
+
+test('a snooze never mutes a manual pause', function (): void {
+    $user = User::factory()->create([
+        'timezone' => 'UTC',
+        'dnd_until' => Carbon::parse('2026-07-22 14:00:00', 'UTC'),
+        'dnd_schedule_enabled' => true,
+        'dnd_starts_at' => '09:00',
+        'dnd_ends_at' => '17:00',
+        'dnd_schedule_snoozed_until' => Carbon::parse('2026-07-22 17:00:00', 'UTC'),
+    ]);
+
+    $this->travelTo(Carbon::parse('2026-07-22 12:00:00', 'UTC'), function () use ($user): void {
+        expect($user->isDndActive())->toBeTrue();
+    });
+});
+
 test('a disabled schedule never reads as dnd', function (): void {
     $user = User::factory()->create([
         'timezone' => 'UTC',
