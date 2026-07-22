@@ -19,7 +19,7 @@
 </p>
 
 <p align="center">
-  <a href="https://demo-the-desk.emmanuelpaul.com/"><strong>Live&nbsp;demo</strong></a> ·
+  <a href="https://demo.thedeskhq.app/"><strong>Live&nbsp;demo</strong></a> ·
   <a href="https://thedeskhq.app">Website</a> ·
   <a href="https://docs.thedeskhq.app/">Docs</a> ·
   <a href="https://docs.thedeskhq.app/self-hosting/installation/">Install</a> ·
@@ -49,7 +49,7 @@ upgrades) live at
 
 ### Public demo
 
-Try it live at **[demo-the-desk.emmanuelpaul.com](https://demo-the-desk.emmanuelpaul.com/)** — the login page shows the shared credentials.
+Try it live at **[demo.thedeskhq.app](https://demo.thedeskhq.app/)** — the login page shows the shared credentials.
 
 Set `DEMO_MODE=true` to run a public, single-shared-account demo off the seeded
 "Northwind Labs" workspace (`php artisan demo:seed`). Every visitor signs in as
