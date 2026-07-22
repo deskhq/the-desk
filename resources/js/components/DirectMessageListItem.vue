@@ -14,6 +14,7 @@ import {
     TooltipContent,
     TooltipTrigger,
 } from '@/components/ui/tooltip';
+import UserStatusEmoji from '@/components/UserStatusEmoji.vue';
 import { useInitials } from '@/composables/useInitials';
 import { useTranslations } from '@/composables/useTranslations';
 import { groupDmSidebarName } from '@/lib/groupDm';
@@ -176,6 +177,14 @@ function hide(): void {
                     "
                     >{{ displayName }}</span
                 >
+                <!-- A 1:1 row carries the other person's status emoji beside
+                     their name; a group row has no single status to show. -->
+                <UserStatusEmoji
+                    v-if="!isGroup && !isSelf"
+                    :status="soloParticipant?.status"
+                    :name="displayName"
+                    class="text-xs"
+                />
                 <!-- The mute / notification-level cue sits just after the name,
                      left of the right-aligned unread badge so the two never
                      collide. A tooltip names the state on hover/focus. -->

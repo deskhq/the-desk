@@ -4,8 +4,9 @@ import { computed, onMounted, onUnmounted, ref } from 'vue';
 import Heading from '@/components/Heading.vue';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
+import UserStatusEmoji from '@/components/UserStatusEmoji.vue';
 import { useInitials } from '@/composables/useInitials';
-import { formatLocalTime } from '@/lib/datetime';
+import { formatLocalTime, formatTimeOfDay } from '@/lib/datetime';
 import { translate } from '@/lib/i18n';
 import { edit, index } from '@/routes/teams';
 import type { Team, UserProfile } from '@/types';
@@ -71,6 +72,13 @@ onUnmounted(() => {
 const localTime = computed(() =>
     formatLocalTime(props.profile.timezone, now.value),
 );
+
+// When the member's status clears, as a time of day on the *viewer's* clock.
+const statusClearsAt = computed(() =>
+    props.profile.status?.expiresAt
+        ? formatTimeOfDay(props.profile.status.expiresAt)
+        : null,
+);
 </script>
 
 <template>
@@ -101,6 +109,11 @@ const localTime = computed(() =>
                         <h3 class="font-serif text-xl font-semibold">
                             {{ profile.name }}
                         </h3>
+                        <UserStatusEmoji
+                            :status="profile.status"
+                            :name="profile.name"
+                            class="text-base"
+                        />
                         <span
                             v-if="profile.pronouns"
                             class="text-sm text-muted-foreground"
@@ -119,6 +132,30 @@ const localTime = computed(() =>
                     >
                         {{ profile.title }}
                     </p>
+                </div>
+
+                <!-- The status band: the full "emoji + text + until when", the
+                     same treatment the hover card gives it. -->
+                <div
+                    v-if="profile.status"
+                    data-test="member-profile-status"
+                    class="flex items-center gap-2.5 rounded-[10px] border border-border bg-muted px-3 py-2"
+                >
+                    <UserStatusEmoji
+                        :status="profile.status"
+                        :name="profile.name"
+                        class="text-[15px]"
+                    />
+                    <span
+                        v-if="profile.status.text"
+                        class="min-w-0 flex-1 truncate text-sm text-foreground"
+                        >{{ profile.status.text }}</span
+                    >
+                    <span
+                        v-if="statusClearsAt"
+                        class="shrink-0 font-serif text-xs text-muted-foreground italic"
+                        >{{ $t('until :time', { time: statusClearsAt }) }}</span
+                    >
                 </div>
 
                 <dl class="grid gap-3 text-sm sm:grid-cols-2">

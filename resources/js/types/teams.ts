@@ -19,6 +19,8 @@ export type TeamMember = {
     avatar?: string | null;
     role: TeamRole;
     role_label: string;
+    /** The member's live custom status; null when unset or already lapsed. */
+    status: App.Data.UserStatusData | null;
 };
 
 /**
@@ -39,6 +41,7 @@ export type UserProfile = {
     roleLabel: string | null;
     memberSince: string | null;
     isYou: boolean;
+    status: App.Data.UserStatusData | null;
 };
 
 export type TeamInvitation = {

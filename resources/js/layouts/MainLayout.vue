@@ -78,6 +78,7 @@ import {
 } from '@/components/ui/sidebar';
 import { Toaster } from '@/components/ui/sonner';
 import UpdateIndicator from '@/components/UpdateIndicator.vue';
+import UserStatusDialog from '@/components/UserStatusDialog.vue';
 import { adjacentSlug } from '@/composables/keyboardShortcuts';
 import { useChimeNotifications } from '@/composables/useChimeNotifications';
 import { useDemoMode } from '@/composables/useDemoMode';
@@ -96,6 +97,7 @@ import { useTeamPresence } from '@/composables/useTeamPresence';
 import { useTeamSwitch } from '@/composables/useTeamSwitch';
 import { useTimezone } from '@/composables/useTimezone';
 import { useTranslations } from '@/composables/useTranslations';
+import { useUserStatusDialog } from '@/composables/useUserStatusDialog';
 import { backgroundVisit } from '@/lib/backgroundVisit';
 import {
     partitionChannels,
@@ -552,6 +554,7 @@ const { start: startOnboardingTour } = useOnboardingTour();
 const quickSwitcherOpen = ref(false);
 const { isOpen: shortcutsOpen, toggle: toggleShortcuts } =
     useKeyboardShortcutsModal();
+const { isOpen: statusDialogOpen } = useUserStatusDialog();
 
 /**
  * The viewer's still-pending reminders in this team, feeding the "Reminders"
@@ -1440,6 +1443,8 @@ onMounted(() => {
         />
 
         <KeyboardShortcutsModal v-model:open="shortcutsOpen" />
+
+        <UserStatusDialog v-model:open="statusDialogOpen" />
 
         <RemindersDialog
             v-model:open="remindersDialogOpen"

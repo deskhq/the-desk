@@ -11,6 +11,12 @@ export type MessageAuthor = {
     // Whether the author is a bot, so its message row shows the "Bot" badge and
     // a squared-off avatar. Absent (falsy) on human and optimistic messages.
     isBot?: boolean;
+    /**
+     * The author's live custom status, so the row can show its emoji beside
+     * their name. Null when they have none; absent on optimistic messages, which
+     * are built client-side before the server echo carries it.
+     */
+    status?: App.Data.UserStatusData | null;
 };
 
 /**

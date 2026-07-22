@@ -10,6 +10,8 @@ export type User = {
     title: string | null;
     phone: string | null;
     timezone: string | null;
+    /** The viewer's own live custom status; null when unset or already lapsed. */
+    status: App.Data.UserStatusData | null;
     locale: AppLocale;
     avatar?: string;
     email_verified_at: string | null;

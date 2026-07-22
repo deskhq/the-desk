@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { Link } from '@inertiajs/vue3';
 import { AtSign, MessageSquare, UserRound } from '@lucide/vue';
-import { ref } from 'vue';
+import { computed, ref } from 'vue';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -10,10 +10,11 @@ import {
     HoverCardContent,
     HoverCardTrigger,
 } from '@/components/ui/hover-card';
+import UserStatusEmoji from '@/components/UserStatusEmoji.vue';
 import { useInitials } from '@/composables/useInitials';
 import { useOpenDirectMessage } from '@/composables/useOpenDirectMessage';
 import { fetchUserProfile } from '@/composables/useUserProfileCard';
-import { formatLocalTime } from '@/lib/datetime';
+import { formatLocalTime, formatTimeOfDay } from '@/lib/datetime';
 import { show } from '@/routes/teams/members';
 import type { UserProfile } from '@/types';
 
@@ -53,6 +54,17 @@ async function onOpenChange(open: boolean): Promise<void> {
 function localTime(): string | null {
     return formatLocalTime(profile.value?.timezone ?? null, new Date());
 }
+
+/**
+ * When the member's status clears, as a time of day in the *viewer's* zone —
+ * "until 3:00 PM" is only useful against the reader's own clock. Null for a
+ * status that never clears.
+ */
+const statusClearsAt = computed(() =>
+    profile.value?.status?.expiresAt
+        ? formatTimeOfDay(profile.value.status.expiresAt)
+        : null,
+);
 
 function onMention(): void {
     emit('mention', { id: props.userId, name: props.name });
@@ -140,6 +152,31 @@ function onMessage(): void {
                             >
                         </div>
                     </div>
+                </div>
+
+                <!-- The status band: the one surface with room for the emoji,
+                     the full text, and when it clears. Absent entirely when the
+                     member has no live status. -->
+                <div
+                    v-if="profile?.status"
+                    data-test="hover-card-status"
+                    class="flex items-center gap-2.5 rounded-[10px] border border-border bg-muted px-3 py-2"
+                >
+                    <UserStatusEmoji
+                        :status="profile.status"
+                        :name="profile.name"
+                        class="text-[15px]"
+                    />
+                    <span
+                        v-if="profile.status.text"
+                        class="min-w-0 flex-1 truncate text-xs text-foreground"
+                        >{{ profile.status.text }}</span
+                    >
+                    <span
+                        v-if="statusClearsAt"
+                        class="shrink-0 font-serif text-[10.5px] text-muted-foreground italic"
+                        >{{ $t('until :time', { time: statusClearsAt }) }}</span
+                    >
                 </div>
 
                 <div class="space-y-2">

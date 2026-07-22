@@ -139,8 +139,8 @@ class User extends Authenticatable implements HasLocalePreference, MustVerifyEma
      *
      * This is the lazy half of expiry: a status whose `status_expires_at` has
      * passed reads as absent everywhere from the instant it lapses, without
-     * waiting for {@see ClearExpiredUserStatuses} to null the
-     * columns and broadcast the clear.
+     * waiting for {@see ClearExpiredUserStatuses} to null the columns and
+     * broadcast the clear.
      */
     public function hasLiveStatus(): bool
     {
@@ -156,8 +156,8 @@ class User extends Authenticatable implements HasLocalePreference, MustVerifyEma
      *
      * Appended to every serialisation of the model — the shared `auth.user`
      * prop above all — so the viewer's own menu reads it the same way teammates'
-     * surfaces read {@see UserData::$status}. The raw columns stay
-     * hidden so a lapsed status can never leak through them.
+     * surfaces read {@see UserData::$status}. The raw columns stay hidden so a
+     * lapsed status can never leak through them.
      *
      * @return Attribute<covariant UserStatusData|null, never>
      */

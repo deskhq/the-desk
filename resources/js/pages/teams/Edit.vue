@@ -40,6 +40,7 @@ import {
     TooltipProvider,
     TooltipTrigger,
 } from '@/components/ui/tooltip';
+import UserStatusEmoji from '@/components/UserStatusEmoji.vue';
 import { useDemoMode } from '@/composables/useDemoMode';
 import { useInitials } from '@/composables/useInitials';
 import { useTranslations } from '@/composables/useTranslations';
@@ -328,12 +329,24 @@ const confirmTransferOwnership = (member: TeamMember) => {
                                 class="text-sm font-medium text-muted-foreground"
                                 >{{ $t('(you)') }}</span
                             >
+                            <UserStatusEmoji
+                                :status="member.status"
+                                :name="member.name"
+                                class="align-[-1px] text-xs"
+                            />
                         </Link>
                         <div
                             v-if="member.email"
                             class="truncate text-sm text-muted-foreground"
                         >
                             {{ member.email }}
+                        </div>
+                        <div
+                            v-if="member.status?.text"
+                            data-test="member-status-text"
+                            class="truncate text-sm text-muted-foreground"
+                        >
+                            {{ member.status.text }}
                         </div>
                     </div>
 
