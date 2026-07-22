@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use Symfony\Component\Process\Process;
+use Symfony\Component\Yaml\Tag\TaggedValue;
 use Symfony\Component\Yaml\Yaml;
 
 /**
@@ -329,9 +330,19 @@ test('a fresh worktree migrates and seeds so the demo account can sign in', func
     $process = runWorktreeLib($path, 'migrate_and_seed '.escapeshellarg($path));
 
     expect($process->getExitCode())->toBe(0)
-        ->and(sailCalls($log))->toContain('artisan migrate --force')
-        ->and(sailCalls($log))->toContain('artisan db:seed --force')
+        ->and(sailCalls($log))->toContain('artisan migrate:fresh --seed --force')
         ->and(is_file($path.'/.worktree-seeded'))->toBeTrue();
+});
+
+test('an unseeded worktree is seeded onto a rebuilt schema, never onto a half-seeded one', function (): void {
+    [$path] = fakeSailWorktree(probeExit: 0);
+    $log = $path.'/sail-calls.log';
+
+    $process = runWorktreeLib($path, 'migrate_and_seed '.escapeshellarg($path));
+
+    expect($process->getExitCode())->toBe(0)
+        ->and(sailCalls($log))->not->toContain('artisan migrate --force')
+        ->and(sailCalls($log))->not->toContain('artisan db:seed --force');
 });
 
 test('re-entering an already seeded worktree migrates but does not re-seed', function (): void {
@@ -343,7 +354,8 @@ test('re-entering an already seeded worktree migrates but does not re-seed', fun
 
     expect($process->getExitCode())->toBe(0)
         ->and(sailCalls($log))->toContain('artisan migrate --force')
-        ->and(sailCalls($log))->not->toContain('artisan db:seed --force');
+        ->and(sailCalls($log))->not->toContain('artisan db:seed --force')
+        ->and(sailCalls($log))->not->toContain('artisan migrate:fresh --seed --force');
 });
 
 test('the generated override rebinds Reverb to the worktree host port and keeps the container on 8080', function (): void {
@@ -355,6 +367,20 @@ test('the generated override rebinds Reverb to the worktree host port and keeps 
     expect($process->getExitCode())->toBe(0)
         ->and($override)->toContain("'20002:8080'")
         ->and($override)->toContain('ports: !override');
+});
+
+test('the trimmed override still brings redis up, so the bootstrap seed can reach the cache', function (): void {
+    $path = tempGitDir('worktree-override-redis');
+
+    $process = runWorktreeLib($path, 'write_override '.escapeshellarg($path).' 723 20002');
+    /** @var array<string, array<string, array<string, mixed>>> $override */
+    $override = Yaml::parseFile($path.'/compose.override.yaml', Yaml::PARSE_CUSTOM_TAGS);
+    $dependsOn = $override['services']['laravel.test']['depends_on'];
+
+    expect($process->getExitCode())->toBe(0)
+        ->and($dependsOn)->toBeInstanceOf(TaggedValue::class)
+        ->and($dependsOn->getTag())->toBe('override')
+        ->and($dependsOn->getValue())->toEqualCanonicalizing(['pgsql', 'redis']);
 });
 
 test('the generated env pins the container-internal Reverb port while offsetting the host ports', function (): void {

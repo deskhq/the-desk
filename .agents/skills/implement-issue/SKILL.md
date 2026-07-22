@@ -10,7 +10,7 @@ Every issue is implemented in its **own isolated worktree + Sail instance** (ste
 
 ## 0. Isolate: self-bootstrap into a worktree
 
-**Do all of the work below in a dedicated worktree, not the main checkout.** `bin/worktree` (committed at the repo root) allocates a free port block + Compose project for issue `NNN`, creates `../the-desk-worktrees/<NNN>-<slug>/`, generates its `.env` (offset ports, `COMPOSE_PROJECT_NAME=desk-<NNN>`, `APP_URL`) and a trimmed `compose.override.yaml` (`laravel.test` + `pgsql` only — the gate touches nothing else), installs its own `vendor/` + `node_modules/`, and starts the two containers.
+**Do all of the work below in a dedicated worktree, not the main checkout.** `bin/worktree` (committed at the repo root) allocates a free port block + Compose project for issue `NNN`, creates `../the-desk-worktrees/<NNN>-<slug>/`, generates its `.env` (offset ports, `COMPOSE_PROJECT_NAME=desk-<NNN>`, `APP_URL`) and a trimmed `compose.override.yaml` (`laravel.test` + `pgsql` + `redis` only — the gate needs Postgres, the bootstrap's demo seed needs the cache), installs its own `vendor/` + `node_modules/`, and starts those three containers.
 
 ```bash
 cd "$(bin/worktree create NNN)"   # prints the worktree path on stdout; cd into it

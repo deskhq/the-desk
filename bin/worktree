@@ -10,15 +10,18 @@
 # unique port block and its own Compose project, and installs its deps.
 #
 # The test gate only touches Postgres (phpunit.xml: cache/session=array,
-# queue=sync, scout=collection, broadcast=null), so an isolated worktree runs
-# just `laravel.test` + `pgsql`. A generated compose.override.yaml trims
-# laravel.test's depends_on to pgsql; `sail up -d laravel.test` then starts those
-# two containers only.
+# queue=sync, scout=collection, broadcast=null), but the bootstrap itself runs
+# artisan against the worktree's own .env, where CACHE_STORE/QUEUE_CONNECTION are
+# redis — the demo seed reaches the cache through CreateChannel/JoinChannel and
+# dies on an unstarted `redis` host otherwise (issue #723). So an isolated
+# worktree runs `laravel.test` + `pgsql` + `redis`: a generated
+# compose.override.yaml trims laravel.test's depends_on to those two backing
+# services, and `sail up -d laravel.test` then starts those three containers only.
 #
 # The Browser suite (tests/Browser) is the exception: it drives a real Chromium
 # and points the broadcaster at a live Reverb. So the bootstrap also installs the
-# Playwright browsers into the app container and brings `reverb` (and, via its
-# own depends_on, `redis`) up — four containers in total.
+# Playwright browsers into the app container and brings `reverb` up — four
+# containers in total.
 #
 # Because the worktree's .env is copied from the main checkout, it can name
 # services those four don't include (the opt-in `sso` profile's ldap/oidc,
@@ -62,9 +65,9 @@ DEFAULT_BASE="${WORKTREE_BASE:-master}"
 COMPOSER_IMAGE="${WORKTREE_COMPOSER_IMAGE:-laravelsail/php84-composer:latest}"
 
 # The compose services a worktree ever brings up: `sail up -d laravel.test` with
-# the trimmed depends_on, plus reverb pulling redis in through its own. Every
-# other service in compose.yaml stays down, so the generated .env must not point
-# at one (see write_env); tests/Unit/WorktreeScriptTest.php holds that line.
+# the trimmed depends_on, plus reverb. Every other service in compose.yaml stays
+# down, so the generated .env must not point at one (see write_env);
+# tests/Unit/WorktreeScriptTest.php holds that line.
 WORKTREE_STARTED_SERVICES="laravel.test pgsql reverb redis"
 
 REGISTRY_DIR="${HOME}/.the-desk"
@@ -418,7 +421,7 @@ cmd_create() {
                 --ignore-platform-reqs --no-scripts
     fi
 
-    log "starting laravel.test + pgsql (building image on first run may take a while)"
+    log "starting laravel.test + pgsql + redis (building image on first run may take a while)"
     (cd "$path" && ./vendor/bin/sail up -d laravel.test)
 
     log "finalizing PHP dependencies inside the app container (runs post-install scripts)"
@@ -441,7 +444,7 @@ cmd_create() {
     # worktree that can only run Unit+Feature is not enough. Started here rather
     # than through laravel.test's depends_on so it boots after APP_KEY exists —
     # reverb:start exits on a missing key and nothing would restart it.
-    log "starting reverb (+ redis) for the Browser suite"
+    log "starting reverb for the Browser suite"
     (cd "$path" && ./vendor/bin/sail up -d reverb)
 
     # The feature suite renders Inertia pages, which fail with a 500 unless a Vite
@@ -474,22 +477,27 @@ PLAYWRIGHT_PROBE='loc=$(npx playwright install --dry-run chromium 2>/dev/null | 
 
 # Each worktree gets its own Postgres volume, so the bootstrap starts on an empty
 # database and the login form has no account to accept — signing in to the
-# isolated instance is the point (issue #680). Migrations run on every entry so a
-# rebased worktree picks up new ones; the seed is guarded by its own sentinel
-# because WorkspaceSeeder builds a fresh fixture workspace on each run.
+# isolated instance is the point (issue #680). The seed is guarded by its own
+# sentinel because WorkspaceSeeder builds a fresh fixture workspace on each run;
+# migrations still run on every later entry so a rebased worktree picks up new ones.
+#
+# Until that sentinel exists the schema is rebuilt rather than migrated in place.
+# A seed that dies partway through — as it did whenever it ran before redis was
+# up (issue #723) — leaves rows behind, and the next `create` then dies on
+# `duplicate key value violates unique constraint "users_email_unique"` instead
+# of resuming. Dropping the tables first is safe precisely because the sentinel
+# is missing: no seed has ever completed against them.
 migrate_and_seed() {
     local path="$1"
 
-    log "running database migrations"
-    (cd "$path" && ./vendor/bin/sail artisan migrate --force)
-
     if [ -f "${path}/.worktree-seeded" ]; then
-        log "database already seeded — skipping"
+        log "running database migrations (demo workspace already seeded)"
+        (cd "$path" && ./vendor/bin/sail artisan migrate --force)
         return 0
     fi
 
-    log "seeding the demo workspace"
-    (cd "$path" && ./vendor/bin/sail artisan db:seed --force)
+    log "migrating a fresh database and seeding the demo workspace"
+    (cd "$path" && ./vendor/bin/sail artisan migrate:fresh --seed --force)
     touch "${path}/.worktree-seeded"
 }
 
@@ -580,12 +588,13 @@ write_override() {
     cat > "${path}/compose.override.yaml" <<EOF
 # Generated by bin/worktree for issue #${nnn} — do not edit by hand.
 #
-# Trims laravel.test to the test-runner essentials: the gate only touches
-# Postgres (phpunit.xml uses array/sync/collection/null drivers), so
-# meilisearch, mailpit and queue are never needed. With depends_on cut to
-# pgsql, \`sail up -d laravel.test\` starts exactly two containers. The Browser
-# suite additionally needs a live WebSocket server, so bin/worktree starts
-# reverb (and, through its own depends_on, redis) as a separate step.
+# Trims laravel.test to the essentials: the gate only touches Postgres
+# (phpunit.xml uses array/sync/collection/null drivers) and the bootstrap's own
+# artisan calls only add redis (the worktree .env runs cache and queue on it), so
+# meilisearch, mailpit and queue are never needed. With depends_on cut to pgsql
+# and redis, \`sail up -d laravel.test\` starts exactly three containers. The
+# Browser suite additionally needs a live WebSocket server, so bin/worktree
+# starts reverb as a separate step.
 #
 # .env pins REVERB_PORT to the container-internal 8080 because the app dials
 # reverb:\${REVERB_PORT}; the per-worktree host offset lives here instead, so
@@ -597,6 +606,7 @@ services:
     laravel.test:
         depends_on: !override
             - pgsql
+            - redis
     reverb:
         ports: !override
             - '${reverb_port}:8080'
