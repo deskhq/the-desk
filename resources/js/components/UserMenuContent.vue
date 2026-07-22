@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { Link, router, usePage } from '@inertiajs/vue3';
 import {
-    ChevronRight,
     Compass,
     Keyboard,
     LogOut,
@@ -501,7 +500,6 @@ const handleLogout = () => {
                     class="size-3.75 text-muted-foreground group-data-[highlighted]/item:text-brass group-data-[state=open]/item:text-brass"
                 />
                 {{ $t('Pause notifications') }}
-                <ChevronRight class="ml-auto size-3 text-muted-foreground" />
             </DropdownMenuSubTrigger>
             <DropdownMenuSubContent
                 class="min-w-47 rounded-[14px] p-1.25"
