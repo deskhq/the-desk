@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.15.2](https://github.com/deskhq/the-desk/compare/v1.15.1...v1.15.2) (2026-07-22)
+
+
+### Dependencies
+
+* bump the github-actions group with 4 updates ([#734](https://github.com/deskhq/the-desk/issues/734)) ([401ab6a](https://github.com/deskhq/the-desk/commit/401ab6a6fb6553df8501b5ed1f479fb5465c8822))
+
 ## [1.15.1](https://github.com/deskhq/the-desk/compare/v1.15.0...v1.15.1) (2026-07-22)
 
 
