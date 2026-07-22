@@ -28,9 +28,9 @@ describe('resolveDndPause', () => {
         );
 
         // 9:00 in New York on the 23rd is 13:00 UTC.
-        expect(
-            resolveDndPause('until-tomorrow', 'America/New_York', now),
-        ).toBe('2026-07-23T13:00:00.000Z');
+        expect(resolveDndPause('until-tomorrow', 'America/New_York', now)).toBe(
+            '2026-07-23T13:00:00.000Z',
+        );
     });
 
     it('rolls "until tomorrow" across a month boundary', () => {

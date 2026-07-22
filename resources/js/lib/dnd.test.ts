@@ -29,11 +29,7 @@ describe('isDndActiveNow', () => {
         const at = new Date('2026-07-22T12:00:00Z');
 
         expect(
-            isDndActiveNow(
-                dnd({ until: '2026-07-22T12:30:00Z' }),
-                'UTC',
-                at,
-            ),
+            isDndActiveNow(dnd({ until: '2026-07-22T12:30:00Z' }), 'UTC', at),
         ).toBe(true);
     });
 
@@ -129,9 +125,9 @@ describe('isDndActiveNow', () => {
                 'UTC',
             ),
         ).toBe(false);
-        expect(
-            isDndActiveNow(dnd({ scheduleEnabled: true }), 'UTC'),
-        ).toBe(false);
+        expect(isDndActiveNow(dnd({ scheduleEnabled: true }), 'UTC')).toBe(
+            false,
+        );
     });
 
     it('falls back to the local zone for a missing or invalid zone', () => {

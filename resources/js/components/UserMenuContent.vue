@@ -37,11 +37,11 @@ import {
 } from '@/components/ui/dropdown-menu';
 import UserStatusEmoji from '@/components/UserStatusEmoji.vue';
 import { useAppearance } from '@/composables/useAppearance';
+import { useDndPauseDialog } from '@/composables/useDndPauseDialog';
 import { useInitials } from '@/composables/useInitials';
 import { useKeyboardShortcutsModal } from '@/composables/useKeyboardShortcutsModal';
 import { useOnboardingTour } from '@/composables/useOnboardingTour';
 import { useSidebarPosition } from '@/composables/useSidebarPosition';
-import { useDndPauseDialog } from '@/composables/useDndPauseDialog';
 import { useTranslations } from '@/composables/useTranslations';
 import { useUpdateStatus } from '@/composables/useUpdateStatus';
 import { useUserStatusDialog } from '@/composables/useUserStatusDialog';
@@ -129,9 +129,7 @@ const ownDnd = computed(() => page.props.auth.user.dnd ?? null);
 const ownTimezone = computed(() => page.props.auth.user.timezone ?? null);
 
 /** Whether the viewer is in DND right now — a running pause or quiet hours. */
-const isDnd = computed(() =>
-    isDndActiveNow(ownDnd.value, ownTimezone.value),
-);
+const isDnd = computed(() => isDndActiveNow(ownDnd.value, ownTimezone.value));
 
 /** The running manual pause's lapse, formatted, or null when none runs. */
 const pausedUntil = computed(() =>
@@ -149,10 +147,7 @@ const quietHoursUntil = computed(() => {
     const closes = quietHoursEndsAt(ownDnd.value, ownTimezone.value);
 
     return closes
-        ? formatTimeOfDay(
-              closes.toISOString(),
-              ownTimezone.value ?? undefined,
-          )
+        ? formatTimeOfDay(closes.toISOString(), ownTimezone.value ?? undefined)
         : null;
 });
 
@@ -364,9 +359,10 @@ const handleLogout = () => {
         >
             <Moon class="size-4 shrink-0 text-muted-foreground" />
             <span class="flex min-w-0 flex-1 flex-col">
-                <span class="truncate text-[13px] font-semibold text-foreground">{{
-                    $t('Paused')
-                }}</span>
+                <span
+                    class="truncate text-[13px] font-semibold text-foreground"
+                    >{{ $t('Paused') }}</span
+                >
                 <span
                     v-if="pausedUntil"
                     data-test="dnd-paused-until"

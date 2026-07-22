@@ -42,6 +42,7 @@ import CreateChannelModal from '@/components/CreateChannelModal.vue';
 import CreateTeamModal from '@/components/CreateTeamModal.vue';
 import DemoBanner from '@/components/DemoBanner.vue';
 import DirectMessageListItem from '@/components/DirectMessageListItem.vue';
+import DndPauseDialog from '@/components/DndPauseDialog.vue';
 import InviteMemberModal from '@/components/InviteMemberModal.vue';
 import KeyboardShortcutsModal from '@/components/KeyboardShortcutsModal.vue';
 import NavUser from '@/components/NavUser.vue';
@@ -76,7 +77,6 @@ import {
     SidebarMenuItem,
     SidebarProvider,
 } from '@/components/ui/sidebar';
-import DndPauseDialog from '@/components/DndPauseDialog.vue';
 import { Toaster } from '@/components/ui/sonner';
 import UpdateIndicator from '@/components/UpdateIndicator.vue';
 import UserStatusDialog from '@/components/UserStatusDialog.vue';

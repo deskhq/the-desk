@@ -94,7 +94,9 @@ const crossesMidnight = computed(() => startsAt.value > endsAt.value);
 const stripSegments = computed(() =>
     quietHoursSegments(startsAt.value, endsAt.value),
 );
-const stripTicks = computed(() => quietHoursTicks(startsAt.value, endsAt.value));
+const stripTicks = computed(() =>
+    quietHoursTicks(startsAt.value, endsAt.value),
+);
 
 function persistSchedule(): void {
     router.put(
@@ -106,8 +108,7 @@ function persistSchedule(): void {
         },
         {
             preserveScroll: true,
-            onError: () =>
-                toast.error(t('Could not update your quiet hours.')),
+            onError: () => toast.error(t('Could not update your quiet hours.')),
         },
     );
 }

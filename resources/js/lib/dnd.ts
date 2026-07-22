@@ -52,11 +52,7 @@ export function quietHoursEndsAt(
     timeZone: string | null | undefined,
     at: Date = new Date(),
 ): Date | null {
-    if (
-        !dnd?.scheduleEnabled ||
-        dnd.startsAt === null ||
-        dnd.endsAt === null
-    ) {
+    if (!dnd?.scheduleEnabled || dnd.startsAt === null || dnd.endsAt === null) {
         return null;
     }
 
