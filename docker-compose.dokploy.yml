@@ -1,0 +1,136 @@
+# Production stack for a container-network PaaS: Dokploy, and anything else
+# that fronts compose services with an injected Traefik network. Point Dokploy's
+# Compose Path at this file and never edit YAML; the walkthrough is at
+# https://docs.thedeskhq.app/self-hosting/dokploy/.
+#
+# It is docker-compose.prod.yml (read that file for the rationale behind every
+# setting) with exactly two differences, which
+# tests/Unit/DokployComposeTemplateTest.php holds it to:
+#
+#   1. No `ports:`. Traefik reaches the containers over dokploy-network, and
+#      reverb's 127.0.0.1:8080 would collide with Dokploy's Traefik dashboard.
+#   2. `app` and `reverb` join the external dokploy-network, alongside the
+#      stack's implicit `default` network.
+#
+# On a bare VPS with your own reverse proxy, use docker-compose.prod.yml instead.
+
+x-infra-depends-on: &infra-depends-on
+  pgsql:
+    condition: service_healthy
+  redis:
+    condition: service_healthy
+  meilisearch:
+    condition: service_healthy
+
+x-worker-depends-on: &worker-depends-on
+  <<: *infra-depends-on
+  app:
+    condition: service_started
+
+x-app: &app
+  image: ${APP_IMAGE:-ghcr.io/deskhq/the-desk:${APP_VERSION:?APP_VERSION is required — set it in .env (see .env.prod.example) or override APP_IMAGE}}
+  env_file:
+    - .env
+  restart: unless-stopped
+  volumes:
+    - ./.env:/app/.env:ro
+    - storage-app:/app/storage/app
+  depends_on: *infra-depends-on
+
+# `default` keeps the proxied services on the stack network, so they still
+# resolve pgsql, redis, and each other by name once Dokploy attaches a domain.
+x-proxied-networks: &proxied-networks
+  - default
+  - dokploy-network
+
+services:
+  app:
+    <<: *app
+    environment:
+      AUTORUN_MIGRATIONS: 'true'
+    networks: *proxied-networks
+    healthcheck:
+      test: ['CMD', 'curl', '-fsS', 'http://localhost:8080/up']
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
+
+  reverb:
+    <<: *app
+    command: ['php', 'artisan', 'reverb:start', '--host=0.0.0.0', '--port=8080']
+    depends_on: *worker-depends-on
+    networks: *proxied-networks
+    healthcheck:
+      test: ['CMD', 'curl', '-fsS', 'http://localhost:8080/up']
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  queue:
+    <<: *app
+    command: ['php', 'artisan', 'queue:work', '--tries=3']
+    depends_on: *worker-depends-on
+
+  scheduler:
+    <<: *app
+    command: ['php', 'artisan', 'schedule:work']
+    depends_on: *worker-depends-on
+
+  pgsql:
+    image: postgres:18-alpine
+    environment:
+      POSTGRES_DB: ${DB_DATABASE:-laravel}
+      POSTGRES_USER: ${DB_USERNAME:-laravel}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD is required}
+    volumes:
+      - pgsql-data:/var/lib/postgresql
+    restart: unless-stopped
+    healthcheck:
+      test: ['CMD', 'pg_isready', '-q', '-d', '${DB_DATABASE:-laravel}', '-U', '${DB_USERNAME:-laravel}']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  meilisearch:
+    image: getmeili/meilisearch:${MEILISEARCH_VERSION:-v1.49}
+    environment:
+      MEILI_MASTER_KEY: ${MEILISEARCH_KEY:?MEILISEARCH_KEY is required}
+      MEILI_ENV: production
+      MEILI_NO_ANALYTICS: ${MEILISEARCH_NO_ANALYTICS:-true}
+    volumes:
+      - meili-data:/meili_data
+    restart: unless-stopped
+    healthcheck:
+      test: ['CMD', 'wget', '--no-verbose', '--spider', 'http://127.0.0.1:7700/health']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:alpine
+    command: ['redis-server', '--appendonly', 'yes']
+    volumes:
+      - redis-data:/data
+    restart: unless-stopped
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+# Created by Dokploy and shared by every application it deploys; Traefik is
+# attached to it. Declared explicitly rather than left to Dokploy's injection so
+# `reverb` reaches it too: injection only rewrites the services a domain is
+# attached to.
+networks:
+  dokploy-network:
+    external: true
+
+volumes:
+  pgsql-data:
+  meili-data:
+    name: the-desk-meili-${MEILISEARCH_VERSION:-v1.49}
+  redis-data:
+  storage-app:

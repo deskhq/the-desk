@@ -120,6 +120,14 @@ config) that route `chat.example.com` to the `app` service and your WebSocket
 host to the `reverb` service. Traefik forwards WebSocket upgrades automatically
 once the service is reachable.
 
+:::tip[Running a PaaS?]
+Dokploy, Coolify, and CapRover already run Traefik and attach your containers to
+it, so you configure domains in their UI rather than writing labels. The
+repository ships a compose template for that shape, and
+[Deploying on Dokploy](/self-hosting/dokploy/) walks through the domain rows,
+including the one that routes `/app` to Reverb on a single hostname.
+:::
+
 ## Upload body size
 
 Message attachments are capped by [`ATTACHMENT_MAX_SIZE_MB`](/reference/environment-variables/#attachments)

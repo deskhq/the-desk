@@ -32,6 +32,13 @@
 #     directly and needs no host publishing at all.
 # Set APP_BIND=0.0.0.0 only to deliberately expose the raw HTTP app off-box.
 #
+# Every service sits on the implicit `default` network, deliberately, with no
+# custom network declared. A PaaS that fronts compose services with an injected
+# proxy network (Dokploy, Coolify, CapRover) rewrites `networks:` on whichever
+# service a domain is attached to, so a custom network would leave that service
+# unable to resolve `pgsql` while the rest of the stack stayed behind. See
+# docker-compose.dokploy.yml for the Dokploy-shaped variant of this file.
+#
 # Redis backs cache, session, and queue (SESSION_DRIVER/CACHE_STORE=redis,
 # QUEUE_CONNECTION=redis in .env, with REDIS_HOST=redis). Broadcasting uses
 # Reverb. The `redis` service below is always-on; every app process depends on
@@ -97,8 +104,6 @@ x-app: &app
     - ./.env:/app/.env:ro
     - storage-app:/app/storage/app
   depends_on: *infra-depends-on
-  networks:
-    - app
 
 services:
   # Web app (FrankenPHP). Runs migrations on start and serves HTTP on 8080.
@@ -159,8 +164,6 @@ services:
       # path); mounting the old path makes the container refuse to start.
       - pgsql-data:/var/lib/postgresql
     restart: unless-stopped
-    networks:
-      - app
     healthcheck:
       test: ['CMD', 'pg_isready', '-q', '-d', '${DB_DATABASE:-laravel}', '-U', '${DB_USERNAME:-laravel}']
       interval: 10s
@@ -182,8 +185,6 @@ services:
     volumes:
       - meili-data:/meili_data
     restart: unless-stopped
-    networks:
-      - app
     healthcheck:
       test: ['CMD', 'wget', '--no-verbose', '--spider', 'http://127.0.0.1:7700/health']
       interval: 10s
@@ -199,17 +200,11 @@ services:
     volumes:
       - redis-data:/data
     restart: unless-stopped
-    networks:
-      - app
     healthcheck:
       test: ['CMD', 'redis-cli', 'ping']
       interval: 10s
       timeout: 5s
       retries: 5
-
-networks:
-  app:
-    driver: bridge
 
 volumes:
   pgsql-data:

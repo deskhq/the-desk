@@ -22,6 +22,13 @@ Make sure you meet the [requirements](/self-hosting/requirements/) first — Doc
 24+, a domain, a TLS reverse proxy, and working SMTP.
 :::
 
+:::tip[Deploying on a PaaS instead?]
+Dokploy, Coolify, and CapRover front your containers with their own Traefik, which
+needs a slightly different compose file. `docker-compose.dokploy.yml` is shipped
+for that: see [Deploying on Dokploy](/self-hosting/dokploy/) and skip this page's
+host-port setup.
+:::
+
 ## Pull the published image
 
 The image comes from the GitHub Container Registry (`ghcr.io/deskhq/the-desk`;
