@@ -197,7 +197,7 @@ const typingNames = typing.typingNames;
  * Live presence for the team, driving the dots on message avatars, the masthead
  * and the facepile. Follows the team across channel switches.
  */
-const { presenceFor } = useTeamPresence(() => props.team.id);
+const { presenceFor, isDndFor } = useTeamPresence(() => props.team.id);
 
 /**
  * Read positions of the channel's other members who share read receipts, keyed
@@ -1171,6 +1171,7 @@ function archive(): void {
                 :team-slug="props.team.slug"
                 :members="props.members"
                 :presence-for="presenceFor"
+                :is-dnd-for="isDndFor"
                 :title="mastheadTitle"
                 :can-manage-preferences="props.canManagePreferences"
                 :can-archive="props.canArchive"
@@ -1349,6 +1350,7 @@ function archive(): void {
                                 :can-react="props.canReact"
                                 :can-pin="props.canReact"
                                 :presence-for="presenceFor"
+                                :is-dnd-for="isDndFor"
                                 :readers="channelReadersList"
                                 :highlight-message-id="highlightedMessageId"
                                 :unread-divider-id="unreadDividerId"
@@ -1526,6 +1528,7 @@ function archive(): void {
                 :can-react="props.canReact"
                 :can-pin="props.canReact"
                 :presence-for="presenceFor"
+                :is-dnd-for="isDndFor"
                 :loading="threadLoading"
                 :read-only="props.channel.isArchived"
                 @close="closeThread"

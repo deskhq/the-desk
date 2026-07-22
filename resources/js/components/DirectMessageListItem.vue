@@ -30,6 +30,8 @@ const props = defineProps<{
     activeChannelSlug: string | null;
     /** How the DM's participant reads on the team presence roster. */
     presence: RenderedPresence;
+    /** Whether the DM's participant is in do-not-disturb, for the crescent badge. */
+    isDnd?: boolean;
     /** Whether this is the viewer's own self-DM (renders "You"). */
     isSelf: boolean;
 }>();
@@ -155,6 +157,7 @@ function hide(): void {
                     <PresenceDot
                         data-test="dm-presence-dot"
                         :presence="presence"
+                        :is-dnd="isDnd ?? false"
                         :surface-class="
                             isActive ? 'bg-sidebar-primary' : 'bg-sidebar'
                         "
@@ -167,7 +170,9 @@ function hide(): void {
                          label rather than an aria-label on the role-less dot,
                          which assistive tech ignores on a bare <span>. -->
                     <span data-test="dm-presence-label" class="sr-only">{{
-                        $t(presenceLabelKey(presence))
+                        isDnd
+                            ? $t('Notifications paused')
+                            : $t(presenceLabelKey(presence))
                     }}</span>
                 </span>
                 <span

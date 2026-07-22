@@ -30,6 +30,11 @@ const props = withDefaults(
          */
         presenceFor?: (userId: string) => RenderedPresence;
         /**
+         * Whether each stacked member is in do-not-disturb, driving the
+         * crescent badge on their dot. Only read when `presenceFor` is given.
+         */
+        dndFor?: (userId: string) => boolean;
+        /**
          * Background class matching the surface behind the stack, for the hollow
          * centre of an away dot. Pairs with `ringClass`.
          */
@@ -91,6 +96,7 @@ const DOT_SIZES = { sm: 'size-2', md: 'size-2.5' } as const;
                 v-if="presenceFor"
                 data-test="stack-presence-dot"
                 :presence="presenceFor(member.id)"
+                :is-dnd="dndFor?.(member.id) ?? false"
                 :surface-class="surfaceClass"
                 class="absolute -right-0.5 -bottom-0.5 ring-2"
                 :class="[DOT_SIZES[size], ringClass]"

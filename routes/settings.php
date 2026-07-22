@@ -6,6 +6,8 @@ use App\Http\Controllers\Settings\AboutController;
 use App\Http\Controllers\Settings\AppearanceController;
 use App\Http\Controllers\Settings\AvatarController;
 use App\Http\Controllers\Settings\DataExportController;
+use App\Http\Controllers\Settings\DndController;
+use App\Http\Controllers\Settings\DndScheduleController;
 use App\Http\Controllers\Settings\LocaleController;
 use App\Http\Controllers\Settings\NotificationController;
 use App\Http\Controllers\Settings\PersonalAccessTokenController;
@@ -54,6 +56,12 @@ Route::middleware(['auth'])->group(function (): void {
     // The manual away toggle sits beside the status in the same presence menu,
     // and is reachable from every workspace surface for the same reason.
     Route::put('settings/presence', [PresenceController::class, 'update'])->name('presence.update');
+
+    // Do-not-disturb rides the same presence menu: the pause is set and ended
+    // from it, and the recurring quiet-hours schedule from its dialog.
+    Route::put('settings/dnd', [DndController::class, 'update'])->name('dnd.update');
+    Route::delete('settings/dnd', [DndController::class, 'destroy'])->name('dnd.destroy');
+    Route::put('settings/dnd-schedule', [DndScheduleController::class, 'update'])->name('dnd-schedule.update');
 
     Route::patch('settings/timezone', [TimezoneController::class, 'update'])->name('timezone.update');
 

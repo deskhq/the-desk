@@ -17,6 +17,11 @@ export type User = {
      * live connections say when they have set none.
      */
     presence: App.Enums.PresenceState;
+    /**
+     * The viewer's own full do-not-disturb configuration. Only ever serialised
+     * to its owner; teammates receive the bare `isDnd` boolean instead.
+     */
+    dnd: App.Data.UserDndData;
     locale: AppLocale;
     avatar?: string;
     email_verified_at: string | null;

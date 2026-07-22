@@ -35,6 +35,8 @@ const props = defineProps<{
     canPin?: boolean;
     /** How each author reads on the team presence roster, passed straight down. */
     presenceFor?: (userId: string) => RenderedPresence;
+    /** Whether each author is in do-not-disturb, threaded through to the list. */
+    isDndFor?: (userId: string) => boolean;
     loading?: boolean;
     readOnly?: boolean;
 }>();
@@ -324,6 +326,7 @@ watch(
                     :can-react="props.canReact"
                     :can-pin="props.canPin"
                     :presence-for="props.presenceFor"
+                    :is-dnd-for="props.isDndFor"
                     :editing-message-id="editingMessageId"
                     in-thread
                     @load-older="loadOlderReplies"

@@ -61,6 +61,41 @@ describe('PresenceDot', () => {
         expect(await render('away')).toContain('data-presence="away"');
     });
 
+    it('swaps the active dot for a filled crescent badge in dnd', async () => {
+        const html = await render('active', { isDnd: true });
+
+        expect(html).toContain('data-dnd="true"');
+        expect(html).toContain('M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9z');
+        expect(html).toContain('bg-muted-foreground');
+        expect(html).not.toContain('bg-emerald-500');
+    });
+
+    it('keeps the hollow away ring under the crescent in dnd', async () => {
+        const html = await render('away', {
+            isDnd: true,
+            surfaceClass: 'bg-sidebar',
+        });
+
+        expect(html).toContain('data-dnd="true"');
+        expect(html).toContain('border-muted-foreground');
+        expect(html).toContain('bg-sidebar');
+        expect(html).toContain('fill-muted-foreground');
+    });
+
+    it('never draws the crescent for someone offline', async () => {
+        const html = await render('offline', { isDnd: true });
+
+        expect(html).not.toContain('data-dnd');
+        expect(html).toContain('bg-muted-foreground/50');
+    });
+
+    it('draws the plain dot when dnd is off', async () => {
+        const html = await render('active', { isDnd: false });
+
+        expect(html).not.toContain('data-dnd');
+        expect(html).toContain('bg-emerald-500');
+    });
+
     it('is invisible to assistive tech, which reads the surface own label', async () => {
         expect(await render('active')).toContain('aria-hidden="true"');
     });

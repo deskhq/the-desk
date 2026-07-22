@@ -42,6 +42,7 @@ import CreateChannelModal from '@/components/CreateChannelModal.vue';
 import CreateTeamModal from '@/components/CreateTeamModal.vue';
 import DemoBanner from '@/components/DemoBanner.vue';
 import DirectMessageListItem from '@/components/DirectMessageListItem.vue';
+import DndPauseDialog from '@/components/DndPauseDialog.vue';
 import InviteMemberModal from '@/components/InviteMemberModal.vue';
 import KeyboardShortcutsModal from '@/components/KeyboardShortcutsModal.vue';
 import NavUser from '@/components/NavUser.vue';
@@ -82,6 +83,7 @@ import UserStatusDialog from '@/components/UserStatusDialog.vue';
 import { adjacentSlug } from '@/composables/keyboardShortcuts';
 import { useChimeNotifications } from '@/composables/useChimeNotifications';
 import { useDemoMode } from '@/composables/useDemoMode';
+import { useDndPauseDialog } from '@/composables/useDndPauseDialog';
 import { useInitials } from '@/composables/useInitials';
 import { useKeyboardShortcuts } from '@/composables/useKeyboardShortcuts';
 import { useKeyboardShortcutsModal } from '@/composables/useKeyboardShortcutsModal';
@@ -151,7 +153,7 @@ const currentUserId = computed(() => String(page.props.auth.user.id));
 const teamMembers = computed(() => page.props.teamMembers ?? []);
 
 /** Live presence for the current team, driving the dot on each DM row. */
-const { presenceFor } = useTeamPresence(() => currentTeam.value?.id);
+const { presenceFor, isDndFor } = useTeamPresence(() => currentTeam.value?.id);
 
 // Report this tab's own idle state from the layout every authenticated surface
 // mounts, so someone reading a settings page still counts as here.
@@ -561,6 +563,7 @@ const quickSwitcherOpen = ref(false);
 const { isOpen: shortcutsOpen, toggle: toggleShortcuts } =
     useKeyboardShortcutsModal();
 const { isOpen: statusDialogOpen } = useUserStatusDialog();
+const { isOpen: dndPauseDialogOpen } = useDndPauseDialog();
 
 /**
  * The viewer's still-pending reminders in this team, feeding the "Reminders"
@@ -1262,6 +1265,10 @@ onMounted(() => {
                                             page.props.auth.user.presence,
                                         )
                                     "
+                                    :is-dnd="
+                                        dm.dmUserId != null &&
+                                        isDndFor(dm.dmUserId)
+                                    "
                                     :is-self="dm.dmUserId === currentUserId"
                                 />
                             </ul>
@@ -1454,6 +1461,8 @@ onMounted(() => {
         <KeyboardShortcutsModal v-model:open="shortcutsOpen" />
 
         <UserStatusDialog v-model:open="statusDialogOpen" />
+
+        <DndPauseDialog v-model:open="dndPauseDialogOpen" />
 
         <RemindersDialog
             v-model:open="remindersDialogOpen"

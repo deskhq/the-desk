@@ -2,6 +2,7 @@ import { usePage } from '@inertiajs/vue3';
 import { computed, onBeforeUnmount, onMounted } from 'vue';
 import { useChannelFleetSubscription } from '@/composables/useChannelFleetSubscription';
 import { playChime, unlockChimeAudio } from '@/lib/chimeSounds';
+import { isDndActiveNow } from '@/lib/dnd';
 import { shouldChime } from '@/lib/shouldChime';
 import type { ChimeSound } from '@/types';
 
@@ -47,6 +48,12 @@ export function useChimeNotifications(): void {
                 : null,
             tabHasFocus: typeof document !== 'undefined' && document.hasFocus(),
             isActiveChannel: channelId === activeChannelId.value,
+            // Evaluated at arrival time, not page-load time, so a pause lapsing
+            // or a quiet-hours window opening takes effect without a visit.
+            dndActive: isDndActiveNow(
+                page.props.auth.user.dnd ?? null,
+                page.props.auth.user.timezone ?? null,
+            ),
         });
 
         if (decision) {

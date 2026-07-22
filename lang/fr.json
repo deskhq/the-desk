@@ -1213,5 +1213,21 @@
   ":active of :total active": ":active sur :total actifs",
   "Set yourself away": "Se marquer absent",
   "Set yourself active": "Se marquer actif",
-  "Could not change your presence.": "Impossible de modifier votre présence."
+  "Could not change your presence.": "Impossible de modifier votre présence.",
+  "Pause notifications": "Mettre les notifications en pause",
+  "Notifications paused": "Notifications en pause",
+  "Paused": "En pause",
+  "Resume": "Reprendre",
+  "Until tomorrow": "Jusqu'à demain",
+  "Quiet hours": "Heures calmes",
+  "quiet hours · until :time": "heures calmes · jusqu'à :time",
+  "Could not pause your notifications.": "Impossible de mettre vos notifications en pause.",
+  "Could not resume your notifications.": "Impossible de réactiver vos notifications.",
+  "Pick when the chime comes back. Teammates only see that notifications are paused.": "Choisissez quand le carillon revient. Vos collègues voient seulement que les notifications sont en pause.",
+  "Pause the chime on a daily schedule. Uses your timezone — :timezone.": "Met le carillon en pause selon un horaire quotidien. Utilise votre fuseau horaire — :timezone.",
+  "your device's": "celui de votre appareil",
+  "From": "De",
+  "to": "à",
+  "crosses midnight — ends tomorrow morning": "passe minuit — se termine demain matin",
+  "Could not update your quiet hours.": "Impossible de mettre à jour vos heures calmes."
 }

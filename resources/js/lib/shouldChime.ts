@@ -28,6 +28,13 @@ export type ChimeDecisionInput = {
     tabHasFocus: boolean;
     /** The message landed in the channel the user is actively viewing on screen. */
     isActiveChannel: boolean;
+    /**
+     * The user is in do-not-disturb at this instant — a manual pause still
+     * running, or their quiet-hours window covering right now (see
+     * `isDndActiveNow`). Suppresses everything, mentions included: DND is the
+     * stronger, time-boxed claim on top of the standing per-channel levels.
+     */
+    dndActive: boolean;
 };
 
 /**
@@ -37,11 +44,15 @@ export type ChimeDecisionInput = {
  * mention badge stay consistent: a direct @mention alerts unless the channel is
  * muted or set to "nothing"; ordinary traffic alerts only at the "all" level. On
  * top of that a chime is suppressed for the user's own messages, when chimes are
- * disabled, and when the user is already actively looking at the message (its
- * channel is open and the tab has focus).
+ * disabled, while the user is in do-not-disturb, and when the user is already
+ * actively looking at the message (its channel is open and the tab has focus).
  */
 export function shouldChime(input: ChimeDecisionInput): boolean {
     if (!input.chimeEnabled) {
+        return false;
+    }
+
+    if (input.dndActive) {
         return false;
     }
 

@@ -97,6 +97,31 @@ export function useTeamPresence(teamId: MaybeRefOrGetter<string | undefined>) {
         return flips.value.get(userId) ?? seeded.value.get(userId) ?? 'active';
     }
 
+    /**
+     * The members currently flagged as in do-not-disturb, from the shared
+     * `teamMembers` prop. No live patching layer like the presence flips:
+     * every DND change broadcasts `UserProfileUpdated`, whose debounced reload
+     * below refreshes this very prop.
+     */
+    const dndIds = computed(() => {
+        const ids = new Set<string>();
+
+        for (const member of page.props.teamMembers ?? []) {
+            if (member.isDnd) {
+                ids.add(member.id);
+            }
+        }
+
+        return ids;
+    });
+
+    /**
+     * Whether the given member shows the crescent DND badge on their dot.
+     */
+    function isDndFor(userId: string): boolean {
+        return dndIds.value.has(userId);
+    }
+
     // A teammate changed their profile (avatar, custom status). Reload the
     // current page's props so every surface re-reads them, preserving scroll and
     // local state so the refresh is invisible. A teammate's timing is not the
@@ -192,5 +217,5 @@ export function useTeamPresence(teamId: MaybeRefOrGetter<string | undefined>) {
         }
     });
 
-    return { onlineIds, presenceFor };
+    return { onlineIds, presenceFor, isDndFor };
 }

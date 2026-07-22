@@ -42,6 +42,8 @@ export type UserProfile = {
     memberSince: string | null;
     isYou: boolean;
     status: App.Data.UserStatusData | null;
+    /** Whether the member is in do-not-disturb right now; never says when it ends. */
+    isDnd: boolean;
 };
 
 export type TeamInvitation = {

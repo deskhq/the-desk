@@ -58,6 +58,8 @@ const props = defineProps<{
     members: Mention[];
     /** How each team member reads on the presence roster, driving every dot here. */
     presenceFor: (userId: string) => RenderedPresence;
+    /** Whether each member is in do-not-disturb, driving the crescent badge. */
+    isDndFor?: (userId: string) => boolean;
     /**
      * The viewer-relative title (self-DM reads "You"); the page also feeds it to
      * `<Head>`, so it is resolved once there and passed down.
@@ -143,6 +145,13 @@ const dmPresence = computed<RenderedPresence>(() =>
     ),
 );
 
+/** Whether the 1:1 counterpart shows the crescent DND badge. */
+const dmDnd = computed(
+    () =>
+        props.channel.dmUserId != null &&
+        (props.isDndFor?.(props.channel.dmUserId) ?? false),
+);
+
 /**
  * How many of the channel's members are active right now.
  *
@@ -207,6 +216,7 @@ const groupParticipantCount = computed(
                     <PresenceDot
                         data-test="masthead-dm-presence"
                         :presence="dmPresence"
+                        :is-dnd="dmDnd"
                         surface-class="bg-card"
                         class="absolute -right-0.5 -bottom-0.5 size-2.5 ring-2 ring-card"
                     />
@@ -214,7 +224,9 @@ const groupParticipantCount = computed(
                          an aria-label on the role-less dot, which assistive tech
                          ignores on a bare <span>. -->
                     <span class="sr-only">{{
-                        $t(presenceLabelKey(dmPresence))
+                        dmDnd
+                            ? $t('Notifications paused')
+                            : $t(presenceLabelKey(dmPresence))
                     }}</span>
                 </span>
                 <span v-else class="text-brass italic">#</span>
@@ -355,6 +367,7 @@ const groupParticipantCount = computed(
                             v-if="!member.isBot"
                             data-test="masthead-member-presence"
                             :presence="props.presenceFor(member.id)"
+                            :is-dnd="props.isDndFor?.(member.id) ?? false"
                             surface-class="bg-card"
                             class="absolute -right-0.5 -bottom-0.5 size-2 ring-2 ring-card"
                         />

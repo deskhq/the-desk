@@ -11,6 +11,11 @@ export type PersonRef = {
      * refs some pickers assemble, which then read as active.
      */
     presence?: App.Enums.PresenceState;
+    /**
+     * Whether the member is in do-not-disturb, driving the crescent badge on
+     * the dot surfaces. Absent on hand-built refs, which then show no badge.
+     */
+    isDnd?: boolean;
 };
 
 /**

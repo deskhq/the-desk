@@ -29,6 +29,11 @@ class UserData extends Data
         // freshly loaded client — which has no broadcast history — still paints
         // the right dot before any UserPresenceChanged event arrives.
         public PresenceState $presence = PresenceState::Active,
+        // Whether the author is in do-not-disturb right now, so the DND badge
+        // rides every presence-dot surface. A bare boolean on purpose: the
+        // pause instant and the quiet-hours schedule are the owner's business
+        // and never leave their own `auth.user` prop.
+        public bool $isDnd = false,
     ) {}
 
     /**
@@ -43,6 +48,7 @@ class UserData extends Data
             isBot: $user->isBot(),
             status: UserStatusData::forUser($user),
             presence: $user->effectivePresence(),
+            isDnd: $user->isDndActive(),
         );
     }
 }

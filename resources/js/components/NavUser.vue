@@ -17,6 +17,7 @@ import {
 } from '@/components/ui/sidebar';
 import UserMenuContent from '@/components/UserMenuContent.vue';
 import { useInitials } from '@/composables/useInitials';
+import { isDndActiveNow } from '@/lib/dnd';
 import type { RenderedPresence } from '@/lib/presence';
 import type { Team } from '@/types';
 
@@ -35,6 +36,18 @@ const hasAvatar = computed(() => !!user.avatar && user.avatar !== '');
  */
 const ownPresence = computed<RenderedPresence>(
     () => page.props.auth.user.presence ?? 'active',
+);
+
+/**
+ * The viewer's own do-not-disturb state, evaluated locally from the full
+ * configuration only their own prop carries — so the chip's crescent appears
+ * the moment a pause is set, without waiting for a broadcast round-trip.
+ */
+const ownDnd = computed(() =>
+    isDndActiveNow(
+        page.props.auth.user.dnd ?? null,
+        page.props.auth.user.timezone ?? null,
+    ),
 );
 </script>
 
@@ -70,6 +83,7 @@ const ownPresence = computed<RenderedPresence>(
                             <PresenceDot
                                 data-test="nav-user-presence"
                                 :presence="ownPresence"
+                                :is-dnd="ownDnd"
                                 surface-class="bg-popover group-hover/nav-user:bg-secondary group-data-[state=open]/nav-user:bg-sidebar-primary"
                                 class="absolute -right-0.5 -bottom-0.5 size-2.25 ring-2 ring-popover group-hover/nav-user:ring-secondary group-data-[state=open]/nav-user:ring-sidebar-primary"
                             />

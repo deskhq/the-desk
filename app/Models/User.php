@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Actions\Users\ClearExpiredUserStatuses;
 use App\Concerns\HasTeams;
 use App\Data\UserData;
+use App\Data\UserDndData;
 use App\Data\UserStatusData;
 use App\Enums\AppLocale;
 use App\Enums\ChimeSound;
@@ -70,6 +71,10 @@ use Laravel\Sanctum\HasApiTokens;
  * @property bool $share_read_receipts
  * @property SidebarPosition $sidebar_position
  * @property PresenceState $presence_state
+ * @property Carbon|null $dnd_until
+ * @property bool $dnd_schedule_enabled
+ * @property string|null $dnd_starts_at
+ * @property string|null $dnd_ends_at
  * @property Carbon|null $onboarding_completed_at
  * @property bool $is_tombstone
  * @property Carbon|null $deactivated_at
@@ -79,6 +84,7 @@ use Laravel\Sanctum\HasApiTokens;
  * @property-read string|null $avatar
  * @property-read UserStatusData|null $status
  * @property-read PresenceState $presence
+ * @property-read UserDndData $dnd
  * @property-read Team|null $currentTeam
  * @property-read Team|null $ownerTeam
  * @property-read Collection<int, Team> $ownedTeams
@@ -90,9 +96,9 @@ use Laravel\Sanctum\HasApiTokens;
  * @property-read Collection<int, Passkey> $passkeys
  * @property-read Collection<int, UserGroup> $userGroups
  */
-#[Appends(['avatar', 'status', 'presence'])]
+#[Appends(['avatar', 'status', 'presence', 'dnd'])]
 #[Fillable(['name', 'email', 'avatar_url', 'pronouns', 'title', 'phone', 'timezone', 'locale', 'password', 'current_team_id', 'chime_sound', 'share_read_receipts', 'sidebar_position', 'presence_state', 'onboarding_completed_at', 'collapsed_channel_sections', 'is_tombstone'])]
-#[Hidden(['password', 'two_factor_secret', 'two_factor_recovery_codes', 'remember_token', 'avatar_url', 'avatar_path', 'status_emoji', 'status_text', 'status_expires_at'])]
+#[Hidden(['password', 'two_factor_secret', 'two_factor_recovery_codes', 'remember_token', 'avatar_url', 'avatar_path', 'status_emoji', 'status_text', 'status_expires_at', 'dnd_until', 'dnd_schedule_enabled', 'dnd_starts_at', 'dnd_ends_at'])]
 #[ObservedBy(UserObserver::class)]
 class User extends Authenticatable implements HasLocalePreference, MustVerifyEmail, PasskeyUser
 {
@@ -153,6 +159,61 @@ class User extends Authenticatable implements HasLocalePreference, MustVerifyEma
         }
 
         return $this->status_expires_at === null || $this->status_expires_at->isFuture();
+    }
+
+    /**
+     * Whether the user is in do-not-disturb right now.
+     *
+     * A manual pause whose `dnd_until` is still ahead reads as DND from the
+     * instant it is set, and lapses on read the instant it passes — the same
+     * lazy half of expiry as {@see hasLiveStatus()}, with the scheduled sweep
+     * as the eager half that propagates the lapse to teammates.
+     */
+    public function isDndActive(): bool
+    {
+        if ($this->dnd_until?->isFuture()) {
+            return true;
+        }
+
+        return $this->isInsideDndScheduleWindow();
+    }
+
+    /**
+     * Whether the recurring quiet-hours window covers this instant.
+     *
+     * The bounds are wall-clock `HH:MM` strings compared in the user's own
+     * timezone, so the window follows them when they travel. Start is
+     * inclusive and end exclusive, and a window whose end precedes its start
+     * wraps across midnight (22:00–07:00 covers the night, not an empty set).
+     */
+    private function isInsideDndScheduleWindow(): bool
+    {
+        if (! $this->dnd_schedule_enabled || $this->dnd_starts_at === null || $this->dnd_ends_at === null) {
+            return false;
+        }
+
+        $now = now($this->timezone ?? config('app.timezone'))->format('H:i');
+
+        if ($this->dnd_starts_at <= $this->dnd_ends_at) {
+            return $now >= $this->dnd_starts_at && $now < $this->dnd_ends_at;
+        }
+
+        return $now >= $this->dnd_starts_at || $now < $this->dnd_ends_at;
+    }
+
+    /**
+     * The user's own full do-not-disturb configuration.
+     *
+     * Appended to every serialisation of the model, which only ever reaches its
+     * owner (the `auth.user` prop) — teammates read the curated
+     * {@see UserData::$isDnd} boolean instead. The raw columns stay hidden so a
+     * lapsed pause can never leak through them.
+     *
+     * @return Attribute<covariant UserDndData, never>
+     */
+    protected function dnd(): Attribute
+    {
+        return Attribute::get(fn (): UserDndData => UserDndData::forUser($this));
     }
 
     /**
@@ -232,6 +293,8 @@ class User extends Authenticatable implements HasLocalePreference, MustVerifyEma
             'share_read_receipts' => 'boolean',
             'sidebar_position' => SidebarPosition::class,
             'presence_state' => PresenceState::class,
+            'dnd_until' => 'datetime',
+            'dnd_schedule_enabled' => 'boolean',
             'onboarding_completed_at' => 'datetime',
             'status_expires_at' => 'datetime',
             'is_tombstone' => 'boolean',

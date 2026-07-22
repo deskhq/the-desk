@@ -17,6 +17,7 @@ function input(
         channel: { muted: false, notificationLevel: 'all' },
         tabHasFocus: false,
         isActiveChannel: false,
+        dndActive: false,
         ...overrides,
     };
 }
@@ -28,6 +29,16 @@ describe('shouldChime', () => {
 
     it('never chimes when chimes are disabled', () => {
         expect(shouldChime(input({ chimeEnabled: false }))).toBe(false);
+    });
+
+    it('never chimes while the user is in do-not-disturb', () => {
+        expect(shouldChime(input({ dndActive: true }))).toBe(false);
+    });
+
+    it('suppresses even a direct mention while in do-not-disturb', () => {
+        expect(
+            shouldChime(input({ dndActive: true, mentionsCurrentUser: true })),
+        ).toBe(false);
     });
 
     it("never chimes for the user's own message", () => {

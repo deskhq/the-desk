@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Link } from '@inertiajs/vue3';
-import { AtSign, MessageSquare, UserRound } from '@lucide/vue';
+import { AtSign, MessageSquare, Moon, UserRound } from '@lucide/vue';
 import { computed, ref } from 'vue';
 import PresenceDot from '@/components/PresenceDot.vue';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -30,6 +30,12 @@ const props = defineProps<{
      * that open a card without a roster to hand, which then show no dot at all.
      */
     presence?: RenderedPresence;
+    /**
+     * The roster's do-not-disturb answer, painting the crescent badge before
+     * the profile fetch lands. The fetched profile is the fresher claim once
+     * loaded.
+     */
+    isDnd?: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -42,6 +48,14 @@ const { openDirectMessage } = useOpenDirectMessage(() => props.teamSlug);
 const profile = ref<UserProfile | null>(null);
 const loading = ref(false);
 const loaded = ref(false);
+
+/**
+ * Whether the card shows the member as in do-not-disturb: the fetched profile
+ * once it has landed, the roster's prop until then.
+ */
+const showsDnd = computed(() =>
+    profile.value ? profile.value.isDnd : (props.isDnd ?? false),
+);
 
 /**
  * Lazily load the profile the first time the card opens; the fetch is memoised
@@ -116,6 +130,7 @@ function onMessage(): void {
                             v-if="presence"
                             data-test="hover-card-presence"
                             :presence="presence"
+                            :is-dnd="showsDnd"
                             surface-class="bg-popover"
                             class="absolute right-0 bottom-0 size-3 ring-[2.5px] ring-popover"
                         />
@@ -167,6 +182,17 @@ function onMessage(): void {
                                     class="size-2"
                                 />
                                 {{ $t(presenceLabelKey(presence)) }}
+                            </span>
+                            <!-- The card names the DND state outright — the
+                                 one thing teammates learn; when it ends stays
+                                 the owner's business. -->
+                            <span
+                                v-if="showsDnd"
+                                data-test="hover-card-dnd"
+                                class="flex items-center gap-1.5 font-serif text-xs text-muted-foreground italic"
+                            >
+                                <Moon class="size-3" aria-hidden="true" />
+                                {{ $t('Notifications paused') }}
                             </span>
                             <span
                                 v-if="localTime()"

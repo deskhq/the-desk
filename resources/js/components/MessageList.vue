@@ -90,6 +90,11 @@ const props = defineProps<{
      * that render a timeline without one, where every author reads as offline.
      */
     presenceFor?: (userId: string) => RenderedPresence;
+    /**
+     * Whether each author is in do-not-disturb, driving the crescent badge on
+     * their dot. Absent on the same surfaces that carry no roster.
+     */
+    isDndFor?: (userId: string) => boolean;
     highlightMessageId?: string | null;
     /**
      * The message the "New messages" divider sits above — the first unread on
@@ -266,6 +271,13 @@ const viewerTimeZone = computed(
  */
 function presenceOf(authorId: string): RenderedPresence {
     return props.presenceFor?.(authorId) ?? 'offline';
+}
+
+/**
+ * Whether a message author shows the crescent DND badge on their dot.
+ */
+function dndOf(authorId: string): boolean {
+    return props.isDndFor?.(authorId) ?? false;
 }
 
 /**
@@ -820,6 +832,7 @@ function confirmDelete(): void {
                             :user-id="item.author.id"
                             :name="item.author.name"
                             :presence="presenceOf(item.author.id)"
+                            :is-dnd="dndOf(item.author.id)"
                             @mention="(member) => emit('mention', member)"
                         >
                             <div class="relative size-8.5 cursor-pointer">
@@ -866,6 +879,7 @@ function confirmDelete(): void {
                                     v-if="!item.author.isBot"
                                     data-test="presence-dot"
                                     :presence="presenceOf(item.author.id)"
+                                    :is-dnd="dndOf(item.author.id)"
                                     surface-class="bg-card"
                                     class="absolute right-0 bottom-0 size-2.5 ring-2 ring-card"
                                 />
@@ -889,6 +903,7 @@ function confirmDelete(): void {
                             :user-id="item.author.id"
                             :name="item.author.name"
                             :presence="presenceOf(item.author.id)"
+                            :is-dnd="dndOf(item.author.id)"
                             @mention="(member) => emit('mention', member)"
                         >
                             <span
