@@ -72,7 +72,7 @@ class TeamController extends Controller
                 'isPersonal' => $team->is_personal,
                 'role' => $user->teamRole($team)?->value,
             ],
-            'members' => $team->members()->get()->map(function (User $member) use ($canViewRoster): array {
+            'members' => $team->roster()->get()->map(function (User $member) use ($canViewRoster): array {
                 /** @var Membership $membership */
                 $membership = $member->getRelation('pivot');
 

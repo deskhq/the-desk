@@ -83,6 +83,40 @@ class Team extends Model
     }
 
     /**
+     * SQL ranking a membership by role, most privileged first.
+     *
+     * Spelled out rather than folded from {@see TeamRole::level()} because raw
+     * SQL has to stay a literal expression to be provably injection-free, and a
+     * value built at runtime is not. That duplicates the hierarchy, so the test
+     * "the team edit page orders every role by its hierarchy level" walks
+     * TeamRole::cases() and fails if a new role is added without a rank here.
+     */
+    private const string ROLE_HIERARCHY_SQL = 'case team_members.role'
+        ." when '".TeamRole::Owner->value."' then 0"
+        ." when '".TeamRole::Admin->value."' then 1"
+        ." when '".TeamRole::Member->value."' then 2"
+        .' else 3 end';
+
+    /**
+     * Get all members of this team in a stable, total order.
+     *
+     * {@see members()} carries no ORDER BY, so Postgres is free to hand the rows
+     * back in a different order on every load and a rendered roster reshuffles
+     * itself between two visits to the same page (issue #722). This orders the
+     * most privileged roles first, then case-insensitively by name, with the id
+     * as the tie-break that makes the order total.
+     *
+     * @return BelongsToMany<User, $this, Membership, 'pivot'>
+     */
+    public function roster(): BelongsToMany
+    {
+        return $this->members()
+            ->orderByRaw(self::ROLE_HIERARCHY_SQL)
+            ->orderByRaw('lower(users.name)')
+            ->orderBy('users.id');
+    }
+
+    /**
      * Get all memberships for this team.
      *
      * @return HasMany<Membership, $this>

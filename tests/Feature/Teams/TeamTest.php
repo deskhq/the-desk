@@ -6,7 +6,6 @@ use App\Models\SecurityEvent;
 use App\Models\Team;
 use App\Models\TeamInvitation;
 use App\Models\User;
-use Illuminate\Support\Collection;
 use Inertia\Testing\AssertableInertia as Assert;
 
 test('the teams index page can be rendered', function (): void {
@@ -75,6 +74,73 @@ test('the team edit page can be rendered', function (): void {
         );
 });
 
+test('the team edit page orders the roster by role, then name, then id', function (): void {
+    $team = Team::factory()->create();
+
+    $owner = User::factory()->create(['name' => 'Zoe Owner']);
+    $adminBob = User::factory()->create(['name' => 'Bob Admin']);
+    $adminAlice = User::factory()->create(['name' => 'alice Admin']);
+    $memberCarol = User::factory()->create(['name' => 'Carol Member']);
+    $memberCarolTwin = User::factory()->create(['name' => 'Carol Member']);
+
+    // Attached in an order that contradicts the expected one, so a roster that
+    // merely echoes insertion order cannot pass by accident (issue #722).
+    $team->members()->attach($memberCarolTwin, ['role' => TeamRole::Member->value]);
+    $team->members()->attach($adminBob, ['role' => TeamRole::Admin->value]);
+    $team->members()->attach($memberCarol, ['role' => TeamRole::Member->value]);
+    $team->members()->attach($owner, ['role' => TeamRole::Owner->value]);
+    $team->members()->attach($adminAlice, ['role' => TeamRole::Admin->value]);
+
+    $carolsById = collect([$memberCarol, $memberCarolTwin])->sortBy('id')->values();
+
+    $response = $this
+        ->actingAs($owner)
+        ->get(route('teams.edit', $team));
+
+    $response
+        ->assertOk()
+        ->assertInertia(fn (Assert $page): Assert => $page
+            ->component('teams/Edit')
+            ->where('members.0.id', $owner->id)
+            ->where('members.1.id', $adminAlice->id)
+            ->where('members.2.id', $adminBob->id)
+            ->where('members.3.id', $carolsById[0]->id)
+            ->where('members.4.id', $carolsById[1]->id)
+        );
+});
+
+test('the team edit page orders every role by its hierarchy level', function (): void {
+    $team = Team::factory()->create();
+
+    $expected = collect(TeamRole::cases())
+        ->sortByDesc(fn (TeamRole $role): int => $role->level())
+        ->values();
+
+    // Named in reverse of the expected order, so a roster that lost its role
+    // ranking and fell back to the name tie-break would come out backwards.
+    $membersByRole = [];
+
+    foreach ($expected as $rank => $role) {
+        $member = User::factory()->create(['name' => chr(ord('z') - $rank).' Member']);
+        $team->members()->attach($member, ['role' => $role->value]);
+        $membersByRole[$role->value] = $member;
+    }
+
+    $response = $this
+        ->actingAs($membersByRole[TeamRole::Owner->value])
+        ->get(route('teams.edit', $team));
+
+    $response
+        ->assertOk()
+        ->assertInertia(function (Assert $page) use ($expected, $membersByRole): void {
+            $page->component('teams/Edit')->has('members', $expected->count());
+
+            foreach ($expected as $position => $role) {
+                $page->where("members.{$position}.id", $membersByRole[$role->value]->id);
+            }
+        });
+});
+
 test('the team edit page cannot be viewed by non-members', function (): void {
     $owner = User::factory()->create();
     $outsider = User::factory()->create();
@@ -137,14 +203,9 @@ test('the team edit page shows member emails and invitations to admins', functio
         ->assertOk()
         ->assertInertia(fn (Assert $page): Assert => $page
             ->component('teams/Edit')
-            // The roster query carries no ORDER BY, so Postgres is free to hand
-            // the rows back in any order (issue #722). What this test is about is
-            // that an admin sees every member's email, not where each one lands.
             ->has('members', 2)
-            ->where('members', fn (Collection $members): bool => $members->pluck('email')
-                ->sort()
-                ->values()
-                ->all() === collect([$owner->email, $admin->email])->sort()->values()->all())
+            ->where('members.0.email', $owner->email)
+            ->where('members.1.email', $admin->email)
             ->where('invitations.0.email', $invitation->email)
             ->where('invitations.0.role', $invitation->role->value),
         );
