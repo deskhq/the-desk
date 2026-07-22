@@ -77,15 +77,15 @@ emits tags it writes itself. Then, whatever it produced is sanitized with
 tags and attributes just before the browser renders it.
 
 The second stage runs in exactly one component, `SafeHtml`, which is the only
-place in the app allowed to hand a string to the browser as markup. Every
-surface goes through it: message bodies, forwarded and quoted messages, the
-quick switcher, the threads list, search snippets, and the two-factor QR code.
-Each names the allow-list it renders under, so a search snippet can carry a
-highlight and nothing else, and a QR code can carry SVG shapes but no script.
+place in the interface allowed to render a string as markup. Every surface goes
+through it: message bodies, forwarded and quoted messages, the quick switcher,
+the threads list, search snippets, and the two-factor QR code. Each names the
+allow-list it renders under, so a search snippet can carry a highlight and
+nothing else, and a QR code can carry SVG shapes but no script.
 
 That rule is enforced mechanically rather than by review: the linter fails the
-build on any other component rendering raw HTML, so a new feature cannot open a
-second, unsanitized path by accident.
+build on any other component using Vue's `v-html` directive, so a new component
+cannot add a second, unsanitized rendering path by accident.
 
 None of this is configurable, and there is nothing to switch on. It is
 described here because it is the control that the policy below exists to back

@@ -11,10 +11,13 @@ import { describe, expect, it } from 'vitest';
  */
 const eslint = new ESLint();
 
-async function severityFor(filePath: string): Promise<unknown> {
+async function severityFor(
+    filePath: string,
+    rule = 'vue/no-v-html',
+): Promise<unknown> {
     const config = await eslint.calculateConfigForFile(filePath);
 
-    return config.rules?.['vue/no-v-html']?.[0];
+    return config.rules?.[rule]?.[0];
 }
 
 describe('the v-html policy', () => {
@@ -32,5 +35,21 @@ describe('the v-html policy', () => {
         expect(await severityFor('resources/js/components/SafeHtml.vue')).toBe(
             0,
         );
+    });
+
+    it('also clears the on-component variant for SafeHtml, whose directive sits on a dynamic <component>', async () => {
+        expect(
+            await severityFor(
+                'resources/js/components/SafeHtml.vue',
+                'vue/no-v-text-v-html-on-component',
+            ),
+        ).toBe(0);
+
+        expect(
+            await severityFor(
+                'resources/js/components/Probe.vue',
+                'vue/no-v-text-v-html-on-component',
+            ),
+        ).toBe(2);
     });
 });

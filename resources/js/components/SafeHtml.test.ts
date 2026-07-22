@@ -9,13 +9,20 @@ import SafeHtml from './SafeHtml.vue';
 
 let app: App | null = null;
 
+/**
+ * Mount `SafeHtml` into a fresh host, tearing down any app a previous call in the
+ * same test left behind — several cases render the component twice to compare
+ * two variants or two elements.
+ */
 function mount(props: {
     html: string;
     variant: SanitizeVariant;
-    as?: 'span' | 'div';
+    as?: 'span' | 'div' | 'p';
     class?: string;
     'data-test'?: string;
 }) {
+    unmount();
+
     const host = document.createElement('div');
     document.body.appendChild(host);
 
@@ -25,11 +32,13 @@ function mount(props: {
     return host;
 }
 
-afterEach(() => {
+function unmount(): void {
     app?.unmount();
     app = null;
     document.body.innerHTML = '';
-});
+}
+
+afterEach(unmount);
 
 describe('SafeHtml', () => {
     it('renders allowlisted markup as real elements', () => {
@@ -61,10 +70,6 @@ describe('SafeHtml', () => {
 
         expect(snippet.querySelector('mark')).not.toBeNull();
 
-        app?.unmount();
-        app = null;
-        document.body.innerHTML = '';
-
         const body = mount({
             html: '<mark>hit</mark>',
             variant: 'messageBody',
@@ -93,13 +98,17 @@ describe('SafeHtml', () => {
 
         expect(span.firstElementChild?.tagName).toBe('SPAN');
 
-        app?.unmount();
-        app = null;
-        document.body.innerHTML = '';
-
         const div = mount({ html: 'hi', variant: 'messageBody', as: 'div' });
 
         expect(div.firstElementChild?.tagName).toBe('DIV');
+
+        const paragraph = mount({
+            html: 'hi',
+            variant: 'messageBody',
+            as: 'p',
+        });
+
+        expect(paragraph.firstElementChild?.tagName).toBe('P');
     });
 
     it('passes attributes through to the rendered element', () => {
