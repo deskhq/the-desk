@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.15.0](https://github.com/deskhq/the-desk/compare/v1.14.0...v1.15.0) (2026-07-22)
+
+
+### Features
+
+* move the project to the deskhq organisation and docs domain ([#699](https://github.com/deskhq/the-desk/issues/699)) ([06cbbf4](https://github.com/deskhq/the-desk/commit/06cbbf4ffc54f0aee43c0fce43bf4d93f9a6cb2d))
+
 ## [1.14.0](https://github.com/emmpaul/the-desk/compare/v1.13.0...v1.14.0) (2026-07-21)
 
 

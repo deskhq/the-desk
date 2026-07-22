@@ -51,7 +51,7 @@ current directory otherwise):
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/deskhq/the-desk/master/docker/install.sh \
-  | sh -s -- --version=1.14.0 /srv/the-desk # x-release-please-version
+  | sh -s -- --version=1.15.0 /srv/the-desk # x-release-please-version
 ```
 
 To run a tag on another registry, an air-gapped mirror, or a floating tag like
@@ -103,7 +103,7 @@ app services (they share one image):
 git clone https://github.com/deskhq/the-desk.git
 cd the-desk
 git fetch --tags
-git checkout v1.14.0 # x-release-please-version         (the desired release tag)
+git checkout v1.15.0 # x-release-please-version         (the desired release tag)
 
 # 2. Generate .env with all required secrets, then edit APP_URL, mail, and
 #    REVERB_*_PUBLIC (see Configuration). The template's APP_VERSION matches the
