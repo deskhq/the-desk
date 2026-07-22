@@ -15,9 +15,10 @@ export function dmParticipantPresence(
     presenceFor: (userId: string) => RenderedPresence,
     ownPresence: RenderedPresence,
 ): RenderedPresence {
-    // A self-DM has no other participant, so it renders viewer-relative all the
-    // way down: the same fallback the avatar beside the dot already makes. The
-    // person reading the page is never offline to themselves.
+    // Every 1:1 carries a counterpart id — a self-DM resolves it to the viewer
+    // themselves — so a missing id means a group conversation, whose surfaces
+    // render a facepile rather than this dot. Falling back to the viewer's own
+    // presence keeps a defensive render from ever being a wrong "offline".
     return dmUserId != null ? presenceFor(dmUserId) : ownPresence;
 }
 

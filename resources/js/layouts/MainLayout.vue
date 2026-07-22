@@ -105,6 +105,7 @@ import {
     toggleCollapsedSection,
 } from '@/lib/channelSections';
 import type { SidebarSectionKey } from '@/lib/channelSections';
+import { dmParticipantPresence } from '@/lib/presence';
 import type { Channel, ChannelSection } from '@/types/channels';
 import type { MessageReminder } from '@/types/messages';
 import type { RoleOption } from '@/types/teams';
@@ -1255,9 +1256,11 @@ onMounted(() => {
                                     :team-slug="currentTeam?.slug ?? ''"
                                     :active-channel-slug="activeChannelSlug"
                                     :presence="
-                                        dm.dmUserId != null
-                                            ? presenceFor(dm.dmUserId)
-                                            : 'offline'
+                                        dmParticipantPresence(
+                                            dm.dmUserId,
+                                            presenceFor,
+                                            page.props.auth.user.presence,
+                                        )
                                     "
                                     :is-self="dm.dmUserId === currentUserId"
                                 />

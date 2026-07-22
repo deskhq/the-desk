@@ -16,7 +16,7 @@ describe('dmParticipantPresence', () => {
         );
     });
 
-    it('falls back to the viewer in a self-DM, which has no other participant', () => {
+    it('falls back to the viewer when there is no counterpart id to look up', () => {
         expect(dmParticipantPresence(null, presenceFor, 'away')).toBe('away');
         expect(dmParticipantPresence(undefined, presenceFor, 'active')).toBe(
             'active',

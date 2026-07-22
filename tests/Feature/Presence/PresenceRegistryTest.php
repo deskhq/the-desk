@@ -39,7 +39,7 @@ test('releasing the last idle connection returns the user to active', function (
     expect($this->registry->aggregate('user-1'))->toBe(PresenceState::Active);
 });
 
-test('releasing an idle tab leaves the other tabs deciding', function (): void {
+test('releasing the active tab leaves the idle tab deciding', function (): void {
     $this->registry->record('user-1', 'laptop', PresenceState::Active);
     $this->registry->record('user-1', 'phone', PresenceState::Away);
 
