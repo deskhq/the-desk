@@ -10,7 +10,7 @@ import { LONG_PRESS_MS, useLongPress } from '@/composables/useLongPress';
  */
 let row: HTMLElement;
 let body: HTMLElement;
-let link: HTMLElement;
+let link: HTMLAnchorElement;
 
 function mountRow(): void {
     document.body.innerHTML = '';
@@ -149,7 +149,10 @@ describe('useLongPress', () => {
 
     it('ignores the gesture entirely while the viewport is desktop', () => {
         const onLongPress = vi.fn();
-        const press = useLongPress<string>({ enabled: ref(false), onLongPress });
+        const press = useLongPress<string>({
+            enabled: ref(false),
+            onLongPress,
+        });
 
         press.start(pointer('pointerdown'), 'm1');
         vi.advanceTimersByTime(LONG_PRESS_MS);

@@ -117,5 +117,12 @@ export function useLongPress<T>(
         }
     }
 
-    return { start, move, end: disarm, cancel: disarm, onContextMenu, pressing };
+    return {
+        start,
+        move,
+        end: disarm,
+        cancel: disarm,
+        onContextMenu,
+        pressing,
+    };
 }
