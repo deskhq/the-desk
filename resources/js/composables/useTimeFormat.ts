@@ -18,16 +18,25 @@ export function useTimeFormat() {
     /**
      * Switch clock style: swap the active style first so every rendered time of
      * day re-renders immediately without a full reload, then persist the choice.
-     * The shared prop refreshes from the redirect, so no optimistic state is
-     * needed.
+     *
+     * The swap is the only thing driving the formatters, so a failed write has
+     * to put the previous style back — otherwise the whole interface keeps
+     * rendering a clock the account never actually stored, until the next full
+     * reload reseeds it from the shared prop.
      */
     function updateTimeFormat(next: TimeFormat): void {
+        const previous = timeFormat.value;
+
         setTimeFormat(next);
 
         router.patch(
             update().url,
             { time_format: next },
-            { preserveScroll: true, preserveState: true },
+            {
+                preserveScroll: true,
+                preserveState: true,
+                onError: () => setTimeFormat(previous),
+            },
         );
     }
 

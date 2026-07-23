@@ -2,6 +2,8 @@
 
 use App\Enums\TimeFormat;
 use App\Models\User;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Inertia\Testing\AssertableInertia as Assert;
 
 test('the localization page offers the selectable clock styles', function (): void {
@@ -17,8 +19,19 @@ test('the localization page offers the selectable clock styles', function (): vo
         );
 });
 
-test('a new account defaults to the automatic clock style', function (): void {
-    expect(User::factory()->create()->time_format)->toBe(TimeFormat::Auto);
+/**
+ * The column default is what carries every account that existed before the
+ * preference did, so it is asserted against a row inserted without the column
+ * rather than through the factory (which sets it explicitly).
+ */
+test('an account stored without a clock style reads as automatic', function (): void {
+    $attributes = User::factory()->raw();
+    unset($attributes['time_format']);
+
+    $id = (string) Str::uuid7();
+    DB::table('users')->insert([...$attributes, 'id' => $id]);
+
+    expect(User::query()->findOrFail($id)->time_format)->toBe(TimeFormat::Auto);
 });
 
 test('the clock style can be set to 24-hour', function (): void {
