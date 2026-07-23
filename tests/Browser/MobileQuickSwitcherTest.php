@@ -150,6 +150,33 @@ test('selecting a channel row navigates to it, as it does today', function (): v
         ->assertPathContains('/c/boardroom');
 });
 
+test('the overlay has no serious accessibility violations, light or dark', function (): void {
+    ['owner' => $alice, 'team' => $team, 'channel' => $channel] = browserTeamWithChannel();
+
+    // The settle lets the overlay's 200ms fade finish: axe blends the
+    // mid-animation opacity into its contrast arithmetic otherwise.
+    $page = signInThroughBrowser($alice)
+        ->resize(390, 844)
+        ->navigate(browserChannelUrl($team, $channel))
+        ->click('@masthead-search')
+        ->assertVisible('@quick-switcher-input')
+        ->wait(0.5)
+        ->assertNoAccessibilityIssues();
+
+    // Re-audit against the dark palette; persisting to localStorage first keeps
+    // the appearance controller from re-resolving 'system' back to light.
+    $page->script(<<<'JS'
+    () => {
+        localStorage.setItem('appearance', 'dark');
+        document.documentElement.classList.add('dark');
+        document.documentElement.style.colorScheme = 'dark';
+    }
+    JS);
+
+    $page->wait(0.5)
+        ->assertNoAccessibilityIssues();
+});
+
 test('from md up the search icon still links to the search page and the palette stays a centred dialog', function (): void {
     ['owner' => $alice, 'team' => $team, 'channel' => $channel] = browserTeamWithChannel();
 

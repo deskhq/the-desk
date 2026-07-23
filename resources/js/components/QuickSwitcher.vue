@@ -294,6 +294,7 @@ function openReminders(): void {
                     />
                 </div>
                 <CommandList
+                    :aria-label="$t('Quick switcher')"
                     class="max-md:max-h-none max-md:flex-1 max-md:p-1.5"
                 >
                     <CommandGroup
@@ -303,7 +304,7 @@ function openReminders(): void {
                         <CommandItem
                             value="action:reminders"
                             data-test="quick-switcher-reminders"
-                            class="group h-9.5 gap-2 rounded-lg px-2.5 md:data-[highlighted]:bg-primary md:data-[highlighted]:text-primary-foreground max-md:h-11.5 max-md:gap-2.5 max-md:rounded-[11px] max-md:px-3 max-md:text-[15px]"
+                            class="group h-9.5 gap-2 rounded-lg px-2.5 max-md:h-11.5 max-md:gap-2.5 max-md:rounded-[11px] max-md:px-3 max-md:text-[15px] md:data-[highlighted]:bg-primary md:data-[highlighted]:text-primary-foreground"
                             @select="openReminders"
                         >
                             <AlarmClock
@@ -327,7 +328,7 @@ function openReminders(): void {
                             :key="channel.id"
                             :value="`channel:${channel.id}`"
                             data-test="quick-switcher-channel"
-                            class="group h-9.5 gap-2 rounded-lg px-2.5 md:data-[highlighted]:bg-primary md:data-[highlighted]:text-primary-foreground max-md:h-11.5 max-md:gap-2.5 max-md:rounded-[11px] max-md:px-3"
+                            class="group h-9.5 gap-2 rounded-lg px-2.5 max-md:h-11.5 max-md:gap-2.5 max-md:rounded-[11px] max-md:px-3 md:data-[highlighted]:bg-primary md:data-[highlighted]:text-primary-foreground"
                             @select="selectChannel(channel)"
                         >
                             <span
@@ -373,7 +374,7 @@ function openReminders(): void {
                             :key="person.id"
                             :value="`person:${person.id}`"
                             data-test="quick-switcher-person"
-                            class="group h-9.5 gap-2 rounded-lg px-2.5 md:data-[highlighted]:bg-primary md:data-[highlighted]:text-primary-foreground max-md:h-11.5 max-md:gap-2.5 max-md:rounded-[11px] max-md:px-3"
+                            class="group h-9.5 gap-2 rounded-lg px-2.5 max-md:h-11.5 max-md:gap-2.5 max-md:rounded-[11px] max-md:px-3 md:data-[highlighted]:bg-primary md:data-[highlighted]:text-primary-foreground"
                             @select="selectPerson(person.id)"
                         >
                             <span
