@@ -5,6 +5,7 @@ import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
 import InlineMarks from '@/components/InlineMarks.vue';
 import LinkPreview from '@/components/LinkPreview.vue';
 import MessageActions from '@/components/MessageActions.vue';
+import MessageActionsSheet from '@/components/MessageActionsSheet.vue';
 import MessageAttachments from '@/components/MessageAttachments.vue';
 import MessageForward from '@/components/MessageForward.vue';
 import MessagePoll from '@/components/MessagePoll.vue';
@@ -32,12 +33,18 @@ import UserHoverCard from '@/components/UserHoverCard.vue';
 import UserStatusEmoji from '@/components/UserStatusEmoji.vue';
 import { useCustomEmojis } from '@/composables/useCustomEmojis';
 import { useInitials } from '@/composables/useInitials';
+import { useIsMobile } from '@/composables/useIsMobile';
+import { useLongPress } from '@/composables/useLongPress';
 import { NEAR_BOTTOM_THRESHOLD } from '@/composables/useScrollPin';
 import { useTimelineVirtualizer } from '@/composables/useTimelineVirtualizer';
 import { useTranslations } from '@/composables/useTranslations';
 import { useUserGroups } from '@/composables/useUserGroups';
 import { formatDayLabel, formatTimeOfDay } from '@/lib/datetime';
-import { canReactToMessage, showsThreadSummary } from '@/lib/messageActions';
+import {
+    canReactToMessage,
+    hasAnyMessageAction,
+    showsThreadSummary,
+} from '@/lib/messageActions';
 import type { MessageActionContext } from '@/lib/messageActions';
 import { tokenizeMessageBody } from '@/lib/messageBody';
 import type { MessageBodySegment } from '@/lib/messageBody';
@@ -724,6 +731,64 @@ function saveEdit(message: Message): void {
     cancelEdit();
 }
 
+/**
+ * The touch stand-in for the hover toolbar (design m4): below `md`, pressing
+ * and holding a message row opens its actions bottom sheet. The sheet resolves
+ * the message live by id, so reaction and pin state stay current while it is
+ * open, and the id survives the close animation.
+ */
+const isMobile = useIsMobile();
+const actionSheetId = ref<string | null>(null);
+const actionSheetOpen = ref(false);
+
+const actionSheetMessage = computed(
+    () =>
+        props.messages.find((entry) => entry.id === actionSheetId.value) ??
+        null,
+);
+
+const longPress = useLongPress<Message>({
+    enabled: isMobile,
+    onLongPress: openActionsSheet,
+});
+
+function openActionsSheet(message: Message): void {
+    if (
+        editingId.value === message.id ||
+        !hasAnyMessageAction(message, actionContext(message))
+    ) {
+        return;
+    }
+
+    actionSheetId.value = message.id;
+    actionSheetOpen.value = true;
+}
+
+/** The pressed row's hold cue while the long-press timer runs. */
+function isHeld(message: Message): boolean {
+    return longPress.pressing.value?.id === message.id;
+}
+
+// Crossing up over the breakpoint mid-press leaves the sheet stranded on a
+// hover-capable layout; the toolbar owns the actions there.
+watch(isMobile, (mobile) => {
+    if (!mobile) {
+        actionSheetOpen.value = false;
+    }
+});
+
+// A message deleted (or pruned from the window) while its sheet is up has no
+// actions left to offer. Watched through a getter so an in-place tombstone
+// patch from a broadcast closes it too, not only a replaced array entry.
+watch(
+    () => actionSheetMessage.value?.isDeleted,
+    (isDeleted) => {
+        if (isDeleted !== false) {
+            actionSheetOpen.value = false;
+        }
+    },
+);
+
 /** The message queued for deletion; a non-null value drives the confirm dialog. */
 const pendingDelete = ref<Message | null>(null);
 
@@ -949,6 +1014,7 @@ function confirmDelete(): void {
                             $t(presenceLabelKey(presenceOf(item.author.id)))
                         }}</span>
                         <div role="list">
+                            <!-- eslint-disable-next-line vuejs-accessibility/no-static-element-interactions -- a touch-only long-press gesture; every action it opens stays reachable through the toolbar's focusable buttons -->
                             <div
                                 v-for="(message, index) in item.messages"
                                 :id="`message-${message.id}`"
@@ -973,7 +1039,16 @@ function confirmDelete(): void {
                                     message.id === props.editingMessageId
                                         ? 'bg-brass-fill'
                                         : '',
+                                    isHeld(message)
+                                        ? 'scale-[0.98] opacity-80 transition-[transform,opacity] delay-100 duration-200'
+                                        : '',
                                 ]"
+                                @pointerdown="longPress.start($event, message)"
+                                @pointermove="longPress.move($event)"
+                                @pointerup="longPress.end()"
+                                @pointerleave="longPress.end()"
+                                @pointercancel="longPress.cancel()"
+                                @contextmenu="longPress.onContextMenu($event)"
                             >
                                 <!-- Per-message timestamp: revealed in the avatar
                                  gutter on hover, and hidden from AT since the
@@ -1530,5 +1605,36 @@ function confirmDelete(): void {
                 </DialogFooter>
             </DialogContent>
         </Dialog>
+
+        <MessageActionsSheet
+            v-model:open="actionSheetOpen"
+            :message="actionSheetMessage"
+            :current-user-id="props.currentUserId"
+            :can-react="props.canReact"
+            :can-pin="props.canPin"
+            :can-moderate="props.canModerate"
+            :in-thread="props.inThread"
+            :pending="
+                actionSheetMessage ? isPending(actionSheetMessage) : false
+            "
+            :viewer-time-zone="viewerTimeZone"
+            @react="
+                (emoji) =>
+                    actionSheetMessage &&
+                    emit('react', actionSheetMessage, emoji)
+            "
+            @open-thread="
+                actionSheetMessage && emit('openThread', actionSheetMessage.id)
+            "
+            @reply="actionSheetMessage && emit('reply', actionSheetMessage)"
+            @forward="actionSheetMessage && emit('forward', actionSheetMessage)"
+            @pin="actionSheetMessage && emit('pin', actionSheetMessage)"
+            @unpin="actionSheetMessage && emit('unpin', actionSheetMessage)"
+            @remind-custom="
+                actionSheetMessage && emit('remindCustom', actionSheetMessage)
+            "
+            @edit="actionSheetMessage && startEdit(actionSheetMessage)"
+            @delete="actionSheetMessage && requestDelete(actionSheetMessage)"
+        />
     </div>
 </template>

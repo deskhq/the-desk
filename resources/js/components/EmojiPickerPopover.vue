@@ -118,11 +118,14 @@ function onPickCustom(entry: CustomEmojiEntry): void {
             <slot :open="open" />
         </PopoverTrigger>
         <PopoverPortal>
+            <!-- The available-height cap keeps the grid inside the viewport on a
+                 short screen (a phone's actions sheet); with room to spare it
+                 changes nothing. -->
             <PopoverContent
                 align="start"
                 :side-offset="6"
                 :collision-padding="8"
-                class="emoji-picker-shell z-50 overflow-hidden rounded-2xl border bg-popover shadow-[0_10px_28px_rgba(29,26,21,0.14)] outline-none"
+                class="emoji-picker-shell z-50 max-h-[var(--reka-popover-content-available-height)] overflow-x-hidden overflow-y-auto rounded-2xl border bg-popover shadow-[0_10px_28px_rgba(29,26,21,0.14)] outline-none"
             >
                 <div
                     v-if="frequentEmojis.length > 0"
