@@ -1,4 +1,5 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
+import { setTimeFormat } from '@/lib/clock';
 import { isReminderToday, reminderPresets } from '@/lib/reminderTime';
 
 /** A fixed reference instant: Tuesday 14 Jul 2026, 15:30 UTC. */
@@ -80,5 +81,23 @@ describe('isReminderToday', () => {
                 NOW,
             ),
         ).toBe(true);
+    });
+});
+
+describe('the clock-style preference', () => {
+    afterEach(() => {
+        setTimeFormat('auto');
+    });
+
+    it('renders the preset details on the chosen clock', () => {
+        setTimeFormat('24h');
+
+        const presets = reminderPresets('UTC', NOW);
+        const byKey = Object.fromEntries(
+            presets.map((preset) => [preset.key, preset.detail]),
+        );
+
+        expect(byKey.tomorrow).toBe('09:00');
+        expect(byKey['next-week']).toBe('Mon, 09:00');
     });
 });

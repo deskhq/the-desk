@@ -19,6 +19,7 @@ use App\Http\Controllers\Settings\SecurityController;
 use App\Http\Controllers\Settings\SessionController;
 use App\Http\Controllers\Settings\SidebarPositionController;
 use App\Http\Controllers\Settings\StatusController;
+use App\Http\Controllers\Settings\TimeFormatController;
 use App\Http\Controllers\Settings\TimezoneController;
 use App\Http\Controllers\Teams\AnalyticsController;
 use App\Http\Controllers\Teams\AuditController;
@@ -101,6 +102,7 @@ Route::middleware(['auth', 'verified'])->group(function (): void {
 
     Route::get('settings/language', [LocaleController::class, 'edit'])->name('locale.edit');
     Route::patch('settings/language', [LocaleController::class, 'update'])->name('locale.update');
+    Route::patch('settings/time-format', [TimeFormatController::class, 'update'])->name('time-format.update');
 
     // Human personal access tokens for the public REST API. JSON endpoints only
     // (the settings UI ships in a follow-up); the whole surface 404s when the

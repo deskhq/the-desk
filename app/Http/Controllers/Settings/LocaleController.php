@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Settings;
 
 use App\Enums\AppLocale;
+use App\Enums\TimeFormat;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Settings\LocalePreferencesRequest;
 use Illuminate\Http\RedirectResponse;
@@ -18,6 +19,7 @@ class LocaleController extends Controller
     {
         return Inertia::render('settings/Localization', [
             'locales' => AppLocale::options(),
+            'timeFormats' => TimeFormat::options(),
         ]);
     }
 

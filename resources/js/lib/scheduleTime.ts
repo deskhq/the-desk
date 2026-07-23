@@ -8,6 +8,7 @@
  * `now` is always injectable so tests are deterministic.
  */
 
+import { hourCycleFor } from './clock';
 import { i18n, translate } from './i18n';
 
 /** Wall-clock components, as read off a clock on the wall in some zone. */
@@ -208,6 +209,7 @@ export function formatPresetPreview(
     const time = target.toLocaleTimeString(i18n.locale, {
         hour: 'numeric',
         minute: '2-digit',
+        hourCycle: hourCycleFor(),
         timeZone,
     });
 
@@ -290,6 +292,7 @@ export function formatScheduledFor(
     const time = target.toLocaleTimeString(i18n.locale, {
         hour: 'numeric',
         minute: '2-digit',
+        hourCycle: hourCycleFor(),
         timeZone,
     });
 

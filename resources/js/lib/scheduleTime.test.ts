@@ -1,4 +1,5 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
+import { setTimeFormat } from '@/lib/clock';
 import {
     formatPresetPreview,
     formatScheduledFor,
@@ -172,5 +173,30 @@ describe('formatScheduledFor', () => {
         expect(label).toMatch(/Jul 20/);
         expect(label).not.toMatch(/^Today/);
         expect(label).not.toMatch(/^Tomorrow/);
+    });
+});
+
+describe('the clock-style preference', () => {
+    afterEach(() => {
+        setTimeFormat('auto');
+    });
+
+    it('renders the send-later preview on the chosen clock', () => {
+        setTimeFormat('24h');
+
+        expect(
+            formatPresetPreview('2026-07-14T16:30:00.000Z', 'UTC', NOW),
+        ).toBe('16:30');
+        expect(
+            formatPresetPreview('2026-07-15T09:00:00.000Z', 'UTC', NOW),
+        ).toBe('Wed 09:00');
+    });
+
+    it('renders the scheduled-for summary on the chosen clock', () => {
+        setTimeFormat('24h');
+
+        expect(formatScheduledFor('2026-07-14T18:00:00.000Z', 'UTC', NOW)).toBe(
+            'Today at 18:00',
+        );
     });
 });

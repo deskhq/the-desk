@@ -6,6 +6,7 @@
  * can be unit-tested in isolation; `now` is always injectable for determinism.
  */
 
+import { hourCycleFor } from './clock';
 import { i18n } from './i18n';
 import { wallTimeToInstant, zonedWallTime } from './scheduleTime';
 import type { WallTime } from './scheduleTime';
@@ -56,6 +57,7 @@ function timeDetail(iso: string, timeZone: string): string {
     return new Date(iso).toLocaleTimeString(i18n.locale, {
         hour: 'numeric',
         minute: '2-digit',
+        hourCycle: hourCycleFor(),
         timeZone,
     });
 }
