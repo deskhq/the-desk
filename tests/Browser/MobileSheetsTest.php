@@ -330,12 +330,19 @@ test('an open sheet has no serious accessibility violations in either theme', fu
     // scrim token — and the automated gate does not audit a11y. axe-core reads
     // the real rendered DOM, so a clean run covers both the handle's semantics
     // (decorative, and unreachable by keyboard) and the scrim's contrast.
+    // Settle first: the sheet slides and fades in over 200ms, and
+    // `assertNoAccessibilityIssues` is one of the two assertions that does not
+    // retry. Sampled mid-fade, axe reads the half-transparent title composited
+    // against everything behind it and reports a contrast of 2.38 that no one
+    // ever sees — which is exactly how this failed on CI while passing locally.
     $page = openCreateChannelDialog(
         signInThroughBrowser($alice),
         390,
         844,
         browserChannelUrl($team, $channel),
-    )->assertNoAccessibilityIssues();
+    )
+        ->wait(0.5)
+        ->assertNoAccessibilityIssues();
 
     $page->script(<<<'JS'
     () => {
