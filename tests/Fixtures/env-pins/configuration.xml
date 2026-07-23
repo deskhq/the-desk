@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<phpunit xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:noNamespaceSchemaLocation="../../../vendor/phpunit/phpunit/phpunit.xsd"
+>
+    <php>
+        <env name="PIN_WITHOUT_FORCE" value="a"/>
+        <env name="PIN_FORCED_EMPTY" value="" force="true"/>
+        <env name="PIN_FORCED_VALUE" value="b" force="true"/>
+        <env name="PIN_FORCE_DISABLED" value="c" force="false"/>
+        <server name="SERVER_PIN_FORCED" value="d" force="true"/>
+    </php>
+</phpunit>

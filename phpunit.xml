@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <phpunit xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:noNamespaceSchemaLocation="vendor/phpunit/phpunit/phpunit.xsd"
-         bootstrap="vendor/autoload.php"
+         bootstrap="tests/bootstrap.php"
          colors="true"
 >
     <testsuites>
@@ -40,8 +40,11 @@
             stays green. Pinning also keeps DEMO_MODE defined at the process
             level, so the immutable env repository never "adopts" the .env value
             as its own and re-writes it on later application refreshes. `force`
-            makes the pin win even over an exported/process-level DEMO_MODE, so
-            the suite is deterministic no matter how the flag arrives.
+            re-applies the pin even when DEMO_MODE is already defined at the
+            process level — but PHPUnit writes it to putenv() and $_ENV only, so
+            an exported value would still win from $_SERVER; tests/bootstrap.php
+            clears that copy (#756). Between them the suite is deterministic no
+            matter how the flag arrives.
         -->
         <env name="DEMO_MODE" value="false" force="true"/>
         <!--
@@ -98,7 +101,8 @@
             config()->set(), and the browser suite sets all three explicitly.
             `force` re-applies the pin even when the name is already defined at
             the process level, so it also survives a `putenv` from an earlier
-            bootstrap.
+            bootstrap; an exported value additionally needs the $_SERVER copy
+            tests/bootstrap.php clears (#756).
         -->
         <env name="REVERB_HOST_PUBLIC" value="" force="true"/>
         <env name="REVERB_PORT_PUBLIC" value="" force="true"/>
