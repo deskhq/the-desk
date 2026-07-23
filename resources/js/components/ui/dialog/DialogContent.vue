@@ -27,8 +27,10 @@ import DialogOverlay from "./DialogOverlay.vue"
  *   for a desktop right-hand pane (the epic's rules table).
  * - `dialog` — stay a centred dialog. For a surface that is already full-bleed,
  *   such as the image lightbox.
+ * - `fullscreen` — the overlay is the screen: edge to edge, no sheet chrome.
+ *   For the jump-to switcher, whose list deserves the whole viewport.
  */
-type MobilePresentation = "sheet" | "detail" | "dialog"
+type MobilePresentation = "sheet" | "detail" | "dialog" | "fullscreen"
 
 /**
  * The height a sheet is allowed: tall enough to be worth opening, short enough
@@ -66,14 +68,26 @@ const keyboardInset = useKeyboardInset()
 const rootContext = injectDialogRootContext()
 
 /** Whether this dialog is presenting as a bottom sheet at the current width. */
-const asSheet = computed(() => isMobile.value && props.mobile !== "dialog")
+const asSheet = computed(() =>
+  isMobile.value && props.mobile !== "dialog" && props.mobile !== "fullscreen")
+
+/** Whether this dialog is presenting as a full-screen overlay at the current width. */
+const asFullscreen = computed(() => isMobile.value && props.mobile === "fullscreen")
 
 const drag = useSheetDrag({
   enabled: asSheet,
   onDismiss: () => rootContext.onOpenChange(false),
 })
 
-const contentClass = computed(() => asSheet.value
+const contentClass = computed(() => {
+  if (asFullscreen.value) {
+    return cn(
+      "bg-sidebar data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 fixed inset-0 z-50 flex w-full max-w-none flex-col overflow-hidden rounded-none border-0 p-0 duration-200",
+      props.class,
+    )
+  }
+
+  return asSheet.value
   ? cn(
       "bg-sidebar data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:slide-out-to-bottom data-[state=open]:slide-in-from-bottom fixed inset-x-0 bottom-0 z-50 flex w-full flex-col gap-4 overflow-y-auto rounded-t-[20px] border-t p-6 shadow-[0_-10px_32px_rgba(29,26,21,0.22)] transition-transform duration-200",
       props.class,
@@ -84,7 +98,8 @@ const contentClass = computed(() => asSheet.value
   : cn(
       "bg-sidebar data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 fixed top-[50%] left-[50%] z-50 grid w-full max-w-[calc(100%-2rem)] translate-x-[-50%] translate-y-[-50%] gap-4 rounded-2xl border p-6 shadow-[0_16px_40px_rgba(29,26,21,0.14)] duration-200 sm:max-w-lg",
       props.class,
-    ))
+    )
+})
 
 /**
  * What classes cannot say: a sheet has to beat whatever width the call site set
@@ -92,6 +107,12 @@ const contentClass = computed(() => asSheet.value
  * only the visual viewport knows the height of.
  */
 const contentStyle = computed<CSSProperties | undefined>(() => {
+  if (asFullscreen.value) {
+    // `inset-0` anchors to the layout viewport, which the on-screen keyboard
+    // does not shrink — tracking it keeps the list's end reachable while typing.
+    return { bottom: `${keyboardInset.value}px` }
+  }
+
   if (!asSheet.value) {
     return undefined
   }

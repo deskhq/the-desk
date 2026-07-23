@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { rankChannels, scoreChannelName } from '@/composables/quickSwitcher';
+import {
+    matchRange,
+    rankChannels,
+    rankChannelsByActivity,
+    scoreChannelName,
+} from '@/composables/quickSwitcher';
 
 describe('scoreChannelName', () => {
     it('scores an empty query as a neutral match for every name', () => {
@@ -120,5 +125,113 @@ describe('rankChannels', () => {
         );
 
         expect(result.map((c) => c.name)).toEqual(['general']);
+    });
+});
+
+describe('rankChannelsByActivity', () => {
+    const channel = (name: string, lastActivityAt: string | null) => ({
+        name,
+        lastActivityAt,
+    });
+
+    it('returns every channel most-recently-active first for an empty query', () => {
+        const result = rankChannelsByActivity(
+            [
+                channel('announce', '2026-07-20T10:00:00Z'),
+                channel('random', '2026-07-22T10:00:00Z'),
+                channel('general', '2026-07-21T10:00:00Z'),
+            ],
+            '',
+        );
+
+        expect(result.map((c) => c.name)).toEqual([
+            'random',
+            'general',
+            'announce',
+        ]);
+    });
+
+    it('sorts channels without any activity after dated ones, alphabetically', () => {
+        const result = rankChannelsByActivity(
+            [
+                channel('zebra', null),
+                channel('apple', null),
+                channel('general', '2026-07-01T10:00:00Z'),
+            ],
+            '',
+        );
+
+        expect(result.map((c) => c.name)).toEqual([
+            'general',
+            'apple',
+            'zebra',
+        ]);
+    });
+
+    it('ranks a better name match above a more recently active one', () => {
+        const result = rankChannelsByActivity(
+            [
+                channel('regeneration', '2026-07-22T10:00:00Z'),
+                channel('general', '2026-07-01T10:00:00Z'),
+            ],
+            'gen',
+        );
+
+        expect(result.map((c) => c.name)).toEqual(['general', 'regeneration']);
+    });
+
+    it('breaks score ties by recency instead of alphabetically', () => {
+        const result = rankChannelsByActivity(
+            [
+                channel('general-chat', '2026-07-01T10:00:00Z'),
+                channel('general-docs', '2026-07-22T10:00:00Z'),
+            ],
+            'general-',
+        );
+
+        expect(result.map((c) => c.name)).toEqual([
+            'general-docs',
+            'general-chat',
+        ]);
+    });
+
+    it('filters out non-matches', () => {
+        const result = rankChannelsByActivity(
+            [
+                channel('general', null),
+                channel('marketing', '2026-07-22T10:00:00Z'),
+            ],
+            'gen',
+        );
+
+        expect(result.map((c) => c.name)).toEqual(['general']);
+    });
+});
+
+describe('matchRange', () => {
+    it('finds the first case-insensitive occurrence of the query', () => {
+        expect(matchRange('Priya Desai', 'des')).toEqual({
+            start: 6,
+            length: 3,
+        });
+    });
+
+    it('matches at the start of the name', () => {
+        expect(matchRange('design', 'des')).toEqual({ start: 0, length: 3 });
+    });
+
+    it('returns null for an empty query', () => {
+        expect(matchRange('design', '')).toBeNull();
+    });
+
+    it('returns null when the query is only a subsequence, not a substring', () => {
+        expect(matchRange('gardening', 'gen')).toBeNull();
+    });
+
+    it('ignores a leading # and surrounding whitespace, like the ranking does', () => {
+        expect(matchRange('design', ' #des ')).toEqual({
+            start: 0,
+            length: 3,
+        });
     });
 });
