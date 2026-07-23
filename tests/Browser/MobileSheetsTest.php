@@ -115,12 +115,24 @@ test('a sheet taller than the screen scrolls inside itself and leaves the page b
         360,
         browserChannelUrl($team, $channel),
     )
+        // The form is taller than the sheet, and scrolling the sheet — not the
+        // page — is what brings its primary action within reach.
         ->assertScript(<<<'JS'
         (() => {
             const sheet = document.querySelector('[data-slot="dialog-content"]');
 
-            return sheet.scrollHeight > sheet.clientHeight
-                && getComputedStyle(sheet).overflowY === 'auto';
+            return sheet.scrollHeight > sheet.clientHeight;
+        })()
+        JS, true)
+        ->assertScript(<<<'JS'
+        (() => {
+            const sheet = document.querySelector('[data-slot="dialog-content"]');
+            sheet.scrollTop = sheet.scrollHeight;
+
+            const submit = document.querySelector('[data-test="create-channel-submit"]')
+                .getBoundingClientRect();
+
+            return submit.top >= 0 && submit.bottom <= window.innerHeight;
         })()
         JS, true)
         // ...and the conversation behind it does not scroll instead, which is
@@ -177,14 +189,17 @@ test('a sheet traps focus, and Escape closes it', function (): void {
 
     // ...and cannot be tabbed out of it: past the last control it wraps back to
     // the first rather than walking into the conversation behind the scrim.
+    // Checked after every press, so a failure names the tab that escaped rather
+    // than only reporting that one of twelve did.
     foreach (range(1, 12) as $ignored) {
-        $page = $page->keys('[data-slot="dialog-content"]', ['Tab']);
+        $page = $page
+            ->keys('[data-slot="dialog-content"]', ['Tab'])
+            ->assertScript(<<<'JS'
+            (() => document.querySelector('[data-slot="dialog-content"]').contains(document.activeElement))()
+            JS, true);
     }
 
-    $page->assertScript(<<<'JS'
-    (() => document.querySelector('[data-slot="dialog-content"]').contains(document.activeElement))()
-    JS, true)
-        ->keys('@create-channel-name', ['Escape'])
+    $page->keys('@create-channel-name', ['Escape'])
         ->assertNotPresent('@create-channel-submit');
 });
 
@@ -201,9 +216,13 @@ test('tapping the scrim dismisses a sheet', function (): void {
         browserChannelUrl($team, $channel),
     );
 
+    // Dispatched at whatever a hit test says is under that point, not at the
+    // overlay element: while a dialog is open the whole page is
+    // `pointer-events: none`, so a tap above the sheet resolves to the document
+    // and is answered by a document-level listener. Aiming straight at the
+    // overlay would pass without proving a finger ever reaches it.
     $page->script(<<<'JS'
     (() => {
-        const scrim = document.querySelector('[data-slot="dialog-overlay"]');
         const sheet = document.querySelector('[data-slot="dialog-content"]').getBoundingClientRect();
         const point = {
             bubbles: true,
@@ -211,10 +230,11 @@ test('tapping the scrim dismisses a sheet', function (): void {
             clientX: Math.round(window.innerWidth / 2),
             clientY: Math.round(sheet.top / 2),
         };
+        const target = document.elementFromPoint(point.clientX, point.clientY);
 
-        for (const type of ['pointerdown', 'mousedown', 'pointerup', 'mouseup', 'click']) {
-            scrim.dispatchEvent(new MouseEvent(type, point));
-        }
+        target.dispatchEvent(new PointerEvent('pointerdown', { ...point, pointerId: 1, pointerType: 'mouse', isPrimary: true, button: 0 }));
+        target.dispatchEvent(new PointerEvent('pointerup', { ...point, pointerId: 1, pointerType: 'mouse', isPrimary: true, button: 0 }));
+        target.dispatchEvent(new MouseEvent('click', { ...point, button: 0 }));
     })()
     JS);
 
@@ -294,6 +314,9 @@ test('a sheet survives a locale whose words run longer than the English', functi
         740,
         browserChannelUrl($team, $channel),
     )
+        // The catalog has actually taken: without this the sheet would be proven
+        // against the English copy while claiming to prove it against French.
+        ->assertSee('Créer un canal')
         ->assertScript(openSurfaceIsASheet(), true)
         ->assertScript(<<<'JS'
         (() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)()
