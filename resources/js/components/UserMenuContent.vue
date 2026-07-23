@@ -443,7 +443,9 @@ const handleLogout = () => {
             <SmilePlus
                 class="size-3.75 text-muted-foreground group-focus/item:text-brass"
             />
-            <span class="min-w-0 flex-1 truncate">{{ $t('Set a status') }}</span>
+            <span class="min-w-0 flex-1 truncate">{{
+                $t('Set a status')
+            }}</span>
         </DropdownMenuItem>
         <div
             v-else
@@ -633,7 +635,9 @@ const handleLogout = () => {
                 <Settings
                     class="size-3.75 text-muted-foreground group-focus/item:text-brass"
                 />
-                <span class="min-w-0 flex-1 truncate">{{ $t('Settings') }}</span>
+                <span class="min-w-0 flex-1 truncate">{{
+                    $t('Settings')
+                }}</span>
             </Link>
         </DropdownMenuItem>
     </div>
