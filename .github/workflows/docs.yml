@@ -37,7 +37,7 @@ jobs:
   # which is how #614 broke the deploy, surfacing only in the Cloudflare build
   # log after merge. This job reproduces that environment before merge (#622).
   build:
-    runs-on: blacksmith-4vcpu-ubuntu-2404
+    runs-on: ${{ vars.CI_RUNNER || 'ubuntu-latest' }}
 
     steps:
       # A full checkout, not a sparse `docs/` one: the content config reads the

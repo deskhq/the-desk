@@ -1,0 +1,103 @@
+name: Build the production image
+description: >-
+  Builds (and optionally pushes) the production image on whichever runner the
+  fleet is currently on, with the layer cache that provider offers.
+
+# Every job takes its runner from the `CI_RUNNER` repository variable, so moving
+# the fleet between providers is a settings change rather than a code change
+# (see CONTRIBUTING.md → CI runners). `uses:` is the one field that cannot be
+# templated with an expression, so the two Blacksmith-only Docker actions cannot
+# follow that variable directly — this action holds both call pairs and picks
+# between them from the label the calling job resolved.
+inputs:
+  # Not read from `vars` here: a composite action is handed its context by the
+  # call site, and taking the label from the job means the build path can never
+  # disagree with the runner it is executing on.
+  # An expression written out in full here would be evaluated as one rather than
+  # read as prose — the manifest is templated, descriptions included — and `vars`
+  # is not a context an action manifest can resolve, so it fails to load. Name
+  # the variable, never the expression.
+  runner:
+    description: >-
+      The runner label the calling job resolved from the CI_RUNNER variable.
+      The Blacksmith path is taken for any label starting with `blacksmith` —
+      the sized ones like `blacksmith-4vcpu-ubuntu-2404` and the bare
+      `blacksmith` default alike. Anything else, an unset variable included,
+      builds on the GitHub-hosted path.
+    required: false
+    default: ''
+  context:
+    description: The build context.
+    required: false
+    default: .
+  file:
+    description: The Dockerfile to build.
+    required: false
+    default: Dockerfile
+  platforms:
+    description: Target platforms. arm64 emulation is deferred (see #205).
+    required: false
+    default: linux/amd64
+  push:
+    description: Whether to push the built image to its registry.
+    required: false
+    default: 'false'
+  load:
+    description: Whether to load the built image into the local daemon.
+    required: false
+    default: 'false'
+  tags:
+    description: Newline- or comma-separated tags for the image.
+    required: false
+    default: ''
+  labels:
+    description: Newline-separated OCI labels for the image.
+    required: false
+    default: ''
+
+runs:
+  using: composite
+
+  steps:
+    # ---- Blacksmith ----
+    # The builder mounts a layer cache on a sticky disk, so the caching the
+    # GitHub path asks for explicitly below comes for free here.
+    - name: Set up the Blacksmith builder
+      if: startsWith(inputs.runner, 'blacksmith')
+      uses: useblacksmith/setup-docker-builder@6ff44f8e5255f9d8aa31ef22f7e57a2d926b7da0 # v1.11.0
+
+    - name: Build with the Blacksmith builder
+      if: startsWith(inputs.runner, 'blacksmith')
+      uses: useblacksmith/build-push-action@fb9e3e6a9299c78462bfadd0d93352c316adc9b8 # v2.2.0
+      with:
+        context: ${{ inputs.context }}
+        file: ${{ inputs.file }}
+        platforms: ${{ inputs.platforms }}
+        push: ${{ inputs.push }}
+        load: ${{ inputs.load }}
+        tags: ${{ inputs.tags }}
+        labels: ${{ inputs.labels }}
+
+    # ---- GitHub-hosted ----
+    - name: Set up buildx
+      if: ${{ ! startsWith(inputs.runner, 'blacksmith') }}
+      uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c # v4.2.0
+
+    # The `type=gha` cache is not optional. The extension layer fetches `redis`
+    # from pecl.php.net, so an uncached rebuild on every run turned each PECL
+    # outage into a red build on a commit that changed nothing (#626). This is
+    # the GitHub-hosted equivalent of the sticky-disk cache above; without it
+    # this path would reintroduce that failure the moment the fleet moved.
+    - name: Build with buildx
+      if: ${{ ! startsWith(inputs.runner, 'blacksmith') }}
+      uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7.3.0
+      with:
+        context: ${{ inputs.context }}
+        file: ${{ inputs.file }}
+        platforms: ${{ inputs.platforms }}
+        push: ${{ inputs.push }}
+        load: ${{ inputs.load }}
+        tags: ${{ inputs.tags }}
+        labels: ${{ inputs.labels }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max

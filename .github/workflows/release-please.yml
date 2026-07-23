@@ -30,7 +30,7 @@ jobs:
   release-please:
     name: Release from master
     if: github.ref == 'refs/heads/master'
-    runs-on: blacksmith-4vcpu-ubuntu-2404
+    runs-on: ${{ vars.CI_RUNNER || 'ubuntu-latest' }}
     outputs:
       release_created: ${{ steps.release.outputs.release_created }}
       version: ${{ steps.release.outputs.version }}
@@ -58,7 +58,7 @@ jobs:
   prerelease:
     name: Cut a release candidate from develop
     if: github.ref == 'refs/heads/develop'
-    runs-on: blacksmith-4vcpu-ubuntu-2404
+    runs-on: ${{ vars.CI_RUNNER || 'ubuntu-latest' }}
     steps:
       # The candidate line reads its own config *and* its own manifest, both of
       # which release-please resolves from `target-branch`. That separation is
@@ -91,7 +91,7 @@ jobs:
     name: Refuse a candidate below the baseline
     needs: prerelease
     if: github.ref == 'refs/heads/develop'
-    runs-on: blacksmith-4vcpu-ubuntu-2404
+    runs-on: ${{ vars.CI_RUNNER || 'ubuntu-latest' }}
     steps:
       - name: Refuse a candidate that does not move the baseline forwards
         env:
@@ -232,7 +232,7 @@ jobs:
     name: Move the candidate baseline to the released version
     needs: release-please
     if: needs.release-please.outputs.release_created == 'true'
-    runs-on: blacksmith-4vcpu-ubuntu-2404
+    runs-on: ${{ vars.CI_RUNNER || 'ubuntu-latest' }}
     steps:
       # A stable release must not be reported as failed just because there is no
       # candidate line to update — `develop` is created separately from this
@@ -406,7 +406,7 @@ jobs:
     name: Merge the released master back into develop
     needs: release-please
     if: needs.release-please.outputs.release_created == 'true'
-    runs-on: blacksmith-4vcpu-ubuntu-2404
+    runs-on: ${{ vars.CI_RUNNER || 'ubuntu-latest' }}
     steps:
       # No checkout: the PR is opened from `master` itself, so GitHub keeps it in
       # step with the branch as it moves and there is no working copy to manage.

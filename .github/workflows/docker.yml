@@ -34,7 +34,7 @@ permissions:
 
 jobs:
   build:
-    runs-on: blacksmith-4vcpu-ubuntu-2404
+    runs-on: ${{ vars.CI_RUNNER || 'ubuntu-latest' }}
 
     # Whether this ref is a release candidate, decided once (see the classify
     # step) so the image tags and the release notes cannot disagree about it.
@@ -63,20 +63,17 @@ jobs:
       # ---- Build-only validation (pull requests, non-publishing branches) ----
       # Validates that the production image builds. Nothing is pushed.
       #
-      # A Blacksmith builder with the same layer cache the publish step uses,
-      # rather than a plain `docker build`: the extension layer fetches `redis`
-      # from pecl.php.net, so an uncached rebuild on every run turned each PECL
-      # outage into a red build on a commit that changed nothing (#626). Cached,
-      # that layer is only rebuilt when the Dockerfile lines above it actually
-      # change.
-      - name: Set up the Blacksmith builder (build-only)
-        if: env.PUBLISH != 'true'
-        uses: useblacksmith/setup-docker-builder@6ff44f8e5255f9d8aa31ef22f7e57a2d926b7da0 # v1.11.0
-
+      # Through the composite action — which sets up a caching builder for the
+      # provider in play — rather than a plain `docker build`: the extension
+      # layer fetches `redis` from pecl.php.net, so an uncached rebuild on every
+      # run turned each PECL outage into a red build on a commit that changed
+      # nothing (#626). Cached, that layer is only rebuilt when the Dockerfile
+      # lines above it actually change.
       - name: Build production image
         if: env.PUBLISH != 'true'
-        uses: useblacksmith/build-push-action@fb9e3e6a9299c78462bfadd0d93352c316adc9b8 # v2.2.0
+        uses: ./.github/actions/docker-build
         with:
+          runner: ${{ vars.CI_RUNNER }}
           context: .
           file: Dockerfile
           platforms: linux/amd64
@@ -104,10 +101,6 @@ jobs:
           fi
 
       # ---- Publish to GitHub Container Registry (master + v* tags) ----
-      - name: Set up the Blacksmith builder
-        if: env.PUBLISH == 'true'
-        uses: useblacksmith/setup-docker-builder@6ff44f8e5255f9d8aa31ef22f7e57a2d926b7da0 # v1.11.0
-
       - name: Log in to GHCR
         if: env.PUBLISH == 'true'
         uses: docker/login-action@af1e73f918a031802d376d3c8bbc3fe56130a9b0 # v4.4.0
@@ -145,8 +138,9 @@ jobs:
       # the SPA at runtime, so this single image works for any operator's host.
       - name: Build and push image
         if: env.PUBLISH == 'true'
-        uses: useblacksmith/build-push-action@fb9e3e6a9299c78462bfadd0d93352c316adc9b8 # v2.2.0
+        uses: ./.github/actions/docker-build
         with:
+          runner: ${{ vars.CI_RUNNER }}
           context: .
           file: Dockerfile
           platforms: linux/amd64
@@ -163,7 +157,7 @@ jobs:
   link-release-image:
     name: Link GHCR image on the release
     needs: build
-    runs-on: blacksmith-4vcpu-ubuntu-2404
+    runs-on: ${{ vars.CI_RUNNER || 'ubuntu-latest' }}
     # Only for a published `v*` release tag: that is the only ref that has a
     # release-please release to annotate. master `edge` pushes and PR build-only
     # runs are skipped entirely, so this never touches a non-release publish.
@@ -231,7 +225,7 @@ jobs:
   # shell, so the app's `--min=100` PHP coverage gate cannot see them (see #473).
   backup-restore:
     name: Backup & restore round trip
-    runs-on: blacksmith-4vcpu-ubuntu-2404
+    runs-on: ${{ vars.CI_RUNNER || 'ubuntu-latest' }}
 
     steps:
       - name: Checkout code
@@ -239,16 +233,14 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Set up the Blacksmith builder
-        uses: useblacksmith/setup-docker-builder@6ff44f8e5255f9d8aa31ef22f7e57a2d926b7da0 # v1.11.0
-
       # `load` puts the image in the local daemon as the-desk:ci, which the .env
       # below points APP_IMAGE at, so the stack runs this build rather than
-      # pulling a published release. The Blacksmith builder reuses the layers the
-      # publish job wrote on the last master build.
+      # pulling a published release. The builder reuses the layers the publish
+      # job wrote on the last master build.
       - name: Build production image
-        uses: useblacksmith/build-push-action@fb9e3e6a9299c78462bfadd0d93352c316adc9b8 # v2.2.0
+        uses: ./.github/actions/docker-build
         with:
+          runner: ${{ vars.CI_RUNNER }}
           context: .
           file: Dockerfile
           platforms: linux/amd64
@@ -363,7 +355,7 @@ jobs:
   # prod-only job, so without this it would only ever be claimed, not proven.
   upgrade-build-from-source:
     name: Upgrade script (build from source)
-    runs-on: blacksmith-4vcpu-ubuntu-2404
+    runs-on: ${{ vars.CI_RUNNER || 'ubuntu-latest' }}
 
     steps:
       - name: Checkout code
@@ -422,7 +414,7 @@ jobs:
   # (see #475).
   upgrade:
     name: Upgrade script
-    runs-on: blacksmith-4vcpu-ubuntu-2404
+    runs-on: ${{ vars.CI_RUNNER || 'ubuntu-latest' }}
 
     steps:
       - name: Checkout code
@@ -430,12 +422,10 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Set up the Blacksmith builder
-        uses: useblacksmith/setup-docker-builder@6ff44f8e5255f9d8aa31ef22f7e57a2d926b7da0 # v1.11.0
-
       - name: Build production image
-        uses: useblacksmith/build-push-action@fb9e3e6a9299c78462bfadd0d93352c316adc9b8 # v2.2.0
+        uses: ./.github/actions/docker-build
         with:
+          runner: ${{ vars.CI_RUNNER }}
           context: .
           file: Dockerfile
           platforms: linux/amd64

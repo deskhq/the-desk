@@ -1,7 +1,15 @@
 version: 2
 updates:
   - package-ecosystem: "github-actions"
-    directory: "/"
+    # `/` covers `.github/workflows` plus an `action.yml` at the repository
+    # root — and nothing else, so a composite action in a subdirectory is
+    # invisible to dependabot until its own directory is listed. These two do
+    # not overlap for that reason. The Docker build actions live in such a
+    # composite action because `uses:` cannot be templated with the runner
+    # variable (see CONTRIBUTING.md → CI runners).
+    directories:
+      - "/"
+      - "/.github/actions/docker-build"
     # `develop` is the line every ordinary change goes through; `master` only
     # takes promotions from it. Without this, dependabot opens against the
     # repository's default branch — `master` — and the bump ships without ever
