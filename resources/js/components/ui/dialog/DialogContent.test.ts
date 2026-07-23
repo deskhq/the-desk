@@ -34,7 +34,9 @@ function standAt(width: number): void {
     }) as typeof window.matchMedia;
 }
 
-async function open(mobile?: 'sheet' | 'detail' | 'dialog'): Promise<HTMLElement> {
+async function open(
+    mobile?: 'sheet' | 'detail' | 'dialog' | 'fullscreen',
+): Promise<HTMLElement> {
     app = createApp(
         defineComponent({
             setup: () => () =>
@@ -104,6 +106,25 @@ describe('below the md breakpoint', () => {
         expect((await open('detail')).style.height).toBe('calc(85dvh - 0px)');
     });
 
+    it('fills the screen edge-to-edge for a fullscreen overlay', async () => {
+        const content = await open('fullscreen');
+
+        expect(content.className).toContain('inset-0');
+        // No sheet chrome: an overlay that is the screen has nothing to round
+        // off or drag away by.
+        expect(content.className).not.toContain('rounded-t-[20px]');
+        expect(
+            content.querySelector('[data-test="sheet-grab-handle"]'),
+        ).toBeNull();
+        // The bottom tracks the on-screen keyboard so the list's end stays
+        // reachable while typing (0 with no keyboard up).
+        expect(content.style.bottom).toBe('0px');
+        // Beats a call-site width like the harness's `sm:max-w-md`, which
+        // opens at 640px — below the breakpoint, where it would otherwise
+        // shrink the overlay on a landscape phone.
+        expect(content.style.maxWidth).toBe('none');
+    });
+
     it('leaves an opted-out dialog centred, with no handle', async () => {
         const content = await open('dialog');
 
@@ -131,5 +152,12 @@ describe('from the md breakpoint up', () => {
         expect(
             content.querySelector('[data-test="sheet-grab-handle"]'),
         ).toBeNull();
+    });
+
+    it('keeps a fullscreen-below-md dialog centred from md up', async () => {
+        const content = await open('fullscreen');
+
+        expect(content.className).toContain('translate-x-[-50%]');
+        expect(content.className).not.toContain('inset-0');
     });
 });

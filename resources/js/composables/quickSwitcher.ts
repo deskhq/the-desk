@@ -7,6 +7,12 @@ import type { Channel } from '@/types/channels';
  */
 export type RankableChannel = Pick<Channel, 'name'>;
 
+/**
+ * What the activity-aware ranking needs on top of the name: the recency signal
+ * the mobile overlay orders its "recents" and breaks score ties with.
+ */
+export type ActivityRankableChannel = Pick<Channel, 'name' | 'lastActivityAt'>;
+
 const WORD_BOUNDARY = /[^a-z0-9]+/;
 
 /**
@@ -106,4 +112,60 @@ export function rankChannels<T extends RankableChannel>(
                 a.channel.name.localeCompare(b.channel.name),
         )
         .map((scored) => scored.channel);
+}
+
+/**
+ * Rank channels for the mobile overlay: same match scoring as
+ * {@link rankChannels}, but ties fall to the most recent activity instead of
+ * the alphabet — so an empty query reads as "recents", and typed results keep
+ * the busiest channel first among equal matches. Channels that never had any
+ * activity sort last, alphabetically.
+ */
+export function rankChannelsByActivity<T extends ActivityRankableChannel>(
+    channels: readonly T[],
+    query: string,
+): T[] {
+    const normalizedQuery = query.trim().replace(/^#+/, '');
+
+    const activityOf = (channel: T): number =>
+        channel.lastActivityAt === null
+            ? Number.NEGATIVE_INFINITY
+            : Date.parse(channel.lastActivityAt);
+
+    return channels
+        .map((channel) => ({
+            channel,
+            score: scoreChannelName(channel.name, normalizedQuery),
+        }))
+        .filter(
+            (scored): scored is { channel: T; score: number } =>
+                scored.score !== null,
+        )
+        .sort(
+            (a, b) =>
+                b.score - a.score ||
+                activityOf(b.channel) - activityOf(a.channel) ||
+                a.channel.name.localeCompare(b.channel.name),
+        )
+        .map((scored) => scored.channel);
+}
+
+/**
+ * Where a query reads as a contiguous, case-insensitive substring of a name —
+ * the range the mobile overlay highlights. Null when the query is empty or
+ * only matches as a scattered subsequence: no highlight beats a wrong one.
+ */
+export function matchRange(
+    name: string,
+    query: string,
+): { start: number; length: number } | null {
+    const needle = query.trim().replace(/^#+/, '').toLowerCase();
+
+    if (needle === '') {
+        return null;
+    }
+
+    const start = name.toLowerCase().indexOf(needle);
+
+    return start === -1 ? null : { start, length: needle.length };
 }

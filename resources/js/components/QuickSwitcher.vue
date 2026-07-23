@@ -8,16 +8,30 @@ import {
     index as searchPage,
     suggest as suggestMessages,
 } from '@/actions/App/Http/Controllers/Channels/SearchController';
+import PresenceDot from '@/components/PresenceDot.vue';
 import SafeHtml from '@/components/SafeHtml.vue';
+import { Button } from '@/components/ui/button';
 import {
-    CommandDialog,
+    Command,
     CommandGroup,
     CommandItem,
     CommandList,
 } from '@/components/ui/command';
-import { rankChannels } from '@/composables/quickSwitcher';
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog';
+import {
+    matchRange,
+    rankChannels,
+    rankChannelsByActivity,
+} from '@/composables/quickSwitcher';
 import { useCustomEmojis } from '@/composables/useCustomEmojis';
 import { getInitials } from '@/composables/useInitials';
+import { useIsMobile } from '@/composables/useIsMobile';
 import { useMessageSearch } from '@/composables/useMessageSearch';
 import { useOpenDirectMessage } from '@/composables/useOpenDirectMessage';
 import { useTranslations } from '@/composables/useTranslations';
@@ -25,6 +39,8 @@ import { useUserGroups } from '@/composables/useUserGroups';
 import { formatDateTime } from '@/lib/datetime';
 import { renderMessageBody } from '@/lib/messageBody';
 import { rankPeople } from '@/lib/peopleDirectory';
+import { presenceLabelKey } from '@/lib/presence';
+import type { RenderedPresence } from '@/lib/presence';
 import { filtersToParams, parseSearchQuery } from '@/lib/searchTokens';
 import type { SearchParams } from '@/lib/searchTokens';
 import type { MessageSearchResult } from '@/types';
@@ -36,6 +52,13 @@ const props = defineProps<{
     members: PersonRef[];
     currentUserId: string;
     teamSlug: string;
+    /**
+     * How each team member reads on the presence roster, driving the mobile
+     * overlay's avatar dots and presence words.
+     */
+    presenceFor: (userId: string) => RenderedPresence;
+    /** Whether each member is in do-not-disturb, driving the crescent badge. */
+    isDndFor?: (userId: string) => boolean;
 }>();
 
 const open = defineModel<boolean>('open', { default: false });
@@ -70,9 +93,43 @@ const parsedFilters = computed(() =>
 
 const searchText = computed(() => parsedFilters.value.text);
 
+/**
+ * Below the breakpoint the overlay is entered without a keyboard and often
+ * without a destination in mind, so recency does the ranking work: an empty
+ * query reads as "recents" and score ties fall to the busiest channel. The
+ * desktop palette keeps its alphabetical ordering untouched.
+ */
+const isMobile = useIsMobile();
+
 const channelResults = computed(() =>
-    rankChannels(props.channels, query.value),
+    isMobile.value
+        ? rankChannelsByActivity(props.channels, query.value)
+        : rankChannels(props.channels, query.value),
 );
+
+/** A run of a result's name, marked when it is the part the query matched. */
+type NameSegment = { text: string; highlighted: boolean };
+
+/**
+ * Split a name around the typed query's contiguous match so the mobile rows
+ * can brighten it; a single unhighlighted run when nothing contiguous matches.
+ */
+function nameSegments(name: string): NameSegment[] {
+    const range = matchRange(name, query.value);
+
+    if (range === null) {
+        return [{ text: name, highlighted: false }];
+    }
+
+    return [
+        { text: name.slice(0, range.start), highlighted: false },
+        {
+            text: name.slice(range.start, range.start + range.length),
+            highlighted: true,
+        },
+        { text: name.slice(range.start + range.length), highlighted: false },
+    ].filter((segment) => segment.text !== '');
+}
 
 // Team members ranked next to channels; choosing one opens/creates their DM.
 const { t } = useTranslations();
@@ -175,178 +232,327 @@ function openReminders(): void {
 </script>
 
 <template>
-    <CommandDialog
-        v-model:open="open"
-        :title="$t('Quick switcher')"
-        :description="$t('Jump to a channel or search messages')"
-    >
-        <div class="flex h-12 items-center gap-2.5 border-b px-4">
-            <Search class="size-4 shrink-0 text-muted-foreground/70" />
-            <ListboxFilter
-                v-model="query"
-                auto-focus
-                :placeholder="$t('Jump to a channel or search messages…')"
-                data-test="quick-switcher-input"
-                class="flex h-10 w-full rounded-md bg-transparent py-3 text-sm outline-hidden placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50"
-            />
-        </div>
-        <CommandList>
-            <CommandGroup v-if="trimmedQuery === ''" :heading="$t('Actions')">
-                <CommandItem
-                    value="action:reminders"
-                    data-test="quick-switcher-reminders"
-                    class="group h-9.5 gap-2 rounded-lg px-2.5 data-[highlighted]:bg-primary data-[highlighted]:text-primary-foreground"
-                    @select="openReminders"
-                >
-                    <AlarmClock
-                        class="size-4 shrink-0 text-muted-foreground/70 group-data-[highlighted]:text-brass"
-                    />
-                    <span class="truncate">{{ $t('Reminders') }}</span>
-                    <span
-                        class="ml-auto font-mono text-[11px] text-primary-foreground/70 opacity-0 group-data-[highlighted]:opacity-100"
-                        aria-hidden="true"
-                        >↵</span
-                    >
-                </CommandItem>
-            </CommandGroup>
-
-            <CommandGroup
-                v-if="channelResults.length > 0"
-                :heading="$t('Channels')"
-            >
-                <CommandItem
-                    v-for="channel in channelResults"
-                    :key="channel.id"
-                    :value="`channel:${channel.id}`"
-                    data-test="quick-switcher-channel"
-                    class="group h-9.5 gap-2 rounded-lg px-2.5 data-[highlighted]:bg-primary data-[highlighted]:text-primary-foreground"
-                    @select="selectChannel(channel)"
-                >
-                    <span
-                        class="shrink-0 font-semibold text-muted-foreground group-data-[highlighted]:text-brass"
-                        aria-hidden="true"
-                        >#</span
-                    >
-                    <span class="truncate">{{ channel.name }}</span>
-                    <span
-                        class="ml-auto font-mono text-[11px] text-primary-foreground/70 opacity-0 group-data-[highlighted]:opacity-100"
-                        aria-hidden="true"
-                        >↵</span
-                    >
-                </CommandItem>
-            </CommandGroup>
-
-            <CommandGroup
-                v-if="peopleResults.length > 0"
-                :heading="$t('People')"
-            >
-                <CommandItem
-                    v-for="person in peopleResults"
-                    :key="person.id"
-                    :value="`person:${person.id}`"
-                    data-test="quick-switcher-person"
-                    class="group h-9.5 gap-2 rounded-lg px-2.5 data-[highlighted]:bg-primary data-[highlighted]:text-primary-foreground"
-                    @select="selectPerson(person.id)"
-                >
-                    <span
-                        class="flex size-6 shrink-0 items-center justify-center rounded-full bg-primary/10 text-[10px] font-semibold text-primary select-none group-data-[highlighted]:bg-primary-foreground/20 group-data-[highlighted]:text-primary-foreground"
-                        aria-hidden="true"
-                        >{{ getInitials(person.name) }}</span
-                    >
-                    <span class="truncate">{{
-                        person.isSelf ? t('You') : person.name
-                    }}</span>
-                    <span
-                        class="ml-auto font-mono text-[11px] text-primary-foreground/70 opacity-0 group-data-[highlighted]:opacity-100"
-                        aria-hidden="true"
-                        >↵</span
-                    >
-                </CommandItem>
-            </CommandGroup>
-
-            <CommandGroup v-if="searchText !== ''" :heading="$t('Messages')">
-                <p
-                    v-if="isSearchingMessages && messageResults.length === 0"
-                    class="px-2 py-2 text-xs text-muted-foreground"
-                >
-                    {{ $t('Searching…') }}
-                </p>
-                <p
-                    v-else-if="messageResults.length === 0"
-                    data-test="quick-switcher-no-messages"
-                    class="px-2 py-2 text-xs text-muted-foreground"
-                >
-                    {{
-                        $t('No messages match “:query”.', {
-                            query: searchText,
-                        })
-                    }}
-                </p>
-
-                <CommandItem
-                    v-for="result in messageResults"
-                    :key="result.message.id"
-                    :value="`message:${result.message.id}`"
-                    data-test="quick-switcher-message"
-                    class="items-start gap-2.5"
-                    @select="selectMessage(result)"
+    <Dialog v-model:open="open">
+        <DialogContent
+            class="overflow-hidden p-0"
+            mobile="fullscreen"
+            :show-close-button="!isMobile"
+        >
+            <DialogHeader class="sr-only">
+                <DialogTitle>{{ $t('Quick switcher') }}</DialogTitle>
+                <DialogDescription>{{
+                    $t('Jump to a channel or search messages')
+                }}</DialogDescription>
+            </DialogHeader>
+            <Command>
+                <!-- Below the breakpoint the input is a pill with a Cancel
+                     affordance beside it (m5); the desktop palette keeps its
+                     plain underlined row. -->
+                <div
+                    v-if="isMobile"
+                    class="flex shrink-0 items-center gap-2.5 border-b px-3.5 pt-3.5 pb-3"
                 >
                     <div
-                        class="mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-md bg-primary/10 text-[10px] font-semibold text-primary select-none"
-                        aria-hidden="true"
+                        class="flex h-10.5 min-w-0 flex-1 items-center gap-2 rounded-full border border-input bg-card px-3.5"
                     >
-                        {{ getInitials(result.message.user.name) }}
+                        <Search
+                            class="size-3.5 shrink-0 text-muted-foreground/70"
+                        />
+                        <ListboxFilter
+                            v-model="query"
+                            auto-focus
+                            :placeholder="
+                                $t('Jump to a channel or search messages…')
+                            "
+                            data-test="quick-switcher-input"
+                            class="h-full w-full min-w-0 bg-transparent text-[15px] outline-hidden placeholder:text-muted-foreground"
+                        />
                     </div>
-                    <div class="min-w-0 flex-1">
-                        <div class="flex items-baseline gap-1.5 text-xs">
-                            <span class="font-semibold text-foreground">{{
-                                result.message.user.name
-                            }}</span>
-                            <span class="text-muted-foreground"
-                                ><span class="text-muted-foreground">#</span
-                                >{{ result.channelName }}</span
-                            >
+                    <Button
+                        variant="ghost"
+                        type="button"
+                        data-test="quick-switcher-cancel"
+                        class="h-10.5 shrink-0 px-1.5 text-sm font-semibold text-muted-foreground"
+                        @click="open = false"
+                    >
+                        {{ $t('Cancel') }}
+                    </Button>
+                </div>
+                <div
+                    v-else
+                    class="flex h-12 items-center gap-2.5 border-b px-4"
+                >
+                    <Search class="size-4 shrink-0 text-muted-foreground/70" />
+                    <ListboxFilter
+                        v-model="query"
+                        auto-focus
+                        :placeholder="
+                            $t('Jump to a channel or search messages…')
+                        "
+                        data-test="quick-switcher-input"
+                        class="flex h-10 w-full rounded-md bg-transparent py-3 text-sm outline-hidden placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50"
+                    />
+                </div>
+                <CommandList
+                    :aria-label="$t('Quick switcher')"
+                    class="max-md:max-h-none max-md:flex-1 max-md:p-1.5"
+                >
+                    <CommandGroup
+                        v-if="trimmedQuery === ''"
+                        :heading="$t('Actions')"
+                    >
+                        <CommandItem
+                            value="action:reminders"
+                            data-test="quick-switcher-reminders"
+                            class="group h-9.5 gap-2 rounded-lg px-2.5 max-md:h-11.5 max-md:gap-2.5 max-md:rounded-[11px] max-md:px-3 max-md:text-[15px] md:data-[highlighted]:bg-primary md:data-[highlighted]:text-primary-foreground"
+                            @select="openReminders"
+                        >
+                            <AlarmClock
+                                class="size-4 shrink-0 text-muted-foreground/70 group-data-[highlighted]:text-brass"
+                            />
+                            <span class="truncate">{{ $t('Reminders') }}</span>
                             <span
-                                class="ml-auto shrink-0 text-[10px] text-muted-foreground"
+                                class="ml-auto font-mono text-[11px] text-primary-foreground/70 opacity-0 group-data-[highlighted]:opacity-100 max-md:hidden"
+                                aria-hidden="true"
+                                >↵</span
+                            >
+                        </CommandItem>
+                    </CommandGroup>
+
+                    <CommandGroup
+                        v-if="channelResults.length > 0"
+                        :heading="$t('Channels')"
+                    >
+                        <CommandItem
+                            v-for="channel in channelResults"
+                            :key="channel.id"
+                            :value="`channel:${channel.id}`"
+                            data-test="quick-switcher-channel"
+                            class="group h-9.5 gap-2 rounded-lg px-2.5 max-md:h-11.5 max-md:gap-2.5 max-md:rounded-[11px] max-md:px-3 md:data-[highlighted]:bg-primary md:data-[highlighted]:text-primary-foreground"
+                            @select="selectChannel(channel)"
+                        >
+                            <span
+                                class="shrink-0 font-semibold text-muted-foreground group-data-[highlighted]:text-brass max-md:font-serif max-md:text-[17px] max-md:italic"
+                                aria-hidden="true"
+                                >#</span
+                            >
+                            <span class="truncate max-md:text-[15px]">
+                                <template v-if="isMobile">
+                                    <template
+                                        v-for="(segment, index) in nameSegments(
+                                            channel.name,
+                                        )"
+                                        :key="index"
+                                    >
+                                        <span
+                                            v-if="segment.highlighted"
+                                            data-test="quick-switcher-match"
+                                            class="rounded-[3px] bg-brass/25"
+                                            >{{ segment.text }}</span
+                                        >
+                                        <template v-else>{{
+                                            segment.text
+                                        }}</template>
+                                    </template>
+                                </template>
+                                <template v-else>{{ channel.name }}</template>
+                            </span>
+                            <span
+                                class="ml-auto font-mono text-[11px] text-primary-foreground/70 opacity-0 group-data-[highlighted]:opacity-100 max-md:hidden"
+                                aria-hidden="true"
+                                >↵</span
+                            >
+                        </CommandItem>
+                    </CommandGroup>
+
+                    <CommandGroup
+                        v-if="peopleResults.length > 0"
+                        :heading="$t('People')"
+                    >
+                        <CommandItem
+                            v-for="person in peopleResults"
+                            :key="person.id"
+                            :value="`person:${person.id}`"
+                            data-test="quick-switcher-person"
+                            class="group h-9.5 gap-2 rounded-lg px-2.5 max-md:h-11.5 max-md:gap-2.5 max-md:rounded-[11px] max-md:px-3 md:data-[highlighted]:bg-primary md:data-[highlighted]:text-primary-foreground"
+                            @select="selectPerson(person.id)"
+                        >
+                            <span
+                                v-if="isMobile"
+                                class="relative size-7 shrink-0"
+                                aria-hidden="true"
+                            >
+                                <span
+                                    class="flex size-7 items-center justify-center rounded-full bg-primary/10 text-[10px] font-semibold text-primary select-none"
+                                    >{{ getInitials(person.name) }}</span
+                                >
+                                <PresenceDot
+                                    :presence="presenceFor(person.id)"
+                                    :is-dnd="isDndFor?.(person.id) ?? false"
+                                    surface-class="bg-sidebar"
+                                    size="28"
+                                    class="ring-sidebar"
+                                />
+                            </span>
+                            <span
+                                v-else
+                                class="flex size-6 shrink-0 items-center justify-center rounded-full bg-primary/10 text-[10px] font-semibold text-primary select-none md:group-data-[highlighted]:bg-primary-foreground/20 md:group-data-[highlighted]:text-primary-foreground"
+                                aria-hidden="true"
+                                >{{ getInitials(person.name) }}</span
+                            >
+                            <span class="truncate max-md:text-[15px]">
+                                <template v-if="isMobile">
+                                    <template
+                                        v-for="(segment, index) in nameSegments(
+                                            person.isSelf
+                                                ? t('You')
+                                                : person.name,
+                                        )"
+                                        :key="index"
+                                    >
+                                        <span
+                                            v-if="segment.highlighted"
+                                            data-test="quick-switcher-match"
+                                            class="rounded-[3px] bg-brass/25"
+                                            >{{ segment.text }}</span
+                                        >
+                                        <template v-else>{{
+                                            segment.text
+                                        }}</template>
+                                    </template>
+                                </template>
+                                <template v-else>{{
+                                    person.isSelf ? t('You') : person.name
+                                }}</template>
+                            </span>
+                            <span
+                                v-if="isMobile"
+                                class="ml-auto shrink-0 text-[11.5px] text-muted-foreground"
                                 >{{
-                                    formatTimestamp(result.message.createdAt)
+                                    $t(presenceLabelKey(presenceFor(person.id)))
                                 }}</span
                             >
-                        </div>
-                        <p
-                            class="mt-0.5 line-clamp-1 text-[13px] text-foreground/80"
-                        >
-                            <SafeHtml
-                                :html="
-                                    renderMessageBody(
-                                        result.message.body,
-                                        result.message.mentions,
-                                        customEmojis,
-                                        userGroups,
-                                    )
-                                "
-                                variant="messageBody"
-                            />
-                        </p>
-                    </div>
-                </CommandItem>
+                            <span
+                                v-else
+                                class="ml-auto font-mono text-[11px] text-primary-foreground/70 opacity-0 group-data-[highlighted]:opacity-100"
+                                aria-hidden="true"
+                                >↵</span
+                            >
+                        </CommandItem>
+                    </CommandGroup>
 
-                <CommandItem
-                    value="see-all-results"
-                    data-test="quick-switcher-see-all"
-                    class="mt-1 gap-2 rounded-lg border-t border-border px-2.5 font-serif text-[13px] text-muted-foreground italic data-[highlighted]:bg-accent data-[highlighted]:text-accent-foreground"
-                    @select="seeAllResults"
-                >
-                    <span class="truncate">{{
-                        $t('See all results for “:query”', {
-                            query: searchText,
-                        })
-                    }}</span>
-                    <span class="ml-auto shrink-0 not-italic" aria-hidden="true"
-                        >&rarr;</span
+                    <CommandGroup
+                        v-if="searchText !== ''"
+                        :heading="$t('Messages')"
                     >
-                </CommandItem>
-            </CommandGroup>
-        </CommandList>
-    </CommandDialog>
+                        <p
+                            v-if="
+                                isSearchingMessages &&
+                                messageResults.length === 0
+                            "
+                            class="px-2 py-2 text-xs text-muted-foreground"
+                        >
+                            {{ $t('Searching…') }}
+                        </p>
+                        <p
+                            v-else-if="messageResults.length === 0"
+                            data-test="quick-switcher-no-messages"
+                            class="px-2 py-2 text-xs text-muted-foreground"
+                        >
+                            {{
+                                $t('No messages match “:query”.', {
+                                    query: searchText,
+                                })
+                            }}
+                        </p>
+
+                        <CommandItem
+                            v-for="result in messageResults"
+                            :key="result.message.id"
+                            :value="`message:${result.message.id}`"
+                            data-test="quick-switcher-message"
+                            class="items-start gap-2.5 max-md:min-h-11.5 max-md:rounded-[11px] max-md:px-3"
+                            @select="selectMessage(result)"
+                        >
+                            <div
+                                class="mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-md bg-primary/10 text-[10px] font-semibold text-primary select-none"
+                                aria-hidden="true"
+                            >
+                                {{ getInitials(result.message.user.name) }}
+                            </div>
+                            <div class="min-w-0 flex-1">
+                                <div
+                                    class="flex items-baseline gap-1.5 text-xs"
+                                >
+                                    <span
+                                        class="font-semibold text-foreground"
+                                        >{{ result.message.user.name }}</span
+                                    >
+                                    <span class="text-muted-foreground"
+                                        ><span class="text-muted-foreground"
+                                            >#</span
+                                        >{{ result.channelName }}</span
+                                    >
+                                    <span
+                                        class="ml-auto shrink-0 text-[10px] text-muted-foreground"
+                                        >{{
+                                            formatTimestamp(
+                                                result.message.createdAt,
+                                            )
+                                        }}</span
+                                    >
+                                </div>
+                                <p
+                                    class="mt-0.5 line-clamp-1 text-[13px] text-foreground/80"
+                                >
+                                    <SafeHtml
+                                        :html="
+                                            renderMessageBody(
+                                                result.message.body,
+                                                result.message.mentions,
+                                                customEmojis,
+                                                userGroups,
+                                            )
+                                        "
+                                        variant="messageBody"
+                                    />
+                                </p>
+                            </div>
+                        </CommandItem>
+
+                        <CommandItem
+                            value="see-all-results"
+                            data-test="quick-switcher-see-all"
+                            class="mt-1 gap-2 rounded-lg border-t border-border px-2.5 font-serif text-[13px] text-muted-foreground italic data-[highlighted]:bg-accent data-[highlighted]:text-accent-foreground max-md:min-h-11.5 max-md:rounded-[11px] max-md:px-3"
+                            @select="seeAllResults"
+                        >
+                            <span class="truncate">{{
+                                $t('See all results for “:query”', {
+                                    query: searchText,
+                                })
+                            }}</span>
+                            <span
+                                class="ml-auto shrink-0 not-italic"
+                                aria-hidden="true"
+                                >&rarr;</span
+                            >
+                        </CommandItem>
+                    </CommandGroup>
+                </CommandList>
+                <!-- The design's standing explanation of the empty-query list:
+                     it doubles as the overlay's ranking hint, so it stays put
+                     rather than living inside the scrolling results. -->
+                <p
+                    v-if="isMobile"
+                    class="shrink-0 px-4 pt-2.5 pb-3 text-center text-[11.5px] text-muted-foreground"
+                >
+                    {{
+                        $t(
+                            'Recent shows before you type · results ranked by activity',
+                        )
+                    }}
+                </p>
+            </Command>
+        </DialogContent>
+    </Dialog>
 </template>

@@ -94,6 +94,7 @@ import {
     useOnboardingTour,
 } from '@/composables/useOnboardingTour';
 import { usePresenceReporter } from '@/composables/usePresenceReporter';
+import { useQuickSwitcher } from '@/composables/useQuickSwitcher';
 import { useSidebarBadges } from '@/composables/useSidebarBadges';
 import { useSidebarPosition } from '@/composables/useSidebarPosition';
 import { useTeamPresence } from '@/composables/useTeamPresence';
@@ -559,7 +560,8 @@ const { getInitials } = useInitials();
 const { switchTeam } = useTeamSwitch();
 const { start: startOnboardingTour } = useOnboardingTour();
 
-const quickSwitcherOpen = ref(false);
+const { isOpen: quickSwitcherOpen, toggle: toggleQuickSwitcher } =
+    useQuickSwitcher();
 const { isOpen: shortcutsOpen, toggle: toggleShortcuts } =
     useKeyboardShortcutsModal();
 const { isOpen: statusDialogOpen } = useUserStatusDialog();
@@ -679,8 +681,7 @@ function moveChannel(delta: number): void {
 }
 
 useKeyboardShortcuts({
-    'quick-switcher': () =>
-        (quickSwitcherOpen.value = !quickSwitcherOpen.value),
+    'quick-switcher': () => toggleQuickSwitcher(),
     'previous-channel': () => moveChannel(-1),
     'next-channel': () => moveChannel(1),
     'show-shortcuts': () => toggleShortcuts(),
@@ -1448,6 +1449,8 @@ onMounted(() => {
             :members="teamMembers"
             :current-user-id="currentUserId"
             :team-slug="currentTeam.slug"
+            :presence-for="presenceFor"
+            :is-dnd-for="isDndFor"
             @open-reminders="remindersDialogOpen = true"
         />
 

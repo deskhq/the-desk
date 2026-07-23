@@ -37,6 +37,8 @@ import {
 } from '@/components/ui/tooltip';
 import type { ConnectionPill } from '@/composables/useConnectionState';
 import { getInitials } from '@/composables/useInitials';
+import { useIsMobile } from '@/composables/useIsMobile';
+import { useQuickSwitcher } from '@/composables/useQuickSwitcher';
 import { memberAvatarStack } from '@/lib/memberAvatars';
 import type { NotificationIndicator } from '@/lib/notificationIndicator';
 import { dmParticipantPresence, presenceLabelKey } from '@/lib/presence';
@@ -123,6 +125,14 @@ const mastheadAvatars = computed(() =>
 );
 
 const page = usePage();
+
+/**
+ * Below the breakpoint the search icon is the jump-to overlay's entry point
+ * (m5): a phone has no ⌘K, and the overlay leads on to the search page via its
+ * message results. From `md` up it stays a plain link to the search page.
+ */
+const isMobile = useIsMobile();
+const { open: openQuickSwitcher } = useQuickSwitcher();
 
 /** The other participant of a 1:1 DM, whose avatar the masthead shows. */
 const dmParticipant = computed(() => props.channel.dmParticipants?.[0] ?? null);
@@ -492,7 +502,20 @@ const hasActivityReadout = computed(
                 <TooltipContent>{{ $t('Pinned messages') }}</TooltipContent>
             </Tooltip>
 
+            <Button
+                v-if="isMobile"
+                variant="ghost"
+                size="icon"
+                type="button"
+                data-test="masthead-search"
+                :aria-label="$t('Search messages')"
+                class="size-9 rounded text-muted-foreground hover:bg-muted hover:text-foreground"
+                @click="openQuickSwitcher"
+            >
+                <Search class="size-4" />
+            </Button>
             <Link
+                v-else
                 :href="searchMessages(props.teamSlug).url"
                 data-test="masthead-search"
                 :aria-label="$t('Search messages')"
