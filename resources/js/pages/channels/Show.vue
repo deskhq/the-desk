@@ -1177,7 +1177,10 @@ function archive(): void {
         {{ sendFailureAnnouncement }}
     </div>
 
-    <div class="flex min-h-0 flex-1 overflow-hidden">
+    <!-- `relative` anchors the thread panel below the breakpoint, where it is a
+         full-screen push over this whole pane — masthead included — rather than
+         a flex sibling squeezing the channel beside it. -->
+    <div class="relative flex min-h-0 flex-1 overflow-hidden">
         <div class="relative flex min-w-0 flex-1 flex-col">
             <ChannelMasthead
                 :channel="props.channel"

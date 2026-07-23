@@ -1,12 +1,19 @@
 <script setup lang="ts">
 import { InfiniteScroll } from '@inertiajs/vue3';
-import { X } from '@lucide/vue';
+import { ChevronLeft, Ellipsis, X } from '@lucide/vue';
 import { computed, nextTick, ref, watch } from 'vue';
 import MessageComposer from '@/components/MessageComposer.vue';
 import MessageList from '@/components/MessageList.vue';
 import ScrollableMessageList from '@/components/ScrollableMessageList.vue';
 import { Button } from '@/components/ui/button';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useIsMobile } from '@/composables/useIsMobile';
 import { useScrollPin } from '@/composables/useScrollPin';
 import type { RenderedPresence } from '@/lib/presence';
 import type { Mention, Message } from '@/types';
@@ -69,6 +76,13 @@ const hasRoot = computed(() => root.value !== undefined);
  */
 const replyCount = computed(() => root.value?.threadReplyCount ?? 0);
 const showSkeleton = computed(() => props.loading || !hasRoot.value);
+
+/**
+ * Below the breakpoint the panel is a full-screen push (design `m3`): the reply
+ * count moves from the header into a rule under the root, and the composer's
+ * placeholder names the thread it replies into.
+ */
+const isMobile = useIsMobile();
 
 /**
  * Shared scroll/pin bookkeeping, identical to the main timeline's: the
@@ -206,29 +220,52 @@ watch(
 <template>
     <aside
         data-test="thread-panel"
-        class="flex w-full min-w-0 shrink-0 flex-col overflow-hidden border-l border-border md:m-3.5 md:w-96 md:rounded-[14px] md:border md:border-border md:bg-sidebar md:shadow-sm"
+        class="flex w-full min-w-0 shrink-0 flex-col overflow-hidden max-md:absolute max-md:inset-0 max-md:z-30 max-md:bg-card md:m-3.5 md:w-96 md:rounded-[14px] md:border md:border-border md:bg-sidebar md:shadow-sm"
     >
         <header
-            class="flex shrink-0 items-start gap-2 border-b border-border px-4.5 pt-4 pb-3"
+            class="flex shrink-0 items-center gap-2.5 border-b border-border px-4 pt-4 pb-3 md:items-start md:gap-2 md:px-4.5"
         >
+            <!-- The push's way back to the channel, in the 36px tap surface the
+                 design draws. Same close path as the desktop X — the channel
+                 beneath kept its scroll position while covered. -->
+            <Button
+                variant="ghost"
+                size="icon"
+                type="button"
+                data-test="thread-back"
+                :aria-label="$t('Back to channel')"
+                class="-my-1.5 -ml-2 size-9 shrink-0 rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground md:hidden"
+                @click="emit('close')"
+            >
+                <ChevronLeft class="size-4.5" />
+            </Button>
             <div class="min-w-0 flex-1">
                 <h2
-                    class="font-serif text-[19px] leading-[1.1] font-semibold text-foreground"
+                    class="font-serif text-[20px] leading-[1.1] font-semibold text-foreground md:text-[19px]"
                 >
                     {{ $t('Thread') }}
                 </h2>
                 <p
                     data-test="thread-reply-count"
-                    class="mt-0.5 text-[11.5px] text-muted-foreground"
+                    class="mt-0.5 text-[11.5px] text-muted-foreground max-md:truncate"
                 >
-                    <template v-if="replyCount > 0"
+                    <!-- Below the breakpoint the count lives in the rule under
+                         the root, so the sub-line is the channel alone with the
+                         masthead's brass italic hash. -->
+                    <span v-if="replyCount > 0" class="hidden md:inline"
                         >{{
                             replyCount === 1
                                 ? $t(':count reply', { count: replyCount })
                                 : $t(':count replies', { count: replyCount })
                         }}
-                        · </template
-                    >#{{ props.channelName }}
+                        ·
+                    </span>
+                    <span
+                        class="font-serif text-brass italic md:hidden"
+                        aria-hidden="true"
+                        >#</span
+                    ><span class="hidden md:inline">#</span
+                    >{{ props.channelName }}
                 </p>
             </div>
             <Button
@@ -237,11 +274,34 @@ watch(
                 type="button"
                 data-test="thread-close"
                 :aria-label="$t('Close thread')"
-                class="shrink-0 rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground"
+                class="shrink-0 rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground max-md:hidden"
                 @click="emit('close')"
             >
                 <X />
             </Button>
+            <DropdownMenu>
+                <DropdownMenuTrigger as-child>
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        type="button"
+                        data-test="thread-options"
+                        :aria-label="$t('Thread options')"
+                        class="-my-1.5 -mr-2 size-9 shrink-0 rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground md:hidden"
+                    >
+                        <Ellipsis class="size-4" />
+                    </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" class="w-48">
+                    <DropdownMenuItem
+                        data-test="thread-options-close"
+                        @select="emit('close')"
+                    >
+                        <X class="size-4" />
+                        {{ $t('Close thread') }}
+                    </DropdownMenuItem>
+                </DropdownMenuContent>
+            </DropdownMenu>
         </header>
 
         <ScrollableMessageList
@@ -328,6 +388,7 @@ watch(
                     :presence-for="props.presenceFor"
                     :is-dnd-for="props.isDndFor"
                     :editing-message-id="editingMessageId"
+                    :reply-divider-count="isMobile ? replyCount : 0"
                     in-thread
                     @load-older="loadOlderReplies"
                     @edit="(message, body) => emit('edit', message, body)"
@@ -357,7 +418,7 @@ watch(
             :key="root?.id"
             :channel-name="props.channelName"
             :members="props.members"
-            :placeholder="$t('Reply…')"
+            :placeholder="isMobile ? $t('Reply in thread') : $t('Reply…')"
             :messages="props.messages"
             :current-user-id="props.currentUserId"
             :pending-uuids="props.pendingUuids"

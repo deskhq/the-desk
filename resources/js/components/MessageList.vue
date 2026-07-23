@@ -106,6 +106,12 @@ const props = defineProps<{
      * (you're already in the thread), so the panel only shows the conversation.
      */
     inThread?: boolean;
+    /**
+     * When set (> 0) inside a thread, a ":count replies" rule renders under the
+     * root message, separating it from the replies — the mobile thread push's
+     * treatment, where the panel header no longer carries the count.
+     */
+    replyDividerCount?: number;
     /** The root of the currently-open thread, highlighted in the main timeline. */
     activeThreadRootId?: string | null;
     /**
@@ -186,6 +192,16 @@ function extraThreadParticipants(message: Message): number {
 function isThreadRoot(item: TimelineGroup): boolean {
     return props.inThread === true && item.messages[0]?.threadRootId === null;
 }
+
+/**
+ * The reply-divider rule's label, shared by its visible text and the
+ * separator's accessible name.
+ */
+const replyDividerLabel = computed(() =>
+    props.replyDividerCount === 1
+        ? t(':count reply', { count: 1 })
+        : t(':count replies', { count: props.replyDividerCount ?? 0 }),
+);
 
 /**
  * How many reader avatars to preview on the "Seen by" row before collapsing the
@@ -1419,6 +1435,29 @@ function confirmDelete(): void {
                             </div>
                         </div>
                     </div>
+                </div>
+
+                <!-- The mobile thread push moves the reply count out of the
+                     panel header and into this rule under the root, separating
+                     the parent message from its replies (design m3). -->
+                <div
+                    v-if="
+                        item.type === 'group' &&
+                        isThreadRoot(item) &&
+                        (props.replyDividerCount ?? 0) > 0
+                    "
+                    data-test="thread-replies-divider"
+                    role="separator"
+                    :aria-label="replyDividerLabel"
+                    class="mt-4 flex items-center gap-2.5"
+                >
+                    <span
+                        aria-hidden="true"
+                        class="text-[11px] font-semibold tracking-[0.06em] whitespace-nowrap text-muted-foreground uppercase"
+                    >
+                        {{ replyDividerLabel }}
+                    </span>
+                    <span aria-hidden="true" class="h-px flex-1 bg-border" />
                 </div>
             </div>
         </div>
