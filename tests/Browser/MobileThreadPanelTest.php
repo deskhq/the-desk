@@ -148,9 +148,21 @@ test('back returns to the channel at the scroll position it was left at', functi
         ->resize(390, 844)
         ->assertSee('Thread root message');
 
+    // Let the freshly opened channel settle at its bottom pin first: the
+    // virtualized timeline keeps re-pinning to the newest row until off-screen
+    // heights are measured (#500's regime), and a scroll-up issued before that
+    // glue releases is snapped back to the bottom.
+    $page->assertScript(<<<'JS'
+    (() => {
+        const timeline = document.querySelector('[data-test="message-history"]');
+
+        return timeline.scrollHeight - timeline.clientHeight - timeline.scrollTop <= 2;
+    })()
+    JS, true)
+        ->wait(1);
+
     // Scroll the channel up to its top, where the thread root lives — the
-    // position that must survive the push. The timeline is virtualized, so a
-    // regression here re-pins it to the bottom on return (#500's regime).
+    // position that must survive the push.
     $page->script(<<<'JS'
     () => {
         const timeline = document.querySelector('[data-test="message-history"]');
@@ -160,12 +172,18 @@ test('back returns to the channel at the scroll position it was left at', functi
     }
     JS);
 
-    // Both waits are state-based: the retrying assertions let the scroll settle
-    // and the reply page land before the next interaction.
+    // The position must *hold* before the thread opens — a late initial-pin
+    // would otherwise snap the timeline back down and void the round trip this
+    // test is about, so it is re-checked across a beat.
     $page->assertScript(
         '(() => document.querySelector(\'[data-test="message-history"]\').scrollTop === 0)()',
         true,
     )
+        ->wait(1)
+        ->assertScript(
+            '(() => document.querySelector(\'[data-test="message-history"]\').scrollTop === 0)()',
+            true,
+        )
         ->click('[data-test=thread-summary]')
         ->assertVisible('[data-test=thread-back]')
         ->assertSee('Thread reply 2')
