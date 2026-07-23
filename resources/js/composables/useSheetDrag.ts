@@ -119,6 +119,14 @@ export function useSheetDrag({
             return;
         }
 
+        // The release carries a position of its own, and a finger can travel a
+        // good way between the last move it reported and lifting off. Folding it
+        // in as a final move is what makes a flick read as one — but only when it
+        // moved, or an unmoved release would zero out the speed it left at.
+        if (event.clientY !== gesture.lastY) {
+            move(event);
+        }
+
         const { height, previousY, previousAt, lastY, lastAt } = gesture;
         const travelled = offset.value;
 
