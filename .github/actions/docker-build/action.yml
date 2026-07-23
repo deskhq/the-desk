@@ -13,9 +13,13 @@ inputs:
   # Not read from `vars` here: a composite action is handed its context by the
   # call site, and taking the label from the job means the build path can never
   # disagree with the runner it is executing on.
+  # An expression written out in full here would be evaluated as one rather than
+  # read as prose — the manifest is templated, descriptions included — and `vars`
+  # is not a context an action manifest can resolve, so it fails to load. Name
+  # the variable, never the expression.
   runner:
     description: >-
-      The runner label the calling job resolved, i.e. `${{ vars.CI_RUNNER }}`.
+      The runner label the calling job resolved from the CI_RUNNER variable.
       The Blacksmith path is taken for any label starting with `blacksmith` —
       the sized ones like `blacksmith-4vcpu-ubuntu-2404` and the bare
       `blacksmith` default alike. Anything else, an unset variable included,

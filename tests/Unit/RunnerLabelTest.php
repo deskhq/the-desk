@@ -99,6 +99,31 @@ test('the composite action is what actually holds the two provider paths', funct
         ->toEqualCanonicalizing(['runner', 'context', 'file', 'platforms', 'push', 'load', 'tags', 'labels']);
 });
 
+/**
+ * An action manifest is templated in full — input descriptions included — and
+ * `vars` is not a context it can resolve. So a `${{ vars.CI_RUNNER }}` written
+ * as *prose* in a description is still evaluated, and the whole action fails to
+ * load with "Unrecognized named-value: 'vars'". That is why the action is handed
+ * the label as an input; naming the variable in prose is fine, writing the
+ * expression is not.
+ */
+test('the composite action manifest resolves no context an action cannot see', function (): void {
+    $manifest = implode("\n", array_filter(
+        explode("\n", (string) file_get_contents(dockerBuildActionPath())),
+        static fn (string $line): bool => ! str_starts_with(ltrim($line), '#'),
+    ));
+
+    preg_match_all('/\$\{\{(?<expression>[^}]*)\}\}/', $manifest, $matches);
+
+    expect($matches['expression'])->not->toBeEmpty('the manifest passes its inputs through expressions, so this must find some');
+
+    foreach ($matches['expression'] as $expression) {
+        expect($expression)
+            ->not->toContain('vars.')
+            ->not->toContain('secrets.');
+    }
+});
+
 test('the composite action selects its path from the runner label it is handed', function (): void {
     $steps = collect(dockerBuildAction()['runs']['steps']);
 
