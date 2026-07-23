@@ -303,7 +303,7 @@ function openReminders(): void {
                         <CommandItem
                             value="action:reminders"
                             data-test="quick-switcher-reminders"
-                            class="group h-9.5 gap-2 rounded-lg px-2.5 data-[highlighted]:bg-primary data-[highlighted]:text-primary-foreground max-md:h-11.5 max-md:gap-2.5 max-md:rounded-[11px] max-md:px-3 max-md:text-[15px]"
+                            class="group h-9.5 gap-2 rounded-lg px-2.5 md:data-[highlighted]:bg-primary md:data-[highlighted]:text-primary-foreground max-md:h-11.5 max-md:gap-2.5 max-md:rounded-[11px] max-md:px-3 max-md:text-[15px]"
                             @select="openReminders"
                         >
                             <AlarmClock
@@ -327,7 +327,7 @@ function openReminders(): void {
                             :key="channel.id"
                             :value="`channel:${channel.id}`"
                             data-test="quick-switcher-channel"
-                            class="group h-9.5 gap-2 rounded-lg px-2.5 data-[highlighted]:bg-primary data-[highlighted]:text-primary-foreground max-md:h-11.5 max-md:gap-2.5 max-md:rounded-[11px] max-md:px-3"
+                            class="group h-9.5 gap-2 rounded-lg px-2.5 md:data-[highlighted]:bg-primary md:data-[highlighted]:text-primary-foreground max-md:h-11.5 max-md:gap-2.5 max-md:rounded-[11px] max-md:px-3"
                             @select="selectChannel(channel)"
                         >
                             <span
@@ -373,7 +373,7 @@ function openReminders(): void {
                             :key="person.id"
                             :value="`person:${person.id}`"
                             data-test="quick-switcher-person"
-                            class="group h-9.5 gap-2 rounded-lg px-2.5 data-[highlighted]:bg-primary data-[highlighted]:text-primary-foreground max-md:h-11.5 max-md:gap-2.5 max-md:rounded-[11px] max-md:px-3"
+                            class="group h-9.5 gap-2 rounded-lg px-2.5 md:data-[highlighted]:bg-primary md:data-[highlighted]:text-primary-foreground max-md:h-11.5 max-md:gap-2.5 max-md:rounded-[11px] max-md:px-3"
                             @select="selectPerson(person.id)"
                         >
                             <span
@@ -395,7 +395,7 @@ function openReminders(): void {
                             </span>
                             <span
                                 v-else
-                                class="flex size-6 shrink-0 items-center justify-center rounded-full bg-primary/10 text-[10px] font-semibold text-primary select-none group-data-[highlighted]:bg-primary-foreground/20 group-data-[highlighted]:text-primary-foreground"
+                                class="flex size-6 shrink-0 items-center justify-center rounded-full bg-primary/10 text-[10px] font-semibold text-primary select-none md:group-data-[highlighted]:bg-primary-foreground/20 md:group-data-[highlighted]:text-primary-foreground"
                                 aria-hidden="true"
                                 >{{ getInitials(person.name) }}</span
                             >
