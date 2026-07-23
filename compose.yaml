@@ -49,7 +49,12 @@ services:
         image: 'sail-8.5/app'
         extra_hosts:
             - 'host.docker.internal:host-gateway'
-        command: ['php', 'artisan', 'queue:listen', '--tries=1', '--timeout=0']
+        # Broadcasts lead the queue list and the worker never sleeps between
+        # polls, matching the production topology's latency (see
+        # docker-compose.prod.yml). It stays a single `queue:listen` container:
+        # respawning per job is what picks up code edits without a restart, and
+        # its bootstrap is invisible next to the 3 seconds this replaces (#763).
+        command: ['php', 'artisan', 'queue:listen', '--queue=broadcasts,default', '--sleep=0', '--tries=1', '--timeout=0']
         environment:
             WWWUSER: '${WWWUSER}'
             LARAVEL_SAIL: 1

@@ -5,21 +5,21 @@ declare(strict_types=1);
 use Symfony\Component\Yaml\Yaml;
 
 /**
- * `app`, `queue`, `reverb`, and `scheduler` all mount the same named volume
- * (`storage-app`). On a fresh volume the daemon seeds it from the image
- * (copy-up); four containers created at the same instant race inside dockerd and
- * one dies with `mkdir /var/lib/docker/volumes/..._data/private: file exists`.
- * Making the three workers wait for `app` means exactly one container triggers
- * the copy-up. See issue #609.
+ * `app`, `queue`, `queue-broadcasts`, `reverb`, and `scheduler` all mount the
+ * same named volume (`storage-app`). On a fresh volume the daemon seeds it from
+ * the image (copy-up); containers created at the same instant race inside
+ * dockerd and one dies with `mkdir /var/lib/docker/volumes/..._data/private:
+ * file exists`. Making the workers wait for `app` means exactly one container
+ * triggers the copy-up. See issue #609.
  */
 $compose = fn (): array => Yaml::parseFile(dirname(__DIR__, 2).'/docker-compose.prod.yml');
 
-$sharedVolumeWorkers = ['queue', 'reverb', 'scheduler'];
+$sharedVolumeWorkers = ['queue', 'queue-broadcasts', 'reverb', 'scheduler'];
 
-test('every app-role service mounts the shared storage-app volume', function () use ($compose): void {
+test('every app-role service mounts the shared storage-app volume', function () use ($compose, $sharedVolumeWorkers): void {
     $services = $compose()['services'];
 
-    foreach (['app', 'queue', 'reverb', 'scheduler'] as $service) {
+    foreach (['app', ...$sharedVolumeWorkers] as $service) {
         expect($services[$service]['volumes'])->toContain('storage-app:/app/storage/app');
     }
 });

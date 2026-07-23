@@ -72,7 +72,12 @@ services:
 
   queue:
     <<: *app
-    command: ['php', 'artisan', 'queue:work', '--tries=3']
+    command: ['php', 'artisan', 'queue:work', '--queue=broadcasts,default', '--sleep=0', '--tries=3']
+    depends_on: *worker-depends-on
+
+  queue-broadcasts:
+    <<: *app
+    command: ['php', 'artisan', 'queue:work', '--queue=broadcasts', '--sleep=0', '--tries=3']
     depends_on: *worker-depends-on
 
   scheduler:
