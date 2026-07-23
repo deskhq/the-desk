@@ -7,6 +7,23 @@ use Tests\TestCase;
 
 /*
 |--------------------------------------------------------------------------
+| Browser Plugin Shadow (#786)
+|--------------------------------------------------------------------------
+|
+| pest-plugin-browser v4.3.1 runs each retry attempt of an awaitable browser
+| call under a hardcoded 1000ms protocol budget. On CPU-starved CI runners
+| those attempts expire routinely, poisoning the Playwright websocket with
+| stale error responses and re-driving non-idempotent clicks (issue #786).
+| This patched copy of the plugin's Execution class gives each attempt the
+| remaining outer budget instead. It must be declared before the autoloader
+| can load the vendor class, hence the require at the very top of this file.
+|
+*/
+
+require_once __DIR__.'/Browser/Support/Execution.php';
+
+/*
+|--------------------------------------------------------------------------
 | Test Case
 |--------------------------------------------------------------------------
 |
