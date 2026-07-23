@@ -9,7 +9,7 @@ const KEYBOARD_THRESHOLD_PX = 120;
  * The visual-viewport reading a keyboard inset is derived from.
  */
 export type ViewportReading = {
-    /** The layout viewport's height — what `100svh` and `h-svh` resolve to. */
+    /** The layout viewport's height — what `100dvh` and `h-dvh` resolve to. */
     innerHeight: number;
     /** The visual viewport's height: the part not covered by the keyboard. */
     height: number;
@@ -20,7 +20,7 @@ export type ViewportReading = {
 /**
  * How many pixels of the layout viewport the on-screen keyboard covers.
  *
- * The layout viewport (what `svh` sizes against) does not shrink when the
+ * The layout viewport (what `dvh` sizes against) does not shrink when the
  * keyboard opens, so a bottom-anchored composer ends up behind it. The visual
  * viewport does shrink, and the difference — less whatever the browser scrolled
  * the page by to compensate — is the padding that keeps the composer above the

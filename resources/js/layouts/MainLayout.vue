@@ -741,7 +741,7 @@ onMounted(() => {
             :class="[
                 'p-3.5',
                 {
-                    'md:top-(--demo-banner-height) md:h-[calc(100svh-var(--demo-banner-height))]':
+                    'md:top-(--demo-banner-height) md:h-[calc(100dvh-var(--demo-banner-height))]':
                         demoMode,
                 },
             ]"
@@ -1422,8 +1422,8 @@ onMounted(() => {
                     ? 'md:order-first md:mr-0 md:ml-3.5'
                     : 'md:mr-3.5 md:ml-0',
                 demoMode
-                    ? 'h-[calc(100svh-1rem-var(--demo-banner-height))] md:h-[calc(100svh-1.75rem-var(--demo-banner-height))]'
-                    : 'h-[calc(100svh-1rem)] md:h-[calc(100svh-1.75rem)]',
+                    ? 'h-[calc(100dvh-1rem-var(--demo-banner-height))] md:h-[calc(100dvh-1.75rem-var(--demo-banner-height))]'
+                    : 'h-[calc(100dvh-1rem)] md:h-[calc(100dvh-1.75rem)]',
             ]"
         >
             <slot />

@@ -1297,7 +1297,7 @@ function onKeydown(event: KeyboardEvent): void {
 <template>
     <!-- The pill stays clear of both the device's home indicator and the
          on-screen keyboard: the safe-area inset is static, the keyboard inset is
-         measured live off visualViewport (the layout viewport `svh` sizes
+         measured live off visualViewport (the layout viewport `dvh` sizes
          against does not shrink when the keyboard opens). -->
     <div
         class="@container mx-3 mb-2 shrink-0 md:mx-5 md:mb-4"
