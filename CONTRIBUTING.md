@@ -60,6 +60,40 @@ below the PHP coverage gate. It needs no database and runs in seconds.
 
 Auto-fix with `./vendor/bin/sail npm run lint` and `./vendor/bin/sail npm run format`.
 
+### CI runners
+
+Where those gates run is a repository setting, not a code change. No workflow
+names a runner: every job resolves one from the `CI_RUNNER` repository variable,
+
+```yaml
+runs-on: ${{ vars.CI_RUNNER || 'ubuntu-latest' }}
+```
+
+so moving the whole fleet is a matter of setting or clearing that one variable
+under **Settings → Secrets and variables → Actions → Variables**:
+
+| `CI_RUNNER`                    | Where CI runs                                      |
+| ------------------------------ | -------------------------------------------------- |
+| `blacksmith-4vcpu-ubuntu-2404` | [Blacksmith](https://blacksmith.sh) 4-vCPU runners |
+| unset (or deleted)             | GitHub-hosted `ubuntu-latest`                      |
+
+GitHub-hosted is deliberately the fallback rather than the other way round: with
+nothing set, a fresh fork still runs CI on a runner that exists. The fallback
+fires on an **unset** variable, though, not on an unreachable runner — a
+`CI_RUNNER` left naming a Blacksmith label after the installation is removed
+leaves every job queued against a label nothing answers to. Clear the variable
+first, then uninstall.
+
+`uses:` is the one workflow field that cannot take an expression, so the two
+Blacksmith-only Docker actions cannot follow the variable directly. They sit
+behind `.github/actions/docker-build`, a composite action that is handed the
+same label (`runner: ${{ vars.CI_RUNNER }}`) and picks between the Blacksmith
+builder and `docker/setup-buildx-action` + `docker/build-push-action` with the
+`type=gha` layer cache. Both paths cache layers, which is what stops the PECL
+`redis` fetch being re-run on every build (#626). Add new Docker builds through
+that action, not by calling a provider's action directly —
+`tests/Unit/RunnerLabelTest.php` fails the build if either rule is broken.
+
 ## Coding conventions
 
 - **Test-driven.** Every change must be programmatically tested — write or update

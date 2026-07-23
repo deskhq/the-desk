@@ -43,11 +43,13 @@ test('the docs job installs from the lockfile and builds the site', function (st
 /**
  * Only the operating system matters here, not who hosts the runner: the guard
  * exists so a lockfile resolved on macOS is proven against the Linux Cloudflare
- * builder. GitHub's own `ubuntu-*` labels and Blacksmith's `blacksmith-*-ubuntu-*`
- * ones both satisfy that, so match the family rather than one exact label.
+ * builder. The job takes its runner from `vars.CI_RUNNER` like every other one
+ * (see RunnerLabelTest), and both sides of that switch are Ubuntu — so what this
+ * asserts is that the docs job stays on the shared expression rather than being
+ * pinned to a runner of its own, which is the only way it could drift off Linux.
  */
 test('the docs job builds on linux so it reproduces the cloudflare builder', function () use ($docsJob): void {
-    expect($docsJob()['runs-on'])->toMatch('/(^|-)ubuntu-/');
+    expect($docsJob()['runs-on'])->toMatch('/^\$\{\{\s*vars\.CI_RUNNER\s*\|\|\s*\'ubuntu-[^\']+\'\s*\}\}$/');
 });
 
 test('the docs guard runs on pull requests touching the docs project', function () use ($docsWorkflow): void {

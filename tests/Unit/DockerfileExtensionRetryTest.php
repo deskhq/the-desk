@@ -73,36 +73,44 @@ test('the retry loop advances, backs off, and gives up with a legible message', 
 
 /**
  * What matters is that the layers are reused, not which cache backend does it.
- * On Blacksmith the builder mounts a persistent layer cache, so the build step
- * only has to run through `useblacksmith/setup-docker-builder`; on a GitHub
- * runner the same reuse needs an explicit `type=gha` cache on the step. Accept
- * either shape, and fail a plain `docker build` (or a build-push step with
- * neither cache in place), which is what refetches PECL every run.
+ * The build-only validation goes through `.github/actions/docker-build`, which
+ * holds one path per runner provider (#782) — so the guarantee only holds if
+ * *both* of its paths cache. On Blacksmith the builder mounts a persistent layer
+ * cache, so the build step only has to run behind `setup-docker-builder`; on a
+ * GitHub runner the same reuse needs an explicit `type=gha` cache on the step.
+ * Accept either shape, and fail a plain `docker build` (or a build-push step
+ * with neither cache in place), which is what refetches PECL every run.
  */
 test('the build-only validation caches its layers so PECL is not refetched every run', function (): void {
-    $steps = Yaml::parseFile(dirname(__DIR__, 2).'/.github/workflows/docker.yml')['jobs']['build']['steps'];
-
-    $build = collect($steps)->firstWhere('name', 'Build production image');
+    $build = collect(Yaml::parseFile(dirname(__DIR__, 2).'/.github/workflows/docker.yml')['jobs']['build']['steps'])
+        ->firstWhere('name', 'Build production image');
 
     expect($build)->not->toBeNull()
-        ->and($build['uses'] ?? '')->toMatch('#^(docker|useblacksmith)/build-push-action@#')
+        ->and($build['uses'] ?? '')->toBe('./.github/actions/docker-build')
         ->and($build['with']['push'] ?? null)->toBeFalse();
 
-    if (str_starts_with((string) $build['uses'], 'useblacksmith/')) {
-        // The builder has to be set up on the same condition as the build, or
-        // the build-only run falls back to an uncached default builder.
-        $builderIsSetUpFirst = collect($steps)
-            ->take((int) collect($steps)->search($build))
-            ->contains(fn (array $step): bool => str_starts_with($step['uses'] ?? '', 'useblacksmith/setup-docker-builder@')
-                && ($step['if'] ?? null) === ($build['if'] ?? null));
+    $steps = collect(Yaml::parseFile(dirname(__DIR__, 2).'/.github/actions/docker-build/action.yml')['runs']['steps']);
+    $builds = $steps->filter(static fn (array $step): bool => str_contains((string) ($step['uses'] ?? ''), '/build-push-action@'));
 
-        expect($builderIsSetUpFirst)->toBeTrue('the Blacksmith layer cache only exists behind its own builder');
+    expect($builds)->toHaveCount(2, 'one build per provider, or one of them is a silently uncached path');
 
-        return;
+    foreach ($builds as $build) {
+        if (str_starts_with((string) $build['uses'], 'useblacksmith/')) {
+            // The builder has to be set up on the same condition as the build,
+            // or the run falls back to an uncached default builder.
+            $builderIsSetUpFirst = $steps
+                ->take((int) $steps->search($build))
+                ->contains(fn (array $step): bool => str_starts_with($step['uses'] ?? '', 'useblacksmith/setup-docker-builder@')
+                    && ($step['if'] ?? null) === ($build['if'] ?? null));
+
+            expect($builderIsSetUpFirst)->toBeTrue('the Blacksmith layer cache only exists behind its own builder');
+
+            continue;
+        }
+
+        expect($build['with']['cache-from'] ?? null)->toBe('type=gha')
+            ->and($build['with']['cache-to'] ?? '')->toStartWith('type=gha,mode=max');
     }
-
-    expect($build['with']['cache-from'] ?? null)->toBe('type=gha')
-        ->and($build['with']['cache-to'] ?? '')->toStartWith('type=gha,mode=max');
 });
 
 test('the bundled extension list is unchanged', function (): void {

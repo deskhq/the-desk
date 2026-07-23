@@ -17,7 +17,7 @@ permissions:
 
 jobs:
   dependency-review:
-    runs-on: blacksmith-4vcpu-ubuntu-2404
+    runs-on: ${{ vars.CI_RUNNER || 'ubuntu-latest' }}
     permissions:
       contents: read
       # Allows the action to post its summary comment on the PR when it fails.

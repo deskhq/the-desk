@@ -43,7 +43,7 @@ jobs:
         (github.base_ref == 'master' && github.head_ref == 'develop')
         || (github.base_ref == 'develop' && github.head_ref == 'master')
       )
-    runs-on: blacksmith-4vcpu-ubuntu-2404
+    runs-on: ${{ vars.CI_RUNNER || 'ubuntu-latest' }}
     steps:
       # The PAT, not GITHUB_TOKEN: GitHub suppresses `on: push` for refs written
       # by the built-in token, so a promotion merged under it would land on

@@ -21,7 +21,7 @@ permissions:
 
 jobs:
   ci:
-    runs-on: blacksmith-4vcpu-ubuntu-2404
+    runs-on: ${{ vars.CI_RUNNER || 'ubuntu-latest' }}
     strategy:
       matrix:
         # We develop and ship on 8.5, so CI exercises 8.5 only to keep Actions
@@ -137,7 +137,7 @@ jobs:
   # never folds into the 100% coverage gate above — the `browser` group is
   # excluded from phpunit's default suites and only runs via `pest tests/Browser`.
   browser:
-    runs-on: blacksmith-4vcpu-ubuntu-2404
+    runs-on: ${{ vars.CI_RUNNER || 'ubuntu-latest' }}
 
     services:
       postgres:
