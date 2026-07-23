@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Head } from '@inertiajs/vue3';
-import { ref } from 'vue';
+import { ref, watch } from 'vue';
 import FormField from '@/components/FormField.vue';
 import SettingsSection from '@/components/SettingsSection.vue';
 import {
@@ -11,12 +11,19 @@ import {
     SelectValue,
 } from '@/components/ui/select';
 import { useLocale } from '@/composables/useLocale';
+import { useTimeFormat } from '@/composables/useTimeFormat';
 import { translate } from '@/lib/i18n';
 import { edit } from '@/routes/locale';
-import type { AppLocale, LocaleOption } from '@/types';
+import type {
+    AppLocale,
+    LocaleOption,
+    TimeFormat,
+    TimeFormatOption,
+} from '@/types';
 
 defineProps<{
     locales: LocaleOption[];
+    timeFormats: TimeFormatOption[];
 }>();
 
 defineOptions({
@@ -42,6 +49,25 @@ function onSelect(value: unknown): void {
     selected.value = value as AppLocale;
     void updateLocale(selected.value);
 }
+
+const { timeFormat, updateTimeFormat } = useTimeFormat();
+
+// Local mirror so the select answers on click, before the persisted preference
+// round-trips back through the shared prop.
+const selectedTimeFormat = ref<TimeFormat>(timeFormat.value);
+
+watch(timeFormat, (value) => {
+    selectedTimeFormat.value = value;
+});
+
+function onSelectTimeFormat(value: unknown): void {
+    if (typeof value !== 'string') {
+        return;
+    }
+
+    selectedTimeFormat.value = value as TimeFormat;
+    updateTimeFormat(selectedTimeFormat.value);
+}
 </script>
 
 <template>
@@ -60,7 +86,7 @@ function onSelect(value: unknown): void {
             :label="$t('Display language')"
             :hint="
                 $t(
-                    'Dates, times, and numbers are formatted to match your selected language.',
+                    'Dates and numbers are formatted to match your selected language.',
                 )
             "
             v-slot="{ id }"
@@ -74,6 +100,45 @@ function onSelect(value: unknown): void {
                         v-for="option in locales"
                         :key="option.value"
                         :value="option.value"
+                    >
+                        {{ option.label }}
+                    </SelectItem>
+                </SelectContent>
+            </Select>
+        </FormField>
+    </SettingsSection>
+
+    <SettingsSection
+        :title="$t('Clock')"
+        :description="
+            $t(
+                'Choose whether times of day are shown on a 12-hour or a 24-hour clock.',
+            )
+        "
+    >
+        <FormField
+            id="time-format"
+            :label="$t('Clock style')"
+            :hint="
+                $t(
+                    'Auto follows your display language. Your choice applies everywhere a time of day appears, including your quiet hours.',
+                )
+            "
+            v-slot="{ id }"
+        >
+            <Select
+                :model-value="selectedTimeFormat"
+                @update:model-value="onSelectTimeFormat"
+            >
+                <SelectTrigger :id="id" data-test="time-format" class="w-full">
+                    <SelectValue :placeholder="$t('Select a clock style')" />
+                </SelectTrigger>
+                <SelectContent>
+                    <SelectItem
+                        v-for="option in timeFormats"
+                        :key="option.value"
+                        :value="option.value"
+                        :data-test="`time-format-${option.value}`"
                     >
                         {{ option.label }}
                     </SelectItem>

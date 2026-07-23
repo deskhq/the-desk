@@ -2,10 +2,18 @@
  * Timestamp formatting helpers. All rendering happens client-side in a target
  * IANA time zone — the viewer's stored zone where known, otherwise the runtime's
  * local zone (passing `timeZone: undefined` to the Intl APIs falls back to it) —
- * and in the active locale, so month names, ordering, and clock style follow the
- * user's language.
+ * and in the active locale, so month names and ordering follow the user's
+ * language.
+ *
+ * The clock style follows the language too, unless the viewer has pinned one:
+ * every time of day here resolves its hour cycle through the clock-style
+ * preference, which defaults to `auto` (the locale decides). Date-only,
+ * relative, and calendar helpers carry no time of day, so the preference does
+ * not reach them.
  */
 
+import type { TimeFormat } from '@/types';
+import { hourCycleFor, prefersTwelveHour } from './clock';
 import { i18n, translate } from './i18n';
 
 /**
@@ -15,10 +23,12 @@ export function formatTimeOfDay(
     iso: string,
     timeZone?: string,
     locale: string = i18n.locale,
+    format?: TimeFormat,
 ): string {
     return new Date(iso).toLocaleTimeString(locale, {
         hour: 'numeric',
         minute: '2-digit',
+        hourCycle: hourCycleFor(format),
         timeZone,
     });
 }
@@ -30,13 +40,59 @@ export function formatDateTime(
     iso: string,
     timeZone?: string,
     locale: string = i18n.locale,
+    format?: TimeFormat,
 ): string {
     return new Date(iso).toLocaleString(locale, {
         month: 'short',
         day: 'numeric',
         hour: 'numeric',
         minute: '2-digit',
+        hourCycle: hourCycleFor(format),
         timeZone,
+    });
+}
+
+/**
+ * Format an `HH:mm` wall-clock reading (e.g. a stored quiet-hours bound) as a
+ * time of day. The reading carries no date or zone — it is a time on the clock
+ * face, not an instant — so it is anchored to an arbitrary day and rendered in
+ * the runtime's own zone, leaving only the hour and minute visible.
+ */
+export function formatWallTime(
+    wallTime: string,
+    locale: string = i18n.locale,
+    format?: TimeFormat,
+): string {
+    const [hour, minute] = wallTime.split(':').map(Number);
+
+    return new Date(2000, 0, 1, hour, minute).toLocaleTimeString(locale, {
+        hour: 'numeric',
+        minute: '2-digit',
+        hourCycle: hourCycleFor(format),
+    });
+}
+
+/**
+ * A compact label for a whole hour of the clock face (e.g. "6 PM", "18"), for
+ * the tick marks under the quiet-hours strip.
+ *
+ * On a 24-hour clock the label is the bare zero-padded hour, so the strip keeps
+ * its fixed 00 / 06 / 12 / 18 / 24 frame — including the end-of-day 24, which
+ * Intl would fold back to 00 (and French would render as "18 h", too wide for a
+ * tick). Only the 12-hour clock needs Intl, for its AM/PM markers.
+ */
+export function formatWallHour(
+    hour: number,
+    locale: string = i18n.locale,
+    format?: TimeFormat,
+): string {
+    if (!prefersTwelveHour(locale, format)) {
+        return String(hour).padStart(2, '0');
+    }
+
+    return new Date(2000, 0, 1, hour % 24).toLocaleTimeString(locale, {
+        hour: 'numeric',
+        hourCycle: 'h12',
     });
 }
 
@@ -193,6 +249,7 @@ export function formatLocalTime(
     timeZone: string | null,
     at: Date,
     locale: string = i18n.locale,
+    format?: TimeFormat,
 ): string | null {
     if (!timeZone) {
         return null;
@@ -202,6 +259,7 @@ export function formatLocalTime(
         return at.toLocaleTimeString(locale, {
             hour: 'numeric',
             minute: '2-digit',
+            hourCycle: hourCycleFor(format),
             timeZone,
         });
     } catch {

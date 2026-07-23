@@ -20,6 +20,7 @@ import { Switch } from '@/components/ui/switch';
 import { useChimes } from '@/composables/useChimes';
 import { useReadReceipts } from '@/composables/useReadReceipts';
 import { useTranslations } from '@/composables/useTranslations';
+import { formatWallTime } from '@/lib/datetime';
 import { quietHoursSegments, quietHoursTicks } from '@/lib/dnd';
 import { translate } from '@/lib/i18n';
 import { edit } from '@/routes/appearance';
@@ -82,12 +83,21 @@ watch(storedDnd, (value) => {
     endsAt.value = value?.endsAt ?? endsAt.value;
 });
 
-/** The half-hour grid both bound selects offer. */
-const QUIET_HOUR_OPTIONS = Array.from({ length: 48 }, (_, index) => {
+/**
+ * The half-hour grid both bound selects offer. The stored value stays a 24-hour
+ * `HH:mm` string — the server compares it against wall-clock readings — while
+ * the label follows the viewer's clock style, so the bounds read in the same
+ * convention as the paused card that reports the window back to them.
+ */
+const QUIET_HOUR_BOUNDS = Array.from({ length: 48 }, (_, index) => {
     const hour = String(Math.floor(index / 2)).padStart(2, '0');
 
     return `${hour}:${index % 2 === 0 ? '00' : '30'}`;
 });
+
+const quietHourOptions = computed(() =>
+    QUIET_HOUR_BOUNDS.map((value) => ({ value, label: formatWallTime(value) })),
+);
 
 const crossesMidnight = computed(() => startsAt.value > endsAt.value);
 
@@ -245,12 +255,12 @@ function chooseBound(bound: 'startsAt' | 'endsAt', value: unknown): void {
                             </SelectTrigger>
                             <SelectContent class="max-h-64">
                                 <SelectItem
-                                    v-for="option in QUIET_HOUR_OPTIONS"
-                                    :key="`from-${option}`"
-                                    :value="option"
+                                    v-for="option in quietHourOptions"
+                                    :key="`from-${option.value}`"
+                                    :value="option.value"
                                     class="font-mono text-[13px]"
                                 >
-                                    {{ option }}
+                                    {{ option.label }}
                                 </SelectItem>
                             </SelectContent>
                         </Select>
@@ -276,12 +286,12 @@ function chooseBound(bound: 'startsAt' | 'endsAt', value: unknown): void {
                             </SelectTrigger>
                             <SelectContent class="max-h-64">
                                 <SelectItem
-                                    v-for="option in QUIET_HOUR_OPTIONS"
-                                    :key="`to-${option}`"
-                                    :value="option"
+                                    v-for="option in quietHourOptions"
+                                    :key="`to-${option.value}`"
+                                    :value="option.value"
                                     class="font-mono text-[13px]"
                                 >
-                                    {{ option }}
+                                    {{ option.label }}
                                 </SelectItem>
                             </SelectContent>
                         </Select>

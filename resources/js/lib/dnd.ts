@@ -1,3 +1,6 @@
+import type { TimeFormat } from '@/types';
+import { formatWallHour } from './datetime';
+import { i18n } from './i18n';
 import { wallTimeToInstant, zonedWallTime } from './scheduleTime';
 import type { WallTime } from './scheduleTime';
 
@@ -119,8 +122,17 @@ export function quietHoursSegments(
 /**
  * The hour labels under the 24h strip: the fixed 00/06/12/18/24 frame with
  * the window's own bound hours merged in, so the quiet edges are always named.
+ *
+ * The labels follow the viewer's clock style, so the strip and the bound selects
+ * above it speak the same convention as the paused card that reports the window
+ * back to them.
  */
-export function quietHoursTicks(startsAt: string, endsAt: string): string[] {
+export function quietHoursTicks(
+    startsAt: string,
+    endsAt: string,
+    locale: string = i18n.locale,
+    format?: TimeFormat,
+): string[] {
     const hours = new Set([0, 6, 12, 18, 24]);
 
     hours.add(Number(startsAt.slice(0, 2)));
@@ -128,7 +140,7 @@ export function quietHoursTicks(startsAt: string, endsAt: string): string[] {
 
     return [...hours]
         .sort((a, b) => a - b)
-        .map((hour) => String(hour).padStart(2, '0'));
+        .map((hour) => formatWallHour(hour, locale, format));
 }
 
 const MINUTES_PER_DAY = 24 * 60;

@@ -1,6 +1,7 @@
 import type { ChimeSound } from './chimes';
 import type { AppLocale } from './locale';
 import type { SidebarPosition } from './sidebar';
+import type { TimeFormat } from './timeFormat';
 
 export type User = {
     id: number;
@@ -23,6 +24,8 @@ export type User = {
      */
     dnd: App.Data.UserDndData;
     locale: AppLocale;
+    /** Whether times of day render on a 12- or 24-hour clock, or follow the language. */
+    time_format: TimeFormat;
     avatar?: string;
     email_verified_at: string | null;
     created_at: string;

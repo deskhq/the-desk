@@ -12,6 +12,7 @@ use App\Enums\ChimeSound;
 use App\Enums\PresenceState;
 use App\Enums\SidebarPosition;
 use App\Enums\TeamRole;
+use App\Enums\TimeFormat;
 use App\Enums\UserType;
 use App\Observers\UserObserver;
 use App\Support\Gravatar;
@@ -60,6 +61,7 @@ use Laravel\Sanctum\HasApiTokens;
  * @property Carbon|null $status_expires_at
  * @property string|null $timezone
  * @property AppLocale $locale
+ * @property TimeFormat $time_format
  * @property Carbon|null $email_verified_at
  * @property string $password
  * @property string|null $two_factor_secret
@@ -99,7 +101,7 @@ use Laravel\Sanctum\HasApiTokens;
  * @property-read Collection<int, UserGroup> $userGroups
  */
 #[Appends(['avatar', 'status', 'presence', 'dnd'])]
-#[Fillable(['name', 'email', 'avatar_url', 'pronouns', 'title', 'phone', 'timezone', 'locale', 'password', 'current_team_id', 'chime_sound', 'share_read_receipts', 'sidebar_position', 'presence_state', 'onboarding_completed_at', 'collapsed_channel_sections', 'is_tombstone'])]
+#[Fillable(['name', 'email', 'avatar_url', 'pronouns', 'title', 'phone', 'timezone', 'locale', 'time_format', 'password', 'current_team_id', 'chime_sound', 'share_read_receipts', 'sidebar_position', 'presence_state', 'onboarding_completed_at', 'collapsed_channel_sections', 'is_tombstone'])]
 #[Hidden(['password', 'two_factor_secret', 'two_factor_recovery_codes', 'remember_token', 'avatar_url', 'avatar_path', 'status_emoji', 'status_text', 'status_expires_at', 'dnd_until', 'dnd_schedule_enabled', 'dnd_starts_at', 'dnd_ends_at', 'dnd_schedule_snoozed_until'])]
 #[ObservedBy(UserObserver::class)]
 class User extends Authenticatable implements HasLocalePreference, MustVerifyEmail, PasskeyUser
@@ -328,6 +330,7 @@ class User extends Authenticatable implements HasLocalePreference, MustVerifyEma
             'password' => 'hashed',
             'type' => UserType::class,
             'locale' => AppLocale::class,
+            'time_format' => TimeFormat::class,
             'chime_sound' => ChimeSound::class,
             'share_read_receipts' => 'boolean',
             'sidebar_position' => SidebarPosition::class,

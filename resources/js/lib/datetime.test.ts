@@ -1,4 +1,5 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
+import { setTimeFormat } from './clock';
 import {
     formatCalendarDate,
     formatDateTime,
@@ -6,6 +7,7 @@ import {
     formatLocalTime,
     formatRelativeTime,
     formatTimeOfDay,
+    formatWallTime,
 } from './datetime';
 import { formatNumber } from './numbers';
 
@@ -183,5 +185,99 @@ describe('formatRelativeTime', () => {
         // French renders -3 days as "il y a 3 jours" (‑2 would collapse to the
         // word "avant-hier"), so a mid-range value exercises the translation.
         expect(formatRelativeTime(ago(3 * 86400), 'fr', now)).toContain('jour');
+    });
+});
+
+describe('the clock-style preference', () => {
+    afterEach(() => {
+        setTimeFormat('auto');
+    });
+
+    /**
+     * Auto is the migration's default, so it has to reproduce the app's
+     * pre-preference behaviour byte for byte in both shipped locales: the clock
+     * style keeps following the display language.
+     */
+    describe('auto', () => {
+        it('leaves each locale on its own clock style', () => {
+            expect(formatTimeOfDay(INSTANT, 'UTC', 'en')).toBe('3:30 PM');
+            expect(formatTimeOfDay(INSTANT, 'UTC', 'fr')).toBe('15:30');
+        });
+
+        it('leaves quiet-hours bounds on the locale clock too', () => {
+            expect(formatWallTime('18:00', 'en')).toBe('6:00 PM');
+            expect(formatWallTime('18:00', 'fr')).toBe('18:00');
+        });
+    });
+
+    describe('12-hour', () => {
+        it('renders an English time on a 12-hour clock', () => {
+            setTimeFormat('12h');
+
+            expect(formatTimeOfDay(INSTANT, 'UTC', 'en')).toBe('3:30 PM');
+        });
+
+        it('overrides a 24-hour locale', () => {
+            setTimeFormat('12h');
+
+            expect(formatTimeOfDay(INSTANT, 'UTC', 'fr')).toBe('3:30 PM');
+            expect(formatDateTime(INSTANT, 'UTC', 'fr')).toContain('3:30 PM');
+            expect(formatLocalTime('UTC', new Date(INSTANT), 'fr')).toBe(
+                '3:30 PM',
+            );
+            expect(formatWallTime('18:00', 'fr')).toBe('6:00 PM');
+        });
+
+        it('renders midnight as 12 AM rather than 0 AM', () => {
+            setTimeFormat('12h');
+
+            expect(formatWallTime('00:30', 'en')).toBe('12:30 AM');
+        });
+    });
+
+    describe('24-hour', () => {
+        it('overrides a 12-hour locale', () => {
+            setTimeFormat('24h');
+
+            expect(formatTimeOfDay(INSTANT, 'UTC', 'en')).toBe('15:30');
+            expect(formatDateTime(INSTANT, 'UTC', 'en')).toBe('Jul 10, 15:30');
+            expect(formatLocalTime('UTC', new Date(INSTANT), 'en')).toBe(
+                '15:30',
+            );
+            expect(formatWallTime('18:00', 'en')).toBe('18:00');
+        });
+
+        it('renders midnight as 00 rather than 24', () => {
+            setTimeFormat('24h');
+
+            expect(formatWallTime('00:30', 'en')).toBe('00:30');
+        });
+
+        it('leaves a 24-hour locale untouched', () => {
+            setTimeFormat('24h');
+
+            expect(formatTimeOfDay(INSTANT, 'UTC', 'fr')).toBe('15:30');
+        });
+    });
+
+    it('takes an explicit style over the stored preference', () => {
+        setTimeFormat('24h');
+
+        expect(formatTimeOfDay(INSTANT, 'UTC', 'en', '12h')).toBe('3:30 PM');
+        expect(formatWallTime('18:00', 'en', '12h')).toBe('6:00 PM');
+    });
+
+    /**
+     * Date-only and relative helpers are explicitly out of scope: they carry no
+     * time of day, so the preference must not reach them.
+     */
+    it('leaves date-only and relative helpers alone', () => {
+        setTimeFormat('24h');
+
+        expect(formatIsoDay('2026-07-10', 'en')).toBe('Jul 10, 2026');
+        expect(formatCalendarDate('2026-07-10', 'en')).toBe('Jul 10');
+        expect(
+            formatRelativeTime('2026-07-08T15:30:00Z', 'en', new Date(INSTANT)),
+        ).toBe('2 days ago');
     });
 });

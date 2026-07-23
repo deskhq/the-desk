@@ -312,7 +312,7 @@ describe('quietHoursSegments', () => {
 
 describe('quietHoursTicks', () => {
     it('merges the window bounds into the base ticks, sorted', () => {
-        expect(quietHoursTicks('18:00', '09:00')).toEqual([
+        expect(quietHoursTicks('18:00', '09:00', 'fr')).toEqual([
             '00',
             '06',
             '09',
@@ -323,12 +323,47 @@ describe('quietHoursTicks', () => {
     });
 
     it('keeps the base ticks alone when the bounds already sit on them', () => {
-        expect(quietHoursTicks('18:00', '12:00')).toEqual([
+        expect(quietHoursTicks('18:00', '12:00', 'fr')).toEqual([
             '00',
             '06',
             '12',
             '18',
             '24',
+        ]);
+    });
+
+    /**
+     * The strip used to be hardcoded to a 24-hour frame while the paused card two
+     * screens away spoke 12-hour, so an English viewer configured quiet hours in
+     * one convention and was told about them in the other. Both now follow the
+     * clock-style preference.
+     */
+    it('labels the frame on a 12-hour clock when the viewer reads one', () => {
+        expect(quietHoursTicks('18:00', '09:00', 'en')).toEqual([
+            '12 AM',
+            '6 AM',
+            '9 AM',
+            '12 PM',
+            '6 PM',
+            '12 AM',
+        ]);
+    });
+
+    it('honours an explicit clock style over the locale', () => {
+        expect(quietHoursTicks('18:00', '12:00', 'en', '24h')).toEqual([
+            '00',
+            '06',
+            '12',
+            '18',
+            '24',
+        ]);
+
+        expect(quietHoursTicks('18:00', '12:00', 'fr', '12h')).toEqual([
+            '12 AM',
+            '6 AM',
+            '12 PM',
+            '6 PM',
+            '12 AM',
         ]);
     });
 });

@@ -248,7 +248,7 @@
   "Data & privacy": "Données et confidentialité",
   "Data export downloaded": "Export de données téléchargé",
   "Data export requested": "Export de données demandé",
-  "Dates, times, and numbers are formatted to match your selected language.": "Les dates, heures et nombres sont formatés selon la langue que vous avez sélectionnée.",
+  "Dates and numbers are formatted to match your selected language.": "Les dates et les nombres sont formatés selon la langue que vous avez sélectionnée.",
   "Decline": "Refuser",
   "Delete": "Supprimer",
   "Delete account": "Supprimer le compte",
@@ -1231,5 +1231,14 @@
   "crosses midnight — ends tomorrow morning": "passe minuit — se termine demain matin",
   "Could not update your quiet hours.": "Impossible de mettre à jour vos heures calmes.",
   "Snooze schedule today": "Suspendre l'horaire aujourd'hui",
-  "Could not snooze your quiet hours.": "Impossible de suspendre vos heures calmes."
+  "Could not snooze your quiet hours.": "Impossible de suspendre vos heures calmes.",
+  "Clock": "Horloge",
+  "Clock style": "Format de l'heure",
+  "Choose whether times of day are shown on a 12-hour or a 24-hour clock.": "Choisissez si les heures sont affichées sur une horloge de 12 ou de 24 heures.",
+  "Auto follows your display language. Your choice applies everywhere a time of day appears, including your quiet hours.": "Auto suit votre langue d'affichage. Votre choix s'applique partout où une heure est affichée, y compris vos heures calmes.",
+  "Select a clock style": "Sélectionnez un format d'heure",
+  "Auto (match language)": "Auto (suivre la langue)",
+  "12-hour": "12 heures",
+  "24-hour": "24 heures",
+  "Clock style updated.": "Format de l'heure mis à jour."
 }
