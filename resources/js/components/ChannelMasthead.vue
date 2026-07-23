@@ -93,6 +93,12 @@ const props = defineProps<{
      * confirmation, or null when the socket is steadily connected.
      */
     connectionPill?: ConnectionPill;
+    /**
+     * Whether the conversation beneath has been scrolled away from its top.
+     * Drives the masthead's hairline shadow, which marks it as a layer over the
+     * timeline rather than part of it.
+     */
+    scrolled?: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -170,19 +176,43 @@ const activeMemberCount = computed(
 const groupParticipantCount = computed(
     () => (props.channel.dmParticipants?.length ?? 0) + 1,
 );
+
+/**
+ * Whether the masthead has an activity readout to show.
+ *
+ * Below the breakpoint there is no room for the facepile, so its readout stands
+ * in for it on its own sub-line under the channel name — the same numbers the
+ * avatars carry on a wide viewport, in the space a phone actually has.
+ */
+const hasActivityReadout = computed(
+    () => !props.channel.isDirect && props.members.length > 0,
+);
 </script>
 
 <template>
+    <!-- Below the breakpoint the masthead is a layer over the conversation: it
+         stays pinned while the timeline scrolls beneath it, and translucency
+         plus a blur keep the messages legible through it. The hairline shadow
+         only appears once there is something scrolled underneath. -->
+    <!-- Its own container: what the masthead can fit is a question about the
+         width of the workspace pane, not the window. They part company on a
+         tablet, where the dock takes 300px of a 768px screen and leaves the
+         masthead the room of a large phone. -->
     <header
-        class="flex shrink-0 items-end gap-4 border-b border-border px-7 pt-5 pb-3.5"
+        class="@container z-20 flex shrink-0 items-center gap-2.5 border-b border-border bg-card/80 px-4 pt-4 pb-3 backdrop-blur-md transition-shadow @2xl:items-end @2xl:gap-4 @2xl:bg-transparent @2xl:px-7 @2xl:pt-5 @2xl:pb-3.5 @2xl:backdrop-blur-none"
+        :class="
+            props.scrolled
+                ? 'shadow-[0_2px_10px_rgba(60,55,40,0.07)] @2xl:shadow-none'
+                : ''
+        "
     >
         <SidebarTrigger
-            class="mb-1 -ml-1.5 size-8 shrink-0 text-muted-foreground md:hidden"
+            class="-my-1.5 -ml-2 size-9 shrink-0 text-muted-foreground md:hidden"
         />
 
         <div class="min-w-0 flex-1">
             <h1
-                class="flex items-center gap-2 truncate font-serif text-[32px] leading-none font-semibold tracking-[-0.02em] text-foreground"
+                class="flex items-center gap-2 truncate font-serif text-[22px] leading-none font-semibold tracking-[-0.02em] text-foreground @2xl:text-[32px]"
             >
                 <!-- A group DM shows an avatar stack of its participants; a 1:1
                      shows the other participant's avatar + presence dot; a
@@ -256,6 +286,21 @@ const groupParticipantCount = computed(
                 </Tooltip>
             </h1>
 
+            <!-- The facepile's readout, standing in for the avatars below the
+                 breakpoint where they don't fit. Same numbers, one line down. -->
+            <p
+                v-if="hasActivityReadout"
+                data-test="masthead-compact-activity"
+                class="mt-1 truncate text-[11.5px] text-muted-foreground @2xl:hidden"
+            >
+                {{
+                    $t(':active of :total active', {
+                        active: activeMemberCount,
+                        total: props.members.length,
+                    })
+                }}
+            </p>
+
             <!-- A group DM's subtitle names how many people are in the
                  conversation, the viewer included. -->
             <p
@@ -288,7 +333,7 @@ const groupParticipantCount = computed(
             </div>
         </div>
 
-        <div class="flex shrink-0 items-center gap-3 pb-1">
+        <div class="flex shrink-0 items-center gap-1 @2xl:gap-3 @2xl:pb-1">
             <!-- Realtime connection cue: a quiet amber pill while reconnecting,
                  flipping to a brief green confirmation once the socket recovers.
                  The app stays fully usable throughout. -->
@@ -328,7 +373,7 @@ const groupParticipantCount = computed(
                     mastheadAvatars.visible.length > 0
                 "
                 data-test="masthead-members"
-                class="flex items-center gap-2"
+                class="hidden items-center gap-2 @2xl:flex"
             >
                 <span class="flex -space-x-1.5">
                     <!-- A bot in the roster squares its avatar (rounded-md vs a
@@ -425,7 +470,7 @@ const groupParticipantCount = computed(
                         type="button"
                         data-test="masthead-pins"
                         :aria-label="$t('Pinned messages')"
-                        class="gap-1 px-1.5 text-muted-foreground hover:bg-muted hover:text-foreground"
+                        class="h-9 gap-1 px-1.5 text-muted-foreground hover:bg-muted hover:text-foreground @2xl:h-8"
                         @click="emit('openPins')"
                     >
                         <Pin
@@ -451,7 +496,7 @@ const groupParticipantCount = computed(
                 :href="searchMessages(props.teamSlug).url"
                 data-test="masthead-search"
                 :aria-label="$t('Search messages')"
-                class="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
+                class="flex size-9 items-center justify-center rounded text-muted-foreground hover:bg-muted hover:text-foreground @2xl:size-auto @2xl:p-1"
             >
                 <Search class="size-4" />
             </Link>
@@ -469,7 +514,7 @@ const groupParticipantCount = computed(
                         size="icon"
                         :aria-label="$t('Channel options')"
                         data-test="channel-options"
-                        class="size-auto rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
+                        class="-mr-2 size-9 rounded text-muted-foreground hover:bg-muted hover:text-foreground @2xl:mr-0 @2xl:size-auto @2xl:p-1"
                     >
                         <EllipsisVertical class="size-4" />
                     </Button>

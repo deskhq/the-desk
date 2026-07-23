@@ -16,6 +16,7 @@ const { isMobile, state, toggleSidebar } = useSidebar()
   <Button
     data-sidebar="trigger"
     data-slot="sidebar-trigger"
+    data-test="sidebar-toggle"
     variant="ghost"
     size="icon"
     :class="cn('h-7 w-7', props.class)"

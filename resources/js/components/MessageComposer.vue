@@ -32,6 +32,7 @@ import {
 } from '@/components/ui/tooltip';
 import { useAttachmentUploads } from '@/composables/useAttachmentUploads';
 import { useInitials } from '@/composables/useInitials';
+import { useKeyboardInset } from '@/composables/useKeyboardInset';
 import type {
     CommandCallbacks,
     SendCallbacks,
@@ -399,6 +400,19 @@ type MentionSuggestion =
 const suggestions = ref<MentionSuggestion[]>([]);
 const activeIndex = ref(0);
 const menuOpen = ref(false);
+
+/**
+ * Whether the compose tools are disclosed. Only consulted below the breakpoint,
+ * where they fold away behind a toggle so the field keeps the pill's width; from
+ * `md` up they are always in line and this is ignored.
+ */
+const toolsOpen = ref(false);
+
+/**
+ * How much of the screen the on-screen keyboard covers, so the pill can sit
+ * above it with its Send button reachable instead of behind it.
+ */
+const keyboardInsetPx = useKeyboardInset();
 
 const showMenu = computed(() => menuOpen.value && suggestions.value.length > 0);
 
@@ -1281,7 +1295,16 @@ function onKeydown(event: KeyboardEvent): void {
 </script>
 
 <template>
-    <div class="mx-5 mb-4 shrink-0">
+    <!-- The pill stays clear of both the device's home indicator and the
+         on-screen keyboard: the safe-area inset is static, the keyboard inset is
+         measured live off visualViewport (the layout viewport `svh` sizes
+         against does not shrink when the keyboard opens). -->
+    <div
+        class="@container mx-3 mb-2 shrink-0 md:mx-5 md:mb-4"
+        :style="{
+            paddingBottom: `calc(env(safe-area-inset-bottom) + ${keyboardInsetPx}px)`,
+        }"
+    >
         <div class="relative">
             <ul
                 v-if="showMenu"
@@ -1739,8 +1762,16 @@ function onKeydown(event: KeyboardEvent): void {
                     </Button>
                 </div>
 
-                <!-- Input row -->
-                <div v-else class="flex items-end gap-2.5 py-2 pr-2 pl-4.5">
+                <!-- Input row. Below the breakpoint this is the pill from the
+                     mobile design: just the field and Send, with the compose
+                     tools folded away behind the toggle beside them. Opening
+                     them wraps them onto a second line inside the same pill
+                     rather than squeezing the field, which is what used to
+                     collapse it to zero width on a phone. -->
+                <div
+                    v-else
+                    class="flex flex-wrap items-end gap-2.5 py-2 pr-2 pl-4.5 @lg:flex-nowrap"
+                >
                     <textarea
                         ref="textarea"
                         v-model="body"
@@ -1817,80 +1848,116 @@ function onKeydown(event: KeyboardEvent): void {
                             data-test="composer-file-input"
                             @change="onFilesPicked"
                         />
-                        <!-- Inline-format cluster: wraps the current selection in
+                        <!-- The compose tools. One instance, placed by CSS: in
+                             line with the field from `md` up, on their own row
+                             under it once disclosed on a phone. -->
+                        <div
+                            class="shrink-0 items-end gap-2.5"
+                            :class="
+                                toolsOpen
+                                    ? 'order-last flex w-full pt-1 @lg:order-none @lg:w-auto @lg:pt-0'
+                                    : 'hidden @lg:flex'
+                            "
+                            data-test="composer-tools"
+                        >
+                            <!-- Inline-format cluster: wraps the current selection in
                              Markdown markers, mirrored by the keyboard shortcuts.
                              mousedown is prevented so the textarea keeps focus and
                              its selection survives the click. -->
-                        <TooltipProvider
-                            :delay-duration="300"
-                            :skip-delay-duration="150"
-                        >
-                            <div
-                                class="flex shrink-0 items-center gap-0.5"
-                                data-test="composer-format-cluster"
+                            <TooltipProvider
+                                :delay-duration="300"
+                                :skip-delay-duration="150"
                             >
-                                <Tooltip
-                                    v-for="action in formatActions"
-                                    :key="action.marker"
+                                <div
+                                    class="flex shrink-0 items-center gap-0.5"
+                                    data-test="composer-format-cluster"
                                 >
-                                    <TooltipTrigger as-child>
-                                        <Button
-                                            variant="ghost"
-                                            size="icon"
-                                            :data-test="`message-composer-format-${action.marker}`"
-                                            class="size-7 shrink-0 rounded-full text-muted-foreground"
-                                            :aria-label="action.label"
-                                            @mousedown.prevent
-                                            @click="applyFormat(action.marker)"
-                                        >
-                                            <component
-                                                :is="action.icon"
-                                                class="size-3.5"
-                                            />
-                                        </Button>
-                                    </TooltipTrigger>
-                                    <TooltipContent
-                                        side="top"
-                                        :side-offset="6"
-                                        class="flex items-center gap-2"
+                                    <Tooltip
+                                        v-for="action in formatActions"
+                                        :key="action.marker"
                                     >
-                                        {{ action.label }}
-                                        <span
-                                            class="rounded bg-muted px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground"
-                                            >{{ action.shortcut }}</span
+                                        <TooltipTrigger as-child>
+                                            <Button
+                                                variant="ghost"
+                                                size="icon"
+                                                :data-test="`message-composer-format-${action.marker}`"
+                                                class="size-7 shrink-0 rounded-full text-muted-foreground"
+                                                :aria-label="action.label"
+                                                @mousedown.prevent
+                                                @click="
+                                                    applyFormat(action.marker)
+                                                "
+                                            >
+                                                <component
+                                                    :is="action.icon"
+                                                    class="size-3.5"
+                                                />
+                                            </Button>
+                                        </TooltipTrigger>
+                                        <TooltipContent
+                                            side="top"
+                                            :side-offset="6"
+                                            class="flex items-center gap-2"
                                         >
-                                    </TooltipContent>
-                                </Tooltip>
-                            </div>
-                        </TooltipProvider>
-                        <span
-                            class="mx-0.5 h-5 w-px shrink-0 self-center bg-border"
-                            aria-hidden="true"
-                        ></span>
-                        <Button
-                            variant="ghost"
-                            size="icon"
-                            :disabled="!attachmentsEnabled"
-                            data-test="message-composer-attach"
-                            class="size-7 shrink-0 rounded-full text-muted-foreground"
-                            :aria-label="$t('Add attachment')"
-                            @click="openFilePicker"
-                        >
-                            <Plus class="size-3.5" />
-                        </Button>
-                        <!-- The mic sits last before send, and only where the
+                                            {{ action.label }}
+                                            <span
+                                                class="rounded bg-muted px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground"
+                                                >{{ action.shortcut }}</span
+                                            >
+                                        </TooltipContent>
+                                    </Tooltip>
+                                </div>
+                            </TooltipProvider>
+                            <span
+                                class="mx-0.5 h-5 w-px shrink-0 self-center bg-border"
+                                aria-hidden="true"
+                            ></span>
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                :disabled="!attachmentsEnabled"
+                                data-test="message-composer-attach"
+                                class="size-7 shrink-0 rounded-full text-muted-foreground"
+                                :aria-label="$t('Add attachment')"
+                                @click="openFilePicker"
+                            >
+                                <Plus class="size-3.5" />
+                            </Button>
+                            <!-- The mic sits last before send, and only where the
                              browser can actually record (MediaRecorder +
                              getUserMedia in a secure context). -->
+                            <Button
+                                v-if="canRecord"
+                                variant="ghost"
+                                size="icon"
+                                data-test="message-composer-record"
+                                class="size-7 shrink-0 rounded-full text-muted-foreground"
+                                :aria-label="$t('Record a voice message')"
+                                @click="recorder.start"
+                            >
+                                <Mic class="size-3.5" />
+                            </Button>
+                        </div>
+                        <!-- Discloses the tools above on a phone, where they
+                             have no room beside the field. Hidden from `md` up,
+                             where they are always in line. -->
                         <Button
-                            v-if="canRecord"
                             variant="ghost"
                             size="icon"
-                            data-test="message-composer-record"
-                            class="size-7 shrink-0 rounded-full text-muted-foreground"
-                            :aria-label="$t('Record a voice message')"
-                            @click="recorder.start"
+                            data-test="composer-tools-toggle"
+                            class="size-8.5 shrink-0 rounded-full text-muted-foreground @lg:hidden"
+                            :aria-expanded="toolsOpen"
+                            :aria-label="
+                                toolsOpen
+                                    ? $t('Hide compose tools')
+                                    : $t('Show compose tools')
+                            "
+                            @click="toolsOpen = !toolsOpen"
                         >
-                            <Mic class="size-3.5" />
+                            <Plus
+                                class="size-4 transition-transform"
+                                :class="toolsOpen ? 'rotate-45' : ''"
+                            />
                         </Button>
                         <!-- Split send button: a primary Send plus a caret
                              opening the "Send later" menu (quick presets +

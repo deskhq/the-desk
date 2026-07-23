@@ -1240,5 +1240,7 @@
   "Auto (match language)": "Auto (suivre la langue)",
   "12-hour": "12 heures",
   "24-hour": "24 heures",
-  "Clock style updated.": "Format de l'heure mis à jour."
+  "Clock style updated.": "Format de l'heure mis à jour.",
+  "Show compose tools": "Afficher les outils de rédaction",
+  "Hide compose tools": "Masquer les outils de rédaction"
 }

@@ -370,6 +370,18 @@ const {
         messageListRef.value?.scrollToLatest(smooth ? 'smooth' : 'auto'),
 });
 
+/**
+ * Whether the timeline has conversation scrolled above its top edge. Below the
+ * breakpoint the masthead sits over the timeline rather than beside it, so it
+ * takes a hairline shadow exactly when there is something passing under it.
+ */
+const timelineScrolled = ref(false);
+
+function onTimelineScroll(): void {
+    onScroll();
+    timelineScrolled.value = (scrollContainer.value?.scrollTop ?? 0) > 0;
+}
+
 /** `Inertia::scroll` delivers messages newest-first; reverse for display. */
 const serverMessages = computed<Message[]>(() =>
     [...(props.messages?.data ?? [])].reverse(),
@@ -775,6 +787,7 @@ watch(
     () => {
         mainStream.reset();
         resetScrollPin();
+        timelineScrolled.value = false;
         replyTarget.value = null;
         typing.reset();
         pinsPanelOpen.value = false;
@@ -1184,6 +1197,7 @@ function archive(): void {
                 :notification-level="notificationLevel"
                 :notification-status="notificationStatus"
                 :connection-pill="connection.pill.value"
+                :scrolled="timelineScrolled"
                 @toggle-star="toggleStar"
                 @notification-level-change="onNotificationLevelChange"
                 @mute-change="onMuteChange"
@@ -1298,7 +1312,7 @@ function archive(): void {
                         :register-container="setScrollContainer"
                         :pinned-to-bottom="pinnedToBottom"
                         :new-message-count="newMessageCount"
-                        @scroll="onScroll"
+                        @scroll="onTimelineScroll"
                         @jump="jumpToPresent"
                     >
                         <Transition

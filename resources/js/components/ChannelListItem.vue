@@ -86,7 +86,7 @@ function toggleStar(): void {
             as-child
             :is-active="channel.slug === activeChannelSlug"
             :data-muted="channel.muted"
-            class="h-8 gap-2 rounded-[9px] py-0 pr-2.5 pl-7 text-[13.5px] text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground data-[active=true]:bg-sidebar-primary data-[active=true]:font-medium data-[active=true]:text-sidebar-primary-foreground data-[active=true]:shadow-[0_2px_6px_rgba(29,26,21,0.25)] data-[active=true]:hover:bg-sidebar-primary data-[active=true]:hover:text-sidebar-primary-foreground data-[muted=true]:opacity-55 data-[muted=true]:hover:opacity-100"
+            class="h-11 gap-2 rounded-[10px] py-0 pr-2.5 pl-7 text-[15px] text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground data-[active=true]:bg-sidebar-primary data-[active=true]:font-medium data-[active=true]:text-sidebar-primary-foreground data-[active=true]:shadow-[0_2px_6px_rgba(29,26,21,0.25)] data-[active=true]:hover:bg-sidebar-primary data-[active=true]:hover:text-sidebar-primary-foreground data-[muted=true]:opacity-55 data-[muted=true]:hover:opacity-100 md:h-8 md:rounded-[9px] md:text-[13.5px]"
         >
             <Link
                 :href="

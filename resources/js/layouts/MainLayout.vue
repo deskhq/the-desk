@@ -864,7 +864,7 @@ onMounted(() => {
                         <Button
                             variant="ghost"
                             data-test="quick-switcher-trigger"
-                            class="flex h-8 w-full items-center justify-start gap-2 rounded-[9px] bg-muted px-2.5 text-[13px] font-normal text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground"
+                            class="flex h-9.5 w-full items-center justify-start gap-2 rounded-[10px] bg-muted px-3 text-[13.5px] font-normal text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground md:h-8 md:rounded-[9px] md:px-2.5 md:text-[13px]"
                             @click="quickSwitcherOpen = true"
                         >
                             <Search class="size-3.25 shrink-0" />
@@ -1319,7 +1319,7 @@ onMounted(() => {
                                 <SidebarMenuItem>
                                     <SidebarMenuButton
                                         as-child
-                                        class="h-7.5 gap-2 rounded-[9px] px-2.5 text-[13px] text-muted-foreground hover:bg-sidebar-accent/60"
+                                        class="h-10.5 gap-2 rounded-[10px] px-2.5 text-[14px] text-muted-foreground hover:bg-sidebar-accent/60 md:h-7.5 md:rounded-[9px] md:text-[13px]"
                                     >
                                         <Link
                                             v-if="currentTeam"
@@ -1343,7 +1343,7 @@ onMounted(() => {
                                 <SidebarMenuItem>
                                     <SidebarMenuButton
                                         data-test="reminders-trigger"
-                                        class="h-7.5 gap-2 rounded-[9px] px-2.5 text-[13px] text-muted-foreground hover:bg-sidebar-accent/60"
+                                        class="h-10.5 gap-2 rounded-[10px] px-2.5 text-[14px] text-muted-foreground hover:bg-sidebar-accent/60 md:h-7.5 md:rounded-[9px] md:text-[13px]"
                                         @click="remindersDialogOpen = true"
                                     >
                                         <AlarmClock class="size-3.25" />
@@ -1359,7 +1359,7 @@ onMounted(() => {
                                 <SidebarMenuItem>
                                     <SidebarMenuButton
                                         as-child
-                                        class="h-7.5 gap-2 rounded-[9px] px-2.5 text-[13px] text-muted-foreground hover:bg-sidebar-accent/60"
+                                        class="h-10.5 gap-2 rounded-[10px] px-2.5 text-[14px] text-muted-foreground hover:bg-sidebar-accent/60 md:h-7.5 md:rounded-[9px] md:text-[13px]"
                                     >
                                         <Link
                                             v-if="currentTeam"
@@ -1381,7 +1381,7 @@ onMounted(() => {
                                 <SidebarMenuItem>
                                     <SidebarMenuButton
                                         as-child
-                                        class="h-7.5 gap-2 rounded-[9px] px-2.5 text-[13px] text-muted-foreground hover:bg-sidebar-accent/60"
+                                        class="h-10.5 gap-2 rounded-[10px] px-2.5 text-[14px] text-muted-foreground hover:bg-sidebar-accent/60 md:h-7.5 md:rounded-[9px] md:text-[13px]"
                                     >
                                         <Link
                                             v-if="currentTeam"
@@ -1407,22 +1407,23 @@ onMounted(() => {
             </SidebarFooter>
         </Sidebar>
 
-        <!-- Main card: fills the screen on mobile, floats on the warm canvas
-             (matching the dock) from md up. -->
+        <!-- Main card: below the breakpoint the card *is* the screen — one pane
+             on an 8px canvas gutter, no rail beside it. From md up it floats on
+             the warm canvas (matching the dock). -->
         <!-- Mirror the floating gap onto the correct edge: with the dock on the
              right, the inset reorders ahead of it and takes its outer margin on
              the left instead of the right. -->
         <SidebarInset
             id="main"
             tabindex="-1"
-            class="flex flex-col overflow-hidden focus-visible:outline-none md:my-3.5 md:rounded-[14px] md:border md:border-border md:bg-card md:shadow-sm"
+            class="mx-2 my-2 flex flex-col overflow-hidden rounded-[14px] border border-border bg-card shadow-sm focus-visible:outline-none md:my-3.5"
             :class="[
                 sidebarPosition === 'right'
-                    ? 'md:order-first md:ml-3.5'
-                    : 'md:mr-3.5',
+                    ? 'md:order-first md:mr-0 md:ml-3.5'
+                    : 'md:mr-3.5 md:ml-0',
                 demoMode
-                    ? 'h-[calc(100svh-var(--demo-banner-height))] md:h-[calc(100svh-1.75rem-var(--demo-banner-height))]'
-                    : 'h-svh md:h-[calc(100svh-1.75rem)]',
+                    ? 'h-[calc(100svh-1rem-var(--demo-banner-height))] md:h-[calc(100svh-1.75rem-var(--demo-banner-height))]'
+                    : 'h-[calc(100svh-1rem)] md:h-[calc(100svh-1.75rem)]',
             ]"
         >
             <slot />
