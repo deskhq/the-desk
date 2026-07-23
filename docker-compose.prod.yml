@@ -45,9 +45,10 @@
 # it being healthy before it starts.
 
 # The infrastructure every app-role service waits for. Split out of the *app
-# anchor so `queue`, `reverb`, and `scheduler` can add `app` to their own
-# `depends_on` without restating these three: a service that declares
-# `depends_on` replaces the anchor's value wholesale, it does not merge into it.
+# anchor so `queue`, `queue-broadcasts`, `reverb`, and `scheduler` can add `app`
+# to their own `depends_on` without restating these three: a service that
+# declares `depends_on` replaces the anchor's value wholesale, it does not merge
+# into it.
 x-infra-depends-on: &infra-depends-on
   pgsql:
     condition: service_healthy
@@ -56,11 +57,11 @@ x-infra-depends-on: &infra-depends-on
   meilisearch:
     condition: service_healthy
 
-# What the three worker services wait for: the infrastructure above, plus `app`.
+# What the four worker services wait for: the infrastructure above, plus `app`.
 #
-# The four app-role services share the `storage-app` named volume. On a fresh
+# The five app-role services share the `storage-app` named volume. On a fresh
 # volume (a first install, or any `up -d` after `down -v`) the daemon seeds it
-# from the image's /app/storage/app — `private/` and `public/`. Four containers
+# from the image's /app/storage/app — `private/` and `public/`. Containers
 # created at the same instant all trigger that copy-up, race inside dockerd, and
 # one dies with `mkdir /var/lib/docker/volumes/…/_data/private: file exists`
 # (#609). Waiting on `app` means exactly one container ever seeds the volume.
@@ -140,9 +141,31 @@ services:
   # healthcheck: the image sets HEALTHCHECK NONE and this service leaves it that
   # way, reporting a plain `Up` rather than a decorative or perpetually failing
   # probe. `restart: unless-stopped` (from the *app anchor) keeps it running.
+  #
+  # `--sleep=0` because a worker that finds nothing otherwise naps for whole
+  # seconds before looking again; the blocking pop (REDIS_QUEUE_BLOCK_FOR) is
+  # what makes it wait for work instead of spinning.
+  #
+  # It keeps `broadcasts` in its queue list deliberately, as an upgrade safety
+  # net: an operator running a customized compose file who never adds the
+  # `queue-broadcasts` service below still gets broadcasts delivered, just with
+  # the old head-of-line behaviour, instead of realtime silently dying. The
+  # order is not cosmetic — a Redis worker blocks only on the FIRST queue in the
+  # list and polls the rest once per cycle, so `broadcasts` has to lead.
   queue:
     <<: *app
-    command: ['php', 'artisan', 'queue:work', '--tries=3']
+    command: ['php', 'artisan', 'queue:work', '--queue=broadcasts,default', '--sleep=0', '--tries=3']
+    depends_on: *worker-depends-on
+
+  # Broadcasts (new messages, edits, reactions, typing, presence, read state)
+  # are latency-critical and tiny. Everything else on the queue is not: a link
+  # unfurl spends up to five seconds on outbound HTTP, and a webhook delivery or
+  # an audit export longer still. Priority ordering cannot rescue that — it
+  # picks the next job, it cannot preempt the unfurl already in flight — so
+  # broadcasts get their own process. Same no-healthcheck rationale as `queue`.
+  queue-broadcasts:
+    <<: *app
+    command: ['php', 'artisan', 'queue:work', '--queue=broadcasts', '--sleep=0', '--tries=3']
     depends_on: *worker-depends-on
 
   # Scheduler (delivers due scheduled messages, prunes expired invitations).

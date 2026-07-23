@@ -178,6 +178,34 @@ browser console open, and allow-list what it reports with the `CSP_EXTRA_*` keys
 before turning enforcement back on.
 :::
 
+### New services in a release
+
+A release can also add a **service** to the stack. If you run the shipped
+`docker-compose.prod.yml` (or `docker-compose.dokploy.yml`) unmodified, you get
+it automatically — pulling the new file is all it takes. If you maintain your own
+copy, compare it against the release's file and copy any new service across.
+
+The current example is `queue-broadcasts`, a second queue worker that carries
+real-time updates so they never queue behind a slow job such as a link preview:
+
+```yaml
+  queue-broadcasts:
+    <<: *app
+    command: ['php', 'artisan', 'queue:work', '--queue=broadcasts', '--sleep=0', '--tries=3']
+    depends_on: *worker-depends-on
+```
+
+`*app` and `*worker-depends-on` are the YAML anchors the shipped file defines
+above its `services:` block — the image, `.env`, volumes, and what a worker waits
+for. If your file already has a `queue` service it has them too, so this pastes
+in as-is; if you renamed or dropped them, give the new service the same image,
+`env_file`, volumes, and `depends_on` as your existing `queue` worker.
+
+Missing it is not fatal. The shared `queue` worker also lists the `broadcasts`
+queue, so real-time updates still arrive — they simply wait behind whatever else
+that worker is busy with, which is how the stack behaved before the service
+existed. Adding it is what makes them immediate.
+
 ### If it fails, it stops and hands you the backup
 
 The script **never rolls back on its own**, and that is deliberate.

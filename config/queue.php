@@ -71,7 +71,18 @@ return [
             'connection' => env('REDIS_QUEUE_CONNECTION', 'default'),
             'queue' => env('REDIS_QUEUE', 'default'),
             'retry_after' => (int) env('REDIS_QUEUE_RETRY_AFTER', 90),
-            'block_for' => null,
+            // Seconds a worker holds a blocking pop open before polling again.
+            // Without one, an idle worker naps for `--sleep` seconds before it
+            // notices a job — the realtime lag of issue #763. One second rather
+            // than longer because a worker blocks only on the FIRST queue in its
+            // list and polls the rest once per cycle, so this also caps how long
+            // a job on `default` waits behind an idle `broadcasts` queue.
+            //
+            // Floored at 1: the driver passes this straight to `BLPOP`, where 0
+            // means "wait forever" rather than "do not wait", so an operator
+            // reading it as "disable blocking" would silently strand every job
+            // on `default` until a broadcast happened to arrive.
+            'block_for' => max(1, (int) env('REDIS_QUEUE_BLOCK_FOR', 1)),
             'after_commit' => false,
         ],
 

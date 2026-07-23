@@ -55,6 +55,17 @@ The stack **refuses to start** without these (no defaults):
 | `DB_USERNAME` | `laravel` | PostgreSQL user.                |
 | `DB_PASSWORD` | —         | Required secret (see above).    |
 
+## Queue workers
+
+Background work — real-time broadcasts, mail, link previews, webhook delivery,
+exports — runs through Redis on the `queue` and `queue-broadcasts` services (see
+[Architecture](/reference/architecture/#why-broadcasts-get-their-own-worker)).
+Neither needs configuring; the one tunable is how a worker waits for work.
+
+| Variable                 | Default | Notes                                                                                            |
+| ------------------------ | ------- | -------------------------------------------------------------------------------------------------- |
+| `REDIS_QUEUE_BLOCK_FOR`  | `1`     | Seconds a worker holds a blocking read on Redis open before it looks again. A job on the worker's **first** queue starts the instant it is dispatched however high this is, so raising it never slows real-time updates. What it does set is how long a job on a **secondary** queue can sit before the worker rechecks it — on the shared `queue` worker, that is `default`, so raising this to `10` can leave mail or a link preview waiting up to ten seconds to start. Values below `1` are floored to `1`: the underlying Redis command reads `0` as "wait forever", which would strand everything but broadcasts. |
+
 ## Mail (SMTP)
 
 | Variable            | Notes                                        |
