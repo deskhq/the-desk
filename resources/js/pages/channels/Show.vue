@@ -787,6 +787,7 @@ watch(
     () => {
         mainStream.reset();
         resetScrollPin();
+        timelineScrolled.value = false;
         replyTarget.value = null;
         typing.reset();
         pinsPanelOpen.value = false;

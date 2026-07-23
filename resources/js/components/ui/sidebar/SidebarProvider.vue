@@ -5,6 +5,7 @@ import { TooltipProvider } from "reka-ui"
 import { computed, ref } from "vue"
 import { useEdgeSwipe } from "@/composables/useEdgeSwipe"
 import { useIsMobile } from "@/composables/useIsMobile"
+import { useSidebarPosition } from "@/composables/useSidebarPosition"
 import { writeClientCookie } from "@/lib/cookies"
 import { cn } from "@/lib/utils"
 import { provideSidebarContext, SIDEBAR_COOKIE_MAX_AGE, SIDEBAR_COOKIE_NAME, SIDEBAR_KEYBOARD_SHORTCUT, SIDEBAR_WIDTH, SIDEBAR_WIDTH_ICON } from "./utils"
@@ -46,10 +47,14 @@ function toggleSidebar() {
 }
 
 // Below the breakpoint the dock is a Sheet, so it also answers to the gesture
-// every phone app uses for one: swipe in from the left edge to open, back out
-// to dismiss.
+// every phone app uses for one: swipe in from its own edge to open, back out to
+// dismiss. The Sheet slides from whichever edge the user docked it to, so the
+// gesture follows that preference rather than assuming the left.
+const { sidebarPosition } = useSidebarPosition()
+
 useEdgeSwipe({
   enabled: isMobile,
+  edge: sidebarPosition,
   onOpen: () => setOpenMobile(true),
   onClose: () => setOpenMobile(false),
 })

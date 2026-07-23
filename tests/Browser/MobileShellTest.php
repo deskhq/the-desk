@@ -160,6 +160,7 @@ test('the dock opens as a 300px sheet whose every row clears a 44px touch target
         ->assertScript(<<<'JS'
         (() => [
             '[data-test="threads-inbox"]',
+            '[data-test="reminders-trigger"]',
             '[data-test="search-messages"]',
             '[data-test="browse-channels"]',
             '[data-test="quick-switcher-trigger"]',
