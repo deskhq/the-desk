@@ -35,14 +35,18 @@ export function useEdgeSwipe({
     let gesture: { pointerId: number; x: number; y: number } | null = null;
 
     function onPointerDown(event: PointerEvent): void {
-        gesture =
-            enabled.value && event.pointerType !== 'mouse'
-                ? {
-                      pointerId: event.pointerId,
-                      x: event.clientX,
-                      y: event.clientY,
-                  }
-                : null;
+        // First finger down wins the gesture and keeps it until it lifts or is
+        // cancelled: a second one landing mid-drag — or a mouse, which never
+        // starts one — must not discard the swipe already in flight.
+        if (gesture || !enabled.value || event.pointerType === 'mouse') {
+            return;
+        }
+
+        gesture = {
+            pointerId: event.pointerId,
+            x: event.clientX,
+            y: event.clientY,
+        };
     }
 
     function onPointerUp(event: PointerEvent): void {
