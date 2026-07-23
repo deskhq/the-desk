@@ -108,6 +108,7 @@ function onKeydown(event: KeyboardEvent): void {
             />
             <DialogContent
                 data-test="attachment-lightbox"
+                mobile="dialog"
                 class="fixed inset-0 z-50 flex items-center justify-center p-6 focus:outline-none"
                 @keydown="onKeydown"
             >

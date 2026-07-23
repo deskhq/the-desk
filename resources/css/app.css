@@ -50,6 +50,7 @@
     --color-border: var(--border);
     --color-input: var(--input);
     --color-ring: var(--ring);
+    --color-scrim: var(--scrim);
 
     --color-chart-1: var(--chart-1);
     --color-chart-2: var(--chart-2);
@@ -145,6 +146,10 @@
     --destructive-text: hsl(0 72% 40%);
     --border: #e3dfd5;
     --input: #e0dbcd;
+    /* Scrim behind a bottom sheet — ink at 50%, per the mobile design (#772).
+       Lighter than the desktop dialog's, because a sheet leaves the screen you
+       came from visible above it and that is the point of the treatment. */
+    --scrim: rgba(29, 26, 21, 0.5);
     /* Focus indicator — decoupled from --brass and darkened to a bronze so the
        ring itself clears the 3:1 non-text threshold (WCAG 2.4.7/1.4.11) on the
        sand background; --brass keeps its lighter accent value (#269). */
@@ -213,6 +218,9 @@
     --destructive-text: hsl(0 72% 64%);
     --border: #2e2a21;
     --input: #2a271f;
+    /* Deeper than the light theme's: the sheet is a light-on-dark card here, so
+       the wash has to darken a surface that is already dark to separate them. */
+    --scrim: rgba(0, 0, 0, 0.6);
     --ring: #c9a35c;
     --brass: #c9a35c;
     /* Light brass so badge/pill text stays legible on the dark brass fill; the

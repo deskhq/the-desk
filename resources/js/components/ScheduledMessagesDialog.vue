@@ -103,7 +103,7 @@ function bodyPreview(body: string): string {
 
 <template>
     <Dialog v-model:open="open">
-        <DialogContent class="gap-0 p-0 sm:max-w-lg">
+        <DialogContent mobile="detail" class="gap-0 p-0 sm:max-w-lg">
             <DialogHeader class="gap-1 px-6 pt-6 pb-4">
                 <div class="flex items-center gap-2 pr-7">
                     <DialogTitle class="text-[20px]">{{
