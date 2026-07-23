@@ -195,6 +195,12 @@ real-time updates so they never queue behind a slow job such as a link preview:
     depends_on: *worker-depends-on
 ```
 
+`*app` and `*worker-depends-on` are the YAML anchors the shipped file defines
+above its `services:` block — the image, `.env`, volumes, and what a worker waits
+for. If your file already has a `queue` service it has them too, so this pastes
+in as-is; if you renamed or dropped them, give the new service the same image,
+`env_file`, volumes, and `depends_on` as your existing `queue` worker.
+
 Missing it is not fatal. The shared `queue` worker also lists the `broadcasts`
 queue, so real-time updates still arrive — they simply wait behind whatever else
 that worker is busy with, which is how the stack behaved before the service
