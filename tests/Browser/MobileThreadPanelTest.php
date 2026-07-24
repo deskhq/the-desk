@@ -131,15 +131,18 @@ test('at tablet widths the thread takes the full card instead of squeezing the c
         })()
         JS, true)
         ->assertNotPresent('[data-test=thread-replies-divider]')
-        // The panel spans the card instead of leaving the channel a sliver
-        // beside it: at 768px the dock and the fixed side pane would leave the
-        // channel ~56px.
+        // The panel covers the card edge to edge instead of leaving the channel
+        // a sliver beside it: at 768px the dock and the fixed side pane would
+        // leave the channel ~56px.
         ->assertScript(<<<'JS'
         (() => {
             const card = document.querySelector('#main').getBoundingClientRect();
             const panel = document.querySelector('[data-test=thread-panel]').getBoundingClientRect();
 
-            return panel.width >= card.width - 60;
+            return Math.abs(panel.left - card.left) <= 4
+                && Math.abs(panel.right - card.right) <= 4
+                && Math.abs(panel.top - card.top) <= 4
+                && Math.abs(panel.bottom - card.bottom) <= 4;
         })()
         JS, true)
         // The masthead paints under the overlay, so no masthead control can
