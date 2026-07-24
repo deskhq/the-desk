@@ -205,4 +205,53 @@ describe('useEllipsizedText', () => {
 
         expect(result.value).toBe('Message Bartholomew');
     });
+
+    it('still fits the text where ResizeObserver is unavailable', async () => {
+        vi.stubGlobal('ResizeObserver', undefined);
+
+        const { result } = mountHarness(
+            textareaOfWidth(120),
+            'Message Bartholomew',
+        );
+
+        await nextTick();
+
+        expect(result.value).toBe('Message Bar…');
+    });
+
+    it('re-fits once webfonts finish loading', async () => {
+        let fontsLoaded!: () => void;
+
+        Object.defineProperty(document, 'fonts', {
+            value: {
+                ready: new Promise<void>((resolve) => {
+                    fontsLoaded = resolve;
+                }),
+            },
+            configurable: true,
+        });
+
+        const { result } = mountHarness(
+            textareaOfWidth(120),
+            'Message Bartholomew',
+        );
+
+        await nextTick();
+        expect(result.value).toBe('Message Bar…');
+
+        // The loaded webfont measures narrower, so the whole text now fits.
+        vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue({
+            font: '',
+            measureText: (candidate: string) => ({
+                width: [...candidate].length * 6,
+            }),
+        } as unknown as CanvasRenderingContext2D);
+
+        fontsLoaded();
+        await new Promise((resolve) => setTimeout(resolve, 0));
+
+        expect(result.value).toBe('Message Bartholomew');
+
+        delete (document as { fonts?: unknown }).fonts;
+    });
 });
