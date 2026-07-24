@@ -1262,5 +1262,13 @@
   "Hide compose tools": "Masquer les outils de rédaction",
   "User menu": "Menu utilisateur",
   "Your status, appearance and account.": "Votre statut, votre apparence et votre compte.",
-  "Choose how long to pause notifications.": "Choisissez la durée de la pause des notifications."
+  "Choose how long to pause notifications.": "Choisissez la durée de la pause des notifications.",
+  ":sender in #:channel": ":sender dans #:channel",
+  "Posted a poll": "A publié un sondage",
+  "Sent an attachment": "A envoyé un fichier",
+  "Sent :count attachments": "A envoyé :count fichiers",
+  "Push notifications on this device": "Notifications push sur cet appareil",
+  "Get alerted to new messages when the app is closed or in the background. This applies to this browser only, and follows the same mute and notification-level settings as the chime.": "Soyez alerté des nouveaux messages quand l'application est fermée ou en arrière-plan. Ce réglage ne concerne que ce navigateur, et suit les mêmes préférences de silence et de niveau de notification que le carillon.",
+  "Notifications are blocked for this site. Allow them in your browser settings, then turn this on.": "Les notifications sont bloquées pour ce site. Autorisez-les dans les réglages de votre navigateur, puis activez cette option.",
+  "Could not update push notifications on this device.": "Impossible de modifier les notifications push sur cet appareil."
 }

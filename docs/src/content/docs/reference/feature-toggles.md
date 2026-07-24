@@ -504,3 +504,49 @@ The hourly reset **force-deletes** the demo team and its accounts, so any
 in-flight visitor session breaks when it runs — expected for a throwaway demo,
 never appropriate for real data.
 :::
+
+## Web push notifications
+
+| Variable                                 | Default   | Effect                                              |
+| ---------------------------------------- | --------- | --------------------------------------------------- |
+| `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` | *(unset)* | Enables browser push notifications for new messages. |
+
+Web push is **off** until you generate a VAPID keypair — see
+[Environment variables → Web push notifications](/reference/environment-variables/#web-push-notifications)
+for the `webpush:vapid` command. With no keypair the toggle never appears in
+Settings, and the subscription endpoints return **404**.
+
+With the keys set, the feature is still **opt-in per member and per device**:
+nothing prompts on load or on login. Each member turns it on from
+**Settings → Appearance & notifications → Push notifications on this device**,
+which is what asks the browser for permission. Turning it on on a laptop does not
+subscribe their phone, and either can be turned off on its own.
+
+What gets pushed follows the same rules as the in-app chime, so a push never
+contradicts a badge:
+
+- Direct messages and channels at the default **All messages** level push on every
+  message; a channel set to **Mentions only** pushes only when the member is
+  @mentioned; **Nothing** and **muted** channels never push.
+- A member is never pushed about their own message, and **quiet hours** or a
+  manual do-not-disturb pause suppress everything.
+- Notifications are **collapsed per conversation**: a second message in the same
+  channel replaces the banner already on screen rather than stacking up.
+- If a window of the app is **visible** when the message lands, the banner is
+  dropped — that tab has already chimed and badged.
+
+Clicking a notification focuses an open window (or opens one) directly on the
+message, scrolled to and highlighted.
+
+:::note[Delivery uses the queue]
+Fan-out runs on the queue, so the [queue worker](/self-hosting/configuration/)
+must be running or nothing is delivered. Payloads are encrypted end-to-end to
+each device: the browser vendors' push services relay ciphertext they cannot
+read.
+:::
+
+:::caution[iOS needs the app installed]
+Safari only allows web push from a PWA **added to the home screen** (iOS 16.4+).
+In a plain Safari tab the toggle does not appear at all. On desktop and Android,
+a regular browser tab is enough.
+:::
