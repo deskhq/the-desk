@@ -87,6 +87,7 @@ import { useChimeNotifications } from '@/composables/useChimeNotifications';
 import { useDemoMode } from '@/composables/useDemoMode';
 import { useDndPauseDialog } from '@/composables/useDndPauseDialog';
 import { useInitials } from '@/composables/useInitials';
+import { useIsMobile } from '@/composables/useIsMobile';
 import { useKeyboardShortcuts } from '@/composables/useKeyboardShortcuts';
 import { useKeyboardShortcutsModal } from '@/composables/useKeyboardShortcutsModal';
 import { useMessageReminders } from '@/composables/useMessageReminders';
@@ -97,7 +98,6 @@ import {
 } from '@/composables/useOnboardingTour';
 import { usePresenceReporter } from '@/composables/usePresenceReporter';
 import { useQuickSwitcher } from '@/composables/useQuickSwitcher';
-import { useIsMobile } from '@/composables/useIsMobile';
 import { useSidebarBadges } from '@/composables/useSidebarBadges';
 import { useSidebarPosition } from '@/composables/useSidebarPosition';
 import { useTeamPresence } from '@/composables/useTeamPresence';
