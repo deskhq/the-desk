@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import {
     AlarmClock,
+    Copy,
     CornerUpLeft,
     Forward,
     MessageSquareText,
@@ -9,7 +10,8 @@ import {
     Plus,
     Trash2,
 } from '@lucide/vue';
-import { computed } from 'vue';
+import { computed, watch } from 'vue';
+import { toast } from 'vue-sonner';
 import EmojiPickerPopover from '@/components/EmojiPickerPopover.vue';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
@@ -25,6 +27,7 @@ import { useInitials } from '@/composables/useInitials';
 import { useTranslations } from '@/composables/useTranslations';
 import { formatTimeOfDay } from '@/lib/datetime';
 import {
+    canCopyMessage,
     canDeleteMessage,
     canEditMessage,
     canForwardMessage,
@@ -35,7 +38,7 @@ import {
     canStartThreadFromMessage,
 } from '@/lib/messageActions';
 import type { MessageActionContext } from '@/lib/messageActions';
-import { messageBodyPreview } from '@/lib/messageBody';
+import { messageBodyCopyText, messageBodyPreview } from '@/lib/messageBody';
 import { hasReacted } from '@/lib/reactions';
 import type { Message } from '@/types';
 
@@ -110,6 +113,20 @@ const showForward = computed(
         props.message !== null &&
         canForwardMessage(props.message, context.value),
 );
+/**
+ * The text the copy row puts on the clipboard: the body as typed, with mention
+ * tokens resolved. An empty value (attachment-only or poll message) hides the
+ * row — there is nothing to copy.
+ */
+const copyText = computed(() =>
+    props.message === null ? '' : messageBodyCopyText(props.message.body),
+);
+const showCopy = computed(
+    () =>
+        props.message !== null &&
+        canCopyMessage(props.message, context.value) &&
+        copyText.value.trim() !== '',
+);
 const showPin = computed(
     () => props.message !== null && canPinMessage(props.message, context.value),
 );
@@ -166,6 +183,19 @@ function close(): void {
     emit('update:open', false);
 }
 
+// WebKit starts its selection gesture in parallel with the long-press timer, so
+// a selection can land just before the sheet does; left alive, its handles sit
+// on top of the scrim (#800). Immediate, so a sheet mounted open clears it too.
+watch(
+    () => props.open,
+    (open) => {
+        if (open) {
+            window.getSelection()?.removeAllRanges();
+        }
+    },
+    { immediate: true },
+);
+
 type ActionEvent =
     | 'openThread'
     | 'reply'
@@ -191,6 +221,22 @@ function react(emoji: string): void {
     close();
 }
 
+/**
+ * The mobile stand-in for selecting the text: the rows below `md` suppress
+ * native selection so the long-press can win (#800), and this row is the
+ * deliberate copy path that replaces it.
+ */
+async function copyMessageText(): Promise<void> {
+    try {
+        // Also guards the API being absent altogether (a plain-http install).
+        await navigator.clipboard.writeText(copyText.value);
+    } catch {
+        toast.error(t('The message text could not be copied.'));
+    } finally {
+        close();
+    }
+}
+
 /** The shared look of one 46px action row (design m4). */
 const rowClass =
     'flex h-11.5 w-full items-center gap-3 rounded-[11px] px-3.5 text-left text-[14.5px] font-medium text-foreground transition-colors hover:bg-muted/50 active:bg-muted';
@@ -201,7 +247,7 @@ const rowClass =
         <DialogContent
             data-test="message-actions-sheet"
             :show-close-button="false"
-            class="gap-0 overflow-visible px-2.5"
+            class="gap-0 overflow-visible px-2.5 select-none [-webkit-touch-callout:none]"
         >
             <DialogTitle class="sr-only">{{
                 $t('Message actions')
@@ -332,6 +378,18 @@ const rowClass =
                 >
                     <Forward class="size-4 text-muted-foreground" />
                     {{ $t('Forward') }}
+                </Button>
+                <Button
+                    v-if="showCopy"
+                    variant="unstyled"
+                    size="none"
+                    type="button"
+                    data-test="sheet-copy"
+                    :class="rowClass"
+                    @click="copyMessageText"
+                >
+                    <Copy class="size-4 text-muted-foreground" />
+                    {{ $t('Copy text') }}
                 </Button>
                 <Button
                     v-if="showPin"

@@ -416,6 +416,15 @@ export function renderMessageBody(
 }
 
 /**
+ * The message body as the author typed it, ready for the clipboard: mention and
+ * group tokens collapse to their visible `@Name` text, while newlines and the
+ * inline Markdown syntax are kept verbatim — they are the text the author wrote.
+ */
+export function messageBodyCopyText(body: string): string {
+    return body.replace(MENTION_PATTERN, (_match, name: string) => `@${name}`);
+}
+
+/**
  * Flatten a raw message body to a single line of plain text for a compact quote
  * preview: inline Markdown syntax is stripped (marks removed, inline-code
  * content kept literal), mention tokens collapse to their `@Name` text, and runs

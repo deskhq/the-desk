@@ -72,6 +72,7 @@ test('a long-press on a peer message opens the sheet without the author-only act
         ->assertPresent('@sheet-thread')
         ->assertPresent('@sheet-reply')
         ->assertPresent('@sheet-forward')
+        ->assertPresent('@sheet-copy')
         ->assertPresent('@sheet-pin')
         ->assertPresent('@sheet-remind')
         // ...and nothing it would hide: Bob may neither edit nor delete it.
@@ -178,6 +179,107 @@ test('the sheet survives French at the tightest width', function (): void {
         ->assertScript(<<<'JS'
         (() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)()
         JS, true);
+});
+
+test('below md the rows and the sheet suppress selection; from md up text stays selectable', function (): void {
+    ['owner' => $alice, 'member' => $bob, 'team' => $team, 'channel' => $channel] = browserTeamWithChannel();
+
+    $message = Message::factory()->create([
+        'channel_id' => $channel->id,
+        'user_id' => $alice->id,
+        'body' => 'Nothing here should be selectable on a phone.',
+    ]);
+
+    $page = signInThroughBrowser($bob)
+        ->resize(390, 844)
+        ->navigate(browserChannelUrl($team, $channel))
+        ->assertPresent("#message-{$message->id}");
+
+    // The suppression is static CSS, so WebKit never begins the selection
+    // gesture that races the long-press timer (#800).
+    $page->assertScript(<<<JS
+    (() => getComputedStyle(document.getElementById('message-{$message->id}')).userSelect)()
+    JS, 'none');
+
+    longPressMessage($page, $message->id)
+        ->assertPresent('@message-actions-sheet')
+        ->assertScript(<<<'JS'
+        (() => getComputedStyle(document.querySelector('[data-test="message-actions-sheet"]')).userSelect)()
+        JS, 'none');
+
+    // From md up the hover toolbar owns the actions and the text must stay
+    // selectable — the desktop copy path is selection itself.
+    signInThroughBrowser($bob)
+        ->resize(768, 1024)
+        ->navigate(browserChannelUrl($team, $channel))
+        ->assertPresent("#message-{$message->id}")
+        ->assertScript(<<<JS
+        (() => getComputedStyle(document.getElementById('message-{$message->id}')).userSelect)()
+        JS, 'auto');
+});
+
+test('a selection that slipped through is cleared when the sheet opens', function (): void {
+    ['owner' => $alice, 'member' => $bob, 'team' => $team, 'channel' => $channel] = browserTeamWithChannel();
+
+    $message = Message::factory()->create([
+        'channel_id' => $channel->id,
+        'user_id' => $alice->id,
+        'body' => 'Selected just before the sheet lands.',
+    ]);
+
+    $page = signInThroughBrowser($bob)
+        ->resize(390, 844)
+        ->navigate(browserChannelUrl($team, $channel))
+        ->assertPresent("#message-{$message->id}");
+
+    // Select the day divider by hand, standing in for WebKit's native gesture
+    // winning the race just before our timer fires — on the phone the spill
+    // landed on exactly this kind of neighbouring chrome, which stays
+    // selectable (the static suppression covers only the message rows).
+    $page->script(<<<'JS'
+    (() => {
+        const range = document.createRange();
+        range.selectNodeContents(document.querySelector('[data-test="day-divider"]'));
+        window.getSelection().addRange(range);
+    })()
+    JS);
+    $page->assertScript('(() => window.getSelection().toString().length > 0)()', true);
+
+    longPressMessage($page, $message->id)
+        ->assertPresent('@message-actions-sheet')
+        ->assertScript('(() => window.getSelection().toString())()', '');
+});
+
+test('the copy row puts the message text on the clipboard and dismisses', function (): void {
+    ['owner' => $alice, 'member' => $bob, 'team' => $team, 'channel' => $channel] = browserTeamWithChannel();
+
+    $message = Message::factory()->create([
+        'channel_id' => $channel->id,
+        'user_id' => $alice->id,
+        'body' => 'Words worth copying.',
+    ]);
+
+    $page = signInThroughBrowser($bob)
+        ->resize(390, 844)
+        ->navigate(browserChannelUrl($team, $channel))
+        ->assertPresent("#message-{$message->id}");
+
+    // Chromium gates clipboard-write behind a permission the harness does not
+    // grant; a recording stub keeps the assertion deterministic.
+    $page->script(<<<'JS'
+    (() => {
+        Object.defineProperty(navigator, 'clipboard', {
+            value: { writeText: (text) => { window.__copied = text; return Promise.resolve(); } },
+            configurable: true,
+        });
+    })()
+    JS);
+
+    longPressMessage($page, $message->id)
+        ->assertPresent('@sheet-copy')
+        ->click('@sheet-copy')
+        ->assertScript('(() => window.__copied)()', 'Words worth copying.')
+        ->assertNotPresent('@message-actions-sheet');
 });
 
 test('the open sheet has no serious accessibility violations in either theme', function (): void {

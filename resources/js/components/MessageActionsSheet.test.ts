@@ -15,6 +15,8 @@ vi.mock('@inertiajs/vue3', () => ({
     usePage: () => ({ props }),
 }));
 
+vi.mock('vue-sonner', () => ({ toast: { error: vi.fn(), success: vi.fn() } }));
+
 // The sheet rides the app's dialog primitive; its portal/focus behaviour is the
 // primitive's own tested concern, so render it down to a passthrough.
 vi.mock('@/components/ui/dialog', () => {
@@ -160,6 +162,7 @@ describe('MessageActionsSheet action rows', () => {
             'thread',
             'reply',
             'forward',
+            'copy',
             'pin',
             'remind',
         ]);
@@ -236,6 +239,54 @@ describe('MessageActionsSheet action rows', () => {
         expect(emitted['update:open']).toEqual([[false]]);
     });
 
+    it('copies the message text as typed and dismisses', async () => {
+        const writeText = vi.fn().mockResolvedValue(undefined);
+        Object.defineProperty(navigator, 'clipboard', {
+            value: { writeText },
+            configurable: true,
+        });
+
+        const { host, emitted } = mount({
+            message: message({
+                body: 'hi @[Alice](a1b2c3d4-e5f6-7890-1234-567890abcdef)\n**bold**',
+            }),
+        });
+
+        host.querySelector<HTMLElement>('[data-test="sheet-copy"]')!.click();
+        await Promise.resolve();
+
+        expect(writeText).toHaveBeenCalledExactlyOnceWith(
+            'hi @Alice\n**bold**',
+        );
+        expect(emitted['update:open']).toEqual([[false]]);
+    });
+
+    it('reports a copy that could not reach the clipboard and still dismisses', async () => {
+        const { toast } = await import('vue-sonner');
+        const writeText = vi.fn().mockRejectedValue(new Error('denied'));
+        Object.defineProperty(navigator, 'clipboard', {
+            value: { writeText },
+            configurable: true,
+        });
+
+        const { host, emitted } = mount();
+
+        host.querySelector<HTMLElement>('[data-test="sheet-copy"]')!.click();
+        await Promise.resolve();
+        await Promise.resolve();
+
+        expect(toast.error).toHaveBeenCalledExactlyOnceWith(
+            'The message text could not be copied.',
+        );
+        expect(emitted['update:open']).toEqual([[false]]);
+    });
+
+    it('hides the copy row when the message has no text to copy', () => {
+        const { host } = mount({ message: message({ body: '' }) });
+
+        expect(rowNames(host)).not.toContain('copy');
+    });
+
     it('routes the remind row to the custom reminder flow', () => {
         const { host, emitted } = mount();
 
@@ -284,6 +335,36 @@ describe('MessageActionsSheet quick reactions', () => {
                 ?.getAttribute('src'),
         ).toBe('https://desk.test/shipit.png');
         expect(shortcut(host, '👍').querySelector('img')).toBeNull();
+    });
+});
+
+describe('MessageActionsSheet selection suppression', () => {
+    it('renders every surface non-selectable, like a native sheet', () => {
+        const { host } = mount();
+
+        const sheet = host.querySelector<HTMLElement>(
+            '[data-test="message-actions-sheet"]',
+        )!;
+
+        expect(sheet.classList.contains('select-none')).toBe(true);
+        expect(sheet.classList.contains('[-webkit-touch-callout:none]')).toBe(
+            true,
+        );
+    });
+
+    it('clears a selection that slipped through before the sheet opened', () => {
+        const stray = document.createElement('p');
+        stray.textContent = 'selected before the press landed';
+        document.body.appendChild(stray);
+        const range = document.createRange();
+        range.selectNodeContents(stray);
+        window.getSelection()?.addRange(range);
+
+        expect(window.getSelection()?.toString()).not.toBe('');
+
+        mount();
+
+        expect(window.getSelection()?.toString()).toBe('');
     });
 });
 

@@ -877,6 +877,7 @@ function confirmDelete(): void {
 
                 <div
                     v-else-if="item.type === 'divider'"
+                    data-test="day-divider"
                     class="my-4 flex items-center gap-3"
                 >
                     <span aria-hidden="true" class="h-px flex-1 bg-border" />
@@ -1027,7 +1028,7 @@ function confirmDelete(): void {
                                         viewerTimeZone,
                                     )
                                 "
-                                class="group/message relative -mx-2 rounded-md px-2 transition-colors duration-1000 hover:bg-muted/40"
+                                class="group/message relative -mx-2 rounded-md px-2 transition-colors duration-1000 hover:bg-muted/40 max-md:select-none max-md:[-webkit-touch-callout:none]"
                                 :class="[
                                     index === 0 ? 'mt-0.5' : 'mt-1.5',
                                     message.id === props.highlightMessageId

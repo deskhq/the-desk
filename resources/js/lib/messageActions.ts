@@ -102,6 +102,19 @@ export function canForwardMessage(
 }
 
 /**
+ * Any live message's text can be copied to the clipboard. A sheet-only action:
+ * on a hover-capable layout the text is simply selected, but the mobile rows
+ * suppress native selection so the long-press gesture can win (#800), making
+ * this the deliberate copy path there.
+ */
+export function canCopyMessage(
+    message: Message,
+    context: MessageActionContext,
+): boolean {
+    return isActionable(message, context);
+}
+
+/**
  * The viewer may react to any live message when they're a member of the
  * (non-archived) channel.
  */

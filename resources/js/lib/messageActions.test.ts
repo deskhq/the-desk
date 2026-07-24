@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+    canCopyMessage,
     canDeleteMessage,
     canEditMessage,
     canForwardMessage,
@@ -142,6 +143,29 @@ describe('messageActions guards', () => {
             ).toBe(false);
             expect(
                 canForwardMessage(message(), context({ pending: true })),
+            ).toBe(false);
+        });
+    });
+
+    describe('canCopyMessage', () => {
+        it('is true for any live message, including inside a thread', () => {
+            expect(canCopyMessage(message(), context({ inThread: true }))).toBe(
+                true,
+            );
+        });
+
+        it('is false for a deleted or pending message', () => {
+            expect(
+                canCopyMessage(message({ isDeleted: true }), context()),
+            ).toBe(false);
+            expect(canCopyMessage(message(), context({ pending: true }))).toBe(
+                false,
+            );
+        });
+
+        it('is false for a system notice, which has no authored text', () => {
+            expect(
+                canCopyMessage(message({ type: 'member_joined' }), context()),
             ).toBe(false);
         });
     });

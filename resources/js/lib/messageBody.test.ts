@@ -4,6 +4,7 @@
 import { describe, expect, it } from 'vitest';
 import type { CustomEmojiMap } from '@/lib/customEmoji';
 import {
+    messageBodyCopyText,
     messageBodyPreview,
     renderMessageBody,
     tokenizeMessageBody,
@@ -445,6 +446,26 @@ describe('messageBodyPreview', () => {
     it('collapses a group token to its handle', () => {
         expect(messageBodyPreview(`hi @[dev-team](group:${devs.id})`)).toBe(
             'hi @dev-team',
+        );
+    });
+});
+
+describe('messageBodyCopyText', () => {
+    it('returns the body exactly as typed, newlines and mark syntax intact', () => {
+        expect(messageBodyCopyText('a **b**\n_c_ and `code`')).toBe(
+            'a **b**\n_c_ and `code`',
+        );
+    });
+
+    it('collapses a mention token to the @Name the author typed', () => {
+        expect(messageBodyCopyText(`hi @[Alice](${alice.id})`)).toBe(
+            'hi @Alice',
+        );
+    });
+
+    it('collapses a group token to its handle', () => {
+        expect(messageBodyCopyText(`ping @[dev-team](group:${devs.id})`)).toBe(
+            'ping @dev-team',
         );
     });
 });
