@@ -34,6 +34,13 @@
         <link rel="icon" href="/favicon.svg" type="image/svg+xml">
         <link rel="apple-touch-icon" href="/apple-touch-icon.png">
 
+        <link rel="manifest" href="/build/manifest.webmanifest">
+        <meta name="mobile-web-app-capable" content="yes">
+        {{-- iOS reads the legacy meta, not the manifest, when adding to the home screen. --}}
+        <meta name="apple-mobile-web-app-capable" content="yes">
+        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+        <meta name="apple-mobile-web-app-title" content="{{ config('app.name', 'Laravel') }}">
+
         <meta property="og:title" content="{{ config('app.name', 'Laravel') }}">
         <meta property="og:site_name" content="{{ config('app.name', 'Laravel') }}">
         <meta property="og:description" content="{{ __('Open source, self-hosted team chat') }}">
