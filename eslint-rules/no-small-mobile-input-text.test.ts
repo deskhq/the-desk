@@ -65,6 +65,13 @@ describe('findSmallMobileFont', () => {
         });
     });
 
+    it('keeps the `md:` step when the declared desktop size sits at a wider breakpoint', () => {
+        expect(findSmallMobileFont('text-sm lg:text-base')).toMatchObject({
+            original: 'text-sm',
+            suggestion: 'text-base md:text-sm',
+        });
+    });
+
     it('returns null for a class string with no font size at all', () => {
         expect(findSmallMobileFont('h-9 w-full rounded-md')).toBeNull();
     });

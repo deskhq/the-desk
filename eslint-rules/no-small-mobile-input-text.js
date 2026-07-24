@@ -169,7 +169,7 @@ export function findSmallMobileFont(text) {
         }
 
         if (variants.length > 0 && !variants.every((variant) => MOBILE_VARIANT.test(variant))) {
-            hasDesktopSize = true;
+            hasDesktopSize ||= variants.includes('md');
             continue;
         }
 
