@@ -61,7 +61,7 @@ function mobileRowChannel(): array
         ]);
     }
 
-    $quoted = Message::factory()->for($channel)->for($bob)->replyTo($root)->create([
+    Message::factory()->for($channel)->for($bob)->replyTo($root)->create([
         'body' => 'Agreed, let us vote on it.',
         'created_at' => now()->subMinutes(60),
     ]);
@@ -107,7 +107,6 @@ function mobileRowChannel(): array
         'channel' => $channel,
         'poll' => $pollMessage,
         'root' => $root,
-        'quoted' => $quoted,
     ];
 }
 
@@ -437,6 +436,9 @@ test('a tall channel still lands on the newest message at a phone width', functi
     }
     JS);
 
+    // The scroll holds where it was put — a late pin would snap it back — and
+    // history renders into the window rather than leaving it blank, which is
+    // what a badly-drifted row estimate looks like.
     $page->wait(1)
         ->assertScript(<<<'JS'
         (() => {
@@ -444,7 +446,7 @@ test('a tall channel still lands on the newest message at a phone width', functi
             const rows = [...timeline.querySelectorAll('[id^="message-"]')];
             const container = timeline.getBoundingClientRect();
 
-            return rows.some((row) => {
+            return timeline.scrollTop <= 4 && rows.some((row) => {
                 const rect = row.getBoundingClientRect();
 
                 return rect.top < container.bottom && rect.bottom > container.top;

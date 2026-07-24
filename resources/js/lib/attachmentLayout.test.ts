@@ -95,6 +95,7 @@ describe('fillsBleedWidth', () => {
 
     it('treats unknown dimensions as the full box, matching singleImageSize', () => {
         expect(fillsBleedWidth(null)).toBe(true);
+        expect(fillsBleedWidth(0)).toBe(true);
     });
 });
 

@@ -71,11 +71,11 @@ export function singleImageSize(
  * Filling the width means stretching the reserved box, which is right for a
  * photo but would upscale a small graphic into a blurry, `object-cover`-cropped
  * band. Anything narrower than the reserved box stays in the message's text
- * column instead. An image with no stored dimensions takes the full box (the
- * same guess {@see singleImageSize} makes for it) and so fills the width.
+ * column instead. A missing or zero width takes the full box — the same guess
+ * {@see singleImageSize} makes for it — and so fills the width.
  */
 export function fillsBleedWidth(width: number | null): boolean {
-    return (width ?? SINGLE_MAX_WIDTH) >= SINGLE_MAX_WIDTH;
+    return (width || SINGLE_MAX_WIDTH) >= SINGLE_MAX_WIDTH;
 }
 
 /**
