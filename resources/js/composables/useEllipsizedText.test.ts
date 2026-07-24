@@ -53,6 +53,7 @@ describe('useEllipsizedText', () => {
     let resizeCallbacks: ResizeCallback[] = [];
     let observed: Element[] = [];
     let active: Array<{ app: App; container: HTMLElement }> = [];
+    let documentFontsDescriptor: PropertyDescriptor | undefined;
 
     class FakeResizeObserver {
         constructor(private callback: ResizeCallback) {}
@@ -66,6 +67,10 @@ describe('useEllipsizedText', () => {
     }
 
     beforeEach(() => {
+        documentFontsDescriptor = Object.getOwnPropertyDescriptor(
+            document,
+            'fonts',
+        );
         vi.stubGlobal('ResizeObserver', FakeResizeObserver);
         vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue({
             font: '',
@@ -83,6 +88,12 @@ describe('useEllipsizedText', () => {
         active = [];
         resizeCallbacks = [];
         observed = [];
+        if (documentFontsDescriptor) {
+            Object.defineProperty(document, 'fonts', documentFontsDescriptor);
+        } else {
+            delete (document as { fonts?: unknown }).fonts;
+        }
+        documentFontsDescriptor = undefined;
         vi.unstubAllGlobals();
         vi.restoreAllMocks();
     });
@@ -251,7 +262,5 @@ describe('useEllipsizedText', () => {
         await new Promise((resolve) => setTimeout(resolve, 0));
 
         expect(result.value).toBe('Message Bartholomew');
-
-        delete (document as { fonts?: unknown }).fonts;
     });
 });
