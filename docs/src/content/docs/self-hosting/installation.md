@@ -66,6 +66,62 @@ To run a tag on another registry, an air-gapped mirror, or a floating tag like
 `APP_VERSION` entirely. Upgrades bump `APP_VERSION` and restart — see
 [Upgrading](/self-hosting/upgrading/).
 
+## Verify the image, and pin it by digest
+
+Every published image is built by this repository's CI, which attaches three
+things to it: a **signed build provenance** attestation, an in-registry
+**provenance** record, and an **SBOM** listing what is inside. You do not have to
+use any of them, but if your policy asks where a container came from, this is the
+answer.
+
+Verify that an image really was built by this repository, using the
+[GitHub CLI](https://cli.github.com/):
+
+```bash
+gh attestation verify oci://ghcr.io/deskhq/the-desk:$APP_VERSION \
+  --repo deskhq/the-desk
+```
+
+A pass tells you the image was built by a workflow in `deskhq/the-desk`, from the
+commit the release was cut at. A failure means the image did not come from here:
+do not run it. If you set `APP_IMAGE` yourself, verify that reference instead,
+since it is what the stack actually runs.
+
+Inspect the attached SBOM and provenance without any extra tooling:
+
+```bash
+docker buildx imagetools inspect ghcr.io/deskhq/the-desk:$APP_VERSION \
+  --format '{{ json .SBOM }}'
+```
+
+### Pinning by digest
+
+Tags are mutable. `latest` moves every release by design, and even `X.Y.Z` is a
+pointer that could in principle be repushed. A digest is content-addressed, so it
+can never resolve to different bytes later:
+
+```
+APP_IMAGE=ghcr.io/deskhq/the-desk@sha256:0123456789abcdef...
+```
+
+Set that in `.env` and it overrides `APP_VERSION`, exactly like a tag would.
+Every stable release's notes carry the digest for that version, ready to paste,
+next to the tag-based pull reference. You can also read it back from a registry
+at any time:
+
+```bash
+docker buildx imagetools inspect ghcr.io/deskhq/the-desk:$APP_VERSION \
+  --format '{{ .Manifest.Digest }}'
+```
+
+You do not lose `upgrade.sh` by doing this. An upgrade becomes two steps instead
+of one: set `APP_IMAGE` to the new release's digest, then run
+`./docker/upgrade.sh --target=X.Y.Z /srv/backups` naming that same release. The
+script still takes the backup, still runs the migrations, and still verifies that
+the instance came back reporting the version you asked for, because `APP_VERSION`
+and the pinned digest describe the same image. Pin by digest if your
+change-control process needs it; stay on `APP_VERSION` otherwise.
+
 ## The COMPOSE_FILE variable
 
 Production commands on this site are a bare `docker compose`, with no

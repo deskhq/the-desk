@@ -96,7 +96,7 @@ test('the composite action is what actually holds the two provider paths', funct
 
     expect($action['runs']['using'] ?? null)->toBe('composite')
         ->and(array_keys($action['inputs'] ?? []))
-        ->toEqualCanonicalizing(['runner', 'context', 'file', 'platforms', 'push', 'load', 'tags', 'labels']);
+        ->toEqualCanonicalizing(['runner', 'context', 'file', 'platforms', 'push', 'load', 'tags', 'labels', 'provenance', 'sbom']);
 });
 
 /**
@@ -170,7 +170,7 @@ test('both provider paths build the same image from the same inputs', function (
         expect($build['with'][$input] ?? null)
             ->toBe('${{ inputs.'.$input.' }}', $build['uses'].' drops the '.$input.' input, so the two paths would build different images');
     }
-})->with(['context', 'file', 'platforms', 'push', 'load', 'tags', 'labels']);
+})->with(['context', 'file', 'platforms', 'push', 'load', 'tags', 'labels', 'provenance', 'sbom']);
 
 test('every docker build in the workflow goes through the composite action', function (): void {
     $steps = collect(workflowJobs(dirname(__DIR__, 2).'/.github/workflows/docker.yml'))
