@@ -23,6 +23,7 @@ declare module '@inertiajs/core' {
         sharedPageProps: {
             name: string;
             reverb: ReverbRuntimeConfig;
+            webPush: { enabled: boolean; publicKey: string | null };
             auth: Auth;
             registrationEnabled: boolean;
             emailVerificationEnabled: boolean;
