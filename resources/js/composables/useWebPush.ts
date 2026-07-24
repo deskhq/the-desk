@@ -50,7 +50,10 @@ export function useWebPush(): WebPush {
     // to subscribe at all — on iOS that means an installed home-screen app
     // (#845 adds the in-app prompt that makes installing discoverable).
     const available = computed(
-        () => page.props.webPush.enabled && supported.value,
+        () =>
+            page.props.webPush.enabled &&
+            page.props.webPush.publicKey !== null &&
+            supported.value,
     );
 
     onMounted(async () => {

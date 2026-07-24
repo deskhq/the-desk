@@ -155,16 +155,19 @@ async function showBanner(payload: PushPayload | null): Promise<void> {
         return;
     }
 
+    // The tag collapses a conversation: a second message in the same channel
+    // replaces the banner already on screen rather than stacking beside it.
+    // `renotify` makes that replacement alert again instead of swapping in
+    // silently — and is only legal alongside a tag, so a payload that somehow
+    // arrived without one must not carry it either, or showNotification rejects.
+    const tag = asString(payload.tag);
+
     await worker.registration.showNotification(payload.title, {
         body: asString(payload.body),
         icon: asString(payload.icon),
         badge: asString(payload.badge),
-        // The tag collapses a conversation: a second message in the same channel
-        // replaces the banner already on screen rather than stacking beside it.
-        // `renotify` makes that replacement alert again instead of swapping in
-        // silently.
-        tag: asString(payload.tag),
-        renotify: payload.renotify === true,
+        tag,
+        renotify: tag !== undefined && payload.renotify === true,
         data: payload.data,
     });
 }

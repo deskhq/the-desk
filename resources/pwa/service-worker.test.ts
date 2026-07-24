@@ -235,6 +235,21 @@ describe('push', () => {
         expect(scope.registration.showNotification).not.toHaveBeenCalled();
     });
 
+    it('never sets renotify without a tag, which the platform rejects', async () => {
+        const scope = await loadWorker();
+
+        await dispatchAndSettle(
+            scope,
+            'push',
+            pushEventData({ title: 'Ada Lovelace', renotify: true }),
+        );
+
+        expect(scope.registration.showNotification).toHaveBeenCalledWith(
+            'Ada Lovelace',
+            expect.objectContaining({ tag: undefined, renotify: false }),
+        );
+    });
+
     it('drops payload members that are not strings', async () => {
         const scope = await loadWorker();
 

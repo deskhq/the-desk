@@ -35,7 +35,11 @@ test('a device can subscribe itself to push notifications', function (): void {
 
     expect($subscription->endpoint)->toBe('https://fcm.googleapis.com/fcm/send/device-one')
         ->and($subscription->public_key)->toBe('device-one-public-key')
-        ->and($subscription->auth_token)->toBe('device-one-auth');
+        ->and($subscription->auth_token)->toBe('device-one-auth')
+        // The published package migration morphs on an integer key; ours is a
+        // uuidMorphs, because every model in this app keys on a UUID string.
+        ->and($subscription->subscribable_id)->toBe($user->id)
+        ->and($subscription->subscribable_type)->toBe($user->getMorphClass());
 });
 
 test('each device gets its own subscription row', function (): void {
@@ -182,16 +186,24 @@ test('the subscription endpoints do not exist without a vapid keypair', function
         ->assertNotFound();
 });
 
-test('deleting an account takes its push subscriptions with it', function (): void {
-    $user = User::factory()->create();
+test('deleting an account takes its push subscriptions with it, and only its own', function (): void {
+    $leaving = User::factory()->create();
+    $staying = User::factory()->create();
 
-    $this->actingAs($user)
+    $this->actingAs($leaving)
         ->postJson(route('push-subscriptions.store'), pushSubscriptionPayload())
         ->assertNoContent();
 
-    $this->actingAs($user)
+    $this->actingAs($staying)
+        ->postJson(route('push-subscriptions.store'), pushSubscriptionPayload([
+            'endpoint' => 'https://fcm.googleapis.com/fcm/send/device-two',
+        ]))
+        ->assertNoContent();
+
+    $this->actingAs($leaving)
         ->delete(route('profile.destroy'), ['password' => 'password'])
         ->assertRedirect();
 
-    expect(PushSubscription::count())->toBe(0);
+    expect(PushSubscription::pluck('endpoint')->all())
+        ->toBe(['https://fcm.googleapis.com/fcm/send/device-two']);
 });
