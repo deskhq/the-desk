@@ -453,6 +453,7 @@ test('a group direct message result joins the other participants as its name', f
         ->assertInertia(fn (Assert $page): Assert => $page
             ->has('results', 1)
             ->where('results.0.channelName', 'Ada Lovelace, Grace Hopper')
+            ->where('results.0.isDirectMessage', true)
         );
 });
 
@@ -466,6 +467,7 @@ test('a self direct message result shows the viewer their own name', function ()
         ->assertInertia(fn (Assert $page): Assert => $page
             ->has('results', 1)
             ->where('results.0.channelName', $owner->name)
+            ->where('results.0.isDirectMessage', true)
         );
 });
 
