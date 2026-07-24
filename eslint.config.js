@@ -7,6 +7,7 @@ import vuejsAccessibility from 'eslint-plugin-vuejs-accessibility';
 import noArbitraryTailwindSpacing from './eslint-rules/no-arbitrary-tailwind-spacing.js';
 import noDestructiveFillAsText from './eslint-rules/no-destructive-fill-as-text.js';
 import noRawButton from './eslint-rules/no-raw-button.js';
+import noSmallMobileInputText from './eslint-rules/no-small-mobile-input-text.js';
 
 const controlStatements = [
     'if',
@@ -37,6 +38,7 @@ export default defineConfigWithVueTs(
                     'no-arbitrary-tailwind-spacing': noArbitraryTailwindSpacing,
                     'no-destructive-fill-as-text': noDestructiveFillAsText,
                     'no-raw-button': noRawButton,
+                    'no-small-mobile-input-text': noSmallMobileInputText,
                 },
             },
         },
@@ -86,6 +88,12 @@ export default defineConfigWithVueTs(
             // `./vendor/bin/sail npm run lint`) because every occurrence was
             // migrated to `text-destructive-text`, so the gate stays clean.
             'local/no-destructive-fill-as-text': 'error',
+            // iOS Safari zooms the whole page onto a focused field whose font
+            // size is under 16px, and never zooms back out (#855). `error`
+            // (auto-fixable via `./vendor/bin/sail npm run lint`) because every
+            // occurrence was migrated to `text-base md:<size>`, so the gate
+            // stays clean and a new sub-16px field cannot land silently.
+            'local/no-small-mobile-input-text': 'error',
             // XSS trust boundary. Every run of HTML the client renders as markup
             // must go through `<SafeHtml>`, which sanitizes it with DOMPurify
             // against a named allowlist; a raw `v-html` anywhere else would

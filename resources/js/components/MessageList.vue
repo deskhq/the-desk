@@ -1186,7 +1186,7 @@ function confirmDelete(): void {
                                         v-model="editDraft"
                                         data-test="message-edit-input"
                                         rows="1"
-                                        class="w-full resize-none rounded-md border border-input bg-background px-2.5 py-1.5 text-[14.5px] leading-[1.55] text-foreground outline-none focus:border-ring focus:ring-1 focus:ring-ring"
+                                        class="w-full resize-none rounded-md border border-input bg-background px-2.5 py-1.5 text-base leading-[1.55] text-foreground outline-none focus:border-ring focus:ring-1 focus:ring-ring md:text-[14.5px]"
                                         @keydown.enter.exact.prevent="
                                             saveEdit(message)
                                         "
