@@ -221,9 +221,10 @@ describe('useLongPress', () => {
         });
 
         it('pulses once at the moment a touch hold takes', () => {
+            const onLongPress = vi.fn();
             const press = useLongPress<string>({
                 enabled: ref(true),
-                onLongPress: vi.fn(),
+                onLongPress,
             });
 
             press.start(pointer('pointerdown'), 'm1');
@@ -232,6 +233,7 @@ describe('useLongPress', () => {
 
             vi.advanceTimersByTime(LONG_PRESS_MS);
 
+            expect(onLongPress).toHaveBeenCalledExactlyOnceWith('m1');
             expect(vibrate).toHaveBeenCalledExactlyOnceWith(
                 LONG_PRESS_VIBRATION_MS,
             );
@@ -253,19 +255,22 @@ describe('useLongPress', () => {
             expect(vibrate).not.toHaveBeenCalled();
         });
 
-        it('never vibrates for a mouse hold on a touch laptop', () => {
-            const onLongPress = vi.fn();
-            const press = useLongPress<string>({
-                enabled: ref(true),
-                onLongPress,
-            });
+        it.each(['mouse', 'pen'])(
+            'never vibrates for a %s hold on a touch laptop',
+            (pointerType) => {
+                const onLongPress = vi.fn();
+                const press = useLongPress<string>({
+                    enabled: ref(true),
+                    onLongPress,
+                });
 
-            press.start(pointer('pointerdown', { pointerType: 'mouse' }), 'm1');
-            vi.advanceTimersByTime(LONG_PRESS_MS);
+                press.start(pointer('pointerdown', { pointerType }), 'm1');
+                vi.advanceTimersByTime(LONG_PRESS_MS);
 
-            expect(onLongPress).toHaveBeenCalledExactlyOnceWith('m1');
-            expect(vibrate).not.toHaveBeenCalled();
-        });
+                expect(onLongPress).toHaveBeenCalledExactlyOnceWith('m1');
+                expect(vibrate).not.toHaveBeenCalled();
+            },
+        );
 
         it('opens the sheet unchanged without the Vibration API', () => {
             Reflect.deleteProperty(navigator, 'vibrate');
