@@ -106,6 +106,13 @@ const contentClass = computed(() => {
  * for its desktop dialog, and it sizes against the on-screen keyboard, which
  * only the visual viewport knows the height of.
  */
+/**
+ * The close affordance's look, shared by every presentation — only its
+ * position differs: pinned in the sheet's sticky strip below `md`, parked in
+ * the top-right corner otherwise.
+ */
+const closeButtonClass = "ring-offset-background focus:ring-ring data-[state=open]:bg-accent data-[state=open]:text-muted-foreground rounded-xs opacity-70 transition-opacity hover:opacity-100 focus:ring-2 focus:ring-offset-2 focus:outline-hidden disabled:pointer-events-none [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4"
+
 const contentStyle = computed<CSSProperties | undefined>(() => {
   if (asFullscreen.value) {
     // `inset-0` anchors to the layout viewport, which the on-screen keyboard
@@ -145,29 +152,51 @@ const contentStyle = computed<CSSProperties | undefined>(() => {
       :class="contentClass"
       :style="contentStyle"
     >
-      <!-- The grab handle: a touch affordance for a gesture that Escape, the
-           scrim and the close button each offer another way to, so it is
-           decorative to a screen reader. -->
-      <!-- eslint-disable-next-line vuejs-accessibility/no-static-element-interactions -- a pointer-only drag target, not a control -->
+      <!-- The sheet's sticky strip carries both top affordances: the grab
+           handle, and the close button — which must live here rather than
+           float over the scrolling content, or the strip's opaque background
+           paints over it and scrolling carries it away (#803). -->
       <div
         v-if="asSheet"
-        aria-hidden="true"
-        data-test="sheet-grab-handle"
-        class="bg-inherit sticky top-0 z-10 flex shrink-0 cursor-grab touch-none justify-center py-1.5"
-        @pointerdown="drag.start"
-        @pointermove="drag.move"
-        @pointerup="drag.end"
-        @pointercancel="drag.cancel"
+        class="bg-inherit sticky top-0 z-10 shrink-0"
       >
-        <span class="bg-muted-foreground/30 h-1 w-11 rounded-full" />
+        <!-- The grab handle: a touch affordance for a gesture that Escape, the
+             scrim and the close button each offer another way to, so it is
+             decorative to a screen reader. -->
+        <!-- eslint-disable-next-line vuejs-accessibility/no-static-element-interactions -- a pointer-only drag target, not a control -->
+        <div
+          aria-hidden="true"
+          data-test="sheet-grab-handle"
+          class="flex cursor-grab touch-none justify-center py-1.5"
+          @pointerdown="drag.start"
+          @pointermove="drag.move"
+          @pointerup="drag.end"
+          @pointercancel="drag.cancel"
+        >
+          <span class="bg-muted-foreground/30 h-1 w-11 rounded-full" />
+        </div>
+
+        <!-- `-right-2` undoes part of the root's `p-6` inset, landing the
+             button at the same 16px from the sheet edge as every other
+             presentation's `right-4`. -->
+        <DialogClose
+          v-if="showCloseButton"
+          data-slot="dialog-close"
+          data-test="dialog-close-button"
+          :class="cn(closeButtonClass, 'absolute top-1/2 -right-2 -translate-y-1/2')"
+        >
+          <X />
+          <span class="sr-only">{{ $t('Close') }}</span>
+        </DialogClose>
       </div>
 
       <slot />
 
       <DialogClose
-        v-if="showCloseButton"
+        v-if="showCloseButton && !asSheet"
         data-slot="dialog-close"
-        class="ring-offset-background focus:ring-ring data-[state=open]:bg-accent data-[state=open]:text-muted-foreground absolute top-4 right-4 rounded-xs opacity-70 transition-opacity hover:opacity-100 focus:ring-2 focus:ring-offset-2 focus:outline-hidden disabled:pointer-events-none [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4"
+        data-test="dialog-close-button"
+        :class="cn(closeButtonClass, 'absolute top-4 right-4')"
       >
         <X />
         <span class="sr-only">{{ $t('Close') }}</span>

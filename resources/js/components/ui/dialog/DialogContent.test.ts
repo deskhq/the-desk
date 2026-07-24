@@ -100,6 +100,26 @@ describe('below the md breakpoint', () => {
         ).not.toBeNull();
     });
 
+    it('keeps the close button clear of the grab handle and pinned with it', async () => {
+        const content = await open();
+        const close = content.querySelector('[data-test="dialog-close-button"]');
+
+        expect(close).not.toBeNull();
+        // Pinned in the same sticky strip as the handle, so it neither scrolls
+        // away with the content nor gets painted over by the strip's opaque
+        // background (#803).
+        const strip = close!.closest('.sticky');
+
+        expect(strip).not.toBeNull();
+        expect(
+            strip!.contains(
+                content.querySelector('[data-test="sheet-grab-handle"]'),
+            ),
+        ).toBe(true);
+        // A real control: never inside the handle's decorative aria-hidden.
+        expect(close!.closest('[aria-hidden="true"]')).toBeNull();
+    });
+
     it('pins a detail sheet to 85% of the screen', async () => {
         // The stand-in for a desktop right-hand pane: a fixed height, so a list
         // does not resize under the thumb as it is worked through.
@@ -152,6 +172,17 @@ describe('from the md breakpoint up', () => {
         expect(
             content.querySelector('[data-test="sheet-grab-handle"]'),
         ).toBeNull();
+    });
+
+    it('keeps the close button in its corner, outside any sticky strip', async () => {
+        const close = (await open()).querySelector(
+            '[data-test="dialog-close-button"]',
+        );
+
+        expect(close).not.toBeNull();
+        expect(close!.className).toContain('top-4');
+        expect(close!.className).toContain('right-4');
+        expect(close!.closest('.sticky')).toBeNull();
     });
 
     it('keeps a fullscreen-below-md dialog centred from md up', async () => {

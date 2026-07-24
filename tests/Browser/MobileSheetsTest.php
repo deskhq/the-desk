@@ -173,6 +173,83 @@ test('a sheet keeps every control it draws inside the viewport', function (int $
     'large phone' => [430, 932],
 ]);
 
+test('the close button is fully visible with nothing painted over it', function (): void {
+    ['owner' => $alice, 'team' => $team, 'channel' => $channel] = browserTeamWithChannel();
+
+    // The defect (#803): the grab-handle strip is sticky with an opaque
+    // background, and the close button sat underneath it — hit-testing a spread
+    // of points inside the button proves the whole of it is on top, where a
+    // class assertion could not.
+    openCreateChannelDialog(
+        signInThroughBrowser($alice),
+        390,
+        844,
+        browserChannelUrl($team, $channel),
+    )
+        ->assertScript(<<<'JS'
+        (() => {
+            const close = document.querySelector('[data-test="dialog-close-button"]');
+
+            if (close === null) {
+                return false;
+            }
+
+            const box = close.getBoundingClientRect();
+
+            if (box.top < 0 || box.left < 0
+                || box.bottom > window.innerHeight || box.right > window.innerWidth) {
+                return false;
+            }
+
+            // Inset past the button's 2px corner radius, so a corner sample
+            // lands on the button rather than just outside its rounded shape.
+            return [
+                [box.left + 3, box.top + 3],
+                [box.right - 3, box.top + 3],
+                [box.left + 3, box.bottom - 3],
+                [box.right - 3, box.bottom - 3],
+                [box.left + box.width / 2, box.top + box.height / 2],
+            ].every(([x, y]) => {
+                const hit = document.elementFromPoint(x, y);
+
+                return hit !== null && close.contains(hit);
+            });
+        })()
+        JS, true);
+});
+
+test('the close button stays reachable while the sheet scrolls', function (): void {
+    ['owner' => $alice, 'team' => $team, 'channel' => $channel] = browserTeamWithChannel();
+
+    // A landscape phone is 360px tall; the create-channel form is not. The
+    // button used to be positioned against the scroll container's content, so
+    // scrolling to the primary action carried the way out off the top (#803).
+    openCreateChannelDialog(
+        signInThroughBrowser($alice),
+        740,
+        360,
+        browserChannelUrl($team, $channel),
+    )
+        ->assertScript(<<<'JS'
+        (() => {
+            const sheet = document.querySelector('[data-slot="dialog-content"]');
+            sheet.scrollTop = sheet.scrollHeight;
+
+            const close = document.querySelector('[data-test="dialog-close-button"]');
+            const box = close.getBoundingClientRect();
+            const hit = document.elementFromPoint(
+                box.left + box.width / 2,
+                box.top + box.height / 2,
+            );
+
+            return box.top >= 0
+                && box.bottom <= window.innerHeight
+                && hit !== null
+                && close.contains(hit);
+        })()
+        JS, true);
+});
+
 test('a sheet traps focus, and Escape closes it', function (): void {
     ['owner' => $alice, 'team' => $team, 'channel' => $channel] = browserTeamWithChannel();
 
