@@ -421,6 +421,55 @@ describe('iOS, which never fires an install prompt', () => {
     });
 });
 
+describe('where an install actually lands', () => {
+    /** Chrome on a phone: it prompts, but the app arrives on the home screen. */
+    const ANDROID_AGENT =
+        'Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Mobile Safari/537.36';
+
+    it('lands in a window on the desktop', async () => {
+        const { initializeAppInstall, useAppInstall } = await loadModule();
+
+        initializeAppInstall();
+        window.dispatchEvent(installPromptEvent());
+
+        const install = inComponent(() => useAppInstall());
+        await nextTick();
+
+        expect(install.installsToHomeScreen.value).toBe(false);
+    });
+
+    it('lands on the home screen on Android, which still prompts', async () => {
+        stubBrowser({ userAgent: ANDROID_AGENT, platform: 'Linux armv8l' });
+
+        const { initializeAppInstall, useAppInstall } = await loadModule();
+
+        initializeAppInstall();
+        window.dispatchEvent(installPromptEvent());
+
+        const install = inComponent(() => useAppInstall());
+        await nextTick();
+
+        expect(install.installsToHomeScreen.value).toBe(true);
+        expect(install.isInstructional.value).toBe(false);
+        expect(install.showRow.value).toBe(true);
+    });
+
+    it('lands on the home screen on iOS', async () => {
+        stubBrowser({
+            userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0) Safari',
+        });
+
+        const { initializeAppInstall, useAppInstall } = await loadModule();
+
+        initializeAppInstall();
+
+        const install = inComponent(() => useAppInstall());
+        await nextTick();
+
+        expect(install.installsToHomeScreen.value).toBe(true);
+    });
+});
+
 describe('Safari on macOS, which installs from its menu bar', () => {
     /** Stub a Mac desktop, whose browser is chosen by the agent passed in. */
     function stubMac(userAgent: string): void {

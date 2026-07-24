@@ -41,8 +41,13 @@ const emit = defineEmits<{
 
 const page = usePage();
 const { t } = useTranslations();
-const { installGuide, isInstructional, promptInstall, dismissCard } =
-    useAppInstall();
+const {
+    installGuide,
+    isInstructional,
+    installsToHomeScreen,
+    promptInstall,
+    dismissCard,
+} = useAppInstall();
 
 const appName = computed(() => page.props.name);
 const currentTeam = computed(() => page.props.currentTeam);
@@ -63,12 +68,18 @@ const pushAvailable = computed(
     () => page.props.webPush.enabled && page.props.webPush.publicKey !== null,
 );
 
+/**
+ * What installing actually buys, on the platform being asked. Push is not on the
+ * list: every browser that reaches this branch delivers it from a plain tab, and
+ * iOS — the one place installing is genuinely required — gets its own note in the
+ * instructional variant instead.
+ */
 const benefits = computed(() => {
-    const lines = [t('Opens full-screen from your home screen')];
-
-    if (pushAvailable.value) {
-        lines.push(t('Required for push notifications'));
-    }
+    const lines = [
+        installsToHomeScreen.value
+            ? t('Opens full-screen from your home screen')
+            : t('Opens in its own window, not a browser tab'),
+    ];
 
     if (currentTeam.value) {
         lines.push(

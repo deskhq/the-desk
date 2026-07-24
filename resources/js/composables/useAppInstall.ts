@@ -38,6 +38,7 @@ const deferredPrompt = ref<BeforeInstallPromptEvent | null>(null);
 const installed = ref(false);
 const ios = ref(false);
 const macSafari = ref(false);
+const android = ref(false);
 const dismissed = ref(false);
 const rowSeen = ref(false);
 const sessions = ref(0);
@@ -117,6 +118,15 @@ function isMacSafari(): boolean {
 }
 
 /**
+ * Whether this is an Android device. Chromium prompts for the install here just
+ * as it does on the desktop, so this changes nothing about how the install is
+ * offered — only where it lands, and therefore how the offer is worded.
+ */
+function isAndroid(): boolean {
+    return /android/i.test(navigator.userAgent);
+}
+
+/**
  * The number of browser sessions this device has spent in the app, counting the
  * current one. A same-tab navigation re-runs the bundle, so the tally is guarded
  * by a session-scoped marker rather than incremented on every boot.
@@ -151,6 +161,7 @@ export function initializeAppInstall(): void {
     installed.value = isStandaloneLaunch();
     ios.value = isIos();
     macSafari.value = isMacSafari();
+    android.value = isAndroid();
     dismissed.value = read(window.localStorage, DISMISSED_KEY) !== null;
     rowSeen.value = read(window.localStorage, ROW_SEEN_KEY) !== null;
     sessions.value = countSession();
@@ -207,6 +218,13 @@ export function useAppInstall() {
      */
     const isInstructional = computed(() => installGuide.value !== null);
 
+    /**
+     * Whether installing lands the app on a home screen rather than in a window
+     * of its own. The phones, where the invitation has to promise a tile and not
+     * a Dock icon.
+     */
+    const installsToHomeScreen = computed(() => ios.value || android.value);
+
     /** The permanent home for install, in the user menu. */
     const showRow = computed(
         () =>
@@ -254,6 +272,7 @@ export function useAppInstall() {
         showCard,
         installGuide,
         isInstructional,
+        installsToHomeScreen,
         promptInstall,
         dismissCard: recordDismissal,
     };
