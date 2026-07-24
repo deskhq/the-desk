@@ -43,6 +43,8 @@ import CreateTeamModal from '@/components/CreateTeamModal.vue';
 import DemoBanner from '@/components/DemoBanner.vue';
 import DirectMessageListItem from '@/components/DirectMessageListItem.vue';
 import DndPauseDialog from '@/components/DndPauseDialog.vue';
+import InstallAppCard from '@/components/InstallAppCard.vue';
+import InstallAppDialog from '@/components/InstallAppDialog.vue';
 import InviteMemberModal from '@/components/InviteMemberModal.vue';
 import KeyboardShortcutsModal from '@/components/KeyboardShortcutsModal.vue';
 import NavUser from '@/components/NavUser.vue';
@@ -85,6 +87,7 @@ import { useChimeNotifications } from '@/composables/useChimeNotifications';
 import { useDemoMode } from '@/composables/useDemoMode';
 import { useDndPauseDialog } from '@/composables/useDndPauseDialog';
 import { useInitials } from '@/composables/useInitials';
+import { useInstallDialog } from '@/composables/useInstallDialog';
 import { useKeyboardShortcuts } from '@/composables/useKeyboardShortcuts';
 import { useKeyboardShortcutsModal } from '@/composables/useKeyboardShortcutsModal';
 import { useMessageReminders } from '@/composables/useMessageReminders';
@@ -566,6 +569,7 @@ const { isOpen: shortcutsOpen, toggle: toggleShortcuts } =
     useKeyboardShortcutsModal();
 const { isOpen: statusDialogOpen } = useUserStatusDialog();
 const { isOpen: dndPauseDialogOpen } = useDndPauseDialog();
+const { isOpen: installDialogOpen } = useInstallDialog();
 
 /**
  * The viewer's still-pending reminders in this team, feeding the "Reminders"
@@ -1403,6 +1407,7 @@ onMounted(() => {
             </SidebarContent>
 
             <SidebarFooter class="border-t border-sidebar-border p-2.5">
+                <InstallAppCard />
                 <UpdateIndicator />
                 <NavUser />
             </SidebarFooter>
@@ -1465,6 +1470,8 @@ onMounted(() => {
         <KeyboardShortcutsModal v-model:open="shortcutsOpen" />
 
         <UserStatusDialog v-model:open="statusDialogOpen" />
+
+        <InstallAppDialog v-model:open="installDialogOpen" />
 
         <DndPauseDialog v-model:open="dndPauseDialogOpen" />
 
