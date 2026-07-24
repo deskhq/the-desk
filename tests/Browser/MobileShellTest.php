@@ -2,7 +2,9 @@
 
 declare(strict_types=1);
 
+use App\Actions\Channels\JoinChannel;
 use App\Enums\AppLocale;
+use App\Models\Channel;
 
 /**
  * The mobile breakpoint's shell: one pane below `md`, and no width at which the
@@ -140,19 +142,25 @@ test('a long channel name truncates rather than pushing the search icon off scre
         JS, true);
 });
 
-test('the dock opens as a 300px sheet whose every row clears a 44px touch target', function (): void {
+test('the dock opens full screen and its every row clears a 44px touch target', function (int $width, int $height): void {
     ['owner' => $alice, 'team' => $team, 'channel' => $channel] = browserTeamWithChannel();
 
+    // A 300px strip left a sliver of dimmed channel behind it that served no
+    // purpose on a phone (#834): the open dock now owns the whole viewport,
+    // edge to edge.
     signInThroughBrowser($alice)
-        ->resize(390, 844)
+        ->resize($width, $height)
         ->navigate(browserChannelUrl($team, $channel))
         ->click('@sidebar-toggle')
         ->assertPresent('@channels-nav')
         ->assertScript(<<<'JS'
-        (() => Math.round(
-            document.querySelector('[data-slot="sidebar"][data-mobile="true"]')
-                .getBoundingClientRect().width
-        ) === 300)()
+        (() => {
+            const box = document.querySelector('[data-slot="sidebar"][data-mobile="true"]')
+                .getBoundingClientRect();
+
+            return Math.round(box.width) === window.innerWidth
+                && Math.round(box.height) === window.innerHeight;
+        })()
         JS, true)
         // Channel and direct-message rows are the ones a thumb hits most, and
         // they carry the full 44px target.
@@ -175,6 +183,30 @@ test('the dock opens as a 300px sheet whose every row clears a 44px touch target
             return row !== null && Math.round(row.getBoundingClientRect().height) >= 38;
         }))()
         JS, true);
+})->with([
+    'small phone' => [360, 740],
+    'iPhone 14' => [390, 844],
+    // Landscape trips the sheet primitive's `sm:max-w-sm` cap, which only a
+    // full-screen dock needs lifted.
+    'landscape phone' => [740, 360],
+]);
+
+test('the dock header carries its own close affordance below the breakpoint', function (): void {
+    ['owner' => $alice, 'team' => $team, 'channel' => $channel] = browserTeamWithChannel();
+
+    // Full screen leaves no visible scrim to tap (#834), so the header takes
+    // over as the visible way out. The desktop rail is no dialog and offers no
+    // such button.
+    signInThroughBrowser($alice)
+        ->resize(390, 844)
+        ->navigate(browserChannelUrl($team, $channel))
+        ->click('@sidebar-toggle')
+        ->assertVisible('@dock-close')
+        ->click('@dock-close')
+        ->assertNotPresent('@channels-nav')
+        ->resize(1280, 800)
+        ->assertPresent('@channels-nav')
+        ->assertNotPresent('@dock-close');
 });
 
 test('the dock dismisses without a reload', function (): void {
@@ -192,6 +224,101 @@ test('the dock dismisses without a reload', function (): void {
         // its own unit tests over `swipeIntent`.
         ->keys('@channels-nav', ['Escape'])
         ->assertNotPresent('@channels-nav');
+});
+
+test('tapping a channel in the dock navigates and closes it in the same gesture', function (): void {
+    ['owner' => $alice, 'team' => $team, 'channel' => $general] = browserTeamWithChannel();
+
+    $planning = Channel::factory()->for($team)->create([
+        'name' => 'planning',
+        'slug' => 'planning',
+    ]);
+    app(JoinChannel::class)->handle($planning, $alice);
+
+    // Navigation used to leave the sheet open on top of the destination, a tap
+    // tax on the most common action in the app (#834): the visit and the
+    // dismissal are now the same gesture.
+    signInThroughBrowser($alice)
+        ->resize(390, 844)
+        ->navigate(browserChannelUrl($team, $general))
+        ->click('@sidebar-toggle')
+        ->assertPresent('@channels-nav')
+        ->click('[data-test="section-content-channels"] a[href$="/planning"]')
+        ->assertPathIs(browserChannelUrl($team, $planning))
+        ->assertNotPresent('@channels-nav');
+});
+
+test('closing on navigation hands focus to the destination pane', function (): void {
+    ['owner' => $alice, 'team' => $team, 'channel' => $general] = browserTeamWithChannel();
+
+    $planning = Channel::factory()->for($team)->create([
+        'name' => 'planning',
+        'slug' => 'planning',
+    ]);
+    app(JoinChannel::class)->handle($planning, $alice);
+
+    // The sheet's focus trap must release cleanly: the row it would restore
+    // focus to unmounts with the sheet, and letting focus drop to <body> strands
+    // keyboard users. It lands on the destination pane instead — the same
+    // #main the skip link targets.
+    signInThroughBrowser($alice)
+        ->resize(390, 844)
+        ->navigate(browserChannelUrl($team, $general))
+        ->click('@sidebar-toggle')
+        ->assertPresent('@channels-nav')
+        ->click('[data-test="section-content-channels"] a[href$="/planning"]')
+        ->assertNotPresent('@channels-nav')
+        ->assertScript(<<<'JS'
+        (() => document.activeElement === document.getElementById('main'))()
+        JS, true);
+});
+
+test('tapping the channel the user is already in still closes the dock', function (): void {
+    ['owner' => $alice, 'team' => $team, 'channel' => $general] = browserTeamWithChannel();
+
+    // A same-URL visit never fires Inertia's `navigate` event (it replaces the
+    // history entry instead of pushing one), but the row is still a navigating
+    // gesture to the user: the dock has to get out of the way all the same.
+    signInThroughBrowser($alice)
+        ->resize(390, 844)
+        ->navigate(browserChannelUrl($team, $general))
+        ->click('@sidebar-toggle')
+        ->assertPresent('@channels-nav')
+        ->click("[data-test=\"section-content-channels\"] a[href$=\"/{$general->slug}\"]")
+        ->assertPathIs(browserChannelUrl($team, $general))
+        ->assertNotPresent('@channels-nav');
+});
+
+test('collapsing a section keeps the dock open', function (): void {
+    ['owner' => $alice, 'team' => $team, 'channel' => $channel] = browserTeamWithChannel();
+
+    // The collapse persists through an Inertia partial reload, which must not
+    // read as a navigation: the user is arranging the dock, not leaving it.
+    signInThroughBrowser($alice)
+        ->resize(390, 844)
+        ->navigate(browserChannelUrl($team, $channel))
+        ->click('@sidebar-toggle')
+        ->assertVisible('@section-content-channels')
+        // Flag the persisting PATCH's completion so the final assertions run on
+        // the far side of the round trip — a wrongful close would fire there,
+        // after the optimistic assertions had already passed.
+        ->assertScript(<<<'JS'
+        (() => {
+            window.__collapsePersisted = false;
+            document.addEventListener('inertia:finish', () => {
+                window.__collapsePersisted = true;
+            }, { once: true });
+
+            return true;
+        })()
+        JS, true)
+        ->click('@section-toggle-channels')
+        ->assertMissing('@section-content-channels')
+        ->assertScript('window.__collapsePersisted', true)
+        ->assertPresent('@channels-nav')
+        ->assertScript(<<<'JS'
+        (() => document.querySelector('[data-slot="sidebar"][data-mobile="true"]') !== null)()
+        JS, true);
 });
 
 test('the composer stays a pill that keeps its field and Send button usable', function (int $width, int $height): void {

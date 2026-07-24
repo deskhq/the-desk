@@ -18,6 +18,35 @@ const props = withDefaults(defineProps<SidebarProps>(), {
 })
 
 const { isMobile, state, openMobile, setOpenMobile } = useSidebar()
+
+/**
+ * Navigate = close (#834). The provider's Inertia `navigate` listener covers
+ * URL-changing visits, but a tap on the row of the channel the user is already
+ * in replaces the history entry and never fires that event — so any activation
+ * that runs through a link inside the sheet closes it too. Buttons (section
+ * collapse, context menus, drag handles) fall through and keep it open.
+ */
+function closeOnLinkActivation(event: MouseEvent): void {
+  if ((event.target as HTMLElement | null)?.closest("a[href]")) {
+    setOpenMobile(false)
+  }
+}
+
+/**
+ * Where focus goes when the mobile sheet closes. The element reka would restore
+ * it to is usually the row that just navigated — unmounted with the sheet — so
+ * focus would strand on <body>. Hand it to the destination pane instead: the
+ * same #main the skip link targets, which carries tabindex="-1" for exactly
+ * this kind of programmatic focus.
+ */
+function focusDestinationPane(event: Event): void {
+  const main = document.getElementById("main")
+
+  if (main) {
+    event.preventDefault()
+    main.focus()
+  }
+}
 </script>
 
 <template>
@@ -36,16 +65,17 @@ const { isMobile, state, openMobile, setOpenMobile } = useSidebar()
       data-slot="sidebar"
       data-mobile="true"
       :side="side"
-      class="bg-sidebar text-sidebar-foreground w-(--sidebar-width) p-0 [&>button]:hidden"
+      class="bg-sidebar text-sidebar-foreground w-(--sidebar-width) sm:max-w-none p-0 [&>button]:hidden"
       :style="{
         '--sidebar-width': SIDEBAR_WIDTH_MOBILE,
       }"
+      @close-auto-focus="focusDestinationPane"
     >
       <SheetHeader class="sr-only">
         <SheetTitle>{{ $t('Sidebar') }}</SheetTitle>
         <SheetDescription>{{ $t('Displays the mobile sidebar.') }}</SheetDescription>
       </SheetHeader>
-      <div class="flex h-full w-full flex-col">
+      <div class="flex h-full w-full flex-col" @click="closeOnLinkActivation">
         <slot />
       </div>
     </SheetContent>

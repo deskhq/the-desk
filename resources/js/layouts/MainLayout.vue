@@ -14,6 +14,7 @@ import {
     Search,
     Trash2,
     UserPlus,
+    X,
 } from '@lucide/vue';
 import { computed, nextTick, onMounted, ref, watch } from 'vue';
 import { toast } from 'vue-sonner';
@@ -63,6 +64,7 @@ import {
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
+import { SheetClose } from '@/components/ui/sheet';
 import {
     Sidebar,
     SidebarContent,
@@ -85,6 +87,7 @@ import { useChimeNotifications } from '@/composables/useChimeNotifications';
 import { useDemoMode } from '@/composables/useDemoMode';
 import { useDndPauseDialog } from '@/composables/useDndPauseDialog';
 import { useInitials } from '@/composables/useInitials';
+import { useIsMobile } from '@/composables/useIsMobile';
 import { useKeyboardShortcuts } from '@/composables/useKeyboardShortcuts';
 import { useKeyboardShortcutsModal } from '@/composables/useKeyboardShortcutsModal';
 import { useMessageReminders } from '@/composables/useMessageReminders';
@@ -695,6 +698,13 @@ const { timezone, syncDetectedTimezone } = useTimezone();
  */
 const { sidebarPosition } = useSidebarPosition();
 
+/**
+ * Whether the dock currently renders as the full-screen mobile Sheet, which is
+ * when its header carries the close affordance (#834): full screen leaves no
+ * visible scrim to tap, so the header X is the visible way out.
+ */
+const isMobileViewport = useIsMobile();
+
 onMounted(() => {
     // Lazily pull the (optional) shared invitations so the post-login prompt
     // appears. It lands moments after the first render, when the user may already
@@ -849,6 +859,18 @@ onMounted(() => {
                                 }}</span>
                             </Button>
                         </CreateTeamModal>
+                        <SheetClose v-if="isMobileViewport" as-child>
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                :title="$t('Close')"
+                                data-test="dock-close"
+                                class="size-9 rounded-[10px] text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground"
+                            >
+                                <X class="size-4" />
+                                <span class="sr-only">{{ $t('Close') }}</span>
+                            </Button>
+                        </SheetClose>
                     </div>
                 </div>
             </SidebarHeader>
