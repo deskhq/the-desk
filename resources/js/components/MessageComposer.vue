@@ -31,6 +31,7 @@ import {
     TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { useAttachmentUploads } from '@/composables/useAttachmentUploads';
+import { useEllipsizedText } from '@/composables/useEllipsizedText';
 import { useInitials } from '@/composables/useInitials';
 import { useKeyboardInset } from '@/composables/useKeyboardInset';
 import type {
@@ -334,6 +335,13 @@ const composerPlaceholder = computed(
         props.placeholder ??
         t('Message #:channel', { channel: props.channelName }),
 );
+
+/**
+ * The placeholder as actually rendered: ellipsized to one line of the
+ * textarea so a long DM recipient name never wraps and grows the empty
+ * composer (#802). The aria-label keeps the full `composerPlaceholder`.
+ */
+const visiblePlaceholder = useEllipsizedText(textarea, composerPlaceholder);
 
 // Focus on mount when asked (e.g. the thread composer when a thread opens) so
 // the user can type straight away without clicking into the field. A restored
@@ -1776,7 +1784,7 @@ function onKeydown(event: KeyboardEvent): void {
                         ref="textarea"
                         v-model="body"
                         rows="1"
-                        :placeholder="composerPlaceholder"
+                        :placeholder="visiblePlaceholder"
                         :aria-label="composerPlaceholder"
                         data-test="message-composer-input"
                         role="combobox"
