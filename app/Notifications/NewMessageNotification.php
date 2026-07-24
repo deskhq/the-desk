@@ -60,7 +60,7 @@ class NewMessageNotification extends Notification implements ShouldQueue
     public function toWebPush(object $notifiable): WebPushMessage
     {
         return (new WebPushMessage)
-            ->title($this->title($notifiable))
+            ->title($this->title())
             ->body($this->preview())
             ->icon('/icons/icon-192.png')
             ->badge('/icons/icon-192.png')
@@ -80,7 +80,7 @@ class NewMessageNotification extends Notification implements ShouldQueue
      * well would just repeat them; a standard channel needs both, because the
      * sender alone doesn't say where to look.
      */
-    private function title(object $notifiable): string
+    private function title(): string
     {
         if ($this->channel->isDirectMessage()) {
             return $this->message->user->name;

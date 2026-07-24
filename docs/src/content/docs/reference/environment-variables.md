@@ -374,3 +374,33 @@ stack). Nothing is written to the database except a member's own manual away
 setting, and if the cache is unavailable everyone simply reads as active — the
 same as before the feature existed.
 :::
+
+## Web push notifications
+
+Members can opt in, **per device**, to browser notifications for new messages —
+so a mention still reaches them with the tab closed. The feature is **off** until
+you generate a VAPID keypair; see
+[Feature toggles → Web push notifications](/reference/feature-toggles/#web-push-notifications)
+for what it does and how it behaves.
+
+| Variable            | Default      | Notes                                                                                                     |
+| ------------------- | ------------ | --------------------------------------------------------------------------------------------------------- |
+| `VAPID_PUBLIC_KEY`  | *(unset)*    | Public half of the signing keypair. Served to the browser so it can subscribe. Both keys must be set.       |
+| `VAPID_PRIVATE_KEY` | *(unset)*    | Private half. Never leaves the server.                                                                      |
+| `VAPID_SUBJECT`     | *(`APP_URL`)*| How you identify yourself to the push services: a `mailto:` or `https:` URL they can contact you at.         |
+
+Generate the pair once, from inside the app container:
+
+```bash
+docker compose exec app php artisan webpush:vapid
+```
+
+It writes `VAPID_PUBLIC_KEY` and `VAPID_PRIVATE_KEY` into your `.env`. Restart
+the stack to pick them up.
+
+:::caution[Keep the keypair stable]
+The public key is baked into every subscription a browser has already granted.
+Rotating it silently invalidates them all: those devices stop receiving anything
+until each member turns the toggle off and on again. Back the pair up with your
+other secrets.
+:::
