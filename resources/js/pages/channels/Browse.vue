@@ -71,7 +71,7 @@ const props = defineProps<{
                 <Input
                     type="search"
                     :placeholder="$t('Search channels')"
-                    class="h-9 rounded-full border-0 bg-muted pl-10 text-[13.5px]"
+                    class="h-9 rounded-full border-0 bg-muted pl-10 text-base md:text-[13.5px]"
                     :aria-label="$t('Search channels')"
                 />
             </div>

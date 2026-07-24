@@ -146,7 +146,7 @@ function submit(): void {
                         type="text"
                         :placeholder="$t('Search channels and people…')"
                         data-test="forward-channel-search"
-                        class="h-full w-full bg-transparent text-sm outline-hidden placeholder:text-muted-foreground"
+                        class="h-full w-full bg-transparent text-base md:text-sm outline-hidden placeholder:text-muted-foreground"
                     />
                 </div>
                 <div
@@ -256,7 +256,7 @@ function submit(): void {
                     rows="2"
                     :placeholder="$t('Say something about this…')"
                     data-test="forward-note"
-                    class="w-full resize-none rounded-md border border-input bg-background px-2.5 py-1.5 text-sm leading-[1.5] text-foreground outline-none focus:border-ring focus:ring-1 focus:ring-ring"
+                    class="w-full resize-none rounded-md border border-input bg-background px-2.5 py-1.5 text-base md:text-sm leading-[1.5] text-foreground outline-none focus:border-ring focus:ring-1 focus:ring-ring"
                 ></textarea>
             </div>
 

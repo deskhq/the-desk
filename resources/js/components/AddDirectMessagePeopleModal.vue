@@ -184,7 +184,7 @@ function submit(): void {
                         :placeholder="$t('Type a name…')"
                         :aria-label="$t('Add people')"
                         data-test="add-people-input"
-                        class="h-7 w-full bg-transparent text-sm outline-hidden placeholder:text-muted-foreground"
+                        class="h-7 w-full bg-transparent text-base md:text-sm outline-hidden placeholder:text-muted-foreground"
                     />
                 </div>
             </div>

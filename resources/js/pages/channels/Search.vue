@@ -540,7 +540,7 @@ function jumpHref(result: MessageSearchResult): string {
                             :placeholder="$t('Filter people…')"
                             :aria-label="$t('Filter people')"
                             data-test="facet-author-filter"
-                            class="mb-1 h-8 text-xs max-md:h-11"
+                            class="mb-1 h-8 text-base md:text-xs max-md:h-11"
                             @keydown.stop
                         />
                         <div class="max-h-56 overflow-y-auto">
@@ -606,7 +606,7 @@ function jumpHref(result: MessageSearchResult): string {
                             v-model="channelFilter"
                             :placeholder="$t('Filter channels…')"
                             :aria-label="$t('Filter channels')"
-                            class="mb-1 h-8 text-xs max-md:h-11"
+                            class="mb-1 h-8 text-base md:text-xs max-md:h-11"
                             @keydown.stop
                         />
                         <div class="max-h-56 overflow-y-auto">

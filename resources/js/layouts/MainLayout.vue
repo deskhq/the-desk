@@ -994,7 +994,7 @@ onMounted(() => {
                                         "
                                         v-model="renameValue"
                                         :data-test="`section-rename-input-${group.section.id}`"
-                                        class="h-auto min-w-0 flex-1 rounded-sm border-sidebar-border bg-sidebar px-1 py-0.5 text-[11px] tracking-normal text-sidebar-foreground normal-case md:text-[11px] dark:bg-sidebar"
+                                        class="h-auto min-w-0 flex-1 rounded-sm border-sidebar-border bg-sidebar px-1 py-0.5 text-base tracking-normal text-sidebar-foreground normal-case md:text-[11px] dark:bg-sidebar"
                                         type="text"
                                         maxlength="50"
                                         @keydown.enter.prevent="
@@ -1312,7 +1312,7 @@ onMounted(() => {
                                 <Input
                                     v-model="newSectionName"
                                     data-test="create-section-input"
-                                    class="h-8 w-full rounded-md border-sidebar-border bg-sidebar px-2 py-1 text-[13px] text-sidebar-foreground md:text-[13px] dark:bg-sidebar"
+                                    class="h-8 w-full rounded-md border-sidebar-border bg-sidebar px-2 py-1 text-base text-sidebar-foreground md:text-[13px] dark:bg-sidebar"
                                     type="text"
                                     maxlength="50"
                                     :placeholder="$t('New section name')"
