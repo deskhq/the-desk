@@ -108,7 +108,7 @@ async function render(connectionPill: ConnectionPill): Promise<string> {
                 channel: channel(),
                 teamSlug: 'acme',
                 members: [],
-                presenceFor: () => 'active',
+                presenceFor: () => 'active' as const,
                 title: 'general',
                 canManagePreferences: false,
                 canArchive: false,
@@ -183,6 +183,25 @@ describe('ChannelMasthead connection pill mobile overlay', () => {
         expect(pill).toContain('md:px-2.5');
         expect(pill).toContain('md:py-1');
         expect(pill).toContain('md:shadow-none');
+    });
+
+    it('keeps the floating pill surface opaque in dark mode, restoring the translucent wash inline', async () => {
+        const reconnecting = openingTag(
+            await render('reconnecting'),
+            'connection-reconnecting',
+        );
+        const backOnline = openingTag(
+            await render('back-online'),
+            'connection-back-online',
+        );
+
+        // Floating over arbitrary timeline content (a poll bar, an image), the
+        // desktop's 40% dark wash lets whatever is behind bleed through and
+        // garble the label — the overlay needs a solid surface.
+        expect(reconnecting).toContain('dark:bg-amber-950 ');
+        expect(reconnecting).toContain('md:dark:bg-amber-950/40');
+        expect(backOnline).toContain('dark:bg-emerald-950 ');
+        expect(backOnline).toContain('md:dark:bg-emerald-950/40');
     });
 
     it('gives the transient back-online pill the same overlay placement and sizing', async () => {

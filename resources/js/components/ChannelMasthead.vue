@@ -355,7 +355,7 @@ const hasActivityReadout = computed(
                 v-if="props.connectionPill === 'reconnecting'"
                 data-test="connection-reconnecting"
                 role="status"
-                class="pointer-events-none absolute top-full left-1/2 mt-2 inline-flex -translate-x-1/2 items-center gap-1.5 rounded-full border border-amber-200 bg-amber-50 px-3.5 py-1.5 text-[13px] font-semibold text-amber-700 shadow-md md:static md:mt-0 md:translate-x-0 md:px-2.5 md:py-1 md:text-[11.5px] md:shadow-none dark:border-amber-900/50 dark:bg-amber-950/40 dark:text-amber-500"
+                class="pointer-events-none absolute top-full left-1/2 mt-2 inline-flex -translate-x-1/2 items-center gap-1.5 rounded-full border border-amber-200 bg-amber-50 px-3.5 py-1.5 text-[13px] font-semibold text-amber-700 shadow-md md:static md:mt-0 md:translate-x-0 md:px-2.5 md:py-1 md:text-[11.5px] md:shadow-none dark:border-amber-900/50 dark:bg-amber-950 dark:text-amber-500 md:dark:bg-amber-950/40"
             >
                 <span
                     class="size-1.5 animate-pulse rounded-full bg-amber-500"
@@ -375,7 +375,7 @@ const hasActivityReadout = computed(
                 v-else-if="props.connectionPill === 'back-online'"
                 data-test="connection-back-online"
                 role="status"
-                class="pointer-events-none absolute top-full left-1/2 mt-2 inline-flex -translate-x-1/2 items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-3.5 py-1.5 text-[13px] font-semibold text-emerald-700 shadow-md md:static md:mt-0 md:translate-x-0 md:px-2.5 md:py-1 md:text-[11.5px] md:shadow-none dark:border-emerald-900/50 dark:bg-emerald-950/40 dark:text-emerald-500"
+                class="pointer-events-none absolute top-full left-1/2 mt-2 inline-flex -translate-x-1/2 items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-3.5 py-1.5 text-[13px] font-semibold text-emerald-700 shadow-md md:static md:mt-0 md:translate-x-0 md:px-2.5 md:py-1 md:text-[11.5px] md:shadow-none dark:border-emerald-900/50 dark:bg-emerald-950 dark:text-emerald-500 md:dark:bg-emerald-950/40"
             >
                 <Check class="size-3" />
                 {{ $t('Back online') }}
