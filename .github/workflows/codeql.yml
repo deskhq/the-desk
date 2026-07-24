@@ -36,7 +36,14 @@ permissions:
 
 jobs:
   analyze:
-    name: Analyze (${{ matrix.language }})
+    # The display name must stay a static string that exactly matches the
+    # required-check context in the branch rulesets: a matrix job skipped by
+    # the job-level `if` below never expands, so it would report under the raw
+    # `Analyze (${{ matrix.language }})` name and the required context would
+    # sit on *Expected* forever (#825). JavaScript/TypeScript is the only
+    # CodeQL-supported language here anyway (see the header comment), so the
+    # matrix bought nothing.
+    name: Analyze (javascript-typescript)
     # Release-please PRs only touch VERSION/manifest/changelog files, none of
     # which contain analyzable code. A job-level `if` (not a `paths` filter)
     # keeps the PR mergeable: a skipped job reports its required check as
@@ -44,7 +51,8 @@ jobs:
     # starts leaves it stuck on *Expected*. The head-repo clause keeps the
     # branch name from becoming a CI bypass: `head_ref` is attacker-controlled,
     # so a fork branch named `release-please--anything` must still run
-    # everything. Guarded by tests/Unit/ReleasePullRequestCiSkipTest.php (#820).
+    # everything. Guarded by tests/Unit/ReleasePullRequestCiSkipTest.php
+    # (#820, #825).
     if: github.event_name != 'pull_request' || !startsWith(github.head_ref, 'release-please--') || github.event.pull_request.head.repo.full_name != github.repository
     runs-on: ${{ vars.CI_RUNNER || 'ubuntu-latest' }}
     permissions:
@@ -53,12 +61,6 @@ jobs:
       # Needed by CodeQL to read the workflow run on private repos; harmless here.
       actions: read
       contents: read
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - language: javascript-typescript
-            build-mode: none
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -68,11 +70,11 @@ jobs:
       - name: Initialize CodeQL
         uses: github/codeql-action/init@7188fc363630916deb702c7fdcf4e481b751f97a # v4.37.1
         with:
-          languages: ${{ matrix.language }}
-          build-mode: ${{ matrix.build-mode }}
+          languages: javascript-typescript
+          build-mode: none
           config-file: ./.github/codeql/codeql-config.yml
 
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@7188fc363630916deb702c7fdcf4e481b751f97a # v4.37.1
         with:
-          category: "/language:${{ matrix.language }}"
+          category: "/language:javascript-typescript"

@@ -38,16 +38,13 @@ jobs:
     # satisfied, while a workflow that never starts leaves it stuck on
     # *Expected*. The head-repo clause keeps the branch name from becoming a CI
     # bypass: `head_ref` is attacker-controlled, so a fork branch named
-    # `release-please--anything` must still run everything. Guarded by
-    # tests/Unit/ReleasePullRequestCiSkipTest.php (#820).
+    # `release-please--anything` must still run everything. The job must also
+    # stay matrix-free: a matrix job skipped by a job-level `if` never expands,
+    # so its check would report under the raw name and a matrix-expanded
+    # required context (`ci (8.5)`) would sit on *Expected* forever (#825).
+    # Guarded by tests/Unit/ReleasePullRequestCiSkipTest.php (#820, #825).
     if: github.event_name != 'pull_request' || !startsWith(github.head_ref, 'release-please--') || github.event.pull_request.head.repo.full_name != github.repository
     runs-on: ${{ vars.CI_RUNNER || 'ubuntu-latest' }}
-    strategy:
-      matrix:
-        # We develop and ship on 8.5, so CI exercises 8.5 only to keep Actions
-        # minutes down (see #260). 8.4 remains the supported composer floor via
-        # composer.json's `require`; it's just no longer tested on every run.
-        php-version: ['8.5']
 
     # The schema relies on Postgres-only defaults (gen_random_uuid()), so tests
     # run against Postgres to match the local Sail environment.
@@ -83,7 +80,10 @@ jobs:
       - name: Setup PHP
         uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # v2
         with:
-          php-version: ${{ matrix.php-version }}
+          # We develop and ship on 8.5, so CI exercises 8.5 only to keep Actions
+          # minutes down (see #260). 8.4 remains the supported composer floor via
+          # composer.json's `require`; it's just no longer tested on every run.
+          php-version: '8.5'
           extensions: gd, imagick
           tools: composer:v2
           # CI does not enforce the coverage gate — that stays local via
