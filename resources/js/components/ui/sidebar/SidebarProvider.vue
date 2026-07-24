@@ -62,10 +62,11 @@ useEdgeSwipe({
 
 // Navigate = close (#834): landing somewhere new is the dock's job done, so
 // the full-screen sheet dismisses itself rather than sitting on top of the
-// destination. Inertia only fires `navigate` for visits that push a new
-// history entry — same-URL visits and partial reloads (section collapse,
-// background `router.reload`s) go through `replaceState` and never fire it,
-// which is exactly the "non-navigating interactions keep the dock open" rule.
+// destination. Inertia fires `navigate` for URL-changing visits and history
+// traversal, but not for same-URL visits or partial reloads (section collapse,
+// background `router.reload`s) — those replace the current history entry and
+// skip the event, which is exactly the "non-navigating interactions keep the
+// dock open" rule.
 const stopNavigateListener = router.on("navigate", () => setOpenMobile(false))
 
 onUnmounted(stopNavigateListener)
