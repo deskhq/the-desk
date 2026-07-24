@@ -88,6 +88,7 @@ test('a member searches messages in their channels', function (): void {
             ->where('results.0.message.user.name', 'Ada Lovelace')
             ->where('results.0.channelName', $general->name)
             ->where('results.0.channelSlug', $general->slug)
+            ->where('results.0.isDirectMessage', false)
         );
 });
 
@@ -434,6 +435,7 @@ test('a search whose results include a direct message renders the counterpart na
             ->has('results', 1)
             ->where('results.0.channelName', 'Grace Hopper')
             ->where('results.0.channelSlug', $dm->slug)
+            ->where('results.0.isDirectMessage', true)
         );
 });
 

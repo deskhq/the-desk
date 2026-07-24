@@ -316,6 +316,7 @@ export type MessageSearchResult = {
     message: Message;
     channelName: string;
     channelSlug: string;
+    isDirectMessage: boolean;
     snippet: string;
     teamId: string;
     teamName: string;

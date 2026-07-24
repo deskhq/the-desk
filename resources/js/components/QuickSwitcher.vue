@@ -489,7 +489,9 @@ function openReminders(): void {
                                         >{{ result.message.user.name }}</span
                                     >
                                     <span class="text-muted-foreground"
-                                        ><span class="text-muted-foreground"
+                                        ><span
+                                            v-if="!result.isDirectMessage"
+                                            class="text-muted-foreground"
                                             >#</span
                                         >{{ result.channelName }}</span
                                     >
