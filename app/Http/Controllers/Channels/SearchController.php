@@ -127,7 +127,7 @@ class SearchController extends Controller
     private function results(User $user, Team $team, MessageSearchCriteria $criteria, SearchMessages $searchMessages, int $limit = SearchMessages::RESULT_LIMIT): array
     {
         return $searchMessages->handle($user, $team, $criteria, $limit)
-            ->map(fn (MessageSearchHit $hit): MessageSearchResultData => MessageSearchResultData::fromHit($hit))
+            ->map(fn (MessageSearchHit $hit): MessageSearchResultData => MessageSearchResultData::fromHit($hit, $user))
             ->all();
     }
 }

@@ -108,6 +108,28 @@ class Channel extends Model
     }
 
     /**
+     * The channel name as the given viewer sees it.
+     *
+     * Standard channels keep their stored name. DMs store `name = null` and
+     * render viewer-relative: the other participants' names, sorted and
+     * comma-joined (the lone counterpart in a 1:1); a self-DM, whose only
+     * member is the viewer, shows the viewer's own name.
+     */
+    public function displayNameFor(User $viewer): string
+    {
+        if (! $this->isDirectMessage()) {
+            return (string) $this->name;
+        }
+
+        $counterpartNames = $this->members
+            ->reject(fn (User $member): bool => $member->id === $viewer->id)
+            ->sortBy('name')
+            ->pluck('name');
+
+        return $counterpartNames->isEmpty() ? $viewer->name : $counterpartNames->join(', ');
+    }
+
+    /**
      * Determine whether the channel is archived.
      */
     public function isArchived(): bool

@@ -1,5 +1,6 @@
 <?php
 
+use App\Actions\Channels\OpenDirectMessage;
 use App\Actions\Teams\CreateTeam;
 use App\Enums\TeamRole;
 use App\Models\Channel;
@@ -87,6 +88,7 @@ test('a member searches messages in their channels', function (): void {
             ->where('results.0.message.user.name', 'Ada Lovelace')
             ->where('results.0.channelName', $general->name)
             ->where('results.0.channelSlug', $general->slug)
+            ->where('results.0.isDirectMessage', false)
         );
 });
 
@@ -417,6 +419,56 @@ test('the suggest query cannot exceed 255 characters', function (): void {
 
     performSuggest($member, $team, str_repeat('a', 256))
         ->assertJsonValidationErrorFor('q');
+});
+
+test('a search whose results include a direct message renders the counterpart name', function (): void {
+    [$owner, $team] = searchTeamWithGeneral();
+    $counterpart = User::factory()->create(['name' => 'Grace Hopper']);
+    $team->memberships()->create(['user_id' => $counterpart->id, 'role' => TeamRole::Member]);
+    $dm = app(OpenDirectMessage::class)->handle($team, $owner, $counterpart);
+    Message::factory()->for($dm)->for($counterpart)->create(['body' => 'the quokka hides in a dm']);
+
+    performSearch($owner, $team, 'quokka')
+        ->assertOk()
+        ->assertInertia(fn (Assert $page): Assert => $page
+            ->component('channels/Search')
+            ->has('results', 1)
+            ->where('results.0.channelName', 'Grace Hopper')
+            ->where('results.0.channelSlug', $dm->slug)
+            ->where('results.0.isDirectMessage', true)
+        );
+});
+
+test('a group direct message result joins the other participants as its name', function (): void {
+    [$owner, $team] = searchTeamWithGeneral();
+    $ada = User::factory()->create(['name' => 'Ada Lovelace']);
+    $grace = User::factory()->create(['name' => 'Grace Hopper']);
+    $team->memberships()->create(['user_id' => $ada->id, 'role' => TeamRole::Member]);
+    $team->memberships()->create(['user_id' => $grace->id, 'role' => TeamRole::Member]);
+    $groupDm = app(OpenDirectMessage::class)->openForUsers($team, $owner, collect([$grace, $ada]));
+    Message::factory()->for($groupDm)->for($ada)->create(['body' => 'the quokka joined the group']);
+
+    performSearch($owner, $team, 'quokka')
+        ->assertOk()
+        ->assertInertia(fn (Assert $page): Assert => $page
+            ->has('results', 1)
+            ->where('results.0.channelName', 'Ada Lovelace, Grace Hopper')
+            ->where('results.0.isDirectMessage', true)
+        );
+});
+
+test('a self direct message result shows the viewer their own name', function (): void {
+    [$owner, $team] = searchTeamWithGeneral();
+    $selfDm = app(OpenDirectMessage::class)->handle($team, $owner, $owner);
+    Message::factory()->for($selfDm)->for($owner)->create(['body' => 'note to self: quokka']);
+
+    performSearch($owner, $team, 'quokka')
+        ->assertOk()
+        ->assertInertia(fn (Assert $page): Assert => $page
+            ->has('results', 1)
+            ->where('results.0.channelName', $owner->name)
+            ->where('results.0.isDirectMessage', true)
+        );
 });
 
 test('soft-deleted messages report that they should not be searchable', function (): void {

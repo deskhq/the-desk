@@ -851,7 +851,10 @@ function jumpHref(result: MessageSearchResult): string {
                                     {{ result.message.user.name }}
                                 </span>
                                 <span class="text-muted-foreground">
-                                    <span class="text-brass">#</span
+                                    <span
+                                        v-if="!result.isDirectMessage"
+                                        class="text-brass"
+                                        >#</span
                                     >{{ result.channelName }}
                                 </span>
                                 <span
