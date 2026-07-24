@@ -1,6 +1,7 @@
 import { createInertiaApp } from '@inertiajs/vue3';
 import { configureEcho } from '@laravel/echo-vue';
 import { initializeTheme } from '@/composables/useAppearance';
+import { initializeAppInstall } from '@/composables/useAppInstall';
 import AuthLayout from '@/layouts/AuthLayout.vue';
 import MainLayout from '@/layouts/MainLayout.vue';
 import SettingsLayout from '@/layouts/settings/Layout.vue';
@@ -85,6 +86,10 @@ initializeLocaleSync();
 initializeFlashToast();
 
 initializeOverlayInert();
+
+// `beforeinstallprompt` fires early and only once per load, so the capture has
+// to be listening before Vue mounts — the install surfaces read what it caught.
+initializeAppInstall();
 
 // Only built assets ship a worker: `npm run dev` never emits one, so
 // registering there would just 404 on every page load.

@@ -3,7 +3,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { App } from 'vue';
 import { createApp, h, nextTick } from 'vue';
 
-type InstallModule = typeof import('./useAppInstall');
+import type * as AppInstall from './useAppInstall';
+
+type InstallModule = typeof AppInstall;
 
 let app: App | null = null;
 
@@ -41,10 +43,13 @@ function inComponent<T>(factory: () => T): T {
 
 /** A stand-in for the event Chrome fires when the app is installable. */
 function installPromptEvent(outcome: 'accepted' | 'dismissed' = 'accepted') {
-    return Object.assign(new Event('beforeinstallprompt', { cancelable: true }), {
-        prompt: vi.fn(() => Promise.resolve()),
-        userChoice: Promise.resolve({ outcome }),
-    });
+    return Object.assign(
+        new Event('beforeinstallprompt', { cancelable: true }),
+        {
+            prompt: vi.fn(() => Promise.resolve()),
+            userChoice: Promise.resolve({ outcome }),
+        },
+    );
 }
 
 function stubBrowser({
@@ -286,7 +291,9 @@ describe('triggering the install', () => {
         await nextTick();
         await install.promptInstall();
 
-        expect(window.localStorage.getItem('install.dismissedAt')).not.toBeNull();
+        expect(
+            window.localStorage.getItem('install.dismissedAt'),
+        ).not.toBeNull();
     });
 
     it('does nothing on the instructional variant, which has no prompt to give', async () => {

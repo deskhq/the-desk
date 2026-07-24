@@ -3,6 +3,7 @@ import { Link, usePage } from '@inertiajs/vue3';
 import {
     ChevronRight,
     Compass,
+    Download,
     LogOut,
     Monitor,
     Moon,
@@ -25,8 +26,10 @@ import {
 } from '@/components/ui/dialog';
 import UserStatusEmoji from '@/components/UserStatusEmoji.vue';
 import { useAppearance } from '@/composables/useAppearance';
+import { useAppInstall, useInstallRowBadge } from '@/composables/useAppInstall';
 import { useDndPauseDialog } from '@/composables/useDndPauseDialog';
 import { useInitials } from '@/composables/useInitials';
+import { useInstallDialog } from '@/composables/useInstallDialog';
 import { useOnboardingTour } from '@/composables/useOnboardingTour';
 import { useTranslations } from '@/composables/useTranslations';
 import { useUpdateStatus } from '@/composables/useUpdateStatus';
@@ -132,6 +135,17 @@ function openCustomPause(): void {
 
 function replayTour(): void {
     replayOnboardingTour();
+    close();
+}
+
+// Install's permanent home, mirroring the desktop dropdown's row. The sheet
+// retreats first: the install sheet is a second sheet over this one.
+const { showRow: showInstallRow } = useAppInstall();
+const { open: openInstallDialog } = useInstallDialog();
+const installRowIsNew = useInstallRowBadge();
+
+function openInstall(): void {
+    openInstallDialog();
     close();
 }
 
@@ -422,6 +436,33 @@ const footerStyle = {
                         "
                     />
                 </div>
+            </div>
+
+            <!-- Install: the same permanent row the desktop menu carries,
+                 brass-tinted and ahead of the account group. -->
+            <div v-if="showInstallRow" class="px-2 pt-2.5">
+                <Button
+                    variant="unstyled"
+                    size="none"
+                    type="button"
+                    data-test="install-app-menu-item"
+                    :class="[
+                        rowClass,
+                        'border border-brass-border/60 bg-brass/8 font-semibold',
+                    ]"
+                    @click="openInstall"
+                >
+                    <Download class="size-3.75 text-brass-fill-foreground" />
+                    <span class="min-w-0 flex-1 truncate">{{
+                        $t('Install app')
+                    }}</span>
+                    <span
+                        v-if="installRowIsNew"
+                        data-test="install-app-menu-badge"
+                        class="inline-flex h-4.5 shrink-0 items-center rounded-full bg-primary px-1.75 text-[9px] font-bold tracking-[0.04em] text-primary-foreground"
+                        >{{ $t('NEW') }}</span
+                    >
+                </Button>
             </div>
 
             <!-- Account + help. The keyboard-shortcuts row is dropped on
