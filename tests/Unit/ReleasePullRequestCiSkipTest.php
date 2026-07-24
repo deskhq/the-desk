@@ -65,6 +65,23 @@ test('the heavy workflows still trigger on release pull requests so their checks
 })->with(collect(heavyJobs())->pluck(0)->unique()->values()->all());
 
 /*
+ * The skip only satisfies a required check whose ruleset context matches the
+ * name the *skipped* job reports — and a matrix job skipped by a job-level
+ * `if` never expands its matrix, so it reports under the raw, unexpanded name
+ * (`ci`, `Analyze (${{ matrix.language }})`) instead of the expanded one the
+ * ruleset requires (`ci (8.5)`, `Analyze (javascript-typescript)`). The
+ * required context then sits on *Expected* forever and the release PR is
+ * unmergeable (#825). Heavy jobs therefore must not use a matrix, and any
+ * explicit display name must be a static string.
+ */
+test('the heavy jobs report static check names even when skipped', function (string $file, string $job) use ($workflow): void {
+    $definition = $workflow($file)['jobs'][$job];
+
+    expect($definition['strategy']['matrix'] ?? null)->toBeNull()
+        ->and($definition['name'] ?? $job)->not->toContain('${{');
+})->with(heavyJobs());
+
+/*
  * Merging a release PR pushes a commit touching only the files release-please
  * owns, and that push used to run the full suite once more. Push runs carry no
  * required checks, so a plain `paths-ignore` is safe where a `paths` filter on
