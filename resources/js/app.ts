@@ -12,6 +12,7 @@ import { setMessages, translate } from '@/lib/i18n';
 import type { Messages } from '@/lib/i18n';
 import { initializeLocaleSync } from '@/lib/localeSync';
 import { initializeOverlayInert } from '@/lib/overlayInert';
+import { registerServiceWorker } from '@/lib/serviceWorker';
 import type { TimeFormat } from '@/types';
 
 /**
@@ -84,3 +85,9 @@ initializeLocaleSync();
 initializeFlashToast();
 
 initializeOverlayInert();
+
+// Only built assets ship a worker: `npm run dev` never emits one, so
+// registering there would just 404 on every page load.
+if (import.meta.env.PROD) {
+    registerServiceWorker();
+}

@@ -119,6 +119,7 @@
     },
     "include": [
         "resources/js/**/*.ts",
+        "resources/pwa/**/*.ts",
         "resources/js/**/*.d.ts",
         "resources/js/**/*.tsx",
         "resources/js/**/*.vue",

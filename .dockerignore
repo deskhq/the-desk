@@ -23,6 +23,7 @@ vendor
 
 # Build artifacts generated inside the image.
 public/build
+public/service-worker.js
 public/hot
 public/storage
 bootstrap/ssr

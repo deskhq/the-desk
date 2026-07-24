@@ -2,6 +2,7 @@
 /bootstrap/ssr
 /node_modules
 /public/build
+/public/service-worker.js
 /public/fonts-manifest.dev.json
 /public/hot
 /public/storage
