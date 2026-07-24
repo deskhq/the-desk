@@ -1464,9 +1464,12 @@ function archive(): void {
                         </Button>
                     </div>
 
+                    <!-- Below `md` the line is indented to the message text
+                         column, so it reads as the next message rather than a
+                         stray note against the screen edge. -->
                     <TypingIndicator
                         :names="typingNames"
-                        class="mx-5 shrink-0"
+                        class="mx-5 shrink-0 max-md:pl-9"
                     />
 
                     <ScheduledCountChip

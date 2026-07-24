@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { useTranslations } from '@/composables/useTranslations';
 import {
     fileTypeLabel,
+    fillsBleedWidth,
     imageGridColumns,
     imageGridTiles,
     partitionAttachments,
@@ -82,10 +83,18 @@ function isSvg(attachment: AttachmentData): boolean {
 
 <template>
     <div class="mt-1.5 flex flex-col gap-1.5" data-test="message-attachments">
-        <!-- Single image: natural ratio, sized from stored dimensions (no shift). -->
+        <!-- Single image: natural ratio, sized from stored dimensions (no shift).
+             Below `md` a photo fills the width the block broke out to, keeping
+             its aspect ratio; one too small to fill it steps back into the
+             message's text column rather than being upscaled into a band. -->
         <div
             v-if="images.length === 1"
             class="group relative max-w-full overflow-hidden rounded-2xl border border-border"
+            :class="
+                fillsBleedWidth(images[0].width)
+                    ? 'max-md:w-full! max-md:rounded-none max-md:border-x-0'
+                    : 'max-md:ml-14'
+            "
             :style="{
                 width: `${singleBox.width}px`,
                 aspectRatio: `${singleBox.width} / ${singleBox.height}`,
@@ -125,13 +134,13 @@ function isSvg(attachment: AttachmentData): boolean {
             </span>
         </div>
 
-        <!-- 2+ images: a grid, with a "+N" tile folding the overflow. -->
+        <!-- 2+ images: a grid, with a "+N" tile folding the overflow. Tiles cap
+             at 150px on desktop; below `md` they share the width the block broke
+             out to, so the grid reaches both screen edges. -->
         <div
             v-else-if="images.length >= 2"
-            class="grid w-fit gap-1.5"
-            :style="{
-                gridTemplateColumns: `repeat(${gridColumns}, minmax(0, 150px))`,
-            }"
+            class="grid w-fit grid-cols-[repeat(var(--attachment-grid-columns),minmax(0,150px))] gap-1.5 max-md:w-full max-md:grid-cols-[repeat(var(--attachment-grid-columns),minmax(0,1fr))]"
+            :style="{ '--attachment-grid-columns': gridColumns }"
             data-test="attachment-grid"
         >
             <Button
@@ -182,7 +191,7 @@ function isSvg(attachment: AttachmentData): boolean {
             :rel="file.filename ? undefined : 'noopener noreferrer'"
             data-test="attachment-file"
             :aria-label="t('Download :name', { name: file.filename ?? '' })"
-            class="flex w-95 max-w-full items-center gap-3 rounded-xl border border-border bg-muted/40 px-3 py-2.5 transition-colors hover:bg-muted/70 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+            class="flex w-95 max-w-full items-center gap-3 rounded-xl border border-border bg-muted/40 px-3 py-2.5 transition-colors hover:bg-muted/70 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none max-md:w-full max-md:rounded-none max-md:border-x-0 max-md:px-5"
         >
             <span
                 class="flex size-10 shrink-0 items-center justify-center rounded-[10px] bg-muted text-muted-foreground"
