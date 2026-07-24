@@ -2,6 +2,7 @@
 
 use App\Actions\Teams\CreateTeam;
 use App\Data\AuditExportData;
+use App\Enums\AppLocale;
 use App\Enums\AuditAction;
 use App\Enums\AuditExportFormat;
 use App\Enums\AuditExportLogType;
@@ -89,6 +90,19 @@ test('the exports page lists exports newest first', function (): void {
         ->assertInertia(fn (Assert $page): Assert => $page
             ->where('exports.0.id', $newer->id)
             ->where('exports.1.id', $older->id));
+});
+
+test('the exports page catalog carries the new-export intro line in french', function (): void {
+    [, $team] = exportTeam();
+    $admin = exportMember($team, TeamRole::Admin);
+    $admin->update(['locale' => AppLocale::French->value]);
+
+    $page = $this->actingAs($admin)
+        ->get(route('teams.audit-exports.index', $team))
+        ->viewData('page');
+
+    expect($page['props']['translations'])
+        ->toHaveKey("One log, one format, one file. You'll get an email when it's ready.");
 });
 
 test('a plain member cannot view the exports page', function (): void {
