@@ -172,7 +172,13 @@
     --demo-chip: #ffffff;
     --demo-chip-foreground: #7d6023;
     /* Height of the fixed demo strip, so the shell can reserve space beneath it
-       (the banner is `position: fixed`, out of flow). Theme-independent. */
+       (the banner is `position: fixed`, out of flow). Theme-independent.
+
+       This is the pre-hydration fallback only: the strip stacks into two rows
+       below `md` and its copy wraps to a width- and locale-dependent number of
+       lines, so DemoBanner.vue measures itself on mount and overrides this with
+       the height it really occupies (#841). Keep it matching the desktop strip's
+       own `md:h-10`. */
     --demo-banner-height: 2.5rem;
     --chart-1: #c9a35c;
     --chart-2: #7d6023;
@@ -190,6 +196,16 @@
     --sidebar-ring: #8a6a1f;
     --sidebar: #fbfaf7;
     --sidebar-rail: #eeeade;
+}
+
+/* The stacked, two-row treatment of the demo strip below `md`. Still only the
+   pre-hydration fallback — DemoBanner.vue replaces it with the measured height
+   as soon as it mounts — but it keeps that first paint from underlapping by a
+   whole row. */
+@media (width < 48rem) {
+    :root {
+        --demo-banner-height: 3.75rem;
+    }
 }
 
 .dark {
