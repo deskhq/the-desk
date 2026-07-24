@@ -220,7 +220,7 @@ watch(
 <template>
     <aside
         data-test="thread-panel"
-        class="flex w-full min-w-0 shrink-0 flex-col overflow-hidden max-md:absolute max-md:inset-0 max-md:z-30 max-md:bg-card md:m-3.5 md:w-96 md:rounded-[14px] md:border md:border-border md:bg-sidebar md:shadow-sm"
+        class="z-30 flex w-full min-w-0 shrink-0 flex-col overflow-hidden max-md:absolute max-md:inset-0 max-md:bg-card md:rounded-[14px] md:border md:border-border md:bg-sidebar md:shadow-sm md:max-lg:absolute md:max-lg:inset-0 md:max-lg:w-auto lg:relative lg:m-3.5 lg:w-96"
     >
         <header
             class="flex shrink-0 items-center gap-2.5 border-b border-border px-4 pt-4 pb-3 md:items-start md:gap-2 md:px-4.5"

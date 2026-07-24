@@ -10,8 +10,11 @@ use App\Models\User;
 /**
  * The thread panel below `md`: a full-screen push over the channel with a back
  * chevron (per the mobile design's `m3`), never a side pane — a side pane on a
- * 390px viewport leaves neither the channel nor the thread readable. At and
- * above `md` the panel stays the side pane it is on desktop.
+ * 390px viewport leaves neither the channel nor the thread readable. From `md`
+ * to `lg` the panel keeps its desktop header but overlays the whole card: the
+ * dock (300px) plus the fixed side pane leave the channel a ~56px sliver at
+ * 768px, and its overflowing masthead controls painted over the panel (#788).
+ * Only at `lg` and up is there room for the side pane beside the channel.
  */
 
 /**
@@ -107,7 +110,63 @@ test('below md a thread opens as a full-screen push over the whole card', functi
     'the last mobile width' => [767, 800],
 ]);
 
-test('at and above md the thread stays the side pane it is today', function (int $width): void {
+test('at tablet widths the thread takes the full card instead of squeezing the channel', function (int $width): void {
+    ['owner' => $alice] = threadedChannel();
+
+    $page = signInThroughBrowser($alice)
+        ->resize($width, 1024)
+        ->assertSee('Thread root message');
+
+    $page->click('[data-test=thread-summary]')
+        ->assertPresent('[data-test=thread-panel]')
+        // The desktop header survives: the X closes the thread, the back
+        // chevron stays a below-`md` affordance, and the reply count stays in
+        // the header rather than the push's divider.
+        ->assertVisible('[data-test=thread-close]')
+        ->assertScript(<<<'JS'
+        (() => {
+            const back = document.querySelector('[data-test=thread-back]');
+
+            return back === null || back.offsetParent === null;
+        })()
+        JS, true)
+        ->assertNotPresent('[data-test=thread-replies-divider]')
+        // The panel covers the card edge to edge instead of leaving the channel
+        // a sliver beside it: at 768px the dock and the fixed side pane would
+        // leave the channel ~56px.
+        ->assertScript(<<<'JS'
+        (() => {
+            const card = document.querySelector('#main').getBoundingClientRect();
+            const panel = document.querySelector('[data-test=thread-panel]').getBoundingClientRect();
+
+            return Math.abs(panel.left - card.left) <= 4
+                && Math.abs(panel.right - card.right) <= 4
+                && Math.abs(panel.top - card.top) <= 4
+                && Math.abs(panel.bottom - card.bottom) <= 4;
+        })()
+        JS, true)
+        // The masthead paints under the overlay, so no masthead control can
+        // sit on top of the panel (the #788 overpaint).
+        ->assertScript(<<<'JS'
+        (() => {
+            const panel = document.querySelector('[data-test=thread-panel]');
+            const controls = [...document.querySelectorAll('[data-test=masthead-search], [data-test=masthead-pins], [data-test=channel-options]')]
+                .filter((el) => el.getClientRects().length > 0);
+
+            return controls.length > 0 && controls.every((el) => {
+                const rect = el.getBoundingClientRect();
+                const top = document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2);
+
+                return top !== null && panel.contains(top);
+            });
+        })()
+        JS, true);
+})->with([
+    'the md boundary' => [768],
+    'the last tablet width' => [1023],
+]);
+
+test('at and above lg the thread stays the side pane it is today', function (int $width): void {
     ['owner' => $alice] = threadedChannel();
 
     $page = signInThroughBrowser($alice)
@@ -134,11 +193,24 @@ test('at and above md the thread stays the side pane it is today', function (int
             return back === null || back.offsetParent === null;
         })()
         JS, true)
+        // Every masthead control stays wholly inside the channel column — none
+        // reaches over the pane's left edge (the #788 overpaint).
+        ->assertScript(<<<'JS'
+        (() => {
+            const panel = document.querySelector('[data-test=thread-panel]').getBoundingClientRect();
+            const controls = [...document.querySelectorAll('[data-test=masthead-search], [data-test=masthead-pins], [data-test=channel-options]')]
+                .filter((el) => el.getClientRects().length > 0);
+
+            return controls.length > 0 && controls.every(
+                (el) => el.getBoundingClientRect().right <= panel.left + 1,
+            );
+        })()
+        JS, true)
         // The desktop header keeps the count, so no divider splits the list.
         ->assertNotPresent('[data-test=thread-replies-divider]');
 })->with([
-    'the breakpoint itself' => [768],
-    'desktop' => [1024],
+    'the lg boundary' => [1024],
+    'wide desktop' => [1280],
 ]);
 
 test('back returns to the channel at the scroll position it was left at', function (): void {

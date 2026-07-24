@@ -314,7 +314,7 @@ function channelColor(indexInList: number): string {
                     variant="segmented"
                     size="none"
                     type="button"
-                    class="h-7 px-3.5 text-[12.5px] font-medium"
+                    class="h-7 px-3.5 text-[12.5px] font-medium max-md:h-11"
                     :aria-pressed="option.value === range"
                     :data-test="`analytics-range-${option.value}`"
                     @click="selectRange(option.value)"

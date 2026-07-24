@@ -1177,9 +1177,10 @@ function archive(): void {
         {{ sendFailureAnnouncement }}
     </div>
 
-    <!-- `relative` anchors the thread panel below the breakpoint, where it is a
-         full-screen push over this whole pane — masthead included — rather than
-         a flex sibling squeezing the channel beside it. -->
+    <!-- `relative` anchors the thread panel below `lg`, where it covers this
+         whole pane — masthead included — rather than being a flex sibling
+         squeezing the channel beside it: a full-screen push below `md`, a
+         card-sized overlay through the tablet band (#788). -->
     <div class="relative flex min-h-0 flex-1 overflow-hidden">
         <div class="relative flex min-w-0 flex-1 flex-col">
             <ChannelMasthead

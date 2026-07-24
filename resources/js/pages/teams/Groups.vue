@@ -238,7 +238,7 @@ function confirmRemoval(): void {
                             v-model="createForm.name"
                             data-test="group-name-input"
                             :placeholder="$t('Dev Team')"
-                            class="sm:w-56"
+                            class="max-md:h-11 sm:w-56"
                             autocomplete="off"
                         />
                         <InputError :message="createForm.errors.name" />
@@ -248,7 +248,7 @@ function confirmRemoval(): void {
                             v-model="createForm.slug"
                             data-test="group-slug-input"
                             placeholder="@dev-team"
-                            class="font-mono sm:w-48"
+                            class="font-mono max-md:h-11 sm:w-48"
                             autocapitalize="off"
                             autocomplete="off"
                             spellcheck="false"
@@ -258,7 +258,7 @@ function confirmRemoval(): void {
                     <Button
                         type="submit"
                         data-test="group-create-button"
-                        class="rounded-full"
+                        class="rounded-full max-md:h-11"
                         :disabled="createForm.processing"
                     >
                         <Plus class="size-4" /> {{ $t('Create') }}
@@ -275,7 +275,7 @@ function confirmRemoval(): void {
                 v-model="search"
                 data-test="group-search"
                 :placeholder="$t('Search groups')"
-                class="rounded-full pl-9"
+                class="rounded-full pl-9 max-md:h-11"
             />
         </div>
 

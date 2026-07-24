@@ -223,7 +223,7 @@ function submitOutgoing(): void {
                 </div>
                 <Button
                     type="button"
-                    class="rounded-full"
+                    class="rounded-full max-md:h-11"
                     data-test="new-bot-button"
                     @click="showBotDialog = true"
                 >
@@ -324,7 +324,7 @@ function submitOutgoing(): void {
                 <Button
                     type="button"
                     variant="outline"
-                    class="rounded-full"
+                    class="rounded-full max-md:h-11"
                     data-test="new-incoming-button"
                     :disabled="bots.length === 0"
                     @click="showIncomingDialog = true"
@@ -401,7 +401,7 @@ function submitOutgoing(): void {
                 <Button
                     type="button"
                     variant="outline"
-                    class="rounded-full"
+                    class="rounded-full max-md:h-11"
                     data-test="new-outgoing-button"
                     @click="showOutgoingDialog = true"
                 >

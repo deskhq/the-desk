@@ -27,14 +27,14 @@ defineProps<{
 }>();
 
 defineOptions({
-    layout: {
+    layout: () => ({
         breadcrumbs: [
             {
                 title: translate('Language & region'),
                 href: edit(),
             },
         ],
-    },
+    }),
 });
 
 const { locale, updateLocale } = useLocale();
@@ -92,7 +92,10 @@ function onSelectTimeFormat(value: unknown): void {
             v-slot="{ id }"
         >
             <Select :model-value="selected" @update:model-value="onSelect">
-                <SelectTrigger :id="id" class="w-full">
+                <SelectTrigger
+                    :id="id"
+                    class="w-full max-md:data-[size=default]:h-11"
+                >
                     <SelectValue :placeholder="$t('Select a language')" />
                 </SelectTrigger>
                 <SelectContent>
@@ -130,7 +133,11 @@ function onSelectTimeFormat(value: unknown): void {
                 :model-value="selectedTimeFormat"
                 @update:model-value="onSelectTimeFormat"
             >
-                <SelectTrigger :id="id" data-test="time-format" class="w-full">
+                <SelectTrigger
+                    :id="id"
+                    data-test="time-format"
+                    class="w-full max-md:data-[size=default]:h-11"
+                >
                     <SelectValue :placeholder="$t('Select a clock style')" />
                 </SelectTrigger>
                 <SelectContent>

@@ -13,14 +13,14 @@ defineProps<{
 }>();
 
 defineOptions({
-    layout: {
+    layout: () => ({
         breadcrumbs: [
             {
                 title: translate('Data & privacy'),
                 href: edit(),
             },
         ],
-    },
+    }),
 });
 </script>
 

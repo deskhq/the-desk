@@ -17,6 +17,7 @@ use App\Http\Controllers\Settings\ProfileController;
 use App\Http\Controllers\Settings\ReadReceiptsController;
 use App\Http\Controllers\Settings\SecurityController;
 use App\Http\Controllers\Settings\SessionController;
+use App\Http\Controllers\Settings\SettingsIndexController;
 use App\Http\Controllers\Settings\SidebarPositionController;
 use App\Http\Controllers\Settings\StatusController;
 use App\Http\Controllers\Settings\TimeFormatController;
@@ -41,7 +42,7 @@ use Illuminate\Auth\Middleware\RequirePassword;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware(['auth'])->group(function (): void {
-    Route::redirect('settings', '/settings/profile');
+    Route::get('settings', [SettingsIndexController::class, 'index'])->name('settings.index');
 
     Route::get('settings/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('settings/profile', [ProfileController::class, 'update'])->name('profile.update');

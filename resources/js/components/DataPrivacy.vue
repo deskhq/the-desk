@@ -77,7 +77,7 @@ function formatDate(iso: string): string {
                 type="submit"
                 variant="ghost"
                 size="sm"
-                class="rounded-full text-muted-foreground"
+                class="rounded-full text-muted-foreground max-md:h-11"
                 :disabled="processing || isPending"
                 data-test="request-data-export-button"
             >
@@ -150,7 +150,11 @@ function formatDate(iso: string): string {
             </template>
         </div>
 
-        <div class="ml-auto flex shrink-0 items-center gap-2.5">
+        <!-- Below the breakpoint the actions drop onto their own row so the
+             status text keeps a readable measure beside the icon. -->
+        <div
+            class="flex shrink-0 items-center gap-2.5 max-md:w-full md:ml-auto"
+        >
             <Form
                 v-bind="DataExportController.store.form()"
                 :options="{ preserveScroll: true }"
@@ -160,7 +164,7 @@ function formatDate(iso: string): string {
                     type="submit"
                     :variant="requestVariant"
                     size="sm"
-                    class="rounded-full"
+                    class="rounded-full max-md:h-11"
                     :class="isReady ? 'text-muted-foreground' : ''"
                     :disabled="processing"
                     data-test="request-data-export-button"
@@ -174,7 +178,7 @@ function formatDate(iso: string): string {
                 as="a"
                 :href="downloadUrl"
                 download
-                class="h-8.5 gap-2 rounded-full px-4.5"
+                class="h-8.5 gap-2 rounded-full px-4.5 max-md:h-11"
             >
                 <Download class="size-4" />
                 {{ $t('Download') }}

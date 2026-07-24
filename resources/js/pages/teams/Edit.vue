@@ -177,10 +177,12 @@ const confirmTransferOwnership = (member: TeamMember) => {
     <Head :title="pageTitle" />
 
     <div>
-        <!-- Page header -->
-        <header class="border-b border-border pb-6">
+        <!-- Page header. Below the breakpoint the pushed screen's own header
+             already carries the trail and the team name, so only the ownership
+             badge survives there. -->
+        <header class="border-b border-border pb-6 max-md:border-0 max-md:pb-0">
             <nav
-                class="flex items-center gap-1.5 text-xs text-muted-foreground"
+                class="hidden items-center gap-1.5 text-xs text-muted-foreground md:flex"
                 :aria-label="$t('breadcrumb')"
             >
                 <Link :href="index()" class="hover:text-foreground">
@@ -192,8 +194,8 @@ const confirmTransferOwnership = (member: TeamMember) => {
                 }}</span>
             </nav>
 
-            <div class="mt-2 flex flex-wrap items-end gap-3">
-                <div class="min-w-0">
+            <div class="flex flex-wrap items-end gap-3 md:mt-2">
+                <div class="min-w-0 max-md:hidden">
                     <h1
                         class="font-serif text-3xl font-semibold tracking-tight"
                     >

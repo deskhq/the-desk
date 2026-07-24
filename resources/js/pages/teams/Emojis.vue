@@ -170,7 +170,7 @@ function addedAt(iso: string): string {
                             accept="image/png,image/gif"
                             data-test="emoji-image-input"
                             :aria-label="$t('Emoji image')"
-                            class="block w-full text-sm text-muted-foreground file:mr-3 file:rounded-full file:border file:border-border file:bg-background file:px-3 file:py-1.5 file:text-sm file:font-medium hover:file:bg-muted"
+                            class="block w-full text-sm text-muted-foreground file:mr-3 file:rounded-full file:border file:border-border file:bg-background file:px-3 file:py-1.5 file:text-sm file:font-medium hover:file:bg-muted max-md:file:py-2.75"
                             @change="onFileChange"
                         />
                         <InputError :message="form.errors.image" />
@@ -180,7 +180,7 @@ function addedAt(iso: string): string {
                             v-model="form.name"
                             data-test="emoji-name-input"
                             placeholder=":name:"
-                            class="font-mono sm:w-48"
+                            class="font-mono max-md:h-11 sm:w-48"
                             autocapitalize="off"
                             autocomplete="off"
                             spellcheck="false"
@@ -190,7 +190,7 @@ function addedAt(iso: string): string {
                     <Button
                         type="submit"
                         data-test="emoji-add-button"
-                        class="rounded-full"
+                        class="rounded-full max-md:h-11"
                         :disabled="form.processing"
                     >
                         <Plus class="size-4" /> {{ $t('Add') }}
@@ -208,7 +208,7 @@ function addedAt(iso: string): string {
                 v-model="search"
                 data-test="emoji-search"
                 :placeholder="$t('Search emoji')"
-                class="rounded-full pl-9"
+                class="rounded-full pl-9 max-md:h-11"
             />
         </div>
 
@@ -242,7 +242,7 @@ function addedAt(iso: string): string {
                     >:{{ emoji.name }}:</span
                 >
                 <div
-                    class="flex w-40 items-center gap-2 text-sm text-muted-foreground"
+                    class="flex w-40 items-center gap-2 text-sm text-muted-foreground max-md:hidden"
                 >
                     <span
                         v-if="emoji.createdBy"
@@ -254,16 +254,17 @@ function addedAt(iso: string): string {
                         emoji.createdBy?.name ?? $t('Unknown member')
                     }}</span>
                 </div>
-                <span class="w-28 shrink-0 text-xs text-muted-foreground">{{
-                    addedAt(emoji.createdAt)
-                }}</span>
+                <span
+                    class="w-28 shrink-0 text-xs text-muted-foreground max-md:hidden"
+                    >{{ addedAt(emoji.createdAt) }}</span
+                >
                 <Button
                     v-if="canRemove(emoji)"
                     variant="linkDestructive"
                     size="none"
                     type="button"
                     :data-test="`emoji-remove-${emoji.name}`"
-                    class="shrink-0 text-xs font-semibold"
+                    class="shrink-0 text-xs font-semibold max-md:min-h-11"
                     @click="pendingRemoval = emoji"
                 >
                     {{

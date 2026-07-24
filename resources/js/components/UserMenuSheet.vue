@@ -37,7 +37,7 @@ import type { DndPauseKey } from '@/lib/dndPause';
 import { presenceLabelKey } from '@/lib/presence';
 import { logout } from '@/routes';
 import { edit as appearanceEdit } from '@/routes/appearance';
-import { edit } from '@/routes/profile';
+import { index as settingsIndex } from '@/routes/settings';
 import type { Appearance, User } from '@/types';
 
 const props = defineProps<{
@@ -428,7 +428,7 @@ const footerStyle = {
                  purpose: a phone has no hardware keyboard (design m8). -->
             <div class="px-2 pt-2.5 pb-2">
                 <Link
-                    :href="edit()"
+                    :href="settingsIndex()"
                     data-test="settings-menu-item"
                     prefetch
                     :class="rowClass"

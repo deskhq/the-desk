@@ -22,14 +22,14 @@ import { edit } from '@/routes/profile';
 import { send } from '@/routes/verification';
 
 defineOptions({
-    layout: {
+    layout: () => ({
         breadcrumbs: [
             {
                 title: translate('Profile settings'),
                 href: edit(),
             },
         ],
-    },
+    }),
 });
 
 const page = usePage();
@@ -92,6 +92,7 @@ function onTimezoneSelect(value: unknown): void {
             >
                 <Input
                     :id="id"
+                    class="max-md:h-11"
                     name="name"
                     :default-value="user.name"
                     required
@@ -108,6 +109,7 @@ function onTimezoneSelect(value: unknown): void {
             >
                 <Input
                     :id="id"
+                    class="max-md:h-11"
                     type="email"
                     name="email"
                     :default-value="user.email"
@@ -125,6 +127,7 @@ function onTimezoneSelect(value: unknown): void {
             >
                 <Input
                     :id="id"
+                    class="max-md:h-11"
                     name="pronouns"
                     :default-value="user.pronouns ?? ''"
                     maxlength="50"
@@ -140,6 +143,7 @@ function onTimezoneSelect(value: unknown): void {
             >
                 <Input
                     :id="id"
+                    class="max-md:h-11"
                     name="title"
                     :default-value="user.title ?? ''"
                     maxlength="100"
@@ -155,6 +159,7 @@ function onTimezoneSelect(value: unknown): void {
             >
                 <Input
                     :id="id"
+                    class="max-md:h-11"
                     type="tel"
                     name="phone"
                     :default-value="user.phone ?? ''"
@@ -199,7 +204,7 @@ function onTimezoneSelect(value: unknown): void {
                 <DemoLock v-slot="{ disabled }">
                     <Button
                         :disabled="processing || disabled"
-                        class="rounded-full px-6"
+                        class="rounded-full px-6 max-md:h-11"
                         data-test="update-profile-button"
                         >{{ $t('Save') }}</Button
                     >
@@ -234,7 +239,11 @@ function onTimezoneSelect(value: unknown): void {
                 :model-value="timezone ?? undefined"
                 @update:model-value="onTimezoneSelect"
             >
-                <SelectTrigger :id="id" class="w-full" data-test="timezone">
+                <SelectTrigger
+                    :id="id"
+                    class="w-full max-md:data-[size=default]:h-11"
+                    data-test="timezone"
+                >
                     <SelectValue :placeholder="$t('Select a timezone')" />
                 </SelectTrigger>
                 <SelectContent>

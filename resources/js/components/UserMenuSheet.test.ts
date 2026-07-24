@@ -31,7 +31,14 @@ vi.mock('@inertiajs/vue3', () => ({
             () =>
                 h(
                     props.as === 'button' ? 'button' : 'a',
-                    { ...attrs, 'data-prefetch': props.prefetch || undefined },
+                    {
+                        ...attrs,
+                        'data-prefetch': props.prefetch || undefined,
+                        'data-href':
+                            typeof props.href === 'string'
+                                ? props.href
+                                : ((props.href as { url?: string }).url ?? ''),
+                    },
                     slots.default?.(),
                 ),
     }),
@@ -379,6 +386,9 @@ describe('UserMenuSheet navigation and footer', () => {
 
         const settings = find(host, 'settings-menu-item')!;
         expect(settings.getAttribute('data-prefetch')).not.toBeNull();
+        // Below `md` Settings opens on its full-screen index (#816), never
+        // straight on the profile pane.
+        expect(settings.getAttribute('data-href')).toBe('/settings');
 
         settings.click();
 

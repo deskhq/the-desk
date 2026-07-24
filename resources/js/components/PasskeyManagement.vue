@@ -121,6 +121,7 @@ async function submitAdding(): Promise<void> {
                     <template #trigger>
                         <Button
                             variant="linkDestructive"
+                            class="max-md:min-h-11"
                             data-test="remove-passkey-button"
                         >
                             {{ $t('Remove') }}
@@ -164,7 +165,7 @@ async function submitAdding(): Promise<void> {
 
             <div class="flex items-center gap-3">
                 <Button
-                    class="rounded-full px-6"
+                    class="rounded-full px-6 max-md:h-11"
                     :loading="isLoading"
                     data-test="save-passkey-button"
                 >
@@ -173,7 +174,7 @@ async function submitAdding(): Promise<void> {
                 <Button
                     type="button"
                     variant="ghost"
-                    class="rounded-full"
+                    class="rounded-full max-md:h-11"
                     :disabled="isLoading || undefined"
                     data-test="cancel-passkey-button"
                     @click="cancelAdding"
@@ -187,7 +188,7 @@ async function submitAdding(): Promise<void> {
             <DemoLock v-slot="{ disabled }">
                 <Button
                     variant="outline"
-                    class="rounded-full px-6"
+                    class="rounded-full px-6 max-md:h-11"
                     :disabled="disabled"
                     data-test="add-passkey-button"
                     @click="startAdding"

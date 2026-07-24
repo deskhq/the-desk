@@ -5,9 +5,14 @@
 // column. Stacks vertically on small screens. Sections are separated by a
 // hairline rule owned here so pages only compose <SettingsSection> blocks.
 //
+// `hideTitleBelowMd` is for a section whose title restates the page title:
+// below the breakpoint the stacked push header already names the screen, so
+// the duplicate heading drops away there.
+//
 defineProps<{
     title: string;
     description?: string;
+    hideTitleBelowMd?: boolean;
 }>();
 </script>
 
@@ -15,7 +20,7 @@ defineProps<{
     <section
         class="grid gap-x-10 gap-y-4 border-b border-border pb-10 last:border-b-0 last:pb-0 md:grid-cols-[minmax(0,13rem)_minmax(0,1fr)]"
     >
-        <div class="md:pt-0.5">
+        <div class="md:pt-0.5" :class="{ 'max-md:hidden': hideTitleBelowMd }">
             <h2 class="font-serif text-xl font-semibold tracking-tight">
                 {{ title }}
             </h2>

@@ -112,7 +112,7 @@ function lastActive(iso: string): string {
             >
                 <Button
                     variant="ghost"
-                    class="h-7.5 rounded-full px-3.5 text-xs font-semibold text-muted-foreground hover:bg-accent hover:text-foreground"
+                    class="h-7.5 rounded-full px-3.5 text-xs font-semibold text-muted-foreground hover:bg-accent hover:text-foreground max-md:h-11"
                     :disabled="disabled"
                     :data-test="`revoke-session-${session.id}`"
                 >
@@ -124,7 +124,7 @@ function lastActive(iso: string): string {
                 <DialogTrigger as-child>
                     <Button
                         variant="ghost"
-                        class="ml-auto h-7.5 rounded-full px-3.5 text-xs font-semibold text-muted-foreground hover:bg-accent hover:text-foreground"
+                        class="ml-auto h-7.5 rounded-full px-3.5 text-xs font-semibold text-muted-foreground hover:bg-accent hover:text-foreground max-md:h-11"
                         :data-test="`revoke-session-${session.id}`"
                     >
                         {{ $t('Revoke') }}

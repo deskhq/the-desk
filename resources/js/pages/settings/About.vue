@@ -12,14 +12,14 @@ defineProps<{
 }>();
 
 defineOptions({
-    layout: {
+    layout: () => ({
         breadcrumbs: [
             {
                 title: translate('About this instance'),
                 href: edit(),
             },
         ],
-    },
+    }),
 });
 
 const { status, isBehind } = useUpdateStatus();
@@ -43,9 +43,10 @@ const isUpToDate = computed(
         v-if="status"
         :title="$t('About this instance')"
         :description="$t('The version this instance is running.')"
+        hide-title-below-md
     >
         <dl class="divide-y divide-border">
-            <div class="flex items-center gap-3 py-3">
+            <div class="flex flex-wrap items-center gap-3 py-3">
                 <dt class="w-32 text-sm font-medium text-muted-foreground">
                     {{ $t('Version') }}
                 </dt>
@@ -72,7 +73,7 @@ const isUpToDate = computed(
                             target="_blank"
                             rel="noopener noreferrer"
                             data-test="about-release-notes"
-                            class="inline-flex items-center gap-1.5 rounded-full bg-sidebar-primary px-3 py-1 text-[11.5px] font-semibold text-sidebar-primary-foreground transition-opacity hover:opacity-90"
+                            class="inline-flex items-center gap-1.5 rounded-full bg-sidebar-primary px-3 py-1 text-[11.5px] font-semibold text-sidebar-primary-foreground transition-opacity hover:opacity-90 max-md:min-h-11"
                         >
                             {{ $t('Release notes') }}
                             <ExternalLink class="size-2.75" />
@@ -95,7 +96,7 @@ const isUpToDate = computed(
                 >
                     {{ $t('Update checks') }}
                 </dt>
-                <dd class="text-sm text-muted-foreground">
+                <dd class="min-w-0 text-sm wrap-anywhere text-muted-foreground">
                     {{ $t('Checked daily against GitHub releases.') }}
                     {{
                         $t('Disable outbound checks by setting :code.', {

@@ -36,14 +36,14 @@ defineProps<{
 }>();
 
 defineOptions({
-    layout: {
+    layout: () => ({
         breadcrumbs: [
             {
                 title: translate('Appearance & notifications'),
                 href: edit(),
             },
         ],
-    },
+    }),
 });
 
 const { chimeSound, preview, updateChimeSound } = useChimes();
@@ -189,7 +189,7 @@ function chooseBound(bound: 'startsAt' | 'endsAt', value: unknown): void {
                     type="button"
                     :aria-pressed="selected === option.value"
                     @click="choose(option.value)"
-                    class="inline-flex h-7.5 items-center rounded-full border border-border bg-card px-3.5 text-[12.5px] font-medium text-muted-foreground hover:text-foreground aria-pressed:border-brass aria-pressed:bg-brass-fill aria-pressed:font-semibold aria-pressed:text-foreground"
+                    class="inline-flex items-center rounded-full border border-border bg-card px-3.5 text-[12.5px] font-medium text-muted-foreground hover:text-foreground aria-pressed:border-brass aria-pressed:bg-brass-fill aria-pressed:font-semibold aria-pressed:text-foreground max-md:h-11 max-md:px-4 max-md:text-[13px] md:h-7.5"
                 >
                     {{ option.label }}
                 </Button>
@@ -201,7 +201,7 @@ function chooseBound(bound: 'startsAt' | 'endsAt', value: unknown): void {
                     :disabled="selected === 'off'"
                     data-test="preview-chime"
                     @click="preview(selected)"
-                    class="ml-1 inline-flex h-7.5 items-center gap-1.5 rounded-full border border-border bg-card px-3.5 text-xs font-semibold text-muted-foreground hover:text-foreground"
+                    class="ml-1 inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3.5 text-xs font-semibold text-muted-foreground hover:text-foreground max-md:h-11 max-md:px-4 md:h-7.5"
                 >
                     <Play class="size-3 fill-current" />
                     {{ $t('Preview') }}
@@ -228,6 +228,7 @@ function chooseBound(bound: 'startsAt' | 'endsAt', value: unknown): void {
                     data-test="quiet-hours-enabled"
                     :model-value="scheduleEnabled"
                     :aria-label="$t('Quiet hours')"
+                    class="relative max-md:before:absolute max-md:before:-inset-3.5 max-md:before:content-['']"
                     @update:model-value="toggleSchedule"
                 />
             </template>
@@ -249,7 +250,7 @@ function chooseBound(bound: 'startsAt' | 'endsAt', value: unknown): void {
                             <SelectTrigger
                                 data-test="quiet-hours-starts-at"
                                 aria-labelledby="quiet-hours-from-label"
-                                class="h-9 rounded-[10px] font-mono text-[13.5px]"
+                                class="rounded-[10px] font-mono text-[13.5px] max-md:data-[size=default]:h-11 md:h-9"
                             >
                                 <SelectValue />
                             </SelectTrigger>
@@ -280,7 +281,7 @@ function chooseBound(bound: 'startsAt' | 'endsAt', value: unknown): void {
                             <SelectTrigger
                                 data-test="quiet-hours-ends-at"
                                 aria-labelledby="quiet-hours-to-label"
-                                class="h-9 rounded-[10px] font-mono text-[13.5px]"
+                                class="rounded-[10px] font-mono text-[13.5px] max-md:data-[size=default]:h-11 md:h-9"
                             >
                                 <SelectValue />
                             </SelectTrigger>
@@ -352,6 +353,7 @@ function chooseBound(bound: 'startsAt' | 'endsAt', value: unknown): void {
                     data-test="share-read-receipts"
                     :model-value="shareReadReceipts"
                     :aria-label="$t('Share read receipts')"
+                    class="relative max-md:before:absolute max-md:before:-inset-3.5 max-md:before:content-['']"
                     @update:model-value="updateShareReadReceipts"
                 />
             </template>

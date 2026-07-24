@@ -96,7 +96,10 @@ function occurredAt(iso: string): string {
 
         <div class="flex flex-wrap items-center gap-3">
             <Select v-model="actionFilter">
-                <SelectTrigger class="w-56" data-test="audit-action-filter">
+                <SelectTrigger
+                    class="w-56 max-md:data-[size=default]:h-11"
+                    data-test="audit-action-filter"
+                >
                     <SelectValue :placeholder="$t('All actions')" />
                 </SelectTrigger>
                 <SelectContent>
@@ -114,7 +117,10 @@ function occurredAt(iso: string): string {
             </Select>
 
             <Select v-model="actorFilter">
-                <SelectTrigger class="w-56" data-test="audit-actor-filter">
+                <SelectTrigger
+                    class="w-56 max-md:data-[size=default]:h-11"
+                    data-test="audit-actor-filter"
+                >
                     <SelectValue :placeholder="$t('All members')" />
                 </SelectTrigger>
                 <SelectContent>

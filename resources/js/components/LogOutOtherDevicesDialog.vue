@@ -28,7 +28,7 @@ const hasOtherSessions = computed(() =>
     <DemoLock v-if="hasOtherSessions && demoMode" v-slot="{ disabled }">
         <Button
             variant="outline"
-            class="h-8 rounded-full px-4 text-xs font-semibold"
+            class="h-8 rounded-full px-4 text-xs font-semibold max-md:h-11"
             :disabled="disabled"
             data-test="revoke-others-button"
         >
@@ -47,7 +47,7 @@ const hasOtherSessions = computed(() =>
         <template #trigger>
             <Button
                 variant="outline"
-                class="h-8 rounded-full px-4 text-xs font-semibold"
+                class="h-8 rounded-full px-4 text-xs font-semibold max-md:h-11"
                 data-test="revoke-others-button"
             >
                 {{ $t('Log out other devices') }}
