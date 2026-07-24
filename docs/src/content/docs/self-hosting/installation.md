@@ -82,9 +82,10 @@ gh attestation verify oci://ghcr.io/deskhq/the-desk:$APP_VERSION \
   --repo deskhq/the-desk
 ```
 
-A pass tells you the image was built by a workflow in `deskhq/the-desk`, on a
-GitHub-hosted runner, from the commit the release was cut at. A failure means the
-image did not come from here: do not run it.
+A pass tells you the image was built by a workflow in `deskhq/the-desk`, from the
+commit the release was cut at. A failure means the image did not come from here:
+do not run it. If you set `APP_IMAGE` yourself, verify that reference instead,
+since it is what the stack actually runs.
 
 Inspect the attached SBOM and provenance without any extra tooling:
 
@@ -113,8 +114,12 @@ docker buildx imagetools inspect ghcr.io/deskhq/the-desk:$APP_VERSION \
   --format '{{ .Manifest.Digest }}'
 ```
 
-The trade-off is that upgrades become a digest swap rather than an `APP_VERSION`
-bump, so `upgrade.sh` no longer knows what to target. Pin by digest if your
+You do not lose `upgrade.sh` by doing this. An upgrade becomes two steps instead
+of one: set `APP_IMAGE` to the new release's digest, then run
+`./docker/upgrade.sh --target=X.Y.Z /srv/backups` naming that same release. The
+script still takes the backup, still runs the migrations, and still verifies that
+the instance came back reporting the version you asked for, because `APP_VERSION`
+and the pinned digest describe the same image. Pin by digest if your
 change-control process needs it; stay on `APP_VERSION` otherwise.
 
 ## The COMPOSE_FILE variable

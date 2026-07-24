@@ -42,6 +42,10 @@ jobs:
       - name: Scan each published tag and report
         env:
           GH_TOKEN: ${{ github.token }}
+          # This job never checks the repository out — it only talks to a
+          # registry — so `gh` has no remote to infer the repository from and
+          # every issue command below would fail without this.
+          GH_REPO: ${{ github.repository }}
           IMAGE: ghcr.io/${{ github.repository }}
           TITLE: "fix: patch the vulnerabilities found in the published image"
         run: |

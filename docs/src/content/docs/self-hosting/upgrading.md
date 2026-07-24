@@ -150,9 +150,14 @@ Every stable release's notes include the image **digest** next to the tag, for
 example `ghcr.io/deskhq/the-desk@sha256:0123...`. A digest is content-addressed
 and can never resolve to different bytes later, unlike a tag. If your
 change-control process needs that guarantee, set the digest as `APP_IMAGE` in
-`.env` instead of letting `APP_VERSION` pick the tag. Note that `upgrade.sh`
-targets versions, not digests, so a digest-pinned install upgrades by editing
-`APP_IMAGE` and restarting. See
+`.env` instead of letting `APP_VERSION` pick the tag.
+
+Upgrading a digest-pinned install is two steps rather than one: set `APP_IMAGE`
+to the new release's digest, then run `./docker/upgrade.sh --target=X.Y.Z
+/srv/backups` naming that same release. Do not just swap the digest and restart:
+the script is what takes the backup, waits for `/up`, and confirms the instance
+came back reporting the version you asked for. Because `APP_VERSION` and the
+pinned digest describe the same image, that verification still holds. See
 [Verify the image, and pin it by digest](/self-hosting/installation/#verify-the-image-and-pin-it-by-digest)
 for the full detail.
 
