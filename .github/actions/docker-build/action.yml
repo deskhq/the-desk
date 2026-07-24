@@ -54,6 +54,29 @@ inputs:
     description: Newline-separated OCI labels for the image.
     required: false
     default: ''
+  provenance:
+    description: >-
+      Whether to attach a build-provenance attestation to the image — `false`,
+      `true`, or a buildx mode such as `mode=max`. Only the registry exporter
+      can carry an attestation, so this must stay off for a `load: true` build:
+      buildx fails such a build rather than quietly dropping the attestation.
+    required: false
+    default: 'false'
+  sbom:
+    description: >-
+      Whether to attach an SBOM attestation to the image. Subject to the same
+      registry-exporter constraint as `provenance`.
+    required: false
+    default: 'false'
+
+# The digest of what was built, so a caller can pin or attest the exact image it
+# just pushed. Only one provider path runs, and a skipped step contributes no
+# output, so the two are coalesced rather than chosen between — the caller does
+# not know which fleet it landed on.
+outputs:
+  digest:
+    description: The digest of the built image, from whichever provider path ran.
+    value: ${{ steps.blacksmith-build.outputs.digest || steps.buildx-build.outputs.digest }}
 
 runs:
   using: composite
@@ -68,6 +91,7 @@ runs:
 
     - name: Build with the Blacksmith builder
       if: startsWith(inputs.runner, 'blacksmith')
+      id: blacksmith-build
       uses: useblacksmith/build-push-action@fb9e3e6a9299c78462bfadd0d93352c316adc9b8 # v2.2.0
       with:
         context: ${{ inputs.context }}
@@ -77,6 +101,8 @@ runs:
         load: ${{ inputs.load }}
         tags: ${{ inputs.tags }}
         labels: ${{ inputs.labels }}
+        provenance: ${{ inputs.provenance }}
+        sbom: ${{ inputs.sbom }}
 
     # ---- GitHub-hosted ----
     - name: Set up buildx
@@ -90,6 +116,7 @@ runs:
     # this path would reintroduce that failure the moment the fleet moved.
     - name: Build with buildx
       if: ${{ ! startsWith(inputs.runner, 'blacksmith') }}
+      id: buildx-build
       uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7.3.0
       with:
         context: ${{ inputs.context }}
@@ -99,5 +126,7 @@ runs:
         load: ${{ inputs.load }}
         tags: ${{ inputs.tags }}
         labels: ${{ inputs.labels }}
+        provenance: ${{ inputs.provenance }}
+        sbom: ${{ inputs.sbom }}
         cache-from: type=gha
         cache-to: type=gha,mode=max

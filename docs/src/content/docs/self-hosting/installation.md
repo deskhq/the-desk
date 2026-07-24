@@ -66,6 +66,57 @@ To run a tag on another registry, an air-gapped mirror, or a floating tag like
 `APP_VERSION` entirely. Upgrades bump `APP_VERSION` and restart — see
 [Upgrading](/self-hosting/upgrading/).
 
+## Verify the image, and pin it by digest
+
+Every published image is built by this repository's CI, which attaches three
+things to it: a **signed build provenance** attestation, an in-registry
+**provenance** record, and an **SBOM** listing what is inside. You do not have to
+use any of them, but if your policy asks where a container came from, this is the
+answer.
+
+Verify that an image really was built by this repository, using the
+[GitHub CLI](https://cli.github.com/):
+
+```bash
+gh attestation verify oci://ghcr.io/deskhq/the-desk:$APP_VERSION \
+  --repo deskhq/the-desk
+```
+
+A pass tells you the image was built by a workflow in `deskhq/the-desk`, on a
+GitHub-hosted runner, from the commit the release was cut at. A failure means the
+image did not come from here: do not run it.
+
+Inspect the attached SBOM and provenance without any extra tooling:
+
+```bash
+docker buildx imagetools inspect ghcr.io/deskhq/the-desk:$APP_VERSION \
+  --format '{{ json .SBOM }}'
+```
+
+### Pinning by digest
+
+Tags are mutable. `latest` moves every release by design, and even `X.Y.Z` is a
+pointer that could in principle be repushed. A digest is content-addressed, so it
+can never resolve to different bytes later:
+
+```
+APP_IMAGE=ghcr.io/deskhq/the-desk@sha256:0123456789abcdef...
+```
+
+Set that in `.env` and it overrides `APP_VERSION`, exactly like a tag would.
+Every stable release's notes carry the digest for that version, ready to paste,
+next to the tag-based pull reference. You can also read it back from a registry
+at any time:
+
+```bash
+docker buildx imagetools inspect ghcr.io/deskhq/the-desk:$APP_VERSION \
+  --format '{{ .Manifest.Digest }}'
+```
+
+The trade-off is that upgrades become a digest swap rather than an `APP_VERSION`
+bump, so `upgrade.sh` no longer knows what to target. Pin by digest if your
+change-control process needs it; stay on `APP_VERSION` otherwise.
+
 ## The COMPOSE_FILE variable
 
 Production commands on this site are a bare `docker compose`, with no

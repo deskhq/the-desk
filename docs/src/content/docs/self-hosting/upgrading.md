@@ -130,6 +130,32 @@ Useful flags:
 | `--sync-env` | Append any [new settings](#new-settings-in-a-release) to `.env` without asking, for unattended runs that should adopt the template defaults. |
 | `--no-sync-env` | Skip the new-settings check entirely. |
 
+### Verify the image you are upgrading to
+
+Every published image carries a signed build provenance attestation, so you can
+confirm it was built by this repository's CI before you run it. With the
+[GitHub CLI](https://cli.github.com/):
+
+```bash
+gh attestation verify oci://ghcr.io/deskhq/the-desk:X.Y.Z \
+  --repo deskhq/the-desk
+```
+
+A pass means the image was produced by a workflow in `deskhq/the-desk` from the
+commit that release was cut at. A failure means it was not: stop and do not
+upgrade. The image also carries an SBOM, readable with
+`docker buildx imagetools inspect ... --format '{{ json .SBOM }}'`.
+
+Every stable release's notes include the image **digest** next to the tag, for
+example `ghcr.io/deskhq/the-desk@sha256:0123...`. A digest is content-addressed
+and can never resolve to different bytes later, unlike a tag. If your
+change-control process needs that guarantee, set the digest as `APP_IMAGE` in
+`.env` instead of letting `APP_VERSION` pick the tag. Note that `upgrade.sh`
+targets versions, not digests, so a digest-pinned install upgrades by editing
+`APP_IMAGE` and restarting. See
+[Verify the image, and pin it by digest](/self-hosting/installation/#verify-the-image-and-pin-it-by-digest)
+for the full detail.
+
 ### New settings in a release
 
 A new release often introduces settings — a feature toggle, a new tunable — that

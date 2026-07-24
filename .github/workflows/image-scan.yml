@@ -1,0 +1,122 @@
+name: image-scan
+
+# The image published to GHCR is what self-hosters actually run, and its base
+# image and OS packages acquire CVEs without a single commit landing in this
+# repository. The scan on the build path only ever looks at what a change
+# produced, so between releases nothing looks at the image people are running
+# (#836). This does: once a week, against the two moving tags, reporting into
+# one rolling issue the way extension-pins.yml reports a stale pin.
+
+on:
+  schedule:
+    - cron: "0 5 * * 1"
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  scan-published-images:
+    name: Scan the published images
+    runs-on: ${{ vars.CI_RUNNER || 'ubuntu-latest' }}
+
+    permissions:
+      contents: read
+      # Anonymous pulls from GHCR are rate limited; the job token is not.
+      packages: read
+      # The scan reports by opening an issue.
+      issues: write
+
+    steps:
+      - name: Log in to GHCR
+        uses: docker/login-action@af1e73f918a031802d376d3c8bbc3fe56130a9b0 # v4.4.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # The binary rather than the per-image action: both tags are scanned in
+      # one loop below, and one rolling issue has to weigh them together.
+      - name: Install Trivy
+        uses: aquasecurity/setup-trivy@81e514348e19b6112ce2a7e3ecbafe19c1e1f567 # v0.3.1
+
+      - name: Scan each published tag and report
+        env:
+          GH_TOKEN: ${{ github.token }}
+          IMAGE: ghcr.io/${{ github.repository }}
+          TITLE: "fix: patch the vulnerabilities found in the published image"
+        run: |
+          set -euo pipefail
+
+          findings=''
+
+          # `latest` is what most operators run and `rc` is what candidate
+          # testers run, and a disclosure can reach either one first. `rc` is
+          # absent until the first candidate of a cycle is published, so a
+          # missing tag is skipped rather than failed — the alternative is a
+          # red scheduled run that says nothing about the image's security.
+          for tag in latest rc; do
+            reference="${IMAGE}:${tag}"
+
+            if ! docker manifest inspect "$reference" >/dev/null 2>&1; then
+              echo "${reference}: not published yet, skipping"
+              continue
+            fi
+
+            # --ignore-unfixed: an unfixed upstream CVE is not something this
+            # repository can act on, and an issue nobody can close is noise.
+            trivy image \
+              --severity CRITICAL,HIGH \
+              --ignore-unfixed \
+              --format json \
+              --output "scan-${tag}.json" \
+              "$reference"
+
+            count="$(jq '[.Results[]?.Vulnerabilities // [] | length] | add // 0' "scan-${tag}.json")"
+
+            if [ "$count" -eq 0 ]; then
+              echo "${reference}: clean"
+              continue
+            fi
+
+            echo "${reference}: ${count} fixable CRITICAL/HIGH vulnerabilities"
+
+            table="$(jq -r '
+              [.Results[]?.Vulnerabilities // [] | .[]]
+              | sort_by(.Severity, .VulnerabilityID)
+              | .[]
+              | "| \(.VulnerabilityID) | \(.Severity) | \(.PkgName) | \(.InstalledVersion) | \(.FixedVersion // "n/a") |"
+            ' "scan-${tag}.json")"
+
+            findings="${findings}#### \`${reference}\`"$'\n\n'
+            findings="${findings}| CVE | Severity | Package | Installed | Fixed in |"$'\n'
+            findings="${findings}| --- | --- | --- | --- | --- |"$'\n'
+            findings="${findings}${table}"$'\n\n'
+          done
+
+          # One rolling issue: comment on the open one rather than filing a
+          # duplicate every week the image stays vulnerable, and close it once a
+          # rebuild has cleared them so a current repo has no stale alarm open.
+          existing="$(gh issue list --state open --search "in:title \"$TITLE\"" --json number --jq '.[0].number // empty')"
+
+          if [ -z "$findings" ]; then
+            echo 'every published tag is clean'
+            if [ -n "$existing" ]; then
+              gh issue close "$existing" --comment 'The published images no longer report any fixable CRITICAL or HIGH vulnerability.'
+            fi
+            exit 0
+          fi
+
+          # printf rather than a quoted literal: this whole script is a YAML
+          # block scalar, so an indented body would reach GitHub as a markdown
+          # code block.
+          body="$(printf '%s\n\n%s\n%s\n\n%s\n' \
+            'The published images carry known vulnerabilities with a fixed version available:' \
+            "$findings" \
+            'Most are base-image or OS-package CVEs: rebuilding the image on a current base usually clears them. Anything left needs a pin bumped in `Dockerfile`.' \
+            'Opened by `.github/workflows/image-scan.yml`.')"
+
+          if [ -n "$existing" ]; then
+            gh issue comment "$existing" --body "$body"
+          else
+            gh issue create --title "$TITLE" --label tech-debt --label area:security --body "$body"
+          fi
