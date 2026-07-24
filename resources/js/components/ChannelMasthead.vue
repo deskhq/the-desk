@@ -454,18 +454,26 @@ const hasActivityReadout = computed(
             </span>
 
             <!-- Add people: opens the picker that grows this DM into (or reuses)
-                 a group conversation. Only shown to a member of a DM. -->
+                 a group conversation. Only shown to a member of a DM. Below the
+                 breakpoint the pill folds to an icon-only control like the
+                 neighbouring pins and search buttons, so the conversation name
+                 keeps the row's horizontal space (#801). -->
             <Button
                 v-if="props.canAddPeople"
-                variant="outline"
-                size="sm"
+                :variant="isMobile ? 'ghost' : 'outline'"
+                :size="isMobile ? 'icon' : 'sm'"
                 type="button"
                 data-test="masthead-add-people"
-                class="h-8 gap-1.5 rounded-full px-4 text-[12.5px] font-semibold"
+                :aria-label="$t('Add people')"
+                :class="
+                    isMobile
+                        ? 'size-9 rounded text-muted-foreground hover:bg-muted hover:text-foreground'
+                        : 'h-8 gap-1.5 rounded-full px-4 text-[12.5px] font-semibold'
+                "
                 @click="emit('addPeople')"
             >
-                <UserPlus class="size-3.5" />
-                {{ $t('Add people') }}
+                <UserPlus :class="isMobile ? 'size-4' : 'size-3.5'" />
+                <template v-if="!isMobile">{{ $t('Add people') }}</template>
             </Button>
 
             <!-- Pins: opens the pinned-messages popover. The pin glyph fills brass
