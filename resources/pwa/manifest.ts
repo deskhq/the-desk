@@ -44,5 +44,28 @@ export function pwaManifest(appName: string): Partial<ManifestOptions> {
                 purpose: 'maskable',
             },
         ],
+        // Chromium only offers its richer install dialog — app name, description
+        // and a preview carousel — when the manifest carries a screenshot for the
+        // form factor it is installing on, so one of each is the minimum that
+        // earns it. The set stays deliberately small: every shot has to be
+        // re-taken on a redesign. Like `name` and `description`, the labels are
+        // baked in at build time rather than per request, so they stay out of the
+        // translation catalogs.
+        screenshots: [
+            {
+                src: '/screenshots/channel-wide.png',
+                sizes: '1440x900',
+                type: 'image/png',
+                form_factor: 'wide',
+                label: 'A team channel open in a desktop window',
+            },
+            {
+                src: '/screenshots/channel-narrow.png',
+                sizes: '780x1688',
+                type: 'image/png',
+                form_factor: 'narrow',
+                label: 'A team channel open on a phone',
+            },
+        ],
     };
 }
