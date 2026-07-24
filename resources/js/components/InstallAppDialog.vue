@@ -1,6 +1,13 @@
 <script setup lang="ts">
 import { usePage } from '@inertiajs/vue3';
-import { Bell, Check, Download, Share, SquarePlus } from '@lucide/vue';
+import {
+    Bell,
+    Check,
+    Download,
+    PanelTop,
+    Share,
+    SquarePlus,
+} from '@lucide/vue';
 import type { Component } from 'vue';
 import { computed } from 'vue';
 import AppLogoIcon from '@/components/AppLogoIcon.vue';
@@ -19,8 +26,9 @@ import { useTranslations } from '@/composables/useTranslations';
  * dialog so the viewer knows what they are agreeing to before Chromium's
  * terse prompt lands on top of it.
  *
- * On iOS it becomes the instructional variant instead — no browser there fires
- * an install prompt, so "Add to Home Screen" has to be spelled out by hand.
+ * In Safari it becomes an instructional variant instead — neither of its
+ * platforms fires an install prompt, so the action has to be spelled out by
+ * hand: the share sheet on iOS, File > Add to Dock on macOS.
  */
 const props = defineProps<{
     /** Whether the sheet is presented. */
@@ -33,7 +41,8 @@ const emit = defineEmits<{
 
 const page = usePage();
 const { t } = useTranslations();
-const { isInstructional, promptInstall, dismissCard } = useAppInstall();
+const { installGuide, isInstructional, promptInstall, dismissCard } =
+    useAppInstall();
 
 const appName = computed(() => page.props.name);
 const currentTeam = computed(() => page.props.currentTeam);
@@ -93,13 +102,56 @@ function instruction(
     return { before, term, after, icon };
 }
 
-const steps = computed<InstructionStep[]>(() => [
-    instruction('Tap :action in the Safari toolbar', t('Share'), Share),
-    instruction('Scroll to :action', t('Add to Home Screen'), SquarePlus),
-    // The last step's tile is the app's own mark: what the viewer is about to
-    // see land on their home screen.
-    instruction('Tap :action — done', t('Add'), null),
-]);
+const steps = computed<InstructionStep[]>(() =>
+    installGuide.value === 'macos'
+        ? [
+              instruction(
+                  'Open :action in the Safari menu bar',
+                  t('File'),
+                  PanelTop,
+              ),
+              instruction('Choose :action', t('Add to Dock'), SquarePlus),
+              // The last step's tile is the app's own mark: what the viewer is
+              // about to see land in their Dock.
+              instruction('Click :action to finish', t('Add'), null),
+          ]
+        : [
+              instruction(
+                  'Tap :action in the Safari toolbar',
+                  t('Share'),
+                  Share,
+              ),
+              instruction(
+                  'Scroll to :action',
+                  t('Add to Home Screen'),
+                  SquarePlus,
+              ),
+              // The last step's tile is the app's own mark: what the viewer is
+              // about to see land on their home screen.
+              instruction('Tap :action — done', t('Add'), null),
+          ],
+);
+
+/**
+ * The heading pair for the instructional variant: the action the viewer is
+ * looking for, and where in Safari they will find it.
+ */
+const instructionalHeading = computed(() =>
+    installGuide.value === 'macos'
+        ? { title: t('Add to Dock'), subtitle: t('From the Safari menu bar') }
+        : {
+              title: t('Add to Home Screen'),
+              subtitle: t('Two taps in Safari'),
+          },
+);
+
+/**
+ * Push is a reason to install on iOS alone: Safari on macOS delivers it from a
+ * plain tab, so the note would be untrue there.
+ */
+const showPushNote = computed(
+    () => pushAvailable.value && installGuide.value === 'ios',
+);
 
 function close(): void {
     emit('update:open', false);
@@ -143,7 +195,7 @@ function notNow(): void {
                     >
                         {{
                             isInstructional
-                                ? $t('Add to Home Screen')
+                                ? instructionalHeading.title
                                 : $t('Install :app', { app: appName })
                         }}
                     </DialogTitle>
@@ -151,14 +203,16 @@ function notNow(): void {
                         class="mt-0.5 truncate text-[12.5px] text-muted-foreground"
                     >
                         {{
-                            isInstructional ? $t('Two taps in Safari') : origin
+                            isInstructional
+                                ? instructionalHeading.subtitle
+                                : origin
                         }}
                     </DialogDescription>
                 </div>
             </div>
 
-            <!-- iOS: the share-sheet walkthrough, since nothing can be
-                 triggered from the page. -->
+            <!-- Safari: the walkthrough, since nothing can be triggered from
+                 the page on either of its platforms. -->
             <template v-if="isInstructional">
                 <!-- A real ordered list: the numbered discs are decorative, so
                      the ordering has to reach a screen reader some other way. -->
@@ -208,7 +262,7 @@ function notNow(): void {
                 </ol>
 
                 <div
-                    v-if="pushAvailable"
+                    v-if="showPushNote"
                     data-test="install-app-push-note"
                     class="mt-3.5 flex items-start gap-2.25 rounded-[11px] border border-brass-border/60 bg-brass/8 px-3 py-2.75"
                 >

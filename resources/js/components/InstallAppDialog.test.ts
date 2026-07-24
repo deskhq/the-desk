@@ -26,6 +26,7 @@ vi.mock('@lucide/vue', () => ({
     Bell: { render: () => h('svg') },
     Check: { render: () => h('svg') },
     Download: { render: () => h('svg') },
+    PanelTop: { render: () => h('svg') },
     Share: { render: () => h('svg') },
     SquarePlus: { render: () => h('svg') },
 }));
@@ -73,10 +74,28 @@ function translate(
     );
 }
 
+/** The two Safari agents that get a walkthrough rather than a prompt. */
+const IPHONE_AGENT = 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0) Safari';
+const MAC_SAFARI_AGENT =
+    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.6 Safari/605.1.15';
+
+/** Whether the stubbed browser is one that would fire `beforeinstallprompt`. */
+function prompts(userAgent: string): boolean {
+    return userAgent !== IPHONE_AGENT && userAgent !== MAC_SAFARI_AGENT;
+}
+
+function platformFor(userAgent: string): string {
+    if (userAgent === IPHONE_AGENT) {
+        return 'iPhone';
+    }
+
+    return userAgent === MAC_SAFARI_AGENT ? 'MacIntel' : 'Linux x86_64';
+}
+
 function stubBrowser(userAgent: string): void {
     vi.stubGlobal('navigator', {
         userAgent,
-        platform: userAgent.includes('iPhone') ? 'iPhone' : 'Linux x86_64',
+        platform: platformFor(userAgent),
         maxTouchPoints: 0,
     });
     window.matchMedia = ((query: string) => ({
@@ -102,7 +121,7 @@ async function boot(
 
     initializeAppInstall();
 
-    if (!userAgent.includes('iPhone')) {
+    if (prompts(userAgent)) {
         window.dispatchEvent(
             Object.assign(
                 new Event('beforeinstallprompt', { cancelable: true }),
@@ -221,7 +240,7 @@ it('records "Not now" so the invitation does not come back', async () => {
 });
 
 it('walks iOS through the share sheet instead of offering a button', async () => {
-    await boot('Mozilla/5.0 (iPhone; CPU iPhone OS 18_0) Safari');
+    await boot(IPHONE_AGENT);
 
     const host = await mountDialog();
     const steps = host.querySelector('[data-test="install-app-steps"]');
@@ -246,7 +265,37 @@ it('walks iOS through the share sheet instead of offering a button', async () =>
 
 it('drops the iOS push note where the instance has no push', async () => {
     props.webPush = { enabled: false, publicKey: null };
-    await boot('Mozilla/5.0 (iPhone; CPU iPhone OS 18_0) Safari');
+    await boot(IPHONE_AGENT);
+
+    const host = await mountDialog();
+
+    expect(
+        host.querySelector('[data-test="install-app-push-note"]'),
+    ).toBeNull();
+});
+
+it('walks macOS Safari through Add to Dock instead of offering a button', async () => {
+    await boot(MAC_SAFARI_AGENT);
+
+    const host = await mountDialog();
+    const steps = host.querySelector('[data-test="install-app-steps"]');
+
+    expect(host.querySelector('h2')?.textContent).toContain('Add to Dock');
+    expect(host.querySelector('p')?.textContent).toContain(
+        'From the Safari menu bar',
+    );
+    expect(host.querySelector('[data-test="install-app-confirm"]')).toBeNull();
+    expect(steps?.textContent).toContain('Open File in the Safari menu bar');
+    expect(steps?.textContent).toContain('Choose Add to Dock');
+    expect(steps?.textContent).toContain('Click Add to finish');
+    expect(
+        host.querySelector('[data-test="install-app-acknowledge"]')
+            ?.textContent,
+    ).toContain('Got it');
+});
+
+it('makes no push claim on macOS, where Safari pushes from a plain tab', async () => {
+    await boot(MAC_SAFARI_AGENT);
 
     const host = await mountDialog();
 
