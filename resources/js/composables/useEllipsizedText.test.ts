@@ -67,10 +67,7 @@ describe('useEllipsizedText', () => {
 
     beforeEach(() => {
         vi.stubGlobal('ResizeObserver', FakeResizeObserver);
-        vi.spyOn(
-            HTMLCanvasElement.prototype,
-            'getContext',
-        ).mockReturnValue({
+        vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue({
             font: '',
             measureText: (candidate: string) => ({
                 width: measureByLength(candidate),
@@ -184,10 +181,9 @@ describe('useEllipsizedText', () => {
     });
 
     it('returns the full text when canvas measurement is unavailable', async () => {
-        vi.spyOn(
-            HTMLCanvasElement.prototype,
-            'getContext',
-        ).mockReturnValue(null);
+        vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(
+            null,
+        );
 
         const { result } = mountHarness(
             textareaOfWidth(120),

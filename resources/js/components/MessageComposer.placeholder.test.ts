@@ -45,9 +45,8 @@ afterEach(() => {
         container.remove();
     });
     active = [];
-    delete (
-        HTMLTextAreaElement.prototype as { clientWidth?: number }
-    ).clientWidth;
+    delete (HTMLTextAreaElement.prototype as { clientWidth?: number })
+        .clientWidth;
     vi.unstubAllGlobals();
     vi.restoreAllMocks();
 });
