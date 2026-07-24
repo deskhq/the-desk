@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import type { HTMLAttributes, Ref } from "vue"
+import { router } from "@inertiajs/vue3"
 import { defaultDocument, useEventListener, useVModel } from "@vueuse/core"
 import { TooltipProvider } from "reka-ui"
-import { computed, ref } from "vue"
+import { computed, onUnmounted, ref } from "vue"
 import { useEdgeSwipe } from "@/composables/useEdgeSwipe"
 import { useIsMobile } from "@/composables/useIsMobile"
 import { useSidebarPosition } from "@/composables/useSidebarPosition"
@@ -58,6 +59,16 @@ useEdgeSwipe({
   onOpen: () => setOpenMobile(true),
   onClose: () => setOpenMobile(false),
 })
+
+// Navigate = close (#834): landing somewhere new is the dock's job done, so
+// the full-screen sheet dismisses itself rather than sitting on top of the
+// destination. Inertia only fires `navigate` for visits that push a new
+// history entry — same-URL visits and partial reloads (section collapse,
+// background `router.reload`s) go through `replaceState` and never fire it,
+// which is exactly the "non-navigating interactions keep the dock open" rule.
+const stopNavigateListener = router.on("navigate", () => setOpenMobile(false))
+
+onUnmounted(stopNavigateListener)
 
 useEventListener("keydown", (event: KeyboardEvent) => {
   if (event.key === SIDEBAR_KEYBOARD_SHORTCUT && (event.metaKey || event.ctrlKey)) {

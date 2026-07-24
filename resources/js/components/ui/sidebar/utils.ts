@@ -4,8 +4,8 @@ import { createContext } from "reka-ui"
 export const SIDEBAR_COOKIE_NAME = "sidebar_state"
 export const SIDEBAR_COOKIE_MAX_AGE = 60 * 60 * 24 * 7
 export const SIDEBAR_WIDTH = "16rem"
-/** The dock's width as a left Sheet below the breakpoint (300px, per the mobile design). */
-export const SIDEBAR_WIDTH_MOBILE = "300px"
+/** The dock's width below the breakpoint: the whole viewport (#834 supersedes the design's 300px strip). */
+export const SIDEBAR_WIDTH_MOBILE = "100dvw"
 export const SIDEBAR_WIDTH_ICON = "3rem"
 export const SIDEBAR_KEYBOARD_SHORTCUT = "b"
 
