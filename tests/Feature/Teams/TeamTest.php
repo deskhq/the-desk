@@ -1,5 +1,6 @@
 <?php
 
+use App\Enums\AppLocale;
 use App\Enums\SecurityEventType;
 use App\Enums\TeamRole;
 use App\Models\SecurityEvent;
@@ -16,6 +17,16 @@ test('the teams index page can be rendered', function (): void {
         ->get(route('teams.index'));
 
     $response->assertOk();
+});
+
+test('the teams index shows translated role labels for a french user', function (): void {
+    $user = User::factory()->create(['locale' => AppLocale::French->value]);
+
+    $this
+        ->actingAs($user)
+        ->get(route('teams.index'))
+        ->assertInertia(fn (Assert $page): Assert => $page
+            ->where('teams.0.roleLabel', 'Propriétaire'));
 });
 
 test('teams can be created', function (): void {
