@@ -29,14 +29,14 @@ type Props = {
 const props = defineProps<Props>();
 
 defineOptions({
-    layout: {
+    layout: () => ({
         breadcrumbs: [
             {
                 title: translate('Security settings'),
                 href: edit(),
             },
         ],
-    },
+    }),
 });
 </script>
 
@@ -81,6 +81,7 @@ defineOptions({
                 >
                     <PasswordInput
                         :id="id"
+                        class="max-md:h-11"
                         name="current_password"
                         autocomplete="current-password"
                         :placeholder="$t('Current password')"
@@ -95,6 +96,7 @@ defineOptions({
                 >
                     <PasswordInput
                         :id="id"
+                        class="max-md:h-11"
                         name="password"
                         autocomplete="new-password"
                         :placeholder="$t('New password')"
@@ -110,6 +112,7 @@ defineOptions({
                 >
                     <PasswordInput
                         :id="id"
+                        class="max-md:h-11"
                         name="password_confirmation"
                         autocomplete="new-password"
                         :placeholder="$t('Confirm password')"
@@ -121,7 +124,7 @@ defineOptions({
                     <DemoLock v-slot="{ disabled }">
                         <Button
                             :disabled="processing || disabled"
-                            class="rounded-full px-6"
+                            class="rounded-full px-6 max-md:h-11"
                             data-test="update-password-button"
                         >
                             {{ $t('Save') }}

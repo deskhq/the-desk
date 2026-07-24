@@ -73,7 +73,10 @@ defineOptions({
             />
 
             <CreateTeamModal>
-                <Button class="rounded-full" data-test="teams-new-team-button">
+                <Button
+                    class="rounded-full max-md:h-11"
+                    data-test="teams-new-team-button"
+                >
                     <Plus /> {{ $t('New team') }}
                 </Button>
             </CreateTeamModal>
@@ -108,6 +111,7 @@ defineOptions({
                                     data-test="team-analytics-button"
                                     variant="ghost"
                                     size="sm"
+                                    class="max-md:size-11"
                                     as-child
                                 >
                                     <Link :href="analyticsIndex(team.slug)">
@@ -126,6 +130,7 @@ defineOptions({
                                     data-test="team-audit-button"
                                     variant="ghost"
                                     size="sm"
+                                    class="max-md:size-11"
                                     as-child
                                 >
                                     <Link :href="auditIndex(team.slug)">
@@ -144,6 +149,7 @@ defineOptions({
                                     data-test="team-leave-button"
                                     variant="ghost"
                                     size="sm"
+                                    class="max-md:size-11"
                                     @click="openLeaveTeamDialog(team)"
                                 >
                                     <LogOut class="h-4 w-4" />
@@ -160,6 +166,7 @@ defineOptions({
                                     data-test="team-view-button"
                                     variant="ghost"
                                     size="sm"
+                                    class="max-md:size-11"
                                     as-child
                                 >
                                     <Link :href="edit(team.slug)">
@@ -178,6 +185,7 @@ defineOptions({
                                     data-test="team-edit-button"
                                     variant="ghost"
                                     size="sm"
+                                    class="max-md:size-11"
                                     as-child
                                 >
                                     <Link :href="edit(team.slug)">

@@ -74,7 +74,7 @@ function regenerateRecoveryCodes(): void {
             <DemoLock v-slot="{ disabled }">
                 <Button
                     variant="outline"
-                    class="rounded-full px-6"
+                    class="rounded-full px-6 max-md:h-11"
                     :loading="processing"
                     :disabled="disabled"
                     data-test="enable-two-factor-button"
@@ -136,7 +136,7 @@ function regenerateRecoveryCodes(): void {
 
                 <div class="flex items-center gap-3">
                     <Button
-                        class="rounded-full px-6"
+                        class="rounded-full px-6 max-md:h-11"
                         :loading="confirmForm.processing"
                         data-test="confirm-two-factor-button"
                     >
@@ -145,7 +145,7 @@ function regenerateRecoveryCodes(): void {
                     <Button
                         type="button"
                         variant="ghost"
-                        class="rounded-full"
+                        class="rounded-full max-md:h-11"
                         :loading="processing"
                         data-test="cancel-two-factor-button"
                         @click="disableTwoFactor"
@@ -212,7 +212,7 @@ function regenerateRecoveryCodes(): void {
             <div class="flex flex-wrap items-center gap-3">
                 <Button
                     variant="outline"
-                    class="rounded-full"
+                    class="rounded-full max-md:h-11"
                     data-test="show-recovery-codes-button"
                     @click="showRecoveryCodes = !showRecoveryCodes"
                 >
@@ -224,7 +224,7 @@ function regenerateRecoveryCodes(): void {
                 </Button>
                 <Button
                     variant="outline"
-                    class="rounded-full"
+                    class="rounded-full max-md:h-11"
                     :loading="processing"
                     data-test="regenerate-recovery-codes-button"
                     @click="regenerateRecoveryCodes"

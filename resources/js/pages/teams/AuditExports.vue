@@ -254,7 +254,7 @@ function downloadUrl(entry: AuditExport): string {
                             variant="segmented"
                             size="none"
                             type="button"
-                            class="h-8 gap-1.5 px-4 text-[12.5px] font-medium"
+                            class="h-8 gap-1.5 px-4 text-[12.5px] font-medium max-md:h-11"
                             :aria-pressed="option.value === selectedLogType"
                             :data-test="`audit-export-log-${option.value}`"
                             @click="selectedLogType = option.value"
@@ -285,7 +285,7 @@ function downloadUrl(entry: AuditExport): string {
                             variant="segmented"
                             size="none"
                             type="button"
-                            class="h-8 px-4 text-[12.5px] font-medium"
+                            class="h-8 px-4 text-[12.5px] font-medium max-md:h-11"
                             :aria-pressed="option.value === selectedFormat"
                             :data-test="`audit-export-format-${option.value}`"
                             @click="selectedFormat = option.value"
@@ -306,7 +306,7 @@ function downloadUrl(entry: AuditExport): string {
                             :model-value="rangeStart || null"
                             :placeholder="$t('Start date')"
                             :field-label="$t('Start date')"
-                            class="w-40"
+                            class="w-40 max-md:h-11"
                             data-test="audit-export-range-start"
                             @update:model-value="rangeStart = $event ?? ''"
                         />
@@ -319,7 +319,7 @@ function downloadUrl(entry: AuditExport): string {
                             :field-label="$t('End date')"
                             :invalid="rangeError"
                             :min="rangeStart || null"
-                            class="w-40"
+                            class="w-40 max-md:h-11"
                             data-test="audit-export-range-end"
                             @update:model-value="rangeEnd = $event ?? ''"
                         />
@@ -328,7 +328,7 @@ function downloadUrl(entry: AuditExport): string {
                             variant="ghost"
                             size="icon-sm"
                             type="button"
-                            class="rounded-full text-muted-foreground"
+                            class="rounded-full text-muted-foreground max-md:size-11"
                             :aria-label="$t('Clear period')"
                             data-test="audit-export-range-clear"
                             @click="clearRange"
@@ -341,7 +341,7 @@ function downloadUrl(entry: AuditExport): string {
                 <!-- Submit -->
                 <Button
                     type="button"
-                    class="h-9 gap-2 rounded-full px-5.5"
+                    class="h-9 gap-2 rounded-full px-5.5 max-md:h-11"
                     :disabled="!canSubmit"
                     data-test="audit-export-submit"
                     @click="submit"
@@ -486,7 +486,7 @@ function downloadUrl(entry: AuditExport): string {
                             as="a"
                             :href="downloadUrl(entry)"
                             download
-                            class="h-8 gap-2 rounded-full px-4"
+                            class="h-8 gap-2 rounded-full px-4 max-md:h-11"
                             :data-test="`audit-export-download-${entry.id}`"
                         >
                             <Download class="size-3.5" />
@@ -505,7 +505,7 @@ function downloadUrl(entry: AuditExport): string {
                                 variant="outline"
                                 size="sm"
                                 type="button"
-                                class="rounded-full"
+                                class="rounded-full max-md:h-11"
                                 :disabled="hasPending"
                                 :data-test="`audit-export-retry-${entry.id}`"
                                 @click="retry(entry)"

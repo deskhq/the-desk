@@ -13,10 +13,15 @@ defineProps<{
 </script>
 
 <template>
+    <!-- Below the breakpoint the pushed screen's header already names the
+         pane, so the card chrome and its own title drop away: the sections
+         stack directly on the page (m7). -->
     <section
-        class="w-full max-w-3xl rounded-2xl border border-border bg-card px-6 py-7 shadow-[0_2px_8px_rgba(60,55,40,0.06)] sm:px-10 sm:py-8 dark:shadow-none"
+        class="w-full max-w-3xl md:rounded-2xl md:border md:border-border md:bg-card md:px-10 md:py-8 md:shadow-[0_2px_8px_rgba(60,55,40,0.06)] dark:md:shadow-none"
     >
-        <header class="flex flex-col gap-1 border-b border-border pb-4.5">
+        <header
+            class="hidden flex-col gap-1 border-b border-border pb-4.5 md:flex"
+        >
             <h2
                 class="font-serif text-[28px] leading-tight font-semibold tracking-tight"
             >

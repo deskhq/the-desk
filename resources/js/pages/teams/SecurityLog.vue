@@ -112,7 +112,7 @@ function dotClass(event: TeamSecurityEvent): string {
         <div class="flex flex-wrap items-center gap-3">
             <Select v-model="typeFilter">
                 <SelectTrigger
-                    class="w-56"
+                    class="w-56 max-md:data-[size=default]:h-11"
                     data-test="security-log-type-filter"
                 >
                     <SelectValue :placeholder="$t('All events')" />
@@ -131,7 +131,7 @@ function dotClass(event: TeamSecurityEvent): string {
 
             <Select v-model="actorFilter">
                 <SelectTrigger
-                    class="w-56"
+                    class="w-56 max-md:data-[size=default]:h-11"
                     data-test="security-log-actor-filter"
                 >
                     <SelectValue :placeholder="$t('All members')" />
