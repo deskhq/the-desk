@@ -7,6 +7,10 @@ import type * as AppInstall from './useAppInstall';
 
 type InstallModule = typeof AppInstall;
 
+/** Safari's desktop agent, which an iPad in a tab reports verbatim. */
+const MAC_SAFARI_AGENT =
+    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.6 Safari/605.1.15';
+
 let app: App | null = null;
 
 /**
@@ -365,11 +369,30 @@ describe('iOS, which never fires an install prompt', () => {
 
         expect(install.showRow.value).toBe(true);
         expect(install.isInstructional.value).toBe(true);
+        expect(install.installGuide.value).toBe('ios');
     });
 
     it('recognises an iPad, which reports itself as a Mac', async () => {
         stubBrowser({
-            userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) Safari',
+            userAgent: MAC_SAFARI_AGENT,
+            platform: 'MacIntel',
+            maxTouchPoints: 5,
+            iosStandalone: false,
+        });
+
+        const { initializeAppInstall, useAppInstall } = await loadModule();
+
+        initializeAppInstall();
+
+        const install = inComponent(() => useAppInstall());
+        await nextTick();
+
+        expect(install.installGuide.value).toBe('ios');
+    });
+
+    it('takes a Mac driving a touch display for a Mac, not an iPad', async () => {
+        stubBrowser({
+            userAgent: MAC_SAFARI_AGENT,
             platform: 'MacIntel',
             maxTouchPoints: 5,
         });
@@ -381,14 +404,49 @@ describe('iOS, which never fires an install prompt', () => {
         const install = inComponent(() => useAppInstall());
         await nextTick();
 
-        expect(install.isInstructional.value).toBe(true);
+        expect(install.installGuide.value).toBe('macos');
     });
 
-    it('leaves a desktop Mac alone', async () => {
+    it('offers nothing on a browser that neither prompts nor is iOS', async () => {
+        stubBrowser({ userAgent: 'Mozilla/5.0 (X11; Linux x86_64) Firefox' });
+
+        const { initializeAppInstall, useAppInstall } = await loadModule();
+
+        initializeAppInstall();
+
+        const install = inComponent(() => useAppInstall());
+        await nextTick();
+
+        expect(install.showRow.value).toBe(false);
+    });
+});
+
+describe('Safari on macOS, which installs from its menu bar', () => {
+    /** Stub a Mac desktop, whose browser is chosen by the agent passed in. */
+    function stubMac(userAgent: string): void {
+        stubBrowser({ userAgent, platform: 'MacIntel', maxTouchPoints: 0 });
+    }
+
+    it('offers the instructional variant in a browser tab', async () => {
+        stubMac(MAC_SAFARI_AGENT);
+
+        const { initializeAppInstall, useAppInstall } = await loadModule();
+
+        initializeAppInstall();
+
+        const install = inComponent(() => useAppInstall());
+        await nextTick();
+
+        expect(install.showRow.value).toBe(true);
+        expect(install.isInstructional.value).toBe(true);
+        expect(install.installGuide.value).toBe('macos');
+    });
+
+    it('offers nothing once launched from the Dock', async () => {
         stubBrowser({
-            userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) Safari',
+            userAgent: MAC_SAFARI_AGENT,
             platform: 'MacIntel',
-            maxTouchPoints: 0,
+            standaloneDisplay: true,
         });
 
         const { initializeAppInstall, useAppInstall } = await loadModule();
@@ -399,11 +457,29 @@ describe('iOS, which never fires an install prompt', () => {
         await nextTick();
 
         expect(install.showRow.value).toBe(false);
-        expect(install.isInstructional.value).toBe(false);
+        expect(install.installGuide.value).toBeNull();
     });
 
-    it('offers nothing on a browser that neither prompts nor is iOS', async () => {
-        stubBrowser({ userAgent: 'Mozilla/5.0 (X11; Linux x86_64) Firefox' });
+    it('leaves Chrome on a Mac to its own install prompt', async () => {
+        stubMac(
+            'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36',
+        );
+
+        const { initializeAppInstall, useAppInstall } = await loadModule();
+
+        initializeAppInstall();
+
+        const install = inComponent(() => useAppInstall());
+        await nextTick();
+
+        expect(install.installGuide.value).toBeNull();
+        expect(install.showRow.value).toBe(false);
+    });
+
+    it('stays silent in Firefox on a Mac, which cannot install at all', async () => {
+        stubMac(
+            'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:130.0) Gecko/20100101 Firefox/130.0',
+        );
 
         const { initializeAppInstall, useAppInstall } = await loadModule();
 

@@ -1288,5 +1288,11 @@
   "Scroll to :action": "Faites défiler jusqu’à :action",
   "Tap :action — done": "Touchez :action — c’est fait",
   "Notifications on iPhone only work once :app is on your home screen.": "Sur iPhone, les notifications ne fonctionnent qu’une fois :app sur l’écran d’accueil.",
+  "Add to Dock": "Ajouter au Dock",
+  "From the Safari menu bar": "Depuis la barre de menus de Safari",
+  "Open :action in the Safari menu bar": "Ouvrez le menu :action dans la barre de menus de Safari",
+  "File": "Fichier",
+  "Choose :action": "Choisissez :action",
+  "Click :action to finish": "Cliquez sur :action pour terminer",
   "Got it": "C’est compris"
 }

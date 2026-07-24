@@ -9,6 +9,13 @@ export type BeforeInstallPromptEvent = Event & {
     userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>;
 };
 
+/**
+ * Which hand-written walkthrough a browser needs, for the two that can install
+ * the app but expose no way to ask: iOS Safari's share sheet, and macOS Safari's
+ * File > Add to Dock.
+ */
+export type InstallGuide = 'ios' | 'macos';
+
 /** ISO timestamp of the ✕, "Not now", or a declined browser prompt. */
 const DISMISSED_KEY = 'install.dismissedAt';
 
@@ -30,6 +37,7 @@ const SESSIONS_BEFORE_CARD = 2;
 const deferredPrompt = ref<BeforeInstallPromptEvent | null>(null);
 const installed = ref(false);
 const ios = ref(false);
+const macSafari = ref(false);
 const dismissed = ref(false);
 const rowSeen = ref(false);
 const sessions = ref(0);
@@ -74,12 +82,37 @@ function isStandaloneLaunch(): boolean {
  * and installing means walking the user through the share sheet by hand.
  *
  * iPadOS 13+ reports a desktop Mac user agent, so a touch-capable "Mac" is the
- * only tell an iPad leaves.
+ * first tell an iPad leaves. It is not enough on its own — a Mac driving a
+ * touchscreen matches it too — so `navigator.standalone`, which only Safari on
+ * iOS and iPadOS defines, settles which of the two this is.
  */
 function isIos(): boolean {
     return (
         /iphone|ipad|ipod/i.test(navigator.userAgent) ||
-        (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
+        (navigator.platform === 'MacIntel' &&
+            navigator.maxTouchPoints > 1 &&
+            (navigator as Navigator & { standalone?: boolean }).standalone !==
+                undefined)
+    );
+}
+
+/**
+ * Whether this is Safari on macOS, which can install the app (File > Add to
+ * Dock, Sonoma and later) but fires no `beforeinstallprompt` — so like iOS it
+ * has to be walked through by hand.
+ *
+ * Every Chromium browser carries `Safari` in its user agent, and each one that
+ * runs on macOS also fires the prompt, so they are excluded by name; Firefox
+ * cannot install a web app at all and never matches `Safari` in the first place.
+ */
+function isMacSafari(): boolean {
+    const agent = navigator.userAgent;
+
+    return (
+        /macintosh|mac os x/i.test(agent) &&
+        /safari/i.test(agent) &&
+        !/chrome|chromium|crios|edg|opr\//i.test(agent) &&
+        !isIos()
     );
 }
 
@@ -117,6 +150,7 @@ export function initializeAppInstall(): void {
 
     installed.value = isStandaloneLaunch();
     ios.value = isIos();
+    macSafari.value = isMacSafari();
     dismissed.value = read(window.localStorage, DISMISSED_KEY) !== null;
     rowSeen.value = read(window.localStorage, ROW_SEEN_KEY) !== null;
     sessions.value = countSession();
@@ -152,10 +186,26 @@ export function useAppInstall() {
     });
 
     /**
-     * Whether the install action can only be explained, not performed: iOS
-     * hides "Add to Home Screen" in the share sheet and exposes no API for it.
+     * Which walkthrough this browser needs, or `null` where the install can be
+     * triggered from the page — Safari buries the action in a menu on both of
+     * its platforms and exposes no API for it.
      */
-    const isInstructional = computed(() => ios.value && !installed.value);
+    const installGuide = computed<InstallGuide | null>(() => {
+        if (installed.value) {
+            return null;
+        }
+
+        if (ios.value) {
+            return 'ios';
+        }
+
+        return macSafari.value ? 'macos' : null;
+    });
+
+    /**
+     * Whether the install action can only be explained, not performed.
+     */
+    const isInstructional = computed(() => installGuide.value !== null);
 
     /** The permanent home for install, in the user menu. */
     const showRow = computed(
@@ -202,6 +252,7 @@ export function useAppInstall() {
     return {
         showRow,
         showCard,
+        installGuide,
         isInstructional,
         promptInstall,
         dismissCard: recordDismissal,
