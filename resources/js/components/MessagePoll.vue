@@ -116,7 +116,7 @@ function roster(option: PollOption): string {
 <template>
     <div
         data-test="poll-card"
-        class="mt-1 flex max-w-[30rem] flex-col gap-2.5 rounded-2xl border border-border bg-card px-4 py-3.5"
+        class="mt-1 flex flex-col gap-2.5 rounded-2xl border border-border bg-card px-4 py-3.5 max-md:px-5 md:max-w-[30rem]"
     >
         <div class="flex items-center gap-1.5">
             <BarChart3 class="size-3 text-brass" />
@@ -180,7 +180,11 @@ function roster(option: PollOption): string {
                     :style="{ width: `${share(option)}%` }"
                     aria-hidden="true"
                 ></div>
-                <div class="relative flex items-center gap-2.5 px-3 py-2">
+                <!-- Below `md` the row is a real touch target: 44px minimum,
+                     the floor a finger needs. -->
+                <div
+                    class="relative flex items-center gap-2.5 px-3 py-2 max-md:min-h-11"
+                >
                     <Trophy
                         v-if="isWinner(option)"
                         class="size-3.25 shrink-0 text-brass"
@@ -207,6 +211,7 @@ function roster(option: PollOption): string {
                     </span>
 
                     <span
+                        data-test="poll-option-label"
                         class="flex-1 text-[13.5px] text-foreground"
                         :class="
                             selected(option) || isWinner(option)

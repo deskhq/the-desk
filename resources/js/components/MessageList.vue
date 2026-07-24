@@ -183,6 +183,19 @@ const viewerTimezone = computed<string | null>(
 /** How many participant avatars to preview on a root's "N replies" affordance. */
 const MAX_THREAD_AVATARS = 3;
 
+/**
+ * Below `md`, a rich card (poll, attachments, reply quote) breaks out of the
+ * message row so it runs the full width of the timeline instead of the
+ * 36px-indented text column, trading its rounded box for hairline top and
+ * bottom rules (design "Mobile Message List", screen `1c`).
+ *
+ * The offsets are this row's own geometry — 20px of timeline padding plus the
+ * 36px avatar gutter on the left, 20px of padding on the right — so they live
+ * beside the row that defines them rather than inside each card.
+ */
+const CARD_BLEED =
+    'max-md:-ml-14 max-md:-mr-5 max-md:rounded-none max-md:border-x-0';
+
 function threadAvatars(message: Message): Mention[] {
     return message.threadParticipants.slice(0, MAX_THREAD_AVATARS);
 }
@@ -905,9 +918,16 @@ function confirmDelete(): void {
                     </span>
                 </div>
 
-                <div v-else class="mt-4.5 flex">
+                <div
+                    v-else
+                    data-test="message-group"
+                    class="mt-4.5 flex max-md:mt-3.5"
+                >
+                    <!-- The avatar gutter: 64px of centred column on desktop,
+                         a 26px avatar plus a 10px gap below `md`, where 64px of
+                         a 390px screen is a quarter of the row spent on chrome. -->
                     <div
-                        class="flex w-16 shrink-0 flex-col items-center gap-1 pt-0.5"
+                        class="flex w-16 shrink-0 flex-col items-center gap-1 pt-0.5 max-md:w-9 max-md:items-start max-md:gap-0 max-md:pt-0"
                     >
                         <UserHoverCard
                             :team-slug="props.teamSlug"
@@ -917,13 +937,16 @@ function confirmDelete(): void {
                             :is-dnd="dndOf(item.author.id)"
                             @mention="(member) => emit('mention', member)"
                         >
-                            <div class="relative size-8.5 cursor-pointer">
+                            <div
+                                data-test="message-avatar"
+                                class="relative size-8.5 cursor-pointer max-md:size-6.5"
+                            >
                                 <!-- A bot squares off its avatar (rounded-lg vs a
                                      human's full circle) and shows a glyph on the
                                      ink-stone fill, so it reads as non-human at a
                                      glance; a human keeps their gravatar/initials. -->
                                 <Avatar
-                                    class="size-8.5 text-[11px]"
+                                    class="size-8.5 text-[11px] max-md:size-6.5 max-md:text-[9px]"
                                     :class="
                                         item.author.isBot ? 'rounded-lg' : ''
                                     "
@@ -963,18 +986,23 @@ function confirmDelete(): void {
                                     :presence="presenceOf(item.author.id)"
                                     :is-dnd="dndOf(item.author.id)"
                                     surface-class="bg-card"
-                                    size="36"
+                                    :size="isMobile ? '24' : '36'"
                                     class="ring-card"
                                 />
                             </div>
                         </UserHoverCard>
+                        <!-- The stacked time sets a tall floor on every row even
+                             for a one-word message, so below `md` it gives way
+                             to the inline stamp on the author's own line. -->
                         <span
-                            class="font-mono text-[9.5px] text-muted-foreground"
+                            data-test="message-group-time"
+                            class="font-mono text-[9.5px] text-muted-foreground max-md:hidden"
                             >{{ formatTime(item.leadCreatedAt) }}</span
                         >
                     </div>
                     <div
-                        class="min-w-0 flex-1 pl-4.5"
+                        data-test="message-column"
+                        class="min-w-0 flex-1 pl-4.5 max-md:border-l-0 max-md:pl-0"
                         :class="
                             isThreadRoot(item)
                                 ? 'border-l-2 border-brass'
@@ -1014,6 +1042,17 @@ function confirmDelete(): void {
                         <span v-else class="sr-only">{{
                             $t(presenceLabelKey(presenceOf(item.author.id)))
                         }}</span>
+                        <!-- Below `md` the group's time rides beside the author
+                             name instead of stacking under the avatar, where a
+                             36px gutter has no room for it. Hidden from AT on
+                             both layouts: each row's accessible name already
+                             carries its own time. -->
+                        <span
+                            data-test="message-group-time-inline"
+                            aria-hidden="true"
+                            class="ml-1.5 font-mono text-[10.5px] text-muted-foreground md:hidden"
+                            >{{ formatTime(item.leadCreatedAt) }}</span
+                        >
                         <div role="list">
                             <!-- eslint-disable-next-line vuejs-accessibility/no-static-element-interactions -- a touch-only long-press gesture; every action it opens stays reachable through the toolbar's focusable buttons -->
                             <div
@@ -1030,7 +1069,9 @@ function confirmDelete(): void {
                                 "
                                 class="group/message relative -mx-2 rounded-md px-2 transition-colors duration-1000 hover:bg-muted/40 max-md:select-none max-md:[-webkit-touch-callout:none]"
                                 :class="[
-                                    index === 0 ? 'mt-0.5' : 'mt-1.5',
+                                    index === 0
+                                        ? 'mt-0.5'
+                                        : 'mt-1.5 max-md:mt-0.5',
                                     message.id === props.highlightMessageId
                                         ? 'bg-primary/10'
                                         : '',
@@ -1061,11 +1102,15 @@ function confirmDelete(): void {
                                  time above, so revealing this here would stack a
                                  duplicate on top of it. The lead's <time> stays
                                  present but never fades in, so its machine-
-                                 readable value is unchanged. -->
+                                 readable value is unchanged.
+                                 Touch has no hover to reveal it with, so below
+                                 `md` it drops out entirely rather than compete
+                                 for a 36px gutter. -->
                                 <time
                                     :datetime="message.createdAt"
+                                    data-test="message-hover-time"
                                     aria-hidden="true"
-                                    class="pointer-events-none absolute top-1.5 -left-10.75 -translate-x-1/2 font-mono text-[9.5px] text-muted-foreground opacity-0 transition-opacity"
+                                    class="pointer-events-none absolute top-1.5 -left-10.75 -translate-x-1/2 font-mono text-[9.5px] text-muted-foreground opacity-0 transition-opacity max-md:hidden"
                                     :class="
                                         index > 0
                                             ? 'group-hover/message:opacity-100'
@@ -1111,7 +1156,8 @@ function confirmDelete(): void {
                                             },
                                         )
                                     "
-                                    class="mt-0.5 flex max-w-full items-center rounded pr-1 text-left hover:opacity-80"
+                                    class="mt-0.5 flex max-w-full items-center rounded pr-1 text-left hover:opacity-80 max-md:border-y max-md:border-border max-md:bg-card max-md:py-1.5 max-md:pr-5 max-md:pl-5"
+                                    :class="CARD_BLEED"
                                     @click="emit('jump', message.replyTo.id)"
                                 >
                                     <MessageQuote
@@ -1175,7 +1221,7 @@ function confirmDelete(): void {
                                 <p
                                     v-else-if="message.body !== ''"
                                     :data-test="'message-body'"
-                                    class="py-0.5 text-[14.5px] leading-[1.55] break-words whitespace-pre-wrap text-foreground/90"
+                                    class="py-0.5 text-[14.5px] leading-[1.55] break-words whitespace-pre-wrap text-foreground/90 max-md:text-[15px] max-md:leading-[1.45]"
                                     :class="
                                         isPending(message) ? 'opacity-60' : ''
                                     "
@@ -1304,6 +1350,7 @@ function confirmDelete(): void {
                                         !message.isDeleted &&
                                         editingId !== message.id
                                     "
+                                    :class="CARD_BLEED"
                                     :attachments="message.attachments"
                                     :author-name="message.user.name"
                                     :created-at="message.createdAt"
@@ -1316,6 +1363,7 @@ function confirmDelete(): void {
                                         !message.isDeleted &&
                                         editingId !== message.id
                                     "
+                                    :class="CARD_BLEED"
                                     :poll="message.poll"
                                     :current-user-id="props.currentUserId"
                                     :can-vote="canReactTo(message)"
