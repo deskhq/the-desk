@@ -38,6 +38,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import UserStatusEmoji from '@/components/UserStatusEmoji.vue';
 import { useAppearance } from '@/composables/useAppearance';
+import { useIsMobile } from '@/composables/useIsMobile';
 import { useDndPauseDialog } from '@/composables/useDndPauseDialog';
 import { useInitials } from '@/composables/useInitials';
 import { useKeyboardShortcutsModal } from '@/composables/useKeyboardShortcutsModal';
@@ -55,6 +56,7 @@ import type { RenderedPresence } from '@/lib/presence';
 import { logout } from '@/routes';
 import { edit as appearanceEdit } from '@/routes/appearance';
 import { edit } from '@/routes/profile';
+import { index as settingsIndex } from '@/routes/settings';
 import type { Appearance, SidebarPosition, Team, User } from '@/types';
 
 type Props = {
@@ -73,6 +75,15 @@ const { open: openStatusDialog } = useUserStatusDialog();
 // reflects there and back with no extra persistence.
 const { appearance, updateAppearance } = useAppearance();
 const { sidebarPosition, updateSidebarPosition } = useSidebarPosition();
+
+/**
+ * Below the breakpoint Settings opens on its full-screen index; from md up it
+ * opens straight on the profile pane beside the settings side nav.
+ */
+const isMobile = useIsMobile();
+const settingsHref = computed(() =>
+    isMobile.value ? settingsIndex() : edit(),
+);
 
 const themeOptions = computed<
     { value: Appearance; label: string; icon: Component }[]
@@ -631,7 +642,7 @@ const handleLogout = () => {
             :as-child="true"
             class="group/item flex h-9 cursor-pointer items-center gap-2.5 rounded-[10px] px-2.5 py-0 text-[13.5px] font-normal text-foreground focus:bg-primary focus:text-primary-foreground"
         >
-            <Link :href="edit()" data-test="settings-menu-item" prefetch>
+            <Link :href="settingsHref" data-test="settings-menu-item" prefetch>
                 <Settings
                     class="size-3.75 text-muted-foreground group-focus/item:text-brass"
                 />
