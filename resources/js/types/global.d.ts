@@ -4,7 +4,12 @@ import type { Channel, ChannelSection } from '@/types/channels';
 import type { MessageReminder } from '@/types/messages';
 import type { PersonRef } from '@/types/people';
 import type { SidebarPositionOption } from '@/types/sidebar';
-import type { DashboardInvitation, RoleOption, Team } from '@/types/teams';
+import type {
+    DashboardInvitation,
+    RoleOption,
+    Team,
+    TeamInvitationContext,
+} from '@/types/teams';
 
 // Extend ImportMeta interface for Vite...
 declare module 'vite/client' {
@@ -57,6 +62,12 @@ declare module '@inertiajs/core' {
             update: App.Data.UpdateStatusData | null;
             locale: string;
             translations?: Record<string, string>;
+            /**
+             * Set on the auth pages reached through an invitation link, so the
+             * auth shell can dress its ink panel without the page threading it
+             * back down as a layout prop.
+             */
+            teamInvitation?: TeamInvitationContext | null;
             [key: string]: unknown;
         };
     }

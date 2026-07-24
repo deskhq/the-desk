@@ -180,6 +180,9 @@
        the height it really occupies (#841). Keep it matching the desktop strip's
        own `md:h-10`. */
     --demo-banner-height: 2.5rem;
+    /* Cast by the auth screens' one ink control, so the pill lifts off the paper
+       column rather than sitting flat on it (#860). */
+    --shadow-ink: rgba(29, 26, 21, 0.45);
     --chart-1: #c9a35c;
     --chart-2: #7d6023;
     --chart-3: #8b8370;
@@ -255,6 +258,8 @@
     --demo-badge-foreground: #1d1a15;
     --demo-chip: #26231c;
     --demo-chip-foreground: #c9a35c;
+    /* Deepened: an ink shadow reads as nothing against an already-dark surface. */
+    --shadow-ink: rgba(0, 0, 0, 0.55);
     --chart-1: #d4b06a;
     --chart-2: #b8923f;
     --chart-3: #9b937f;
