@@ -30,20 +30,24 @@ permissions:
 
 jobs:
   ci:
-    # Release-please PRs only touch VERSION/manifest/changelog files, already
-    # fully tested on the branch they were cut from — yet every push to the base
-    # branch force-updates the release branch and re-fires this suite on the PR.
-    # A job-level `if` (not a `paths` filter) is what keeps the PR mergeable: a
-    # skipped job reports its required check as *skipped*, which GitHub treats as
-    # satisfied, while a workflow that never starts leaves it stuck on
-    # *Expected*. The head-repo clause keeps the branch name from becoming a CI
-    # bypass: `head_ref` is attacker-controlled, so a fork branch named
-    # `release-please--anything` must still run everything. The job must also
-    # stay matrix-free: a matrix job skipped by a job-level `if` never expands,
-    # so its check would report under the raw name and a matrix-expanded
-    # required context (`ci (8.5)`) would sit on *Expected* forever (#825).
-    # Guarded by tests/Unit/ReleasePullRequestCiSkipTest.php (#820, #825).
-    if: github.event_name != 'pull_request' || !startsWith(github.head_ref, 'release-please--') || github.event.pull_request.head.repo.full_name != github.repository
+    # Automation-owned PRs only touch VERSION/manifest/changelog files, already
+    # fully tested on the branch they were cut from: release-please PRs re-fire
+    # this suite on every push to the base branch (which force-updates the
+    # release branch), and the candidate-baseline PR the release workflow opens
+    # against `develop` after a stable release burns a full suite on a one-line
+    # manifest bump (#839). A job-level `if` (not a `paths` filter) is what
+    # keeps the PR mergeable: a skipped job reports its required check as
+    # *skipped*, which GitHub treats as satisfied, while a workflow that never
+    # starts leaves it stuck on *Expected*. The head-repo clause keeps the
+    # branch name from becoming a CI bypass: `head_ref` is attacker-controlled,
+    # so a fork branch named `release-please--anything` or
+    # `chore/candidate-baseline-anything` must still run everything. The job
+    # must also stay matrix-free: a matrix job skipped by a job-level `if`
+    # never expands, so its check would report under the raw name and a
+    # matrix-expanded required context (`ci (8.5)`) would sit on *Expected*
+    # forever (#825).
+    # Guarded by tests/Unit/ReleasePullRequestCiSkipTest.php (#820, #825, #839).
+    if: github.event_name != 'pull_request' || !(startsWith(github.head_ref, 'release-please--') || startsWith(github.head_ref, 'chore/candidate-baseline-')) || github.event.pull_request.head.repo.full_name != github.repository
     runs-on: ${{ vars.CI_RUNNER || 'ubuntu-latest' }}
 
     # The schema relies on Postgres-only defaults (gen_random_uuid()), so tests
@@ -157,8 +161,8 @@ jobs:
   # never folds into the 100% coverage gate above — the `browser` group is
   # excluded from phpunit's default suites and only runs via `pest tests/Browser`.
   browser:
-    # Skipped on release-please PRs for the same reason as the ci job above.
-    if: github.event_name != 'pull_request' || !startsWith(github.head_ref, 'release-please--') || github.event.pull_request.head.repo.full_name != github.repository
+    # Skipped on automation-owned PRs for the same reason as the ci job above.
+    if: github.event_name != 'pull_request' || !(startsWith(github.head_ref, 'release-please--') || startsWith(github.head_ref, 'chore/candidate-baseline-')) || github.event.pull_request.head.repo.full_name != github.repository
     runs-on: ${{ vars.CI_RUNNER || 'ubuntu-latest' }}
 
     services:

@@ -18,15 +18,20 @@ use Symfony\Component\Yaml\Yaml;
 $workflow = fn (string $name): array => Yaml::parseFile(dirname(__DIR__, 2).'/.github/workflows/'.$name);
 
 /**
- * The condition that spares a release PR the heavy jobs: `head_ref` is only set
- * on pull request events, so every push, schedule, or dispatch run passes the
- * first disjunct untouched. The head-repo disjunct is what keeps the branch
+ * The condition that spares an automation-owned PR the heavy jobs: `head_ref`
+ * is only set on pull request events, so every push, schedule, or dispatch run
+ * passes the first disjunct untouched. Two branch prefixes qualify — the
+ * release PRs release-please maintains (`release-please--`, #820) and the
+ * candidate-baseline PR the release workflow opens against `develop` after a
+ * stable release (`chore/candidate-baseline-`, #839); both carry diffs limited
+ * to files release-please owns. The head-repo disjunct is what keeps the branch
  * name from becoming a CI bypass — `head_ref` is attacker-controlled, so a fork
- * branch named `release-please--anything` would otherwise get every required
- * check skipped (and skipped counts as satisfied). A same-repo branch with that
- * name needs write access, which is already trusted.
+ * branch named `release-please--anything` or `chore/candidate-baseline-anything`
+ * would otherwise get every required check skipped (and skipped counts as
+ * satisfied). A same-repo branch with either name needs write access, which is
+ * already trusted.
  */
-const RELEASE_PULL_REQUEST_SKIP = "github.event_name != 'pull_request' || !startsWith(github.head_ref, 'release-please--') || github.event.pull_request.head.repo.full_name != github.repository";
+const AUTOMATION_PULL_REQUEST_SKIP = "github.event_name != 'pull_request' || !(startsWith(github.head_ref, 'release-please--') || startsWith(github.head_ref, 'chore/candidate-baseline-')) || github.event.pull_request.head.repo.full_name != github.repository";
 
 /**
  * The multi-minute jobs and the workflows they live in. `commitlint` and
@@ -45,8 +50,8 @@ function heavyJobs(): array
     ];
 }
 
-test('the heavy jobs skip release-please pull requests', function (string $file, string $job) use ($workflow): void {
-    expect($workflow($file)['jobs'][$job]['if'] ?? null)->toBe(RELEASE_PULL_REQUEST_SKIP);
+test('the heavy jobs skip automation-owned pull requests', function (string $file, string $job) use ($workflow): void {
+    expect($workflow($file)['jobs'][$job]['if'] ?? null)->toBe(AUTOMATION_PULL_REQUEST_SKIP);
 })->with(heavyJobs());
 
 /*
