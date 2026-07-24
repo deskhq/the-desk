@@ -2,8 +2,8 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Linter, RuleTester } from 'eslint';
-import { describe, expect, it } from 'vitest';
 import { parser as tsParser } from 'typescript-eslint';
+import { describe, expect, it } from 'vitest';
 import vueParser from 'vue-eslint-parser';
 import rule, { findSmallMobileFont, fontSizeInPixels } from './no-small-mobile-input-text.js';
 

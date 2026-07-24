@@ -1812,7 +1812,7 @@ function onKeydown(event: KeyboardEvent): void {
                         data-lpignore="true"
                         data-bwignore
                         data-form-type="other"
-                        class="max-h-[200px] min-w-0 flex-1 resize-none self-center bg-transparent py-1 text-base md:text-sm text-foreground outline-none placeholder:text-muted-foreground"
+                        class="max-h-[200px] min-w-0 flex-1 resize-none self-center bg-transparent py-1 text-base text-foreground outline-none placeholder:text-muted-foreground md:text-sm"
                         @input="
                             (resize(),
                             refreshSuggestions(),
