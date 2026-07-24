@@ -299,11 +299,23 @@ test('collapsing a section keeps the dock open', function (): void {
         ->navigate(browserChannelUrl($team, $channel))
         ->click('@sidebar-toggle')
         ->assertVisible('@section-content-channels')
+        // Flag the persisting PATCH's completion so the final assertions run on
+        // the far side of the round trip — a wrongful close would fire there,
+        // after the optimistic assertions had already passed.
+        ->assertScript(<<<'JS'
+        (() => {
+            window.__collapsePersisted = false;
+            document.addEventListener('inertia:finish', () => {
+                window.__collapsePersisted = true;
+            }, { once: true });
+
+            return true;
+        })()
+        JS, true)
         ->click('@section-toggle-channels')
         ->assertMissing('@section-content-channels')
+        ->assertScript('window.__collapsePersisted', true)
         ->assertPresent('@channels-nav')
-        // The persisting PATCH has round-tripped once its prop lands; the dock
-        // is still on screen on the far side of it.
         ->assertScript(<<<'JS'
         (() => document.querySelector('[data-slot="sidebar"][data-mobile="true"]') !== null)()
         JS, true);
