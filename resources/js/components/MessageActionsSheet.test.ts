@@ -15,6 +15,8 @@ vi.mock('@inertiajs/vue3', () => ({
     usePage: () => ({ props }),
 }));
 
+vi.mock('vue-sonner', () => ({ toast: { error: vi.fn(), success: vi.fn() } }));
+
 // The sheet rides the app's dialog primitive; its portal/focus behaviour is the
 // primitive's own tested concern, so render it down to a passthrough.
 vi.mock('@/components/ui/dialog', () => {
@@ -255,6 +257,26 @@ describe('MessageActionsSheet action rows', () => {
 
         expect(writeText).toHaveBeenCalledExactlyOnceWith(
             'hi @Alice\n**bold**',
+        );
+        expect(emitted['update:open']).toEqual([[false]]);
+    });
+
+    it('reports a copy that could not reach the clipboard and still dismisses', async () => {
+        const { toast } = await import('vue-sonner');
+        const writeText = vi.fn().mockRejectedValue(new Error('denied'));
+        Object.defineProperty(navigator, 'clipboard', {
+            value: { writeText },
+            configurable: true,
+        });
+
+        const { host, emitted } = mount();
+
+        host.querySelector<HTMLElement>('[data-test="sheet-copy"]')!.click();
+        await Promise.resolve();
+        await Promise.resolve();
+
+        expect(toast.error).toHaveBeenCalledExactlyOnceWith(
+            'The message text could not be copied.',
         );
         expect(emitted['update:open']).toEqual([[false]]);
     });

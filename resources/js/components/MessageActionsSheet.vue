@@ -11,6 +11,7 @@ import {
     Trash2,
 } from '@lucide/vue';
 import { computed, watch } from 'vue';
+import { toast } from 'vue-sonner';
 import EmojiPickerPopover from '@/components/EmojiPickerPopover.vue';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
@@ -226,8 +227,14 @@ function react(emoji: string): void {
  * deliberate copy path that replaces it.
  */
 async function copyMessageText(): Promise<void> {
-    await navigator.clipboard.writeText(copyText.value);
-    close();
+    try {
+        // Also guards the API being absent altogether (a plain-http install).
+        await navigator.clipboard.writeText(copyText.value);
+    } catch {
+        toast.error(t('The message text could not be copied.'));
+    } finally {
+        close();
+    }
 }
 
 /** The shared look of one 46px action row (design m4). */
