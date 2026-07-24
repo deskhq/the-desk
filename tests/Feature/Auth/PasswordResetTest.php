@@ -3,6 +3,7 @@
 use App\Models\User;
 use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Support\Facades\Notification;
+use Inertia\Testing\AssertableInertia as Assert;
 use Laravel\Fortify\Features;
 
 beforeEach(function (): void {
@@ -13,6 +14,41 @@ test('reset password link screen can be rendered', function (): void {
     $response = $this->get(route('password.request'));
 
     $response->assertOk();
+});
+
+test('the reset password link screen publishes the link lifetime', function (): void {
+    config(['auth.passwords.users.expire' => 45]);
+
+    $this->get(route('password.request'))
+        ->assertInertia(fn (Assert $page): Assert => $page
+            ->component('auth/ForgotPassword')
+            ->where('linkExpiresInMinutes', 45),
+        );
+});
+
+test('the reset password screen publishes the link lifetime', function (): void {
+    config(['auth.passwords.users.expire' => 45]);
+
+    $this->get(route('password.reset', 'some-token'))
+        ->assertInertia(fn (Assert $page): Assert => $page
+            ->component('auth/ResetPassword')
+            ->where('linkExpiresInMinutes', 45),
+        );
+});
+
+test('an expired reset token surfaces the expired-link message', function (): void {
+    $user = User::factory()->create();
+
+    $response = $this->post(route('password.update'), [
+        'token' => 'expired-token',
+        'email' => $user->email,
+        'password' => 'newpassword123',
+        'password_confirmation' => 'newpassword123',
+    ]);
+
+    $response->assertSessionHasErrors([
+        'email' => 'This reset link has expired. Request a new one.',
+    ]);
 });
 
 test('reset password link can be requested', function (): void {

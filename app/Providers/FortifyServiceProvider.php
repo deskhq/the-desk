@@ -4,6 +4,7 @@ namespace App\Providers;
 
 use App\Actions\Fortify\CreateNewUser;
 use App\Actions\Fortify\ResetUserPassword;
+use App\Data\TeamInvitationContextData;
 use App\Http\Responses\LoginResponse;
 use App\Http\Responses\LogoutResponse;
 use App\Http\Responses\RegisterResponse;
@@ -11,6 +12,7 @@ use App\Http\Responses\TwoFactorLoginResponse;
 use App\Http\Responses\VerifyEmailResponse;
 use App\Models\TeamInvitation;
 use App\Services\Sso\LdapAuthenticator;
+use App\Support\LegalConsent;
 use Database\Seeders\DemoSeeder;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Contracts\Auth\Authenticatable;
@@ -150,10 +152,12 @@ class FortifyServiceProvider extends ServiceProvider
         Fortify::resetPasswordView(fn (Request $request) => Inertia::render('auth/ResetPassword', [
             'email' => $request->email,
             'token' => $request->route('token'),
+            'linkExpiresInMinutes' => $this->resetLinkLifetime(),
         ]));
 
         Fortify::requestPasswordResetLinkView(fn (Request $request) => Inertia::render('auth/ForgotPassword', [
             'status' => $request->session()->get('status'),
+            'linkExpiresInMinutes' => $this->resetLinkLifetime(),
         ]));
 
         Fortify::verifyEmailView(fn (Request $request) => Inertia::render('auth/VerifyEmail', [
@@ -162,6 +166,8 @@ class FortifyServiceProvider extends ServiceProvider
 
         Fortify::registerView(fn (Request $request) => Inertia::render('auth/Register', [
             'teamInvitation' => $this->teamInvitation($request),
+            'termsUrl' => LegalConsent::termsUrl(),
+            'privacyUrl' => LegalConsent::privacyUrl(),
         ]));
 
         Fortify::confirmPasswordView(fn () => Inertia::render('auth/ConfirmPassword'));
@@ -207,11 +213,21 @@ class FortifyServiceProvider extends ServiceProvider
     }
 
     /**
-     * Get the pending team invitation context for auth pages.
+     * How long a password-reset link stays valid, in minutes.
      *
-     * @return array{code: string, teamName: string}|null
+     * The reset pages state the lifetime in their copy, so they read the broker's
+     * own configuration rather than repeating a number that would drift the first
+     * time an operator changes it.
      */
-    private function teamInvitation(Request $request): ?array
+    private function resetLinkLifetime(): int
+    {
+        return (int) config('auth.passwords.'.config('auth.defaults.passwords').'.expire');
+    }
+
+    /**
+     * Get the pending team invitation context for auth pages.
+     */
+    private function teamInvitation(Request $request): ?TeamInvitationContextData
     {
         $invitationCode = $request->query('invitation');
 
@@ -220,7 +236,7 @@ class FortifyServiceProvider extends ServiceProvider
         }
 
         $invitation = TeamInvitation::query()
-            ->with('team')
+            ->with(['team', 'inviter'])
             ->where('code', $invitationCode)
             ->whereNull('accepted_at')
             ->where(fn ($query) => $query
@@ -232,9 +248,6 @@ class FortifyServiceProvider extends ServiceProvider
             return null;
         }
 
-        return [
-            'code' => $invitation->code,
-            'teamName' => $invitation->team->name,
-        ];
+        return TeamInvitationContextData::fromInvitation($invitation);
     }
 }

@@ -6,6 +6,8 @@ use App\Actions\Teams\CreateTeam;
 use App\Concerns\PasswordValidationRules;
 use App\Concerns\ProfileValidationRules;
 use App\Models\User;
+use App\Rules\MatchesTeamInvitation;
+use App\Support\LegalConsent;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use Laravel\Fortify\Contracts\CreatesNewUsers;
@@ -26,9 +28,20 @@ class CreateNewUser implements CreatesNewUsers
      */
     public function create(array $input): User
     {
+        $invitationCode = $input['invitation'] ?? null;
+
         Validator::make($input, [
             ...$this->profileRules(),
+            'email' => [
+                ...$this->emailRules(),
+                new MatchesTeamInvitation(is_string($invitationCode) ? $invitationCode : null),
+            ],
             'password' => $this->passwordRules(),
+            // Only an instance whose operator published both documents asks for
+            // agreement; elsewhere the field does not exist on the form.
+            'terms' => LegalConsent::isRequired() ? ['accepted'] : [],
+        ], [
+            'terms.accepted' => __('Please accept the terms and the privacy notice to continue.'),
         ])->validate();
 
         return DB::transaction(function () use ($input) {
