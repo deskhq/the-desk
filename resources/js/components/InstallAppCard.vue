@@ -5,6 +5,7 @@ import { computed } from 'vue';
 import { Button } from '@/components/ui/button';
 import { useAppInstall } from '@/composables/useAppInstall';
 import { useInstallDialog } from '@/composables/useInstallDialog';
+import { useTranslations } from '@/composables/useTranslations';
 
 /**
  * The one-time invitation to install, above the sidebar's user footer. It waits
@@ -13,10 +14,21 @@ import { useInstallDialog } from '@/composables/useInstallDialog';
  * the user menu keeps a permanent row for anyone who changes their mind.
  */
 const page = usePage();
-const { showCard, dismissCard } = useAppInstall();
+const { t } = useTranslations();
+const { showCard, dismissCard, installsToHomeScreen } = useAppInstall();
 const { open: openInstallDialog } = useInstallDialog();
 
 const appName = computed(() => page.props.name);
+
+/**
+ * The card also rides in the mobile drawer, so the promise it makes has to
+ * follow the platform: a home-screen tile on a phone, a windowed app elsewhere.
+ */
+const pitch = computed(() =>
+    installsToHomeScreen.value
+        ? t('Add it to your home screen for a full-screen app, one tap away.')
+        : t('Install it as an app — own window, dock icon, no tab to lose.'),
+);
 </script>
 
 <template>
@@ -58,11 +70,7 @@ const appName = computed(() => page.props.name);
                 >
             </div>
             <p class="pr-1 text-[12.5px] leading-normal text-muted-foreground">
-                {{
-                    $t(
-                        'Install it as an app — own window, dock icon, no tab to lose.',
-                    )
-                }}
+                {{ pitch }}
             </p>
             <div class="flex items-center gap-2">
                 <Button

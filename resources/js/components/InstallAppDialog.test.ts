@@ -79,6 +79,10 @@ const IPHONE_AGENT = 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0) Safari';
 const MAC_SAFARI_AGENT =
     'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.6 Safari/605.1.15';
 
+/** Chrome on a phone: it prompts, but the app lands on the home screen. */
+const ANDROID_AGENT =
+    'Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Mobile Safari/537.36';
+
 /** Whether the stubbed browser is one that would fire `beforeinstallprompt`. */
 function prompts(userAgent: string): boolean {
     return userAgent !== IPHONE_AGENT && userAgent !== MAC_SAFARI_AGENT;
@@ -87,6 +91,10 @@ function prompts(userAgent: string): boolean {
 function platformFor(userAgent: string): string {
     if (userAgent === IPHONE_AGENT) {
         return 'iPhone';
+    }
+
+    if (userAgent === ANDROID_AGENT) {
+        return 'Linux armv8l';
     }
 
     return userAgent === MAC_SAFARI_AGENT ? 'MacIntel' : 'Linux x86_64';
@@ -182,23 +190,33 @@ it('lists what installing buys, including the current workspace', async () => {
     );
 
     expect(benefits?.textContent).toContain(
-        'Opens full-screen from your home screen',
+        'Opens in its own window, not a browser tab',
     );
-    expect(benefits?.textContent).toContain('Required for push notifications');
     expect(benefits?.textContent).toContain('Keeps you signed in to Acme Co');
 });
 
-it('drops the push claim on an instance with no push configured', async () => {
-    props.webPush = { enabled: false, publicKey: null };
+it('makes no push claim on the desktop, where push works in a tab', async () => {
     await boot();
 
     const benefits = (await mountDialog()).querySelector(
         '[data-test="install-app-benefits"]',
     );
 
-    expect(benefits?.textContent).not.toContain(
-        'Required for push notifications',
+    expect(benefits?.textContent).not.toContain('push');
+});
+
+it('promises the home screen on Android, and claims nothing about push', async () => {
+    await boot(ANDROID_AGENT);
+
+    const benefits = (await mountDialog()).querySelector(
+        '[data-test="install-app-benefits"]',
     );
+
+    expect(benefits?.textContent).toContain(
+        'Opens full-screen from your home screen',
+    );
+    expect(benefits?.textContent).not.toContain('own window');
+    expect(benefits?.textContent).not.toContain('push');
 });
 
 it('drops the workspace line when the page carries no team', async () => {

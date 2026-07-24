@@ -33,6 +33,10 @@ function translate(
     );
 }
 
+/** Chrome on a phone: it prompts, but the app lands on the home screen. */
+const ANDROID_AGENT =
+    'Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Mobile Safari/537.36';
+
 /** Boot the app as a returning visitor whose browser offers an install. */
 async function bootInstallableSession(): Promise<void> {
     vi.resetModules();
@@ -135,6 +139,24 @@ it('invites the returning visitor by name, with both ways out', async () => {
             ?.querySelector('[data-test="install-app-card-dismiss"]')
             ?.getAttribute('aria-label'),
     ).toBe('Dismiss install invitation');
+});
+
+it('promises the home screen rather than a window on a phone', async () => {
+    vi.stubGlobal('navigator', {
+        userAgent: ANDROID_AGENT,
+        platform: 'Linux armv8l',
+        maxTouchPoints: 5,
+    });
+    await bootInstallableSession();
+
+    const card = (await mountCard()).querySelector(
+        '[data-test="install-app-card"]',
+    );
+
+    expect(card?.textContent).toContain(
+        'Add it to your home screen for a full-screen app, one tap away.',
+    );
+    expect(card?.textContent).not.toContain('dock icon');
 });
 
 it('retires for good when "Not now" is taken', async () => {
