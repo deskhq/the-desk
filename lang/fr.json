@@ -1182,6 +1182,8 @@
   "Sign in with the shared demo account": "Connectez-vous avec le compte de démonstration partagé",
   "You're exploring a": "Vous explorez une",
   "live demo": "démo en direct",
+  "Live demo": "Démo en direct",
+  "Shared account, some actions are disabled.": "Compte partagé, certaines actions sont désactivées.",
   "— everyone shares one account, it resets hourly, and some actions are disabled.": "— tout le monde partage un seul compte, elle est réinitialisée toutes les heures, et certaines actions sont désactivées.",
   "Record a voice message": "Enregistrer un message vocal",
   "Stop recording": "Arrêter l’enregistrement",
