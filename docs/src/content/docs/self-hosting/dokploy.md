@@ -181,7 +181,7 @@ user, so neither `-w` nor `-u` is needed.
 tab followed by **Redeploy** (Dokploy pulls the new tag):
 
 ```dotenv
-APP_VERSION=1.15.2 # x-release-please-version
+APP_VERSION=1.16.0 # x-release-please-version
 ```
 
 To track stable releases instead of pinning one, set `APP_IMAGE`, which overrides

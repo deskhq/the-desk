@@ -1,5 +1,48 @@
 # Changelog
 
+## [1.16.0](https://github.com/deskhq/the-desk/compare/v1.15.2...v1.16.0) (2026-07-24)
+
+
+### Features
+
+* choose a 12-hour or 24-hour clock in Language & region ([#767](https://github.com/deskhq/the-desk/issues/767)) ([24f2ccb](https://github.com/deskhq/the-desk/commit/24f2ccba8730c2481e27e60e8abbc1d727e47542))
+* long-press a message to open the actions bottom sheet below md ([#797](https://github.com/deskhq/the-desk/issues/797)) ([c689de8](https://github.com/deskhq/the-desk/commit/c689de8c7217d1712dd2fd603802a7bab4c8a137))
+* open the user menu as a bottom sheet below md ([#819](https://github.com/deskhq/the-desk/issues/819)) ([389181f](https://github.com/deskhq/the-desk/commit/389181f72b6c5d019c22c60ed9e3daf1494d3584))
+* overlay the reconnecting pill below md instead of taking masthead space ([#808](https://github.com/deskhq/the-desk/issues/808)) ([a3b19ca](https://github.com/deskhq/the-desk/commit/a3b19ca48162e1c74b6f5294d3a7a954033ea279))
+* pause notifications manually or on a daily quiet-hours schedule ([#740](https://github.com/deskhq/the-desk/issues/740)) ([811469d](https://github.com/deskhq/the-desk/commit/811469d994f091947e7496dd0b8c8e40f741f30b))
+* pulse a short haptic when a long-press opens the actions sheet ([#831](https://github.com/deskhq/the-desk/issues/831)) ([604d021](https://github.com/deskhq/the-desk/commit/604d021c2174316187bd8e5828d65d33949baa2a))
+* render dialogs as bottom sheets below the md breakpoint ([#785](https://github.com/deskhq/the-desk/issues/785)) ([2fe4350](https://github.com/deskhq/the-desk/commit/2fe4350a8e3f8a0c7975402f012eee7e4db7eb77))
+* render settings as an index list with stacked detail below md ([#816](https://github.com/deskhq/the-desk/issues/816)) ([7a7267d](https://github.com/deskhq/the-desk/commit/7a7267dfb6bf50a6743188cdd372d9ba5707f628))
+* render the quick switcher as a full-screen overlay below md ([#799](https://github.com/deskhq/the-desk/issues/799)) ([6d3850f](https://github.com/deskhq/the-desk/commit/6d3850f17003b2d9e82816a418c37d199bb05707))
+* render the thread panel as a full-screen push below the md breakpoint ([#789](https://github.com/deskhq/the-desk/issues/789)) ([e38bec9](https://github.com/deskhq/the-desk/commit/e38bec9523e643ca0ae16b376640317fbe71c080))
+* replace the placeholder favicon and add branded OG assets ([#795](https://github.com/deskhq/the-desk/issues/795)) ([893d4b5](https://github.com/deskhq/the-desk/commit/893d4b5874d002f2a0e64a7c2b31f7ed7bef7927))
+* ship a dokploy compose template and a self-hosting guide for it ([#758](https://github.com/deskhq/the-desk/issues/758)) ([453fcf0](https://github.com/deskhq/the-desk/commit/453fcf06389e933f9e02f6c98be9d646fce84723))
+* snooze the quiet-hours schedule for today from the paused card ([#750](https://github.com/deskhq/the-desk/issues/750)) ([6df7f50](https://github.com/deskhq/the-desk/commit/6df7f5083ee5e222efd1eef41c2a11f5e962d606))
+
+
+### Bug Fixes
+
+* allow polls as reply and thread-root targets in send validation ([#753](https://github.com/deskhq/the-desk/issues/753)) ([e563319](https://github.com/deskhq/the-desk/commit/e56331922dbbef3d532e085cd5b2450e623a147a))
+* count polls toward the unread badge and the new-messages boundary ([#754](https://github.com/deskhq/the-desk/issues/754)) ([6ff50f2](https://github.com/deskhq/the-desk/commit/6ff50f23f10a8b3df2877d59fe54f610e073a4d4))
+* cut realtime broadcast latency from seconds to milliseconds ([#768](https://github.com/deskhq/the-desk/issues/768)) ([f1835f5](https://github.com/deskhq/the-desk/commit/f1835f594081117143404212bf0251a7603c9f7b))
+* give browser retry attempts the remaining budget instead of 1s ([#787](https://github.com/deskhq/the-desk/issues/787)) ([fe59228](https://github.com/deskhq/the-desk/commit/fe592287812a6e9a52386f06b97bb3d78bfd52e8))
+* give the new direct message palette listbox an accessible name ([#832](https://github.com/deskhq/the-desk/issues/832)) ([12f9c9b](https://github.com/deskhq/the-desk/commit/12f9c9bfacf87f6b0f8948209d76a1faaee776bb))
+* give the screens the mobile design does not draw a deliberate phone treatment ([#824](https://github.com/deskhq/the-desk/issues/824)) ([d6d7864](https://github.com/deskhq/the-desk/commit/d6d7864e6e58da26c4f0c3ad9b8321202c96c6c0))
+* keep the bottom-sheet close button visible and pinned on mobile ([#809](https://github.com/deskhq/the-desk/issues/809)) ([3458336](https://github.com/deskhq/the-desk/commit/3458336431dcbc504b2400049b4d92ab026955f6))
+* keep the composer placeholder on a single line ([#813](https://github.com/deskhq/the-desk/issues/813)) ([9ead149](https://github.com/deskhq/the-desk/commit/9ead149e6df8cc3733ee4dde6095a9c3ca01326d))
+* keep the presence menu's rows on one line in every locale ([#765](https://github.com/deskhq/the-desk/issues/765)) ([fa0a19f](https://github.com/deskhq/the-desk/commit/fa0a19f600a58eca34a7e6e9f75ffa8c0cb25458))
+* message composer hidden below the fold on mobile browsers ([#791](https://github.com/deskhq/the-desk/issues/791)) ([d5b2e6f](https://github.com/deskhq/the-desk/commit/d5b2e6f137959a7b72c1387cb8ff51d6db2596bb))
+* overlay the thread panel over the channel card at tablet widths ([#817](https://github.com/deskhq/the-desk/issues/817)) ([523f129](https://github.com/deskhq/the-desk/commit/523f1291cc64f783d75a053f1ebe26ba7eb4f204))
+* own presence dot geometry in PresenceDot so badges stay attached and unclipped ([#747](https://github.com/deskhq/the-desk/issues/747)) ([313a066](https://github.com/deskhq/the-desk/commit/313a0660f1268be62763cbfac34e56170559372d))
+* render dm search results with the counterpart display name ([#829](https://github.com/deskhq/the-desk/issues/829)) ([6ea111a](https://github.com/deskhq/the-desk/commit/6ea111a391642d3457e7b3a32ba0fc985445fc27))
+* render dm search results with the counterpart display name ([#830](https://github.com/deskhq/the-desk/issues/830)) ([2f5a94c](https://github.com/deskhq/the-desk/commit/2f5a94ccb1eae336a45d77486d6a822a13b01160))
+* render the DM masthead add-people button icon-only below md ([#806](https://github.com/deskhq/the-desk/issues/806)) ([04eb7af](https://github.com/deskhq/the-desk/commit/04eb7af0164cf61ba03e63fdc666f2aad327867d))
+* sign in to a French UI without a reload ([#779](https://github.com/deskhq/the-desk/issues/779)) ([47cece9](https://github.com/deskhq/the-desk/commit/47cece9470b7053530e5f18844a0579dc90d9ce4))
+* stop native text selection racing the mobile long-press sheet ([#805](https://github.com/deskhq/the-desk/issues/805)) ([5d8d04e](https://github.com/deskhq/the-desk/commit/5d8d04e8a20eb7bed95e7ffe639141f7144945e7))
+* take the shell out of the tab order while an overlay hides it ([#755](https://github.com/deskhq/the-desk/issues/755)) ([4e314af](https://github.com/deskhq/the-desk/commit/4e314afe249ba39b03bb55f4f2018e45df95de26))
+* translate team role labels in the French catalog ([#818](https://github.com/deskhq/the-desk/issues/818)) ([e581000](https://github.com/deskhq/the-desk/commit/e581000e6f56ee3ed90b809f102cd685b6e943cd))
+* translate the audit-exports intro line in the French catalog ([#827](https://github.com/deskhq/the-desk/issues/827)) ([75dc364](https://github.com/deskhq/the-desk/commit/75dc364d26ec0fb4146191b77f9acacdfb377a96))
+
 ## [1.15.2](https://github.com/deskhq/the-desk/compare/v1.15.1...v1.15.2) (2026-07-22)
 
 

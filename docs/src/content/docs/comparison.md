@@ -60,7 +60,7 @@ established self-hosted alternatives. The Desk is the newcomer optimizing for
 
 ## When The Desk is *not* the right fit (yet)
 
-Being honest saves you a wasted afternoon. As of **v1.15.2**, The Desk does **not** <!-- x-release-please-version -->
+Being honest saves you a wasted afternoon. As of **v1.16.0**, The Desk does **not** <!-- x-release-please-version -->
 have:
 
 - **Voice or video calls** — not planned for the near term.
