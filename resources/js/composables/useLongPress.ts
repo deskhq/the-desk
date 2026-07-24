@@ -11,6 +11,30 @@ export const LONG_PRESS_MS = 500;
 export const LONG_PRESS_SLOP_PX = 10;
 
 /**
+ * Duration of the haptic pulse confirming that a hold took. Short enough to
+ * read as a tick, long enough for every vibration motor to render.
+ */
+export const LONG_PRESS_VIBRATION_MS = 15;
+
+/**
+ * Confirms a taken hold with a single short vibration pulse, the way native
+ * chat apps do. A silent no-op off touch, without the Vibration API (iOS
+ * Safari, desktop), or under a reduced-motion preference — the closest web
+ * proxy for a haptics opt-out.
+ */
+function hapticPulse(pointerType: string): void {
+    if (pointerType !== 'touch' || !('vibrate' in navigator)) {
+        return;
+    }
+
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+        return;
+    }
+
+    navigator.vibrate(LONG_PRESS_VIBRATION_MS);
+}
+
+/**
  * Press targets that own their tap: holding one must never double as a
  * long-press on the row around it.
  */
@@ -48,6 +72,7 @@ export function useLongPress<T>(
     let timer: number | null = null;
     let origin: { x: number; y: number } | null = null;
     let selectionAtStart = '';
+    let pointerType = '';
     const pressing = ref(null) as Ref<T | null>;
 
     function disarm(): void {
@@ -97,6 +122,7 @@ export function useLongPress<T>(
 
         origin = { x: event.clientX, y: event.clientY };
         selectionAtStart = selectedText();
+        pointerType = event.pointerType;
         pressing.value = payload;
         timer = window.setTimeout(() => {
             timer = null;
@@ -107,6 +133,7 @@ export function useLongPress<T>(
                 return;
             }
 
+            hapticPulse(pointerType);
             options.onLongPress(payload);
         }, LONG_PRESS_MS);
     }

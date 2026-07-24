@@ -2,7 +2,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ref } from 'vue';
 
-import { LONG_PRESS_MS, useLongPress } from '@/composables/useLongPress';
+import {
+    LONG_PRESS_MS,
+    LONG_PRESS_VIBRATION_MS,
+    useLongPress,
+} from '@/composables/useLongPress';
 
 /**
  * A message row with a plain text body and an interactive child, the two kinds
@@ -189,6 +193,138 @@ describe('useLongPress', () => {
         press.end();
 
         expect(press.pressing.value).toBeNull();
+    });
+
+    describe('haptic confirmation', () => {
+        let vibrate: ReturnType<typeof vi.fn>;
+
+        /** Pretends the OS-level reduced-motion preference is on or off. */
+        function preferReducedMotion(matches: boolean): void {
+            Object.defineProperty(window, 'matchMedia', {
+                value: vi.fn((query: string) => ({ media: query, matches })),
+                configurable: true,
+            });
+        }
+
+        beforeEach(() => {
+            vibrate = vi.fn(() => true);
+            Object.defineProperty(navigator, 'vibrate', {
+                value: vibrate,
+                configurable: true,
+            });
+            preferReducedMotion(false);
+        });
+
+        afterEach(() => {
+            Reflect.deleteProperty(navigator, 'vibrate');
+            Reflect.deleteProperty(window, 'matchMedia');
+        });
+
+        it('pulses once at the moment a touch hold takes', () => {
+            const onLongPress = vi.fn();
+            const press = useLongPress<string>({
+                enabled: ref(true),
+                onLongPress,
+            });
+
+            press.start(pointer('pointerdown'), 'm1');
+
+            expect(vibrate).not.toHaveBeenCalled();
+
+            vi.advanceTimersByTime(LONG_PRESS_MS);
+
+            expect(onLongPress).toHaveBeenCalledExactlyOnceWith('m1');
+            expect(vibrate).toHaveBeenCalledExactlyOnceWith(
+                LONG_PRESS_VIBRATION_MS,
+            );
+        });
+
+        it('skips the pulse under a reduced-motion preference', () => {
+            preferReducedMotion(true);
+
+            const onLongPress = vi.fn();
+            const press = useLongPress<string>({
+                enabled: ref(true),
+                onLongPress,
+            });
+
+            press.start(pointer('pointerdown'), 'm1');
+            vi.advanceTimersByTime(LONG_PRESS_MS);
+
+            expect(onLongPress).toHaveBeenCalledExactlyOnceWith('m1');
+            expect(vibrate).not.toHaveBeenCalled();
+        });
+
+        it.each(['mouse', 'pen'])(
+            'never vibrates for a %s hold on a touch laptop',
+            (pointerType) => {
+                const onLongPress = vi.fn();
+                const press = useLongPress<string>({
+                    enabled: ref(true),
+                    onLongPress,
+                });
+
+                press.start(pointer('pointerdown', { pointerType }), 'm1');
+                vi.advanceTimersByTime(LONG_PRESS_MS);
+
+                expect(onLongPress).toHaveBeenCalledExactlyOnceWith('m1');
+                expect(vibrate).not.toHaveBeenCalled();
+            },
+        );
+
+        it('opens the sheet unchanged without the Vibration API', () => {
+            Reflect.deleteProperty(navigator, 'vibrate');
+            Reflect.deleteProperty(window, 'matchMedia');
+
+            const onLongPress = vi.fn();
+            const press = useLongPress<string>({
+                enabled: ref(true),
+                onLongPress,
+            });
+
+            press.start(pointer('pointerdown'), 'm1');
+            vi.advanceTimersByTime(LONG_PRESS_MS);
+
+            expect(onLongPress).toHaveBeenCalledExactlyOnceWith('m1');
+        });
+
+        it('does not pulse for a press that lifts early', () => {
+            const press = useLongPress<string>({
+                enabled: ref(true),
+                onLongPress: vi.fn(),
+            });
+
+            press.start(pointer('pointerdown'), 'm1');
+            press.end();
+            vi.advanceTimersByTime(LONG_PRESS_MS);
+
+            expect(vibrate).not.toHaveBeenCalled();
+        });
+
+        it('does not pulse for a press that drifts into a scroll', () => {
+            const press = useLongPress<string>({
+                enabled: ref(true),
+                onLongPress: vi.fn(),
+            });
+
+            press.start(pointer('pointerdown', { x: 0, y: 0 }), 'm1');
+            press.move(pointer('pointermove', { x: 0, y: 24 }));
+            vi.advanceTimersByTime(LONG_PRESS_MS);
+
+            expect(vibrate).not.toHaveBeenCalled();
+        });
+
+        it('does not pulse while the gesture is disabled on desktop', () => {
+            const press = useLongPress<string>({
+                enabled: ref(false),
+                onLongPress: vi.fn(),
+            });
+
+            press.start(pointer('pointerdown'), 'm1');
+            vi.advanceTimersByTime(LONG_PRESS_MS);
+
+            expect(vibrate).not.toHaveBeenCalled();
+        });
     });
 
     it('suppresses the native context menu for a press it is timing', () => {
