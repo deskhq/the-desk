@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { FlaskConical, RotateCcw } from '@lucide/vue';
-import { computed, onMounted, onUnmounted, ref } from 'vue';
+import { computed, onMounted, onUnmounted, ref, useTemplateRef } from 'vue';
 import { useDemoMode } from '@/composables/useDemoMode';
 
 /**
@@ -23,16 +23,54 @@ const MS_PER_MINUTE = 60_000;
 const nowMs = ref(Date.now());
 let ticker: ReturnType<typeof setInterval> | undefined;
 
+const bannerElement = useTemplateRef<HTMLElement>('banner');
+let heightObserver: ResizeObserver | undefined;
+
+/**
+ * Publish the strip's real rendered height as `--demo-banner-height`, the
+ * variable every layout beneath it offsets by.
+ *
+ * The strip is `position: fixed` and therefore out of flow, so that reservation
+ * is the only thing keeping the page from sliding under it. Below `md` the copy
+ * wraps to a number of lines that depends on the viewport width *and* on the
+ * active locale (French runs longer than English), so a hardcoded height either
+ * clips the notice or leaves a dead gap — which is exactly how #841 surfaced.
+ * Measuring sidesteps the guesswork: whatever the strip ends up occupying is
+ * what the layouts reserve.
+ */
+function publishHeight(): void {
+    const element = bannerElement.value;
+
+    if (!element) {
+        return;
+    }
+
+    document.documentElement.style.setProperty(
+        '--demo-banner-height',
+        `${element.getBoundingClientRect().height}px`,
+    );
+}
+
 onMounted(() => {
     ticker = setInterval(() => {
         nowMs.value = Date.now();
     }, MS_PER_MINUTE);
+
+    if (bannerElement.value && typeof ResizeObserver !== 'undefined') {
+        heightObserver = new ResizeObserver(publishHeight);
+        heightObserver.observe(bannerElement.value);
+    }
+
+    publishHeight();
 });
 
 onUnmounted(() => {
     if (ticker !== undefined) {
         clearInterval(ticker);
     }
+
+    heightObserver?.disconnect();
+    document.documentElement.style.removeProperty('--demo-banner-height');
 });
 
 /**
@@ -65,9 +103,10 @@ const minutesUntilReset = computed<number | null>(() => {
 <template>
     <div
         v-if="demoMode"
+        ref="banner"
         role="status"
         data-test="demo-banner"
-        class="fixed inset-x-0 top-0 z-40 flex h-(--demo-banner-height) items-center gap-2.5 border-b border-demo-banner-border bg-demo-banner px-4 text-demo-banner-foreground shadow-sm"
+        class="fixed inset-x-0 top-0 z-40 flex min-h-10 flex-wrap items-center gap-x-2.5 gap-y-1 border-b border-demo-banner-border bg-demo-banner px-4 py-1.5 text-demo-banner-foreground shadow-sm md:h-10 md:flex-nowrap md:py-0"
     >
         <span
             class="flex size-5.5 shrink-0 items-center justify-center rounded-full bg-demo-badge"
@@ -77,7 +116,31 @@ const minutesUntilReset = computed<number | null>(() => {
                 aria-hidden="true"
             />
         </span>
-        <span class="text-center text-[13px] leading-snug">
+        <!-- Below `md` the strip stacks in two rows: this short heading shares
+             the first with the countdown chip, and the detail below takes the
+             second on its own. One row cannot hold all three at phone widths —
+             squeezing the full sentence between the badge and the chip is what
+             wrapped it to three lines and overflowed the strip (#841). -->
+        <strong
+            class="text-[13px] leading-snug font-semibold text-demo-banner-strong md:hidden"
+        >
+            {{ $t('Live demo') }}
+        </strong>
+        <span
+            v-if="minutesUntilReset !== null"
+            data-test="demo-reset-countdown"
+            aria-live="off"
+            class="ml-auto inline-flex h-6 shrink-0 items-center gap-1.5 rounded-full border border-demo-banner-border bg-demo-chip px-2.75 text-[11.5px] font-semibold whitespace-nowrap text-demo-chip-foreground md:order-last"
+        >
+            <RotateCcw class="size-2.75" aria-hidden="true" />
+            {{ $t('Resets in :count min', { count: minutesUntilReset }) }}
+        </span>
+        <!-- The chip already carries the reset schedule, so the phone copy drops
+             it and keeps only what the chip cannot say. -->
+        <span class="basis-full text-[13px] leading-snug md:hidden">
+            {{ $t('Shared account, some actions are disabled.') }}
+        </span>
+        <span class="hidden text-center text-[13px] leading-snug md:inline">
             {{ $t("You're exploring a") }}
             <strong class="font-semibold text-demo-banner-strong">{{
                 $t('live demo')
@@ -87,15 +150,6 @@ const minutesUntilReset = computed<number | null>(() => {
                     '— everyone shares one account, it resets hourly, and some actions are disabled.',
                 )
             }}
-        </span>
-        <span
-            v-if="minutesUntilReset !== null"
-            data-test="demo-reset-countdown"
-            aria-live="off"
-            class="ml-auto inline-flex h-6 shrink-0 items-center gap-1.5 rounded-full border border-demo-banner-border bg-demo-chip px-2.75 text-[11.5px] font-semibold whitespace-nowrap text-demo-chip-foreground"
-        >
-            <RotateCcw class="size-2.75" aria-hidden="true" />
-            {{ $t('Resets in :count min', { count: minutesUntilReset }) }}
         </span>
     </div>
 </template>
