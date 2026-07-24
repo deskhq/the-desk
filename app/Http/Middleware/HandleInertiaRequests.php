@@ -25,6 +25,7 @@ use App\Support\FrequentEmoji;
 use App\Support\ReverbConfig;
 use App\Support\TranslationCatalog;
 use App\Support\UpdateChecker;
+use App\Support\WebPushConfig;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -74,6 +75,12 @@ class HandleInertiaRequests extends Middleware
             // single built image works for any operator without baking VITE_*
             // values into the bundle. Read by app.ts to configure Echo at boot.
             'reverb' => ReverbConfig::forFrontend(),
+            // Whether this instance can send web push, plus the VAPID public key
+            // a browser needs to subscribe. Resolved at runtime for the same
+            // reason as the Reverb block above: one published image serves every
+            // operator's keypair without a rebuild. Both are withheld when no
+            // keypair is configured, which is what hides the settings toggle.
+            'webPush' => WebPushConfig::forFrontend(),
             'locale' => app()->getLocale(),
             // The active locale's catalog rides the initial document as a "once"
             // prop: it reaches the SSR render and first hydration (so the first

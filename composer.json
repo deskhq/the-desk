@@ -18,6 +18,7 @@
         "geoip2/geoip2": "^3.3",
         "inertiajs/inertia-laravel": "^3.0",
         "intervention/image": "^4.2",
+        "laravel-notification-channels/webpush": "^11.0",
         "laravel/chisel": "^0.1.0",
         "laravel/fortify": "^1.37.2",
         "laravel/framework": "^13.17",

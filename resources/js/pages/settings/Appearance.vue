@@ -20,6 +20,7 @@ import { Switch } from '@/components/ui/switch';
 import { useChimes } from '@/composables/useChimes';
 import { useReadReceipts } from '@/composables/useReadReceipts';
 import { useTranslations } from '@/composables/useTranslations';
+import { useWebPush } from '@/composables/useWebPush';
 import { formatWallTime } from '@/lib/datetime';
 import { quietHoursSegments, quietHoursTicks } from '@/lib/dnd';
 import { translate } from '@/lib/i18n';
@@ -61,6 +62,14 @@ function choose(value: ChimeSound): void {
 }
 
 const { shareReadReceipts, updateShareReadReceipts } = useReadReceipts();
+
+const {
+    available: pushAvailable,
+    subscribed: pushSubscribed,
+    blocked: pushBlocked,
+    busy: pushBusy,
+    toggle: togglePush,
+} = useWebPush();
 
 const page = usePage();
 const { t } = useTranslations();
@@ -337,6 +346,40 @@ function chooseBound(bound: 'startsAt' | 'endsAt', value: unknown): void {
                     </div>
                 </div>
             </div>
+        </SettingsPaneSection>
+
+        <SettingsPaneSection
+            v-if="pushAvailable"
+            :title="$t('Push notifications on this device')"
+            :description="
+                $t(
+                    'Get alerted to new messages when the app is closed or in the background. This applies to this browser only, and follows the same mute and notification-level settings as the chime.',
+                )
+            "
+        >
+            <template #action>
+                <Switch
+                    id="push-notifications"
+                    data-test="push-notifications"
+                    :model-value="pushSubscribed"
+                    :disabled="pushBusy || pushBlocked"
+                    :aria-label="$t('Push notifications on this device')"
+                    class="relative max-md:before:absolute max-md:before:-inset-3.5 max-md:before:content-['']"
+                    @update:model-value="togglePush"
+                />
+            </template>
+
+            <p
+                v-if="pushBlocked"
+                data-test="push-notifications-blocked"
+                class="text-[12.5px] text-muted-foreground"
+            >
+                {{
+                    $t(
+                        'Notifications are blocked for this site. Allow them in your browser settings, then turn this on.',
+                    )
+                }}
+            </p>
         </SettingsPaneSection>
 
         <SettingsPaneSection
