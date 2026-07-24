@@ -22,6 +22,37 @@ import DemoBanner from './DemoBanner.vue';
 
 let app: App | null = null;
 
+type ResizeCallback = () => void;
+
+/** Captured so a test can replay a resize the way the browser would. */
+let resizeCallbacks: ResizeCallback[] = [];
+let disconnected = 0;
+
+class FakeResizeObserver {
+    constructor(private callback: ResizeCallback) {}
+
+    observe(): void {
+        resizeCallbacks.push(this.callback);
+    }
+
+    disconnect(): void {
+        disconnected += 1;
+    }
+}
+
+/** jsdom lays nothing out, so the banner's rendered height is dictated here. */
+let renderedHeight = 40;
+
+function stubRenderedHeight(height: number): void {
+    renderedHeight = height;
+}
+
+function publishedHeight(): string {
+    return document.documentElement.style.getPropertyValue(
+        '--demo-banner-height',
+    );
+}
+
 /** Minimal `$t` that also resolves `:token` placeholders so counts render. */
 function translate(
     key: string,
@@ -50,6 +81,14 @@ function mount() {
 
 beforeEach(() => {
     vi.useFakeTimers();
+    resizeCallbacks = [];
+    disconnected = 0;
+    renderedHeight = 40;
+    vi.stubGlobal('ResizeObserver', FakeResizeObserver);
+    vi.spyOn(
+        HTMLElement.prototype,
+        'getBoundingClientRect',
+    ).mockImplementation(() => ({ height: renderedHeight }) as DOMRect);
 });
 
 afterEach(() => {
@@ -58,6 +97,9 @@ afterEach(() => {
     props.demoMode = false;
     props.demoResetsAt = null;
     document.body.innerHTML = '';
+    document.documentElement.style.removeProperty('--demo-banner-height');
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
     vi.useRealTimers();
 });
 
@@ -125,6 +167,45 @@ describe('DemoBanner', () => {
             host.querySelector('[data-test="demo-reset-countdown"]')
                 ?.textContent,
         ).toContain('Resets in 59 min');
+    });
+
+    it('publishes its rendered height so the layouts below reserve the real space', () => {
+        props.demoMode = true;
+        stubRenderedHeight(76);
+
+        mount();
+
+        expect(publishedHeight()).toBe('76px');
+    });
+
+    it('republishes the height when the strip reflows to more lines', () => {
+        props.demoMode = true;
+        stubRenderedHeight(40);
+
+        mount();
+        stubRenderedHeight(94);
+        resizeCallbacks.forEach((notify) => notify());
+
+        expect(publishedHeight()).toBe('94px');
+    });
+
+    it('leaves the height alone off the demo', () => {
+        props.demoMode = false;
+
+        mount();
+
+        expect(publishedHeight()).toBe('');
+    });
+
+    it('releases the published height when it goes away', () => {
+        props.demoMode = true;
+
+        mount();
+        app?.unmount();
+        app = null;
+
+        expect(publishedHeight()).toBe('');
+        expect(disconnected).toBe(1);
     });
 
     it('hides the countdown chip when no reset timestamp is shared', () => {
