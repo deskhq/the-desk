@@ -49,6 +49,10 @@ pest()->extend(TestCase::class)->in('Unit/Support/GiphyClientTest.php');
 // application booted (but no database).
 pest()->extend(TestCase::class)->in('Unit/Support/ReverbConfigTest.php');
 
+// The web push config unit test reads the VAPID config, so it needs the
+// application booted (but no database).
+pest()->extend(TestCase::class)->in('Unit/Support/WebPushConfigTest.php');
+
 // The OpenAPI spec test diffs the document against the live route table, so it
 // needs the application booted (but no database).
 pest()->extend(TestCase::class)->in('Unit/OpenApiSpecTest.php');

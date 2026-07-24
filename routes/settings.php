@@ -14,6 +14,7 @@ use App\Http\Controllers\Settings\NotificationController;
 use App\Http\Controllers\Settings\PersonalAccessTokenController;
 use App\Http\Controllers\Settings\PresenceController;
 use App\Http\Controllers\Settings\ProfileController;
+use App\Http\Controllers\Settings\PushSubscriptionController;
 use App\Http\Controllers\Settings\ReadReceiptsController;
 use App\Http\Controllers\Settings\SecurityController;
 use App\Http\Controllers\Settings\SessionController;
@@ -38,6 +39,7 @@ use App\Http\Controllers\Teams\TeamInvitationController;
 use App\Http\Controllers\Teams\TeamMemberController;
 use App\Http\Controllers\Teams\UserGroupController;
 use App\Http\Middleware\EnsureTeamMembership;
+use App\Http\Middleware\EnsureWebPushEnabled;
 use Illuminate\Auth\Middleware\RequirePassword;
 use Illuminate\Support\Facades\Route;
 
@@ -98,6 +100,17 @@ Route::middleware(['auth', 'verified'])->group(function (): void {
     Route::patch('settings/notifications', [NotificationController::class, 'update'])->name('notifications.update');
 
     Route::patch('settings/read-receipts', [ReadReceiptsController::class, 'update'])->name('read-receipts.update');
+
+    // Web push opt-in, per browser. Not stored preferences: the device reports
+    // its own push endpoint, so these answer 204 rather than redirecting, and
+    // they 404 outright on an instance with no VAPID keypair. Throttled because
+    // an honest client writes once per opt-in, not per page.
+    Route::middleware([EnsureWebPushEnabled::class, 'throttle:30,1'])->group(function (): void {
+        Route::post('settings/push-subscriptions', [PushSubscriptionController::class, 'store'])
+            ->name('push-subscriptions.store');
+        Route::delete('settings/push-subscriptions', [PushSubscriptionController::class, 'destroy'])
+            ->name('push-subscriptions.destroy');
+    });
 
     Route::patch('settings/sidebar-position', [SidebarPositionController::class, 'update'])->name('sidebar-position.update');
 
