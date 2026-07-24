@@ -27,9 +27,9 @@ const { locked = false, ...props } = defineProps<{
                     props.class,
                 )
             "
+            v-bind="$attrs"
             :readonly="locked || undefined"
             :aria-readonly="locked || undefined"
-            v-bind="$attrs"
         />
         <span
             v-if="locked"

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Form, Head } from '@inertiajs/vue3';
-import { ref } from 'vue';
+import { nextTick, ref } from 'vue';
 import AuthInput from '@/components/auth/AuthInput.vue';
 import AuthSubmit from '@/components/auth/AuthSubmit.vue';
 import AuthStatus from '@/components/AuthStatus.vue';
@@ -32,8 +32,21 @@ defineProps<{
 
 const useRecoveryCode = ref(false);
 
-function toggleRecoveryCode(): void {
+/**
+ * Swap which credential is being asked for, and move the caret into it.
+ *
+ * `autofocus` only fires on a document load, so the field that replaces the old
+ * one would otherwise mount unfocused and leave a keyboard user stranded on the
+ * toggle they just pressed.
+ */
+async function toggleRecoveryCode(): Promise<void> {
     useRecoveryCode.value = !useRecoveryCode.value;
+
+    await nextTick();
+
+    document
+        .getElementById(useRecoveryCode.value ? 'recovery_code' : 'code')
+        ?.focus();
 }
 </script>
 

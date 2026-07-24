@@ -59,7 +59,7 @@ test('an invitation dresses the register panel and locks the invited address', f
         ->assertAttribute('@invited-email', 'readonly', '');
 });
 
-test('registering under an invitation joins with the invited address', function (): void {
+test('registering under an invitation creates the account on the invited address', function (): void {
     $owner = User::factory()->create();
     $team = Team::factory()->create();
     $team->members()->attach($owner, ['role' => TeamRole::Owner->value]);

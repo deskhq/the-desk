@@ -217,11 +217,13 @@ class FortifyServiceProvider extends ServiceProvider
      *
      * The reset pages state the lifetime in their copy, so they read the broker's
      * own configuration rather than repeating a number that would drift the first
-     * time an operator changes it.
+     * time an operator changes it. The broker is Fortify's (`fortify.passwords`),
+     * not the framework default — Fortify issues these links, and an operator who
+     * points it at a second broker must see that broker's expiry quoted back.
      */
     private function resetLinkLifetime(): int
     {
-        return (int) config('auth.passwords.'.config('auth.defaults.passwords').'.expire');
+        return (int) config('auth.passwords.'.config('fortify.passwords').'.expire');
     }
 
     /**

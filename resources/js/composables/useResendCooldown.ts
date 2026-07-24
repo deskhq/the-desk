@@ -32,6 +32,7 @@ export function formatCountdown(seconds: number): string {
 export function useResendCooldown(seconds: number): UseResendCooldownReturn {
     const remaining = ref(0);
     let timer: ReturnType<typeof setInterval> | undefined;
+    let deadline = 0;
 
     function stop(): void {
         if (timer !== undefined) {
@@ -40,17 +41,30 @@ export function useResendCooldown(seconds: number): UseResendCooldownReturn {
         }
     }
 
+    // Recomputed from a wall-clock deadline rather than decremented per tick:
+    // browsers throttle (and background tabs suspend) timers, so counting
+    // callbacks would leave the countdown running long after the wait is over.
+    function tick(): void {
+        remaining.value = Math.max(
+            0,
+            Math.ceil((deadline - Date.now()) / 1000),
+        );
+
+        if (remaining.value === 0) {
+            stop();
+        }
+    }
+
     function start(): void {
         stop();
-        remaining.value = seconds;
+        deadline = Date.now() + seconds * 1000;
+        remaining.value = Math.max(0, Math.ceil(seconds));
 
-        timer = setInterval(() => {
-            remaining.value = Math.max(0, remaining.value - 1);
+        if (remaining.value === 0) {
+            return;
+        }
 
-            if (remaining.value === 0) {
-                stop();
-            }
-        }, 1000);
+        timer = setInterval(tick, 1000);
     }
 
     onScopeDispose(stop);

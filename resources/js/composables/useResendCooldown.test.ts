@@ -64,6 +64,19 @@ describe('useResendCooldown', () => {
         expect(remaining.value).toBe(0);
     });
 
+    it('tracks wall-clock time rather than counting ticks', () => {
+        const { start, remaining, isCooling } = useResendCooldown(30);
+
+        start();
+
+        // A throttled or suspended tab delivers far fewer ticks than seconds
+        // elapsed; the countdown has to reflect the time, not the callbacks.
+        vi.advanceTimersByTime(30_000);
+
+        expect(remaining.value).toBe(0);
+        expect(isCooling.value).toBe(false);
+    });
+
     it('restarts from full on a second send', () => {
         const { start, remaining } = useResendCooldown(30);
 

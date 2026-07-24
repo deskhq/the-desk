@@ -72,6 +72,7 @@ const password = ref('');
             <PasswordInput
                 :id="id"
                 name="password"
+                required
                 autocomplete="new-password"
                 autofocus
                 v-model="password"
@@ -90,6 +91,7 @@ const password = ref('');
             <PasswordInput
                 :id="id"
                 name="password_confirmation"
+                required
                 autocomplete="new-password"
                 class="h-12 rounded-[10px] px-4.5 text-base shadow-none md:text-base"
                 :placeholder="$t('Confirm password')"
