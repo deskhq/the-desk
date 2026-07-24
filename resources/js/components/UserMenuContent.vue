@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Link, router, usePage } from '@inertiajs/vue3';
+import { Link, usePage } from '@inertiajs/vue3';
 import {
     Compass,
     Keyboard,
@@ -15,14 +15,6 @@ import {
 } from '@lucide/vue';
 import type { Component } from 'vue';
 import { computed } from 'vue';
-import { toast } from 'vue-sonner';
-import {
-    destroy as destroyDndPause,
-    update as updateDndPause,
-} from '@/actions/App/Http/Controllers/Settings/DndController';
-import { update as snoozeDndSchedule } from '@/actions/App/Http/Controllers/Settings/DndScheduleSnoozeController';
-import { update as updatePresence } from '@/actions/App/Http/Controllers/Settings/PresenceController';
-import { destroy as destroyStatus } from '@/actions/App/Http/Controllers/Settings/StatusController';
 import MenuSegmentedControl from '@/components/MenuSegmentedControl.vue';
 import PresenceDot from '@/components/PresenceDot.vue';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -46,18 +38,15 @@ import { useOnboardingTour } from '@/composables/useOnboardingTour';
 import { useSidebarPosition } from '@/composables/useSidebarPosition';
 import { useTranslations } from '@/composables/useTranslations';
 import { useUpdateStatus } from '@/composables/useUpdateStatus';
+import { useUserMenu } from '@/composables/useUserMenu';
 import { useUserStatusDialog } from '@/composables/useUserStatusDialog';
-import { formatTimeOfDay } from '@/lib/datetime';
-import { isDndActiveNow, quietHoursEndsAt } from '@/lib/dnd';
-import { DND_PAUSE_KEYS, dndPauseLabel, resolveDndPause } from '@/lib/dndPause';
-import type { DndPauseKey } from '@/lib/dndPause';
+import { dndPauseLabel } from '@/lib/dndPause';
 import { presenceLabelKey } from '@/lib/presence';
-import type { RenderedPresence } from '@/lib/presence';
 import { logout } from '@/routes';
 import { edit as appearanceEdit } from '@/routes/appearance';
 import { edit } from '@/routes/profile';
 import { index as settingsIndex } from '@/routes/settings';
-import type { Appearance, SidebarPosition, Team, User } from '@/types';
+import type { Appearance, SidebarPosition, User } from '@/types';
 
 type Props = {
     user: User;
@@ -113,174 +102,33 @@ const appName = computed(() => page.props.name);
 
 const props = defineProps<Props>();
 
-const currentTeam = computed(() => page.props.currentTeam as Team | null);
 const hasAvatar = computed(
     () => !!props.user.avatar && props.user.avatar !== '',
 );
 
-// The viewer's own live status, read from the shared `auth.user` prop rather
-// than the `user` prop so it tracks a set/clear without the menu remounting.
-const ownStatus = computed(() => page.props.auth.user.status ?? null);
-
-/**
- * The viewer's own effective presence, from the same shared prop for the same
- * reason. Never "offline" — the menu is open, so they are plainly here.
- */
-const ownPresence = computed<RenderedPresence>(
-    () => page.props.auth.user.presence ?? 'active',
-);
-
-/** The state the toggle would switch to, which is also the glyph it previews. */
-const togglesTo = computed<RenderedPresence>(() =>
-    ownPresence.value === 'away' ? 'active' : 'away',
-);
-
-/** The viewer's own full DND configuration, from the shared `auth.user` prop. */
-const ownDnd = computed(() => page.props.auth.user.dnd ?? null);
-
-const ownTimezone = computed(() => page.props.auth.user.timezone ?? null);
-
-/** Whether the viewer is in DND right now — a running pause or quiet hours. */
-const isDnd = computed(() => isDndActiveNow(ownDnd.value, ownTimezone.value));
-
-/** The running manual pause's lapse, formatted, or null when none runs. */
-const pausedUntil = computed(() =>
-    ownDnd.value?.until
-        ? formatTimeOfDay(ownDnd.value.until, ownTimezone.value ?? undefined)
-        : null,
-);
-
-/**
- * When the covering quiet-hours window closes, formatted. Only read when no
- * manual pause runs — a pause is the more specific claim, so its lapse wins
- * the card's subtitle.
- */
-const quietHoursUntil = computed(() => {
-    const closes = quietHoursEndsAt(ownDnd.value, ownTimezone.value);
-
-    return closes
-        ? formatTimeOfDay(closes.toISOString(), ownTimezone.value ?? undefined)
-        : null;
-});
-
-// When the status clears, as a time of day in the viewer's own zone. Null for a
-// status that never clears, which then shows no second line at all.
-const clearsAt = computed(() =>
-    ownStatus.value?.expiresAt
-        ? formatTimeOfDay(
-              ownStatus.value.expiresAt,
-              page.props.auth.user.timezone ?? undefined,
-          )
-        : null,
-);
-
-/**
- * Clear the status outright from the menu row's ✕, with no trip through the
- * dialog — the one-tap undo for "that meeting ended early".
- *
- * The default select behaviour closes the menu; prevented here so the row flips
- * back to "Set a status" in place, the way the theme and sidebar switchers above
- * apply without dismissing the menu.
- */
-function clearStatus(event: Event): void {
-    event.preventDefault();
-
-    router.delete(destroyStatus().url, {
-        preserveScroll: true,
-        onError: () => toast.error(t('Could not clear your status.')),
-    });
-}
-
-/**
- * Flip the manual away override.
- *
- * The default select behaviour closes the menu; prevented here so the row and
- * the masthead readout above it flip in place, the way the theme and sidebar
- * switchers apply without dismissing the menu.
- */
-function togglePresence(event: Event): void {
-    event.preventDefault();
-
-    router.put(
-        updatePresence().url,
-        { state: togglesTo.value },
-        {
-            preserveScroll: true,
-            onError: () => toast.error(t('Could not change your presence.')),
-        },
-    );
-}
+// All menu state and mutation handlers are shared with the mobile bottom
+// sheet (`UserMenuSheet`) through one composable, so the two presentations of
+// the same menu can never drift apart. The rows pass their `@select` event so
+// the handlers can prevent the default dismissal and apply in place.
+const {
+    currentTeam,
+    ownStatus,
+    ownPresence,
+    togglesTo,
+    isDnd,
+    pausedUntil,
+    quietHoursUntil,
+    clearsAt,
+    pausePresets,
+    clearStatus,
+    togglePresence,
+    choosePause,
+    resumeNotifications,
+    snoozeSchedule,
+    handleLogout,
+} = useUserMenu();
 
 const { open: openDndPauseDialog } = useDndPauseDialog();
-
-/** The flyout's preset rows: everything but Custom…, which opens the dialog. */
-const pausePresets = DND_PAUSE_KEYS.filter((key) => key !== 'custom');
-
-/**
- * Start a pause from a flyout preset.
- *
- * The default select behaviour closes the menu; prevented here so the STATUS
- * section grows the paused card in place — immediate proof the pause took.
- */
-function choosePause(event: Event, key: DndPauseKey): void {
-    event.preventDefault();
-
-    const until = resolveDndPause(
-        key,
-        ownTimezone.value ??
-            new Intl.DateTimeFormat().resolvedOptions().timeZone,
-    );
-
-    if (until === null) {
-        return;
-    }
-
-    router.put(
-        updateDndPause().url,
-        { until },
-        {
-            preserveScroll: true,
-            onError: () =>
-                toast.error(t('Could not pause your notifications.')),
-        },
-    );
-}
-
-/**
- * End the manual pause early from the card's Resume pill. Kept in place (no
- * menu dismissal) so the card collapses back to the plain rows.
- */
-function resumeNotifications(event: Event): void {
-    event.preventDefault();
-
-    router.delete(destroyDndPause().url, {
-        preserveScroll: true,
-        onError: () => toast.error(t('Could not resume your notifications.')),
-    });
-}
-
-/**
- * Lift tonight's quiet-hours window from the card's snooze pill, without
- * disabling the standing schedule — the server suppresses the window until it
- * next closes, then the schedule resumes on its own. Kept in place (no menu
- * dismissal) so the card collapses back to the plain rows.
- */
-function snoozeSchedule(event: Event): void {
-    event.preventDefault();
-
-    router.put(
-        snoozeDndSchedule().url,
-        {},
-        {
-            preserveScroll: true,
-            onError: () => toast.error(t('Could not snooze your quiet hours.')),
-        },
-    );
-}
-
-const handleLogout = () => {
-    router.flushAll();
-};
 </script>
 
 <template>
@@ -565,7 +413,7 @@ const handleLogout = () => {
                     :key="preset"
                     class="flex h-8 cursor-pointer items-center rounded-[9px] px-2.75 text-[13px] focus:bg-primary focus:text-primary-foreground"
                     :data-test="`pause-preset-${preset}`"
-                    @select="(event: Event) => choosePause(event, preset)"
+                    @select="(event: Event) => choosePause(preset, event)"
                 >
                     {{ dndPauseLabel(preset) }}
                 </DropdownMenuItem>

@@ -14,7 +14,7 @@ const OPTIONS = [
 
 let app: App | null = null;
 
-function mount(modelValue: string) {
+function mount(modelValue: string, props: Record<string, unknown> = {}) {
     const updates: string[] = [];
     const host = document.createElement('div');
     document.body.appendChild(host);
@@ -26,12 +26,15 @@ function mount(modelValue: string) {
                 options: OPTIONS,
                 ariaLabel: 'Theme',
                 'onUpdate:modelValue': (value: string) => updates.push(value),
+                ...props,
             }),
     });
     app.mount(host);
 
     const radios = Array.from(
-        host.querySelectorAll<HTMLButtonElement>('[role="menuitemradio"]'),
+        host.querySelectorAll<HTMLButtonElement>(
+            '[role="menuitemradio"], [role="radio"]',
+        ),
     );
 
     return { host, radios, updates };
@@ -122,5 +125,22 @@ describe('MenuSegmentedControl', () => {
 
         const thumb = host.querySelector<HTMLElement>('[data-slot="thumb"]');
         expect(thumb?.style.transform).toBe('translateX(62px)');
+    });
+
+    it('renders the radio-group pattern outside a menu, for surfaces like the mobile sheet', () => {
+        const { host, radios } = mount('dark', { standalone: true });
+
+        const group = host.querySelector('[role="radiogroup"]');
+        expect(group?.getAttribute('aria-label')).toBe('Theme');
+        expect(host.querySelector('[role="menuitemradio"]')).toBeNull();
+        expect(radios).toHaveLength(3);
+        expect(radios.every((r) => r.getAttribute('role') === 'radio')).toBe(
+            true,
+        );
+        expect(radios.map((r) => r.getAttribute('aria-checked'))).toEqual([
+            'false',
+            'true',
+            'false',
+        ]);
     });
 });

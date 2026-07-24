@@ -1258,5 +1258,8 @@
   "24-hour": "24 heures",
   "Clock style updated.": "Format de l'heure mis à jour.",
   "Show compose tools": "Afficher les outils de rédaction",
-  "Hide compose tools": "Masquer les outils de rédaction"
+  "Hide compose tools": "Masquer les outils de rédaction",
+  "User menu": "Menu utilisateur",
+  "Your status, appearance and account.": "Votre statut, votre apparence et votre compte.",
+  "Choose how long to pause notifications.": "Choisissez la durée de la pause des notifications."
 }

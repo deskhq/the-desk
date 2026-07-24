@@ -18,6 +18,12 @@ const props = defineProps<{
     options: SegmentOption[];
     /** Names the radiogroup for assistive tech (e.g. "Theme"). */
     ariaLabel: string;
+    /**
+     * Render the plain radio-group pattern instead of menu roles. The default
+     * `menuitemradio`s are only valid ARIA inside a parent `role="menu"`, so a
+     * surface with no menu ancestor — the mobile bottom sheet — must opt in.
+     */
+    standalone?: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -98,7 +104,7 @@ function onKeydown(event: KeyboardEvent, index: number): void {
       selecting applies instantly and never closes the dropdown.
     -->
     <div
-        role="group"
+        :role="standalone ? 'radiogroup' : 'group'"
         :aria-label="ariaLabel"
         class="relative flex gap-px rounded-full border border-border bg-muted p-0.5"
     >
@@ -122,7 +128,7 @@ function onKeydown(event: KeyboardEvent, index: number): void {
                 }
             "
             type="button"
-            role="menuitemradio"
+            :role="standalone ? 'radio' : 'menuitemradio'"
             :aria-checked="option.value === modelValue"
             :aria-label="option.label"
             :title="option.label"
