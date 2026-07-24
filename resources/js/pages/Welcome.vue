@@ -324,7 +324,9 @@ const getStartedUrl = computed(() =>
                                     >
                                     can you review the scroll pinning?
                                 </div>
-                                <div class="mt-1.5 flex items-center gap-1.5">
+                                <div
+                                    class="mt-1.5 flex flex-wrap items-center gap-1.5"
+                                >
                                     <span
                                         class="inline-flex items-center gap-1 rounded-full border border-brass-border bg-brass-fill px-2 py-0.5 text-[11px] text-brass-fill-foreground"
                                         >👍

@@ -118,7 +118,9 @@ function onKeydown(event: KeyboardEvent): void {
                     class="max-h-[85vh] max-w-[85vw] rounded-lg object-contain shadow-2xl"
                 />
 
-                <div class="absolute top-4 left-5 flex flex-col gap-0.5 pr-32">
+                <div
+                    class="absolute top-4 right-4 left-5 flex flex-col gap-0.5 pr-20 max-md:pr-24"
+                >
                     <DialogTitle
                         class="truncate text-[13px] font-semibold text-[#ece7da]"
                     >
@@ -142,13 +144,13 @@ function onKeydown(event: KeyboardEvent): void {
                                 : 'noopener noreferrer'
                         "
                         :aria-label="t('Download :name', { name: activeLabel })"
-                        class="flex size-8 items-center justify-center rounded-[9px] bg-[rgba(243,239,228,0.12)] text-[#ece7da] transition-colors hover:bg-[rgba(243,239,228,0.22)] focus-visible:ring-2 focus-visible:ring-[#ece7da] focus-visible:outline-none"
+                        class="flex size-8 items-center justify-center rounded-[9px] bg-[rgba(243,239,228,0.12)] text-[#ece7da] transition-colors hover:bg-[rgba(243,239,228,0.22)] focus-visible:ring-2 focus-visible:ring-[#ece7da] focus-visible:outline-none max-md:size-11"
                     >
                         <Download class="size-3.5" />
                     </a>
                     <DialogClose
                         :aria-label="t('Close')"
-                        class="flex size-8 items-center justify-center rounded-[9px] bg-[rgba(243,239,228,0.12)] text-[#ece7da] transition-colors hover:bg-[rgba(243,239,228,0.22)] focus-visible:ring-2 focus-visible:ring-[#ece7da] focus-visible:outline-none"
+                        class="flex size-8 items-center justify-center rounded-[9px] bg-[rgba(243,239,228,0.12)] text-[#ece7da] transition-colors hover:bg-[rgba(243,239,228,0.22)] focus-visible:ring-2 focus-visible:ring-[#ece7da] focus-visible:outline-none max-md:size-11"
                     >
                         <X class="size-3.5" />
                     </DialogClose>

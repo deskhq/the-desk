@@ -301,7 +301,7 @@ function downloadUrl(entry: AuditExport): string {
                         {{ $t('Period') }}
                         <span class="font-normal">· {{ $t('optional') }}</span>
                     </span>
-                    <div class="flex items-center gap-2">
+                    <div class="flex flex-wrap items-center gap-2">
                         <DatePicker
                             :model-value="rangeStart || null"
                             :placeholder="$t('Start date')"
@@ -420,7 +420,7 @@ function downloadUrl(entry: AuditExport): string {
                 <li
                     v-for="entry in exports"
                     :key="entry.id"
-                    class="flex items-center gap-3.5 rounded-xl border border-border bg-card p-3.5 shadow-[0_2px_8px_rgba(29,26,21,0.05)]"
+                    class="flex items-center gap-3.5 rounded-xl border border-border bg-card p-3.5 shadow-[0_2px_8px_rgba(29,26,21,0.05)] max-md:flex-wrap"
                     :class="{ 'opacity-65': rowState(entry) === 'expired' }"
                     :data-test="`audit-export-row-${entry.id}`"
                 >
@@ -437,11 +437,11 @@ function downloadUrl(entry: AuditExport): string {
                         />
                     </div>
 
-                    <div class="min-w-0">
+                    <div class="min-w-0 flex-1">
                         <p class="text-sm font-semibold">
                             {{ entry.logTypeLabel }} · {{ entry.formatLabel }}
                         </p>
-                        <p class="truncate text-xs text-muted-foreground">
+                        <p class="text-xs text-muted-foreground md:truncate">
                             {{ rangeText(entry) }} ·
                             {{
                                 $t('requested by :name', {
@@ -469,7 +469,9 @@ function downloadUrl(entry: AuditExport): string {
                         </p>
                     </div>
 
-                    <div class="ml-auto flex items-center gap-2.5">
+                    <div
+                        class="ml-auto flex items-center gap-2.5 max-md:w-full max-md:justify-end"
+                    >
                         <!-- Generating -->
                         <span
                             v-if="rowState(entry) === 'generating'"

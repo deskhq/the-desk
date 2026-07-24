@@ -168,7 +168,7 @@ function dotClass(event: TeamSecurityEvent): string {
             <li
                 v-for="event in events.data"
                 :key="event.id"
-                class="flex items-center gap-3 px-4 py-3"
+                class="flex items-center gap-3 px-4 py-3 max-md:flex-wrap"
                 :data-test="`security-log-event-${event.id}`"
             >
                 <span
@@ -176,9 +176,9 @@ function dotClass(event: TeamSecurityEvent): string {
                     :class="dotClass(event)"
                 />
 
-                <div class="flex min-w-0 flex-col gap-px">
+                <div class="flex min-w-0 flex-1 flex-col gap-px max-md:basis-3/5">
                     <p
-                        class="flex items-center gap-2 text-[13.5px] font-semibold"
+                        class="flex items-center gap-2 text-[13.5px] font-semibold max-md:flex-wrap"
                     >
                         <span class="truncate">{{ event.actorName }}</span>
                         <span
@@ -189,7 +189,7 @@ function dotClass(event: TeamSecurityEvent): string {
                             {{ $t('New device') }}
                         </span>
                     </p>
-                    <p class="truncate text-xs text-muted-foreground">
+                    <p class="text-xs text-muted-foreground md:truncate">
                         {{ event.label }}
                         &middot;
                         {{

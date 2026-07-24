@@ -33,7 +33,7 @@ const props = defineProps<{
         />
         <div class="min-w-0 flex-1">
             <h1
-                class="truncate font-serif text-[32px] leading-none font-semibold tracking-[-0.02em] text-foreground"
+                class="truncate font-serif text-[32px] leading-none font-semibold tracking-[-0.02em] text-foreground max-md:text-2xl max-md:leading-tight max-md:whitespace-normal"
             >
                 {{ $t('Browse channels') }}
             </h1>
@@ -116,7 +116,7 @@ const props = defineProps<{
                             type="submit"
                             variant="outline"
                             size="sm"
-                            class="h-7.5 rounded-full border-primary bg-transparent px-4 text-[12.5px] font-semibold text-primary group-hover:border-primary group-hover:bg-primary group-hover:text-primary-foreground hover:border-primary hover:bg-primary hover:text-primary-foreground"
+                            class="h-7.5 rounded-full border-primary bg-transparent px-4 text-[12.5px] font-semibold text-primary group-hover:border-primary group-hover:bg-primary group-hover:text-primary-foreground hover:border-primary hover:bg-primary hover:text-primary-foreground max-md:h-11 max-md:px-5"
                             >{{ $t('Join') }}</Button
                         >
                     </Form>

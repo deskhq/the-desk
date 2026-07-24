@@ -501,7 +501,7 @@ function jumpHref(result: MessageSearchResult): string {
                 <!-- author facet -->
                 <span
                     v-if="authorName !== null"
-                    class="inline-flex h-7 items-center gap-1.5 rounded-full bg-primary py-0 pr-1.5 pl-1.5 text-xs font-medium text-primary-foreground"
+                    class="inline-flex h-7 items-center gap-1.5 rounded-full bg-primary py-0 pr-1.5 pl-1.5 text-xs font-medium text-primary-foreground max-md:h-11 max-md:pr-0 max-md:pl-3"
                     data-test="facet-author"
                 >
                     <span
@@ -514,7 +514,7 @@ function jumpHref(result: MessageSearchResult): string {
                         variant="unstyled"
                         size="none"
                         type="button"
-                        class="flex size-4 items-center justify-center rounded-full text-primary-foreground/70 hover:text-primary-foreground"
+                        class="flex size-4 items-center justify-center rounded-full text-primary-foreground/70 hover:text-primary-foreground max-md:size-11"
                         :aria-label="$t('Remove author filter')"
                         @click="clearAuthor"
                     >
@@ -527,7 +527,7 @@ function jumpHref(result: MessageSearchResult): string {
                             variant="unstyled"
                             size="none"
                             type="button"
-                            class="inline-flex h-7 items-center gap-1.5 rounded-full border border-border px-3 text-xs font-medium text-muted-foreground hover:text-foreground"
+                            class="inline-flex h-7 items-center gap-1.5 rounded-full border border-border px-3 text-xs font-medium text-muted-foreground hover:text-foreground max-md:h-11 max-md:px-4"
                             data-test="facet-author-picker"
                         >
                             {{ $t('Author') }}
@@ -540,7 +540,7 @@ function jumpHref(result: MessageSearchResult): string {
                             :placeholder="$t('Filter people…')"
                             :aria-label="$t('Filter people')"
                             data-test="facet-author-filter"
-                            class="mb-1 h-8 text-xs"
+                            class="mb-1 h-8 text-xs max-md:h-11"
                             @keydown.stop
                         />
                         <div class="max-h-56 overflow-y-auto">
@@ -550,7 +550,7 @@ function jumpHref(result: MessageSearchResult): string {
                                 v-for="member in filteredMembers"
                                 :key="member.id"
                                 type="button"
-                                class="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-[13px] hover:bg-accent"
+                                class="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-[13px] hover:bg-accent max-md:min-h-11"
                                 data-test="facet-author-option"
                                 @click="setAuthor(member.id)"
                             >
@@ -568,7 +568,7 @@ function jumpHref(result: MessageSearchResult): string {
                 <!-- channel facet -->
                 <span
                     v-if="channelName !== null"
-                    class="inline-flex h-7 items-center gap-1.5 rounded-full bg-primary px-3 text-xs font-medium text-primary-foreground"
+                    class="inline-flex h-7 items-center gap-1.5 rounded-full bg-primary px-3 text-xs font-medium text-primary-foreground max-md:h-11 max-md:pr-0"
                     data-test="facet-channel"
                 >
                     <span aria-hidden="true" class="text-brass">#</span
@@ -577,7 +577,7 @@ function jumpHref(result: MessageSearchResult): string {
                         variant="unstyled"
                         size="none"
                         type="button"
-                        class="flex size-4 items-center justify-center rounded-full text-primary-foreground/70 hover:text-primary-foreground"
+                        class="flex size-4 items-center justify-center rounded-full text-primary-foreground/70 hover:text-primary-foreground max-md:size-11"
                         :aria-label="$t('Remove channel filter')"
                         @click="clearChannel"
                     >
@@ -590,7 +590,7 @@ function jumpHref(result: MessageSearchResult): string {
                             variant="unstyled"
                             size="none"
                             type="button"
-                            class="inline-flex h-7 items-center gap-1.5 rounded-full border border-border px-3 text-xs font-medium text-muted-foreground hover:text-foreground"
+                            class="inline-flex h-7 items-center gap-1.5 rounded-full border border-border px-3 text-xs font-medium text-muted-foreground hover:text-foreground max-md:h-11 max-md:px-4"
                             data-test="facet-channel-picker"
                         >
                             <span
@@ -606,7 +606,7 @@ function jumpHref(result: MessageSearchResult): string {
                             v-model="channelFilter"
                             :placeholder="$t('Filter channels…')"
                             :aria-label="$t('Filter channels')"
-                            class="mb-1 h-8 text-xs"
+                            class="mb-1 h-8 text-xs max-md:h-11"
                             @keydown.stop
                         />
                         <div class="max-h-56 overflow-y-auto">
@@ -616,7 +616,7 @@ function jumpHref(result: MessageSearchResult): string {
                                 variant="unstyled"
                                 size="none"
                                 type="button"
-                                class="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-[13px] hover:bg-accent"
+                                class="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-[13px] hover:bg-accent max-md:min-h-11"
                                 data-test="facet-channel-option"
                                 @click="setChannel(channel.id)"
                             >
@@ -645,7 +645,7 @@ function jumpHref(result: MessageSearchResult): string {
                 <!-- date facet -->
                 <span
                     v-if="dateChipLabel !== null"
-                    class="inline-flex h-7 items-center gap-1.5 rounded-full bg-primary py-0 pr-1.5 pl-3 text-xs font-medium text-primary-foreground"
+                    class="inline-flex h-7 items-center gap-1.5 rounded-full bg-primary py-0 pr-1.5 pl-3 text-xs font-medium text-primary-foreground max-md:h-11 max-md:pr-0"
                     data-test="facet-date"
                 >
                     <Calendar class="size-3 text-brass" aria-hidden="true" />
@@ -654,7 +654,7 @@ function jumpHref(result: MessageSearchResult): string {
                         variant="unstyled"
                         size="none"
                         type="button"
-                        class="flex size-4 items-center justify-center rounded-full text-primary-foreground/70 hover:text-primary-foreground"
+                        class="flex size-4 items-center justify-center rounded-full text-primary-foreground/70 hover:text-primary-foreground max-md:size-11"
                         :aria-label="$t('Remove date filter')"
                         @click="clearDate"
                     >
@@ -672,7 +672,7 @@ function jumpHref(result: MessageSearchResult): string {
                             variant="unstyled"
                             size="none"
                             type="button"
-                            class="inline-flex h-7 items-center gap-1.5 rounded-full border border-border px-3 text-xs font-medium text-muted-foreground hover:text-foreground"
+                            class="inline-flex h-7 items-center gap-1.5 rounded-full border border-border px-3 text-xs font-medium text-muted-foreground hover:text-foreground max-md:h-11 max-md:px-4"
                             data-test="facet-date-picker"
                         >
                             <Calendar class="size-3" aria-hidden="true" />
@@ -687,7 +687,7 @@ function jumpHref(result: MessageSearchResult): string {
                             variant="unstyled"
                             size="none"
                             type="button"
-                            class="flex w-full items-center rounded-md px-2 py-1.5 text-left text-[13px] hover:bg-accent"
+                            class="flex w-full items-center rounded-md px-2 py-1.5 text-left text-[13px] hover:bg-accent max-md:min-h-11"
                             :data-test="`facet-date-preset-${preset.key}`"
                             @click="setDateRange(preset.after, preset.before)"
                         >
@@ -697,7 +697,7 @@ function jumpHref(result: MessageSearchResult): string {
                             variant="unstyled"
                             size="none"
                             type="button"
-                            class="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-[13px] hover:bg-accent"
+                            class="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-[13px] hover:bg-accent max-md:min-h-11"
                             data-test="facet-date-custom"
                             @click="showCustomRange = !showCustomRange"
                         >
@@ -749,7 +749,7 @@ function jumpHref(result: MessageSearchResult): string {
                     size="none"
                     v-if="hasFilters"
                     type="button"
-                    class="ml-1 border-b border-dotted border-muted-foreground/60 pb-px text-xs text-muted-foreground hover:text-foreground"
+                    class="ml-1 border-b border-dotted border-muted-foreground/60 pb-px text-xs text-muted-foreground hover:text-foreground max-md:inline-flex max-md:h-11 max-md:items-center"
                     data-test="facet-clear-all"
                     @click="clearAllFilters"
                 >

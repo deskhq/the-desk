@@ -1889,7 +1889,7 @@ function onKeydown(event: KeyboardEvent): void {
                                                 variant="ghost"
                                                 size="icon"
                                                 :data-test="`message-composer-format-${action.marker}`"
-                                                class="size-7 shrink-0 rounded-full text-muted-foreground"
+                                                class="size-7 shrink-0 rounded-full text-muted-foreground max-md:size-11"
                                                 :aria-label="action.label"
                                                 @mousedown.prevent
                                                 @click="
@@ -1925,7 +1925,7 @@ function onKeydown(event: KeyboardEvent): void {
                                 size="icon"
                                 :disabled="!attachmentsEnabled"
                                 data-test="message-composer-attach"
-                                class="size-7 shrink-0 rounded-full text-muted-foreground"
+                                class="size-7 shrink-0 rounded-full text-muted-foreground max-md:size-11"
                                 :aria-label="$t('Add attachment')"
                                 @click="openFilePicker"
                             >
@@ -1939,7 +1939,7 @@ function onKeydown(event: KeyboardEvent): void {
                                 variant="ghost"
                                 size="icon"
                                 data-test="message-composer-record"
-                                class="size-7 shrink-0 rounded-full text-muted-foreground"
+                                class="size-7 shrink-0 rounded-full text-muted-foreground max-md:size-11"
                                 :aria-label="$t('Record a voice message')"
                                 @click="recorder.start"
                             >
@@ -1953,7 +1953,7 @@ function onKeydown(event: KeyboardEvent): void {
                             variant="ghost"
                             size="icon"
                             data-test="composer-tools-toggle"
-                            class="size-8.5 shrink-0 rounded-full text-muted-foreground @lg:hidden"
+                            class="size-8.5 shrink-0 rounded-full text-muted-foreground @lg:hidden max-md:size-11"
                             :aria-expanded="toolsOpen"
                             :aria-label="
                                 toolsOpen
