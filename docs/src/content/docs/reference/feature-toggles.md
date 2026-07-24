@@ -26,6 +26,27 @@ Create your own account **before** turning registration off, then invite everyon
 else. See [First user & workspace](/self-hosting/first-user/#locking-down-registration).
 :::
 
+## Terms & privacy consent
+
+| Variable      | Default | Effect                                              |
+| ------------- | ------- | --------------------------------------------------- |
+| `TERMS_URL`   | *(unset)* | Link target for "terms" on the register screen.   |
+| `PRIVACY_URL` | *(unset)* | Link target for "privacy notice" on the register screen. |
+
+The Desk ships no terms of service or privacy notice of its own: a self-hosted
+instance is governed by whoever runs it. So both are **unset** by default and the
+register screen shows no consent row at all.
+
+Set **both** to add a required "I agree to the terms and the privacy notice"
+checkbox to registration, linking to your own documents. Registration is then
+refused server-side without agreement, so the checkbox cannot simply be skipped
+by posting the form directly.
+
+:::caution
+Setting only one of the two leaves the row **off**. A half-configured instance
+would otherwise ask people to agree to a link that goes nowhere.
+:::
+
 ## Email verification
 
 | Variable                     | Default | Effect                                                       |

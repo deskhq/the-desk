@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { Form, Head } from '@inertiajs/vue3';
 import { Check } from '@lucide/vue';
-import { ref } from 'vue';
+import { computed, ref } from 'vue';
 import AuthInput from '@/components/auth/AuthInput.vue';
 import AuthSubmit from '@/components/auth/AuthSubmit.vue';
 import FormField from '@/components/FormField.vue';
@@ -11,6 +11,7 @@ import PasswordStrengthMeter from '@/components/PasswordStrengthMeter.vue';
 import TextLink from '@/components/TextLink.vue';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
+import { useTranslations } from '@/composables/useTranslations';
 import { translate } from '@/lib/i18n';
 import { login } from '@/routes';
 import { store } from '@/routes/register';
@@ -45,6 +46,17 @@ const password = ref('');
 
 /** Present only under an invitation, where the address is settled and enforced. */
 const invitedEmail = ref(props.teamInvitation?.email ?? '');
+
+const { t } = useTranslations();
+
+/**
+ * The consent sentence, split around its two link tokens so the anchors can be
+ * woven back in. Kept as one translatable sentence rather than concatenated
+ * fragments, because where the links fall in it is a property of the language.
+ */
+const consentParts = computed(() =>
+    t('I agree to the :terms and the :privacy.').split(/(:terms|:privacy)/),
+);
 </script>
 
 <template>
@@ -74,7 +86,6 @@ const invitedEmail = ref(props.teamInvitation?.email ?? '');
                 type="text"
                 required
                 autofocus
-                :tabindex="1"
                 autocomplete="name"
                 name="name"
                 :placeholder="$t('Full name')"
@@ -92,7 +103,6 @@ const invitedEmail = ref(props.teamInvitation?.email ?? '');
                 :id="id"
                 type="email"
                 required
-                :tabindex="2"
                 autocomplete="email"
                 name="email"
                 locked
@@ -114,7 +124,6 @@ const invitedEmail = ref(props.teamInvitation?.email ?? '');
                 :id="id"
                 type="email"
                 required
-                :tabindex="2"
                 autocomplete="email"
                 name="email"
                 placeholder="email@example.com"
@@ -131,7 +140,6 @@ const invitedEmail = ref(props.teamInvitation?.email ?? '');
                 <PasswordInput
                     :id="id"
                     required
-                    :tabindex="3"
                     autocomplete="new-password"
                     name="password"
                     v-model="password"
@@ -150,7 +158,6 @@ const invitedEmail = ref(props.teamInvitation?.email ?? '');
                 <PasswordInput
                     :id="id"
                     required
-                    :tabindex="4"
                     autocomplete="new-password"
                     name="password_confirmation"
                     class="h-12 rounded-[10px] px-4.5 text-base shadow-none md:text-base"
@@ -170,27 +177,32 @@ const invitedEmail = ref(props.teamInvitation?.email ?? '');
                 <Checkbox
                     id="terms"
                     name="terms"
-                    :tabindex="5"
                     class="mt-0.5 size-5 rounded-[6px] data-[state=checked]:text-brass"
                     data-test="terms-checkbox"
                 />
                 <span>
-                    {{ $t('I agree to the') }}
-                    <a
-                        :href="termsUrl"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        class="text-brass-fill-foreground underline decoration-brass-border/40 underline-offset-4 hover:decoration-brass-border"
-                        >{{ $t('terms') }}</a
+                    <template
+                        v-for="(part, index) in consentParts"
+                        :key="index"
                     >
-                    {{ $t('and') }}
-                    <a
-                        :href="privacyUrl"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        class="text-brass-fill-foreground underline decoration-brass-border/40 underline-offset-4 hover:decoration-brass-border"
-                        >{{ $t('privacy notice') }}</a
-                    >.
+                        <a
+                            v-if="part === ':terms'"
+                            :href="termsUrl"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            class="text-brass-fill-foreground underline decoration-brass-border/40 underline-offset-4 hover:decoration-brass-border"
+                            >{{ $t('terms') }}</a
+                        >
+                        <a
+                            v-else-if="part === ':privacy'"
+                            :href="privacyUrl"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            class="text-brass-fill-foreground underline decoration-brass-border/40 underline-offset-4 hover:decoration-brass-border"
+                            >{{ $t('privacy notice') }}</a
+                        >
+                        <template v-else>{{ part }}</template>
+                    </template>
                 </span>
             </Label>
             <InputError :message="errors.terms" />
@@ -198,7 +210,6 @@ const invitedEmail = ref(props.teamInvitation?.email ?? '');
 
         <AuthSubmit
             class="mt-1"
-            :tabindex="6"
             :loading="processing"
             data-test="register-user-button"
         >
@@ -217,7 +228,6 @@ const invitedEmail = ref(props.teamInvitation?.email ?? '');
                           })
                         : login()
                 "
-                :tabindex="7"
                 data-test="team-invitation-login-link"
             >
                 {{ $t('Log in') }}

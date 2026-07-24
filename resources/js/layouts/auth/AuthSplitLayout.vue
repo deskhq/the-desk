@@ -46,8 +46,13 @@ const { demoMode } = useDemoMode();
 </script>
 
 <template>
+    <!--
+      Stacked below `lg`, where the panel collapses to a masthead sized to its
+      own content and the form takes the rest of the screen; a 50/50 split from
+      `lg` up.
+    -->
     <div
-        class="grid min-h-svh lg:grid-cols-2"
+        class="grid min-h-svh grid-rows-[auto_1fr] lg:grid-cols-2 lg:grid-rows-none"
         :class="{ 'pt-[var(--demo-banner-height)]': demoMode }"
     >
         <!--
@@ -56,8 +61,8 @@ const { demoMode } = useDemoMode();
           panel the darker of the two halves in both modes.
         -->
         <section
-            class="relative flex flex-col overflow-hidden bg-primary px-6 pt-6.5 pb-7 text-primary-foreground lg:px-14 lg:py-13 dark:bg-background dark:text-foreground"
-            :class="mirrored ? 'lg:order-2' : ''"
+            class="relative flex flex-col overflow-hidden border-border bg-primary px-6 pt-6.5 pb-7 text-primary-foreground max-lg:border-b lg:px-14 lg:py-13 dark:bg-background dark:text-foreground"
+            :class="mirrored ? 'lg:order-2 lg:border-l' : 'lg:border-r'"
         >
             <span
                 class="absolute inset-x-0 top-0 h-0.75"
@@ -175,9 +180,13 @@ const { demoMode } = useDemoMode();
             class="flex flex-col bg-sidebar px-6 py-6.5 text-sidebar-foreground lg:px-27.5 lg:pt-11 lg:pb-12"
             :class="mirrored ? 'lg:order-1' : ''"
         >
+            <!--
+              Desktop only: the stacked layout has no top row, so each page
+              carries its own way out at the foot of the form instead.
+            -->
             <div
                 v-if="topAction"
-                class="mb-auto flex items-center gap-2"
+                class="mb-auto hidden items-center gap-2 lg:flex"
                 :class="topAction.back ? 'justify-start' : 'justify-end'"
             >
                 <span
@@ -200,7 +209,12 @@ const { demoMode } = useDemoMode();
                 </Link>
             </div>
 
-            <div class="mt-auto w-full max-w-[420px]">
+            <!--
+              Vertically centred between the top row and the foot on desktop;
+              stacked under the masthead on mobile, where floating it would just
+              open a gap below a band that already fills the top of the screen.
+            -->
+            <div class="w-full max-w-[420px] lg:mt-auto">
                 <span
                     v-if="icon !== 'logo'"
                     class="mb-5 flex size-13 items-center justify-center rounded-[14px] border border-border bg-muted text-brass-fill-foreground"
@@ -231,7 +245,7 @@ const { demoMode } = useDemoMode();
                 </p>
             </div>
 
-            <div class="mt-5.5 mb-auto w-full max-w-[420px] lg:mt-7.5">
+            <div class="mt-5.5 w-full max-w-[420px] lg:mt-7.5 lg:mb-auto">
                 <slot />
             </div>
         </div>

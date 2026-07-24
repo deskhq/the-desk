@@ -49,12 +49,9 @@ function loadEstimator(): Promise<(password: string) => PasswordScore> {
         import('@zxcvbn-ts/language-en'),
     ]).then(([{ ZxcvbnFactory }, common, en]) => {
         const zxcvbn = new ZxcvbnFactory({
-            dictionary: {
-                ...common.default.dictionary,
-                ...en.default.dictionary,
-            },
-            graphs: common.default.adjacencyGraphs,
-            translations: en.default.translations,
+            dictionary: { ...common.dictionary, ...en.dictionary },
+            graphs: common.adjacencyGraphs,
+            translations: en.translations,
         });
 
         return (password: string) => zxcvbn.check(password).score;

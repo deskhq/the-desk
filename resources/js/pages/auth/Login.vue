@@ -142,7 +142,6 @@ const {
                     name="email"
                     required
                     autofocus
-                    :tabindex="1"
                     autocomplete="email"
                     placeholder="email@example.com"
                 />
@@ -158,7 +157,6 @@ const {
                         v-if="canResetPassword"
                         :href="request()"
                         class="text-xs"
-                        :tabindex="5"
                     >
                         {{ $t('Forgot?') }}
                     </TextLink>
@@ -168,7 +166,6 @@ const {
                         :id="id"
                         name="password"
                         required
-                        :tabindex="2"
                         autocomplete="current-password"
                         class="h-12 rounded-[10px] px-4.5 text-base shadow-none md:text-base"
                         :placeholder="$t('Password')"
@@ -180,7 +177,6 @@ const {
                 <Checkbox
                     id="remember"
                     name="remember"
-                    :tabindex="3"
                     class="size-5 rounded-[6px] data-[state=checked]:text-brass"
                 />
                 <span>{{ $t('Keep me signed in') }}</span>
@@ -188,7 +184,6 @@ const {
 
             <AuthSubmit
                 class="mt-1.5"
-                :tabindex="4"
                 :loading="processing"
                 data-test="login-button"
             >
@@ -271,7 +266,6 @@ const {
                         },
                     })
                 "
-                :tabindex="5"
                 data-test="register-link-mobile"
             >
                 {{ $t('Create account') }}
