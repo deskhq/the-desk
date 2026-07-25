@@ -186,7 +186,7 @@ app may load:
 | Variable                | Default                         | Notes                                                                                              |
 | ----------------------- | ------------------------------- | -------------------------------------------------------------------------------------------------- |
 | `SESSION_SECURE_COOKIE` | *(derived from `APP_URL`)*      | Adds the `Secure` flag, so the browser never sends the session cookie over plain HTTP. Defaults to `true` when `APP_URL` starts with `https://`, `false` otherwise. |
-| `SESSION_LIFETIME`      | `120`                           | Minutes of inactivity before a session expires.                                                     |
+| `SESSION_LIFETIME`      | `480`                           | Minutes of inactivity before a session expires. Eight hours, so a workspace left alone across a working day is still signed in on return. Signing in with "Keep me signed in" outlives this. |
 | `SESSION_ENCRYPT`       | `false`                         | Encrypt session payloads at rest in Redis.                                                          |
 | `SESSION_DOMAIN`        | `null`                          | Cookie domain. Leave unset unless you deliberately share the cookie across subdomains.              |
 

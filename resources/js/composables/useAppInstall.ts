@@ -1,4 +1,5 @@
 import { computed, onMounted, ref } from 'vue';
+import { isStandaloneDisplay } from '@/lib/displayMode';
 
 /**
  * The event Chromium fires when the app meets the installability criteria. It
@@ -64,18 +65,6 @@ function write(storage: Storage, key: string, value: string): void {
         // Nothing to do: the in-memory refs still carry the change for this
         // session, it just won't outlive a reload.
     }
-}
-
-/**
- * Whether the page is running as an installed app rather than a browser tab —
- * the standard display-mode query, plus the non-standard flag iOS sets on a
- * home-screen launch.
- */
-function isStandaloneLaunch(): boolean {
-    return (
-        window.matchMedia('(display-mode: standalone)').matches ||
-        (navigator as Navigator & { standalone?: boolean }).standalone === true
-    );
 }
 
 /**
@@ -158,7 +147,7 @@ export function initializeAppInstall(): void {
         return;
     }
 
-    installed.value = isStandaloneLaunch();
+    installed.value = isStandaloneDisplay();
     ios.value = isIos();
     macSafari.value = isMacSafari();
     android.value = isAndroid();
