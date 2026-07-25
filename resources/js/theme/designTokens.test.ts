@@ -86,6 +86,9 @@ describe('"The Desk" design foundation', () => {
 
         it('keeps solid-brass badge text ink in both themes', () => {
             expect(tokenValue(':root', '--brass-foreground')).toBe('#1d1a15');
+            // Brass keeps its value in dark, so lightening its foreground there
+            // put brass on brass and made the numeral vanish (#881).
+            expect(tokenValue('.dark', '--brass-foreground')).toBe('#1d1a15');
         });
 
         it('exposes brass as Tailwind color utilities via @theme inline', () => {

@@ -774,6 +774,8 @@
   "Today at :time": "Aujourd’hui à :time",
   "Toggle Sidebar": "Afficher/masquer la barre latérale",
   "Toggle sidebar": "Afficher/masquer la barre latérale",
+  "Toggle sidebar, :count unread elsewhere": "Afficher/masquer la barre latérale, :count non lus ailleurs",
+  "Toggle sidebar, unread elsewhere": "Afficher/masquer la barre latérale, des messages non lus ailleurs",
   "Tomorrow": "Demain",
   "Tomorrow 9 AM": "Demain 9 h",
   "Tomorrow at :time": "Demain à :time",

@@ -198,13 +198,14 @@ describe('theme contrast (WCAG AA)', () => {
     // which measured 2.94:1 (#278); lock the surfaces it renders on so the brass
     // debt can't creep back. The channel axe audit can't guard it: to stay scoped
     // to #268 it seeds a *read* message, so the divider never renders there.
-    // The "Version X.Y.Z available" badge (settings/About.vue, `isBehind`) paints
-    // --brass-foreground on a `bg-brass/10` fill composited over the settings
-    // card. Dark mode overrode --brass but not --brass-foreground, leaving
-    // near-black text on the dark fill (#518); lock body-text AA in both themes.
+    // The "Version X.Y.Z available" badge (settings/About.vue, `isBehind`) is a
+    // translucent `bg-brass/10` fill composited over the settings card, so it
+    // takes --brass-fill-foreground like every other brass tint. It briefly
+    // painted --brass-foreground instead, which is why that token was lightened
+    // in dark (#518) — a fix that broke the *solid* brass badges below (#881).
     const BADGE_FILL_ALPHA = 0.1; // matches the `bg-brass/10` utility
 
-    it('light --brass-foreground meets AA on the version badge', () => {
+    it('light --brass-fill-foreground meets AA on the version badge', () => {
         const badge = flatten(
             hexToRgb(light['brass']),
             BADGE_FILL_ALPHA,
@@ -212,11 +213,11 @@ describe('theme contrast (WCAG AA)', () => {
         );
 
         expect(
-            contrast(hexToRgb(light['brass-foreground']), badge),
+            contrast(hexToRgb(light['brass-fill-foreground']), badge),
         ).toBeGreaterThanOrEqual(AA_TEXT);
     });
 
-    it('dark --brass-foreground meets AA on the version badge', () => {
+    it('dark --brass-fill-foreground meets AA on the version badge', () => {
         const badge = flatten(
             hexToRgb(dark['brass']),
             BADGE_FILL_ALPHA,
@@ -224,7 +225,26 @@ describe('theme contrast (WCAG AA)', () => {
         );
 
         expect(
-            contrast(hexToRgb(dark['brass-foreground']), badge),
+            contrast(hexToRgb(dark['brass-fill-foreground']), badge),
+        ).toBeGreaterThanOrEqual(AA_TEXT);
+    });
+
+    // --brass-foreground is the *opaque* pair: text and glyphs painted straight
+    // onto a solid `bg-brass` chip — the sidebar mention badge, the DM unread
+    // pill, the mobile sidebar-toggle count (#881), the jump pill, the poll
+    // checkmark. Lightening it for the tinted badge above left brass-on-brass at
+    // 1.2:1 in dark, where the numeral simply disappeared.
+    it.each([
+        ['light', () => light],
+        ['dark', () => dark],
+    ])('%s --brass-foreground meets AA on a solid brass badge', (_, theme) => {
+        const tokens = theme();
+
+        expect(
+            contrast(
+                hexToRgb(tokens['brass-foreground']),
+                hexToRgb(tokens['brass']),
+            ),
         ).toBeGreaterThanOrEqual(AA_TEXT);
     });
 
