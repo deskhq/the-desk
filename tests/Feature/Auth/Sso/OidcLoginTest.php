@@ -2,6 +2,7 @@
 
 use App\Actions\Sso\ProvisionSsoUser;
 use App\Enums\TeamRole;
+use App\Models\Channel;
 use App\Models\SsoIdentity;
 use App\Models\Team;
 use App\Models\User;
@@ -265,7 +266,11 @@ test('a successful callback honours a reachable intended URL', function (): void
     $existing = User::factory()->create(['email' => 'ada@example.com']);
     Socialite::fake('oidc', fakeOidcUser());
 
-    $intended = route('channels.index', ['team' => $existing->currentTeam->slug]);
+    // A channel inside the team, so honouring the intended URL is distinguishable
+    // from simply falling back to the workspace.
+    $channel = Channel::factory()->create(['team_id' => $existing->currentTeam->id, 'slug' => 'random']);
+
+    $intended = route('channels.show', ['team' => $existing->currentTeam->slug, 'channel' => $channel->slug]);
 
     $this->withSession(['url.intended' => $intended])
         ->get(route('sso.oidc.callback'))
