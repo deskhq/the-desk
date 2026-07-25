@@ -4,6 +4,7 @@ import { usePasskeyVerify } from '@laravel/passkeys/vue';
 import { Lock } from '@lucide/vue';
 import AuthInput from '@/components/auth/AuthInput.vue';
 import AuthSubmit from '@/components/auth/AuthSubmit.vue';
+import RememberMeField from '@/components/auth/RememberMeField.vue';
 import AuthStatus from '@/components/AuthStatus.vue';
 import DemoEnterButton from '@/components/DemoEnterButton.vue';
 import FormField from '@/components/FormField.vue';
@@ -11,9 +12,8 @@ import PasswordInput from '@/components/PasswordInput.vue';
 import TeamInvitationAlert from '@/components/TeamInvitationAlert.vue';
 import TextLink from '@/components/TextLink.vue';
 import { Button } from '@/components/ui/button';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
+import { useRememberDevice } from '@/composables/useRememberDevice';
 import { translate } from '@/lib/i18n';
 import { register } from '@/routes';
 import { store } from '@/routes/login';
@@ -62,6 +62,8 @@ defineProps<{
     demoCredentials?: { email: string; password: string } | null;
 }>();
 
+const remember = useRememberDevice();
+
 // Passwordless sign-in: run the WebAuthn assertion against the Fortify passkey
 // endpoints, then follow the server's intended-URL redirect. The whole session
 // changes on success, so a full navigation (not an Inertia visit) is safest.
@@ -73,7 +75,13 @@ const {
 } = usePasskeyVerify({
     routes: {
         options: loginOptions().url,
-        submit: passkeyLogin().url,
+        // The passkey client posts a body of its own and takes no extra fields,
+        // so "keep me signed in" rides on the URL, which the endpoint reads all
+        // the same. It stays a getter because the device default only lands
+        // after mount, and the ceremony reads this when the button is pressed.
+        get submit() {
+            return passkeyLogin.url({ query: { remember: remember.value } });
+        },
     },
     onSuccess: (response) => {
         window.location.href = response.redirect ?? '/';
@@ -227,14 +235,7 @@ const {
                 </template>
             </FormField>
 
-            <Label for="remember" class="flex items-center gap-2.5 text-sm">
-                <Checkbox
-                    id="remember"
-                    name="remember"
-                    class="size-5 rounded-[6px] data-[state=checked]:text-brass"
-                />
-                <span>{{ $t('Keep me signed in') }}</span>
-            </Label>
+            <RememberMeField v-model="remember" />
 
             <AuthSubmit
                 class="mt-1.5"
