@@ -86,12 +86,14 @@ FROM dunglas/frankenphp:1-php${PHP_VERSION}-alpine AS runtime
 # pdo_pgsql: Postgres. redis: phpredis client for the cache/session/queue drivers.
 # pcntl/posix: queue worker + Reverb signal handling.
 # intl/zip/opcache: framework recommendations + performance.
-# gmp: big-number calculator for web push (minishlink/web-push). It guards on
+# gmp: big-number calculator web push needs. minishlink/web-push guards on
 # `gmp || bcmath` and, when both are missing, raises a notice that Laravel
 # promotes to an exception inside the WebPush binding — so the channel cannot
-# resolve and every queued push dies in failed_jobs (#865). Neither extension is
-# a hard requirement of any package, so only tests/Unit/DockerfileExtensionPinsTest.php
-# keeps it here. Sail ships bcmath instead; both are supported backends.
+# resolve and every queued push dies in failed_jobs (#865). Either extension
+# satisfies it; this image picks GMP (the library's own first recommendation and
+# fastest backend) while Sail ships BCMath. Composer cannot catch a regression
+# here — both are `suggest`, never `require`, so the image builds clean without
+# one; tests/Unit/DockerfileExtensionPinsTest.php is what guards the list.
 # gd/imagick: image processing for attachments (Intervention Image, installed via
 # Composer) — EXIF-stripping and thumbnail generation. Imagick is the default
 # driver (ATTACHMENT_IMAGE_DRIVER); GD is the fallback.
