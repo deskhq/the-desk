@@ -528,14 +528,18 @@ never appropriate for real data.
 
 ## Web push notifications
 
-| Variable                                 | Default   | Effect                                              |
-| ---------------------------------------- | --------- | --------------------------------------------------- |
-| `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` | *(unset)* | Enables browser push notifications for new messages. |
+| Variable                                 | Default                                | Effect                                              |
+| ---------------------------------------- | -------------------------------------- | --------------------------------------------------- |
+| `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` | *(unset; filled on a fresh install)* | Enables browser push notifications for new messages. |
 
-Web push is **off** until you generate a VAPID keypair — see
-[Environment variables → Web push notifications](/reference/environment-variables/#web-push-notifications)
-for the `webpush:vapid --show` command. With no keypair the toggle never
-appears in Settings, and the subscription endpoints return **404**.
+Web push needs a VAPID keypair. A fresh install gets one from
+`./docker/gen-secrets.sh`, which fills both keys with the rest of your secrets.
+An install that predates that — or a platform-managed deployment, where the
+script has nothing to write into — generates its own pair with the
+`webpush:vapid --show` command; see
+[Environment variables → Web push notifications](/reference/environment-variables/#web-push-notifications).
+With no keypair the toggle never appears in Settings, and the subscription
+endpoints return **404**.
 
 With the keys set, the feature is still **opt-in per member and per device**:
 nothing prompts on load or on login. Each member turns it on from

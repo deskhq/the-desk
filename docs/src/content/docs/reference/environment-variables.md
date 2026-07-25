@@ -9,8 +9,9 @@ page: [Feature toggles](/reference/feature-toggles/).
 
 :::note
 Run `./docker/gen-secrets.sh` to generate the required secrets — it fills
-`APP_KEY`, `DB_PASSWORD`, `MEILISEARCH_KEY`, and the `REVERB_*` app credentials
-with fresh random values and never overwrites values you have already set.
+`APP_KEY`, `DB_PASSWORD`, `MEILISEARCH_KEY`, the `REVERB_*` app credentials, and
+the [web push](#web-push-notifications) `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY`
+pair with fresh random values, and never overwrites values you have already set.
 :::
 
 ## Docker Compose
@@ -380,8 +381,8 @@ same as before the feature existed.
 ## Web push notifications
 
 Members can opt in, **per device**, to browser notifications for new messages —
-so a mention still reaches them with the tab closed. The feature is **off** until
-you generate a VAPID keypair; see
+so a mention still reaches them with the tab closed. The feature needs a VAPID
+keypair, which signs every push; see
 [Feature toggles → Web push notifications](/reference/feature-toggles/#web-push-notifications)
 for what it does and how it behaves.
 
@@ -391,8 +392,15 @@ for what it does and how it behaves.
 | `VAPID_PRIVATE_KEY` | *(unset)*    | Private half. Never leaves the server.                                                                      |
 | `VAPID_SUBJECT`     | *(`APP_URL`)*| How you identify yourself to the push services: a `mailto:` or `https:` URL they can contact you at.         |
 
-Generate the pair once. Always pass `--show`, which **prints** the keys instead
-of writing them anywhere:
+**On a fresh install you already have a pair.** `./docker/gen-secrets.sh`
+generates one with the rest of your secrets, so push works as soon as members
+turn it on. Nothing else is needed here — optionally set `VAPID_SUBJECT`, which
+the script deliberately leaves empty because it is your contact address rather
+than a secret.
+
+Upgrading an existing install, or running on a platform where `gen-secrets.sh`
+has nothing to write into? Then generate the pair yourself, once. Always pass
+`--show`, which **prints** the keys instead of writing them anywhere:
 
 ```bash
 docker compose exec app php artisan webpush:vapid --show
