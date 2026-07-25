@@ -7,10 +7,12 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Laravel\Fortify\Contracts\LoginResponse as LoginResponseContract;
 use Laravel\Socialite\AbstractUser;
 use Laravel\Socialite\Contracts\User as OidcUser;
 use Laravel\Socialite\Facades\Socialite;
 use Symfony\Component\HttpFoundation\RedirectResponse as SymfonyRedirectResponse;
+use Symfony\Component\HttpFoundation\Response;
 use Throwable;
 
 class OidcController extends Controller
@@ -34,8 +36,13 @@ class OidcController extends Controller
      * key the identity), or a provisioning failure (e.g. a losing concurrent
      * first login hitting the unique constraint) fails gracefully back to the
      * login screen rather than surfacing an exception.
+     *
+     * A completed sign-in hands off to the app's login response rather than
+     * resolving a destination of its own, so single sign-on lands exactly where
+     * a password login lands — workspace, current-team URL default, and the
+     * unreachable-intended-URL cleanup included.
      */
-    public function callback(Request $request, ProvisionSsoUser $provisionSsoUser): RedirectResponse
+    public function callback(Request $request, ProvisionSsoUser $provisionSsoUser): Response
     {
         abort_unless(config('sso.oidc.enabled'), 404);
 
@@ -64,7 +71,7 @@ class OidcController extends Controller
         Auth::login($user);
         $request->session()->regenerate();
 
-        return redirect()->intended(config('fortify.home'));
+        return app(LoginResponseContract::class)->toResponse($request);
     }
 
     /**

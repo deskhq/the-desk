@@ -248,6 +248,40 @@ test('a callback that errors or is denied fails gracefully back to login', funct
     $response->assertSessionHas('status');
 });
 
+test('a successful callback lands on the current team workspace', function (): void {
+    // Single sign-on has to arrive where a password login arrives; resolving its
+    // own destination is how it ended up on the public marketing page instead.
+    config(['sso.oidc.enabled' => true, 'services.oidc.issuer' => 'https://idp.test']);
+    $existing = User::factory()->create(['email' => 'ada@example.com']);
+    Socialite::fake('oidc', fakeOidcUser());
+
+    $this->get(route('sso.oidc.callback'))->assertRedirect(
+        route('channels.index', ['team' => $existing->currentTeam->slug]),
+    );
+});
+
+test('a successful callback honours a reachable intended URL', function (): void {
+    config(['sso.oidc.enabled' => true, 'services.oidc.issuer' => 'https://idp.test']);
+    $existing = User::factory()->create(['email' => 'ada@example.com']);
+    Socialite::fake('oidc', fakeOidcUser());
+
+    $intended = route('channels.index', ['team' => $existing->currentTeam->slug]);
+
+    $this->withSession(['url.intended' => $intended])
+        ->get(route('sso.oidc.callback'))
+        ->assertRedirect($intended);
+});
+
+test('a successful callback drops an intended URL the user cannot reach', function (): void {
+    config(['sso.oidc.enabled' => true, 'services.oidc.issuer' => 'https://idp.test']);
+    $existing = User::factory()->create(['email' => 'ada@example.com']);
+    Socialite::fake('oidc', fakeOidcUser());
+
+    $this->withSession(['url.intended' => url('/t/does-not-exist')])
+        ->get(route('sso.oidc.callback'))
+        ->assertRedirect(route('channels.index', ['team' => $existing->currentTeam->slug]));
+});
+
 test('a provisioning failure fails gracefully back to login', function (): void {
     config(['sso.oidc.enabled' => true]);
     Socialite::fake('oidc', fakeOidcUser());

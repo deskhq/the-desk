@@ -4,8 +4,8 @@ namespace App\Http\Responses\Concerns;
 
 use App\Models\Team;
 use App\Models\User;
+use App\Support\WorkspaceRedirect;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\URL;
 
 trait RedirectsToCurrentTeam
 {
@@ -14,11 +14,11 @@ trait RedirectsToCurrentTeam
      */
     protected function redirectPathForCurrentTeam(Request $request): string
     {
-        $team = $this->currentTeam($request);
+        $path = WorkspaceRedirect::pathFor($request->user());
 
-        URL::defaults(['current_team' => $team->slug]);
+        abort_if($path === null, 403);
 
-        return route('channels.index', ['team' => $team->slug], absolute: false);
+        return $path;
     }
 
     /**
@@ -52,6 +52,13 @@ trait RedirectsToCurrentTeam
             return false;
         }
 
+        // The site root is the public marketing page (route `home`), never a
+        // destination for someone who has just signed in — honouring it is how
+        // an authenticated user lands back on the Welcome screen.
+        if (trim($path, '/') === '') {
+            return false;
+        }
+
         $segments = explode('/', trim($path, '/'));
 
         if ($segments[0] !== 't') {
@@ -70,18 +77,5 @@ trait RedirectsToCurrentTeam
 
         return ($channelSlug = $segments[3] ?? null) !== null
             && $team->channels()->where('slug', $channelSlug)->exists();
-    }
-
-    protected function currentTeam(Request $request): Team
-    {
-        $user = $request->user();
-
-        abort_if(! $user, 403);
-
-        $team = $user->currentTeam ?? $user->personalTeam();
-
-        abort_if(! $team, 403);
-
-        return $team;
     }
 }
