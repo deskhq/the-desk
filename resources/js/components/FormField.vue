@@ -9,6 +9,13 @@ import { Label } from '@/components/ui/label';
  * hint line. The control lives in the default slot and receives the field `id`
  * via slot scope, so the label/control coupling is wired from one source and
  * cannot drift.
+ *
+ * The field's height is deliberately constant whether or not it is in error
+ * (#883). A message that joined the flow would grow the field, and on the auth
+ * pages the form column is vertically centred — so the heading slides up while
+ * the submit button slides down, out from under the pointer of someone about to
+ * click it again. Side by side, the taller cell would drag its neighbour's
+ * label and input out of alignment too.
  */
 const props = defineProps<{
     label?: string;
@@ -22,7 +29,7 @@ const fieldId = props.id ?? useId();
 </script>
 
 <template>
-    <div class="grid gap-2">
+    <div class="relative grid gap-2 pb-7">
         <!-- A label action is typically a link, so it is focusable and
         sequential focus would visit it between the previous field and this
         control if it came first in the DOM. It is therefore emitted last and
@@ -57,8 +64,20 @@ const fieldId = props.id ?? useId();
             <slot :id="fieldId" />
         </template>
 
-        <InputError :message="error" />
-
         <p v-if="hint" class="text-sm text-muted-foreground">{{ hint }}</p>
+
+        <!-- A zero-height slot, always present so the row and its gap are the
+        same whether or not there is a message, with the message itself drawn
+        out of flow inside it. The `pb-7` above reserves one line for it; a
+        message that wraps to a second line spills into the gap the form already
+        leaves before the next field, so nothing has to move to accommodate it.
+        It cannot take a click, because a wrapped line is drawn over the space
+        the next control occupies. -->
+        <div class="relative">
+            <InputError
+                :message="error"
+                class="pointer-events-none absolute inset-x-0 top-0"
+            />
+        </div>
     </div>
 </template>

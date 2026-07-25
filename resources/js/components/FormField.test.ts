@@ -52,8 +52,49 @@ describe('FormField', () => {
         const html = await renderField({ id: 'email', label: 'Email address' });
 
         expect(html).not.toContain('field is required');
-        // The error slot stays hidden rather than reserving space.
-        expect(html).toContain('style="display:none;"');
+        // Not merely hidden: absent, so a screen reader has no empty node to
+        // walk over on a field that is perfectly fine.
+        expect(html).not.toContain('display:none');
+        expect(html).not.toContain('role="alert"');
+    });
+
+    it('keeps the field the same height whether or not it is in error', async () => {
+        // The space for the message is reserved up front and the message is
+        // drawn out of flow inside it, so an error cannot grow the field and
+        // push the rest of the form around it (#883).
+        const clean = await renderField({
+            id: 'email',
+            label: 'Email address',
+        });
+        const failed = await renderField({
+            id: 'email',
+            label: 'Email address',
+            error: 'The email field is required.',
+        });
+
+        for (const html of [clean, failed]) {
+            // The gutter that reserves the line...
+            expect(html).toMatch(/<div class="[^"]*\bpb-7\b/);
+            // ...and the zero-height slot the message is drawn into, present in
+            // both states so the row and its gap never change.
+            expect(html).toContain('<div class="relative">');
+        }
+
+        expect(failed).toMatch(/class="[^"]*\babsolute\b/);
+    });
+
+    it('announces the error and keeps it clear of the next control', async () => {
+        const html = await renderField({
+            id: 'email',
+            label: 'Email address',
+            error: 'The email field is required.',
+        });
+
+        // Announced the moment it appears...
+        expect(html).toContain('role="alert"');
+        // ...and unable to swallow a click, since a wrapped second line is
+        // drawn over the space the next control occupies.
+        expect(html).toMatch(/class="[^"]*\bpointer-events-none\b/);
     });
 
     it('renders the optional hint line when provided', async () => {

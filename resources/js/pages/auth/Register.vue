@@ -130,7 +130,10 @@ const consentParts = computed(() =>
             />
         </FormField>
 
-        <div class="grid gap-3.5 sm:grid-cols-2">
+        <!-- `items-start` so neither cell can ever be stretched to match the
+        other's height; `FormField` already keeps both the same, this keeps that
+        true if one of them ever grows for some other reason. -->
+        <div class="grid items-start gap-3.5 sm:grid-cols-2">
             <FormField
                 id="password"
                 :label="$t('Password')"
