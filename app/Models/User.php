@@ -45,6 +45,8 @@ use Laravel\Fortify\PasskeyAuthenticatable;
 use Laravel\Fortify\TwoFactorAuthenticatable;
 use Laravel\Passkeys\Passkey;
 use Laravel\Sanctum\HasApiTokens;
+use NotificationChannels\WebPush\HasPushSubscriptions;
+use NotificationChannels\WebPush\PushSubscription;
 
 /**
  * @property string $id
@@ -99,6 +101,7 @@ use Laravel\Sanctum\HasApiTokens;
  * @property-read Collection<int, DataExport> $dataExports
  * @property-read Collection<int, Passkey> $passkeys
  * @property-read Collection<int, UserGroup> $userGroups
+ * @property-read Collection<int, PushSubscription> $pushSubscriptions
  */
 #[Appends(['avatar', 'status', 'presence', 'dnd'])]
 #[Fillable(['name', 'email', 'avatar_url', 'pronouns', 'title', 'phone', 'timezone', 'locale', 'time_format', 'password', 'current_team_id', 'chime_sound', 'share_read_receipts', 'sidebar_position', 'presence_state', 'onboarding_completed_at', 'collapsed_channel_sections', 'is_tombstone'])]
@@ -107,7 +110,7 @@ use Laravel\Sanctum\HasApiTokens;
 class User extends Authenticatable implements HasLocalePreference, MustVerifyEmail, PasskeyUser
 {
     /** @use HasFactory<UserFactory> */
-    use HasApiTokens, HasFactory, HasTeams, HasUuids, Notifiable, PasskeyAuthenticatable, TwoFactorAuthenticatable;
+    use HasApiTokens, HasFactory, HasPushSubscriptions, HasTeams, HasUuids, Notifiable, PasskeyAuthenticatable, TwoFactorAuthenticatable;
 
     /**
      * Determine if the user has verified their email address.

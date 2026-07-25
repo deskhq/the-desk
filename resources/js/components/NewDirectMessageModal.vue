@@ -61,7 +61,7 @@ function selectPerson(id: string): void {
                 auto-focus
                 :placeholder="$t('Search people…')"
                 data-test="new-dm-input"
-                class="flex h-10 w-full rounded-md bg-transparent py-3 text-sm outline-hidden placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50"
+                class="flex h-10 w-full rounded-md bg-transparent py-3 text-base outline-hidden placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50 md:text-sm"
             />
         </div>
         <CommandList :ariaLabel="$t('People')">

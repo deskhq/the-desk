@@ -149,7 +149,7 @@ function bodyPreview(body: string): string {
                             rows="2"
                             :aria-label="$t('Scheduled message body')"
                             data-test="scheduled-edit-body"
-                            class="w-full resize-none rounded-lg border border-input bg-popover px-3 py-2.5 text-[13.5px] leading-[1.5] text-foreground outline-none focus:border-ring focus:ring-1 focus:ring-ring"
+                            class="w-full resize-none rounded-lg border border-input bg-popover px-3 py-2.5 text-base leading-[1.5] text-foreground outline-none focus:border-ring focus:ring-1 focus:ring-ring md:text-[13.5px]"
                         ></textarea>
                         <div class="flex items-center gap-2">
                             <Button

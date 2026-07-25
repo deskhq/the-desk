@@ -8,6 +8,7 @@ export default defineConfig({
         environment: 'node',
         include: [
             'resources/js/**/*.test.ts',
+            'resources/pwa/**/*.test.ts',
             'eslint-rules/**/*.test.ts',
         ],
     },

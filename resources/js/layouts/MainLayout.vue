@@ -44,6 +44,8 @@ import CreateTeamModal from '@/components/CreateTeamModal.vue';
 import DemoBanner from '@/components/DemoBanner.vue';
 import DirectMessageListItem from '@/components/DirectMessageListItem.vue';
 import DndPauseDialog from '@/components/DndPauseDialog.vue';
+import InstallAppCard from '@/components/InstallAppCard.vue';
+import InstallAppDialog from '@/components/InstallAppDialog.vue';
 import InviteMemberModal from '@/components/InviteMemberModal.vue';
 import KeyboardShortcutsModal from '@/components/KeyboardShortcutsModal.vue';
 import NavUser from '@/components/NavUser.vue';
@@ -87,6 +89,7 @@ import { useChimeNotifications } from '@/composables/useChimeNotifications';
 import { useDemoMode } from '@/composables/useDemoMode';
 import { useDndPauseDialog } from '@/composables/useDndPauseDialog';
 import { useInitials } from '@/composables/useInitials';
+import { useInstallDialog } from '@/composables/useInstallDialog';
 import { useIsMobile } from '@/composables/useIsMobile';
 import { useKeyboardShortcuts } from '@/composables/useKeyboardShortcuts';
 import { useKeyboardShortcutsModal } from '@/composables/useKeyboardShortcutsModal';
@@ -569,6 +572,7 @@ const { isOpen: shortcutsOpen, toggle: toggleShortcuts } =
     useKeyboardShortcutsModal();
 const { isOpen: statusDialogOpen } = useUserStatusDialog();
 const { isOpen: dndPauseDialogOpen } = useDndPauseDialog();
+const { isOpen: installDialogOpen } = useInstallDialog();
 
 /**
  * The viewer's still-pending reminders in this team, feeding the "Reminders"
@@ -994,7 +998,7 @@ onMounted(() => {
                                         "
                                         v-model="renameValue"
                                         :data-test="`section-rename-input-${group.section.id}`"
-                                        class="h-auto min-w-0 flex-1 rounded-sm border-sidebar-border bg-sidebar px-1 py-0.5 text-[11px] tracking-normal text-sidebar-foreground normal-case md:text-[11px] dark:bg-sidebar"
+                                        class="h-auto min-w-0 flex-1 rounded-sm border-sidebar-border bg-sidebar px-1 py-0.5 text-base tracking-normal text-sidebar-foreground normal-case md:text-[11px] dark:bg-sidebar"
                                         type="text"
                                         maxlength="50"
                                         @keydown.enter.prevent="
@@ -1312,7 +1316,7 @@ onMounted(() => {
                                 <Input
                                     v-model="newSectionName"
                                     data-test="create-section-input"
-                                    class="h-8 w-full rounded-md border-sidebar-border bg-sidebar px-2 py-1 text-[13px] text-sidebar-foreground md:text-[13px] dark:bg-sidebar"
+                                    class="h-8 w-full rounded-md border-sidebar-border bg-sidebar px-2 py-1 text-base text-sidebar-foreground md:text-[13px] dark:bg-sidebar"
                                     type="text"
                                     maxlength="50"
                                     :placeholder="$t('New section name')"
@@ -1425,6 +1429,7 @@ onMounted(() => {
             </SidebarContent>
 
             <SidebarFooter class="border-t border-sidebar-border p-2.5">
+                <InstallAppCard />
                 <UpdateIndicator />
                 <NavUser />
             </SidebarFooter>
@@ -1487,6 +1492,8 @@ onMounted(() => {
         <KeyboardShortcutsModal v-model:open="shortcutsOpen" />
 
         <UserStatusDialog v-model:open="statusDialogOpen" />
+
+        <InstallAppDialog v-model:open="installDialogOpen" />
 
         <DndPauseDialog v-model:open="dndPauseDialogOpen" />
 

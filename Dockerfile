@@ -159,6 +159,10 @@ WORKDIR /app
 COPY . .
 COPY --from=vendor /app/vendor ./vendor
 COPY --from=assets /app/public/build ./public/build
+# The service worker ships from the web root, not `public/build`: a worker only
+# controls paths below its own, so serving it from the bundle directory would
+# scope it to `/build` and the app would stop being installable.
+COPY --from=assets /app/public/service-worker.js ./public/service-worker.js
 
 # Non-root runtime user. FrankenPHP listens on 8080 (>1024), so no extra
 # capabilities are required to bind the port.
