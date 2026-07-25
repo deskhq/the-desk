@@ -13,9 +13,18 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/deskhq/the-desk/actions/workflows/tests.yml"><img src="https://img.shields.io/github/actions/workflow/status/deskhq/the-desk/tests.yml?branch=master&label=tests" alt="Tests"></a>
-  <a href="https://github.com/deskhq/the-desk/releases"><img src="https://img.shields.io/github/v/release/deskhq/the-desk?color=c9a35c" alt="Latest release"></a>
   <a href="LICENSE"><img src="https://img.shields.io/github/license/deskhq/the-desk?color=c9a35c" alt="License: MIT"></a>
+  <a href="https://www.php.net"><img src="https://img.shields.io/badge/PHP-8.5-777bb4" alt="PHP 8.5"></a>
+  <a href="https://laravel.com"><img src="https://img.shields.io/badge/Laravel-13-ff2d20" alt="Laravel 13"></a>
+  <a href="https://vuejs.org"><img src="https://img.shields.io/badge/Vue-3-42b883" alt="Vue 3"></a>
+</p>
+
+<p align="center">
+  <a href="https://github.com/deskhq/the-desk/actions/workflows/tests.yml"><img src="https://img.shields.io/github/actions/workflow/status/deskhq/the-desk/tests.yml?branch=master&label=tests" alt="Tests"></a>
+  <a href="https://github.com/deskhq/the-desk/releases/latest"><img src="https://img.shields.io/github/v/release/deskhq/the-desk?color=c9a35c" alt="Latest release"></a>
+  <a href="https://github.com/deskhq/the-desk/releases"><img src="https://img.shields.io/github/release-date/deskhq/the-desk?color=c9a35c" alt="Latest release date"></a>
+  <a href="https://github.com/deskhq/the-desk/commits/master"><img src="https://img.shields.io/github/last-commit/deskhq/the-desk/master?color=c9a35c" alt="Last commit"></a>
+  <a href="https://github.com/deskhq/the-desk"><img src="https://img.shields.io/github/stars/deskhq/the-desk?style=flat&color=c9a35c" alt="GitHub stars"></a>
 </p>
 
 <p align="center">
