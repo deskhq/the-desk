@@ -1,6 +1,6 @@
 ---
 title: Troubleshooting
-description: Fix the two first-run gotchas a healthy stack can still hit — a "Reconnecting…" banner from a wrong APP_URL, and .env edits that need a container recreate to take effect.
+description: Fix the first-run gotchas a healthy stack can still hit — a "Reconnecting…" banner from a wrong APP_URL, push notifications that silently never arrive, and .env edits that need a container recreate to take effect.
 ---
 
 A fresh deploy can report every container `healthy` and still look broken, because
@@ -54,6 +54,51 @@ After editing `APP_URL` or any `REVERB_*` value, you must **recreate** the
 containers for the change to take effect, not just save the file. See
 [Changed `.env` but nothing changed](#changed-env-but-nothing-changed) below.
 :::
+
+## Nobody receives push notifications
+
+**Symptom.** Members have turned browser notifications on, but nothing ever
+arrives. Every container reports `healthy`, the queue is empty, and the logs look
+ordinary.
+
+**Cause.** Web push is the only channel the app sends message alerts through, on
+purpose: there is no notification centre and no email for message traffic. So a
+delivery that fails produces exactly the silence a member who never subscribed a
+device would see. Worse, the notification is consumed off the queue *before* it
+fails, so the queue drains to zero and the worker stays up: every surface-level
+signal reads green while nothing is delivered.
+
+**Fix.** Ask the instance directly:
+
+```bash
+docker compose exec app php artisan push:doctor
+```
+
+It checks the whole delivery path — the VAPID keypair is set and well-formed, the
+subject is a contact a push service accepts, the image loads the extensions the
+push library needs, the notification channel actually constructs, how many devices
+are subscribed, and whether push jobs have already died — and exits non-zero when
+push cannot be delivered, so you can also run it from a monitor.
+
+Each line names its own fix:
+
+- **VAPID keypair `WARN`, "not set".** Push is switched off. Generate a pair; see
+  [Environment variables → Web push notifications](/reference/environment-variables/#web-push-notifications).
+- **VAPID keypair `FAIL`.** Only one half is set, or a key was truncated when it
+  was pasted in. Set both, in full.
+- **Math extension or PHP extensions `FAIL`.** The image is missing something the
+  push library needs. It cannot be fixed from `.env` — upgrade to a release that
+  ships it.
+- **Subscriptions `WARN`, "no device has subscribed".** Delivery is fine; nobody
+  has opted in yet. Members turn it on per device under **Settings →
+  Notifications**, and a browser only offers it over HTTPS.
+- **Past failures `WARN`.** Push jobs have already died. Read them with
+  `docker compose exec app php artisan queue:failed`; the exception names the
+  cause. Once it is fixed, clear the backlog with `php artisan queue:flush`.
+
+Failed jobs are also written to the log from the moment they fail, so
+`docker compose logs app queue --tail=100` shows the underlying exception without
+waiting for anyone to inspect the queue.
 
 ## Changed `.env` but nothing changed
 
