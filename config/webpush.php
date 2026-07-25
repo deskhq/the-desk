@@ -13,7 +13,8 @@ return [
     |
     | The keypair every push message is signed with, identifying this instance
     | to the browser vendors' push services. Generate one per instance with
-    | `php artisan webpush:vapid` and keep it stable: the public key is baked
+    | `php artisan webpush:vapid --show` (the bare form writes to .env, which is
+    | mounted read-only in production) and keep it stable: the public key is baked
     | into each browser's subscription, so rotating it invalidates every
     | subscription users have already granted. Web push stays switched off
     | until both keys are set — see App\Support\WebPushConfig.

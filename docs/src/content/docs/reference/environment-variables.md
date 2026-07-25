@@ -389,14 +389,47 @@ for what it does and how it behaves.
 | `VAPID_PRIVATE_KEY` | *(unset)*    | Private half. Never leaves the server.                                                                      |
 | `VAPID_SUBJECT`     | *(`APP_URL`)*| How you identify yourself to the push services: a `mailto:` or `https:` URL they can contact you at.         |
 
-Generate the pair once, from inside the app container:
+Generate the pair once. Always pass `--show`, which **prints** the keys instead
+of writing them anywhere:
 
 ```bash
-docker compose exec app php artisan webpush:vapid
+docker compose exec app php artisan webpush:vapid --show
 ```
 
-It writes `VAPID_PUBLIC_KEY` and `VAPID_PRIVATE_KEY` into your `.env`. Restart
-the stack to pick them up.
+```
+VAPID_PUBLIC_KEY=BN4Gv…
+VAPID_PRIVATE_KEY=hAn5…
+```
+
+Paste both into the `.env` **on the host**, alongside your other secrets, and set
+`VAPID_SUBJECT` while you are there:
+
+```ini
+VAPID_PUBLIC_KEY=BN4Gv…
+VAPID_PRIVATE_KEY=hAn5…
+VAPID_SUBJECT=mailto:admin@example.com
+```
+
+Then restart the stack to pick them up:
+
+```bash
+docker compose up -d
+```
+
+:::caution[Run it with `--show`, never bare]
+Without `--show`, the command writes the keys into `.env` itself, and that cannot
+work here. The bundled stack bind-mounts the file **read-only**
+(`./.env:/app/.env:ro` in `docker-compose.prod.yml`) because the operator owns
+and edits it on the host, so the bare form fails with:
+
+```
+file_put_contents(/app/.env): Failed to open stream: Read-only file system
+```
+
+On a platform-managed deployment (Dokploy, Coolify, Kubernetes) there is no
+host `.env` to edit at all: generate the pair with `--show` and paste the three
+values into the platform's environment settings, then redeploy.
+:::
 
 :::caution[Keep the keypair stable]
 The public key is baked into every subscription a browser has already granted.
