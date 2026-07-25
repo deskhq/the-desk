@@ -57,6 +57,11 @@ pest()->extend(TestCase::class)->in('Unit/Support/WebPushConfigTest.php');
 // needs the application booted (but no database).
 pest()->extend(TestCase::class)->in('Unit/OpenApiSpecTest.php');
 
+// The Reverb secret guidance test checks documented commands against the ones
+// Artisan actually registers, so it needs the application booted (but no
+// database).
+pest()->extend(TestCase::class)->in('Unit/ReverbSecretGuidanceTest.php');
+
 /*
 |--------------------------------------------------------------------------
 | Browser (E2E) Test Case
