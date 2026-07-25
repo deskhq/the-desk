@@ -15,6 +15,42 @@
 	--td-brass-ink: #7d6023;
 	--td-ink: #1d1a15;
 	--td-paper: #f3efe4;
+	/* How much of the release banner is still on screen. Published by the
+	   inline script in src/components/PageFrame.astro; the 0px here is what a
+	   page without a banner (the generated API reference, 404) keeps, so those
+	   pages fall back to Starlight's own offsets. See #885. */
+	--td-banner-height: 0px;
+}
+
+/* ---------- Site-wide release banner ----------
+   The banner is hoisted out of `<main>` by the PageFrame override so it spans
+   the viewport. Everything Starlight pins to the viewport therefore has to be
+   pushed down past it — the pieces below live in other Starlight components, so
+   they are shifted from here rather than from that override's scoped styles. */
+@media (min-width: 72rem) {
+	.right-sidebar {
+		top: var(--td-banner-height);
+		height: calc(100vh - var(--td-banner-height));
+	}
+}
+mobile-starlight-toc nav {
+	top: calc(var(--sl-nav-height) - 1px + var(--td-banner-height));
+}
+starlight-menu-button button {
+	top: calc((var(--sl-nav-height) - var(--sl-menu-button-size)) / 2 + var(--td-banner-height));
+}
+
+/* An anchor jump lands under the header otherwise: while any of the banner is
+   still on screen the header sits that much lower than Starlight assumes. */
+html {
+	scroll-padding-top: calc(
+		1.5rem + var(--sl-nav-height) + var(--sl-mobile-toc-height) + var(--td-banner-height)
+	);
+}
+@media (min-width: 72rem) {
+	html {
+		scroll-padding-top: calc(1.5rem + var(--sl-nav-height) + var(--td-banner-height));
+	}
 }
 
 /* ---------- Dark palette (default) ---------- */
