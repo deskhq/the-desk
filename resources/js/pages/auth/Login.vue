@@ -248,7 +248,11 @@ const {
 
         <!-- Single sign-on sits below the password form as the secondary route
         in. A full-page navigation (native anchor) hands off to the IdP; an
-        Inertia visit would break the OAuth redirect. -->
+        Inertia visit would break the OAuth redirect. Like the passkey button it
+        inherits "keep me signed in" rather than offering a control of its own —
+        on an SSO-only instance the password form, and with it the checkbox, is
+        never rendered. The sign-in happens in the callback a round-trip later,
+        so the redirect route parks the flag in the session until it returns. -->
         <template v-if="$page.props.sso.oidcEnabled">
             <div
                 v-if="$page.props.sso.passwordLoginEnabled"
@@ -265,7 +269,7 @@ const {
                 class="h-13 w-full rounded-full text-[15px] font-medium"
                 data-test="sso-login-button"
             >
-                <a :href="oidcRedirect.url()">
+                <a :href="oidcRedirect.url({ query: { remember } })">
                     <Lock class="text-muted-foreground" aria-hidden="true" />
                     {{ $t('Continue with SSO') }}
                 </a>

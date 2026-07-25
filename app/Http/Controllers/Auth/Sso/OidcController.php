@@ -18,11 +18,30 @@ use Throwable;
 class OidcController extends Controller
 {
     /**
-     * Send the user to the configured OpenID Connect provider.
+     * The session key the "keep me signed in" choice waits under while the user
+     * is away at the identity provider.
+     *
+     * The choice is made on the login screen but the sign-in happens in the
+     * callback, a full round-trip later, so it cannot simply ride along with the
+     * request the way the password form's checkbox does.
      */
-    public function redirect(): SymfonyRedirectResponse
+    private const string REMEMBER_KEY = 'sso.remember';
+
+    /**
+     * Send the user to the configured OpenID Connect provider, parking the
+     * "keep me signed in" choice the login screen sends along.
+     *
+     * The login screen carries the same flag the password form and the passkey
+     * button read, so an installed-app sign-in outlives the session lifetime
+     * here too. Parking it server side is what survives the round-trip: the
+     * callback reads the session, never its own query string, so this route —
+     * the actual start of the flow — is the only thing that can set it.
+     */
+    public function redirect(Request $request): SymfonyRedirectResponse
     {
         abort_unless(config('sso.oidc.enabled'), 404);
+
+        $request->session()->put(self::REMEMBER_KEY, $request->boolean('remember'));
 
         return Socialite::driver('oidc')->redirect();
     }
@@ -46,6 +65,12 @@ class OidcController extends Controller
     {
         abort_unless(config('sso.oidc.enabled'), 404);
 
+        // Read back from the session and never from this request, so the flag
+        // stays something only the start of the flow can set. Consumed up here,
+        // ahead of anything that can fail, so a bounced callback cannot leave it
+        // behind to colour a later sign-in.
+        $remember = (bool) $request->session()->pull(self::REMEMBER_KEY, false);
+
         try {
             $oidcUser = Socialite::driver('oidc')->user();
 
@@ -68,7 +93,7 @@ class OidcController extends Controller
             return $this->failed();
         }
 
-        Auth::login($user);
+        Auth::login($user, $remember);
         $request->session()->regenerate();
 
         return app(LoginResponseContract::class)->toResponse($request);

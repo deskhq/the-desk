@@ -7,6 +7,8 @@ use App\Models\SsoIdentity;
 use App\Models\Team;
 use App\Models\User;
 use GuzzleHttp\Handler\MockHandler;
+use Illuminate\Auth\SessionGuard;
+use Illuminate\Support\Facades\Auth;
 use Laravel\Socialite\Contracts\Provider;
 use Laravel\Socialite\Facades\Socialite;
 use Laravel\Socialite\Two\InvalidStateException;
@@ -41,6 +43,28 @@ test('the redirect route sends the user to the identity provider authorize endpo
     $this->get(route('sso.oidc.redirect'))
         ->assertRedirectContains('https://idp.test/authorize')
         ->assertRedirectContains('client_id=client-id');
+});
+
+test('the redirect route parks the "keep me signed in" choice for the callback', function (string $submitted, bool $parked): void {
+    $mock = new MockHandler([oidcDiscoveryResponse()]);
+    config(['sso.oidc.enabled' => true, 'services.oidc' => oidcServicesConfig($mock)]);
+    Socialite::forgetDrivers();
+
+    $this->get(route('sso.oidc.redirect', ['remember' => $submitted]))->assertSessionHas('sso.remember');
+
+    // Asserted strictly: `assertSessionHas` compares loosely, so an absent key
+    // would satisfy an expected `false` without the flag ever being parked.
+    expect(session()->get('sso.remember'))->toBe($parked);
+})->with(['on' => ['1', true], 'off' => ['0', false]]);
+
+test('the redirect route parks the choice as off when the login screen sends nothing', function (): void {
+    $mock = new MockHandler([oidcDiscoveryResponse()]);
+    config(['sso.oidc.enabled' => true, 'services.oidc' => oidcServicesConfig($mock)]);
+    Socialite::forgetDrivers();
+
+    $this->get(route('sso.oidc.redirect'))->assertSessionHas('sso.remember');
+
+    expect(session()->get('sso.remember'))->toBeFalse();
 });
 
 test('the redirect route is hidden when oidc is not configured', function (): void {
@@ -285,6 +309,70 @@ test('a successful callback drops an intended URL the user cannot reach', functi
     $this->withSession(['url.intended' => url('/t/does-not-exist')])
         ->get(route('sso.oidc.callback'))
         ->assertRedirect(route('channels.index', ['team' => $existing->currentTeam->slug]));
+});
+
+test('a callback with "keep me signed in" parked queues the long-lived recaller cookie', function (): void {
+    config(['sso.oidc.enabled' => true, 'services.oidc.issuer' => 'https://idp.test']);
+    User::factory()->create(['email' => 'ada@example.com']);
+    Socialite::fake('oidc', fakeOidcUser());
+
+    $response = $this->withSession(['sso.remember' => true])->get(route('sso.oidc.callback'));
+
+    $this->assertAuthenticated();
+
+    /** @var SessionGuard $guard */
+    $guard = Auth::guard('web');
+    $recaller = $response->getCookie($guard->getRecallerName(), decrypt: false);
+
+    expect($recaller)->not->toBeNull()
+        // The recaller is what outlives session expiry, so it has to be dated
+        // well past any session lifetime — Laravel's own default is 400 days.
+        ->and($recaller->getExpiresTime())->toBeGreaterThan(now()->addYear()->getTimestamp());
+});
+
+test('a callback without "keep me signed in" parked queues no recaller cookie', function (): void {
+    config(['sso.oidc.enabled' => true, 'services.oidc.issuer' => 'https://idp.test']);
+    User::factory()->create(['email' => 'ada@example.com']);
+    Socialite::fake('oidc', fakeOidcUser());
+
+    $response = $this->withSession(['sso.remember' => false])->get(route('sso.oidc.callback'));
+
+    $this->assertAuthenticated();
+
+    /** @var SessionGuard $guard */
+    $guard = Auth::guard('web');
+
+    expect($response->getCookie($guard->getRecallerName(), decrypt: false))->toBeNull();
+});
+
+test('the callback ignores a "keep me signed in" flag on its own query string', function (): void {
+    // The flag is only ever read back from the session, so appending it to the
+    // callback URL cannot buy an attacker a persistent sign-in from outside the
+    // flow.
+    config(['sso.oidc.enabled' => true, 'services.oidc.issuer' => 'https://idp.test']);
+    User::factory()->create(['email' => 'ada@example.com']);
+    Socialite::fake('oidc', fakeOidcUser());
+
+    $response = $this->get(route('sso.oidc.callback', ['remember' => 1]));
+
+    $this->assertAuthenticated();
+
+    /** @var SessionGuard $guard */
+    $guard = Auth::guard('web');
+
+    expect($response->getCookie($guard->getRecallerName(), decrypt: false))->toBeNull();
+});
+
+test('a bounced callback still consumes the parked flag', function (): void {
+    // Otherwise a failed attempt would leave it behind to quietly persist the
+    // next sign-in, however that one was started.
+    config(['sso.oidc.enabled' => true]);
+    Socialite::fake('oidc', fakeOidcUser(email: null));
+
+    $this->withSession(['sso.remember' => true])
+        ->get(route('sso.oidc.callback'))
+        ->assertRedirect(route('login'))
+        ->assertSessionMissing('sso.remember');
 });
 
 test('a provisioning failure fails gracefully back to login', function (): void {
