@@ -1,6 +1,9 @@
 <?php
 
+use App\Jobs\DeliverWebhook;
+use App\Listeners\SendMessagePushNotifications;
 use App\Models\User;
+use App\Notifications\NewMessageNotification;
 use App\Support\PhpExtensions;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Artisan;
@@ -94,9 +97,9 @@ test('warnings are reported without failing the command', function (): void {
 
 test('it surfaces push jobs that already died in failed_jobs', function (): void {
     configureWebPush();
-    recordFailedJob('App\\Notifications\\NewMessageNotification', CarbonImmutable::parse('2026-07-20 09:15:00'));
-    recordFailedJob('App\\Listeners\\SendMessagePushNotifications');
-    recordFailedJob('App\\Jobs\\DeliverWebhook');
+    recordFailedJob(NewMessageNotification::class, CarbonImmutable::parse('2026-07-20 09:15:00'));
+    recordFailedJob(SendMessagePushNotifications::class);
+    recordFailedJob(DeliverWebhook::class);
 
     $exitCode = Artisan::call('push:doctor');
 

@@ -131,8 +131,11 @@ class PushDoctorCommand extends Command
         }
 
         try {
+            // The subject is passed only because the library insists the key is
+            // present; it never inspects it. Whether it is a contact a push
+            // service would accept is {@see self::checkVapidSubject()}'s call.
             VAPID::validate([
-                'subject' => (string) (config('webpush.vapid.subject') ?? url('/')),
+                'subject' => (string) config('webpush.vapid.subject'),
                 'publicKey' => $publicKey,
                 'privateKey' => $privateKey,
             ]);

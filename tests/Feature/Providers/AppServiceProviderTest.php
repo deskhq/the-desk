@@ -1,5 +1,6 @@
 <?php
 
+use App\Notifications\NewMessageNotification;
 use App\Providers\AppServiceProvider;
 use Illuminate\Contracts\Queue\Job;
 use Illuminate\Queue\Events\JobFailed;
@@ -12,7 +13,7 @@ test('a queued job that dies is written to the log', function (): void {
     Log::spy();
 
     $job = Mockery::mock(Job::class);
-    $job->shouldReceive('resolveName')->andReturn('App\Notifications\NewMessageNotification');
+    $job->shouldReceive('resolveName')->andReturn(NewMessageNotification::class);
     $job->shouldReceive('getQueue')->andReturn('default');
 
     event(new JobFailed('redis', $job, new RuntimeException('It is highly recommended to install GMP')));
@@ -20,7 +21,7 @@ test('a queued job that dies is written to the log', function (): void {
     Log::shouldHaveReceived('error')
         ->once()
         ->withArgs(function (string $message, array $context): bool {
-            expect($message)->toContain('App\Notifications\NewMessageNotification')
+            expect($message)->toContain(NewMessageNotification::class)
                 ->and($context['connection'])->toBe('redis')
                 ->and($context['queue'])->toBe('default')
                 ->and($context['exception'])->toBeInstanceOf(RuntimeException::class);
