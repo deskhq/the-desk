@@ -534,8 +534,8 @@ never appropriate for real data.
 
 Web push is **off** until you generate a VAPID keypair — see
 [Environment variables → Web push notifications](/reference/environment-variables/#web-push-notifications)
-for the `webpush:vapid` command. With no keypair the toggle never appears in
-Settings, and the subscription endpoints return **404**.
+for the `webpush:vapid --show` command. With no keypair the toggle never
+appears in Settings, and the subscription endpoints return **404**.
 
 With the keys set, the feature is still **opt-in per member and per device**:
 nothing prompts on load or on login. Each member turns it on from
