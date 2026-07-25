@@ -501,6 +501,10 @@ nothing — leave it off on any real deployment.
 
 Set `DEMO_MODE=true` to enable all of the following at once:
 
+- **A one-click way in.** An "Enter the demo" button appears on the welcome and
+  login screens and signs the visitor straight into the shared account, so nobody
+  has to know or type the seeded credentials. The button is absent off the demo,
+  and its endpoint returns **404** there too.
 - **Destructive owner actions are blocked.** Changing the shared account's email,
   password, or name; enabling two-factor or a passkey; revoking sessions; deleting
   the account or team; renaming the team or editing its slug; transferring
@@ -509,8 +513,9 @@ Set `DEMO_MODE=true` to enable all of the following at once:
 - **All outbound email is swallowed.** The mail transport is forced to the
   in-memory `array` driver, so invites, password resets, verification, and
   notifications never leave the host — regardless of your SMTP settings.
-- **Writes are rate-limited per IP.** Message sends (~30/min) and attachment
-  uploads (~10/min) are throttled by IP address (per-user throttling is useless
+- **Writes are rate-limited per IP.** Demo entry (~10/min), message sends
+  (~30/min), and attachment uploads (~10/min) are throttled by IP address
+  (per-user throttling is useless
   when everyone shares one account). The caps are generous enough that honest
   exploring never trips them.
 - **Self-registration is forced off.** `/register` returns **404** regardless of

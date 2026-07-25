@@ -3,7 +3,9 @@ import { Head, Link, usePage } from '@inertiajs/vue3';
 import { computed } from 'vue';
 import { index as channelsWorkspace } from '@/actions/App/Http/Controllers/Channels/ChannelController';
 import AppLogoIcon from '@/components/AppLogoIcon.vue';
+import DemoEnterButton from '@/components/DemoEnterButton.vue';
 import { Button } from '@/components/ui/button';
+import { useDemoMode } from '@/composables/useDemoMode';
 import { login, register } from '@/routes';
 
 const page = usePage();
@@ -11,6 +13,7 @@ const page = usePage();
 const name = page.props.name;
 const user = computed(() => page.props.auth.user);
 const registrationEnabled = computed(() => page.props.registrationEnabled);
+const { demoMode } = useDemoMode();
 
 const workspaceUrl = computed(() =>
     page.props.currentTeam
@@ -52,8 +55,12 @@ const getStartedUrl = computed(() =>
                         <Button as-child variant="ghost" class="rounded-full">
                             <Link :href="login()">{{ $t('Log in') }}</Link>
                         </Button>
+                        <!-- The demo's entry point takes the slot registration
+                        would occupy: DEMO_MODE forces self-registration off, so
+                        the two are never on screen together. -->
+                        <DemoEnterButton v-if="demoMode" class="rounded-full" />
                         <Button
-                            v-if="registrationEnabled"
+                            v-else-if="registrationEnabled"
                             as-child
                             class="rounded-full"
                         >
@@ -96,7 +103,16 @@ const getStartedUrl = computed(() =>
                     </Button>
                 </template>
                 <template v-else>
+                    <!-- On the demo the hero leads with one-click entry: with
+                    registration forced off, "Get started" would only repeat the
+                    "Log in" button beside it. -->
+                    <DemoEnterButton
+                        v-if="demoMode"
+                        size="lg"
+                        class="h-12 rounded-full px-8"
+                    />
                     <Button
+                        v-else
                         as-child
                         size="lg"
                         class="h-12 rounded-full px-8"

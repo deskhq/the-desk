@@ -33,9 +33,20 @@ docker compose exec app php artisan demo:seed
 ```
 
 This creates the "Northwind Labs" workspace with the login
-`demo@northwind.test` / `demo-password`. Point visitors at your login screen with
-those credentials (a one-click "Enter the demo" entry point is a planned
-follow-up).
+`demo@northwind.test` / `demo-password`.
+
+## How visitors get in
+
+Point visitors at your home page. With `DEMO_MODE=true` an **"Enter the demo"**
+button appears there and on the login screen; one click signs the visitor into
+the shared account and drops them in the seeded workspace, so nobody has to know
+or type the credentials. The login screen still lists them in small print for
+anyone who wants to sign in by hand.
+
+The button is only rendered while the flag is on, and the endpoint behind it
+(`POST /demo/login`) returns **404** when it is off, so a real deployment is left
+with no demo entry point at all. Entry is rate-limited per IP, like every other
+demo write.
 
 ## What DEMO_MODE enforces
 
@@ -50,8 +61,9 @@ Turning the flag on activates all of the following at once:
 - **All outbound email is swallowed.** The mail transport is forced to the
   in-memory `array` driver, so invites, password resets, verification, and
   notifications never leave the host — regardless of your SMTP settings.
-- **Writes are rate-limited per IP** — message sends (~30/min) and attachment
-  uploads (~10/min), keyed by IP address since every visitor shares one account.
+- **Writes are rate-limited per IP** — demo entry (~10/min), message sends
+  (~30/min), and attachment uploads (~10/min), keyed by IP address since every
+  visitor shares one account.
 - **Self-registration is forced off** regardless of
   [`REGISTRATION_ENABLED`](/reference/feature-toggles/#open-registration), so
   a visitor can't register a fresh unguarded account and sidestep the rails.

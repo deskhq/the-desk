@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Auth\DemoLoginController;
 use App\Http\Controllers\Auth\Sso\OidcController;
 use App\Http\Controllers\Channels\AttachmentController;
 use App\Http\Controllers\Channels\ChannelController;
@@ -52,6 +53,14 @@ Route::post('webhooks/incoming/{token}', IncomingWebhookController::class)
 // match. A full-page GET redirect (not an Inertia visit) hands off to the IdP.
 Route::get('auth/oidc/redirect', [OidcController::class, 'redirect'])->name('sso.oidc.redirect');
 Route::get('auth/oidc/callback', [OidcController::class, 'callback'])->name('sso.oidc.callback');
+
+// The public demo's one-click way in: POSTing here signs the visitor into the
+// shared demo account, so nobody has to know or type the seeded credentials.
+// Registered unconditionally (so Wayfinder generates it and the route table
+// stays stable); the controller 404s off the demo and the CTA hides to match.
+Route::post('demo/login', DemoLoginController::class)
+    ->middleware('throttle:demo-login')
+    ->name('demo.login');
 
 Route::get('locales/{locale}.json', [LocaleCatalogController::class, 'show'])
     ->where('locale', '[a-z]{2}')
