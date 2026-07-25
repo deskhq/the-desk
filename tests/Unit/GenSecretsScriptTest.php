@@ -13,7 +13,7 @@ use Symfony\Component\Process\Process;
  * Drive docker/gen-secrets.sh as an operator does: a plain POSIX shell process
  * in a directory holding the shipped template, then read back the .env it wrote.
  *
- * The VAPID pair is the one secret the script cannot mint with a `openssl rand`
+ * The VAPID pair is the one secret the script cannot mint with an `openssl rand`
  * one-liner. It carves the key material out of DER at two fixed offsets
  * (`tail -c 65`, `skip=7`), and a wrong offset still yields a plausible-looking
  * base64url string of the right length — keys that sign nothing. So the pair is
@@ -54,10 +54,6 @@ function genSecretsWorkspace(): string
 
     return $workspace;
 }
-
-afterEach(function (): void {
-    (new Filesystem)->deleteDirectory(genSecretsRoot());
-});
 
 /**
  * @return array<string, string>
@@ -122,6 +118,10 @@ function vapidKeyPair(array $env): array
         'public' => new JWK($coordinates),
     ];
 }
+
+afterEach(function (): void {
+    (new Filesystem)->deleteDirectory(genSecretsRoot());
+});
 
 test('the production template ships the VAPID settings empty, which is what gen-secrets can fill', function (): void {
     $template = (string) file_get_contents(dirname(__DIR__, 2).'/.env.prod.example');

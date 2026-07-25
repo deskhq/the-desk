@@ -128,8 +128,10 @@ evidence for each of these from **your** environment, not from this project:
 - **Secret management.** `APP_KEY`, `DB_PASSWORD`, `MEILISEARCH_KEY`, the
   `REVERB_*` credentials, `VAPID_PRIVATE_KEY`, and any `SCIM_TOKEN` are full
   secrets. Generate them with `./docker/gen-secrets.sh`, store them in a secret
-  manager rather than a committed `.env`, and rotate on exposure — except the
-  VAPID pair, which every subscribed browser is pinned to
+  manager rather than a committed `.env`, and rotate on exposure. Rotate the
+  VAPID pair **only** on exposure, never as routine hygiene: every browser that
+  has subscribed is pinned to the public key, so replacing it stops delivery to
+  all of them until each member turns push off and on again
   ([why](/reference/environment-variables/#web-push-notifications)).
 - **Network isolation.** Expose only the web port publicly; keep PostgreSQL,
   Redis, Meilisearch, and Reverb on an internal network. Restrict administrative
