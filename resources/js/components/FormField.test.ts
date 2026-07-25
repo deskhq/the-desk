@@ -102,4 +102,26 @@ describe('FormField', () => {
         expect(html).toContain('Forgot password?');
         expect(html).toContain('href="/forgot"');
     });
+
+    it('emits the labelAction after the control so Tab reaches the control first', async () => {
+        // Sequential focus follows the DOM, so a focusable label action drawn on
+        // the label row must still be emitted after the control — otherwise Tab
+        // out of the previous field lands on the link instead of this input.
+        const html = await renderField(
+            { id: 'password', label: 'Password' },
+            {
+                default: ({ id }) => h('input', { id, name: 'password' }),
+                labelAction: () =>
+                    h('a', { href: '/forgot' }, 'Forgot password?'),
+            },
+        );
+
+        const labelAt = html.indexOf('for="password"');
+        const controlAt = html.indexOf('name="password"');
+        const actionAt = html.indexOf('href="/forgot"');
+
+        expect(labelAt).toBeGreaterThanOrEqual(0);
+        expect(controlAt).toBeGreaterThan(labelAt);
+        expect(actionAt).toBeGreaterThan(controlAt);
+    });
 });

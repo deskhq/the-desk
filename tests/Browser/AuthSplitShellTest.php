@@ -29,6 +29,37 @@ test('the login screen renders the split shell and still signs a user in', funct
         ->assertPathIsNot('/login');
 });
 
+/**
+ * Sequential focus order on the login form (#879). The "Forgot?" link is drawn
+ * on the password label row, so it is easy to emit before the control and steal
+ * the Tab stop the user is aiming for. Only a real browser resolves this: it is
+ * the browser's own tab-order algorithm reading layout and DOM order, not
+ * anything the component can assert about itself.
+ */
+test('tabbing out of the email field lands on the password input, not the reset link', function (): void {
+    $page = visit('/login')
+        ->keys('#email', ['Tab'])
+        ->assertScript('document.activeElement?.id', 'password')
+        // The link keeps its place in the tab order, one stop further on — it
+        // must stay reachable, not be removed with tabindex="-1".
+        ->keys('#password', ['Tab'])
+        ->assertScript(
+            "document.activeElement?.getAttribute('href')",
+            '/forgot-password',
+        );
+
+    // ...and it is still drawn above the field, flush with its right edge,
+    // proving the DOM reorder was undone visually rather than relocating it.
+    $page->assertScript(<<<'JS'
+    (() => {
+        const link = document.querySelector('a[href="/forgot-password"]').getBoundingClientRect();
+        const input = document.getElementById('password').getBoundingClientRect();
+
+        return link.bottom <= input.top && Math.abs(link.right - input.right) <= 1;
+    })()
+    JS, true);
+});
+
 test('the register screen scores a password as it is typed', function (): void {
     // The meter is advisory, so it must actually report a score rather than
     // sitting silently at zero — the failure mode when the estimator throws.

@@ -23,20 +23,39 @@ const fieldId = props.id ?? useId();
 
 <template>
     <div class="grid gap-2">
+        <!-- A label action is typically a link, so it is focusable and
+        sequential focus would visit it between the previous field and this
+        control if it came first in the DOM. It is therefore emitted last and
+        placed back on the label row with explicit grid coordinates, so reading
+        order stays label -> control -> action while the drawing stays put. -->
         <div
             v-if="$slots.labelAction"
-            class="flex items-center justify-between"
+            class="grid grid-cols-[1fr_auto] items-center gap-2"
         >
+            <Label
+                :for="fieldId"
+                :class="labelClass"
+                class="col-start-1 row-start-1"
+            >
+                <slot name="label">{{ label }}</slot>
+            </Label>
+
+            <div class="col-span-2 col-start-1 row-start-2">
+                <slot :id="fieldId" />
+            </div>
+
+            <div class="col-start-2 row-start-1">
+                <slot name="labelAction" />
+            </div>
+        </div>
+
+        <template v-else>
             <Label :for="fieldId" :class="labelClass">
                 <slot name="label">{{ label }}</slot>
             </Label>
-            <slot name="labelAction" />
-        </div>
-        <Label v-else :for="fieldId" :class="labelClass">
-            <slot name="label">{{ label }}</slot>
-        </Label>
 
-        <slot :id="fieldId" />
+            <slot :id="fieldId" />
+        </template>
 
         <InputError :message="error" />
 
