@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { useId } from 'vue';
-import InputError from '@/components/InputError.vue';
+import FieldError from '@/components/FieldError.vue';
 import { Label } from '@/components/ui/label';
 
 /**
@@ -66,17 +66,6 @@ const fieldId = props.id ?? useId();
 
         <p v-if="hint" class="text-sm text-muted-foreground">{{ hint }}</p>
 
-        <!-- The error's space, reserved whether or not there is an error, with
-        the message itself drawn out of flow inside it. `h-7` is one line of it;
-        a message that wraps to a second line spills into the gap the form
-        already leaves before the next field, so nothing has to move to
-        accommodate it either. It cannot take a click, because that second line
-        is drawn over the space the next control occupies. -->
-        <div class="relative h-7">
-            <InputError
-                :message="error"
-                class="pointer-events-none absolute inset-x-0 top-0"
-            />
-        </div>
+        <FieldError :message="error" />
     </div>
 </template>

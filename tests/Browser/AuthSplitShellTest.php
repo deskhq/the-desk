@@ -170,6 +170,59 @@ test('a rejected submit leaves the register form exactly where it was', function
 });
 
 /**
+ * The consent row is the one field on this page that cannot go through
+ * `FormField` — its checkbox lives inside its own label so the whole sentence
+ * toggles it — so it reserves the error's space itself. It is also the only
+ * error here that a user reaches without mistyping anything, by leaving the box
+ * alone.
+ */
+test('a rejected consent leaves the register form exactly where it was', function (): void {
+    config([
+        'legal.terms_url' => 'https://example.com/terms',
+        'legal.privacy_url' => 'https://example.com/privacy',
+    ]);
+
+    $page = visit('/register')
+        ->type('#name', 'Ada Lovelace')
+        ->type('#email', 'ada@example.com')
+        ->type('#password', 'correct horse battery staple')
+        ->type('#password_confirmation', 'correct horse battery staple')
+        ->assertPresent('@terms-checkbox')
+        ->assertSee('Very strong');
+
+    $page->script(<<<'JS'
+    () => {
+        window.__watched = {
+            heading: 'h1',
+            submit: '[data-test="register-user-button"]',
+            terms: '[data-test="terms-checkbox"]',
+        };
+
+        window.__layoutBefore = Object.fromEntries(
+            Object.entries(window.__watched).map(([name, selector]) => [
+                name,
+                document.querySelector(selector).getBoundingClientRect().top,
+            ]),
+        );
+    }
+    JS);
+
+    // Submitted with the box deliberately left unticked.
+    $page->click('@register-user-button')
+        ->assertSee('Please accept the terms');
+
+    $page->assertScript(<<<'JS'
+    (() => {
+        return Object.entries(window.__layoutBefore).every(([name, before]) => {
+            const now = document.querySelector(window.__watched[name]).getBoundingClientRect().top;
+
+            return Math.abs(now - before) < 0.5;
+        });
+    })()
+    JS, true);
+});
+
+/**
  * The sibling half of #883: `Password` and `Confirm` share a two-column grid
  * row, so an error under one used to stretch the row and drag the other's label
  * and input down with it.
