@@ -4,8 +4,8 @@ import { Check } from '@lucide/vue';
 import { computed, ref } from 'vue';
 import AuthInput from '@/components/auth/AuthInput.vue';
 import AuthSubmit from '@/components/auth/AuthSubmit.vue';
+import FieldError from '@/components/FieldError.vue';
 import FormField from '@/components/FormField.vue';
-import InputError from '@/components/InputError.vue';
 import PasswordInput from '@/components/PasswordInput.vue';
 import PasswordStrengthMeter from '@/components/PasswordStrengthMeter.vue';
 import TextLink from '@/components/TextLink.vue';
@@ -130,7 +130,10 @@ const consentParts = computed(() =>
             />
         </FormField>
 
-        <div class="grid gap-3.5 sm:grid-cols-2">
+        <!-- `items-start` so neither cell can ever be stretched to match the
+        other's height; `FormField` already keeps both the same, this keeps that
+        true if one of them ever grows for some other reason. -->
+        <div class="grid items-start gap-3.5 sm:grid-cols-2">
             <FormField
                 id="password"
                 :label="$t('Password')"
@@ -205,7 +208,11 @@ const consentParts = computed(() =>
                     </template>
                 </span>
             </Label>
-            <InputError :message="errors.terms" />
+            <!-- The consent checkbox lives inside its own label so the whole
+            sentence toggles it, which is not a shape `FormField` renders — so
+            it reserves the error's space itself rather than shifting the form
+            when the box is left unticked. -->
+            <FieldError :message="errors.terms" />
         </div>
 
         <AuthSubmit

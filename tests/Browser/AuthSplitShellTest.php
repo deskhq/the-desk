@@ -111,6 +111,147 @@ test('registering under an invitation creates the account on the invited address
     expect(User::where('email', 'maya@acme.co')->exists())->toBeTrue();
 });
 
+/**
+ * Layout stability across a rejected submit (#883).
+ *
+ * The form column is vertically centred, so any growth in the form is split
+ * between the heading above and the button below — the submit button slides out
+ * from under the pointer at the exact moment someone is reaching for it again.
+ * Only a real browser can settle this: it is the browser's own layout, and the
+ * message that triggers it wraps to two lines at the width the cell happens to
+ * have.
+ */
+test('a rejected submit leaves the register form exactly where it was', function (): void {
+    $page = visit('/register')
+        ->type('#name', 'Maya Chen')
+        ->type('#email', 'maya@example.com')
+        // Short enough to be rejected, and long enough that the message wraps
+        // to two lines in the half-width password cell.
+        ->type('#password', 'short')
+        ->type('#password_confirmation', 'short')
+        // The strength meter scores asynchronously and grows by its verdict
+        // line when it resolves. Wait for that here, or the baseline below is
+        // recorded against a meter that is still settling and the comparison
+        // measures zxcvbn rather than the error line.
+        ->assertSee('Too weak');
+
+    // Recorded after typing, so the strength meter is already drawn and the
+    // only thing the submit can add is the error line itself.
+    $page->script(<<<'JS'
+    () => {
+        window.__watched = {
+            heading: 'h1',
+            submit: '[data-test="register-user-button"]',
+            password: '#password',
+            confirm: '#password_confirmation',
+        };
+
+        window.__layoutBefore = Object.fromEntries(
+            Object.entries(window.__watched).map(([name, selector]) => [
+                name,
+                document.querySelector(selector).getBoundingClientRect().top,
+            ]),
+        );
+    }
+    JS);
+
+    $page->click('@register-user-button')
+        ->assertSee('The password field must be at least');
+
+    $page->assertScript(<<<'JS'
+    (() => {
+        return Object.entries(window.__layoutBefore).every(([name, before]) => {
+            const now = document.querySelector(window.__watched[name]).getBoundingClientRect().top;
+
+            return Math.abs(now - before) < 0.5;
+        });
+    })()
+    JS, true);
+});
+
+/**
+ * The consent row is the one field on this page that cannot go through
+ * `FormField` — its checkbox lives inside its own label so the whole sentence
+ * toggles it — so it reserves the error's space itself. It is also the only
+ * error here that a user reaches without mistyping anything, by leaving the box
+ * alone.
+ */
+test('a rejected consent leaves the register form exactly where it was', function (): void {
+    config([
+        'legal.terms_url' => 'https://example.com/terms',
+        'legal.privacy_url' => 'https://example.com/privacy',
+    ]);
+
+    $page = visit('/register')
+        ->type('#name', 'Ada Lovelace')
+        ->type('#email', 'ada@example.com')
+        ->type('#password', 'correct horse battery staple')
+        ->type('#password_confirmation', 'correct horse battery staple')
+        ->assertPresent('@terms-checkbox')
+        ->assertSee('Very strong');
+
+    $page->script(<<<'JS'
+    () => {
+        window.__watched = {
+            heading: 'h1',
+            submit: '[data-test="register-user-button"]',
+            terms: '[data-test="terms-checkbox"]',
+        };
+
+        window.__layoutBefore = Object.fromEntries(
+            Object.entries(window.__watched).map(([name, selector]) => [
+                name,
+                document.querySelector(selector).getBoundingClientRect().top,
+            ]),
+        );
+    }
+    JS);
+
+    // Submitted with the box deliberately left unticked.
+    $page->click('@register-user-button')
+        ->assertSee('Please accept the terms');
+
+    $page->assertScript(<<<'JS'
+    (() => {
+        return Object.entries(window.__layoutBefore).every(([name, before]) => {
+            const now = document.querySelector(window.__watched[name]).getBoundingClientRect().top;
+
+            return Math.abs(now - before) < 0.5;
+        });
+    })()
+    JS, true);
+});
+
+/**
+ * The sibling half of #883: `Password` and `Confirm` share a two-column grid
+ * row, so an error under one used to stretch the row and drag the other's label
+ * and input down with it.
+ */
+test('an error under the password keeps the confirm field aligned with it', function (): void {
+    // Every field is filled because they are `required`: the browser's own
+    // validation would block the submit before the server ever sees it.
+    $page = visit('/register')
+        ->type('#name', 'Maya Chen')
+        ->type('#email', 'maya@example.com')
+        ->type('#password', 'short')
+        ->type('#password_confirmation', 'short')
+        ->click('@register-user-button')
+        ->assertSee('The password field must be at least');
+
+    $page->assertScript(<<<'JS'
+    (() => {
+        const top = (selector) => document.querySelector(selector).getBoundingClientRect().top;
+
+        const labels = Math.abs(
+            top('label[for="password"]') - top('label[for="password_confirmation"]'),
+        );
+        const inputs = Math.abs(top('#password') - top('#password_confirmation'));
+
+        return labels < 0.5 && inputs < 0.5;
+    })()
+    JS, true);
+});
+
 test('the auth shell has no serious accessibility violations in either theme', function (): void {
     $page = visit('/login')->assertNoAccessibilityIssues();
 
