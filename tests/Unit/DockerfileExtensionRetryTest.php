@@ -127,6 +127,7 @@ test('the bundled extension list is unchanged', function (): void {
         'intl',
         'zip',
         'opcache',
+        'gmp',
         'gd',
         'ldap',
     ]);

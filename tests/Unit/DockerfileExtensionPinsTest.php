@@ -95,6 +95,16 @@ test('phpredis is built from its git tag with the submodule it needs', function 
     expect(installPhpExtensionsArguments())->toContain('/tmp/phpredis');
 });
 
+test('the runtime image carries the big-number extension web push needs', function (): void {
+    // minishlink/web-push guards on `gmp || bcmath`, and when both are missing it
+    // raises an E_USER_NOTICE that Laravel promotes to an ErrorException inside
+    // the WebPush binding closure — so the channel never resolves and every
+    // queued push dies in failed_jobs (#865). Neither extension is required by
+    // any package (both sit under `suggest`), so the image builds clean without
+    // one and nothing but this test keeps it installed.
+    expect(array_intersect(['gmp', 'bcmath'], installPhpExtensionsArguments()))->not->toBeEmpty();
+});
+
 test('imagick is built from its GitHub release archive', function (): void {
     expect(productionDockerfile())->toContain(
         'https://github.com/Imagick/imagick/archive/refs/tags/${IMAGICK_VERSION}.tar.gz',
