@@ -5,6 +5,7 @@ import { Lock } from '@lucide/vue';
 import AuthInput from '@/components/auth/AuthInput.vue';
 import AuthSubmit from '@/components/auth/AuthSubmit.vue';
 import AuthStatus from '@/components/AuthStatus.vue';
+import DemoEnterButton from '@/components/DemoEnterButton.vue';
 import FormField from '@/components/FormField.vue';
 import PasswordInput from '@/components/PasswordInput.vue';
 import TeamInvitationAlert from '@/components/TeamInvitationAlert.vue';
@@ -54,8 +55,9 @@ defineProps<{
     teamInvitation?: TeamInvitationContext | null;
     canLoginWithPasskey?: boolean;
     /**
-     * The shared sign-in credentials for the public demo, advertised beneath the
-     * login button so visitors can get in. Null off the demo.
+     * The shared sign-in credentials for the public demo, listed under the
+     * one-click entry panel for anyone signing in by hand. Doubles as the
+     * panel's visibility switch, so it is null off the demo.
      */
     demoCredentials?: { email: string; password: string } | null;
 }>();
@@ -90,6 +92,58 @@ const {
             :invitation="teamInvitation"
             action="Log in"
         />
+
+        <!-- On the public demo the one-click entry leads: everyone shares the
+        same account, so there is no secret to type. The credentials stay below
+        it in small print for anyone signing in by hand (a second browser, the
+        API). The panel sits outside the password form on purpose — it carries a
+        form of its own, and a nested <form> is invalid markup. -->
+        <div
+            v-if="demoCredentials"
+            data-test="demo-credentials"
+            class="rounded-xl border border-demo-banner-border bg-demo-banner px-4 py-4 text-center text-sm text-demo-banner-foreground"
+        >
+            <p class="font-semibold text-demo-banner-strong">
+                {{ $t('Try the live demo') }}
+            </p>
+            <p class="mt-1 text-demo-banner-foreground/80">
+                {{
+                    $t(
+                        'One click drops you into a shared workspace. No sign-up, no credentials.',
+                    )
+                }}
+            </p>
+
+            <DemoEnterButton class="mt-3.5 h-11 w-full rounded-full" />
+
+            <p class="mt-3.5 text-xs text-demo-banner-foreground/80">
+                {{ $t('Or sign in by hand with the shared account:') }}
+            </p>
+            <dl class="mt-1.5 flex flex-col gap-1">
+                <div class="flex items-center justify-center gap-2">
+                    <dt class="text-demo-banner-foreground/80">
+                        {{ $t('Email') }}
+                    </dt>
+                    <dd>
+                        <code
+                            class="rounded bg-demo-chip px-1.5 py-0.5 font-mono text-demo-chip-foreground"
+                            >{{ demoCredentials.email }}</code
+                        >
+                    </dd>
+                </div>
+                <div class="flex items-center justify-center gap-2">
+                    <dt class="text-demo-banner-foreground/80">
+                        {{ $t('Password') }}
+                    </dt>
+                    <dd>
+                        <code
+                            class="rounded bg-demo-chip px-1.5 py-0.5 font-mono text-demo-chip-foreground"
+                            >{{ demoCredentials.password }}</code
+                        >
+                    </dd>
+                </div>
+            </dl>
+        </div>
 
         <!-- Passkey sign-in leads: for anyone who has enrolled one it is both
         the fastest and the least phishable way in. Falls away silently on
@@ -189,40 +243,6 @@ const {
             >
                 {{ $t('Log in') }}
             </AuthSubmit>
-
-            <div
-                v-if="demoCredentials"
-                data-test="demo-credentials"
-                class="rounded-xl border border-demo-banner-border bg-demo-banner px-4 py-3 text-center text-sm text-demo-banner-foreground"
-            >
-                <p class="font-semibold text-demo-banner-strong">
-                    {{ $t('Sign in with the shared demo account') }}
-                </p>
-                <dl class="mt-2 flex flex-col gap-1">
-                    <div class="flex items-center justify-center gap-2">
-                        <dt class="text-demo-banner-foreground/80">
-                            {{ $t('Email') }}
-                        </dt>
-                        <dd>
-                            <code
-                                class="rounded bg-demo-chip px-1.5 py-0.5 font-mono text-demo-chip-foreground"
-                                >{{ demoCredentials.email }}</code
-                            >
-                        </dd>
-                    </div>
-                    <div class="flex items-center justify-center gap-2">
-                        <dt class="text-demo-banner-foreground/80">
-                            {{ $t('Password') }}
-                        </dt>
-                        <dd>
-                            <code
-                                class="rounded bg-demo-chip px-1.5 py-0.5 font-mono text-demo-chip-foreground"
-                                >{{ demoCredentials.password }}</code
-                            >
-                        </dd>
-                    </div>
-                </dl>
-            </div>
         </Form>
 
         <!-- Single sign-on sits below the password form as the secondary route
