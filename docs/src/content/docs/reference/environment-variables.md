@@ -116,6 +116,8 @@ production — see [Configuration](/self-hosting/configuration/#reverb-websocket
 | Variable                     | Default | See                                            |
 | ---------------------------- | ------- | ---------------------------------------------- |
 | `REGISTRATION_ENABLED`       | `true`  | [Feature toggles → Open registration](/reference/feature-toggles/#open-registration) |
+| `TERMS_URL`                  | *(unset)* | [Feature toggles → Terms & privacy consent](/reference/feature-toggles/#terms--privacy-consent) |
+| `PRIVACY_URL`                | *(unset)* | [Feature toggles → Terms & privacy consent](/reference/feature-toggles/#terms--privacy-consent) |
 | `EMAIL_VERIFICATION_ENABLED` | `false` | [Feature toggles → Email verification](/reference/feature-toggles/#email-verification) |
 | `TWO_FACTOR_AUTH_ENABLED`    | `false` | [Feature toggles → Two-factor authentication](/reference/feature-toggles/#two-factor-authentication) |
 | `PASSKEYS_ENABLED`           | `false` | [Feature toggles → Passkeys](/reference/feature-toggles/#passkeys) |

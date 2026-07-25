@@ -7,13 +7,20 @@ import { logout } from '@/routes';
 import { send } from '@/routes/verification';
 
 defineOptions({
-    layout: {
+    layout: () => ({
         title: translate('Check your email'),
         description: translate(
             'Please verify your email address by clicking on the link we just emailed to you.',
         ),
         icon: 'mail',
-    },
+        statement: {
+            lead: translate('One click'),
+            accent: translate('and you’re in.'),
+            body: translate(
+                'This workspace keeps itself to verified addresses. Confirm yours and your channels are waiting on the other side.',
+            ),
+        },
+    }),
 });
 
 defineProps<{
@@ -24,23 +31,19 @@ defineProps<{
 <template>
     <Head :title="$t('Email verification')" />
 
-    <AuthStatus v-if="status === 'verification-link-sent'" class="mb-5">
-        {{
-            $t(
-                'A new verification link has been sent to the email address you provided during registration.',
-            )
-        }}
-    </AuthStatus>
+    <Form v-bind="send.form()" class="flex flex-col" v-slot="{ processing }">
+        <AuthStatus v-if="status === 'verification-link-sent'">
+            {{
+                $t(
+                    'A new verification link has been sent to the email address you provided during registration.',
+                )
+            }}
+        </AuthStatus>
 
-    <Form
-        v-bind="send.form()"
-        class="flex flex-col items-center gap-4"
-        v-slot="{ processing }"
-    >
         <Button
             :loading="processing"
             variant="outline"
-            class="w-full rounded-full bg-muted hover:bg-accent"
+            class="mt-5.5 h-13 w-full rounded-full bg-muted text-[15px] font-medium hover:bg-accent"
         >
             {{ $t('Resend verification email') }}
         </Button>
@@ -48,7 +51,7 @@ defineProps<{
         <Link
             :href="logout()"
             as="button"
-            class="text-sm text-muted-foreground underline decoration-input underline-offset-4 transition-colors hover:text-foreground"
+            class="mt-4 self-center rounded-sm text-sm text-muted-foreground underline decoration-input underline-offset-4 transition-colors hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-hidden"
         >
             {{ $t('Log out') }}
         </Link>
