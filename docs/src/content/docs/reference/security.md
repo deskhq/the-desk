@@ -276,6 +276,14 @@ default only decides where the checkbox starts. There is nothing to configure,
 and [`SESSION_LIFETIME`](/reference/environment-variables/#session-cookies) still
 governs everyone who leaves it unticked.
 
+Every way in honours the same choice: the password form, passkey sign-in, and
+single sign-on. Passkeys and SSO carry it without a control of their own, so on
+an instance where the password form is hidden (`AUTH_SSO_ONLY`, or one where
+everybody uses a passkey) the installed-app default is what applies, with no
+checkbox on screen. For SSO the choice is held server side while the browser is
+away at the identity provider, so it can only be set by starting a sign-in from
+the login screen.
+
 ### `XSRF-TOKEN` is readable by JavaScript on purpose
 
 A surface scanner will flag `XSRF-TOKEN` as a cookie missing `HttpOnly`. That is
