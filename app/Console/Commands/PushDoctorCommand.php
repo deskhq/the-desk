@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Console\Commands;
 
+use App\Notifications\NewMessageNotification;
 use App\Support\PhpExtensions;
 use App\Support\WebPushConfig;
 use ErrorException;
@@ -20,7 +21,7 @@ use Throwable;
 /**
  * Report whether this instance can actually deliver a web push notification.
  *
- * Web push is the app's only channel for message alerts — {@see \App\Notifications\NewMessageNotification::via()}
+ * Web push is the app's only channel for message alerts — {@see NewMessageNotification::via()}
  * deliberately sends nothing else — so a broken push setup produces exactly the
  * same silence as a user who never subscribed a device. Nothing fails visibly:
  * the notification job is consumed before it throws, so the queue drains and
