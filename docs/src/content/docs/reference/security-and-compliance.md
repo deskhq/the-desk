@@ -126,9 +126,11 @@ evidence for each of these from **your** environment, not from this project:
   [Upgrading](/self-hosting/upgrading/#backups). Encrypting and
   off-siting the resulting files remains yours.
 - **Secret management.** `APP_KEY`, `DB_PASSWORD`, `MEILISEARCH_KEY`, the
-  `REVERB_*` credentials, and any `SCIM_TOKEN` are full secrets. Generate them
-  with `./docker/gen-secrets.sh`, store them in a secret manager rather than a
-  committed `.env`, and rotate on exposure.
+  `REVERB_*` credentials, `VAPID_PRIVATE_KEY`, and any `SCIM_TOKEN` are full
+  secrets. Generate them with `./docker/gen-secrets.sh`, store them in a secret
+  manager rather than a committed `.env`, and rotate on exposure — except the
+  VAPID pair, which every subscribed browser is pinned to
+  ([why](/reference/environment-variables/#web-push-notifications)).
 - **Network isolation.** Expose only the web port publicly; keep PostgreSQL,
   Redis, Meilisearch, and Reverb on an internal network. Restrict administrative
   and database access to trusted operators.

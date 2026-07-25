@@ -528,11 +528,12 @@ never appropriate for real data.
 
 ## Web push notifications
 
-| Variable                                 | Default   | Effect                                              |
-| ---------------------------------------- | --------- | --------------------------------------------------- |
-| `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` | *(unset)* | Enables browser push notifications for new messages. |
+| Variable                                 | Default                     | Effect                                              |
+| ---------------------------------------- | --------------------------- | --------------------------------------------------- |
+| `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` | *(set by `gen-secrets.sh`)* | Enables browser push notifications for new messages. |
 
-Web push is **off** until you generate a VAPID keypair — see
+Web push needs a VAPID keypair. A fresh install gets one from
+`./docker/gen-secrets.sh`; an existing install generates its own — see
 [Environment variables → Web push notifications](/reference/environment-variables/#web-push-notifications)
 for the `webpush:vapid --show` command. With no keypair the toggle never
 appears in Settings, and the subscription endpoints return **404**.
