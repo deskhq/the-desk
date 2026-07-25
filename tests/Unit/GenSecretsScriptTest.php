@@ -103,7 +103,7 @@ function stubOpensslWithoutPrime256v1(string $workspace): string
  * @param  array<string, string>  $env
  * @return array{private: JWK, public: JWK}
  */
-function vapidKeyPair(array $env): array
+function genSecretsVapidKeyPair(array $env): array
 {
     $point = Base64Url::decode($env['VAPID_PUBLIC_KEY']);
     $coordinates = [
@@ -152,8 +152,8 @@ test('the generated private key is the one that signs for the generated public k
     runGenSecrets($workspace);
     runGenSecrets($otherWorkspace);
 
-    $pair = vapidKeyPair(genSecretsEnv($workspace));
-    $otherPair = vapidKeyPair(genSecretsEnv($otherWorkspace));
+    $pair = genSecretsVapidKeyPair(genSecretsEnv($workspace));
+    $otherPair = genSecretsVapidKeyPair(genSecretsEnv($otherWorkspace));
 
     $algorithm = new ES256;
     $signature = $algorithm->sign($pair['private'], 'the-desk');
