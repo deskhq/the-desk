@@ -449,3 +449,16 @@ Rotating it silently invalidates them all: those devices stop receiving anything
 until each member turns the toggle off and on again. Back the pair up with your
 other secrets.
 :::
+
+To confirm the setup works, ask the instance rather than waiting for a
+notification that may never come:
+
+```bash
+docker compose exec app php artisan push:doctor
+```
+
+It reports on the keypair, the subject, the extensions the push library needs,
+whether the delivery channel constructs, how many devices are subscribed, and any
+push jobs that have already failed — and exits non-zero when push cannot be
+delivered. See
+[Troubleshooting → Nobody receives push notifications](/self-hosting/troubleshooting/#nobody-receives-push-notifications).

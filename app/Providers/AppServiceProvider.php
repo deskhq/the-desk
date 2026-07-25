@@ -9,8 +9,10 @@ use Carbon\CarbonImmutable;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
 use Illuminate\Http\Request;
+use Illuminate\Queue\Events\JobFailed;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
@@ -50,6 +52,32 @@ class AppServiceProvider extends ServiceProvider
         $this->configureDefaults();
         $this->configureRateLimiting();
         $this->configureQueueRouting();
+        $this->configureQueueFailureLogging();
+    }
+
+    /**
+     * Write every job that dies on a worker to the log.
+     *
+     * Without this, a failed job is invisible: it is consumed before it throws,
+     * so the queue drains, the worker stays up, and the only record is a row in
+     * `failed_jobs` that nothing reads (issue #866 — web push spent a whole
+     * staging cycle dead this way). One line in the log puts it in front of
+     * whatever an operator already watches, on the first failure rather than
+     * whenever someone thinks to look.
+     *
+     * Registered for every queued job, not just the push path: any job that can
+     * fail silently has the same problem, and there is no reason to learn this
+     * lesson once per subsystem.
+     */
+    protected function configureQueueFailureLogging(): void
+    {
+        Queue::failing(function (JobFailed $event): void {
+            Log::error('Queued job failed: '.$event->job->resolveName(), [
+                'connection' => $event->connectionName,
+                'queue' => $event->job->getQueue(),
+                'exception' => $event->exception,
+            ]);
+        });
     }
 
     /**
