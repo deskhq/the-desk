@@ -27,7 +27,7 @@ class WorkspaceRedirect
      */
     public static function pathFor(?User $user): ?string
     {
-        $team = $user?->currentTeam ?? $user?->personalTeam();
+        $team = $user instanceof User ? $user->currentTeam ?? $user->personalTeam() : null;
 
         if (! $team instanceof Team) {
             return null;

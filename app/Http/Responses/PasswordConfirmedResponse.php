@@ -4,6 +4,7 @@ namespace App\Http\Responses;
 
 use App\Http\Responses\Concerns\RedirectsToCurrentTeam;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 use Laravel\Fortify\Contracts\PasswordConfirmedResponse as PasswordConfirmedResponseContract;
 use Symfony\Component\HttpFoundation\Response;
 
@@ -19,7 +20,7 @@ class PasswordConfirmedResponse implements PasswordConfirmedResponseContract
      * screen directly — Fortify falls back to `fortify.home`, the public
      * marketing page, so the workspace stands in instead.
      *
-     * @param  \Illuminate\Http\Request  $request
+     * @param  Request  $request
      */
     public function toResponse($request): Response
     {

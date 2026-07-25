@@ -4,6 +4,7 @@ namespace App\Http\Responses;
 
 use App\Http\Responses\Concerns\RedirectsToCurrentTeam;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 use Laravel\Passkeys\Contracts\PasskeyLoginResponse as PasskeyLoginResponseContract;
 use Symfony\Component\HttpFoundation\Response;
 
@@ -21,7 +22,7 @@ class PasskeyLoginResponse implements PasskeyLoginResponseContract
      * the login screen drives the ceremony over JSON and navigates to the
      * `redirect` it gets back, so that is the branch a real browser takes.
      *
-     * @param  \Illuminate\Http\Request  $request
+     * @param  Request  $request
      */
     public function toResponse($request): Response
     {

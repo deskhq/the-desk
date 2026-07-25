@@ -32,6 +32,15 @@ test('confirming a password with no intended URL lands on the current team works
         ->assertRedirect(route('channels.index', ['team' => $user->currentTeam->slug]));
 });
 
+test('confirming a password over JSON answers without a redirect', function (): void {
+    // An API client has no page to land on, so it gets Fortify's bare 201.
+    $user = User::factory()->create();
+
+    $this->actingAs($user)
+        ->postJson(route('password.confirm.store'), ['password' => 'password'])
+        ->assertCreated();
+});
+
 test('confirming a password honours the guarded URL it was raised for', function (): void {
     $user = User::factory()->create();
 
