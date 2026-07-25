@@ -84,7 +84,7 @@ function duplicateCatalogKeys(string $json): array
  */
 function localeCatalogPaths(): array
 {
-    return array_values((array) glob(dirname(__DIR__, 2).'/lang/*.json'));
+    return array_values(glob(dirname(__DIR__, 2).'/lang/*.json') ?: []);
 }
 
 test('the locale catalogs are discoverable, so the guard below cannot pass vacuously', function (): void {
