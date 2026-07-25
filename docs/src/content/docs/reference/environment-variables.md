@@ -400,6 +400,14 @@ docker compose exec app php artisan webpush:vapid
 It writes `VAPID_PUBLIC_KEY` and `VAPID_PRIVATE_KEY` into your `.env`. Restart
 the stack to pick them up.
 
+:::note[Web push needs a big-number PHP extension]
+Signing a push message needs either the **GMP** or the **BCMath** PHP extension. The bundled
+production image ships **GMP**, alongside the **Imagick** and **GD** extensions it ships for image
+processing, so nothing extra is required there. If you build your own image or run the app outside
+the bundled one, install one of the two: without either, the push channel cannot start and every
+notification fails in the queue instead of being delivered.
+:::
+
 :::caution[Keep the keypair stable]
 The public key is baked into every subscription a browser has already granted.
 Rotating it silently invalidates them all: those devices stop receiving anything
