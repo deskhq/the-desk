@@ -64,8 +64,11 @@ Being honest saves you a wasted afternoon. As of **v1.16.0**, The Desk does **no
 have:
 
 - **Voice or video calls** — not planned for the near term.
-- **Native mobile apps** — the web app is fully responsive, but there's no
-  dedicated iOS/Android app or push notifications yet.
+- **A store-listed mobile app** — the web app is fully responsive and installs
+  to the home screen as a PWA on iOS and Android, and it sends
+  [push notifications](/reference/feature-toggles/#web-push-notifications) once
+  a VAPID keypair is set. What's missing is the store listing: there is nothing
+  to download from the App Store or the Play Store.
 - **A prebuilt-integrations marketplace** — bots, a [REST
   API](/reference/api/), and [webhooks](/reference/webhooks/) are built
   in, but there's no directory of hundreds of ready-made apps. If your workflow
