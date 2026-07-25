@@ -51,8 +51,11 @@ toggle. Turn it off and the workspace is invitation-only. You can also require
 
 ## Is there a mobile app?
 
-Not yet. The web app is fully responsive and works well in a mobile browser, but
-there's no dedicated iOS/Android app or mobile push notifications today.
+The web app **installs as a PWA** — add it to the home screen on iOS or Android
+and it runs in its own window, with
+[push notifications](/reference/feature-toggles/#web-push-notifications) for new
+messages once you set a VAPID keypair. What you won't find is a native app in
+the App Store or the Play Store; the installed PWA is the mobile experience.
 
 ## Does it support file attachments, voice, or video?
 

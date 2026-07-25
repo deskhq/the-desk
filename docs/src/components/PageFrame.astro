@@ -1,0 +1,147 @@
+---
+/**
+ * Fork of Starlight 0.41's `PageFrame`, kept deliberately close to the original
+ * so a version bump is easy to reconcile. The only change is the banner: the
+ * default layout renders it inside `<main>`, where the sidebars flank it and the
+ * active-page pill paints over its left edge, so it is hoisted here instead —
+ * full-bleed, above the header, outside the content column. Everything else
+ * Starlight pins to the viewport is shifted down by `--td-banner-height`, set
+ * below and consumed by the rest of the chrome in `src/styles/custom.css`.
+ * See #885.
+ */
+// Starlight's own component, imported directly rather than through
+// `virtual:starlight/components/Banner` — that specifier now resolves to the
+// blank override which exists to empty the in-`<main>` slot.
+import Banner from '@astrojs/starlight/components/Banner.astro';
+import MobileMenuToggle from 'virtual:starlight/components/MobileMenuToggle';
+
+const { hasSidebar } = Astro.locals.starlightRoute;
+---
+
+<div class="page sl-flex">
+	<div class="banner-region" data-banner-region><Banner /></div>
+	{/*
+		Inline so it runs while the document parses, before first paint: a
+		deferred module would let the page paint once with the chrome at
+		Starlight's unshifted offsets, on top of the banner.
+	*/}
+	<script is:inline>
+		(() => {
+			const region = document.querySelector('[data-banner-region]');
+
+			if (!region) return;
+
+			// How much of the banner is still on screen, so the chrome rides up
+			// with it as the page scrolls instead of reserving a permanent gap.
+			const sync = () => {
+				const visible = Math.max(0, region.getBoundingClientRect().bottom);
+
+				document.documentElement.style.setProperty('--td-banner-height', `${visible}px`);
+			};
+
+			sync();
+			addEventListener('scroll', sync, { passive: true });
+			addEventListener('resize', sync, { passive: true });
+			// The banner rewraps on a font swap or an orientation change, neither
+			// of which fires a scroll or resize event on its own.
+			new ResizeObserver(sync).observe(region);
+		})();
+	</script>
+	<header class="header"><slot name="header" /></header>
+	{
+		hasSidebar && (
+			<nav class="sidebar print:hidden" aria-label={Astro.locals.t('sidebarNav.accessibleLabel')}>
+				<MobileMenuToggle />
+				<div id="starlight__sidebar" class="sidebar-pane">
+					<div class="sidebar-content sl-flex">
+						<slot name="sidebar" />
+					</div>
+				</div>
+			</nav>
+		)
+	}
+	<div class="main-frame"><slot /></div>
+</div>
+
+<style>
+	@layer starlight.core {
+		.page {
+			flex-direction: column;
+			min-height: 100vh;
+		}
+
+		/* Above the navbar so no chrome can ever be painted over the banner,
+		   below the skip link so it stays reachable first. */
+		.banner-region {
+			position: relative;
+			z-index: calc(var(--sl-z-index-navbar) + 1);
+		}
+
+		.header {
+			z-index: var(--sl-z-index-navbar);
+			position: fixed;
+			inset-inline-start: 0;
+			inset-block-start: var(--td-banner-height);
+			width: 100%;
+			height: var(--sl-nav-height);
+			border-bottom: 1px solid var(--sl-color-hairline-shade);
+			padding: var(--sl-nav-pad-y) var(--sl-nav-pad-x);
+			padding-inline-end: var(--sl-nav-pad-x);
+			background-color: var(--sl-color-bg-nav);
+		}
+
+		:global([data-has-sidebar]) .header {
+			padding-inline-end: calc(
+				var(--sl-nav-gap) + var(--sl-nav-pad-x) + var(--sl-menu-button-size)
+			);
+		}
+
+		.sidebar-pane {
+			visibility: var(--sl-sidebar-visibility, hidden);
+			position: fixed;
+			z-index: var(--sl-z-index-menu);
+			inset-block: calc(var(--sl-nav-height) + var(--td-banner-height)) 0;
+			inset-inline-start: 0;
+			width: 100%;
+			background-color: var(--sl-color-black);
+			overflow-y: auto;
+			scrollbar-gutter: stable;
+		}
+
+		:global([aria-expanded='true']) ~ .sidebar-pane {
+			--sl-sidebar-visibility: visible;
+		}
+
+		.sidebar-content {
+			height: 100%;
+			min-height: max-content;
+			padding: 1rem var(--sl-sidebar-pad-x) 0;
+			flex-direction: column;
+			gap: 1rem;
+		}
+
+		@media (min-width: 50rem) {
+			.sidebar-content::after {
+				content: '';
+				padding-bottom: 1px;
+			}
+		}
+
+		.main-frame {
+			padding-top: calc(var(--sl-nav-height) + var(--sl-mobile-toc-height));
+			padding-inline-start: var(--sl-content-inline-start);
+		}
+
+		@media (min-width: 50rem) {
+			:global([data-has-sidebar]) .header {
+				padding-inline-end: var(--sl-nav-pad-x);
+			}
+			.sidebar-pane {
+				--sl-sidebar-visibility: visible;
+				width: var(--sl-sidebar-width);
+				background-color: var(--sl-color-bg-sidebar);
+				border-inline-end: 1px solid var(--sl-color-hairline-shade);
+			}
+		}
+	}
+</style>

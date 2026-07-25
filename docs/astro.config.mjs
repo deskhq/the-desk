@@ -25,6 +25,14 @@ export default defineConfig({
 			],
 			// Brand theme override (The Desk): Newsreader/Instrument Sans + brass palette.
 			customCss: ['./src/styles/custom.css'],
+			// The default layout renders the release banner inside `<main>`, so a
+			// site-wide notice ends up boxed between the sidebars. `PageFrame`
+			// hoists it to the top of the page shell instead, and the `Banner`
+			// override empties the slot it used to occupy. See #885.
+			components: {
+				Banner: './src/components/Banner.astro',
+				PageFrame: './src/components/PageFrame.astro',
+			},
 			// Renders `public/openapi.yaml` — the hand-authored, route-verified
 			// contract for /api/v1 — into a browsable reference at build time.
 			// The same file stays downloadable at /openapi.yaml because it lives
@@ -99,7 +107,9 @@ export default defineConfig({
 					label: 'Start Here',
 					items: [
 						{ label: 'Introduction', link: '/' },
-						{ label: 'The Desk vs Slack, Mattermost & Rocket.Chat', slug: 'comparison' },
+						// Short enough to stay on one line at the default sidebar width;
+						// the page keeps its long, keyword-bearing title and H1.
+						{ label: 'vs Slack & alternatives', slug: 'comparison' },
 						{ label: 'FAQ', slug: 'faq' },
 					],
 				},
