@@ -43,7 +43,20 @@ test('the demo entry panel has no serious accessibility violations, light or dar
     seededDemoAccountForBrowserTests();
 
     $page = visit('/login')
-        ->assertVisible('[data-test="demo-enter-button"]')
+        ->assertVisible('[data-test="demo-enter-button"]');
+
+    // Pin the light palette before the first audit rather than trusting the
+    // default: appearance is persisted in localStorage, so a page that arrives
+    // already dark would audit dark twice and never exercise light at all.
+    $page->script(<<<'JS'
+    () => {
+        localStorage.setItem('appearance', 'light');
+        document.documentElement.classList.remove('dark');
+        document.documentElement.style.colorScheme = 'light';
+    }
+    JS);
+
+    $page->wait(0.5)
         ->assertNoAccessibilityIssues();
 
     // Re-audit against the dark palette. Persist 'dark' to localStorage — the

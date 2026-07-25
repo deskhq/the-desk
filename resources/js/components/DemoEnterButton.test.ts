@@ -6,6 +6,9 @@ import { createApp, defineComponent, h } from 'vue';
 /** Mutable stand-in for the shared `demoMode` Inertia prop. */
 const props = vi.hoisted(() => ({ demoMode: false as boolean }));
 
+/** Mutable stand-in for the in-flight state Inertia's <Form> yields. */
+const form = vi.hoisted(() => ({ processing: false as boolean }));
+
 // Stub Inertia's <Form> down to a plain <form> that exposes the action/method it
 // was handed, so the test asserts where the CTA posts rather than exercising
 // Inertia's request pipeline.
@@ -23,7 +26,7 @@ vi.mock('@inertiajs/vue3', () => ({
                 h(
                     'form',
                     { action: formProps.action, method: formProps.method },
-                    slots.default?.({ processing: false }),
+                    slots.default?.({ processing: form.processing }),
                 ),
     }),
 }));
@@ -49,6 +52,7 @@ afterEach(() => {
     app?.unmount();
     app = null;
     props.demoMode = false;
+    form.processing = false;
     document.body.innerHTML = '';
 });
 
@@ -78,6 +82,20 @@ describe('DemoEnterButton', () => {
         expect(form?.getAttribute('method')).toBe('post');
         expect(button?.type).toBe('submit');
         expect(button?.textContent).toContain('Enter the demo');
+    });
+
+    it('blocks a second press while the entry request is in flight', () => {
+        props.demoMode = true;
+        form.processing = true;
+
+        const host = mount();
+
+        const button = host.querySelector<HTMLButtonElement>(
+            '[data-test="demo-enter-button"]',
+        );
+
+        expect(button?.disabled).toBe(true);
+        expect(button?.getAttribute('aria-busy')).toBe('true');
     });
 
     it('forwards fallthrough attributes onto the button, not the form', () => {
