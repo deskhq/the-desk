@@ -1,7 +1,14 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { App } from 'vue';
-import { createApp, defineComponent, h } from 'vue';
+import { createApp, h } from 'vue';
+
+/**
+ * The label the component must resolve through `$t`. Deliberately not the
+ * English source string: asserting on that would pass just as well for a
+ * hardcoded label, which CLAUDE.md forbids.
+ */
+const TRANSLATED_LABEL = 'label-from-the-catalog';
 
 /** Mutable stand-in for the shared `demoMode` Inertia prop. */
 const props = vi.hoisted(() => ({ demoMode: false as boolean }));
@@ -11,25 +18,31 @@ const form = vi.hoisted(() => ({ processing: false as boolean }));
 
 // Stub Inertia's <Form> down to a plain <form> that exposes the action/method it
 // was handed, so the test asserts where the CTA posts rather than exercising
-// Inertia's request pipeline.
-vi.mock('@inertiajs/vue3', () => ({
-    usePage: () => ({ props }),
-    Form: defineComponent({
-        name: 'InertiaFormStub',
-        props: {
-            action: { type: String, default: '' },
-            method: { type: String, default: 'get' },
-        },
-        setup:
-            (formProps, { slots }) =>
-            () =>
-                h(
-                    'form',
-                    { action: formProps.action, method: formProps.method },
-                    slots.default?.({ processing: form.processing }),
-                ),
-    }),
-}));
+// Inertia's request pipeline. `vi.mock` factories are hoisted above the imports,
+// so the Vue helpers are pulled in inside the factory rather than closed over
+// from module scope.
+vi.mock('@inertiajs/vue3', async () => {
+    const { defineComponent, h } = await import('vue');
+
+    return {
+        usePage: () => ({ props }),
+        Form: defineComponent({
+            name: 'InertiaFormStub',
+            props: {
+                action: { type: String, default: '' },
+                method: { type: String, default: 'get' },
+            },
+            setup:
+                (formProps, { slots }) =>
+                () =>
+                    h(
+                        'form',
+                        { action: formProps.action, method: formProps.method },
+                        slots.default?.({ processing: form.processing }),
+                    ),
+        }),
+    };
+});
 
 import DemoEnterButton from './DemoEnterButton.vue';
 
@@ -42,7 +55,8 @@ function mount() {
     app = createApp({
         render: () => h(DemoEnterButton, { class: 'w-full' }),
     });
-    app.config.globalProperties.$t = (key: string) => key;
+    app.config.globalProperties.$t = (key: string) =>
+        key === 'Enter the demo' ? TRANSLATED_LABEL : key;
     app.mount(host);
 
     return host;
@@ -81,7 +95,10 @@ describe('DemoEnterButton', () => {
         expect(form?.getAttribute('action')).toBe('/demo/login');
         expect(form?.getAttribute('method')).toBe('post');
         expect(button?.type).toBe('submit');
-        expect(button?.textContent).toContain('Enter the demo');
+        // The catalog's translation, not the English key: proof the label goes
+        // through `$t` rather than being hardcoded in the template.
+        expect(button?.textContent).toContain(TRANSLATED_LABEL);
+        expect(button?.textContent).not.toContain('Enter the demo');
     });
 
     it('blocks a second press while the entry request is in flight', () => {
