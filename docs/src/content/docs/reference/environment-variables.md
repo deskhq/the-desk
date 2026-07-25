@@ -426,9 +426,11 @@ and edits it on the host, so the bare form fails with:
 file_put_contents(/app/.env): Failed to open stream: Read-only file system
 ```
 
-On a platform-managed deployment (Dokploy, Coolify, Kubernetes) there is no
-host `.env` to edit at all: generate the pair with `--show` and paste the three
-values into the platform's environment settings, then redeploy.
+On a platform-managed deployment (Dokploy, Coolify, Kubernetes) there is no host
+`.env` to edit at all. Run the same `--show` command through whatever that
+platform gives you to reach the running app container (a web terminal, a one-off
+task, `kubectl exec`), then paste the three values into the platform's
+environment settings and redeploy.
 :::
 
 :::caution[Keep the keypair stable]
