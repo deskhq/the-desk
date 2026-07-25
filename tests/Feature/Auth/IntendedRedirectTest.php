@@ -94,3 +94,16 @@ test('login falls back when the intended URL has no path', function (): void {
         route('channels.index', ['team' => $user->currentTeam->slug]),
     );
 });
+
+test('login ignores an intended URL pointing at the public marketing page', function (): void {
+    // The site root is the Welcome screen, so honouring it as an intended target
+    // lands someone who just signed in back on the marketing page. An absolute
+    // `http://localhost` is already dropped for having no path at all; a bare `/`
+    // parses to a real path and would otherwise sail through as "not a workspace
+    // URL, honour it as-is".
+    $user = User::factory()->create();
+
+    loginWithIntended($user, '/')->assertRedirect(
+        route('channels.index', ['team' => $user->currentTeam->slug]),
+    );
+});

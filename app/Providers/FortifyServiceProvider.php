@@ -7,13 +7,17 @@ use App\Actions\Fortify\ResetUserPassword;
 use App\Data\TeamInvitationContextData;
 use App\Http\Responses\LoginResponse;
 use App\Http\Responses\LogoutResponse;
+use App\Http\Responses\PasskeyLoginResponse;
+use App\Http\Responses\PasswordConfirmedResponse;
 use App\Http\Responses\RegisterResponse;
 use App\Http\Responses\TwoFactorLoginResponse;
 use App\Http\Responses\VerifyEmailResponse;
 use App\Models\TeamInvitation;
 use App\Services\Sso\LdapAuthenticator;
 use App\Support\LegalConsent;
+use App\Support\WorkspaceRedirect;
 use Database\Seeders\DemoSeeder;
+use Illuminate\Auth\Middleware\RedirectIfAuthenticated;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Http\Request;
@@ -24,11 +28,13 @@ use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Laravel\Fortify\Contracts\LoginResponse as LoginResponseContract;
 use Laravel\Fortify\Contracts\LogoutResponse as LogoutResponseContract;
+use Laravel\Fortify\Contracts\PasswordConfirmedResponse as PasswordConfirmedResponseContract;
 use Laravel\Fortify\Contracts\RegisterResponse as RegisterResponseContract;
 use Laravel\Fortify\Contracts\TwoFactorLoginResponse as TwoFactorLoginResponseContract;
 use Laravel\Fortify\Contracts\VerifyEmailResponse as VerifyEmailResponseContract;
 use Laravel\Fortify\Features;
 use Laravel\Fortify\Fortify;
+use Laravel\Passkeys\Contracts\PasskeyLoginResponse as PasskeyLoginResponseContract;
 
 class FortifyServiceProvider extends ServiceProvider
 {
@@ -43,6 +49,8 @@ class FortifyServiceProvider extends ServiceProvider
         $this->app->singleton(RegisterResponseContract::class, RegisterResponse::class);
         $this->app->singleton(VerifyEmailResponseContract::class, VerifyEmailResponse::class);
         $this->app->singleton(TwoFactorLoginResponseContract::class, TwoFactorLoginResponse::class);
+        $this->app->singleton(PasskeyLoginResponseContract::class, PasskeyLoginResponse::class);
+        $this->app->singleton(PasswordConfirmedResponseContract::class, PasswordConfirmedResponse::class);
     }
 
     /**
@@ -54,6 +62,26 @@ class FortifyServiceProvider extends ServiceProvider
         $this->configureViews();
         $this->configureRateLimiting();
         $this->configureLdapAuthentication();
+        $this->configureAuthenticatedRedirect();
+    }
+
+    /**
+     * Send an already-authenticated visitor of a guest-only auth route to their
+     * workspace.
+     *
+     * Opening the login screen with a live session (a second tab, a bookmark, the
+     * back button right after signing in) is short-circuited by the `guest`
+     * middleware, which with no callback registered falls back to the route named
+     * `home` — the public marketing page. This is what makes the misdirection feel
+     * random rather than tied to one sign-in method. A user with no team has
+     * nowhere better to go, so they keep Fortify's home path.
+     */
+    private function configureAuthenticatedRedirect(): void
+    {
+        RedirectIfAuthenticated::redirectUsing(
+            fn (Request $request): string => WorkspaceRedirect::pathFor($request->user())
+                ?? (string) config('fortify.home'),
+        );
     }
 
     /**
