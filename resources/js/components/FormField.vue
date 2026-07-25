@@ -29,7 +29,7 @@ const fieldId = props.id ?? useId();
 </script>
 
 <template>
-    <div class="relative grid gap-2 pb-7">
+    <div class="grid gap-2">
         <!-- A label action is typically a link, so it is focusable and
         sequential focus would visit it between the previous field and this
         control if it came first in the DOM. It is therefore emitted last and
@@ -66,14 +66,13 @@ const fieldId = props.id ?? useId();
 
         <p v-if="hint" class="text-sm text-muted-foreground">{{ hint }}</p>
 
-        <!-- A zero-height slot, always present so the row and its gap are the
-        same whether or not there is a message, with the message itself drawn
-        out of flow inside it. The `pb-7` above reserves one line for it; a
-        message that wraps to a second line spills into the gap the form already
-        leaves before the next field, so nothing has to move to accommodate it.
-        It cannot take a click, because a wrapped line is drawn over the space
-        the next control occupies. -->
-        <div class="relative">
+        <!-- The error's space, reserved whether or not there is an error, with
+        the message itself drawn out of flow inside it. `h-7` is one line of it;
+        a message that wraps to a second line spills into the gap the form
+        already leaves before the next field, so nothing has to move to
+        accommodate it either. It cannot take a click, because that second line
+        is drawn over the space the next control occupies. -->
+        <div class="relative h-7">
             <InputError
                 :message="error"
                 class="pointer-events-none absolute inset-x-0 top-0"

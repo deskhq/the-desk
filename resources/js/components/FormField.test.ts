@@ -73,11 +73,9 @@ describe('FormField', () => {
         });
 
         for (const html of [clean, failed]) {
-            // The gutter that reserves the line...
-            expect(html).toMatch(/<div class="[^"]*\bpb-7\b/);
-            // ...and the zero-height slot the message is drawn into, present in
-            // both states so the row and its gap never change.
-            expect(html).toContain('<div class="relative">');
+            // The same reserved slot in both states, so the row it occupies and
+            // the gap before it never change.
+            expect(html).toContain('<div class="relative h-7">');
         }
 
         expect(failed).toMatch(/class="[^"]*\babsolute\b/);
