@@ -129,10 +129,12 @@ test('the presence menu renders at its narrowest supported width', function (): 
     $alice->update(['locale' => AppLocale::French]);
 
     // The rows above are measured at the narrow end of the menu, so pin that:
-    // the content tracks the trigger width but floors at min-w-64 (256px), and
-    // the dock is exactly that wide. The mobile sheet is wider (18rem), and the
-    // collapsed dock takes the trigger off-canvas with it, so there is no
-    // narrower state to check.
+    // the content tracks the trigger width, floored at min-w-64 (256px). Since
+    // #937 the trigger sits in the panel beside the 56px rail rather than in a
+    // dock that was itself the floor's width, so the panel column — less the
+    // footer's padding — is what binds: 278px. The mobile sheet is wider
+    // (18rem), and the collapsed dock takes the trigger off-canvas with it, so
+    // there is no narrower state to check.
     signInThroughBrowser($alice)
         // See #764 — the French catalog only reaches the client on a document load.
         ->refresh()
@@ -144,7 +146,7 @@ test('the presence menu renders at its narrowest supported width', function (): 
             const menu = document.querySelector('[data-test="pause-notifications-menu-item"]')
                 .closest('[data-slot="dropdown-menu-content"]');
 
-            return Math.round(menu.getBoundingClientRect().width) === 256;
+            return Math.round(menu.getBoundingClientRect().width) === 278;
         })()
         JS, true);
 });

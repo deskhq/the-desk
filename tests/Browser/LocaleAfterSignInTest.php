@@ -17,10 +17,12 @@ test('a French user who signs in gets a French UI with no reload', function (): 
     $alice->update(['locale' => AppLocale::French]);
 
     signInThroughBrowser($alice)
-        // The sidebar the redirect lands on reads from the French catalog...
+        // The dock the redirect lands on reads from the French catalog. The
+        // utility rows this used to read moved to the rail as glyphs in #937,
+        // so it reads the conversation panel's own copy instead.
+        ->assertSee('Accéder à…')
         ->assertSee('Canaux')
-        ->assertSee('Fils de discussion')
-        ->assertSee('Rappels')
+        ->assertSee('Messages directs')
         // ...and the document agrees about the language it is written in, which
         // only the Blade shell used to stamp.
         ->assertScript('document.documentElement.lang', 'fr');
