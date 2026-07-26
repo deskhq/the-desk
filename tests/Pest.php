@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Tests\Support\StaleBundleGuard;
 use Tests\TestCase;
 
 /*
@@ -73,12 +74,21 @@ pest()->extend(TestCase::class)->in('Unit/ReverbSecretGuidanceTest.php');
 | live Reverb server. They are tagged `browser` and excluded from the default
 | coverage gate; run them with `composer test:browser` (see README).
 |
+| That in-process server hands the browser the *compiled* assets under
+| `public/build`, so a bundle older than the working tree fails these tests as
+| though the application were broken — and it fails them on whatever landed most
+| recently, which reads as a regression in those very PRs rather than as a stale
+| bundle (issue #949). StaleBundleGuard sweeps the bundled sources once per
+| process and stops the run with the rebuild command instead.
+|
 */
 
 pest()->extend(TestCase::class)
     ->use(RefreshDatabase::class)
     ->group('browser')
     ->beforeEach(function (): void {
+        StaleBundleGuard::ensureFreshBundle(base_path());
+
         useReverbForBrowserTests();
     })
     ->in('Browser');
