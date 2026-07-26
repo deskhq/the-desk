@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Support\PasskeyAvailability;
 use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -26,8 +27,7 @@ class EnsurePasskeysEnabled
      */
     public function handle(Request $request, Closure $next): Response
     {
-        $blocked = $request->routeIs('passkey.*')
-            && (! config('fortify.passkeys_enabled') || config('sso.enforced'));
+        $blocked = $request->routeIs('passkey.*') && ! PasskeyAvailability::enabled();
 
         abort_if($blocked, 404);
 

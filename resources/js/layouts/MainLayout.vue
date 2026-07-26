@@ -38,6 +38,7 @@ import {
 import { index as searchMessages } from '@/actions/App/Http/Controllers/Channels/SearchController';
 import { index as threadsInbox } from '@/actions/App/Http/Controllers/Channels/ThreadsController';
 import { update as updateSidebarSections } from '@/actions/App/Http/Controllers/SidebarSectionController';
+import PasskeyPromptDialog from '@/components/auth/PasskeyPromptDialog.vue';
 import ChannelListItem from '@/components/ChannelListItem.vue';
 import CreateChannelModal from '@/components/CreateChannelModal.vue';
 import CreateTeamModal from '@/components/CreateTeamModal.vue';
@@ -709,6 +710,29 @@ const { sidebarPosition } = useSidebarPosition();
  */
 const isMobileViewport = useIsMobile();
 
+/**
+ * The one-time security prompt owed to an account registered in this session.
+ * While one is pending the prompt owns the first paint and the tour waits behind
+ * it; the prompt hands over once it is answered or found unshowable.
+ */
+const postRegistrationPrompt = computed(
+    () => page.props.postRegistrationPrompt ?? null,
+);
+
+/**
+ * Auto-start the first-run tour for a user who has never completed it, but not
+ * while they're deep in settings (the tour anchors live on the channel
+ * workspace); replaying is always available from the user menu.
+ */
+function maybeStartOnboardingTour(promptPending: boolean): void {
+    if (
+        !isSettingsSection.value &&
+        shouldAutoStartTour(page.props.auth.user, promptPending)
+    ) {
+        startOnboardingTour();
+    }
+}
+
 onMounted(() => {
     // Lazily pull the (optional) shared invitations so the post-login prompt
     // appears. It lands moments after the first render, when the user may already
@@ -718,12 +742,7 @@ onMounted(() => {
     // Persist the browser's timezone on first login when none is stored yet.
     syncDetectedTimezone();
 
-    // Auto-start the first-run tour for a user who has never completed it, but
-    // not while they're deep in settings (the tour anchors live on the channel
-    // workspace); replaying is always available from the user menu.
-    if (!isSettingsSection.value && shouldAutoStartTour(page.props.auth.user)) {
-        startOnboardingTour();
-    }
+    maybeStartOnboardingTour(postRegistrationPrompt.value !== null);
 });
 </script>
 
@@ -1523,6 +1542,14 @@ onMounted(() => {
                 @dismiss="clearReminder"
             />
         </div>
+
+        <!-- The post-registration security prompt goes ahead of the tour, and
+             starts it on its way out. Mounted only while one is queued, so an
+             ordinary sign-in reaches the tour exactly as it always did. -->
+        <PasskeyPromptDialog
+            v-if="postRegistrationPrompt === 'passkey'"
+            @done="maybeStartOnboardingTour(false)"
+        />
 
         <OnboardingTour />
 

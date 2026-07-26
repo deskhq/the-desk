@@ -27,6 +27,7 @@ use App\Http\Controllers\Channels\ThreadsController;
 use App\Http\Controllers\ImageProxyController;
 use App\Http\Controllers\LocaleCatalogController;
 use App\Http\Controllers\OnboardingController;
+use App\Http\Controllers\PostRegistrationPromptController;
 use App\Http\Controllers\PresenceConnectionController;
 use App\Http\Controllers\SidebarSectionController;
 use App\Http\Controllers\Teams\TeamInvitationController;
@@ -234,6 +235,11 @@ Route::middleware(['auth'])->group(function (): void {
         ->name('presence.release');
 
     Route::patch('onboarding', [OnboardingController::class, 'update'])->name('onboarding.update');
+
+    // Answering the one-time post-registration security prompt (enrolled, or
+    // "Not now"). Clears the queued session key so a refresh never re-asks.
+    Route::delete('post-registration-prompt', [PostRegistrationPromptController::class, 'destroy'])
+        ->name('post-registration-prompt.destroy');
 
     Route::get('invitations/{invitation}/accept', [TeamInvitationController::class, 'accept'])->name('invitations.accept');
     Route::delete('invitations/{invitation}', [TeamInvitationController::class, 'decline'])->name('invitations.decline');

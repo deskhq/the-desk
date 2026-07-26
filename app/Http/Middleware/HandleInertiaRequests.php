@@ -12,6 +12,7 @@ use App\Data\UserData;
 use App\Data\UserGroupData;
 use App\Enums\MessageReminderStatus;
 use App\Enums\MessageType;
+use App\Enums\PostRegistrationPrompt;
 use App\Enums\SidebarPosition;
 use App\Enums\TeamRole;
 use App\Models\Channel;
@@ -25,6 +26,7 @@ use App\Support\FrequentEmoji;
 use App\Support\ReverbConfig;
 use App\Support\TranslationCatalog;
 use App\Support\UpdateChecker;
+use App\Support\UserAgentParser;
 use App\Support\WebPushConfig;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
@@ -125,6 +127,19 @@ class HandleInertiaRequests extends Middleware
                 'oidcEnabled' => (bool) config('sso.oidc.enabled'),
                 'passwordLoginEnabled' => ! config('sso.enforced'),
             ],
+            // A readable name for the device this request came from, so a surface
+            // that has to name it (the post-registration passkey prompt prefills
+            // its name field with it) does not re-derive the parse client-side.
+            // Joined into one line by the frontend through the `:browser on
+            // :platform` key the session list already uses, so it follows a live
+            // locale switch rather than freezing at render time.
+            'currentDevice' => UserAgentParser::parse($request->userAgent()),
+            // The one-time account-security prompt owed to an account created in
+            // this session, or null. Read from the session rather than the user so
+            // it dies with the session — a returning user is no longer "just
+            // registered" — and re-gated per request, so switching the feature off
+            // withdraws the prompt instead of offering something that would 404.
+            'postRegistrationPrompt' => $this->postRegistrationPrompt($request),
             // The per-file and per-message attachment caps, so the composer can
             // reject an oversized or over-count drop client-side for instant
             // feedback. The upload and send endpoints re-enforce them as the
@@ -226,6 +241,30 @@ class HandleInertiaRequests extends Middleware
             // in-app nudges; reloaded live when a MessageReminderDue signal lands.
             'firedReminders' => fn (): array => $this->remindersForSidebar($request, $user, MessageReminderStatus::Fired),
         ];
+    }
+
+    /**
+     * The post-registration prompt queued for this session, or null when there is
+     * none or it is no longer on offer.
+     */
+    protected function postRegistrationPrompt(Request $request): ?string
+    {
+        // Shared props are also computed for an error page, which Inertia renders
+        // from the exception handler — outside the session middleware, on a
+        // request that has none.
+        if (! $request->hasSession()) {
+            return null;
+        }
+
+        $queued = $request->session()->get(PostRegistrationPrompt::SESSION_KEY);
+
+        if (! is_string($queued)) {
+            return null;
+        }
+
+        $prompt = PostRegistrationPrompt::tryFrom($queued);
+
+        return $prompt?->isAvailable() ? $prompt->value : null;
     }
 
     /**

@@ -34,6 +34,17 @@ declare module '@inertiajs/core' {
             emailVerificationEnabled: boolean;
             demoMode: boolean;
             sso: { oidcEnabled: boolean; passwordLoginEnabled: boolean };
+            /**
+             * The device this request came from, for a surface that has to name
+             * it. Joined for display through the `:browser on :platform` key.
+             */
+            currentDevice: { browser: string; platform: string };
+            /**
+             * The one-time account-security prompt owed to an account created in
+             * this session, or null. Dies with the session, so a returning user
+             * is never prompted.
+             */
+            postRegistrationPrompt: App.Enums.PostRegistrationPrompt | null;
             attachments: { maxSizeMb: number; maxPerMessage: number };
             gifPickerEnabled: boolean;
             pollsEnabled: boolean;

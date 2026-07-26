@@ -12,6 +12,7 @@ use App\Http\Requests\Settings\PasswordUpdateRequest;
 use App\Http\Requests\Settings\TwoFactorAuthenticationRequest;
 use App\Models\SecurityEvent;
 use App\Support\IpGeolocator;
+use App\Support\PasskeyAvailability;
 use App\Support\SecurityEventRecorder;
 use App\Support\SessionRegistry;
 use Illuminate\Http\RedirectResponse;
@@ -76,7 +77,7 @@ class SecurityController extends Controller
      */
     private function canManagePasskeys(): bool
     {
-        return (bool) config('fortify.passkeys_enabled') && ! config('sso.enforced');
+        return PasskeyAvailability::enabled();
     }
 
     /**

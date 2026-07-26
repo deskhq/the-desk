@@ -41,11 +41,17 @@ export const tourSteps: TourStep[] = [
 /**
  * Whether the first-run tour should auto-start for this user — i.e. they have
  * never completed onboarding. Pure, so the gating is unit-testable without a DOM.
+ *
+ * A pending post-registration prompt holds the tour back: a fresh registration
+ * satisfies both, and walking someone through three coachmarks and *then* hitting
+ * them with a modal is the worse order. The prompt starts the tour itself once it
+ * is finished with.
  */
 export function shouldAutoStartTour(
     user: Pick<User, 'onboarding_completed_at'>,
+    promptPending = false,
 ): boolean {
-    return !user.onboarding_completed_at;
+    return !user.onboarding_completed_at && !promptPending;
 }
 
 /**

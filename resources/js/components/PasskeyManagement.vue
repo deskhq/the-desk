@@ -1,15 +1,14 @@
 <script setup lang="ts">
 import { router } from '@inertiajs/vue3';
-import { usePasskeyRegister } from '@laravel/passkeys/vue';
 import { ref } from 'vue';
 import ConfirmDialog from '@/components/ConfirmDialog.vue';
 import DemoLock from '@/components/DemoLock.vue';
 import FormField from '@/components/FormField.vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { useTranslations } from '@/composables/useTranslations';
+import { usePasskeyEnrolment } from '@/composables/usePasskeyEnrolment';
 import { formatDateTime } from '@/lib/datetime';
-import { destroy, registrationOptions, store } from '@/routes/passkey';
+import { destroy } from '@/routes/passkey';
 
 type Props = {
     passkeys: App.Data.PasskeyData[];
@@ -17,24 +16,16 @@ type Props = {
 
 defineProps<Props>();
 
-const { t } = useTranslations();
-
 const adding = ref(false);
 const name = ref('');
 
-// Drive the WebAuthn registration ceremony against the Fortify passkey
-// endpoints. On success the freshly stored passkey is pulled back by reloading
-// only the `passkeys` prop, so the list updates in place.
-const { register, isLoading, error, isSupported } = usePasskeyRegister({
-    routes: {
-        options: registrationOptions().url,
-        submit: store().url,
-    },
-    onSuccess: () => {
-        adding.value = false;
-        name.value = '';
-        router.reload({ only: ['passkeys'] });
-    },
+// The shared enrolment ceremony, also used by the post-registration prompt. On
+// success the freshly stored passkey is pulled back by reloading only the
+// `passkeys` prop, so the list updates in place.
+const { enrol, isLoading, error, isSupported } = usePasskeyEnrolment(() => {
+    adding.value = false;
+    name.value = '';
+    router.reload({ only: ['passkeys'] });
 });
 
 function startAdding(): void {
@@ -46,20 +37,6 @@ function cancelAdding(): void {
     adding.value = false;
     name.value = '';
     error.value = null;
-}
-
-async function submitAdding(): Promise<void> {
-    const trimmed = name.value.trim();
-
-    if (trimmed === '') {
-        error.value = t(
-            'Give this passkey a name so you can recognise it later.',
-        );
-
-        return;
-    }
-
-    await register(trimmed);
 }
 </script>
 
@@ -145,7 +122,7 @@ async function submitAdding(): Promise<void> {
             v-if="adding"
             class="space-y-4"
             data-test="add-passkey-form"
-            @submit.prevent="submitAdding"
+            @submit.prevent="enrol(name)"
         >
             <FormField
                 id="passkey_name"
