@@ -83,14 +83,29 @@ export async function enablePush(vapidPublicKey: string): Promise<boolean> {
 
     const registration = await navigator.serviceWorker.ready;
 
+    const existing = await registration.pushManager.getSubscription();
+
     const subscription =
-        (await registration.pushManager.getSubscription()) ??
+        existing ??
         (await registration.pushManager.subscribe({
             userVisibleOnly: true,
             applicationServerKey: urlBase64ToUint8Array(vapidPublicKey),
         }));
 
-    await send(storeSubscription().url, 'POST', subscription.toJSON());
+    try {
+        await send(storeSubscription().url, 'POST', subscription.toJSON());
+    } catch (error) {
+        // Nothing server-side can be pushed to now, so a subscription this call
+        // created has to go: the browser is what the toggle reads its state back
+        // from, and one left behind would report push as on forever. A
+        // subscription the browser already held is left alone, since it predates
+        // this attempt and may still have a row on the server.
+        if (existing === null) {
+            await subscription.unsubscribe().catch(() => undefined);
+        }
+
+        throw error;
+    }
 
     return true;
 }
