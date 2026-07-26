@@ -29,7 +29,10 @@ vi.mock('@/components/ui/avatar', () => ({
             () =>
                 h('span', slots.default?.()),
     }),
-    AvatarImage: defineComponent({ setup: () => () => h('img') }),
+    AvatarImage: defineComponent({
+        props: { src: { type: String, default: '' } },
+        setup: (props) => () => h('img', { src: props.src }),
+    }),
     AvatarFallback: defineComponent({
         setup:
             (_, { slots }) =>
@@ -62,6 +65,7 @@ function mountRail(
         active?: NavDestination;
         hasUnreadThreads?: boolean;
         currentTeam?: Team | null;
+        avatar?: string;
     } = {},
 ) {
     const host = document.createElement('div');
@@ -73,7 +77,7 @@ function mountRail(
         render: () =>
             h(NavigationRail, {
                 active: overrides.active ?? 'channels',
-                user: viewer,
+                user: { ...viewer, avatar: overrides.avatar },
                 currentTeam:
                     overrides.currentTeam === undefined
                         ? team
@@ -177,4 +181,22 @@ it('drops the workspace tile when the viewer is not in a workspace', () => {
     const { host } = mountRail({ currentTeam: null });
 
     expect(host.querySelector('[data-test="rail-workspace-tile"]')).toBeNull();
+});
+
+it('draws an uploaded avatar in place of the initials fallback', () => {
+    const { host } = mountRail({ avatar: 'https://cdn.test/dana.png' });
+
+    const image = glyph(host, 'you').querySelector('img');
+
+    expect(image).not.toBeNull();
+    expect(image!.getAttribute('src')).toBe('https://cdn.test/dana.png');
+});
+
+it('falls back to the viewer initials when there is no avatar', () => {
+    const { host } = mountRail();
+
+    const you = glyph(host, 'you');
+
+    expect(you.querySelector('img')).toBeNull();
+    expect(you.textContent).toContain('DU');
 });

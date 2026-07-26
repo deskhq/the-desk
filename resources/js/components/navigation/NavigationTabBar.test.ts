@@ -19,7 +19,10 @@ vi.mock('@/components/ui/avatar', () => ({
             () =>
                 h('span', slots.default?.()),
     }),
-    AvatarImage: defineComponent({ setup: () => () => h('img') }),
+    AvatarImage: defineComponent({
+        props: { src: { type: String, default: '' } },
+        setup: (props) => () => h('img', { src: props.src }),
+    }),
     AvatarFallback: defineComponent({
         setup:
             (_, { slots }) =>
@@ -46,7 +49,11 @@ afterEach(() => {
 });
 
 function mountTabBar(
-    overrides: { active?: NavDestination; hasUnreadThreads?: boolean } = {},
+    overrides: {
+        active?: NavDestination;
+        hasUnreadThreads?: boolean;
+        avatar?: string;
+    } = {},
 ) {
     const host = document.createElement('div');
     document.body.append(host);
@@ -57,7 +64,7 @@ function mountTabBar(
         render: () =>
             h(NavigationTabBar, {
                 active: overrides.active ?? 'channels',
-                user: viewer,
+                user: { ...viewer, avatar: overrides.avatar },
                 presence: 'active',
                 isDnd: false,
                 hasUnreadThreads: overrides.hasUnreadThreads ?? false,
@@ -158,4 +165,22 @@ it('reserves the safe-area inset below the last row of tabs', () => {
     );
 
     expect(bar!.style.paddingBottom).toContain('env(safe-area-inset-bottom)');
+});
+
+it('draws an uploaded avatar in place of the initials fallback', () => {
+    const { host } = mountTabBar({ avatar: 'https://cdn.test/dana.png' });
+
+    const image = tab(host, 'you').querySelector('img');
+
+    expect(image).not.toBeNull();
+    expect(image!.getAttribute('src')).toBe('https://cdn.test/dana.png');
+});
+
+it('falls back to the viewer initials when there is no avatar', () => {
+    const { host } = mountTabBar();
+
+    const you = tab(host, 'you');
+
+    expect(you.querySelector('img')).toBeNull();
+    expect(you.textContent).toContain('DU');
 });
