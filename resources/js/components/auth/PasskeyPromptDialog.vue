@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import { usePage } from '@inertiajs/vue3';
-import { Check, Lock } from '@lucide/vue';
+import { Check, CircleAlert, Lock } from '@lucide/vue';
 import { computed, onMounted, onUnmounted, ref } from 'vue';
 import PromptDialog from '@/components/auth/PromptDialog.vue';
-import FormField from '@/components/FormField.vue';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Spinner } from '@/components/ui/spinner';
 import { useIsMobile } from '@/composables/useIsMobile';
 import { usePasskeyEnrolment } from '@/composables/usePasskeyEnrolment';
@@ -196,36 +196,53 @@ onUnmounted(() => clearTimeout(successTimer));
             </div>
         </div>
 
+        <!-- Not `<FormField>`: it stacks a hint above a permanently reserved error
+             row, which both loosens the card past what the design draws and drops
+             its height by that row the moment the hint gives way to an error —
+             moving the primary action out from under the pointer of someone about
+             to press it again. Here the two share one line, as drawn, so the card
+             stands still across a failed attempt. -->
         <form
             v-else-if="!succeeded"
-            class="mt-5"
+            class="mt-5.5 flex flex-col gap-1.75"
             data-test="passkey-prompt-form"
             @submit.prevent="createPasskey"
         >
-            <FormField
+            <Label for="passkey_prompt_name" class="text-[13px]">
+                {{ $t('Passkey name') }}
+            </Label>
+
+            <Input
                 id="passkey_prompt_name"
-                :label="$t('Passkey name')"
-                :error="fieldError"
-                :hint="
-                    fieldError
-                        ? undefined
-                        : $t(
-                              'You can\'t rename it later, so pick something you\'ll recognise.',
-                          )
-                "
-                v-slot="{ id }"
+                v-model="name"
+                name="passkey_prompt_name"
+                autocomplete="off"
+                maxlength="255"
+                :aria-invalid="fieldError ? true : undefined"
+                data-test="passkey-prompt-name"
+                class="max-md:h-12 max-md:rounded-xl"
+            />
+
+            <!-- One line, either way: the field is permanent, so it says so until
+                 there is something more urgent to say. -->
+            <p
+                v-if="fieldError"
+                data-test="passkey-prompt-error"
+                class="flex items-start gap-1.5 text-[13px] text-destructive-text"
             >
-                <Input
-                    :id="id"
-                    v-model="name"
-                    name="passkey_prompt_name"
-                    autocomplete="off"
-                    maxlength="255"
-                    :aria-invalid="fieldError ? true : undefined"
-                    data-test="passkey-prompt-name"
-                    class="max-md:h-12 max-md:rounded-xl"
+                <CircleAlert
+                    class="mt-0.5 size-3.5 shrink-0"
+                    aria-hidden="true"
                 />
-            </FormField>
+                {{ fieldError }}
+            </p>
+            <p v-else class="text-[12.5px] text-muted-foreground">
+                {{
+                    $t(
+                        "You can't rename it later, so pick something you'll recognise.",
+                    )
+                }}
+            </p>
         </form>
     </PromptDialog>
 </template>

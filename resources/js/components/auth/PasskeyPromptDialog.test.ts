@@ -59,6 +59,7 @@ vi.mock('@laravel/passkeys/vue', async () => {
 vi.mock('@lucide/vue', () => ({
     Check: { render: () => h('svg') },
     Lock: { render: () => h('svg') },
+    CircleAlert: { render: () => h('svg') },
     Loader2Icon: { render: () => h('svg') },
 }));
 
