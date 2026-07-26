@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+use Tests\TestCase;
+
 /**
  * CI has run the Pest suite with `--parallel` since #582 while the local gate
  * stayed single-process, so every pre-push run paid ~3x the wall clock CI did.
@@ -45,7 +47,14 @@ test('the local gate does not buy stability by throttling the workers', function
 });
 
 test('the base test case still routes setup through the deadlock guard', function (): void {
-    $baseTestCase = (string) file_get_contents(dirname(__DIR__).'/TestCase.php');
+    $setUp = new ReflectionMethod(TestCase::class, 'setUp');
 
-    expect($baseTestCase)->toContain('SchemaBootstrapGuard::run');
+    $body = implode('', array_slice(
+        (array) file((string) $setUp->getFileName()),
+        $setUp->getStartLine() - 1,
+        $setUp->getEndLine() - $setUp->getStartLine() + 1,
+    ));
+
+    expect($setUp->getDeclaringClass()->getName())->toBe(TestCase::class)
+        ->and($body)->toContain('SchemaBootstrapGuard::run');
 });
