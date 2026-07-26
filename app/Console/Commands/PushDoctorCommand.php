@@ -168,7 +168,7 @@ class PushDoctorCommand extends Command
             return;
         }
 
-        if (! str_starts_with($subject, 'mailto:') && ! str_starts_with($subject, 'https://') && ! str_starts_with($subject, 'http://')) {
+        if (! str_starts_with($subject, 'mailto:') && ! str_starts_with($subject, 'https://')) {
             $this->record(self::FAIL, 'VAPID subject', $subject.' must be a mailto: address or an https URL');
 
             return;

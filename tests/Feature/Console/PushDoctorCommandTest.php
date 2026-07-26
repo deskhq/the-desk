@@ -184,6 +184,15 @@ test('it fails when the VAPID subject is neither a mailto address nor a URL', fu
         ->and(Artisan::output())->toContain('must be a mailto: address or an https URL');
 });
 
+test('it fails on a plain http VAPID subject, which push services reject', function (): void {
+    configureWebPush(['webpush.vapid.subject' => 'http://desk.example.com']);
+
+    $exitCode = Artisan::call('push:doctor');
+
+    expect($exitCode)->toBe(1)
+        ->and(Artisan::output())->toContain('must be a mailto: address or an https URL');
+});
+
 test('it warns when no device has subscribed', function (): void {
     configureWebPush();
 
