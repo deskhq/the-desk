@@ -110,6 +110,24 @@ function browserChannelUrl(Team $team, Channel $channel): string
 }
 
 /**
+ * Open the create-channel dialog at the given viewport. It is the plainest of
+ * the form dialogs — a header, three fields and a pair of actions — so it stands
+ * in for the whole set that shares the primitive.
+ */
+function openCreateChannelDialog(AwaitableWebpage $page, int $width, int $height, string $url): AwaitableWebpage
+{
+    $page = $page->resize($width, $height)->navigate($url);
+
+    // Below the breakpoint the dock is a Sheet, so its rows only exist once it
+    // is opened; from `md` up the rail is always mounted.
+    if ($width < 768) {
+        $page = $page->click('@sidebar-toggle');
+    }
+
+    return $page->click('@create-channel-trigger')->assertPresent('@create-channel-submit');
+}
+
+/**
  * Sign a user in through the real login form, returning the page so the caller
  * can continue driving it. Each `visit()` gets its own browser context (isolated
  * cookie jar), so two calls yield two independently authenticated clients.

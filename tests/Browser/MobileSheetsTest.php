@@ -3,7 +3,6 @@
 declare(strict_types=1);
 
 use App\Enums\AppLocale;
-use Pest\Browser\Api\AwaitableWebpage;
 
 /**
  * Dialogs below the `md` breakpoint (#772).
@@ -60,24 +59,6 @@ function openSurfaceIsACentredDialog(): string
             && box.width < window.innerWidth;
     })()
     JS;
-}
-
-/**
- * Open the create-channel dialog from the dock. It is the plainest of the form
- * dialogs — a header, three fields and a pair of actions — so it stands in for
- * the whole set that shares the primitive.
- */
-function openCreateChannelDialog(AwaitableWebpage $page, int $width, int $height, string $url): AwaitableWebpage
-{
-    $page = $page->resize($width, $height)->navigate($url);
-
-    // Below the breakpoint the dock is a Sheet, so its rows only exist once it
-    // is opened; from `md` up the rail is always mounted.
-    if ($width < 768) {
-        $page = $page->click('@sidebar-toggle');
-    }
-
-    return $page->click('@create-channel-trigger')->assertPresent('@create-channel-submit');
 }
 
 test('a dialog is a bottom sheet on a phone and a centred dialog from md up', function (int $width, int $height, bool $expectSheet): void {

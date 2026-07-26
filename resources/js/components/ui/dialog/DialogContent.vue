@@ -11,6 +11,7 @@ import {
   useForwardPropsEmits,
 } from "reka-ui"
 import { computed } from "vue"
+import { useDialogFocusRestore } from "@/composables/useDialogFocusRestore"
 import { useIsMobile } from "@/composables/useIsMobile"
 import { useKeyboardInset } from "@/composables/useKeyboardInset"
 import { useSheetDrag } from "@/composables/useSheetDrag"
@@ -66,6 +67,7 @@ const forwarded = useForwardPropsEmits(delegatedProps, emits)
 const isMobile = useIsMobile()
 const keyboardInset = useKeyboardInset()
 const rootContext = injectDialogRootContext()
+const { restoreFocusOnClose } = useDialogFocusRestore()
 
 /** Whether this dialog is presenting as a bottom sheet at the current width. */
 const asSheet = computed(() =>
@@ -151,6 +153,7 @@ const contentStyle = computed<CSSProperties | undefined>(() => {
       v-bind="{ ...$attrs, ...forwarded }"
       :class="contentClass"
       :style="contentStyle"
+      @close-auto-focus="restoreFocusOnClose"
     >
       <!-- The sheet's sticky strip carries both top affordances: the grab
            handle, and the close button — which must live here rather than
