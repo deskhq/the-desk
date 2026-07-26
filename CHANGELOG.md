@@ -1,5 +1,31 @@
 # Changelog
 
+## [1.17.0](https://github.com/deskhq/the-desk/compare/v1.16.0...v1.17.0) (2026-07-26)
+
+
+### Features
+
+* add a one-click "Enter the demo" entry point ([#878](https://github.com/deskhq/the-desk/issues/878)) ([a72e921](https://github.com/deskhq/the-desk/commit/a72e92106d2f0b4a77b66cf2452f9a300415ad45))
+* badge the mobile sidebar toggle when a message lands elsewhere ([#888](https://github.com/deskhq/the-desk/issues/888)) ([3cb92ff](https://github.com/deskhq/the-desk/commit/3cb92ffb889e9878955d5ff0657845bd48be6f87))
+* carry "keep me signed in" through the SSO sign-in path ([#900](https://github.com/deskhq/the-desk/issues/900)) ([9d1b12e](https://github.com/deskhq/the-desk/commit/9d1b12e6283fb8eb7e1b43e3416288e46431a7d8))
+* default "keep me signed in" to on in the installed app ([#896](https://github.com/deskhq/the-desk/issues/896)) ([338114a](https://github.com/deskhq/the-desk/commit/338114ac051d2b3d8e403898fce282e1fbeace63))
+* generate the VAPID keypair in gen-secrets.sh so fresh installs get web push ([#876](https://github.com/deskhq/the-desk/issues/876)) ([3da9e98](https://github.com/deskhq/the-desk/commit/3da9e985632047a0b118f07e07ea4e2246a04324))
+* installable PWA with web push and an in-app install flow ([#862](https://github.com/deskhq/the-desk/issues/862)) ([ee72f35](https://github.com/deskhq/the-desk/commit/ee72f35b1dafdac476c04043daf875c5fd125e11))
+* open the mobile dock full screen and close it on navigation ([#843](https://github.com/deskhq/the-desk/issues/843)) ([20d3134](https://github.com/deskhq/the-desk/commit/20d3134bd373117b944924fd64c13599ea23dc70))
+* rebuild the auth screens as a full-bleed ink and paper split ([#864](https://github.com/deskhq/the-desk/issues/864)) ([3f85593](https://github.com/deskhq/the-desk/commit/3f85593effdb1bba691b6d1c6a2533d9c45ee719))
+* slim the mobile message row gutter and break cards out edge to edge ([#848](https://github.com/deskhq/the-desk/issues/848)) ([479bab0](https://github.com/deskhq/the-desk/commit/479bab0ef1e6deaea2fd183f4c0ca13a88fb1ec6))
+* surface web push failures with a push:doctor command and failed-job logging ([#874](https://github.com/deskhq/the-desk/issues/874)) ([2cf407b](https://github.com/deskhq/the-desk/commit/2cf407b77342ccf0a29593a824e2f2e280c1cb88))
+
+
+### Bug Fixes
+
+* emit the FormField label action after the control so Tab reaches the input ([#886](https://github.com/deskhq/the-desk/issues/886)) ([09fa48c](https://github.com/deskhq/the-desk/commit/09fa48ca614f7530d6056f1738d32d2a085f0973))
+* install gmp in the production image so web push can send ([#870](https://github.com/deskhq/the-desk/issues/870)) ([43f3ede](https://github.com/deskhq/the-desk/commit/43f3ede1788b05450abf0f8e2212761bfb3cd966))
+* keep auth forms still when a validation error appears ([#899](https://github.com/deskhq/the-desk/issues/899)) ([45e351d](https://github.com/deskhq/the-desk/commit/45e351d63258a578dded16c4a1510d3ca29a391f))
+* keep mobile text fields at 16px so focusing them no longer zooms the app ([#861](https://github.com/deskhq/the-desk/issues/861)) ([7ecf697](https://github.com/deskhq/the-desk/commit/7ecf6972a01111435c7cb060a4f6cfab479d9fd7))
+* land every sign-in on the team workspace instead of the Welcome page ([#893](https://github.com/deskhq/the-desk/issues/893)) ([f60cd1e](https://github.com/deskhq/the-desk/commit/f60cd1ec48ba53b1675f8c26e107fea292c1ab13))
+* stack the demo banner into two rows below the md breakpoint ([#844](https://github.com/deskhq/the-desk/issues/844)) ([c4093ad](https://github.com/deskhq/the-desk/commit/c4093ada855be4b694613ada1c3fab694b64d13a))
+
 ## [1.16.0](https://github.com/deskhq/the-desk/compare/v1.15.2...v1.16.0) (2026-07-24)
 
 
