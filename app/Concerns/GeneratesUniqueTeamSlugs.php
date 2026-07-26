@@ -7,11 +7,16 @@ use Illuminate\Support\Str;
 trait GeneratesUniqueTeamSlugs
 {
     /**
+     * Slug used as the base when a name carries no sluggable characters.
+     */
+    private const string FALLBACK_SLUG = 'team';
+
+    /**
      * Generate a unique slug for the team.
      */
     protected static function generateUniqueTeamSlug(string $name, ?string $excludeId = null): string
     {
-        $defaultSlug = Str::slug($name);
+        $defaultSlug = self::sluggifyTeamName($name);
 
         $query = static::withTrashed()
             ->where(function ($query) use ($defaultSlug): void {
@@ -42,5 +47,23 @@ trait GeneratesUniqueTeamSlugs
         return $existingSlugs->isEmpty()
             ? $defaultSlug
             : $defaultSlug.'-'.($maxSuffix + 1);
+    }
+
+    /**
+     * Slug a team name, falling back when the name slugs to nothing.
+     *
+     * Str::slug() transliterates what it can (Cyrillic, Greek and Arabic all
+     * survive) but strips every character it has no Latin equivalent for, so a
+     * name written entirely in e.g. Japanese, Korean or Hebrew — or in
+     * punctuation or emoji — comes back empty. An empty slug is unusable as a
+     * route key and would make the team unreachable (issue #921), so such a
+     * name gets the generic base instead and the caller's suffix machinery
+     * keeps it unique.
+     */
+    private static function sluggifyTeamName(string $name): string
+    {
+        $slug = Str::slug($name);
+
+        return $slug === '' ? self::FALLBACK_SLUG : $slug;
     }
 }

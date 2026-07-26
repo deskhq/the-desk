@@ -46,15 +46,21 @@ class Team extends Model
     {
         parent::boot();
 
-        static::creating(function (Team $team): void {
-            if (empty($team->slug)) {
-                $team->slug = static::generateUniqueTeamSlug($team->name);
-            }
-        });
-
-        static::updating(function (Team $team): void {
-            if ($team->isDirty('name')) {
-                $team->slug = static::generateUniqueTeamSlug($team->name, $team->id);
+        /**
+         * Keep the slug present and in step with the name on every write.
+         *
+         * The slug is the route key ({@see getRouteKeyName()}), so a blank one
+         * makes the team unreachable with no UI path back to it (issue #921).
+         * Guarding on `saving` rather than on `creating`/`updating` covers the
+         * three ways a blank slug could otherwise be persisted: a create with
+         * no slug, a rename, and a slug explicitly blanked without a rename.
+         */
+        static::saving(function (Team $team): void {
+            if (blank($team->slug) || ($team->exists && $team->isDirty('name'))) {
+                $team->slug = static::generateUniqueTeamSlug(
+                    (string) $team->name,
+                    $team->exists ? $team->id : null,
+                );
             }
         });
     }
