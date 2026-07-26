@@ -265,13 +265,20 @@ const footerStyle = {
                  whose presets open as a second sheet. -->
             <div class="px-2 pt-3 pb-1">
                 <div :class="sectionLabelClass">{{ $t('Status') }}</div>
+                <!-- The desktop card's twin, wrapping for the same reason: the
+                     pill and the readout are siblings competing for one row, so
+                     a locale whose pill label outruns the sheet would otherwise
+                     squeeze the readout away entirely (#762). -->
                 <div
                     v-if="isDnd"
                     data-test="dnd-paused-card"
-                    class="mb-1 flex min-h-12 items-center gap-2.5 rounded-[11px] border border-border bg-muted px-2.5 py-1.5"
+                    class="mb-1 flex min-h-12 flex-wrap items-center gap-2.5 rounded-[11px] border border-border bg-muted px-2.5 py-1.5"
                 >
                     <Moon class="size-4 shrink-0 text-muted-foreground" />
-                    <span class="flex min-w-0 flex-1 flex-col">
+                    <span
+                        data-test="dnd-paused-label"
+                        class="flex min-w-20 flex-1 flex-col"
+                    >
                         <span
                             class="truncate text-[13px] font-semibold text-foreground"
                             >{{ $t('Paused') }}</span
@@ -301,10 +308,10 @@ const footerStyle = {
                         size="none"
                         type="button"
                         data-test="dnd-resume-menu-item"
-                        class="inline-flex h-7 shrink-0 cursor-pointer items-center rounded-full border border-border px-3 text-[11.5px] font-semibold text-muted-foreground hover:text-foreground"
+                        class="inline-flex h-7 min-w-0 cursor-pointer items-center rounded-full border border-border px-3 text-[11.5px] font-semibold text-muted-foreground hover:text-foreground"
                         @click="resumeNotifications()"
                     >
-                        {{ $t('Resume') }}
+                        <span class="truncate">{{ $t('Resume') }}</span>
                     </Button>
                     <Button
                         v-else-if="quietHoursUntil"
@@ -312,10 +319,12 @@ const footerStyle = {
                         size="none"
                         type="button"
                         data-test="dnd-snooze-menu-item"
-                        class="inline-flex h-7 shrink-0 cursor-pointer items-center rounded-full border border-border px-3 text-[11.5px] font-semibold text-muted-foreground hover:text-foreground"
+                        class="inline-flex h-7 min-w-0 cursor-pointer items-center rounded-full border border-border px-3 text-[11.5px] font-semibold text-muted-foreground hover:text-foreground"
                         @click="snoozeSchedule()"
                     >
-                        {{ $t('Snooze schedule today') }}
+                        <span class="truncate">{{
+                            $t('Snooze schedule today')
+                        }}</span>
                     </Button>
                 </div>
                 <Button
