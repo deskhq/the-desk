@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.17.1](https://github.com/deskhq/the-desk/compare/v1.17.0...v1.17.1) (2026-07-26)
+
+
+### Bug Fixes
+
+* stop a failed push opt-in from reading as enabled, and require https endpoints ([#905](https://github.com/deskhq/the-desk/issues/905)) ([3edea0e](https://github.com/deskhq/the-desk/commit/3edea0e7a8ff2261b1dcf0e317c5b0fc23063531))
+
 ## [1.17.0](https://github.com/deskhq/the-desk/compare/v1.16.0...v1.17.0) (2026-07-26)
 
 
