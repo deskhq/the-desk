@@ -241,14 +241,26 @@ const installRowIsNew = useInstallRowBadge();
         <!-- While in DND the section leads with the paused card: crescent,
              when it lifts in italic serif, and a one-tap pill — Resume for a
              manual pause, Snooze for quiet hours (lifts tonight's window and
-             lets the standing schedule resume on its own). -->
+             lets the standing schedule resume on its own).
+
+             Unlike the label rows below, the card sets two siblings against
+             each other rather than a label against the row height, so
+             ellipsising alone would not save it: with the pill unshrinkable the
+             zero-basis label column was the only thing that could give, and the
+             French snooze label starved the readout to nothing (#762). The row
+             therefore wraps, and the label keeps a floor wide enough to stay
+             worth reading — so a pill that cannot fit beside the readout drops
+             under it with both still legible, in any locale. -->
         <div
             v-if="isDnd"
             data-test="dnd-paused-card"
-            class="mb-1 flex min-h-11 items-center gap-2.5 rounded-[10px] border border-border bg-muted px-2.5 py-1.5"
+            class="mb-1 flex min-h-11 flex-wrap items-center gap-2.5 rounded-[10px] border border-border bg-muted px-2.5 py-1.5"
         >
             <Moon class="size-4 shrink-0 text-muted-foreground" />
-            <span class="flex min-w-0 flex-1 flex-col">
+            <span
+                data-test="dnd-paused-label"
+                class="flex min-w-20 flex-1 flex-col"
+            >
                 <span
                     class="truncate text-[13px] font-semibold text-foreground"
                     >{{ $t('Paused') }}</span
@@ -273,7 +285,7 @@ const installRowIsNew = useInstallRowBadge();
             <DropdownMenuItem
                 v-if="pausedUntil"
                 :as-child="true"
-                class="shrink-0 rounded-full p-0 focus:bg-transparent"
+                class="min-w-0 rounded-full p-0 focus:bg-transparent"
                 data-test="dnd-resume-menu-item"
                 @select="resumeNotifications"
             >
@@ -283,13 +295,13 @@ const installRowIsNew = useInstallRowBadge();
                     type="button"
                     class="inline-flex h-6.5 cursor-pointer items-center rounded-full border border-border px-3 text-[11.5px] font-semibold text-muted-foreground hover:text-foreground"
                 >
-                    {{ $t('Resume') }}
+                    <span class="truncate">{{ $t('Resume') }}</span>
                 </Button>
             </DropdownMenuItem>
             <DropdownMenuItem
                 v-else-if="quietHoursUntil"
                 :as-child="true"
-                class="shrink-0 rounded-full p-0 focus:bg-transparent"
+                class="min-w-0 rounded-full p-0 focus:bg-transparent"
                 data-test="dnd-snooze-menu-item"
                 @select="snoozeSchedule"
             >
@@ -299,7 +311,9 @@ const installRowIsNew = useInstallRowBadge();
                     type="button"
                     class="inline-flex h-6.5 cursor-pointer items-center rounded-full border border-border px-3 text-[11.5px] font-semibold text-muted-foreground hover:text-foreground"
                 >
-                    {{ $t('Snooze schedule today') }}
+                    <span class="truncate">{{
+                        $t('Snooze schedule today')
+                    }}</span>
                 </Button>
             </DropdownMenuItem>
         </div>

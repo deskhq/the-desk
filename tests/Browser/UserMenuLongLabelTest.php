@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Enums\AppLocale;
+use App\Models\User;
 
 /**
  * The user menu is only ever as wide as the dock it hangs off (its content
@@ -144,6 +145,133 @@ test('the presence menu renders at its narrowest supported width', function (): 
                 .closest('[data-slot="dropdown-menu-content"]');
 
             return Math.round(menu.getBoundingClientRect().width) === 256;
+        })()
+        JS, true);
+});
+
+/**
+ * The paused card is the one row where two siblings compete for the width
+ * rather than a label competing with the row height: its label column carries
+ * the state readout, and a one-tap pill sits beside it. The pill used to be
+ * unshrinkable, so the label — a flex child with a zero basis — was the only
+ * thing that could give, and in French "Suspendre l'horaire aujourd'hui"
+ * squeezed it to nothing while the card overflowed its own box (#762).
+ */
+
+/**
+ * A script asserting the paused card still reads: the label column holds a real
+ * width, neither of its two lines is clipped, and the card itself does not
+ * overflow.
+ */
+function pausedCardStillReads(): string
+{
+    return <<<'JS'
+    (() => {
+        const card = document.querySelector('[data-test="dnd-paused-card"]');
+        const label = document.querySelector('[data-test="dnd-paused-label"]');
+        const lines = [...label.children];
+
+        return card.scrollWidth <= card.clientWidth
+            && label.getBoundingClientRect().width > 0
+            && lines.length === 2
+            && lines.every(line => line.scrollWidth <= line.clientWidth);
+    })()
+    JS;
+}
+
+/**
+ * Put the viewer inside a quiet-hours window straddling this very minute, so
+ * the paused card is showing whenever the suite happens to run — near midnight
+ * the bounds wrap, which the evaluator reads as an overnight window.
+ */
+function insideQuietHours(User $user): void
+{
+    $now = now('UTC');
+
+    $user->forceFill([
+        'timezone' => 'UTC',
+        'dnd_schedule_enabled' => true,
+        'dnd_starts_at' => $now->copy()->subMinutes(10)->format('H:i'),
+        'dnd_ends_at' => $now->copy()->addMinutes(10)->format('H:i'),
+    ])->save();
+}
+
+test('the paused card keeps its quiet-hours readout legible in French', function (): void {
+    ['owner' => $alice] = browserTeamWithChannel();
+    $alice->update(['locale' => AppLocale::French]);
+    insideQuietHours($alice);
+
+    signInThroughBrowser($alice)
+        ->click('@sidebar-menu-button')
+        ->assertPresent('@dnd-paused-card')
+        ->wait(0.5)
+        // The state the card exists to show is on screen, not squeezed out by
+        // the pill standing next to it...
+        ->assertSee('En pause')
+        ->assertSee('heures calmes')
+        ->assertSee("Suspendre l'horaire aujourd'hui")
+        ->assertScript(pausedCardStillReads(), true);
+});
+
+test('the paused card holds up against a pill label no locale would exceed', function (): void {
+    ['owner' => $alice] = browserTeamWithChannel();
+    insideQuietHours($alice);
+
+    signInThroughBrowser($alice)
+        ->click('@sidebar-menu-button')
+        ->assertPresent('@dnd-snooze-menu-item')
+        ->wait(0.5)
+        // The English pill left the readout 14px to live in, which was already
+        // too little to read even before the French one erased it outright.
+        ->assertScript(pausedCardStillReads(), true)
+        ->assertScript(<<<'JS'
+        (() => {
+            const pill = document.querySelector('[data-test="dnd-snooze-menu-item"] span');
+            pill.textContent = 'Heutigen Zeitplan für ruhige Stunden vorübergehend aussetzen';
+
+            return true;
+        })()
+        JS, true)
+        ->assertScript(pausedCardStillReads(), true)
+        // A pill wider than the card itself is clipped to an ellipsis rather
+        // than allowed to push the card open.
+        ->assertScript(<<<'JS'
+        (() => {
+            const pill = document.querySelector('[data-test="dnd-snooze-menu-item"] span');
+
+            return pill.scrollWidth > pill.clientWidth
+                && getComputedStyle(pill).textOverflow === 'ellipsis';
+        })()
+        JS, true);
+});
+
+test('the paused card leaves the manual-pause variant on one line', function (): void {
+    ['owner' => $alice] = browserTeamWithChannel();
+    $alice->update(['locale' => AppLocale::French]);
+    $alice->forceFill(['dnd_until' => now()->addMinutes(30)])->save();
+
+    // "Reprendre" is short enough to sit beside the label, so the manual pause
+    // keeps the single-row card it always had — the wrapping guard below only
+    // bites when the pill genuinely cannot fit.
+    signInThroughBrowser($alice)
+        ->click('@sidebar-menu-button')
+        ->assertPresent('@dnd-resume-menu-item')
+        ->wait(0.5)
+        ->assertSee('Reprendre')
+        ->assertScript(pausedCardStillReads(), true)
+        ->assertScript(<<<'JS'
+        (() => {
+            const label = document.querySelector('[data-test="dnd-paused-label"]')
+                .getBoundingClientRect();
+            const pill = document.querySelector('[data-test="dnd-resume-menu-item"]')
+                .getBoundingClientRect();
+
+            // The card centres its row, and the label column is its tallest
+            // item, so sharing a centre line is sharing a row — a wrapped pill
+            // would sit a whole line below.
+            return Math.abs(
+                (pill.top + pill.height / 2) - (label.top + label.height / 2),
+            ) <= 1;
         })()
         JS, true);
 });
