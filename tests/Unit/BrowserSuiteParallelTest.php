@@ -24,7 +24,11 @@ function runBrowserRunnerLib(string $snippet): Process
 {
     $script = dirname(__DIR__, 2).'/bin/browser-tests';
 
-    $process = new Process(['bash', '-c', 'BROWSER_TESTS_LIB=1 . '.escapeshellarg($script).'; '.$snippet]);
+    $process = new Process(['bash', '-c', sprintf(
+        'BROWSER_TESTS_LIB=1 . %s; unset BROWSER_TEST_PROCESSES; %s',
+        escapeshellarg($script),
+        $snippet,
+    )]);
     $process->run();
 
     return $process;
@@ -99,6 +103,14 @@ test('the cap never falls below two workers', function (): void {
 test('an explicit worker count overrides the detected cores', function (): void {
     expect(browserRunnerCommand(environment: ['BROWSER_TEST_PROCESSES' => '3']))->toContain('--processes=3');
 });
+
+test('a nonsensical worker count override fails loudly instead of reaching pest', function (string $override): void {
+    $process = runBrowserRunnerLib('BROWSER_TEST_PROCESSES='.escapeshellarg($override).' pest_command');
+
+    expect($process->getExitCode())->not->toBe(0)
+        ->and($process->getErrorOutput())->toContain('BROWSER_TEST_PROCESSES')
+        ->and($process->getOutput())->not->toContain('--processes');
+})->with(['0', '-1', 'as many as it takes']);
 
 test('the runner forwards extra arguments to pest', function (): void {
     expect(browserRunnerCommand('--ci'))->toContain('--ci')

@@ -56,11 +56,22 @@ worker_count() {
 }
 
 resolve_processes() {
-    if [ -n "${BROWSER_TEST_PROCESSES:-}" ]; then
-        printf '%s\n' "$BROWSER_TEST_PROCESSES"
-    else
+    local override=${BROWSER_TEST_PROCESSES:-}
+
+    if [ -z "$override" ]; then
         worker_count "$(detect_cores)"
+        return
     fi
+
+    # A bad override would otherwise reach paratest as `--processes=nonsense`
+    # and die several seconds into a run with an error naming pest, not the
+    # variable that caused it.
+    if ! [ "$override" -ge 1 ] 2>/dev/null; then
+        printf 'BROWSER_TEST_PROCESSES must be a positive integer, got "%s"\n' "$override" >&2
+        exit 1
+    fi
+
+    printf '%s\n' "$override"
 }
 
 # Fills the PEST_COMMAND array with the invocation to exec, so main and the

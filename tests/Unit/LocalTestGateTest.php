@@ -29,7 +29,9 @@ test('the local gate still enforces the coverage floor', function (): void {
 });
 
 test('the coverage gate never drags the browser suite in with it', function (): void {
-    expect(composerScript('test'))->not->toContain('tests/Browser');
+    expect(composerScript('test'))->not->toContain('tests/Browser')
+        ->and(composerScript('test'))->not->toContain('test:browser')
+        ->and(composerScript('test'))->not->toContain('bin/browser-tests');
 });
 
 test('the documented local gate spells out the parallel run', function (): void {
