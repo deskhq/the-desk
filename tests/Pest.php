@@ -24,6 +24,25 @@ require_once __DIR__.'/Browser/Support/Execution.php';
 
 /*
 |--------------------------------------------------------------------------
+| Browser Plugin Shadow (#944)
+|--------------------------------------------------------------------------
+|
+| The same plugin serves the app in-process from an Amp server built with
+| `createForDirectAccess()`'s defaults, which close an HTTP/1 connection after
+| 15s idle. Browser tests routinely leave one idle for longer while the PHP
+| side works, and Chrome reuses it regardless, so the next document races the
+| server's overdue close and silently loses an asset — a dropped stylesheet
+| renders the page unstyled and every geometry assertion then reports a bogus
+| layout regression (issue #944). This patched copy raises those timeouts past
+| any plausible test duration. Same story as the shadow above: it must be
+| declared before the autoloader can load the vendor class.
+|
+*/
+
+require_once __DIR__.'/Browser/Support/LaravelHttpServer.php';
+
+/*
+|--------------------------------------------------------------------------
 | Test Case
 |--------------------------------------------------------------------------
 |
