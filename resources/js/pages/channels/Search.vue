@@ -16,12 +16,8 @@ import {
 import { index as search } from '@/actions/App/Http/Controllers/Channels/SearchController';
 import SafeHtml from '@/components/SafeHtml.vue';
 import { Button } from '@/components/ui/button';
+import { Combobox, ComboboxItem } from '@/components/ui/combobox';
 import { DatePicker } from '@/components/ui/date-picker';
-import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import {
     Popover,
@@ -289,27 +285,6 @@ function searchAllChannels(): void {
     reload();
 }
 
-/** Facet-picker filter inputs. */
-const channelFilter = ref('');
-const authorFilter = ref('');
-
-const filteredChannels = computed(() => {
-    const needle = channelFilter.value.trim().toLowerCase();
-
-    return channelOptions.value.filter(
-        (channel) =>
-            needle === '' || channel.name.toLowerCase().includes(needle),
-    );
-});
-
-const filteredMembers = computed(() => {
-    const needle = authorFilter.value.trim().toLowerCase();
-
-    return members.value.filter(
-        (member) => needle === '' || member.name.toLowerCase().includes(needle),
-    );
-});
-
 // Date presets set the same before/after bounds a custom range would; the chip
 // then renders from the bounds, so presets need no remembered identity.
 function isoDay(date: Date): string {
@@ -521,8 +496,15 @@ function jumpHref(result: MessageSearchResult): string {
                         <X class="size-3" aria-hidden="true" />
                     </Button>
                 </span>
-                <DropdownMenu v-else>
-                    <DropdownMenuTrigger as-child>
+                <Combobox
+                    v-else
+                    :field-label="$t('Filter people')"
+                    :list-label="$t('People')"
+                    :placeholder="$t('Filter people…')"
+                    :empty-text="$t('No people match')"
+                    data-test="facet-author-filter"
+                >
+                    <template #trigger>
                         <Button
                             variant="unstyled"
                             size="none"
@@ -533,37 +515,22 @@ function jumpHref(result: MessageSearchResult): string {
                             {{ $t('Author') }}
                             <ChevronDown class="size-3" aria-hidden="true" />
                         </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="start" class="w-56 p-1.5">
-                        <Input
-                            v-model="authorFilter"
-                            :placeholder="$t('Filter people…')"
-                            :aria-label="$t('Filter people')"
-                            data-test="facet-author-filter"
-                            class="mb-1 h-8 text-base max-md:h-11 md:text-xs"
-                            @keydown.stop
-                        />
-                        <div class="max-h-56 overflow-y-auto">
-                            <Button
-                                variant="unstyled"
-                                size="none"
-                                v-for="member in filteredMembers"
-                                :key="member.id"
-                                type="button"
-                                class="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-[13px] hover:bg-accent max-md:min-h-11"
-                                data-test="facet-author-option"
-                                @click="setAuthor(member.id)"
-                            >
-                                <span
-                                    class="flex size-5 shrink-0 items-center justify-center rounded-full bg-primary/10 text-[8px] font-semibold text-primary"
-                                    aria-hidden="true"
-                                    >{{ getInitials(member.name) }}</span
-                                >
-                                <span class="truncate">{{ member.name }}</span>
-                            </Button>
-                        </div>
-                    </DropdownMenuContent>
-                </DropdownMenu>
+                    </template>
+                    <ComboboxItem
+                        v-for="member in members"
+                        :key="member.id"
+                        :value="member.id"
+                        data-test="facet-author-option"
+                        @select="setAuthor(member.id)"
+                    >
+                        <span
+                            class="flex size-5 shrink-0 items-center justify-center rounded-full bg-primary/10 text-[8px] font-semibold text-primary"
+                            aria-hidden="true"
+                            >{{ getInitials(member.name) }}</span
+                        >
+                        <span class="truncate">{{ member.name }}</span>
+                    </ComboboxItem>
+                </Combobox>
 
                 <!-- channel facet -->
                 <span
@@ -584,8 +551,15 @@ function jumpHref(result: MessageSearchResult): string {
                         <X class="size-3" aria-hidden="true" />
                     </Button>
                 </span>
-                <DropdownMenu v-else>
-                    <DropdownMenuTrigger as-child>
+                <Combobox
+                    v-else
+                    :field-label="$t('Filter channels')"
+                    :list-label="$t('Channels')"
+                    :placeholder="$t('Filter channels…')"
+                    :empty-text="$t('No channels match')"
+                    data-test="facet-channel-filter"
+                >
+                    <template #trigger>
                         <Button
                             variant="unstyled"
                             size="none"
@@ -600,47 +574,30 @@ function jumpHref(result: MessageSearchResult): string {
                             >{{ $t('Channel') }}
                             <ChevronDown class="size-3" aria-hidden="true" />
                         </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="start" class="w-56 p-1.5">
-                        <Input
-                            v-model="channelFilter"
-                            :placeholder="$t('Filter channels…')"
-                            :aria-label="$t('Filter channels')"
-                            class="mb-1 h-8 text-base max-md:h-11 md:text-xs"
-                            @keydown.stop
+                    </template>
+                    <ComboboxItem
+                        v-for="channel in channelOptions"
+                        :key="channel.id"
+                        :value="channel.id"
+                        data-test="facet-channel-option"
+                        @select="setChannel(channel.id)"
+                    >
+                        <Lock
+                            v-if="channel.isPrivate"
+                            class="size-3 shrink-0 text-muted-foreground"
+                            aria-hidden="true"
                         />
-                        <div class="max-h-56 overflow-y-auto">
-                            <Button
-                                v-for="channel in filteredChannels"
-                                :key="channel.id"
-                                variant="unstyled"
-                                size="none"
-                                type="button"
-                                class="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-[13px] hover:bg-accent max-md:min-h-11"
-                                data-test="facet-channel-option"
-                                @click="setChannel(channel.id)"
-                            >
-                                <Lock
-                                    v-if="channel.isPrivate"
-                                    class="size-3 shrink-0 text-muted-foreground"
-                                    aria-hidden="true"
-                                />
-                                <span
-                                    v-else
-                                    aria-hidden="true"
-                                    class="text-brass"
-                                    >#</span
-                                >
-                                <span class="truncate">{{ channel.name }}</span>
-                                <span
-                                    v-if="channel.teamName !== null"
-                                    class="ml-auto shrink-0 text-[10px] text-muted-foreground"
-                                    >{{ channel.teamName }}</span
-                                >
-                            </Button>
-                        </div>
-                    </DropdownMenuContent>
-                </DropdownMenu>
+                        <span v-else aria-hidden="true" class="text-brass"
+                            >#</span
+                        >
+                        <span class="truncate">{{ channel.name }}</span>
+                        <span
+                            v-if="channel.teamName !== null"
+                            class="ml-auto shrink-0 text-[10px] text-muted-foreground"
+                            >{{ channel.teamName }}</span
+                        >
+                    </ComboboxItem>
+                </Combobox>
 
                 <!-- date facet -->
                 <span

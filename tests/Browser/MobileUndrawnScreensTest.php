@@ -132,9 +132,13 @@ test('the browse-channels heading survives a phone width untruncated', function 
         'slug' => 'design-reviews',
     ]);
 
-    signInThroughBrowser($alice)
+    $page = signInThroughBrowser($alice)
         ->resize(360, 740)
-        ->navigate("/t/{$team->slug}/channels/browse")
+        ->navigate("/t/{$team->slug}/channels/browse");
+
+    // Both assertions below measure rendered boxes, so they need the stylesheet
+    // the in-process server sometimes drops on this second document (#944).
+    ensureStylesheetsLoaded($page)
         ->assertScript(rendersFullTextInsideViewport('h1'), true)
         ->assertScript(offersPhoneTouchTargets('button[type="submit"]'), true);
 });

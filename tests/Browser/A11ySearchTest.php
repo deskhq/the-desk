@@ -186,6 +186,97 @@ test('the author facet applies and removes, and a date preset applies', function
         ->assertPresent('[data-test="facet-date"]');
 });
 
+test('the facet pickers are comboboxes that keep the open popup accessible in both themes', function (): void {
+    ['owner' => $alice] = searchPageWithMatches();
+
+    $page = signInThroughBrowser($alice)
+        ->click('@masthead-search')
+        ->assertPathContains('/search')
+        ->type('@search-input', 'quokka')
+        ->wait(0.8)
+        ->assertPresent('[data-test="search-result"]')
+        // The pill opens a real combobox: a filter field beside a listbox of
+        // options, never a text input buried inside a menu (#451).
+        ->click('@facet-author-picker')
+        ->wait(0.3)
+        ->assertPresent('[data-test="facet-author-filter"][role="combobox"]')
+        ->assertPresent(
+            '[role="listbox"] [data-test="facet-author-option"][role="option"]',
+        )
+        ->assertNoAccessibilityIssues();
+
+    // The field names the list it controls, and the arrow keys rove the
+    // highlight through that list without focus ever leaving the field.
+    $wiring = $page->keys('@facet-author-filter', ['ArrowDown'])->script(<<<'JS'
+    () => {
+        const input = document.querySelector('[data-test="facet-author-filter"]');
+        const listbox = document.querySelector('[role="listbox"]');
+        const active = document.getElementById(
+            input.getAttribute('aria-activedescendant') ?? '',
+        );
+
+        return {
+            controlsTheList: input.getAttribute('aria-controls') === listbox.id,
+            expanded: input.getAttribute('aria-expanded'),
+            keepsFocus: document.activeElement === input,
+            activeRole: active?.getAttribute('role') ?? null,
+            activeIsHighlighted: active?.hasAttribute('data-highlighted') ?? false,
+        };
+    }
+    JS);
+
+    expect($wiring)->toBe([
+        'controlsTheList' => true,
+        'expanded' => 'true',
+        'keepsFocus' => true,
+        'activeRole' => 'option',
+        'activeIsHighlighted' => true,
+    ]);
+
+    // A filter that matches nothing empties the listbox and says so — audited
+    // too, since an empty list is the state a picker is easiest to break in.
+    $page->type('@facet-author-filter', 'zzzznobodyzzzz')
+        ->wait(0.3)
+        ->assertMissing('[data-test="facet-author-option"]')
+        ->assertSee('No people match')
+        ->assertNoAccessibilityIssues();
+
+    // Type to filter, then Enter applies the highlighted option as a chip.
+    $page->type('@facet-author-filter', 'Bob')
+        ->wait(0.3)
+        ->keys('@facet-author-filter', ['Enter'])
+        ->wait(0.8)
+        ->assertPresent('[data-test="facet-author"]')
+        ->assertMissing('[data-test="facet-author-filter"]');
+
+    // Escape dismisses a picker without applying anything.
+    $page->click('@facet-channel-picker')
+        ->wait(0.3)
+        ->assertPresent('[data-test="facet-channel-filter"][role="combobox"]')
+        ->keys('@facet-channel-filter', ['Escape'])
+        ->wait(0.5)
+        ->assertMissing('[data-test="facet-channel-filter"]')
+        ->assertMissing('[data-test="facet-channel"]');
+
+    // Re-audit the open picker against the dark palette (localStorage before
+    // the class, so the appearance controller doesn't re-resolve to light
+    // mid-audit) — the popup carries its own surface and border tokens.
+    $page->script(<<<'JS'
+    () => {
+        localStorage.setItem('appearance', 'dark');
+        document.documentElement.classList.add('dark');
+        document.documentElement.style.colorScheme = 'dark';
+    }
+    JS);
+
+    $page->wait(0.5)
+        ->assertPresent('html.dark')
+        ->click('@facet-channel-picker')
+        ->wait(0.3)
+        ->assertPresent('[data-test="facet-channel-option"]')
+        ->assertNoAccessibilityIssues();
+});
+
 test('the zero-result state names the active filters and offers both escapes', function (): void {
     ['owner' => $alice] = searchPageWithMatches();
 

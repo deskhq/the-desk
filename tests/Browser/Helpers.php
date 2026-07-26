@@ -143,3 +143,43 @@ function signInThroughBrowser(User $user, string $password = 'password'): Awaita
         // to /login. assertPathIsNot retries within the browser timeout.
         ->assertPathIsNot('/login');
 }
+
+/**
+ * Re-request any stylesheet the page ended up without, and hand the page back.
+ *
+ * The plugin serves the app in-process and streams static assets straight off
+ * disk while the same event loop drives the browser protocol; on a second full
+ * `navigate()` it sometimes never delivers the largest of them. The browser
+ * records that request with status 0 and no bytes and — unlike a script — never
+ * retries a stylesheet, so the page renders completely unstyled. Fetching the
+ * same URL a moment later always succeeds, and which asset loses is decided by
+ * the shape of the built bundle, so any chunking change can move it (#944).
+ *
+ * Call this after a `navigate()` whose assertions read rendered geometry: an
+ * unstyled page reports every box at its content height, which reads as a real
+ * layout regression.
+ */
+function ensureStylesheetsLoaded(AwaitableWebpage $page): AwaitableWebpage
+{
+    $page->script(<<<'JS'
+    async () => {
+        const dropped = [...document.querySelectorAll('link[rel="stylesheet"]')]
+            .filter((link) => link.sheet === null);
+
+        await Promise.all(dropped.map((link) => new Promise((resolve) => {
+            const retry = document.createElement('link');
+
+            retry.rel = 'stylesheet';
+            retry.href = link.href;
+            retry.onload = resolve;
+            retry.onerror = resolve;
+
+            document.head.appendChild(retry);
+        })));
+
+        return dropped.length;
+    }
+    JS);
+
+    return $page;
+}
