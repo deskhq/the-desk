@@ -220,3 +220,17 @@ test('hot mode allow-lists the vite dev server so npm run dev keeps working', fu
         ->toContain('http://localhost:5173')
         ->toContain('ws://localhost:5173');
 });
+
+test('hot mode allow-lists the vite dev server as a font source so dev renders the real typography', function (): void {
+    $hotFile = tempnam(sys_get_temp_dir(), 'vite-hot-');
+    file_put_contents($hotFile, "http://localhost:5173\n");
+    Vite::useHotFile($hotFile);
+
+    try {
+        $contents = Policy::create([TheDeskPolicy::class])->getContents();
+    } finally {
+        unlink($hotFile);
+    }
+
+    expect($contents)->toContain("font-src 'self' http://localhost:5173");
+});

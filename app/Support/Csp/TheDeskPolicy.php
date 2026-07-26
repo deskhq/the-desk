@@ -123,10 +123,15 @@ final class TheDeskPolicy implements Preset
     }
 
     /**
-     * With `npm run dev` the assets, the injected styles and the HMR socket all
-     * come from the Vite dev server on a different origin. The policy stays on in
-     * development rather than being switched off: if it is absent locally, the
-     * first person to meet it is a self-hoster in production.
+     * With `npm run dev` the assets, the injected styles, the web fonts and the
+     * HMR socket all come from the Vite dev server on a different origin. The
+     * policy stays on in development rather than being switched off: if it is
+     * absent locally, the first person to meet it is a self-hoster in production.
+     *
+     * font-src is part of that list because @font-face resolves its src against
+     * the stylesheet's origin: in hot mode that is the dev server, so leaving it
+     * out silently falls the whole app back to system fonts and buries the real
+     * console errors under CSP violations.
      */
     private function allowViteDevServer(Policy $policy): void
     {
@@ -140,6 +145,7 @@ final class TheDeskPolicy implements Preset
         $policy
             ->add(Directive::SCRIPT, $origin)
             ->add(Directive::STYLE, $origin)
+            ->add(Directive::FONT, $origin)
             ->add(Directive::CONNECT, [$origin, $socket]);
     }
 
