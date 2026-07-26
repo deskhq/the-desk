@@ -343,12 +343,15 @@ test('a detail sheet stands at 85% of the screen whatever it holds', function ()
     ['owner' => $alice, 'team' => $team, 'channel' => $channel] = browserTeamWithChannel();
 
     // Reminders is a list that shortens as it is worked through; pinning it to
-    // the epic's 85% keeps it from resizing under the thumb between taps.
+    // the epic's 85% keeps it from resizing under the thumb between taps. Its
+    // dock row left for the tab bar's Reminders destination (#937), so the
+    // quick switcher is now the entry point that opens this dialog.
     signInThroughBrowser($alice)
         ->resize(390, 844)
         ->navigate(browserChannelUrl($team, $channel))
         ->click('@sidebar-toggle')
-        ->click('@reminders-trigger')
+        ->click('@quick-switcher-trigger')
+        ->click('@quick-switcher-reminders')
         ->assertScript(openSurfaceIsASheet(), true)
         ->assertScript(<<<'JS'
         (() => {

@@ -59,7 +59,7 @@ function formatTimestamp(iso: string): string {
 </script>
 
 <template>
-    <Head :title="$t('Threads')" />
+    <Head :title="$t('Threads inbox')" />
 
     <header
         class="flex h-12 shrink-0 items-center gap-2.5 border-b border-border px-5"
@@ -68,7 +68,7 @@ function formatTimestamp(iso: string): string {
             class="-ml-1.5 size-8 text-muted-foreground md:hidden"
         />
         <h1 class="text-[15px] font-semibold text-foreground">
-            {{ $t('Threads') }}
+            {{ $t('Threads inbox') }}
         </h1>
         <Link
             :href="index(props.team.slug).url"

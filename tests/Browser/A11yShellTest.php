@@ -178,3 +178,73 @@ test('a direct message row exposes the participant presence to assistive tech', 
     signInThroughBrowser($alice)
         ->assertSeeIn('[data-test="dm-presence-label"]', 'Offline');
 });
+
+test('the destination rail is a named landmark of keyboard-operable buttons', function (): void {
+    ['owner' => $alice] = browserTeamWithChannel();
+
+    signInThroughBrowser($alice)
+        ->resize(1280, 900)
+        // The rail is its own landmark, distinct from the conversation list it
+        // drives, and each glyph is a real button an accessible name reaches.
+        ->assertAttribute('nav[data-test="navigation-rail"]', 'aria-label', 'Destinations')
+        ->assertPresent('button[data-test="rail-destination-threads"]')
+        ->assertAttribute('[data-test="rail-destination-channels"]', 'aria-current', 'true')
+        ->assertScript(<<<'JS'
+        (() => ['channels', 'threads', 'reminders', 'search', 'you'].every((destination) => {
+            const glyph = document.querySelector(`[data-test="rail-destination-${destination}"]`);
+
+            return glyph !== null && glyph.textContent.trim().length > 0;
+        }))()
+        JS, true)
+        // Activating one from the keyboard swaps the panel, and the press moves
+        // with it — only the open destination is marked current.
+        ->keys('@rail-destination-reminders', 'Enter')
+        ->assertPresent('@destination-panel-reminders')
+        ->assertAttribute('[data-test="rail-destination-reminders"]', 'aria-current', 'true')
+        ->assertScript(
+            '(() => document.querySelector(\'[data-test="rail-destination-channels"]\').getAttribute("aria-current"))()',
+            null,
+        );
+});
+
+test('an open destination panel has no serious accessibility violations, light or dark', function (): void {
+    ['owner' => $alice] = browserTeamWithChannel();
+
+    $page = signInThroughBrowser($alice)
+        ->resize(1280, 900)
+        ->click('@rail-destination-search')
+        ->assertPresent('@destination-panel-search')
+        ->wait(0.5)
+        ->assertNoAccessibilityIssues();
+
+    $page->script(<<<'JS'
+    () => {
+        localStorage.setItem('appearance', 'dark');
+        document.documentElement.classList.add('dark');
+        document.documentElement.style.colorScheme = 'dark';
+    }
+    JS);
+
+    $page->wait(0.5)
+        ->assertNoAccessibilityIssues();
+});
+
+test('the mobile tab bar has no serious accessibility violations', function (): void {
+    ['owner' => $alice] = browserTeamWithChannel();
+
+    // Light theme only, deliberately: this is the first audit of the drawer, and
+    // it turned up four *pre-existing* dark-theme contrast misses on rows that
+    // predate the tab bar (the jump-to field and the section toggles, all
+    // `--muted-foreground` under 4.5:1). Fixing those means moving the dark
+    // palette's token — see #946, which owns that sweep and re-enables the dark
+    // half here. The tab bar's own labels dodge the token entirely, so they
+    // clear AA on both themes today.
+    signInThroughBrowser($alice)
+        ->resize(390, 844)
+        ->click('@sidebar-toggle')
+        ->assertPresent('@navigation-tab-bar')
+        ->assertAttribute('nav[data-test="navigation-tab-bar"]', 'aria-label', 'Destinations')
+        ->assertAttribute('[data-test="tab-destination-channels"]', 'aria-current', 'true')
+        ->wait(0.5)
+        ->assertNoAccessibilityIssues();
+});
