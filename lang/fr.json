@@ -1005,6 +1005,8 @@
   "Filter people…": "Filtrer les personnes…",
   "Filter channels": "Filtrer les salons",
   "Filter channels…": "Filtrer les salons…",
+  "No people match": "Aucune personne ne correspond",
+  "No channels match": "Aucun canal ne correspond",
   "Remove author filter": "Retirer le filtre d’auteur",
   "Remove channel filter": "Retirer le filtre de salon",
   "Remove date filter": "Retirer le filtre de date",
