@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Support\NameSlug;
 use Database\Factories\UserGroupFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Collection;
@@ -28,6 +29,30 @@ class UserGroup extends Model
 {
     /** @use HasFactory<UserGroupFactory> */
     use HasFactory, HasUuids;
+
+    /**
+     * Slug base used when a group name carries no sluggable characters.
+     */
+    public const string FALLBACK_SLUG = 'group';
+
+    /**
+     * Keep a usable handle on the row however the group is written.
+     *
+     * The handle is what people type after `@`, so a blank one makes the group
+     * unmentionable (issue #924). The form requests derive it from the name
+     * when it is left blank; this is the backstop for every other writer.
+     */
+    #[\Override]
+    protected static function boot(): void
+    {
+        parent::boot();
+
+        static::saving(function (UserGroup $group): void {
+            if (blank($group->slug)) {
+                $group->slug = NameSlug::distinct($group->name, self::FALLBACK_SLUG);
+            }
+        });
+    }
 
     /**
      * Get the team this group belongs to. A group is workspace-scoped and can be

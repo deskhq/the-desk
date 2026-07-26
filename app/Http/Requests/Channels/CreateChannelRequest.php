@@ -5,11 +5,11 @@ namespace App\Http\Requests\Channels;
 use App\Enums\ChannelVisibility;
 use App\Models\Channel;
 use App\Models\Team;
+use App\Support\NameSlug;
 use Closure;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Gate;
-use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
 
@@ -61,7 +61,7 @@ class CreateChannelRequest extends FormRequest
                     return;
                 }
 
-                $slug = Str::slug((string) $this->input('name'));
+                $slug = NameSlug::distinct((string) $this->input('name'), Channel::FALLBACK_SLUG);
 
                 $exists = Channel::query()
                     ->where('team_id', $this->team()->id)
