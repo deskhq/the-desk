@@ -33,7 +33,7 @@ test('channel visibility exposes a human label', function (): void {
 test('a channel cannot be saved with a blank slug', function (?string $slug): void {
     $channel = Channel::factory()->create(['name' => '日本語', 'slug' => $slug]);
 
-    expect($channel->fresh()->slug)->not->toBe('');
+    expect(trim($channel->fresh()->slug))->not->toBe('');
 })->with([
     'empty' => [''],
     'whitespace' => ['   '],
