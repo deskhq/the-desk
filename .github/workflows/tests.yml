@@ -264,5 +264,9 @@ jobs:
           echo "Reverb failed to start" >&2
           exit 1
 
+      # bin/browser-tests runs the suite under paratest with the worker count
+      # capped at half the cores (never below two) — `--parallel` left to its
+      # own default is measurably slower *and* flakier than that cap (#948).
+      # `ubuntu-latest` is a 4 vCPU runner, so this lands at 2 workers here.
       - name: Run Browser Tests
-        run: ./vendor/bin/pest tests/Browser --ci
+        run: ./bin/browser-tests --ci
