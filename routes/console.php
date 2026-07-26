@@ -11,6 +11,8 @@ use App\Actions\Users\BroadcastDndScheduleEdges;
 use App\Actions\Users\ClearExpiredUserStatuses;
 use App\Actions\Users\ClearLapsedDndPauses;
 use App\Actions\Users\ClearLapsedDndScheduleSnoozes;
+use App\Actions\Users\PruneSecurityEvents;
+use App\Actions\Users\PurgeExpiredDataExports;
 use App\Models\TeamInvitation;
 use Illuminate\Support\Facades\Schedule;
 
@@ -68,6 +70,18 @@ Schedule::call(fn (PurgeExpiredAuditExports $purge): int => $purge->handle())
     ->daily()
     ->withoutOverlapping()
     ->description('Purge expired audit-log exports (files and rows)');
+
+Schedule::call(fn (PurgeExpiredDataExports $purge): int => $purge->handle())
+    ->name('purge-expired-data-exports')
+    ->daily()
+    ->withoutOverlapping()
+    ->description('Purge expired data-export archives (files and rows)');
+
+Schedule::call(fn (PruneSecurityEvents $prune): int => $prune->handle())
+    ->name('prune-security-events')
+    ->daily()
+    ->withoutOverlapping()
+    ->description('Prune security events past the retention window');
 
 Schedule::call(fn (PurgeCachedProxyImages $purge): int => $purge->handle())
     ->name('purge-cached-proxy-images')
