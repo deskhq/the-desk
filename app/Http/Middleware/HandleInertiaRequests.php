@@ -26,6 +26,7 @@ use App\Support\FrequentEmoji;
 use App\Support\ReverbConfig;
 use App\Support\TranslationCatalog;
 use App\Support\UpdateChecker;
+use App\Support\UserAgentParser;
 use App\Support\WebPushConfig;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
@@ -126,6 +127,13 @@ class HandleInertiaRequests extends Middleware
                 'oidcEnabled' => (bool) config('sso.oidc.enabled'),
                 'passwordLoginEnabled' => ! config('sso.enforced'),
             ],
+            // A readable name for the device this request came from, so a surface
+            // that has to name it (the post-registration passkey prompt prefills
+            // its name field with it) does not re-derive the parse client-side.
+            // Joined into one line by the frontend through the `:browser on
+            // :platform` key the session list already uses, so it follows a live
+            // locale switch rather than freezing at render time.
+            'currentDevice' => UserAgentParser::parse($request->userAgent()),
             // The one-time account-security prompt owed to an account created in
             // this session, or null. Read from the session rather than the user so
             // it dies with the session — a returning user is no longer "just

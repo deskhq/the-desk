@@ -58,6 +58,20 @@ test('the shared prop offers the prompt while passkeys are available', function 
             ->where('postRegistrationPrompt', PostRegistrationPrompt::Passkey->value));
 });
 
+test('the shared props name the device the request came from', function (): void {
+    config(['fortify.passkeys_enabled' => true]);
+
+    $user = registerAccount();
+
+    // The prompt prefills its name field with this, so the passkey the user keeps
+    // is named after the device they enrolled it on.
+    $this->withHeader('User-Agent', 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) Chrome/140.0.0.0')
+        ->get(workspaceUrl($user))
+        ->assertInertia(fn (Assert $page): Assert => $page
+            ->where('currentDevice.browser', 'Chrome')
+            ->where('currentDevice.platform', 'macOS'));
+});
+
 test('the shared prop withholds the prompt when passkeys are switched off', function (): void {
     config(['fortify.passkeys_enabled' => true]);
 

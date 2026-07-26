@@ -18,6 +18,14 @@ describe('shouldAutoStartTour', () => {
             }),
         ).toBe(false);
     });
+
+    it('holds the tour back while a post-registration prompt is pending', () => {
+        // A fresh registration satisfies both, and three coachmarks followed by a
+        // modal is the worse order — the prompt starts the tour on its way out.
+        expect(
+            shouldAutoStartTour({ onboarding_completed_at: null }, true),
+        ).toBe(false);
+    });
 });
 
 describe('tourSteps', () => {
