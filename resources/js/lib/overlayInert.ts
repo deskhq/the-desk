@@ -45,6 +45,28 @@ function syncOverlayInert(): void {
 }
 
 /**
+ * Move focus to `element` once the mirror above has been lifted.
+ *
+ * `syncOverlayInert` runs from a `MutationObserver` callback, which the platform
+ * delivers as a microtask — so anything that focuses as an overlay closes is
+ * still aiming into an inert subtree, and the platform answers a focus call
+ * there by focusing nothing at all. That is how closing a dialog stranded focus
+ * on `<body>` (#784). A task runs after that microtask, so by then the page is
+ * focusable again.
+ */
+export function focusAfterOverlayInert(element: HTMLElement | null): void {
+    if (element === null) {
+        return;
+    }
+
+    setTimeout(() => {
+        if (element.isConnected) {
+            element.focus();
+        }
+    });
+}
+
+/**
  * Start mirroring `inert` onto the region reka hides behind an open overlay.
  * Runs for the lifetime of the app; the returned disposer exists for tests.
  */
