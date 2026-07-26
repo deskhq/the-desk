@@ -156,6 +156,9 @@ test('the subscription payload is validated', function (array $payload, string $
     'a missing endpoint' => [fn (): array => pushSubscriptionPayload(['endpoint' => null]), 'endpoint'],
     'a non-url endpoint' => [fn (): array => pushSubscriptionPayload(['endpoint' => 'not-a-url']), 'endpoint'],
     'an over-long endpoint' => [fn (): array => pushSubscriptionPayload(['endpoint' => 'https://push.example.test/'.str_repeat('x', 500)]), 'endpoint'],
+    // The server posts to this endpoint itself, so a plaintext one is both a
+    // push payload sent in the clear and a destination an operator never chose.
+    'a plaintext endpoint' => [fn (): array => pushSubscriptionPayload(['endpoint' => 'http://push.example.test/device']), 'endpoint'],
     'a missing public key' => [fn (): array => pushSubscriptionPayload(['keys' => ['auth' => 'auth-only']]), 'keys.p256dh'],
     'a missing auth token' => [fn (): array => pushSubscriptionPayload(['keys' => ['p256dh' => 'key-only']]), 'keys.auth'],
     'an unknown content encoding' => [fn (): array => pushSubscriptionPayload(['contentEncoding' => 'rot13']), 'contentEncoding'],

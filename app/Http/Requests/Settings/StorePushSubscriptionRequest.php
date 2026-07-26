@@ -18,12 +18,17 @@ class StorePushSubscriptionRequest extends FormRequest
      * services issue long URLs, and a longer one would fail at insert rather
      * than at validation.
      *
+     * HTTPS only. This value decides where the server itself posts every push,
+     * so a plaintext endpoint would put the delivery on the wire in the clear
+     * and let a signed-in user aim the instance's own requests wherever they
+     * like. Real push services are HTTPS without exception.
+     *
      * @return array<string, ValidationRule|array<mixed>|string>
      */
     public function rules(): array
     {
         return [
-            'endpoint' => ['required', 'string', 'url:https,http', 'max:500'],
+            'endpoint' => ['required', 'string', 'url:https', 'max:500'],
             'keys.p256dh' => ['required', 'string', 'max:255'],
             'keys.auth' => ['required', 'string', 'max:255'],
             // Firefox's older endpoints negotiate `aesgcm`; everything current

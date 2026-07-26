@@ -144,6 +144,40 @@ describe('enablePush', () => {
         expect(fetchMock).toHaveBeenCalledOnce();
     });
 
+    it('unsubscribes a subscription it just created when the server refuses it', async () => {
+        const unsubscribe = vi.fn(() => Promise.resolve(true));
+        const { fetchMock } = stubBrowser({
+            subscribe: vi.fn(() =>
+                Promise.resolve({
+                    ...SUBSCRIPTION_JSON,
+                    toJSON: () => SUBSCRIPTION_JSON,
+                    unsubscribe,
+                }),
+            ),
+        });
+        fetchMock.mockResolvedValue({ ok: false });
+
+        await expect(enablePush('aGVsbG8')).rejects.toThrow();
+
+        expect(unsubscribe).toHaveBeenCalledOnce();
+    });
+
+    it('keeps a subscription the browser already held when the server refuses it', async () => {
+        const unsubscribe = vi.fn(() => Promise.resolve(true));
+        const { fetchMock } = stubBrowser({
+            existing: {
+                ...SUBSCRIPTION_JSON,
+                toJSON: () => SUBSCRIPTION_JSON,
+                unsubscribe,
+            },
+        });
+        fetchMock.mockResolvedValue({ ok: false });
+
+        await expect(enablePush('aGVsbG8')).rejects.toThrow();
+
+        expect(unsubscribe).not.toHaveBeenCalled();
+    });
+
     it('gives up quietly when the user declines the permission prompt', async () => {
         const { subscribe, fetchMock } = stubBrowser({ permission: 'denied' });
 
