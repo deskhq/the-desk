@@ -92,6 +92,29 @@ test('a bare team URL redirects to the #general channel', function (): void {
         ->assertRedirect(route('channels.show', ['team' => $team->slug, 'channel' => 'general']));
 });
 
+test('a bare team URL carries its query string onto #general so a ?nav= deep link survives', function (): void {
+    $user = User::factory()->create();
+    $team = app(CreateTeam::class)->handle($user, 'Acme');
+
+    $this->actingAs($user)
+        ->get(route('channels.index', ['team' => $team->slug]).'?nav=search&q=budget')
+        ->assertRedirect(route('channels.show', [
+            'team' => $team->slug,
+            'channel' => 'general',
+            'nav' => 'search',
+            'q' => 'budget',
+        ]));
+});
+
+test('a bare team URL cannot be sent to another channel through its query string', function (): void {
+    $user = User::factory()->create();
+    $team = app(CreateTeam::class)->handle($user, 'Acme');
+
+    $this->actingAs($user)
+        ->get(route('channels.index', ['team' => $team->slug]).'?channel=elsewhere')
+        ->assertRedirect(route('channels.show', ['team' => $team->slug, 'channel' => 'general']));
+});
+
 test('a member viewing a public channel is marked isMember with the channel member count', function (): void {
     $user = User::factory()->create();
     $team = app(CreateTeam::class)->handle($user, 'Acme');
