@@ -6,6 +6,8 @@ use Illuminate\Foundation\Testing\TestCase as BaseTestCase;
 use Illuminate\Support\Env;
 use Laravel\Fortify\Features;
 use Laravel\Fortify\Fortify;
+use Tests\Support\FileSchemaBootstrapLock;
+use Tests\Support\SchemaBootstrapGuard;
 
 abstract class TestCase extends BaseTestCase
 {
@@ -17,11 +19,50 @@ abstract class TestCase extends BaseTestCase
      */
     private array $originalEnv = [];
 
+    /**
+     * Set up the test, guarding the one-time per-worker schema bootstrap.
+     *
+     * The first test a Paratest worker runs creates that worker's database and
+     * migrates it, and all twelve workers do so at the same instant. Those
+     * transactions write shared Postgres catalogs (`pg_shdepend`), and because
+     * transaction-id locks are cluster-wide the resulting wait cycle can span
+     * two worker databases — Postgres then kills one of them with a deadlock
+     * and an unrelated test errors out (issue #812). The guard lets that first
+     * attempt stay fully parallel and re-runs a deadlocked worker on its own.
+     */
+    #[\Override]
+    protected function setUp(): void
+    {
+        if (! SchemaBootstrapGuard::shouldGuard()) {
+            parent::setUp();
+
+            return;
+        }
+
+        SchemaBootstrapGuard::run(function (): void {
+            $this->discardPartialSetUp();
+
+            parent::setUp();
+        }, FileSchemaBootstrapLock::forRun());
+    }
+
     protected function skipUnlessFortifyHas(string $feature, ?string $message = null): void
     {
         if (! Features::enabled($feature)) {
             $this->markTestSkipped($message ?? "Fortify feature [{$feature}] is not enabled.");
         }
+    }
+
+    /**
+     * Drop whatever a deadlocked setup attempt left half-built, so the retry
+     * starts from the same state the first attempt did: no application, and no
+     * lifecycle callbacks queued by the traits it already ran.
+     */
+    private function discardPartialSetUp(): void
+    {
+        $this->app = null;
+        $this->afterApplicationCreatedCallbacks = [];
+        $this->beforeApplicationDestroyedCallbacks = [];
     }
 
     /**

@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+use Tests\TestCase;
+
 /**
  * CI has run the Pest suite with `--parallel` since #582 while the local gate
  * stayed single-process, so every pre-push run paid ~3x the wall clock CI did.
@@ -33,4 +35,26 @@ test('the documented local gate spells out the parallel run', function (): void 
     $documented = (string) file_get_contents(dirname(__DIR__, 2).'/CLAUDE.md');
 
     expect($documented)->toContain('artisan test --parallel --coverage --min=100');
+});
+
+/*
+ * The deadlocks of #812 were cured by guarding each worker's schema bootstrap,
+ * deliberately rather than by throttling the run — capping `--processes` would
+ * have bought the same green at the cost of the wall clock #647 won back.
+ */
+test('the local gate does not buy stability by throttling the workers', function (): void {
+    expect(composerScript('test'))->not->toContain('--processes');
+});
+
+test('the base test case still routes setup through the deadlock guard', function (): void {
+    $setUp = new ReflectionMethod(TestCase::class, 'setUp');
+
+    $body = implode('', array_slice(
+        (array) file((string) $setUp->getFileName()),
+        $setUp->getStartLine() - 1,
+        $setUp->getEndLine() - $setUp->getStartLine() + 1,
+    ));
+
+    expect($setUp->getDeclaringClass()->getName())->toBe(TestCase::class)
+        ->and($body)->toContain('SchemaBootstrapGuard::run');
 });
