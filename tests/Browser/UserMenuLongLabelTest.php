@@ -191,8 +191,8 @@ function insideQuietHours(User $user): void
     $user->forceFill([
         'timezone' => 'UTC',
         'dnd_schedule_enabled' => true,
-        'dnd_starts_at' => $now->subMinutes(10)->format('H:i'),
-        'dnd_ends_at' => $now->addMinutes(10)->format('H:i'),
+        'dnd_starts_at' => $now->copy()->subMinutes(10)->format('H:i'),
+        'dnd_ends_at' => $now->copy()->addMinutes(10)->format('H:i'),
     ])->save();
 }
 
@@ -261,10 +261,17 @@ test('the paused card leaves the manual-pause variant on one line', function ():
         ->assertScript(pausedCardStillReads(), true)
         ->assertScript(<<<'JS'
         (() => {
-            const label = document.querySelector('[data-test="dnd-paused-label"]');
-            const pill = document.querySelector('[data-test="dnd-resume-menu-item"]');
+            const label = document.querySelector('[data-test="dnd-paused-label"]')
+                .getBoundingClientRect();
+            const pill = document.querySelector('[data-test="dnd-resume-menu-item"]')
+                .getBoundingClientRect();
 
-            return pill.getBoundingClientRect().top < label.getBoundingClientRect().bottom;
+            // The card centres its row, and the label column is its tallest
+            // item, so sharing a centre line is sharing a row — a wrapped pill
+            // would sit a whole line below.
+            return Math.abs(
+                (pill.top + pill.height / 2) - (label.top + label.height / 2),
+            ) <= 1;
         })()
         JS, true);
 });

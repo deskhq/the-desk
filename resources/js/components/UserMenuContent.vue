@@ -369,7 +369,7 @@ const installRowIsNew = useInstallRowBadge();
             </DropdownMenuItem>
             <DropdownMenuItem
                 :as-child="true"
-                class="min-w-0 rounded-full p-0 focus:bg-transparent"
+                class="shrink-0 rounded-full p-0 focus:bg-transparent"
                 data-test="clear-status-menu-item"
                 @select="clearStatus"
             >
