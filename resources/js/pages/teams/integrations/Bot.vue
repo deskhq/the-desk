@@ -2,7 +2,8 @@
 import { Head, useForm } from '@inertiajs/vue3';
 import { Bot, Lock, Plus, Trash2 } from '@lucide/vue';
 import { ref } from 'vue';
-import InputError from '@/components/InputError.vue';
+import FieldError from '@/components/FieldError.vue';
+import FormField from '@/components/FormField.vue';
 import RevealSecretDialog from '@/components/integrations/RevealSecretDialog.vue';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -16,7 +17,6 @@ import {
     DialogTitle,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import {
     Select,
     SelectContent,
@@ -422,43 +422,50 @@ function confirmDeleteBot(): void {
                         $t('The bot can post in every channel it belongs to.')
                     }}</DialogDescription>
                 </DialogHeader>
-                <div class="flex flex-col gap-2 py-4">
-                    <Label for="add-channel-select">{{ $t('Channel') }}</Label>
-                    <Select v-model="addChannelForm.channel_id">
-                        <SelectTrigger
-                            id="add-channel-select"
-                            data-test="add-channel-select"
-                            class="w-full"
-                        >
-                            <SelectValue
-                                :placeholder="$t('Select a channel')"
-                            />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem
-                                v-for="channel in addableChannels"
-                                :key="channel.id"
-                                :value="channel.id"
-                                :data-test="`add-channel-option-${channel.id}`"
+                <div class="py-4">
+                    <FormField
+                        id="add-channel-select"
+                        :label="$t('Channel')"
+                        :error="addChannelForm.errors.channel_id"
+                        v-slot="{ id }"
+                    >
+                        <Select v-model="addChannelForm.channel_id">
+                            <SelectTrigger
+                                :id="id"
+                                data-test="add-channel-select"
+                                class="w-full"
                             >
-                                <span class="flex items-center gap-2">
-                                    <Lock
-                                        v-if="channel.visibility === 'private'"
-                                        class="size-3.5 text-muted-foreground"
-                                        aria-hidden="true"
-                                    />
-                                    <span
-                                        v-else
-                                        aria-hidden="true"
-                                        class="text-brass"
-                                        >#</span
-                                    >
-                                    {{ channel.name }}
-                                </span>
-                            </SelectItem>
-                        </SelectContent>
-                    </Select>
-                    <InputError :message="addChannelForm.errors.channel_id" />
+                                <SelectValue
+                                    :placeholder="$t('Select a channel')"
+                                />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem
+                                    v-for="channel in addableChannels"
+                                    :key="channel.id"
+                                    :value="channel.id"
+                                    :data-test="`add-channel-option-${channel.id}`"
+                                >
+                                    <span class="flex items-center gap-2">
+                                        <Lock
+                                            v-if="
+                                                channel.visibility === 'private'
+                                            "
+                                            class="size-3.5 text-muted-foreground"
+                                            aria-hidden="true"
+                                        />
+                                        <span
+                                            v-else
+                                            aria-hidden="true"
+                                            class="text-brass"
+                                            >#</span
+                                        >
+                                        {{ channel.name }}
+                                    </span>
+                                </SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </FormField>
                 </div>
                 <DialogFooter>
                     <DialogClose as-child>
@@ -540,17 +547,20 @@ function confirmDeleteBot(): void {
                 <div
                     class="flex max-h-[60vh] flex-col gap-4 overflow-y-auto py-4"
                 >
-                    <div class="flex flex-col gap-2">
-                        <Label for="token-name">{{ $t('Name') }}</Label>
+                    <FormField
+                        id="token-name"
+                        :label="$t('Name')"
+                        :error="tokenForm.errors.name"
+                        v-slot="{ id }"
+                    >
                         <Input
-                            id="token-name"
+                            :id="id"
                             v-model="tokenForm.name"
                             data-test="token-name-input"
                             :placeholder="$t('ci-pipeline')"
                             autocomplete="off"
                         />
-                        <InputError :message="tokenForm.errors.name" />
-                    </div>
+                    </FormField>
                     <fieldset class="flex flex-col gap-2">
                         <legend class="text-sm font-medium">
                             {{ $t('Scopes') }}
@@ -584,7 +594,7 @@ function confirmDeleteBot(): void {
                                 }}</span>
                             </span>
                         </label>
-                        <InputError :message="tokenForm.errors.abilities" />
+                        <FieldError :message="tokenForm.errors.abilities" />
                     </fieldset>
                 </div>
                 <DialogFooter>

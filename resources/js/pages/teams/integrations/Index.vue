@@ -8,7 +8,8 @@ import {
     Plus,
 } from '@lucide/vue';
 import { computed, ref } from 'vue';
-import InputError from '@/components/InputError.vue';
+import FieldError from '@/components/FieldError.vue';
+import FormField from '@/components/FormField.vue';
 import IncomingWebhookRevoke from '@/components/integrations/IncomingWebhookRevoke.vue';
 import RevealSecretDialog from '@/components/integrations/RevealSecretDialog.vue';
 import { Button } from '@/components/ui/button';
@@ -23,7 +24,6 @@ import {
     DialogTitle,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import {
     NativeSelect,
     NativeSelectOption,
@@ -500,16 +500,21 @@ function submitOutgoing(): void {
                         )
                     }}</DialogDescription>
                 </DialogHeader>
-                <div class="flex flex-col gap-2 py-4">
-                    <Label for="bot-name">{{ $t('Name') }}</Label>
-                    <Input
+                <div class="py-4">
+                    <FormField
                         id="bot-name"
-                        v-model="botForm.name"
-                        data-test="bot-name-input"
-                        :placeholder="$t('Deploy Bot')"
-                        autocomplete="off"
-                    />
-                    <InputError :message="botForm.errors.name" />
+                        :label="$t('Name')"
+                        :error="botForm.errors.name"
+                        v-slot="{ id }"
+                    >
+                        <Input
+                            :id="id"
+                            v-model="botForm.name"
+                            data-test="bot-name-input"
+                            :placeholder="$t('Deploy Bot')"
+                            autocomplete="off"
+                        />
+                    </FormField>
                 </div>
                 <DialogFooter>
                     <DialogClose as-child>
@@ -546,23 +551,28 @@ function submitOutgoing(): void {
                     }}</DialogDescription>
                 </DialogHeader>
                 <div class="flex flex-col gap-4 py-4">
-                    <div class="flex flex-col gap-2">
-                        <Label for="incoming-name">{{ $t('Name') }}</Label>
+                    <FormField
+                        id="incoming-name"
+                        :label="$t('Name')"
+                        :error="incomingForm.errors.name"
+                        v-slot="{ id }"
+                    >
                         <Input
-                            id="incoming-name"
+                            :id="id"
                             v-model="incomingForm.name"
                             data-test="incoming-name-input"
                             :placeholder="$t('CI alerts')"
                             autocomplete="off"
                         />
-                        <InputError :message="incomingForm.errors.name" />
-                    </div>
-                    <div class="flex flex-col gap-2">
-                        <Label for="incoming-channel">{{
-                            $t('Channel')
-                        }}</Label>
+                    </FormField>
+                    <FormField
+                        id="incoming-channel"
+                        :label="$t('Channel')"
+                        :error="incomingForm.errors.channel_id"
+                        v-slot="{ id }"
+                    >
                         <NativeSelect
-                            id="incoming-channel"
+                            :id="id"
                             v-model="incomingForm.channel_id"
                             data-test="incoming-channel-select"
                             class="w-full"
@@ -578,14 +588,16 @@ function submitOutgoing(): void {
                                 #{{ channel.name }}
                             </NativeSelectOption>
                         </NativeSelect>
-                        <InputError :message="incomingForm.errors.channel_id" />
-                    </div>
-                    <div class="flex flex-col gap-2">
-                        <Label for="incoming-bot">{{
-                            $t('Post as bot')
-                        }}</Label>
+                    </FormField>
+                    <FormField
+                        id="incoming-bot"
+                        :label="$t('Post as bot')"
+                        :hint="$t('The bot must be a member of the channel.')"
+                        :error="incomingForm.errors.bot_id"
+                        v-slot="{ id }"
+                    >
                         <NativeSelect
-                            id="incoming-bot"
+                            :id="id"
                             v-model="incomingForm.bot_id"
                             data-test="incoming-bot-select"
                             class="w-full"
@@ -601,11 +613,7 @@ function submitOutgoing(): void {
                                 {{ bot.name }}
                             </NativeSelectOption>
                         </NativeSelect>
-                        <InputError :message="incomingForm.errors.bot_id" />
-                        <span class="text-xs text-muted-foreground">{{
-                            $t('The bot must be a member of the channel.')
-                        }}</span>
-                    </div>
+                    </FormField>
                     <label
                         class="flex items-center gap-2 text-sm"
                         data-test="incoming-signing-toggle"
@@ -660,31 +668,35 @@ function submitOutgoing(): void {
                 <div
                     class="flex max-h-[60vh] flex-col gap-4 overflow-y-auto py-4"
                 >
-                    <div class="flex flex-col gap-2">
-                        <Label for="outgoing-name">{{ $t('Name') }}</Label>
+                    <FormField
+                        id="outgoing-name"
+                        :label="$t('Name')"
+                        :error="outgoingForm.errors.name"
+                        v-slot="{ id }"
+                    >
                         <Input
-                            id="outgoing-name"
+                            :id="id"
                             v-model="outgoingForm.name"
                             data-test="outgoing-name-input"
                             :placeholder="$t('Ops mirror')"
                             autocomplete="off"
                         />
-                        <InputError :message="outgoingForm.errors.name" />
-                    </div>
-                    <div class="flex flex-col gap-2">
-                        <Label for="outgoing-url">{{
-                            $t('Endpoint URL')
-                        }}</Label>
+                    </FormField>
+                    <FormField
+                        id="outgoing-url"
+                        :label="$t('Endpoint URL')"
+                        :error="outgoingForm.errors.url"
+                        v-slot="{ id }"
+                    >
                         <Input
-                            id="outgoing-url"
+                            :id="id"
                             v-model="outgoingForm.url"
                             data-test="outgoing-url-input"
                             type="url"
                             placeholder="https://ops.example.com/desk"
                             autocomplete="off"
                         />
-                        <InputError :message="outgoingForm.errors.url" />
-                    </div>
+                    </FormField>
                     <fieldset class="flex flex-col gap-2">
                         <legend class="text-sm font-medium">
                             {{ $t('Events') }}
@@ -714,7 +726,7 @@ function submitOutgoing(): void {
                                 option.label
                             }}</span>
                         </label>
-                        <InputError :message="outgoingForm.errors.events" />
+                        <FieldError :message="outgoingForm.errors.events" />
                     </fieldset>
                     <fieldset
                         v-if="channels.length > 0"
@@ -750,7 +762,7 @@ function submitOutgoing(): void {
                             />
                             #{{ channel.name }}
                         </label>
-                        <InputError
+                        <FieldError
                             :message="outgoingForm.errors.channel_ids"
                         />
                     </fieldset>

@@ -21,7 +21,7 @@ import { computed, ref } from 'vue';
 import CancelInvitationModal from '@/components/CancelInvitationModal.vue';
 import DeleteTeamModal from '@/components/DeleteTeamModal.vue';
 import DemoLock from '@/components/DemoLock.vue';
-import InputError from '@/components/InputError.vue';
+import FormField from '@/components/FormField.vue';
 import InviteMemberModal from '@/components/InviteMemberModal.vue';
 import RemoveMemberModal from '@/components/RemoveMemberModal.vue';
 import TransferOwnershipModal from '@/components/TransferOwnershipModal.vue';
@@ -239,18 +239,28 @@ const confirmTransferOwnership = (member: TeamMember) => {
                 v-slot="{ errors, processing }"
             >
                 <div class="flex flex-wrap items-start gap-3">
-                    <div class="w-full max-w-sm">
+                    <!-- The section heading above already reads "Team name", so
+                         the field's own label is hidden rather than repeated.
+                         It stays a real `<label for>` all the same: it names
+                         the control for assistive tech and voice control, and
+                         it focuses the input when clicked. -->
+                    <FormField
+                        id="name"
+                        :label="$t('Team name')"
+                        label-class="sr-only"
+                        :error="errors.name"
+                        class="w-full max-w-sm"
+                        v-slot="{ id }"
+                    >
                         <Input
-                            id="name"
+                            :id="id"
                             name="name"
                             data-test="team-name-input"
                             :default-value="team.name"
-                            :aria-label="$t('Team name')"
                             class="rounded-lg"
                             required
                         />
-                        <InputError :message="errors.name" />
-                    </div>
+                    </FormField>
 
                     <DemoLock v-slot="{ disabled }">
                         <Button

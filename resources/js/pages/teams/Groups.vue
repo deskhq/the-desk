@@ -2,8 +2,8 @@
 import { Head, useForm } from '@inertiajs/vue3';
 import { Pencil, Plus, Search, Trash2, Users, X } from '@lucide/vue';
 import { computed, ref, watch } from 'vue';
+import FormField from '@/components/FormField.vue';
 import Heading from '@/components/Heading.vue';
-import InputError from '@/components/InputError.vue';
 import { Button } from '@/components/ui/button';
 import {
     Dialog,
@@ -239,19 +239,43 @@ function confirmRemoval(): void {
                         )
                     }}</span>
                 </div>
+                <!-- The row heading above names the pair, so each field's own
+                     label is hidden rather than repeated. It stays a real
+                     `<label for>` all the same: a placeholder disappears the
+                     moment someone types, which leaves the field unnamed
+                     exactly when they might look for the name again.
+
+                     The error's space is not reserved here. These cells are
+                     narrow enough that a message wraps to three lines, and the
+                     row is the last thing in the card — so drawn out of flow it
+                     would run past the card's own border, and there is nothing
+                     below it to be pushed around by letting it grow instead. -->
                 <div class="flex flex-col gap-3 sm:flex-row sm:items-start">
-                    <div class="flex flex-col gap-1">
+                    <FormField
+                        :label="$t('Group name')"
+                        label-class="sr-only"
+                        :error="createForm.errors.name"
+                        :reserve="false"
+                        v-slot="{ id }"
+                    >
                         <Input
+                            :id="id"
                             v-model="createForm.name"
                             data-test="group-name-input"
                             :placeholder="$t('Dev Team')"
                             class="max-md:h-11 sm:w-56"
                             autocomplete="off"
                         />
-                        <InputError :message="createForm.errors.name" />
-                    </div>
-                    <div class="flex flex-col gap-1">
+                    </FormField>
+                    <FormField
+                        :label="$t('Group handle')"
+                        label-class="sr-only"
+                        :error="createForm.errors.slug"
+                        :reserve="false"
+                        v-slot="{ id }"
+                    >
                         <Input
+                            :id="id"
                             v-model="createForm.slug"
                             data-test="group-slug-input"
                             placeholder="@dev-team"
@@ -260,8 +284,7 @@ function confirmRemoval(): void {
                             autocomplete="off"
                             spellcheck="false"
                         />
-                        <InputError :message="createForm.errors.slug" />
-                    </div>
+                    </FormField>
                     <Button
                         type="submit"
                         data-test="group-create-button"
@@ -377,27 +400,37 @@ function confirmRemoval(): void {
                 data-test="group-rename-form"
                 @submit.prevent="submitRename"
             >
-                <div class="flex flex-1 flex-col gap-1">
+                <FormField
+                    :label="$t('Group name')"
+                    label-class="sr-only"
+                    :error="editForm.errors.name"
+                    class="flex-1"
+                    v-slot="{ id }"
+                >
                     <Input
+                        :id="id"
                         v-model="editForm.name"
                         data-test="group-edit-name-input"
-                        :aria-label="$t('Group name')"
                         autocomplete="off"
                     />
-                    <InputError :message="editForm.errors.name" />
-                </div>
-                <div class="flex flex-1 flex-col gap-1">
+                </FormField>
+                <FormField
+                    :label="$t('Group handle')"
+                    label-class="sr-only"
+                    :error="editForm.errors.slug"
+                    class="flex-1"
+                    v-slot="{ id }"
+                >
                     <Input
+                        :id="id"
                         v-model="editForm.slug"
                         data-test="group-edit-slug-input"
-                        :aria-label="$t('Group handle')"
                         class="font-mono"
                         autocapitalize="off"
                         autocomplete="off"
                         spellcheck="false"
                     />
-                    <InputError :message="editForm.errors.slug" />
-                </div>
+                </FormField>
                 <Button
                     type="submit"
                     class="rounded-full"
