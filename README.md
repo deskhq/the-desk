@@ -134,8 +134,12 @@ browsers, PHP servers and Playwright then compete for the same cores, which
 makes the suite both slower and flakier. Pin a different count with
 `BROWSER_TEST_PROCESSES=N` to measure another setting.
 
-Rebuild the frontend (`npm run build`) after changing any Vue component the
-tests touch, since the in-process server serves the compiled Vite assets.
+Rebuild the frontend (`./vendor/bin/sail npm run build`) after changing any Vue
+component the tests touch, since the in-process server serves the compiled Vite
+assets — and after pulling someone else's, for the same reason. You don't have
+to remember: the suite compares `public/build/manifest.json` against everything
+Vite bundles and stops the run with that command if the bundle is behind, rather
+than letting a stale bundle fail the tests as though the app were broken.
 
 ### Local SSO providers (OIDC & LDAP)
 

@@ -32,6 +32,24 @@
 
 set -euo pipefail
 
+# This checkout, resolved at source time so the helpers below hold no matter
+# which directory they are called from.
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+
+# Refuse to run against a bundle older than the sources it was built from: the
+# suite serves public/build, so a stale bundle fails every test as though the
+# app were broken, aimed squarely at whatever landed most recently (#949).
+#
+# tests/Pest.php runs the same guard in-process, which is what covers the
+# documented `pest tests/Browser` entry point. Repeating it here is about the
+# output: a guard that aborts a paratest worker reads as a
+# WorkerCrashedException followed by paratest's own usage dump, while failing
+# before the fork prints the one message and nothing else.
+assert_fresh_bundle() {
+    php -r 'require $argv[1]; Tests\Support\StaleBundleGuard::ensureFreshBundle($argv[2]);' \
+        "$REPO_ROOT/tests/Support/StaleBundleGuard.php" "${1:-$REPO_ROOT}"
+}
+
 # The number of CPUs visible to this machine or container. Falls back to 0 —
 # which worker_count floors — rather than guessing on an exotic host.
 detect_cores() {
@@ -88,7 +106,9 @@ pest_command() {
 }
 
 main() {
-    cd "$(dirname "${BASH_SOURCE[0]}")/.."
+    cd "$REPO_ROOT"
+
+    assert_fresh_bundle
 
     build_pest_command "$@"
     printf '==> %s\n' "${PEST_COMMAND[*]}" >&2
