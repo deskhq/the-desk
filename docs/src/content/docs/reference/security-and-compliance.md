@@ -61,7 +61,10 @@ criterion in the context of your whole system.
   `SECURITY_EVENT_RETENTION_DAYS` (default one year) by a daily task in the
   `scheduler` container — so on a deployment running the bundled stack, disposal
   of that log is automatic and its window is the number you can point an assessor
-  at. The workspace audit log has no such sweep and accumulates: define a
+  at. Setting the variable to `0` turns that sweep off and keeps security events
+  indefinitely, which makes disposal of this log your responsibility too, exactly
+  as it already is for the audit log. The workspace audit log has no such sweep
+  and accumulates however it is set: define a
   retention window that matches your policy and enforce it at the database or
   backup layer. Note that both windows cap how far back you can evidence an
   event, so keep the security-event window at least as long as your assessment

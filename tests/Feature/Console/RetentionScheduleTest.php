@@ -50,10 +50,12 @@ test('the scheduled data-export sweep purges expired archives', function (): voi
     $expired = DataExport::factory()->expired()->create();
     Storage::disk('local')->put($expired->path, 'zip-bytes');
     $live = DataExport::factory()->ready()->create();
+    Storage::disk('local')->put($live->path, 'zip-bytes');
 
     dailyRetentionSweep('Purge expired data-export archives (files and rows)')->run($this->app);
 
     Storage::disk('local')->assertMissing($expired->path);
+    Storage::disk('local')->assertExists($live->path);
     $this->assertDatabaseMissing('data_exports', ['id' => $expired->id]);
     $this->assertDatabaseHas('data_exports', ['id' => $live->id]);
 });
