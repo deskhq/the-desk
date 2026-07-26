@@ -169,10 +169,19 @@ function ensureStylesheetsLoaded(AwaitableWebpage $page): AwaitableWebpage
         await Promise.all(dropped.map((link) => new Promise((resolve) => {
             const retry = document.createElement('link');
 
+            // A repair, not an assertion: a retry that errors — or that never
+            // fires either event — settles anyway, so the caller's own
+            // assertion reports what is wrong instead of this timing out.
+            const settle = () => {
+                clearTimeout(deadline);
+                resolve();
+            };
+            const deadline = setTimeout(resolve, 5000);
+
             retry.rel = 'stylesheet';
             retry.href = link.href;
-            retry.onload = resolve;
-            retry.onerror = resolve;
+            retry.onload = settle;
+            retry.onerror = settle;
 
             document.head.appendChild(retry);
         })));
