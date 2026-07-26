@@ -19,6 +19,14 @@ function cspNonceFrom(string $header): string
 }
 
 beforeEach(function (): void {
+    // Vite reads public/hot off the filesystem, so a `npm run dev` left running
+    // in another terminal would put the whole file in hot mode and splice the
+    // dev-server origin into the directives asserted below. Pin the hot state
+    // the way the posture below is pinned: point Vite at a hot file that does
+    // not exist — unique per test, so nothing can create it underneath us — and
+    // let the hot-mode test opt back in explicitly.
+    Vite::useHotFile(sys_get_temp_dir().'/'.uniqid('the-desk-vite-not-hot-', true));
+
     // .env.example turns report-only on for local development, so every test
     // states the posture it is asserting rather than inheriting the ambient one.
     config([
@@ -202,6 +210,28 @@ test('an extra frame source replaces the none placeholder rather than sitting be
 
     expect($header)->toContain('frame-src https://embed.example.test')
         ->not->toContain("frame-src 'none'");
+});
+
+test('an ambient vite dev server does not leak into the policy', function (): void {
+    // `npm run dev` writes public/hot, which Vite reads straight off the
+    // filesystem — so without the pin in beforeEach a dev server running in
+    // another terminal splices its origin into script-src/style-src/connect-src
+    // for every test in this file, breaking the ones that assert an exact
+    // directive. Swap in a public path that carries a hot file to stand in for
+    // that dev server, rather than writing to the real one it owns.
+    $publicPath = sys_get_temp_dir().'/'.uniqid('the-desk-csp-public-', true);
+    mkdir($publicPath);
+    file_put_contents($publicPath.'/hot', "http://localhost:5173\n");
+    $this->app->usePublicPath($publicPath);
+
+    try {
+        $contents = Policy::create([TheDeskPolicy::class])->getContents();
+    } finally {
+        unlink($publicPath.'/hot');
+        rmdir($publicPath);
+    }
+
+    expect($contents)->not->toContain('localhost:5173');
 });
 
 test('hot mode allow-lists the vite dev server so npm run dev keeps working', function (): void {
