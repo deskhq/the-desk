@@ -1,7 +1,30 @@
 import { RuleTester } from 'eslint';
 import { describe, expect, it } from 'vitest';
 import vueParser from 'vue-eslint-parser';
-import rule, { isErrorSlotOwner } from './no-standalone-input-error.js';
+import rule, {
+    isErrorSlotOwner,
+    isInputErrorTag,
+} from './no-standalone-input-error.js';
+
+describe('isInputErrorTag', () => {
+    it('matches the component written in PascalCase', () => {
+        expect(isInputErrorTag('InputError')).toBe(true);
+    });
+
+    it('matches the kebab-case tag Vue resolves to the same component', () => {
+        expect(isInputErrorTag('input-error')).toBe(true);
+    });
+
+    it('leaves the components that are allowed to render it alone', () => {
+        expect(isInputErrorTag('FieldError')).toBe(false);
+        expect(isInputErrorTag('field-error')).toBe(false);
+        expect(isInputErrorTag('FormField')).toBe(false);
+    });
+
+    it('leaves a plain input alone', () => {
+        expect(isInputErrorTag('input')).toBe(false);
+    });
+});
 
 describe('isErrorSlotOwner', () => {
     it('exempts the reserved-slot wrapper that owns the placement', () => {
@@ -83,6 +106,13 @@ ruleTester.run('no-standalone-input-error', rule, {
             // A component is no more entitled to place it than a page is.
             filename: 'resources/js/components/CreateChannelModal.vue',
             code: '<template><InputError :message="errors.name" /></template>',
+            errors: [{ messageId: 'preferFieldError' }],
+        },
+        {
+            // The kebab-case tag resolves to the same component, so writing it
+            // that way is not a way around the rule.
+            filename: 'resources/js/pages/teams/Groups.vue',
+            code: '<template><input-error :message="errors.slug" /></template>',
             errors: [{ messageId: 'preferFieldError' }],
         },
     ],

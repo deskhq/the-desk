@@ -27,6 +27,18 @@ export function isErrorSlotOwner(filename) {
     return filename.replaceAll('\\', '/').endsWith(OWNER_FILE);
 }
 
+/**
+ * Whether a tag name refers to the `<InputError>` component. Vue resolves a
+ * PascalCase component from a kebab-case tag too, so `<input-error>` is the
+ * same placement written differently and has to be caught the same way.
+ *
+ * @param {string} rawName
+ * @returns {boolean}
+ */
+export function isInputErrorTag(rawName) {
+    return rawName.replaceAll('-', '').toLowerCase() === 'inputerror';
+}
+
 /** @type {import('eslint').Rule.RuleModule} */
 const rule = {
     meta: {
@@ -54,7 +66,11 @@ const rule = {
         }
 
         return defineTemplateBodyVisitor({
-            "VElement[rawName='InputError']"(node) {
+            VElement(node) {
+                if (!isInputErrorTag(node.rawName)) {
+                    return;
+                }
+
                 context.report({
                     node: node.startTag,
                     messageId: 'preferFieldError',
