@@ -8,6 +8,7 @@ import noArbitraryTailwindSpacing from './eslint-rules/no-arbitrary-tailwind-spa
 import noDestructiveFillAsText from './eslint-rules/no-destructive-fill-as-text.js';
 import noRawButton from './eslint-rules/no-raw-button.js';
 import noSmallMobileInputText from './eslint-rules/no-small-mobile-input-text.js';
+import noStandaloneInputError from './eslint-rules/no-standalone-input-error.js';
 
 const controlStatements = [
     'if',
@@ -39,6 +40,7 @@ export default defineConfigWithVueTs(
                     'no-destructive-fill-as-text': noDestructiveFillAsText,
                     'no-raw-button': noRawButton,
                     'no-small-mobile-input-text': noSmallMobileInputText,
+                    'no-standalone-input-error': noStandaloneInputError,
                 },
             },
         },
@@ -94,6 +96,14 @@ export default defineConfigWithVueTs(
             // occurrence was migrated to `text-base md:<size>`, so the gate
             // stays clean and a new sub-16px field cannot land silently.
             'local/no-small-mobile-input-text': 'error',
+            // A field's error belongs to `<FormField>` or, where the field
+            // cannot take that shape, to `<FieldError>`: both reserve its space
+            // and draw it out of flow, so an error cannot shift the form
+            // (#883). A bare `<InputError>` joins the flow instead, which left
+            // the same field behaving differently depending on the page it was
+            // on (#894). `error` because every occurrence was converted, so a
+            // new fork cannot land silently.
+            'local/no-standalone-input-error': 'error',
             // XSS trust boundary. Every run of HTML the client renders as markup
             // must go through `<SafeHtml>`, which sanitizes it with DOMPurify
             // against a named allowlist; a raw `v-html` anywhere else would

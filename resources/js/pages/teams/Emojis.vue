@@ -2,8 +2,8 @@
 import { Head, useForm, usePage } from '@inertiajs/vue3';
 import { Plus, Search, Upload } from '@lucide/vue';
 import { computed, ref } from 'vue';
+import FormField from '@/components/FormField.vue';
 import Heading from '@/components/Heading.vue';
-import InputError from '@/components/InputError.vue';
 import { Button } from '@/components/ui/button';
 import {
     Dialog,
@@ -162,21 +162,43 @@ function addedAt(iso: string): string {
                         )
                     }}</span>
                 </div>
+                <!-- The row heading above names the pair, so each field's own
+                     label is hidden rather than repeated. It stays a real
+                     `<label for>` all the same: a placeholder disappears the
+                     moment someone types, which leaves the field unnamed
+                     exactly when they might look for the name again.
+
+                     The error's space is not reserved here, for the same reason
+                     as the create row on the user-groups page: the cells are
+                     narrow enough to wrap a message over several lines, and the
+                     row is the last thing in the card. -->
                 <div class="flex flex-col gap-3 sm:flex-row sm:items-start">
-                    <div class="flex flex-col gap-1">
+                    <FormField
+                        :label="$t('Emoji image')"
+                        label-class="sr-only"
+                        :error="form.errors.image"
+                        :reserve="false"
+                        v-slot="{ id }"
+                    >
                         <input
+                            :id="id"
                             ref="imageInput"
                             type="file"
                             accept="image/png,image/gif"
                             data-test="emoji-image-input"
-                            :aria-label="$t('Emoji image')"
                             class="block w-full text-sm text-muted-foreground file:mr-3 file:rounded-full file:border file:border-border file:bg-background file:px-3 file:py-1.5 file:text-sm file:font-medium hover:file:bg-muted max-md:file:py-2.75"
                             @change="onFileChange"
                         />
-                        <InputError :message="form.errors.image" />
-                    </div>
-                    <div class="flex flex-col gap-1">
+                    </FormField>
+                    <FormField
+                        :label="$t('Emoji name')"
+                        label-class="sr-only"
+                        :error="form.errors.name"
+                        :reserve="false"
+                        v-slot="{ id }"
+                    >
                         <Input
+                            :id="id"
                             v-model="form.name"
                             data-test="emoji-name-input"
                             placeholder=":name:"
@@ -185,8 +207,7 @@ function addedAt(iso: string): string {
                             autocomplete="off"
                             spellcheck="false"
                         />
-                        <InputError :message="form.errors.name" />
-                    </div>
+                    </FormField>
                     <Button
                         type="submit"
                         data-test="emoji-add-button"
