@@ -15,8 +15,7 @@ import {
 import UserMenuContent from '@/components/UserMenuContent.vue';
 import UserMenuSheet from '@/components/UserMenuSheet.vue';
 import { useIsMobile } from '@/composables/useIsMobile';
-import { isDndActiveNow } from '@/lib/dnd';
-import type { RenderedPresence } from '@/lib/presence';
+import { useOwnPresence } from '@/composables/useOwnPresence';
 import type { Team } from '@/types';
 
 const page = usePage();
@@ -25,26 +24,7 @@ const { isMobile, state } = useSidebar();
 
 const currentTeam = computed(() => page.props.currentTeam as Team | null);
 
-/**
- * The viewer's own effective presence, read from the shared `auth.user` prop so
- * the trigger's dot mirrors the menu's readout and the flip lands here without
- * the chip remounting. Never "offline" — you are, by definition, looking at it.
- */
-const ownPresence = computed<RenderedPresence>(
-    () => page.props.auth.user.presence ?? 'active',
-);
-
-/**
- * The viewer's own do-not-disturb state, evaluated locally from the full
- * configuration only their own prop carries — so the chip's crescent appears
- * the moment a pause is set, without waiting for a broadcast round-trip.
- */
-const ownDnd = computed(() =>
-    isDndActiveNow(
-        page.props.auth.user.dnd ?? null,
-        page.props.auth.user.timezone ?? null,
-    ),
-);
+const { presence: ownPresence, isDnd: ownDnd } = useOwnPresence();
 
 /**
  * Below `md` the menu is a bottom sheet, not a dropdown: a dropdown anchored

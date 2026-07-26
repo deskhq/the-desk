@@ -169,19 +169,28 @@ test('the dock opens full screen and its every row clears a 44px touch target', 
             '[data-test="section-content-channels"] li a, [data-test="section-content-direct"] li a'
         )].every(row => Math.round(row.getBoundingClientRect().height) >= 44))()
         JS, true)
-        // The utility rows and the jump-to field clear the design's 38px floor.
+        // The destinations left the scrolling list for the tab bar pinned to
+        // the foot of the drawer, where every tab carries the full 44px target.
         ->assertScript(<<<'JS'
         (() => [
-            '[data-test="threads-inbox"]',
-            '[data-test="reminders-trigger"]',
-            '[data-test="search-messages"]',
-            '[data-test="browse-channels"]',
-            '[data-test="quick-switcher-trigger"]',
+            '[data-test="tab-destination-channels"]',
+            '[data-test="tab-destination-threads"]',
+            '[data-test="tab-destination-reminders"]',
+            '[data-test="tab-destination-search"]',
+            '[data-test="tab-destination-you"]',
         ].every(selector => {
-            const row = document.querySelector(selector);
+            const tab = document.querySelector(selector);
+
+            return tab !== null && Math.round(tab.getBoundingClientRect().height) >= 44;
+        }))()
+        JS, true)
+        // The jump-to field still clears the design's 38px floor.
+        ->assertScript(<<<'JS'
+        (() => {
+            const row = document.querySelector('[data-test="quick-switcher-trigger"]');
 
             return row !== null && Math.round(row.getBoundingClientRect().height) >= 38;
-        }))()
+        })()
         JS, true);
 })->with([
     'small phone' => [360, 740],

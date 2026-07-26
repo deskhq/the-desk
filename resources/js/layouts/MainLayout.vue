@@ -1,13 +1,11 @@
 <script setup lang="ts">
 import { Link, router, usePage } from '@inertiajs/vue3';
 import {
-    AlarmClock,
     Check,
     ChevronRight,
     FolderPlus,
     GripVertical,
-    MessageSquareText,
-    MessagesSquare,
+    MoreHorizontal,
     MoreVertical,
     Pencil,
     Plus,
@@ -35,8 +33,6 @@ import {
     destroyAll as clearRemindersAction,
     store as storeReminder,
 } from '@/actions/App/Http/Controllers/Channels/MessageReminderController';
-import { index as searchMessages } from '@/actions/App/Http/Controllers/Channels/SearchController';
-import { index as threadsInbox } from '@/actions/App/Http/Controllers/Channels/ThreadsController';
 import { update as updateSidebarSections } from '@/actions/App/Http/Controllers/SidebarSectionController';
 import PasskeyPromptDialog from '@/components/auth/PasskeyPromptDialog.vue';
 import ChannelListItem from '@/components/ChannelListItem.vue';
@@ -49,6 +45,9 @@ import InstallAppCard from '@/components/InstallAppCard.vue';
 import InstallAppDialog from '@/components/InstallAppDialog.vue';
 import InviteMemberModal from '@/components/InviteMemberModal.vue';
 import KeyboardShortcutsModal from '@/components/KeyboardShortcutsModal.vue';
+import DestinationPanel from '@/components/navigation/DestinationPanel.vue';
+import NavigationRail from '@/components/navigation/NavigationRail.vue';
+import NavigationTabBar from '@/components/navigation/NavigationTabBar.vue';
 import NavUser from '@/components/NavUser.vue';
 import NewDirectMessageModal from '@/components/NewDirectMessageModal.vue';
 import OnboardingTour from '@/components/OnboardingTour.vue';
@@ -77,9 +76,6 @@ import {
     SidebarGroupContent,
     SidebarHeader,
     SidebarInset,
-    SidebarMenu,
-    SidebarMenuButton,
-    SidebarMenuItem,
     SidebarProvider,
 } from '@/components/ui/sidebar';
 import { Toaster } from '@/components/ui/sonner';
@@ -95,11 +91,13 @@ import { useIsMobile } from '@/composables/useIsMobile';
 import { useKeyboardShortcuts } from '@/composables/useKeyboardShortcuts';
 import { useKeyboardShortcutsModal } from '@/composables/useKeyboardShortcutsModal';
 import { useMessageReminders } from '@/composables/useMessageReminders';
+import { useNavPanel } from '@/composables/useNavPanel';
 import { useNewDirectMessages } from '@/composables/useNewDirectMessages';
 import {
     shouldAutoStartTour,
     useOnboardingTour,
 } from '@/composables/useOnboardingTour';
+import { useOwnPresence } from '@/composables/useOwnPresence';
 import { usePresenceReporter } from '@/composables/usePresenceReporter';
 import { useQuickSwitcher } from '@/composables/useQuickSwitcher';
 import { useSidebarBadges } from '@/composables/useSidebarBadges';
@@ -711,6 +709,17 @@ const { sidebarPosition } = useSidebarPosition();
 const isMobileViewport = useIsMobile();
 
 /**
+ * Which pinned destination the dock's panel is rendering. The rail (desktop)
+ * and the tab bar (mobile drawer) both drive this one seam, so the panel swaps
+ * while they stay put; `?nav=` on the current shell route keeps it shareable
+ * and reload-proof. The conversation list is the default destination.
+ */
+const { activeDestination, openDestination } = useNavPanel();
+
+/** The viewer's own presence, drawn on the rail's and the tab bar's avatar. */
+const { presence: ownPresence, isDnd: ownDnd } = useOwnPresence();
+
+/**
  * The one-time security prompt owed to an account registered in this session.
  * While one is pending the prompt owns the first paint and the tour waits behind
  * it; the prompt hands over once it is answered or found unshowable.
@@ -747,10 +756,14 @@ onMounted(() => {
 </script>
 
 <template>
+    <!-- The dock is a constant 356px card — a 56px destination rail plus the
+         300px panel — so opening a destination swaps the panel's contents
+         without the shell jumping. The extra 1.75rem is the floating card's own
+         gutter (`p-3.5` on the Sidebar below), not part of the drawn width. -->
     <SidebarProvider
         :default-open="page.props.sidebarOpen"
         :class="['bg-background', { 'pt-(--demo-banner-height)': demoMode }]"
-        style="--sidebar-width: calc(272px + 1.75rem)"
+        style="--sidebar-width: calc(356px + 1.75rem)"
     >
         <DemoBanner />
 
@@ -765,9 +778,9 @@ onMounted(() => {
             {{ $t('Skip to content') }}
         </a>
 
-        <!-- The dock: a single floating card. Team switching, invite, and
-             new-team fold into the workspace header (the vertical team rail is
-             gone); on mobile the whole card slides in as the built-in Sheet. -->
+        <!-- The dock: a single floating card, split into the destination rail
+             and the panel it drives. On mobile the whole card slides in as the
+             built-in Sheet, where the tab bar stands in for the rail. -->
         <Sidebar
             :side="sidebarPosition"
             collapsible="offcanvas"
@@ -780,349 +793,559 @@ onMounted(() => {
                 },
             ]"
         >
-            <SidebarHeader
-                class="gap-0 border-b border-sidebar-border p-3.5 pb-2.5"
+            <!-- Docked right, the rail mirrors to the outer edge so it never
+                 ends up wedged between the panel and the workspace card. -->
+            <div
+                class="flex min-h-0 w-full flex-1"
+                :class="
+                    sidebarPosition === 'right'
+                        ? 'flex-row-reverse'
+                        : 'flex-row'
+                "
             >
-                <div class="flex items-center gap-2">
-                    <DropdownMenu>
-                        <DropdownMenuTrigger as-child>
-                            <Button
-                                variant="ghost"
-                                data-test="workspace-switcher"
-                                class="-m-1 flex h-auto min-w-0 flex-1 items-center justify-start gap-2 rounded-[9px] p-1 text-left transition-colors hover:bg-sidebar-accent"
-                            >
-                                <span
-                                    class="flex size-8 shrink-0 items-center justify-center rounded-[9px] bg-sidebar-primary text-[11px] font-semibold text-sidebar-primary-foreground"
-                                    >{{
-                                        getInitials(currentTeam?.name ?? '')
-                                    }}</span
-                                >
-                                <span class="min-w-0 flex-1">
-                                    <span
-                                        class="block truncate text-sm font-semibold text-sidebar-foreground"
-                                        >{{
-                                            currentTeam?.name ??
-                                            $t('Select team')
-                                        }}</span
-                                    >
-                                    <span
-                                        class="block text-[11px] text-muted-foreground"
-                                        >{{ currentTeam?.membersCount ?? 0 }}
-                                        {{
-                                            (currentTeam?.membersCount ?? 0) ===
-                                            1
-                                                ? $t('member')
-                                                : $t('members')
-                                        }}</span
-                                    >
-                                </span>
-                            </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="start" class="w-56">
-                            <DropdownMenuLabel
-                                class="text-xs text-muted-foreground"
-                            >
-                                {{ $t('Teams') }}
-                            </DropdownMenuLabel>
-                            <DropdownMenuItem
-                                v-for="team in teams"
-                                :key="team.id"
-                                data-test="team-switcher-item"
-                                class="cursor-pointer gap-2"
-                                @click="switchTeam(team)"
-                            >
-                                {{ team.name }}
-                                <Check
-                                    v-if="team.id === currentTeam?.id"
-                                    class="ml-auto size-4"
-                                />
-                            </DropdownMenuItem>
-                            <DropdownMenuSeparator />
-                            <CreateTeamModal>
-                                <DropdownMenuItem
-                                    data-test="team-switcher-new-team"
-                                    class="cursor-pointer gap-2"
-                                    @select.prevent
-                                >
-                                    <Plus class="size-4" />
-                                    <span class="text-muted-foreground">{{
-                                        $t('New team')
-                                    }}</span>
-                                </DropdownMenuItem>
-                            </CreateTeamModal>
-                        </DropdownMenuContent>
-                    </DropdownMenu>
-                    <div class="flex shrink-0 items-center gap-1">
-                        <Button
-                            v-if="canInviteToCurrentTeam"
-                            variant="ghost"
-                            size="icon"
-                            :title="$t('Invite people')"
-                            data-test="invite-member-trigger"
-                            data-tour="invite"
-                            class="size-6 rounded-[7px] border border-sidebar-border text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground"
-                            @click="inviteOpen = true"
-                        >
-                            <UserPlus class="size-3" />
-                            <span class="sr-only">{{
-                                $t('Invite people')
-                            }}</span>
-                        </Button>
-                        <CreateTeamModal>
-                            <Button
-                                variant="ghost"
-                                size="icon"
-                                :title="$t('New team')"
-                                data-test="new-team-trigger"
-                                class="size-6 rounded-[7px] border border-dashed border-sidebar-border text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground"
-                            >
-                                <Plus class="size-3" />
-                                <span class="sr-only">{{
-                                    $t('New team')
-                                }}</span>
-                            </Button>
-                        </CreateTeamModal>
-                        <SheetClose v-if="isMobileViewport" as-child>
-                            <Button
-                                variant="ghost"
-                                size="icon"
-                                :title="$t('Close')"
-                                data-test="dock-close"
-                                class="size-9 rounded-[10px] text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground"
-                            >
-                                <X class="size-4" />
-                                <span class="sr-only">{{ $t('Close') }}</span>
-                            </Button>
-                        </SheetClose>
-                    </div>
-                </div>
-            </SidebarHeader>
+                <NavigationRail
+                    class="hidden md:flex"
+                    :class="
+                        sidebarPosition === 'right' ? 'border-l' : 'border-r'
+                    "
+                    :active="activeDestination"
+                    :user="page.props.auth.user"
+                    :current-team="currentTeam"
+                    :presence="ownPresence"
+                    :is-dnd="ownDnd"
+                    :has-unread-threads="hasUnreadThreads"
+                    @select="openDestination"
+                />
 
-            <SidebarContent>
-                <SettingsNav v-if="isSettingsSection" />
-                <nav
-                    v-else
-                    data-test="channels-nav"
-                    :aria-label="$t('Channels')"
-                    class="flex min-w-0 flex-col gap-2"
-                >
-                    <div class="px-2 pt-2">
-                        <Button
-                            variant="ghost"
-                            data-test="quick-switcher-trigger"
-                            class="flex h-9.5 w-full items-center justify-start gap-2 rounded-[10px] bg-muted px-3 text-[13.5px] font-normal text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground md:h-8 md:rounded-[9px] md:px-2.5 md:text-[13px]"
-                            @click="quickSwitcherOpen = true"
+                <div class="flex min-h-0 min-w-0 flex-1 flex-col">
+                    <SidebarHeader
+                        class="gap-0 border-b border-sidebar-border p-3.5 pb-2.5"
+                    >
+                        <div class="flex items-center gap-2">
+                            <DropdownMenu>
+                                <DropdownMenuTrigger as-child>
+                                    <Button
+                                        variant="ghost"
+                                        data-test="workspace-switcher"
+                                        class="-m-1 flex h-auto min-w-0 flex-1 items-center justify-start gap-2 rounded-[9px] p-1 text-left transition-colors hover:bg-sidebar-accent"
+                                    >
+                                        <span
+                                            class="flex size-8 shrink-0 items-center justify-center rounded-[9px] bg-sidebar-primary text-[11px] font-semibold text-sidebar-primary-foreground"
+                                            >{{
+                                                getInitials(
+                                                    currentTeam?.name ?? '',
+                                                )
+                                            }}</span
+                                        >
+                                        <span class="min-w-0 flex-1">
+                                            <span
+                                                class="block truncate text-sm font-semibold text-sidebar-foreground"
+                                                >{{
+                                                    currentTeam?.name ??
+                                                    $t('Select team')
+                                                }}</span
+                                            >
+                                            <span
+                                                class="block text-[11px] text-muted-foreground"
+                                                >{{
+                                                    currentTeam?.membersCount ??
+                                                    0
+                                                }}
+                                                {{
+                                                    (currentTeam?.membersCount ??
+                                                        0) === 1
+                                                        ? $t('member')
+                                                        : $t('members')
+                                                }}</span
+                                            >
+                                        </span>
+                                    </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="start" class="w-56">
+                                    <DropdownMenuLabel
+                                        class="text-xs text-muted-foreground"
+                                    >
+                                        {{ $t('Teams') }}
+                                    </DropdownMenuLabel>
+                                    <DropdownMenuItem
+                                        v-for="team in teams"
+                                        :key="team.id"
+                                        data-test="team-switcher-item"
+                                        class="cursor-pointer gap-2"
+                                        @click="switchTeam(team)"
+                                    >
+                                        {{ team.name }}
+                                        <Check
+                                            v-if="team.id === currentTeam?.id"
+                                            class="ml-auto size-4"
+                                        />
+                                    </DropdownMenuItem>
+                                    <DropdownMenuSeparator />
+                                    <CreateTeamModal>
+                                        <DropdownMenuItem
+                                            data-test="team-switcher-new-team"
+                                            class="cursor-pointer gap-2"
+                                            @select.prevent
+                                        >
+                                            <Plus class="size-4" />
+                                            <span
+                                                class="text-muted-foreground"
+                                                >{{ $t('New team') }}</span
+                                            >
+                                        </DropdownMenuItem>
+                                    </CreateTeamModal>
+                                </DropdownMenuContent>
+                            </DropdownMenu>
+                            <div class="flex shrink-0 items-center gap-1">
+                                <Button
+                                    v-if="canInviteToCurrentTeam"
+                                    variant="ghost"
+                                    size="icon"
+                                    :title="$t('Invite people')"
+                                    data-test="invite-member-trigger"
+                                    data-tour="invite"
+                                    class="size-6 rounded-[7px] border border-sidebar-border text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground"
+                                    @click="inviteOpen = true"
+                                >
+                                    <UserPlus class="size-3" />
+                                    <span class="sr-only">{{
+                                        $t('Invite people')
+                                    }}</span>
+                                </Button>
+                                <CreateTeamModal>
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        :title="$t('New team')"
+                                        data-test="new-team-trigger"
+                                        class="size-6 rounded-[7px] border border-dashed border-sidebar-border text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground"
+                                    >
+                                        <Plus class="size-3" />
+                                        <span class="sr-only">{{
+                                            $t('New team')
+                                        }}</span>
+                                    </Button>
+                                </CreateTeamModal>
+                                <SheetClose v-if="isMobileViewport" as-child>
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        :title="$t('Close')"
+                                        data-test="dock-close"
+                                        class="size-9 rounded-[10px] text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground"
+                                    >
+                                        <X class="size-4" />
+                                        <span class="sr-only">{{
+                                            $t('Close')
+                                        }}</span>
+                                    </Button>
+                                </SheetClose>
+                            </div>
+                        </div>
+                    </SidebarHeader>
+
+                    <SidebarContent>
+                        <SettingsNav v-if="isSettingsSection" />
+                        <!-- The panel renders one destination at a time. The list is
+                     now conversations only — the four utility rows it used to
+                     end with are the rail's and the tab bar's job. -->
+                        <nav
+                            v-else-if="activeDestination === 'channels'"
+                            data-test="channels-nav"
+                            :aria-label="$t('Channels')"
+                            class="flex min-w-0 flex-col gap-2"
                         >
-                            <Search class="size-3.25 shrink-0" />
-                            <span>{{ $t('Jump to…') }}</span>
-                            <kbd
-                                class="ml-auto font-mono text-[10px] font-semibold tracking-wide text-muted-foreground"
-                                >⌘K</kbd
-                            >
-                        </Button>
-                    </div>
-                    <!-- Starred channels, pinned above the main list; the
+                            <div class="px-2 pt-2">
+                                <Button
+                                    variant="ghost"
+                                    data-test="quick-switcher-trigger"
+                                    class="flex h-9.5 w-full items-center justify-start gap-2 rounded-[10px] bg-muted px-3 text-[13.5px] font-normal text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground md:h-8 md:rounded-[9px] md:px-2.5 md:text-[13px]"
+                                    @click="quickSwitcherOpen = true"
+                                >
+                                    <Search class="size-3.25 shrink-0" />
+                                    <span>{{ $t('Jump to…') }}</span>
+                                    <kbd
+                                        class="ml-auto font-mono text-[10px] font-semibold tracking-wide text-muted-foreground"
+                                        >⌘K</kbd
+                                    >
+                                </Button>
+                            </div>
+                            <!-- Starred channels, pinned above the main list; the
                              whole section is hidden until the user stars one.
                              Reorderable within itself (its own drag group), but a
                              starred row can't be dragged into a custom section —
                              starring wins, so its move menu stays hidden. -->
-                    <SidebarGroup v-if="starredList.length > 0" class="pb-0">
-                        <Button
-                            variant="ghost"
-                            data-test="section-toggle-starred"
-                            :aria-expanded="!isSectionCollapsed('starred')"
-                            class="flex h-7 w-full items-center justify-start gap-1 rounded-md px-2 text-[10.5px] font-semibold tracking-[0.1em] text-muted-foreground uppercase transition-colors hover:bg-sidebar-accent/40 hover:text-sidebar-foreground"
-                            @click="toggleSection('starred')"
-                        >
-                            <ChevronRight
-                                class="size-3 shrink-0 transition-transform"
-                                :class="
-                                    isSectionCollapsed('starred')
-                                        ? ''
-                                        : 'rotate-90'
-                                "
-                            />
-                            {{ $t('Starred') }}
-                        </Button>
-                        <SidebarGroupContent
-                            v-show="!isSectionCollapsed('starred')"
-                            data-test="section-content-starred"
-                        >
-                            <draggable
-                                v-model="starredList"
-                                :group="{ name: 'starred' }"
-                                handle=".channel-drag-handle"
-                                item-key="id"
-                                tag="ul"
-                                class="flex w-full min-w-0 flex-col gap-1"
-                                :animation="150"
-                                @change="onStarredChange"
-                            >
-                                <template #item="{ element }">
-                                    <ChannelListItem
-                                        :channel="element"
-                                        :team-slug="currentTeam?.slug ?? ''"
-                                        :active-channel-slug="activeChannelSlug"
-                                    />
-                                </template>
-                            </draggable>
-                        </SidebarGroupContent>
-                    </SidebarGroup>
-
-                    <!-- The user's custom sections, drag-reorderable amongst
-                             themselves; each holds a channel list that shares a
-                             drag group with the default "Channels" list below, so
-                             channels can be dragged across them. -->
-                    <draggable
-                        v-if="customGroups.length > 0"
-                        v-model="customGroups"
-                        :group="{ name: 'sections' }"
-                        handle=".section-drag-handle"
-                        :item-key="sectionKey"
-                        tag="div"
-                        :animation="150"
-                        @change="onSectionReorder"
-                    >
-                        <template #item="{ element: group }">
                             <SidebarGroup
+                                v-if="starredList.length > 0"
                                 class="pb-0"
-                                :data-test="`section-custom-${group.section.id}`"
                             >
-                                <div
-                                    class="group/section flex h-7 w-full items-center gap-1 rounded-md pr-1 pl-2 text-[10.5px] font-semibold tracking-[0.1em] text-muted-foreground uppercase transition-colors hover:bg-sidebar-accent/40 hover:text-sidebar-foreground"
+                                <Button
+                                    variant="ghost"
+                                    data-test="section-toggle-starred"
+                                    :aria-expanded="
+                                        !isSectionCollapsed('starred')
+                                    "
+                                    class="flex h-7 w-full items-center justify-start gap-1 rounded-md px-2 text-[10.5px] font-semibold tracking-[0.1em] text-muted-foreground uppercase transition-colors hover:bg-sidebar-accent/40 hover:text-sidebar-foreground"
+                                    @click="toggleSection('starred')"
                                 >
-                                    <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        :data-test="`section-drag-${group.section.id}`"
-                                        :aria-label="
-                                            $t('Reorder :name', {
-                                                name: group.section.name,
-                                            })
+                                    <ChevronRight
+                                        class="size-3 shrink-0 transition-transform"
+                                        :class="
+                                            isSectionCollapsed('starred')
+                                                ? ''
+                                                : 'rotate-90'
                                         "
-                                        :title="$t('Drag to reorder section')"
-                                        class="section-drag-handle size-4 shrink-0 cursor-grab rounded text-muted-foreground/50 opacity-0 transition group-hover/section:opacity-100 hover:bg-transparent hover:text-sidebar-foreground active:cursor-grabbing"
-                                    >
-                                        <GripVertical class="size-3" />
-                                    </Button>
-                                    <!-- While renaming, the editor stands in for
-                                         the toggle as its sibling — never nested
-                                         inside the <button>, which would be
-                                         invalid interactive-in-interactive markup
-                                         and breaks keyboard focus. -->
-                                    <Input
-                                        v-if="
-                                            renamingSectionId ===
-                                            group.section.id
-                                        "
-                                        v-model="renameValue"
-                                        :data-test="`section-rename-input-${group.section.id}`"
-                                        class="h-auto min-w-0 flex-1 rounded-sm border-sidebar-border bg-sidebar px-1 py-0.5 text-base tracking-normal text-sidebar-foreground normal-case md:text-[11px] dark:bg-sidebar"
-                                        type="text"
-                                        maxlength="50"
-                                        @keydown.enter.prevent="
-                                            blurInput($event)
-                                        "
-                                        @keydown.esc="cancelRename"
-                                        @blur="submitRename(group.section)"
                                     />
-                                    <Button
-                                        v-else
-                                        variant="ghost"
-                                        :data-test="`section-toggle-custom-${group.section.id}`"
-                                        :aria-expanded="
-                                            !group.section.collapsed
-                                        "
-                                        class="flex h-auto min-w-0 flex-1 items-center justify-start gap-1 rounded-none p-0 text-[10.5px] font-semibold hover:bg-transparent"
-                                        @click="toggleCustomSection(group)"
-                                    >
-                                        <ChevronRight
-                                            class="size-3 shrink-0 transition-transform"
-                                            :class="
-                                                group.section.collapsed
-                                                    ? ''
-                                                    : 'rotate-90'
-                                            "
-                                        />
-                                        <span
-                                            class="truncate"
-                                            @dblclick.stop="
-                                                startRename(group.section)
-                                            "
-                                            >{{ group.section.name }}</span
-                                        >
-                                    </Button>
-                                    <DropdownMenu>
-                                        <DropdownMenuTrigger as-child>
-                                            <Button
-                                                variant="ghost"
-                                                size="icon"
-                                                :data-test="`section-menu-${group.section.id}`"
-                                                :aria-label="
-                                                    $t('Options for :name', {
-                                                        name: group.section
-                                                            .name,
-                                                    })
-                                                "
-                                                :title="$t('Section options')"
-                                                class="size-5 shrink-0 rounded text-muted-foreground/60 opacity-0 transition group-hover/section:opacity-100 hover:bg-transparent hover:text-sidebar-foreground focus-visible:opacity-100 data-[state=open]:opacity-100"
-                                            >
-                                                <MoreVertical
-                                                    class="size-3.5"
-                                                />
-                                            </Button>
-                                        </DropdownMenuTrigger>
-                                        <DropdownMenuContent
-                                            align="end"
-                                            class="w-40"
-                                        >
-                                            <DropdownMenuItem
-                                                :data-test="`section-rename-${group.section.id}`"
-                                                @select="
-                                                    startRename(group.section)
-                                                "
-                                            >
-                                                <Pencil class="size-3.5" />
-                                                {{ $t('Rename') }}
-                                            </DropdownMenuItem>
-                                            <DropdownMenuItem
-                                                variant="destructive"
-                                                :data-test="`section-delete-${group.section.id}`"
-                                                @select="
-                                                    deleteSection(group.section)
-                                                "
-                                            >
-                                                <Trash2 class="size-3.5" />
-                                                {{ $t('Delete') }}
-                                            </DropdownMenuItem>
-                                        </DropdownMenuContent>
-                                    </DropdownMenu>
-                                </div>
+                                    {{ $t('Starred') }}
+                                </Button>
                                 <SidebarGroupContent
-                                    v-show="!group.section.collapsed"
-                                    :data-test="`section-content-custom-${group.section.id}`"
+                                    v-show="!isSectionCollapsed('starred')"
+                                    data-test="section-content-starred"
                                 >
                                     <draggable
-                                        v-model="group.channels"
-                                        :group="{
-                                            name: 'sidebar-channels',
-                                        }"
+                                        v-model="starredList"
+                                        :group="{ name: 'starred' }"
                                         handle=".channel-drag-handle"
                                         item-key="id"
                                         tag="ul"
                                         class="flex w-full min-w-0 flex-col gap-1"
+                                        :animation="150"
+                                        @change="onStarredChange"
+                                    >
+                                        <template #item="{ element }">
+                                            <ChannelListItem
+                                                :channel="element"
+                                                :team-slug="
+                                                    currentTeam?.slug ?? ''
+                                                "
+                                                :active-channel-slug="
+                                                    activeChannelSlug
+                                                "
+                                            />
+                                        </template>
+                                    </draggable>
+                                </SidebarGroupContent>
+                            </SidebarGroup>
+
+                            <!-- The user's custom sections, drag-reorderable amongst
+                             themselves; each holds a channel list that shares a
+                             drag group with the default "Channels" list below, so
+                             channels can be dragged across them. -->
+                            <draggable
+                                v-if="customGroups.length > 0"
+                                v-model="customGroups"
+                                :group="{ name: 'sections' }"
+                                handle=".section-drag-handle"
+                                :item-key="sectionKey"
+                                tag="div"
+                                :animation="150"
+                                @change="onSectionReorder"
+                            >
+                                <template #item="{ element: group }">
+                                    <SidebarGroup
+                                        class="pb-0"
+                                        :data-test="`section-custom-${group.section.id}`"
+                                    >
+                                        <div
+                                            class="group/section flex h-7 w-full items-center gap-1 rounded-md pr-1 pl-2 text-[10.5px] font-semibold tracking-[0.1em] text-muted-foreground uppercase transition-colors hover:bg-sidebar-accent/40 hover:text-sidebar-foreground"
+                                        >
+                                            <Button
+                                                variant="ghost"
+                                                size="icon"
+                                                :data-test="`section-drag-${group.section.id}`"
+                                                :aria-label="
+                                                    $t('Reorder :name', {
+                                                        name: group.section
+                                                            .name,
+                                                    })
+                                                "
+                                                :title="
+                                                    $t(
+                                                        'Drag to reorder section',
+                                                    )
+                                                "
+                                                class="section-drag-handle size-4 shrink-0 cursor-grab rounded text-muted-foreground/50 opacity-0 transition group-hover/section:opacity-100 hover:bg-transparent hover:text-sidebar-foreground active:cursor-grabbing"
+                                            >
+                                                <GripVertical class="size-3" />
+                                            </Button>
+                                            <!-- While renaming, the editor stands in for
+                                         the toggle as its sibling — never nested
+                                         inside the <button>, which would be
+                                         invalid interactive-in-interactive markup
+                                         and breaks keyboard focus. -->
+                                            <Input
+                                                v-if="
+                                                    renamingSectionId ===
+                                                    group.section.id
+                                                "
+                                                v-model="renameValue"
+                                                :data-test="`section-rename-input-${group.section.id}`"
+                                                class="h-auto min-w-0 flex-1 rounded-sm border-sidebar-border bg-sidebar px-1 py-0.5 text-base tracking-normal text-sidebar-foreground normal-case md:text-[11px] dark:bg-sidebar"
+                                                type="text"
+                                                maxlength="50"
+                                                @keydown.enter.prevent="
+                                                    blurInput($event)
+                                                "
+                                                @keydown.esc="cancelRename"
+                                                @blur="
+                                                    submitRename(group.section)
+                                                "
+                                            />
+                                            <Button
+                                                v-else
+                                                variant="ghost"
+                                                :data-test="`section-toggle-custom-${group.section.id}`"
+                                                :aria-expanded="
+                                                    !group.section.collapsed
+                                                "
+                                                class="flex h-auto min-w-0 flex-1 items-center justify-start gap-1 rounded-none p-0 text-[10.5px] font-semibold hover:bg-transparent"
+                                                @click="
+                                                    toggleCustomSection(group)
+                                                "
+                                            >
+                                                <ChevronRight
+                                                    class="size-3 shrink-0 transition-transform"
+                                                    :class="
+                                                        group.section.collapsed
+                                                            ? ''
+                                                            : 'rotate-90'
+                                                    "
+                                                />
+                                                <span
+                                                    class="truncate"
+                                                    @dblclick.stop="
+                                                        startRename(
+                                                            group.section,
+                                                        )
+                                                    "
+                                                    >{{
+                                                        group.section.name
+                                                    }}</span
+                                                >
+                                            </Button>
+                                            <DropdownMenu>
+                                                <DropdownMenuTrigger as-child>
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="icon"
+                                                        :data-test="`section-menu-${group.section.id}`"
+                                                        :aria-label="
+                                                            $t(
+                                                                'Options for :name',
+                                                                {
+                                                                    name: group
+                                                                        .section
+                                                                        .name,
+                                                                },
+                                                            )
+                                                        "
+                                                        :title="
+                                                            $t(
+                                                                'Section options',
+                                                            )
+                                                        "
+                                                        class="size-5 shrink-0 rounded text-muted-foreground/60 opacity-0 transition group-hover/section:opacity-100 hover:bg-transparent hover:text-sidebar-foreground focus-visible:opacity-100 data-[state=open]:opacity-100"
+                                                    >
+                                                        <MoreVertical
+                                                            class="size-3.5"
+                                                        />
+                                                    </Button>
+                                                </DropdownMenuTrigger>
+                                                <DropdownMenuContent
+                                                    align="end"
+                                                    class="w-40"
+                                                >
+                                                    <DropdownMenuItem
+                                                        :data-test="`section-rename-${group.section.id}`"
+                                                        @select="
+                                                            startRename(
+                                                                group.section,
+                                                            )
+                                                        "
+                                                    >
+                                                        <Pencil
+                                                            class="size-3.5"
+                                                        />
+                                                        {{ $t('Rename') }}
+                                                    </DropdownMenuItem>
+                                                    <DropdownMenuItem
+                                                        variant="destructive"
+                                                        :data-test="`section-delete-${group.section.id}`"
+                                                        @select="
+                                                            deleteSection(
+                                                                group.section,
+                                                            )
+                                                        "
+                                                    >
+                                                        <Trash2
+                                                            class="size-3.5"
+                                                        />
+                                                        {{ $t('Delete') }}
+                                                    </DropdownMenuItem>
+                                                </DropdownMenuContent>
+                                            </DropdownMenu>
+                                        </div>
+                                        <SidebarGroupContent
+                                            v-show="!group.section.collapsed"
+                                            :data-test="`section-content-custom-${group.section.id}`"
+                                        >
+                                            <draggable
+                                                v-model="group.channels"
+                                                :group="{
+                                                    name: 'sidebar-channels',
+                                                }"
+                                                handle=".channel-drag-handle"
+                                                item-key="id"
+                                                tag="ul"
+                                                class="flex w-full min-w-0 flex-col gap-1"
+                                                :class="
+                                                    group.channels.length === 0
+                                                        ? 'min-h-6'
+                                                        : ''
+                                                "
+                                                :animation="150"
+                                                @change="
+                                                    (change) =>
+                                                        onChannelChange(
+                                                            change,
+                                                            group.channels,
+                                                            group.section.id,
+                                                        )
+                                                "
+                                            >
+                                                <template #item="{ element }">
+                                                    <ChannelListItem
+                                                        :channel="element"
+                                                        :team-slug="
+                                                            currentTeam?.slug ??
+                                                            ''
+                                                        "
+                                                        :active-channel-slug="
+                                                            activeChannelSlug
+                                                        "
+                                                        :sections="
+                                                            customSections
+                                                        "
+                                                        :current-section-id="
+                                                            group.section.id
+                                                        "
+                                                        @move="
+                                                            (sectionId) =>
+                                                                moveChannelToSection(
+                                                                    element,
+                                                                    sectionId,
+                                                                )
+                                                        "
+                                                    />
+                                                </template>
+                                            </draggable>
+                                            <p
+                                                v-if="
+                                                    group.channels.length === 0
+                                                "
+                                                class="px-7 pb-1 text-[12px] text-muted-foreground normal-case"
+                                            >
+                                                {{ $t('Drag channels here') }}
+                                            </p>
+                                        </SidebarGroupContent>
+                                    </SidebarGroup>
+                                </template>
+                            </draggable>
+
+                            <!-- The default "Channels" list: unstarred, unassigned
+                             channels. Shares a drag group with the custom sections
+                             so channels can be dragged in and out. -->
+                            <SidebarGroup>
+                                <Button
+                                    variant="ghost"
+                                    data-test="section-toggle-channels"
+                                    :aria-expanded="
+                                        !isSectionCollapsed('channels')
+                                    "
+                                    class="flex h-7 w-full items-center justify-start gap-1 rounded-md px-2 text-[10.5px] font-semibold tracking-[0.1em] text-muted-foreground uppercase transition-colors hover:bg-sidebar-accent/40 hover:text-sidebar-foreground"
+                                    @click="toggleSection('channels')"
+                                >
+                                    <ChevronRight
+                                        class="size-3 shrink-0 transition-transform"
                                         :class="
-                                            group.channels.length === 0
-                                                ? 'min-h-6'
-                                                : ''
+                                            isSectionCollapsed('channels')
+                                                ? ''
+                                                : 'rotate-90'
                                         "
+                                    />
+                                    {{ $t('Channels') }}
+                                </Button>
+                                <!-- The group header's overflow. "Browse channels"
+                             left the destination set when the rail took it
+                             over, and lands here — beside the "+" the design
+                             keeps — rather than as a fifth glyph. -->
+                                <DropdownMenu v-if="currentTeam">
+                                    <DropdownMenuTrigger as-child>
+                                        <SidebarGroupAction
+                                            :aria-label="
+                                                $t('Options for :name', {
+                                                    name: $t('Channels'),
+                                                })
+                                            "
+                                            :title="$t('Section options')"
+                                            data-test="channels-section-menu"
+                                            class="top-2 right-9 size-5 rounded-md text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                                        >
+                                            <MoreHorizontal class="size-3.5" />
+                                        </SidebarGroupAction>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent
+                                        align="end"
+                                        class="w-44"
+                                    >
+                                        <DropdownMenuItem as-child>
+                                            <Link
+                                                :href="
+                                                    browse(currentTeam.slug).url
+                                                "
+                                                data-test="browse-channels"
+                                                class="cursor-pointer"
+                                            >
+                                                <Search class="size-3.5" />
+                                                {{ $t('Browse channels') }}
+                                            </Link>
+                                        </DropdownMenuItem>
+                                    </DropdownMenuContent>
+                                </DropdownMenu>
+                                <CreateChannelModal
+                                    v-if="currentTeam"
+                                    :team-slug="currentTeam.slug"
+                                >
+                                    <SidebarGroupAction
+                                        :title="$t('Create channel')"
+                                        data-test="create-channel-trigger"
+                                        data-tour="create-channel"
+                                        class="top-2 size-5 rounded-md text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                                    >
+                                        <Plus class="size-3.25" />
+                                        <span class="sr-only">{{
+                                            $t('Create channel')
+                                        }}</span>
+                                    </SidebarGroupAction>
+                                </CreateChannelModal>
+                                <SidebarGroupContent
+                                    v-show="!isSectionCollapsed('channels')"
+                                    data-test="section-content-channels"
+                                >
+                                    <draggable
+                                        v-model="defaultList"
+                                        :group="{ name: 'sidebar-channels' }"
+                                        handle=".channel-drag-handle"
+                                        item-key="id"
+                                        tag="ul"
+                                        class="flex w-full min-w-0 flex-col gap-1"
                                         :animation="150"
                                         @change="
                                             (change) =>
                                                 onChannelChange(
                                                     change,
-                                                    group.channels,
-                                                    group.section.id,
+                                                    defaultList,
+                                                    null,
                                                 )
                                         "
                                     >
@@ -1136,9 +1359,7 @@ onMounted(() => {
                                                     activeChannelSlug
                                                 "
                                                 :sections="customSections"
-                                                :current-section-id="
-                                                    group.section.id
-                                                "
+                                                :current-section-id="null"
                                                 @move="
                                                     (sectionId) =>
                                                         moveChannelToSection(
@@ -1149,309 +1370,173 @@ onMounted(() => {
                                             />
                                         </template>
                                     </draggable>
-                                    <p
-                                        v-if="group.channels.length === 0"
-                                        class="px-7 pb-1 text-[12px] text-muted-foreground normal-case"
-                                    >
-                                        {{ $t('Drag channels here') }}
-                                    </p>
-                                </SidebarGroupContent>
-                            </SidebarGroup>
-                        </template>
-                    </draggable>
-
-                    <!-- The default "Channels" list: unstarred, unassigned
-                             channels. Shares a drag group with the custom sections
-                             so channels can be dragged in and out. -->
-                    <SidebarGroup>
-                        <Button
-                            variant="ghost"
-                            data-test="section-toggle-channels"
-                            :aria-expanded="!isSectionCollapsed('channels')"
-                            class="flex h-7 w-full items-center justify-start gap-1 rounded-md px-2 text-[10.5px] font-semibold tracking-[0.1em] text-muted-foreground uppercase transition-colors hover:bg-sidebar-accent/40 hover:text-sidebar-foreground"
-                            @click="toggleSection('channels')"
-                        >
-                            <ChevronRight
-                                class="size-3 shrink-0 transition-transform"
-                                :class="
-                                    isSectionCollapsed('channels')
-                                        ? ''
-                                        : 'rotate-90'
-                                "
-                            />
-                            {{ $t('Channels') }}
-                        </Button>
-                        <CreateChannelModal
-                            v-if="currentTeam"
-                            :team-slug="currentTeam.slug"
-                        >
-                            <SidebarGroupAction
-                                :title="$t('Create channel')"
-                                data-test="create-channel-trigger"
-                                data-tour="create-channel"
-                                class="top-2 size-5 rounded-md text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
-                            >
-                                <Plus class="size-3.25" />
-                                <span class="sr-only">{{
-                                    $t('Create channel')
-                                }}</span>
-                            </SidebarGroupAction>
-                        </CreateChannelModal>
-                        <SidebarGroupContent
-                            v-show="!isSectionCollapsed('channels')"
-                            data-test="section-content-channels"
-                        >
-                            <draggable
-                                v-model="defaultList"
-                                :group="{ name: 'sidebar-channels' }"
-                                handle=".channel-drag-handle"
-                                item-key="id"
-                                tag="ul"
-                                class="flex w-full min-w-0 flex-col gap-1"
-                                :animation="150"
-                                @change="
-                                    (change) =>
-                                        onChannelChange(
-                                            change,
-                                            defaultList,
-                                            null,
-                                        )
-                                "
-                            >
-                                <template #item="{ element }">
-                                    <ChannelListItem
-                                        :channel="element"
-                                        :team-slug="currentTeam?.slug ?? ''"
-                                        :active-channel-slug="activeChannelSlug"
-                                        :sections="customSections"
-                                        :current-section-id="null"
-                                        @move="
-                                            (sectionId) =>
-                                                moveChannelToSection(
-                                                    element,
-                                                    sectionId,
-                                                )
-                                        "
-                                    />
-                                </template>
-                            </draggable>
-                            <!-- Brand-new workspace: nothing files into the
+                                    <!-- Brand-new workspace: nothing files into the
                                  default list yet. A dashed hint stands in until
                                  the first channel appears. -->
-                            <div
-                                v-if="defaultList.length === 0"
-                                data-test="no-channels-empty"
-                                class="mx-1 mt-1.5 flex flex-col gap-1 rounded-[11px] border border-dashed border-sidebar-border px-3 py-3.5 text-center"
-                            >
-                                <span
-                                    class="text-[12.5px] font-semibold text-sidebar-foreground/70"
-                                    >{{ $t('No channels yet') }}</span
-                                >
-                                <span
-                                    class="text-[11.5px] leading-[1.45] text-muted-foreground"
-                                    >{{
-                                        $t(
-                                            'Channels keep conversations organized by topic.',
-                                        )
-                                    }}</span
-                                >
-                            </div>
-                        </SidebarGroupContent>
-                    </SidebarGroup>
+                                    <div
+                                        v-if="defaultList.length === 0"
+                                        data-test="no-channels-empty"
+                                        class="mx-1 mt-1.5 flex flex-col gap-1 rounded-[11px] border border-dashed border-sidebar-border px-3 py-3.5 text-center"
+                                    >
+                                        <span
+                                            class="text-[12.5px] font-semibold text-sidebar-foreground/70"
+                                            >{{ $t('No channels yet') }}</span
+                                        >
+                                        <span
+                                            class="text-[11.5px] leading-[1.45] text-muted-foreground"
+                                            >{{
+                                                $t(
+                                                    'Channels keep conversations organized by topic.',
+                                                )
+                                            }}</span
+                                        >
+                                    </div>
+                                </SidebarGroupContent>
+                            </SidebarGroup>
 
-                    <!-- Direct messages: a fixed group outside the
+                            <!-- Direct messages: a fixed group outside the
                              star/section/placement system. Rows render the other
                              participant (self renders "You") with a presence dot
                              and a plain unread badge, ordered by recent activity. -->
-                    <SidebarGroup
-                        class="pb-0"
-                        data-test="direct-messages-group"
-                    >
-                        <Button
-                            variant="ghost"
-                            data-test="section-toggle-direct"
-                            :aria-expanded="!isSectionCollapsed('direct')"
-                            class="flex h-7 w-full items-center justify-start gap-1 rounded-md px-2 text-[10.5px] font-semibold tracking-[0.1em] text-muted-foreground uppercase transition-colors hover:bg-sidebar-accent/40 hover:text-sidebar-foreground"
-                            @click="toggleSection('direct')"
-                        >
-                            <ChevronRight
-                                class="size-3 shrink-0 transition-transform"
-                                :class="
-                                    isSectionCollapsed('direct')
-                                        ? ''
-                                        : 'rotate-90'
-                                "
-                            />
-                            {{ $t('Direct messages') }}
-                        </Button>
-                        <SidebarGroupAction
-                            :title="$t('New message')"
-                            data-test="new-dm-trigger"
-                            class="top-2 size-5 rounded-md text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
-                            @click="newDmOpen = true"
-                        >
-                            <Plus class="size-3.25" />
-                            <span class="sr-only">{{ $t('New message') }}</span>
-                        </SidebarGroupAction>
-                        <SidebarGroupContent
-                            v-show="!isSectionCollapsed('direct')"
-                            data-test="section-content-direct"
-                        >
-                            <ul class="flex w-full min-w-0 flex-col gap-1">
-                                <DirectMessageListItem
-                                    v-for="dm in directList"
-                                    :key="dm.id"
-                                    :channel="dm"
-                                    :team-slug="currentTeam?.slug ?? ''"
-                                    :active-channel-slug="activeChannelSlug"
-                                    :presence="
-                                        dmParticipantPresence(
-                                            dm.dmUserId,
-                                            presenceFor,
-                                            page.props.auth.user.presence,
-                                        )
-                                    "
-                                    :is-dnd="
-                                        dm.dmUserId != null &&
-                                        isDndFor(dm.dmUserId)
-                                    "
-                                    :is-self="dm.dmUserId === currentUserId"
-                                />
-                            </ul>
-                            <p
-                                v-if="directList.length === 0"
-                                data-test="direct-messages-empty"
-                                class="px-2 pb-1 text-[12px] text-muted-foreground normal-case"
+                            <SidebarGroup
+                                class="pb-0"
+                                data-test="direct-messages-group"
                             >
-                                {{ $t('No direct messages yet') }}
-                            </p>
-                        </SidebarGroupContent>
-                    </SidebarGroup>
-
-                    <!-- Create a new custom section. -->
-                    <SidebarGroup class="py-0">
-                        <SidebarGroupContent>
-                            <div v-if="sectionFormOpen" class="px-2">
-                                <Input
-                                    v-model="newSectionName"
-                                    data-test="create-section-input"
-                                    class="h-8 w-full rounded-md border-sidebar-border bg-sidebar px-2 py-1 text-base text-sidebar-foreground md:text-[13px] dark:bg-sidebar"
-                                    type="text"
-                                    maxlength="50"
-                                    :placeholder="$t('New section name')"
-                                    @keydown.enter.prevent="blurInput($event)"
-                                    @keydown.esc="cancelSectionForm"
-                                    @blur="createSection"
-                                />
-                            </div>
-                            <Button
-                                v-else
-                                variant="ghost"
-                                data-test="create-section-trigger"
-                                class="flex h-7 w-full items-center justify-start gap-1.5 rounded-md px-2 text-[12px] font-normal text-muted-foreground transition-colors hover:bg-sidebar-accent/60 hover:text-sidebar-foreground"
-                                @click="openSectionForm"
-                            >
-                                <FolderPlus class="size-3.5" />
-                                {{ $t('New section') }}
-                            </Button>
-                        </SidebarGroupContent>
-                    </SidebarGroup>
-
-                    <!-- Workspace navigation, always visible regardless of
-                             which channel sections are collapsed. -->
-                    <SidebarGroup class="pt-0">
-                        <SidebarGroupContent>
-                            <SidebarMenu>
-                                <SidebarMenuItem>
-                                    <SidebarMenuButton
-                                        as-child
-                                        class="h-10.5 gap-2 rounded-[10px] px-2.5 text-[14px] text-muted-foreground hover:bg-sidebar-accent/60 md:h-7.5 md:rounded-[9px] md:text-[13px]"
+                                <Button
+                                    variant="ghost"
+                                    data-test="section-toggle-direct"
+                                    :aria-expanded="
+                                        !isSectionCollapsed('direct')
+                                    "
+                                    class="flex h-7 w-full items-center justify-start gap-1 rounded-md px-2 text-[10.5px] font-semibold tracking-[0.1em] text-muted-foreground uppercase transition-colors hover:bg-sidebar-accent/40 hover:text-sidebar-foreground"
+                                    @click="toggleSection('direct')"
+                                >
+                                    <ChevronRight
+                                        class="size-3 shrink-0 transition-transform"
+                                        :class="
+                                            isSectionCollapsed('direct')
+                                                ? ''
+                                                : 'rotate-90'
+                                        "
+                                    />
+                                    {{ $t('Direct messages') }}
+                                </Button>
+                                <SidebarGroupAction
+                                    :title="$t('New message')"
+                                    data-test="new-dm-trigger"
+                                    class="top-2 size-5 rounded-md text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                                    @click="newDmOpen = true"
+                                >
+                                    <Plus class="size-3.25" />
+                                    <span class="sr-only">{{
+                                        $t('New message')
+                                    }}</span>
+                                </SidebarGroupAction>
+                                <SidebarGroupContent
+                                    v-show="!isSectionCollapsed('direct')"
+                                    data-test="section-content-direct"
+                                >
+                                    <ul
+                                        class="flex w-full min-w-0 flex-col gap-1"
                                     >
-                                        <Link
-                                            v-if="currentTeam"
-                                            :href="
-                                                threadsInbox(currentTeam.slug)
-                                                    .url
+                                        <DirectMessageListItem
+                                            v-for="dm in directList"
+                                            :key="dm.id"
+                                            :channel="dm"
+                                            :team-slug="currentTeam?.slug ?? ''"
+                                            :active-channel-slug="
+                                                activeChannelSlug
                                             "
-                                            data-test="threads-inbox"
-                                        >
-                                            <MessagesSquare class="size-3.25" />
-                                            <span>{{ $t('Threads') }}</span>
-                                            <span
-                                                v-if="hasUnreadThreads"
-                                                data-test="threads-unread-dot"
-                                                aria-hidden="true"
-                                                class="ml-auto size-1.5 rounded-full bg-brass"
-                                            />
-                                        </Link>
-                                    </SidebarMenuButton>
-                                </SidebarMenuItem>
-                                <SidebarMenuItem>
-                                    <SidebarMenuButton
-                                        data-test="reminders-trigger"
-                                        class="h-10.5 gap-2 rounded-[10px] px-2.5 text-[14px] text-muted-foreground hover:bg-sidebar-accent/60 md:h-7.5 md:rounded-[9px] md:text-[13px]"
-                                        @click="remindersDialogOpen = true"
-                                    >
-                                        <AlarmClock class="size-3.25" />
-                                        <span>{{ $t('Reminders') }}</span>
-                                        <span
-                                            v-if="reminders.length > 0"
-                                            data-test="reminders-badge"
-                                            class="ml-auto inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-brass px-1 text-[10px] font-semibold text-brass-foreground"
-                                            >{{ reminders.length }}</span
-                                        >
-                                    </SidebarMenuButton>
-                                </SidebarMenuItem>
-                                <SidebarMenuItem>
-                                    <SidebarMenuButton
-                                        as-child
-                                        class="h-10.5 gap-2 rounded-[10px] px-2.5 text-[14px] text-muted-foreground hover:bg-sidebar-accent/60 md:h-7.5 md:rounded-[9px] md:text-[13px]"
-                                    >
-                                        <Link
-                                            v-if="currentTeam"
-                                            :href="
-                                                searchMessages(currentTeam.slug)
-                                                    .url
+                                            :presence="
+                                                dmParticipantPresence(
+                                                    dm.dmUserId,
+                                                    presenceFor,
+                                                    page.props.auth.user
+                                                        .presence,
+                                                )
                                             "
-                                            data-test="search-messages"
-                                        >
-                                            <MessageSquareText
-                                                class="size-3.25"
-                                            />
-                                            <span>{{
-                                                $t('Search messages')
-                                            }}</span>
-                                        </Link>
-                                    </SidebarMenuButton>
-                                </SidebarMenuItem>
-                                <SidebarMenuItem>
-                                    <SidebarMenuButton
-                                        as-child
-                                        class="h-10.5 gap-2 rounded-[10px] px-2.5 text-[14px] text-muted-foreground hover:bg-sidebar-accent/60 md:h-7.5 md:rounded-[9px] md:text-[13px]"
+                                            :is-dnd="
+                                                dm.dmUserId != null &&
+                                                isDndFor(dm.dmUserId)
+                                            "
+                                            :is-self="
+                                                dm.dmUserId === currentUserId
+                                            "
+                                        />
+                                    </ul>
+                                    <p
+                                        v-if="directList.length === 0"
+                                        data-test="direct-messages-empty"
+                                        class="px-2 pb-1 text-[12px] text-muted-foreground normal-case"
                                     >
-                                        <Link
-                                            v-if="currentTeam"
-                                            :href="browse(currentTeam.slug).url"
-                                            data-test="browse-channels"
-                                        >
-                                            <Search class="size-3.25" />
-                                            <span>{{
-                                                $t('Browse channels')
-                                            }}</span>
-                                        </Link>
-                                    </SidebarMenuButton>
-                                </SidebarMenuItem>
-                            </SidebarMenu>
-                        </SidebarGroupContent>
-                    </SidebarGroup>
-                </nav>
-            </SidebarContent>
+                                        {{ $t('No direct messages yet') }}
+                                    </p>
+                                </SidebarGroupContent>
+                            </SidebarGroup>
 
-            <SidebarFooter class="border-t border-sidebar-border p-2.5">
-                <InstallAppCard />
-                <UpdateIndicator />
-                <NavUser />
-            </SidebarFooter>
+                            <!-- Create a new custom section. -->
+                            <SidebarGroup class="py-0">
+                                <SidebarGroupContent>
+                                    <div v-if="sectionFormOpen" class="px-2">
+                                        <Input
+                                            v-model="newSectionName"
+                                            data-test="create-section-input"
+                                            class="h-8 w-full rounded-md border-sidebar-border bg-sidebar px-2 py-1 text-base text-sidebar-foreground md:text-[13px] dark:bg-sidebar"
+                                            type="text"
+                                            maxlength="50"
+                                            :placeholder="
+                                                $t('New section name')
+                                            "
+                                            @keydown.enter.prevent="
+                                                blurInput($event)
+                                            "
+                                            @keydown.esc="cancelSectionForm"
+                                            @blur="createSection"
+                                        />
+                                    </div>
+                                    <Button
+                                        v-else
+                                        variant="ghost"
+                                        data-test="create-section-trigger"
+                                        class="flex h-7 w-full items-center justify-start gap-1.5 rounded-md px-2 text-[12px] font-normal text-muted-foreground transition-colors hover:bg-sidebar-accent/60 hover:text-sidebar-foreground"
+                                        @click="openSectionForm"
+                                    >
+                                        <FolderPlus class="size-3.5" />
+                                        {{ $t('New section') }}
+                                    </Button>
+                                </SidebarGroupContent>
+                            </SidebarGroup>
+                        </nav>
+                        <DestinationPanel
+                            v-else
+                            :destination="activeDestination"
+                        />
+                    </SidebarContent>
+
+                    <SidebarFooter class="border-t border-sidebar-border p-2.5">
+                        <!-- The install card and the update indicator belong to the
+                     conversation list, not to every destination: they are
+                     workspace furniture, and the other panels own their own
+                     footers. `NavUser` stays put until child #6 folds it into
+                     the "You" destination, so this branch keeps a way out. -->
+                        <template v-if="activeDestination === 'channels'">
+                            <InstallAppCard />
+                            <UpdateIndicator />
+                        </template>
+                        <NavUser />
+                    </SidebarFooter>
+
+                    <NavigationTabBar
+                        class="md:hidden"
+                        :active="activeDestination"
+                        :user="page.props.auth.user"
+                        :presence="ownPresence"
+                        :is-dnd="ownDnd"
+                        :has-unread-threads="hasUnreadThreads"
+                        @select="openDestination"
+                    />
+                </div>
+            </div>
         </Sidebar>
 
         <!-- Main card: below the breakpoint the card *is* the screen — one pane
