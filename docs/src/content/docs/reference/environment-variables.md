@@ -206,11 +206,12 @@ deployment where the `scheduler` container is running.
 | ------------------------------- | ------- | -------------------------------------------------------------------------------------------------- |
 | `SECURITY_EVENT_RETENTION_DAYS` | `365`   | Days a per-user security event (sign-in, credential change, session revocation, data-export activity) is kept before a daily sweep deletes it. One year covers an annual assessment period. Set `0` to keep events forever. |
 
-Two more windows are fixed rather than configurable, and are listed here so the
-whole picture is in one place:
+Two more windows are set elsewhere, and are listed here so the whole picture is in
+one place:
 
-- **Data-export archives and audit-evidence exports** are downloadable for
-  **7 days**, after which a daily sweep deletes both the file and its record.
+- **Data-export archives and audit-evidence exports** are downloadable for a
+  fixed **7 days** — not configurable — after which a daily sweep deletes both
+  the file and its record.
 - **Uploaded-but-never-sent attachments** are swept after
   `ATTACHMENT_PENDING_TTL_HOURS` (see [Attachments](#attachments)).
 
