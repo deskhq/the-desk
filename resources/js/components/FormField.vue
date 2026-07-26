@@ -17,13 +17,24 @@ import { Label } from '@/components/ui/label';
  * click it again. Side by side, the taller cell would drag its neighbour's
  * label and input out of alignment too.
  */
-const props = defineProps<{
-    label?: string;
-    id?: string;
-    error?: string;
-    hint?: string;
-    labelClass?: string;
-}>();
+const props = withDefaults(
+    defineProps<{
+        label?: string;
+        id?: string;
+        error?: string;
+        hint?: string;
+        labelClass?: string;
+        /**
+         * Whether to reserve the error's space and draw the message out of
+         * flow. Forwarded to `<FieldError>`, which documents when a field
+         * should opt out. Declared with an explicit default because Vue casts
+         * an absent `Boolean` prop to `false`, which would silently drop the
+         * reservation from every field that does not mention it.
+         */
+        reserve?: boolean;
+    }>(),
+    { reserve: true },
+);
 
 const fieldId = props.id ?? useId();
 </script>
@@ -66,6 +77,6 @@ const fieldId = props.id ?? useId();
 
         <p v-if="hint" class="text-sm text-muted-foreground">{{ hint }}</p>
 
-        <FieldError :message="error" />
+        <FieldError :message="error" :reserve="reserve" />
     </div>
 </template>

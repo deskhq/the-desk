@@ -95,6 +95,25 @@ describe('FormField', () => {
         expect(html).toMatch(/class="[^"]*\bpointer-events-none\b/);
     });
 
+    it('forwards the unreserved gutter down to the error slot', async () => {
+        // The reservation is the default because most fields sit in a column
+        // with something below them. A field in an inline row that ends at its
+        // container's edge opts out, so the message pushes the container open
+        // instead of being drawn past it (#894).
+        const html = await renderField({
+            id: 'slug',
+            label: 'Group handle',
+            error: 'The handle may only contain lowercase letters.',
+            reserve: false,
+        });
+
+        expect(html).toContain(
+            'The handle may only contain lowercase letters.',
+        );
+        expect(html).not.toContain('h-7');
+        expect(html).not.toMatch(/class="[^"]*\babsolute\b/);
+    });
+
     it('renders the optional hint line when provided', async () => {
         const html = await renderField({
             id: 'locale',
