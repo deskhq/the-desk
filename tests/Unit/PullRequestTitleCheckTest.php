@@ -32,6 +32,16 @@ function commitlintTypes(): array
 }
 
 /**
+ * The header length `commitlint` allows, read from its `header-max-length` rule.
+ */
+function commitlintHeaderMaxLength(): int
+{
+    preg_match("/'header-max-length':\s*\[\s*\d+,\s*'always',\s*(?<length>\d+)\s*\]/", repositoryFile('commitlint.config.mjs'), $matches);
+
+    return (int) ($matches['length'] ?? 0);
+}
+
+/**
  * The `with:` inputs of the PR-title validation step in the commitlint workflow.
  *
  * @return array{types?: string, subjectPattern?: string}
@@ -98,6 +108,26 @@ test('the PR-title action is pinned to a commit SHA with a version comment', fun
     expect($workflow)->toMatch('/uses: amannn\/action-semantic-pull-request@[0-9a-f]{40} # v\d+\.\d+\.\d+/');
 });
 
+/**
+ * The subject length the workflow pattern still accepts, probed rather than
+ * hardcoded so tightening the bound in either file keeps the two honest.
+ */
+test('the subject pattern keeps a squash header inside commitlint header-max-length', function (): void {
+    $longestAcceptedSubject = 0;
+
+    foreach (range(1, 2 * commitlintHeaderMaxLength()) as $length) {
+        if (subjectPatternAccepts(str_repeat('a', $length))) {
+            $longestAcceptedSubject = $length;
+        }
+    }
+
+    $longestType = max(array_map(strlen(...), commitlintTypes()));
+
+    expect(commitlintHeaderMaxLength())->toBeGreaterThan(0)
+        ->and($longestAcceptedSubject)->toBeGreaterThan(0)
+        ->and($longestType + strlen(': ') + $longestAcceptedSubject)->toBeLessThanOrEqual(commitlintHeaderMaxLength());
+});
+
 test('the subject pattern mirrors commitlint subject-case and subject-full-stop', function (string $subject, bool $accepted): void {
     expect(subjectPatternAccepts($subject))->toBe($accepted);
 })->with([
@@ -112,4 +142,5 @@ test('the subject pattern mirrors commitlint subject-case and subject-full-stop'
     'sentence-case subject' => ['Add a thing', false],
     'acronym-led subject' => ['SSO login is broken', false],
     'trailing full stop' => ['add a thing.', false],
+    'over-long subject' => [str_repeat('a', 101), false],
 ]);
