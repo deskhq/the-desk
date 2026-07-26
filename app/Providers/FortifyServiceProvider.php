@@ -15,6 +15,7 @@ use App\Http\Responses\VerifyEmailResponse;
 use App\Models\TeamInvitation;
 use App\Services\Sso\LdapAuthenticator;
 use App\Support\LegalConsent;
+use App\Support\PasskeyAvailability;
 use App\Support\WorkspaceRedirect;
 use Database\Seeders\DemoSeeder;
 use Illuminate\Auth\Middleware\RedirectIfAuthenticated;
@@ -167,7 +168,7 @@ class FortifyServiceProvider extends ServiceProvider
             // Whether to surface the passwordless passkey sign-in affordance:
             // the deploy-time toggle is on and SSO is not enforcing an external
             // identity provider (which would own authentication).
-            'canLoginWithPasskey' => (bool) config('fortify.passkeys_enabled') && ! config('sso.enforced'),
+            'canLoginWithPasskey' => PasskeyAvailability::enabled(),
             // On the public demo, everyone signs in as the same shared owner, so
             // the login page advertises the credentials outright. Null (and the
             // hint hidden) on a real deployment.
