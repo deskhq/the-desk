@@ -6,8 +6,8 @@ use App\Enums\ChannelVisibility;
 use App\Models\Channel;
 use App\Models\Team;
 use App\Models\User;
+use App\Support\NameSlug;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Str;
 
 class CreateChannel
 {
@@ -28,7 +28,7 @@ class CreateChannel
 
             $channel = $team->channels()->create([
                 'name' => $name,
-                'slug' => Str::slug($name),
+                'slug' => NameSlug::distinct($name, Channel::FALLBACK_SLUG),
                 'visibility' => $visibility,
                 'topic' => $topic,
                 'created_by' => $creator->id,

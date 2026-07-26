@@ -2,16 +2,21 @@
 
 namespace App\Concerns;
 
-use Illuminate\Support\Str;
+use App\Support\NameSlug;
 
 trait GeneratesUniqueTeamSlugs
 {
+    /**
+     * Slug used as the base when a name carries no sluggable characters.
+     */
+    private const string FALLBACK_SLUG = 'team';
+
     /**
      * Generate a unique slug for the team.
      */
     protected static function generateUniqueTeamSlug(string $name, ?string $excludeId = null): string
     {
-        $defaultSlug = Str::slug($name);
+        $defaultSlug = self::sluggifyTeamName($name);
 
         $query = static::withTrashed()
             ->where(function ($query) use ($defaultSlug): void {
@@ -42,5 +47,17 @@ trait GeneratesUniqueTeamSlugs
         return $existingSlugs->isEmpty()
             ? $defaultSlug
             : $defaultSlug.'-'.($maxSuffix + 1);
+    }
+
+    /**
+     * Slug a team name, falling back when the name slugs to nothing.
+     *
+     * A name with no sluggable characters would otherwise leave the team with
+     * an empty slug and so unreachable (issue #921); it gets the generic base
+     * instead, and the suffix machinery above keeps that unique.
+     */
+    private static function sluggifyTeamName(string $name): string
+    {
+        return NameSlug::make($name, self::FALLBACK_SLUG);
     }
 }

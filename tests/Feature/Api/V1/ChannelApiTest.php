@@ -96,6 +96,40 @@ it('rejects a duplicate channel name', function (): void {
     ])->assertStatus(422)->assertJsonValidationErrorFor('name');
 });
 
+it('creates two channels named in a non-Latin script without a false duplicate', function (): void {
+    Sanctum::actingAs($this->bot, ['channels:write']);
+
+    foreach (['日本語', '中文'] as $name) {
+        $this->postJson('/api/v1/channels', [
+            'name' => $name,
+            'visibility' => ChannelVisibility::Public->value,
+        ])->assertCreated();
+    }
+
+    $slugs = Channel::query()
+        ->where('team_id', $this->team->id)
+        ->whereIn('name', ['日本語', '中文'])
+        ->pluck('slug');
+
+    expect($slugs)->toHaveCount(2)
+        ->and($slugs->unique())->toHaveCount(2)
+        ->and($slugs->filter(fn (string $slug): bool => $slug === ''))->toBeEmpty();
+});
+
+it('still rejects a repeated non-Latin channel name', function (): void {
+    Sanctum::actingAs($this->bot, ['channels:write']);
+
+    $this->postJson('/api/v1/channels', [
+        'name' => '日本語',
+        'visibility' => ChannelVisibility::Public->value,
+    ])->assertCreated();
+
+    $this->postJson('/api/v1/channels', [
+        'name' => '日本語',
+        'visibility' => ChannelVisibility::Public->value,
+    ])->assertStatus(422)->assertJsonValidationErrorFor('name');
+});
+
 it('archives a channel the bot created and audits it', function (): void {
     $channel = Channel::factory()->for($this->team)->create(['created_by' => $this->bot->id]);
     $channel->channelMembers()->create(['user_id' => $this->bot->id]);

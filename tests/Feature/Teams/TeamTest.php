@@ -65,6 +65,51 @@ test('team slug uses next available suffix', function (): void {
     ]);
 });
 
+test('a team created with a name that slugs to nothing stays reachable', function (): void {
+    $user = User::factory()->create();
+
+    $response = $this
+        ->actingAs($user)
+        ->post(route('teams.store'), [
+            'name' => '日本語',
+        ]);
+
+    $team = Team::query()->where('name', '日本語')->sole();
+
+    expect($team->slug)->not->toBe('');
+
+    $response->assertRedirect(route('teams.edit', $team));
+
+    $this
+        ->actingAs($user)
+        ->get(route('teams.edit', $team))
+        ->assertOk();
+});
+
+test('a team renamed to a name that slugs to nothing stays reachable', function (): void {
+    $user = User::factory()->create();
+    $team = Team::factory()->create(['name' => 'Original Name']);
+
+    $team->members()->attach($user, ['role' => TeamRole::Owner->value]);
+
+    $response = $this
+        ->actingAs($user)
+        ->patch(route('teams.update', $team), [
+            'name' => '<<<',
+        ]);
+
+    $renamed = $team->fresh();
+
+    expect($renamed->slug)->not->toBe('');
+
+    $response->assertRedirect(route('teams.edit', $renamed));
+
+    $this
+        ->actingAs($user)
+        ->get(route('teams.edit', $renamed))
+        ->assertOk();
+});
+
 test('the team edit page can be rendered', function (): void {
     $user = User::factory()->create();
     $team = Team::factory()->create();
