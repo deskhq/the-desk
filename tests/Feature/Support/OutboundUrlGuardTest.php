@@ -116,6 +116,16 @@ it('drives the PublicWebhookUrl validation rule', function (): void {
         ->and($fails->errors()->first('url'))->toBe('The webhook URL must be a public HTTP or HTTPS address.');
 });
 
+it('lets a surface name the destination in its own words', function (): void {
+    $fails = Validator::make(
+        ['endpoint' => 'https://127.0.0.1:9200/_search'],
+        ['endpoint' => new PublicWebhookUrl('The push endpoint must be a public HTTPS address.')],
+    );
+
+    expect($fails->fails())->toBeTrue()
+        ->and($fails->errors()->first('endpoint'))->toBe('The push endpoint must be a public HTTPS address.');
+});
+
 it('ignores a non-string value in the rule, leaving type validation to other rules', function (): void {
     $validator = Validator::make(['url' => ['array']], ['url' => new PublicWebhookUrl]);
 
