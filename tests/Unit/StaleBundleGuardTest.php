@@ -14,7 +14,15 @@ use Tests\Support\StaleBundleGuard;
  * natural reading is "the last few PRs regressed" (issue #949). These tests pin
  * the guard that turns that into one message naming the rebuild command.
  */
-const FIXTURE_PREFIX = 'stale-bundle-guard-';
+/**
+ * The fixture prefix, scoped to this process — every paratest worker shares one
+ * temp directory, and a sweep that matched them all would delete a rival
+ * worker's checkout out from under it.
+ */
+function fixturePrefix(): string
+{
+    return 'stale-bundle-guard-'.getmypid().'-';
+}
 
 /**
  * Build a throwaway checkout whose files carry the given mtimes.
@@ -23,7 +31,7 @@ const FIXTURE_PREFIX = 'stale-bundle-guard-';
  */
 function bundleFixture(array $files): string
 {
-    $base = sys_get_temp_dir().'/'.FIXTURE_PREFIX.bin2hex(random_bytes(8));
+    $base = sys_get_temp_dir().'/'.fixturePrefix().bin2hex(random_bytes(8));
 
     foreach ($files as $relative => $mtime) {
         $path = $base.'/'.$relative;
@@ -68,7 +76,7 @@ function runBundleGuard(array $basePaths): Process
 afterEach(function (): void {
     $filesystem = new Filesystem;
 
-    foreach ($filesystem->glob(sys_get_temp_dir().'/'.FIXTURE_PREFIX.'*') ?: [] as $fixture) {
+    foreach ($filesystem->glob(sys_get_temp_dir().'/'.fixturePrefix().'*') ?: [] as $fixture) {
         $filesystem->deleteDirectory($fixture);
     }
 });
@@ -207,9 +215,11 @@ it('sweeps once per process rather than once per test', function (): void {
 // that script.
 it('runs from the browser suite bootstrap, whichever way the suite is started', function (): void {
     $bootstrap = (string) file_get_contents(dirname(__DIR__).'/Pest.php');
-    $browserChain = substr($bootstrap, (int) strpos($bootstrap, "->group('browser')"));
+    $browserChain = strpos($bootstrap, "->group('browser')");
 
-    expect($browserChain)->toContain('StaleBundleGuard::ensureFreshBundle(base_path())');
+    expect($browserChain)->not->toBeFalse()
+        ->and(substr($bootstrap, $browserChain))
+        ->toContain('StaleBundleGuard::ensureFreshBundle(base_path())');
 });
 
 /**
