@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 use App\Support\NameSlug;
 
 test('a name that slugs to something keeps its slug', function (string $name, string $expected): void {
