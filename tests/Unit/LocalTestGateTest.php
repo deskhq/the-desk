@@ -7,9 +7,10 @@ use Tests\TestCase;
 /**
  * CI has run the Pest suite with `--parallel` since #582 while the local gate
  * stayed single-process, so every pre-push run paid ~3x the wall clock CI did.
- * These tests pin the local gate to the parallel run, keep the coverage floor
- * attached to it, and keep the browser suite — which binds Reverb and a live
- * server — out of the parallel path.
+ * These tests pin the local gate to the parallel run and keep the coverage floor
+ * attached to it. The browser suite was excluded from the parallel path at the
+ * time and has since joined it — tests/Unit/BrowserSuiteParallelTest.php owns
+ * that half.
  */
 function composerScript(string $name): string
 {
@@ -27,8 +28,10 @@ test('the local gate still enforces the coverage floor', function (): void {
         ->and(composerScript('test'))->toContain('--min=100');
 });
 
-test('the browser suite stays single-process', function (): void {
-    expect(composerScript('test:browser'))->not->toContain('--parallel');
+test('the coverage gate never drags the browser suite in with it', function (): void {
+    expect(composerScript('test'))->not->toContain('tests/Browser')
+        ->and(composerScript('test'))->not->toContain('test:browser')
+        ->and(composerScript('test'))->not->toContain('bin/browser-tests');
 });
 
 test('the documented local gate spells out the parallel run', function (): void {

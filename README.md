@@ -123,8 +123,16 @@ Then, with Sail up (Reverb is part of `sail up -d`) and the frontend built:
 
 ```bash
 ./vendor/bin/sail npm run build                       # tests use the built assets
-./vendor/bin/sail composer test:browser               # or: sail bin pest tests/Browser
+./vendor/bin/sail composer test:browser               # runs bin/browser-tests
 ```
+
+`composer test:browser` runs the suite through `bin/browser-tests`, which shards
+it across paratest workers (~4.4x faster than the single-process run it
+replaced). The worker count is capped at **half the available cores, never below
+two**: leaving `--parallel` to its own default runs one worker per core, and
+browsers, PHP servers and Playwright then compete for the same cores, which
+makes the suite both slower and flakier. Pin a different count with
+`BROWSER_TEST_PROCESSES=N` to measure another setting.
 
 Rebuild the frontend (`npm run build`) after changing any Vue component the
 tests touch, since the in-process server serves the compiled Vite assets.

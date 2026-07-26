@@ -106,7 +106,8 @@
             "@php artisan test --parallel --coverage --min=100"
         ],
         "test:browser": [
-            "pest tests/Browser"
+            "Composer\\Config::disableProcessTimeout",
+            "bin/browser-tests"
         ],
         "post-autoload-dump": [
             "Illuminate\\Foundation\\ComposerScripts::postAutoloadDump",

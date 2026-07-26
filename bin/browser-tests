@@ -1,0 +1,101 @@
+#!/usr/bin/env bash
+#
+# bin/browser-tests — run the browser (E2E) suite under paratest with an
+# explicitly capped worker count (see issue #948).
+#
+# tests/Browser ran strictly single-process for a long time, on the premise that
+# binding Reverb and a live server made it unshardable (#647). It does not:
+# pest-plugin-browser reconnects every paratest worker to one shared Playwright
+# server (persisted to .temp/playwright-server.json) and gives each worker its
+# own in-process HTTP server on its own free port, so there is nothing to
+# contend over. Reverb is a single long-running service every worker publishes
+# to, and each channel name is scoped by a model UUID drawn from that worker's
+# own testing_N database, so two workers cannot collide on a channel either.
+# Measured at 4.4x on a 12-core machine (535s serial -> 122s at 6 workers).
+#
+# The worker count is the part that has to be deliberate. `--parallel` with no
+# `--processes` defaults to the core count, and running as many workers as cores
+# is the *worst* setting: browsers, PHP servers and Playwright then compete for
+# the same cores, and the suite comes out both slower and much flakier than at
+# half that — the failures being exactly the CPU-starvation class of #786, where
+# viewport/geometry assertions read layout before it settles. So: half the
+# cores, never below two.
+#
+# Usage:
+#   bin/browser-tests [extra pest arguments]     # e.g. --ci
+#
+# Config (environment overrides):
+#   BROWSER_TEST_PROCESSES   Pin the worker count instead of deriving it from
+#                            the cores visible here (useful to measure another
+#                            setting, or on a host whose reported core count
+#                            does not reflect the cycles it can actually give).
+
+set -euo pipefail
+
+# The number of CPUs visible to this machine or container. Falls back to 0 —
+# which worker_count floors — rather than guessing on an exotic host.
+detect_cores() {
+    if command -v nproc >/dev/null 2>&1; then
+        nproc
+    elif command -v sysctl >/dev/null 2>&1; then
+        sysctl -n hw.ncpu
+    else
+        echo 0
+    fi
+}
+
+# Half of $1 cores, floored at two workers.
+worker_count() {
+    local workers=$(( ${1:-0} / 2 ))
+
+    if [ "$workers" -lt 2 ]; then
+        workers=2
+    fi
+
+    printf '%s\n' "$workers"
+}
+
+resolve_processes() {
+    local override=${BROWSER_TEST_PROCESSES:-}
+
+    if [ -z "$override" ]; then
+        worker_count "$(detect_cores)"
+        return
+    fi
+
+    # A bad override would otherwise reach paratest as `--processes=nonsense`
+    # and die several seconds into a run with an error naming pest, not the
+    # variable that caused it.
+    if ! [ "$override" -ge 1 ] 2>/dev/null; then
+        printf 'BROWSER_TEST_PROCESSES must be a positive integer, got "%s"\n' "$override" >&2
+        exit 1
+    fi
+
+    printf '%s\n' "$override"
+}
+
+# Fills the PEST_COMMAND array with the invocation to exec, so main and the
+# tests that pin it read the same command rather than two copies of it.
+build_pest_command() {
+    PEST_COMMAND=(vendor/bin/pest tests/Browser --parallel "--processes=$(resolve_processes)" "$@")
+}
+
+# The invocation in printable form, one argument per line.
+pest_command() {
+    build_pest_command "$@"
+
+    printf '%s\n' "${PEST_COMMAND[@]}"
+}
+
+main() {
+    cd "$(dirname "${BASH_SOURCE[0]}")/.."
+
+    build_pest_command "$@"
+    printf '==> %s\n' "${PEST_COMMAND[*]}" >&2
+
+    exec "${PEST_COMMAND[@]}"
+}
+
+# Sourcing with BROWSER_TESTS_LIB=1 defines the helpers without running the
+# suite, so tests/Unit/BrowserSuiteParallelTest.php can drive them directly.
+[ -n "${BROWSER_TESTS_LIB:-}" ] || main "$@"

@@ -264,5 +264,11 @@ jobs:
           echo "Reverb failed to start" >&2
           exit 1
 
+      # bin/browser-tests runs the suite under paratest with the worker count
+      # capped at half the cores this runner reports, never below two —
+      # `--parallel` left to its own default is measurably slower *and* flakier
+      # than that cap (#948). It echoes the invocation it resolved to as the
+      # first line of the step, so the count in force is in the log rather than
+      # inferred from whichever runner CI_RUNNER points at.
       - name: Run Browser Tests
-        run: ./vendor/bin/pest tests/Browser --ci
+        run: ./bin/browser-tests --ci
