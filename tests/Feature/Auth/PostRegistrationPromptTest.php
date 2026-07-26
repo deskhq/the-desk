@@ -96,6 +96,22 @@ test('the shared prop withholds the prompt under enforced single sign-on', funct
             ->where('postRegistrationPrompt', null));
 });
 
+test('the shared prop ignores a session value that is not a known prompt', function (): void {
+    config(['fortify.passkeys_enabled' => true]);
+
+    $user = User::factory()->create();
+
+    // A key left behind by an older release, or a tampered-with session: neither an
+    // unknown name nor a non-string value may reach the frontend as a prompt.
+    foreach (['no-such-prompt', ['passkey'], 42] as $queued) {
+        $this->actingAs($user)
+            ->withSession([PostRegistrationPrompt::SESSION_KEY => $queued])
+            ->get(workspaceUrl($user))
+            ->assertInertia(fn (Assert $page): Assert => $page
+                ->where('postRegistrationPrompt', null));
+    }
+});
+
 test('a user who simply signs in is never prompted', function (): void {
     config(['fortify.passkeys_enabled' => true]);
 

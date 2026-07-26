@@ -45,10 +45,8 @@ class RegisterResponse implements RegisterResponseContract
      *
      * Both writes are session state, so a stateless registration — an API client
      * posting with no session on the request — simply skips them.
-     *
-     * @param  Request  $request
      */
-    protected function queuePasskeyPrompt($request): void
+    protected function queuePasskeyPrompt(Request $request): void
     {
         if (! $request->hasSession()) {
             return;

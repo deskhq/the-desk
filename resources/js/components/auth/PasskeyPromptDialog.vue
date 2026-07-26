@@ -130,6 +130,11 @@ async function createPasskey(): Promise<void> {
 onMounted(() => {
     name.value = suggestedName.value;
 
+    // `isSupported` has already settled by the time this runs: the vendor hook
+    // reads it in its own `onMounted`, registered from this component's setup and
+    // therefore ahead of this one, off a synchronous feature check rather than a
+    // promise. Reading it here rather than watching it is what lets an
+    // unsupporting browser be answered in one pass instead of flashing a dialog.
     if (shouldPromptForPasskey(prompt.value, isSupported.value)) {
         open.value = true;
 
