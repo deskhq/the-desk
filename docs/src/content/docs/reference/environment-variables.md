@@ -205,6 +205,7 @@ deployment where the `scheduler` container is running.
 | Variable                        | Default | Notes                                                                                              |
 | ------------------------------- | ------- | -------------------------------------------------------------------------------------------------- |
 | `SECURITY_EVENT_RETENTION_DAYS` | `365`   | Days a per-user security event (sign-in, credential change, session revocation, data-export activity) is kept before a daily sweep deletes it. One year covers an annual assessment period. Set `0` to keep events forever. |
+| `AUDIT_LOG_RETENTION_DAYS`      | `365`   | Days a workspace audit-log entry (rename, role change, member removal, ownership transfer, channel lifecycle, message deletion, invitation lifecycle) is kept before a daily sweep deletes it. Matches the window above so both logs answer the retention question with the same number. Set `0` to keep entries forever. |
 
 Two more windows are set elsewhere, and are listed here so the whole picture is in
 one place:
@@ -215,7 +216,8 @@ one place:
 - **Uploaded-but-never-sent attachments** are swept after
   `ATTACHMENT_PENDING_TTL_HOURS` (see [Attachments](#attachments)).
 
-The workspace audit log is not pruned by the app. See
+Setting either retention variable to `0` turns its sweep off and keeps that log
+forever, which makes disposal your responsibility. See
 [Security & compliance](/reference/security-and-compliance/) for what that means
 for an assessment.
 

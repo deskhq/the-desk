@@ -83,6 +83,16 @@ Schedule::call(fn (PruneSecurityEvents $prune): int => $prune->handle())
     ->withoutOverlapping()
     ->description('Prune security events past the retention window');
 
+// Spatie's clean command reads `activitylog.clean_after_days` itself, so the
+// window lives in config rather than in a --days flag here. --force is required:
+// the command is confirmable, and unattended in production it would otherwise
+// cancel itself at the prompt instead of pruning.
+Schedule::command('activitylog:clean --force')
+    ->daily()
+    ->withoutOverlapping()
+    ->when(fn (): bool => (int) config('activitylog.clean_after_days') >= 1)
+    ->description('Prune workspace audit-log entries past the retention window');
+
 Schedule::call(fn (PurgeCachedProxyImages $purge): int => $purge->handle())
     ->name('purge-cached-proxy-images')
     ->daily()

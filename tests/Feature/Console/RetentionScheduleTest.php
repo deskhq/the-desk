@@ -1,11 +1,18 @@
 <?php
 
+use App\Models\AuditActivity;
 use App\Models\DataExport;
 use App\Models\SecurityEvent;
 use Illuminate\Console\Scheduling\Event;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Storage;
+
+/**
+ * The description the workspace audit-log sweep is registered under, which is
+ * also how it is located in the schedule.
+ */
+const AUDIT_LOG_SWEEP_DESCRIPTION = 'Prune workspace audit-log entries past the retention window';
 
 /**
  * Find a scheduled event by its description, loading the console schedule first
@@ -58,4 +65,37 @@ test('the scheduled data-export sweep purges expired archives', function (): voi
     Storage::disk('local')->assertExists($live->path);
     $this->assertDatabaseMissing('data_exports', ['id' => $expired->id]);
     $this->assertDatabaseHas('data_exports', ['id' => $live->id]);
+});
+
+test('the audit-log sweep is scheduled daily without overlapping', function (): void {
+    $event = dailyRetentionSweep(AUDIT_LOG_SWEEP_DESCRIPTION);
+
+    expect($event->command)->toContain('activitylog:clean');
+});
+
+test('the audit-log sweep forces itself through the production confirmation prompt', function (): void {
+    expect(dailyRetentionSweep(AUDIT_LOG_SWEEP_DESCRIPTION)->command)->toContain('--force');
+});
+
+test('the audit-log sweep runs while a retention window is set', function (): void {
+    config()->set('activitylog.clean_after_days', 365);
+
+    expect(dailyRetentionSweep(AUDIT_LOG_SWEEP_DESCRIPTION)->filtersPass($this->app))->toBeTrue();
+});
+
+test('the audit-log sweep is skipped when retention is disabled', function (int $days): void {
+    config()->set('activitylog.clean_after_days', $days);
+
+    expect(dailyRetentionSweep(AUDIT_LOG_SWEEP_DESCRIPTION)->filtersPass($this->app))->toBeFalse();
+})->with([0, -1]);
+
+test('the audit-log sweep deletes entries past the configured window and keeps newer ones', function (): void {
+    config()->set('activitylog.clean_after_days', 30);
+    $stale = AuditActivity::factory()->create(['created_at' => now()->subDays(31)]);
+    $recent = AuditActivity::factory()->create(['created_at' => now()->subDays(29)]);
+
+    $this->artisan('activitylog:clean', ['--force' => true])->assertSuccessful();
+
+    $this->assertDatabaseMissing('activity_log', ['id' => $stale->id]);
+    $this->assertDatabaseHas('activity_log', ['id' => $recent->id]);
 });
