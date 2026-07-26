@@ -24,6 +24,33 @@ function destinationPanelIsOpen(string $destination): string
     JS;
 }
 
+/**
+ * A script resolving once the URL's `nav` param reaches the given destination —
+ * `null` for the param being gone.
+ *
+ * Switching is a client-side visit ({@see router.replace}), so the panel swaps
+ * synchronously off the ref while Inertia writes history a tick later: the URL
+ * always lags the DOM here, and the URL assertions are one-shot reads. Polling
+ * one animation frame at a time settles that without pinning a sleep to whatever
+ * a loaded CI runner happens to take (#947).
+ */
+function navParamSettles(?string $destination): string
+{
+    $expected = $destination === null ? 'null' : "'{$destination}'";
+
+    return <<<JS
+    (async () => {
+        const settled = () => new URLSearchParams(location.search).get('nav') === {$expected};
+
+        for (let frame = 0; frame < 120 && ! settled(); frame++) {
+            await new Promise(requestAnimationFrame);
+        }
+
+        return settled();
+    })()
+    JS;
+}
+
 /** The rendered width of the dock's card, rounded to the nearest pixel. */
 function dockCardWidth(): string
 {
@@ -47,11 +74,13 @@ test('a rail glyph swaps the panel and pins the destination on the URL', functio
         // the channel behind it stayed open.
         ->assertNotPresent('@channels-nav')
         ->assertPresent('@navigation-rail')
+        ->assertScript(navParamSettles('threads'), true)
         ->assertQueryStringHas('nav', 'threads')
         ->assertPathIs(browserChannelUrl($team, $channel))
         // Back to the conversations, and the param goes with it.
         ->click('@rail-destination-channels')
         ->assertPresent('@channels-nav')
+        ->assertScript(navParamSettles(null), true)
         ->assertQueryStringMissing('nav');
 });
 
