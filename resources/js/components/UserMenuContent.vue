@@ -2,6 +2,7 @@
 import { Link, usePage } from '@inertiajs/vue3';
 import {
     Compass,
+    Download,
     Keyboard,
     LogOut,
     Monitor,
@@ -30,8 +31,10 @@ import {
 } from '@/components/ui/dropdown-menu';
 import UserStatusEmoji from '@/components/UserStatusEmoji.vue';
 import { useAppearance } from '@/composables/useAppearance';
+import { useAppInstall, useInstallRowBadge } from '@/composables/useAppInstall';
 import { useDndPauseDialog } from '@/composables/useDndPauseDialog';
 import { useInitials } from '@/composables/useInitials';
+import { useInstallDialog } from '@/composables/useInstallDialog';
 import { useIsMobile } from '@/composables/useIsMobile';
 import { useKeyboardShortcutsModal } from '@/composables/useKeyboardShortcutsModal';
 import { useOnboardingTour } from '@/composables/useOnboardingTour';
@@ -129,6 +132,13 @@ const {
 } = useUserMenu();
 
 const { open: openDndPauseDialog } = useDndPauseDialog();
+
+// Install's permanent home: unlike the sidebar card it never nags and is never
+// dismissed, so anyone who said "not now" can still find it. The NEW badge is
+// spent by the first menu that carries the row.
+const { showRow: showInstallRow } = useAppInstall();
+const { open: openInstallDialog } = useInstallDialog();
+const installRowIsNew = useInstallRowBadge();
 </script>
 
 <template>
@@ -478,6 +488,28 @@ const { open: openDndPauseDialog } = useDndPauseDialog();
                 "
             />
         </div>
+    </div>
+
+    <!-- Install: its own brass-tinted row, ahead of the account group. Absent
+         once the app is installed, and on a browser that can neither prompt nor
+         be talked through it. -->
+    <div v-if="showInstallRow" class="px-2 pt-3">
+        <DropdownMenuItem
+            class="group/item flex h-10 cursor-pointer items-center gap-2.5 rounded-[10px] border border-brass-border/60 bg-brass/8 px-2.5 py-0 text-[13.5px] font-semibold text-foreground focus:bg-primary focus:text-primary-foreground"
+            data-test="install-app-menu-item"
+            @select="openInstallDialog"
+        >
+            <Download
+                class="size-3.75 text-brass-fill-foreground group-focus/item:text-brass"
+            />
+            <span class="min-w-0 flex-1 truncate">{{ $t('Install app') }}</span>
+            <span
+                v-if="installRowIsNew"
+                data-test="install-app-menu-badge"
+                class="inline-flex h-4.5 shrink-0 items-center rounded-full bg-primary px-1.75 text-[9px] font-bold tracking-[0.04em] text-primary-foreground group-focus/item:bg-primary-foreground group-focus/item:text-primary"
+                >{{ $t('NEW') }}</span
+            >
+        </DropdownMenuItem>
     </div>
 
     <!-- Account -->

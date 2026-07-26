@@ -29,6 +29,13 @@ export default {
         // release-please (type, subject case, header length) stay errors.
         'body-max-line-length': [1, 'always', 100],
         'footer-max-line-length': [1, 'always', 100],
+        // Same story for the header. A squash commit's subject is the PR title, and the length is
+        // only measurable once the title exists — the `pr-title` job below is what enforces it, in
+        // time to be fixed. Left as an error here it fires on a subject that is already history:
+        // an over-long title merged to `develop` (#891) blocked the whole promotion to `master`,
+        // where the only remedies are rewriting a protected branch or bypassing a required check.
+        // The rules that guard release-please (type, subject case) stay errors.
+        'header-max-length': [1, 'always', 100],
     },
     // Dependabot generates verbose commit bodies whose lines exceed body-max-line-length.
     // Skip its bot commits (identified by their sign-off trailer); the PR title we squash-merge

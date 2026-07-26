@@ -4,6 +4,8 @@ use App\Enums\TeamRole;
 use App\Models\Team;
 use App\Models\TeamInvitation;
 use App\Models\User;
+use Illuminate\Auth\SessionGuard;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\RateLimiter;
 use Inertia\Testing\AssertableInertia as Assert;
 use Laravel\Fortify\Features;
@@ -45,6 +47,43 @@ test('users can authenticate using the login screen and land in the workspace', 
 
     $this->assertAuthenticated();
     $response->assertRedirect(route('channels.index', ['team' => $user->currentTeam->slug]));
+});
+
+test('signing in with "keep me signed in" queues the long-lived recaller cookie', function (): void {
+    $user = User::factory()->create();
+
+    $response = $this->post(route('login.store'), [
+        'email' => $user->email,
+        'password' => 'password',
+        'remember' => 'on',
+    ]);
+
+    $this->assertAuthenticated();
+
+    /** @var SessionGuard $guard */
+    $guard = Auth::guard('web');
+    $recaller = $response->getCookie($guard->getRecallerName(), decrypt: false);
+
+    expect($recaller)->not->toBeNull()
+        // The recaller is what outlives session expiry, so it has to be dated
+        // well past any session lifetime — Laravel's own default is 400 days.
+        ->and($recaller->getExpiresTime())->toBeGreaterThan(now()->addYear()->getTimestamp());
+});
+
+test('signing in without "keep me signed in" queues no recaller cookie', function (): void {
+    $user = User::factory()->create();
+
+    $response = $this->post(route('login.store'), [
+        'email' => $user->email,
+        'password' => 'password',
+    ]);
+
+    $this->assertAuthenticated();
+
+    /** @var SessionGuard $guard */
+    $guard = Auth::guard('web');
+
+    expect($response->getCookie($guard->getRecallerName(), decrypt: false))->toBeNull();
 });
 
 test('users with two factor enabled are redirected to two factor challenge', function (): void {

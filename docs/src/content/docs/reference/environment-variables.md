@@ -9,8 +9,9 @@ page: [Feature toggles](/reference/feature-toggles/).
 
 :::note
 Run `./docker/gen-secrets.sh` to generate the required secrets — it fills
-`APP_KEY`, `DB_PASSWORD`, `MEILISEARCH_KEY`, and the `REVERB_*` app credentials
-with fresh random values and never overwrites values you have already set.
+`APP_KEY`, `DB_PASSWORD`, `MEILISEARCH_KEY`, the `REVERB_*` app credentials, and
+the [web push](#web-push-notifications) `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY`
+pair with fresh random values, and never overwrites values you have already set.
 :::
 
 ## Docker Compose
@@ -116,6 +117,8 @@ production — see [Configuration](/self-hosting/configuration/#reverb-websocket
 | Variable                     | Default | See                                            |
 | ---------------------------- | ------- | ---------------------------------------------- |
 | `REGISTRATION_ENABLED`       | `true`  | [Feature toggles → Open registration](/reference/feature-toggles/#open-registration) |
+| `TERMS_URL`                  | *(unset)* | [Feature toggles → Terms & privacy consent](/reference/feature-toggles/#terms--privacy-consent) |
+| `PRIVACY_URL`                | *(unset)* | [Feature toggles → Terms & privacy consent](/reference/feature-toggles/#terms--privacy-consent) |
 | `EMAIL_VERIFICATION_ENABLED` | `false` | [Feature toggles → Email verification](/reference/feature-toggles/#email-verification) |
 | `TWO_FACTOR_AUTH_ENABLED`    | `false` | [Feature toggles → Two-factor authentication](/reference/feature-toggles/#two-factor-authentication) |
 | `PASSKEYS_ENABLED`           | `false` | [Feature toggles → Passkeys](/reference/feature-toggles/#passkeys) |
@@ -183,7 +186,7 @@ app may load:
 | Variable                | Default                         | Notes                                                                                              |
 | ----------------------- | ------------------------------- | -------------------------------------------------------------------------------------------------- |
 | `SESSION_SECURE_COOKIE` | *(derived from `APP_URL`)*      | Adds the `Secure` flag, so the browser never sends the session cookie over plain HTTP. Defaults to `true` when `APP_URL` starts with `https://`, `false` otherwise. |
-| `SESSION_LIFETIME`      | `120`                           | Minutes of inactivity before a session expires.                                                     |
+| `SESSION_LIFETIME`      | `480`                           | Minutes of inactivity before a session expires. Eight hours, so a workspace left alone across a working day is still signed in on return. Signing in with "Keep me signed in" outlives this. |
 | `SESSION_ENCRYPT`       | `false`                         | Encrypt session payloads at rest in Redis.                                                          |
 | `SESSION_DOMAIN`        | `null`                          | Cookie domain. Leave unset unless you deliberately share the cookie across subdomains.              |
 
@@ -374,3 +377,96 @@ stack). Nothing is written to the database except a member's own manual away
 setting, and if the cache is unavailable everyone simply reads as active — the
 same as before the feature existed.
 :::
+
+## Web push notifications
+
+Members can opt in, **per device**, to browser notifications for new messages —
+so a mention still reaches them with the tab closed. The feature needs a VAPID
+keypair, which signs every push; see
+[Feature toggles → Web push notifications](/reference/feature-toggles/#web-push-notifications)
+for what it does and how it behaves.
+
+| Variable            | Default      | Notes                                                                                                     |
+| ------------------- | ------------ | --------------------------------------------------------------------------------------------------------- |
+| `VAPID_PUBLIC_KEY`  | *(unset)*    | Public half of the signing keypair. Served to the browser so it can subscribe. Both keys must be set.       |
+| `VAPID_PRIVATE_KEY` | *(unset)*    | Private half. Never leaves the server.                                                                      |
+| `VAPID_SUBJECT`     | *(`APP_URL`)*| How you identify yourself to the push services: a `mailto:` or `https:` URL they can contact you at.         |
+
+**On a fresh install you already have a pair.** `./docker/gen-secrets.sh`
+generates one with the rest of your secrets, so push works as soon as members
+turn it on. Nothing else is needed here — optionally set `VAPID_SUBJECT`, which
+the script deliberately leaves empty because it is your contact address rather
+than a secret.
+
+Upgrading an existing install, or running on a platform where `gen-secrets.sh`
+has nothing to write into? Then generate the pair yourself, once. Always pass
+`--show`, which **prints** the keys instead of writing them anywhere:
+
+```bash
+docker compose exec app php artisan webpush:vapid --show
+```
+
+```
+VAPID_PUBLIC_KEY=BN4Gv…
+VAPID_PRIVATE_KEY=hAn5…
+```
+
+Paste both into the `.env` **on the host**, alongside your other secrets, and set
+`VAPID_SUBJECT` while you are there:
+
+```ini
+VAPID_PUBLIC_KEY=BN4Gv…
+VAPID_PRIVATE_KEY=hAn5…
+VAPID_SUBJECT=mailto:admin@example.com
+```
+
+Then restart the stack to pick them up:
+
+```bash
+docker compose up -d
+```
+
+:::caution[Run it with `--show`, never bare]
+Without `--show`, the command writes the keys into `.env` itself, and that cannot
+work here. The bundled stack bind-mounts the file **read-only**
+(`./.env:/app/.env:ro` in `docker-compose.prod.yml`) because the operator owns
+and edits it on the host, so the bare form fails with:
+
+```
+file_put_contents(/app/.env): Failed to open stream: Read-only file system
+```
+
+On a platform-managed deployment (Dokploy, Coolify, Kubernetes) there is no host
+`.env` to edit at all. Run the same `--show` command through whatever that
+platform gives you to reach the running app container (a web terminal, a one-off
+task, `kubectl exec`), then paste the three values into the platform's
+environment settings and redeploy.
+:::
+
+:::note[Web push needs a big-number PHP extension]
+Signing a push message needs either the **GMP** or the **BCMath** PHP extension. The bundled
+production image ships **GMP**, alongside the **Imagick** and **GD** extensions it ships for image
+processing, so nothing extra is required there. If you build your own image or run the app outside
+the bundled one, install one of the two: without either, the push channel cannot start and every
+notification fails in the queue instead of being delivered.
+:::
+
+:::caution[Keep the keypair stable]
+The public key is baked into every subscription a browser has already granted.
+Rotating it silently invalidates them all: those devices stop receiving anything
+until each member turns the toggle off and on again. Back the pair up with your
+other secrets.
+:::
+
+To confirm the setup works, ask the instance rather than waiting for a
+notification that may never come:
+
+```bash
+docker compose exec app php artisan push:doctor
+```
+
+It reports on the keypair, the subject, the extensions the push library needs,
+whether the delivery channel constructs, how many devices are subscribed, and any
+push jobs that have already failed — and exits non-zero when push cannot be
+delivered. See
+[Troubleshooting → Nobody receives push notifications](/self-hosting/troubleshooting/#nobody-receives-push-notifications).

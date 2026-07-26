@@ -24,11 +24,17 @@ class AccountDeleter
      * personal teams are torn down with them, while their memberships of shared
      * teams simply drop via the cascade — the sole-owner-of-a-shared-team case is
      * blocked upstream in {@see ProfileDeleteRequest}.
+     *
+     * Their web-push subscriptions are dropped explicitly: the owning column is
+     * a polymorphic reference, so no foreign key sweeps them, and a stale row
+     * would keep this instance pushing to a device whose account is gone.
      */
     public function delete(User $user): void
     {
         DB::transaction(function () use ($user): void {
             $tombstone = User::tombstone();
+
+            $user->pushSubscriptions()->delete();
 
             Message::withTrashed()
                 ->where('user_id', $user->id)

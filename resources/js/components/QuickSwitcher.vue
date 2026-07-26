@@ -265,7 +265,7 @@ function openReminders(): void {
                                 $t('Jump to a channel or search messages…')
                             "
                             data-test="quick-switcher-input"
-                            class="h-full w-full min-w-0 bg-transparent text-[15px] outline-hidden placeholder:text-muted-foreground"
+                            class="h-full w-full min-w-0 bg-transparent text-base outline-hidden placeholder:text-muted-foreground md:text-[15px]"
                         />
                     </div>
                     <Button
@@ -290,7 +290,7 @@ function openReminders(): void {
                             $t('Jump to a channel or search messages…')
                         "
                         data-test="quick-switcher-input"
-                        class="flex h-10 w-full rounded-md bg-transparent py-3 text-sm outline-hidden placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50"
+                        class="flex h-10 w-full rounded-md bg-transparent py-3 text-base outline-hidden placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50 md:text-sm"
                     />
                 </div>
                 <CommandList

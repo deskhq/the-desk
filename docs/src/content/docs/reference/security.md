@@ -34,12 +34,42 @@ findings surface in the repository's **Security** tab:
 | **Dependency review** | Every pull request                        | Blocks introducing a dependency that has a known advisory.                |
 | **Dependabot**        | Weekly, and on new advisories             | Opens PRs to update vulnerable or outdated dependencies.                  |
 | **Secret scanning**   | Continuous, with push protection          | Detects committed credentials and blocks pushes that contain them.        |
+| **Image scanning**    | On every image build, plus weekly         | Scans the production container image for known CVEs with a fix available. |
 
 :::note
 CodeQL does not support PHP, so the Laravel backend is covered by PHPStan
 (Larastan), Rector, and Dependabot rather than CodeQL. See the project's quality
 gates in the repository for details.
 :::
+
+The weekly image scan matters for a reason the others do not cover: a CVE in the
+base image or its OS packages appears without a single commit landing in this
+repository, so a check that only runs on changes would never see it. When the
+published `latest` or `rc` image picks one up, the scan opens a tracking issue
+and closes it once a rebuild has cleared it.
+
+## Supply chain of the published image
+
+The image published to `ghcr.io/deskhq/the-desk` is built only by this
+repository's CI, and every published image carries:
+
+- a **signed build provenance** attestation, recorded with GitHub and pushed
+  alongside the image, so you can prove which workflow and which commit produced
+  it;
+- an in-registry **provenance** record and an **SBOM**, attached as OCI
+  attestation manifests and readable with `docker buildx imagetools inspect`.
+
+Verify an image before running it:
+
+```bash
+gh attestation verify oci://ghcr.io/deskhq/the-desk:X.Y.Z \
+  --repo deskhq/the-desk
+```
+
+Stable release notes also publish the image **digest** next to the tag, so an
+operator whose change-control process requires an immutable reference can pin to
+it. See
+[Verify the image, and pin it by digest](/self-hosting/installation/#verify-the-image-and-pin-it-by-digest).
 
 ## HTTPS is pinned once it is available
 
@@ -210,20 +240,21 @@ splits those across two hosts and so needs both.
 
 ## Cookies
 
-The Desk sets four cookies. Only one of them, the session cookie, is worth
-stealing, and that one is HTTP-only so a script cannot read it. All four are
-`SameSite=Lax`, so none is sent on a cross-site subrequest.
+The Desk sets up to five cookies. Only two of them, the session cookie and the
+sign-in token, are worth stealing, and both are HTTP-only so a script cannot read
+them. All five are `SameSite=Lax`, so none is sent on a cross-site subrequest.
 
 | Cookie                | Set by         | Contents                       | `HttpOnly` | Encrypted |
 | --------------------- | -------------- | ------------------------------ | ---------- | --------- |
 | `the-desk-session`    | Server         | The session identifier         | Yes        | Yes       |
+| `remember_web_*`      | Server         | The "keep me signed in" token  | Yes        | Yes       |
 | `XSRF-TOKEN`          | Server         | The CSRF token                 | No         | Yes       |
 | `appearance`          | Browser        | `light`, `dark` or `system`    | No         | No        |
 | `sidebar_state`       | Browser        | `true` or `false`              | No         | No        |
 
 The `Secure` flag comes from two different places. The two cookies the browser
 writes take it from the page's own scheme, so they are `Secure` on any HTTPS
-page with nothing to configure. The two the server sets are `Secure` only when
+page with nothing to configure. The three the server sets are `Secure` only when
 `SESSION_SECURE_COOKIE=true`, which is **not** inferred from the request: set it
 explicitly in any production deployment, or your session cookie will keep being
 sent over plain HTTP. See
@@ -231,6 +262,27 @@ sent over plain HTTP. See
 
 The session cookie name follows `APP_NAME`, so it reads `the-desk-session` on a
 default install and something else if you renamed the app.
+
+### "Keep me signed in" and the installed app
+
+`remember_web_*` is only set when someone signs in with "Keep me signed in"
+ticked. It outlives session expiry, so that person stays signed in on the device
+until they log out or the token expires. Logging out clears it.
+
+The box starts ticked when the app is running as an **installed app** (its own
+window or a home-screen launch) and unticked in an ordinary browser tab, which
+may be a shared or public machine. Either way it is the user's choice: the
+default only decides where the checkbox starts. There is nothing to configure,
+and [`SESSION_LIFETIME`](/reference/environment-variables/#session-cookies) still
+governs everyone who leaves it unticked.
+
+Every way in honours the same choice: the password form, passkey sign-in, and
+single sign-on. Passkeys and SSO carry it without a control of their own, so on
+an instance where the password form is hidden (`AUTH_SSO_ONLY`, or one where
+everybody uses a passkey) the installed-app default is what applies, with no
+checkbox on screen. For SSO the choice is held server side while the browser is
+away at the identity provider, so it can only be set by starting a sign-in from
+the login screen.
 
 ### `XSRF-TOKEN` is readable by JavaScript on purpose
 

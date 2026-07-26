@@ -60,8 +60,14 @@ jobs:
             test
           # Mirrors config-conventional's subject-case (no leading capital, which
           # also covers acronym-led subjects) and subject-full-stop rules, so a
-          # title can never pass one check and fail the other.
-          subjectPattern: '^(?![A-Z])(?!.*\.$).+$'
+          # title can never pass one check and fail the other. The length bound
+          # mirrors header-max-length: the longest type (`refactor`) plus `: ` is
+          # 10 characters, so a 90-character subject keeps the squash header
+          # inside commitlint's 100. This is the only place the length can still
+          # be fixed — once the title is squashed onto `develop` the subject is
+          # history, and it then fails every promotion PR that carries it (#891).
+          subjectPattern: '^(?![A-Z])(?!.*\.$).{1,90}$'
           subjectPatternError: |
             The subject "{subject}" in the PR title "{title}" is invalid: it must not start with a
-            capital letter, and must not end with a full stop, e.g. "feat: edit the last message".
+            capital letter, must not end with a full stop, and must be at most 90 characters, e.g.
+            "feat: edit the last message".

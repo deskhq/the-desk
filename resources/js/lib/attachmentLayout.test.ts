@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
     fileTypeLabel,
+    fillsBleedWidth,
     imageGridColumns,
     imageGridTiles,
     partitionAttachments,
@@ -78,6 +79,23 @@ describe('singleImageSize', () => {
     it('falls back to the full box when dimensions are unknown', () => {
         expect(singleImageSize(null, 200)).toEqual({ width: 380, height: 240 });
         expect(singleImageSize(200, null)).toEqual({ width: 380, height: 240 });
+    });
+});
+
+describe('fillsBleedWidth', () => {
+    it('lets an image at least as wide as the box fill the break-out', () => {
+        expect(fillsBleedWidth(2400)).toBe(true);
+        expect(fillsBleedWidth(380)).toBe(true);
+    });
+
+    it('holds a smaller image back rather than upscaling it', () => {
+        expect(fillsBleedWidth(379)).toBe(false);
+        expect(fillsBleedWidth(120)).toBe(false);
+    });
+
+    it('treats unknown dimensions as the full box, matching singleImageSize', () => {
+        expect(fillsBleedWidth(null)).toBe(true);
+        expect(fillsBleedWidth(0)).toBe(true);
     });
 });
 

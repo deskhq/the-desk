@@ -149,9 +149,15 @@ parses as nothing and is dropped from the release silently, so the title is
 validated by its own required check (the `pr-title` job in
 `.github/workflows/commitlint.yml`) using the same types and subject rules as
 commitlint above: `type(optional-scope): imperative subject`, with a lowercase
-type, no capital letter opening the subject, and no trailing period — e.g.
-`feat(messaging): add message reminders`. Editing the title re-runs the check, so
-a rejected title turns green without a new commit.
+type, no capital letter opening the subject, no trailing period, and at most 90
+characters of subject — e.g. `feat(messaging): add message reminders`. Editing
+the title re-runs the check, so a rejected title turns green without a new
+commit.
+
+The length bound is the one rule you cannot fix later. The title becomes the
+squash subject, so an over-long one lands on `develop` as history and then fails
+commitlint on every promotion PR that carries it, where the only ways out are
+rewriting a protected branch or bypassing a required check.
 
 That squash subject lands on `develop`, where it becomes one entry in the next
 release candidate, and reaches `master` — and so `CHANGELOG.md` — when `develop`

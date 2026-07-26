@@ -41,6 +41,27 @@ export type Auth = {
     user: User;
 };
 
+/**
+ * The ink panel's oversized statement: a plain opening, a brass italic clause
+ * that closes it, and the supporting paragraph beneath the brass hairline.
+ */
+export type AuthStatement = {
+    lead: string;
+    accent: string;
+    body: string;
+};
+
+/** The pill in the paper column's top row — the way out of the current screen. */
+export type AuthTopAction = {
+    label: string;
+    href: string;
+    /** Quiet lead-in text before the pill, e.g. "New here?". */
+    prefix?: string;
+    /** Draws a back chevron and moves the pill to the start of the row. */
+    back?: boolean;
+    testId?: string;
+};
+
 /* @chisel-passkeys */
 export type Passkey = {
     id: number;

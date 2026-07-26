@@ -287,7 +287,7 @@ onBeforeUnmount(() => {
                 "
                 :aria-label="$t('Search GIFs')"
                 :placeholder="$t('Search GIFs')"
-                class="h-8 flex-1 rounded-full bg-muted px-3 text-sm outline-none focus:ring-2 focus:ring-brass"
+                class="h-8 flex-1 rounded-full bg-muted px-3 text-base outline-none focus:ring-2 focus:ring-brass md:text-sm"
             />
             <Button
                 type="button"

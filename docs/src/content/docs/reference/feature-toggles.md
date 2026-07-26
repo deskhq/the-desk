@@ -26,6 +26,27 @@ Create your own account **before** turning registration off, then invite everyon
 else. See [First user & workspace](/self-hosting/first-user/#locking-down-registration).
 :::
 
+## Terms & privacy consent
+
+| Variable      | Default | Effect                                              |
+| ------------- | ------- | --------------------------------------------------- |
+| `TERMS_URL`   | *(unset)* | Link target for "terms" on the register screen.   |
+| `PRIVACY_URL` | *(unset)* | Link target for "privacy notice" on the register screen. |
+
+The Desk ships no terms of service or privacy notice of its own: a self-hosted
+instance is governed by whoever runs it. So both are **unset** by default and the
+register screen shows no consent row at all.
+
+Set **both** to add a required "I agree to the terms and the privacy notice"
+checkbox to registration, linking to your own documents. Registration is then
+refused server-side without agreement, so the checkbox cannot simply be skipped
+by posting the form directly.
+
+:::caution
+Setting only one of the two leaves the row **off**. A half-configured instance
+would otherwise ask people to agree to a link that goes nowhere.
+:::
+
 ## Email verification
 
 | Variable                     | Default | Effect                                                       |
@@ -480,6 +501,10 @@ nothing — leave it off on any real deployment.
 
 Set `DEMO_MODE=true` to enable all of the following at once:
 
+- **A one-click way in.** An "Enter the demo" button appears on the welcome and
+  login screens and signs the visitor straight into the shared account, so nobody
+  has to know or type the seeded credentials. The button is absent off the demo,
+  and its endpoint returns **404** there too.
 - **Destructive owner actions are blocked.** Changing the shared account's email,
   password, or name; enabling two-factor or a passkey; revoking sessions; deleting
   the account or team; renaming the team or editing its slug; transferring
@@ -488,8 +513,9 @@ Set `DEMO_MODE=true` to enable all of the following at once:
 - **All outbound email is swallowed.** The mail transport is forced to the
   in-memory `array` driver, so invites, password resets, verification, and
   notifications never leave the host — regardless of your SMTP settings.
-- **Writes are rate-limited per IP.** Message sends (~30/min) and attachment
-  uploads (~10/min) are throttled by IP address (per-user throttling is useless
+- **Writes are rate-limited per IP.** Demo entry (~10/min), message sends
+  (~30/min), and attachment uploads (~10/min) are throttled by IP address
+  (per-user throttling is useless
   when everyone shares one account). The caps are generous enough that honest
   exploring never trips them.
 - **Self-registration is forced off.** `/register` returns **404** regardless of
@@ -503,4 +529,54 @@ Set `DEMO_MODE=true` to enable all of the following at once:
 The hourly reset **force-deletes** the demo team and its accounts, so any
 in-flight visitor session breaks when it runs — expected for a throwaway demo,
 never appropriate for real data.
+:::
+
+## Web push notifications
+
+| Variable                                 | Default                                | Effect                                              |
+| ---------------------------------------- | -------------------------------------- | --------------------------------------------------- |
+| `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` | *(unset; filled on a fresh install)* | Enables browser push notifications for new messages. |
+
+Web push needs a VAPID keypair. A fresh install gets one from
+`./docker/gen-secrets.sh`, which fills both keys with the rest of your secrets.
+An install that predates that — or a platform-managed deployment, where the
+script has nothing to write into — generates its own pair with the
+`webpush:vapid --show` command; see
+[Environment variables → Web push notifications](/reference/environment-variables/#web-push-notifications).
+With no keypair the toggle never appears in Settings, and the subscription
+endpoints return **404**.
+
+With the keys set, the feature is still **opt-in per member and per device**:
+nothing prompts on load or on login. Each member turns it on from
+**Settings → Appearance & notifications → Push notifications on this device**,
+which is what asks the browser for permission. Turning it on on a laptop does not
+subscribe their phone, and either can be turned off on its own.
+
+What gets pushed follows the same rules as the in-app chime, so a push never
+contradicts a badge:
+
+- Direct messages and channels at the default **All messages** level push on every
+  message; a channel set to **Mentions only** pushes only when the member is
+  @mentioned; **Nothing** and **muted** channels never push.
+- A member is never pushed about their own message, and **quiet hours** or a
+  manual do-not-disturb pause suppress everything.
+- Notifications are **collapsed per conversation**: a second message in the same
+  channel replaces the banner already on screen rather than stacking up.
+- If a window of the app is **visible** when the message lands, the banner is
+  dropped — that tab has already chimed and badged.
+
+Clicking a notification focuses an open window (or opens one) directly on the
+message, scrolled to and highlighted.
+
+:::note[Delivery uses the queue]
+Fan-out runs on the queue, so the [queue worker](/self-hosting/configuration/)
+must be running or nothing is delivered. Payloads are encrypted end-to-end to
+each device: the browser vendors' push services relay ciphertext they cannot
+read.
+:::
+
+:::caution[iOS needs the app installed]
+Safari only allows web push from a PWA **added to the home screen** (iOS 16.4+).
+In a plain Safari tab the toggle does not appear at all. On desktop and Android,
+a regular browser tab is enough.
 :::

@@ -54,10 +54,12 @@ export type TeamInvitation = {
     created_at: string;
 };
 
-export type TeamInvitationContext = {
-    code: string;
-    teamName: string;
-};
+/**
+ * What the auth screens may say about a pending invitation. Backed by the PHP
+ * DTO, which decides how much of the workspace a bare invite code is allowed to
+ * reveal — see `App\Data\TeamInvitationContextData`.
+ */
+export type TeamInvitationContext = App.Data.TeamInvitationContextData;
 
 export type DashboardInvitation = {
     code: string;

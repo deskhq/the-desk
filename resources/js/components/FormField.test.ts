@@ -52,8 +52,47 @@ describe('FormField', () => {
         const html = await renderField({ id: 'email', label: 'Email address' });
 
         expect(html).not.toContain('field is required');
-        // The error slot stays hidden rather than reserving space.
-        expect(html).toContain('style="display:none;"');
+        // Not merely hidden: absent, so a screen reader has no empty node to
+        // walk over on a field that is perfectly fine.
+        expect(html).not.toContain('display:none');
+        expect(html).not.toContain('role="alert"');
+    });
+
+    it('keeps the field the same height whether or not it is in error', async () => {
+        // The space for the message is reserved up front and the message is
+        // drawn out of flow inside it, so an error cannot grow the field and
+        // push the rest of the form around it (#883).
+        const clean = await renderField({
+            id: 'email',
+            label: 'Email address',
+        });
+        const failed = await renderField({
+            id: 'email',
+            label: 'Email address',
+            error: 'The email field is required.',
+        });
+
+        for (const html of [clean, failed]) {
+            // The same reserved slot in both states, so the row it occupies and
+            // the gap before it never change.
+            expect(html).toContain('<div class="relative h-7">');
+        }
+
+        expect(failed).toMatch(/class="[^"]*\babsolute\b/);
+    });
+
+    it('announces the error and keeps it clear of the next control', async () => {
+        const html = await renderField({
+            id: 'email',
+            label: 'Email address',
+            error: 'The email field is required.',
+        });
+
+        // Announced the moment it appears...
+        expect(html).toContain('role="alert"');
+        // ...and unable to swallow a click, since a wrapped second line is
+        // drawn over the space the next control occupies.
+        expect(html).toMatch(/class="[^"]*\bpointer-events-none\b/);
     });
 
     it('renders the optional hint line when provided', async () => {
@@ -101,5 +140,27 @@ describe('FormField', () => {
 
         expect(html).toContain('Forgot password?');
         expect(html).toContain('href="/forgot"');
+    });
+
+    it('emits the labelAction after the control so Tab reaches the control first', async () => {
+        // Sequential focus follows the DOM, so a focusable label action drawn on
+        // the label row must still be emitted after the control — otherwise Tab
+        // out of the previous field lands on the link instead of this input.
+        const html = await renderField(
+            { id: 'password', label: 'Password' },
+            {
+                default: ({ id }) => h('input', { id, name: 'password' }),
+                labelAction: () =>
+                    h('a', { href: '/forgot' }, 'Forgot password?'),
+            },
+        );
+
+        const labelAt = html.indexOf('for="password"');
+        const controlAt = html.indexOf('name="password"');
+        const actionAt = html.indexOf('href="/forgot"');
+
+        expect(labelAt).toBeGreaterThanOrEqual(0);
+        expect(controlAt).toBeGreaterThan(labelAt);
+        expect(actionAt).toBeGreaterThan(controlAt);
     });
 });

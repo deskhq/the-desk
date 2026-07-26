@@ -172,8 +172,17 @@
     --demo-chip: #ffffff;
     --demo-chip-foreground: #7d6023;
     /* Height of the fixed demo strip, so the shell can reserve space beneath it
-       (the banner is `position: fixed`, out of flow). Theme-independent. */
+       (the banner is `position: fixed`, out of flow). Theme-independent.
+
+       This is the pre-hydration fallback only: the strip stacks into two rows
+       below `md` and its copy wraps to a width- and locale-dependent number of
+       lines, so DemoBanner.vue measures itself on mount and overrides this with
+       the height it really occupies (#841). Keep it matching the desktop strip's
+       own `md:h-10`. */
     --demo-banner-height: 2.5rem;
+    /* Cast by the auth screens' one ink control, so the pill lifts off the paper
+       column rather than sitting flat on it (#860). */
+    --shadow-ink: rgba(29, 26, 21, 0.45);
     --chart-1: #c9a35c;
     --chart-2: #7d6023;
     --chart-3: #8b8370;
@@ -190,6 +199,16 @@
     --sidebar-ring: #8a6a1f;
     --sidebar: #fbfaf7;
     --sidebar-rail: #eeeade;
+}
+
+/* The stacked, two-row treatment of the demo strip below `md`. Still only the
+   pre-hydration fallback — DemoBanner.vue replaces it with the measured height
+   as soon as it mounts — but it keeps that first paint from underlapping by a
+   whole row. */
+@media (width < 48rem) {
+    :root {
+        --demo-banner-height: 3.75rem;
+    }
 }
 
 .dark {
@@ -223,9 +242,12 @@
     --scrim: rgba(0, 0, 0, 0.6);
     --ring: #c9a35c;
     --brass: #c9a35c;
-    /* Light brass so badge/pill text stays legible on the dark brass fill; the
-       light value (#1d1a15) would render near-black on the dark surface (#518). */
-    --brass-foreground: #dcb56a;
+    /* Stays ink: --brass keeps its value in dark, so a solid-brass badge needs
+       the same dark text there as in light (7.4:1). It was lightened for the
+       settings version badge (#518), but that badge is a translucent
+       `bg-brass/10` tint and belongs to --brass-fill-foreground below; the swap
+       left every solid badge brass-on-brass at 1.2:1 (#881). */
+    --brass-foreground: #1d1a15;
     --brass-border: #c9a35c;
     --brass-fill: rgba(201, 163, 92, 0.14);
     --brass-fill-foreground: #dcb56a;
@@ -239,6 +261,8 @@
     --demo-badge-foreground: #1d1a15;
     --demo-chip: #26231c;
     --demo-chip-foreground: #c9a35c;
+    /* Deepened: an ink shadow reads as nothing against an already-dark surface. */
+    --shadow-ink: rgba(0, 0, 0, 0.55);
     --chart-1: #d4b06a;
     --chart-2: #b8923f;
     --chart-3: #9b937f;

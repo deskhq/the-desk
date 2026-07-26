@@ -56,7 +56,7 @@ const isUpToDate = computed(
                 <div class="ml-auto flex items-center gap-2">
                     <template v-if="isBehind">
                         <span
-                            class="inline-flex items-center gap-1.5 rounded-full border border-brass-border bg-brass/10 px-2.5 py-0.5 text-[11px] font-semibold text-brass-foreground"
+                            class="inline-flex items-center gap-1.5 rounded-full border border-brass-border bg-brass/10 px-2.5 py-0.5 text-[11px] font-semibold text-brass-fill-foreground"
                         >
                             <span
                                 aria-hidden="true"

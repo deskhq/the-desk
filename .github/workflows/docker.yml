@@ -36,17 +36,30 @@ jobs:
   build:
     runs-on: ${{ vars.CI_RUNNER || 'ubuntu-latest' }}
 
-    # Whether this ref is a release candidate, decided once (see the classify
-    # step) so the image tags and the release notes cannot disagree about it.
     outputs:
+      # Whether this ref is a release candidate, decided once (see the classify
+      # step) so the image tags and the release notes cannot disagree about it.
       is_candidate: ${{ steps.tag.outputs.is_candidate }}
+      # The digest of the image this run pushed. Tags are mutable, so this is
+      # the only reference an operator can pin and be sure of; the release-note
+      # job below can only offer it if the build hands it over (#836).
+      digest: ${{ steps.publish.outputs.digest }}
 
     # `contents: read` to check out; `packages: write` to publish to GHCR. The
     # push steps below only run for master / `v*`-tag pushes, so PR and fork code
     # is built but never published.
+    #
+    # `id-token` + `attestations` are what `actions/attest-build-provenance`
+    # signs and records the provenance with; `security-events` is what lets the
+    # vulnerability scan reach the code-scanning tab. On a fork PR the token is
+    # read-only regardless, and both the attest and publish steps are gated on
+    # PUBLISH anyway.
     permissions:
       contents: read
       packages: write
+      id-token: write
+      attestations: write
+      security-events: write
 
     # Publish on a push to master (moving `edge` tag) or to a `v*` release tag
     # (created by release-please). Everything else — pull requests and pushes to
@@ -69,6 +82,9 @@ jobs:
       # run turned each PECL outage into a red build on a commit that changed
       # nothing (#626). Cached, that layer is only rebuilt when the Dockerfile
       # lines above it actually change.
+      # `load: true` rather than a build straight into the cache: the scan below
+      # needs a real image in the local daemon to point at, and validating a
+      # build whose contents nobody looks at is half the job (#836).
       - name: Build production image
         if: env.PUBLISH != 'true'
         uses: ./.github/actions/docker-build
@@ -78,7 +94,76 @@ jobs:
           file: Dockerfile
           platforms: linux/amd64
           push: false
+          load: true
           tags: the-desk:ci
+
+      # Deliberately non-blocking (`exit-code: 0`). Most of what turns up here
+      # is a base-image or OS-package CVE with no fixed version published yet —
+      # failing on those would red a PR that changed nothing and teach everyone
+      # to ignore the check. `ignore-unfixed` keeps the report to what a rebuild
+      # or a pin can actually resolve. Tighten to a failing CRITICAL gate once
+      # the baseline is clean.
+      - name: Scan the built image for known vulnerabilities
+        if: env.PUBLISH != 'true'
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: the-desk:ci
+          format: sarif
+          output: trivy-results.sarif
+          severity: 'CRITICAL,HIGH'
+          ignore-unfixed: true
+          exit-code: '0'
+
+      # The code-scanning tab is what gives the findings history and dedup: the
+      # same CVE across ten runs is one alert that closes itself when a rebuild
+      # drops it, rather than ten run logs nobody re-reads.
+      #
+      # Skipped for a pull request from a fork: that run's token is read-only
+      # whatever the job asks for, so the upload would 403 and red a
+      # contributor's PR. The scan itself still runs, and its table is still on
+      # the run summary below, which is what a reviewer reads anyway.
+      - name: Upload the scan to code scanning
+        if: env.PUBLISH != 'true' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
+        uses: github/codeql-action/upload-sarif@7188fc363630916deb702c7fdcf4e481b751f97a # v4.37.1
+        with:
+          sarif_file: trivy-results.sarif
+          category: trivy-image
+
+      # `skip-setup-trivy` and the shared cache: the scan above already
+      # installed the binary and pulled the vulnerability database, and pulling
+      # it twice is what runs into the registry's rate limit.
+      - name: Re-render the scan as a table
+        if: env.PUBLISH != 'true'
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: the-desk:ci
+          format: table
+          output: trivy-report.txt
+          severity: 'CRITICAL,HIGH'
+          ignore-unfixed: true
+          exit-code: '0'
+          skip-setup-trivy: true
+
+      # Findings belong on the run that produced them, not only behind the
+      # Security tab, which most reviewers never open on a PR.
+      - name: Publish the scan to the run summary
+        if: env.PUBLISH != 'true'
+        run: |
+          set -euo pipefail
+
+          {
+            echo '### 🔎 Image vulnerability scan'
+            echo
+            echo '`the-desk:ci` — CRITICAL and HIGH, fixed vulnerabilities only.'
+            echo
+            echo '```'
+            if [ -s trivy-report.txt ]; then
+              cat trivy-report.txt
+            else
+              echo 'No fixed CRITICAL or HIGH vulnerabilities found.'
+            fi
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
 
       # Decide once whether this tag is a candidate, and decide it strictly.
       # A substring test for `-rc.` would also match a tag that merely contains
@@ -136,8 +221,18 @@ jobs:
       # amd64 only for now (arm64 emulation is deferred — see #205). No VITE_*
       # build args: the app name and browser-facing Reverb settings are served to
       # the SPA at runtime, so this single image works for any operator's host.
+      #
+      # `provenance: mode=max` and `sbom: true` ride along with the push: they
+      # are exported as OCI attestation manifests beside the image, so
+      # `docker buildx imagetools inspect` hands an operator the SBOM and the
+      # build record without trusting anything but the registry. `mode=max`
+      # rather than the default `min` because `min` records only the materials,
+      # which says nothing about *how* the image was built. Both are only ever
+      # set on this path — the docker exporter that `load: true` uses cannot
+      # represent an attestation, and buildx fails such a build outright.
       - name: Build and push image
         if: env.PUBLISH == 'true'
+        id: publish
         uses: ./.github/actions/docker-build
         with:
           runner: ${{ vars.CI_RUNNER }}
@@ -147,6 +242,21 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+          provenance: mode=max
+          sbom: true
+
+      # The buildx attestations above prove what is in the image; this one
+      # proves *this repository's CI* built it, signed through OIDC and
+      # verifiable with a single `gh attestation verify` — no buildx, no jq, no
+      # trust in the tag. `push-to-registry` puts it beside the image as well,
+      # so it survives an operator who only ever talks to GHCR.
+      - name: Attest the published image
+        if: env.PUBLISH == 'true'
+        uses: actions/attest-build-provenance@0f67c3f4856b2e3261c31976d6725780e5e4c373 # v4.1.1
+        with:
+          subject-name: ghcr.io/${{ github.repository }}
+          subject-digest: ${{ steps.publish.outputs.digest }}
+          push-to-registry: true
 
   # release-please creates the GitHub Release (CHANGELOG body + `v*` tag) BEFORE
   # the image exists — that tag is exactly what triggers the publish above. So
@@ -181,6 +291,10 @@ jobs:
           # Taken from `build` rather than re-derived here, so the warning on the
           # notes and the moving `rc` image tag can never disagree.
           IS_CANDIDATE: ${{ needs.build.outputs.is_candidate }}
+          # Likewise the digest: it is what the push actually produced, so it
+          # cannot be re-derived from the tag. Empty means the publish step did
+          # not report one, in which case the notes fall back to the tag alone.
+          DIGEST: ${{ needs.build.outputs.digest }}
         run: |
           set -euo pipefail
 
@@ -210,8 +324,22 @@ jobs:
             heading="$(printf '### 🚧 Release candidate\n\nThis is a **release candidate**, published for testing ahead of %s. It is **not supported for production** — run it against a copy of your data, not your live workspace, and expect it to be superseded without notice. Self-hosters should stay on the [latest stable release](https://github.com/%s/releases/latest).' "${version%%-rc.*}" "$REPO")"
           fi
 
+          # A tag is mutable — `X.Y.Z` can be repushed, and `latest` certainly
+          # will be. The digest is the only reference that cannot move under an
+          # operator once they pin it, and it is also what `gh attestation
+          # verify` checks the CI provenance against. Offer both ready to paste
+          # rather than sending them to the package page to dig the digest out
+          # by hand. Skipped if the publish reported no digest, so the notes
+          # degrade to the tag alone rather than to a broken reference.
+          pin=""
+          if [ -n "${DIGEST:-}" ]; then
+            digest_ref="ghcr.io/${REPO}@${DIGEST}"
+            # shellcheck disable=SC2016  # printf format is intentionally literal; values are the %s args.
+            pin="$(printf 'Pin by digest for a reference that cannot move, and verify the image was built by this repository:\n\n```\n%s\n\ngh attestation verify oci://%s --repo %s\n```\n' "$digest_ref" "$digest_ref" "$REPO")"
+          fi
+
           # shellcheck disable=SC2016  # printf format is intentionally literal; values are the %s args.
-          note="$(printf '\n\n%s\n\n---\n\n%s\n\n### 📦 Docker image\n\nThis release is published to the GitHub Container Registry:\n\n```\n%s\n```\n\nPull it directly or browse the [package page](%s). See the [upgrade guide](https://docs.thedeskhq.app/self-hosting/upgrading/) for self-hosting steps.\n' "$marker" "$heading" "$image" "$package_url")"
+          note="$(printf '\n\n%s\n\n---\n\n%s\n\n### 📦 Docker image\n\nThis release is published to the GitHub Container Registry:\n\n```\n%s\n```\n\n%s\n\nPull it directly or browse the [package page](%s). See the [upgrade guide](https://docs.thedeskhq.app/self-hosting/upgrading/) for self-hosting steps.\n' "$marker" "$heading" "$image" "$pin" "$package_url")"
 
           gh release edit "$TAG" --repo "$REPO" --notes "${body}${note}"
           echo "Linked $image on release $TAG."

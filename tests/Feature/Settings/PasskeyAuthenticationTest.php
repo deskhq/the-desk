@@ -8,6 +8,7 @@ use Inertia\Testing\AssertableInertia as Assert;
 use Laravel\Fortify\Features;
 use Laravel\Passkeys\Events\PasskeyDeleted;
 use Laravel\Passkeys\Events\PasskeyRegistered;
+use Laravel\Passkeys\Http\Requests\PasskeyVerificationRequest;
 use Laravel\Passkeys\Passkey;
 
 /**
@@ -187,6 +188,21 @@ test('guests can retrieve passkey login options for passwordless sign-in', funct
     $this->getJson(route('passkey.login-options'))
         ->assertOk()
         ->assertJsonStructure(['options']);
+});
+
+test('passkey sign-in reads "keep me signed in" from the query string', function (): void {
+    // The passkey client posts a fixed body of its own ({ credential }) and
+    // exposes no hook for extra fields, so the installed app carries the flag on
+    // the submit URL instead. This pins that transport: without it the PWA would
+    // silently fall back to a session-lifetime login. See issue #880.
+    $remembered = PasskeyVerificationRequest::create(
+        route('passkey.login', ['remember' => 1]), 'POST'
+    );
+
+    $plain = PasskeyVerificationRequest::create(route('passkey.login'), 'POST');
+
+    expect($remembered->remember())->toBeTrue()
+        ->and($plain->remember())->toBeFalse();
 });
 
 test('the guest passkey login endpoints are rate limited', function (): void {

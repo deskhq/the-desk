@@ -86,6 +86,14 @@ FROM dunglas/frankenphp:1-php${PHP_VERSION}-alpine AS runtime
 # pdo_pgsql: Postgres. redis: phpredis client for the cache/session/queue drivers.
 # pcntl/posix: queue worker + Reverb signal handling.
 # intl/zip/opcache: framework recommendations + performance.
+# gmp: big-number calculator web push needs. minishlink/web-push guards on
+# `gmp || bcmath` and, when both are missing, raises a notice that Laravel
+# promotes to an exception inside the WebPush binding — so the channel cannot
+# resolve and every queued push dies in failed_jobs (#865). Either extension
+# satisfies it; this image picks GMP (the library's own first recommendation and
+# fastest backend) while Sail ships BCMath. Composer cannot catch a regression
+# here — both are `suggest`, never `require`, so the image builds clean without
+# one; tests/Unit/DockerfileExtensionPinsTest.php is what guards the list.
 # gd/imagick: image processing for attachments (Intervention Image, installed via
 # Composer) — EXIF-stripping and thumbnail generation. Imagick is the default
 # driver (ATTACHMENT_IMAGE_DRIVER); GD is the fallback.
@@ -142,6 +150,7 @@ RUN set -eu; \
             intl \
             zip \
             opcache \
+            gmp \
             gd \
             ldap \
             /tmp/phpredis \
@@ -159,6 +168,10 @@ WORKDIR /app
 COPY . .
 COPY --from=vendor /app/vendor ./vendor
 COPY --from=assets /app/public/build ./public/build
+# The service worker ships from the web root, not `public/build`: a worker only
+# controls paths below its own, so serving it from the bundle directory would
+# scope it to `/build` and the app would stop being installable.
+COPY --from=assets /app/public/service-worker.js ./public/service-worker.js
 
 # Non-root runtime user. FrankenPHP listens on 8080 (>1024), so no extra
 # capabilities are required to bind the port.

@@ -14,6 +14,7 @@ import {
     Search,
     Trash2,
     UserPlus,
+    X,
 } from '@lucide/vue';
 import { computed, nextTick, onMounted, ref, watch } from 'vue';
 import { toast } from 'vue-sonner';
@@ -43,6 +44,8 @@ import CreateTeamModal from '@/components/CreateTeamModal.vue';
 import DemoBanner from '@/components/DemoBanner.vue';
 import DirectMessageListItem from '@/components/DirectMessageListItem.vue';
 import DndPauseDialog from '@/components/DndPauseDialog.vue';
+import InstallAppCard from '@/components/InstallAppCard.vue';
+import InstallAppDialog from '@/components/InstallAppDialog.vue';
 import InviteMemberModal from '@/components/InviteMemberModal.vue';
 import KeyboardShortcutsModal from '@/components/KeyboardShortcutsModal.vue';
 import NavUser from '@/components/NavUser.vue';
@@ -63,6 +66,7 @@ import {
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
+import { SheetClose } from '@/components/ui/sheet';
 import {
     Sidebar,
     SidebarContent,
@@ -85,6 +89,8 @@ import { useChimeNotifications } from '@/composables/useChimeNotifications';
 import { useDemoMode } from '@/composables/useDemoMode';
 import { useDndPauseDialog } from '@/composables/useDndPauseDialog';
 import { useInitials } from '@/composables/useInitials';
+import { useInstallDialog } from '@/composables/useInstallDialog';
+import { useIsMobile } from '@/composables/useIsMobile';
 import { useKeyboardShortcuts } from '@/composables/useKeyboardShortcuts';
 import { useKeyboardShortcutsModal } from '@/composables/useKeyboardShortcutsModal';
 import { useMessageReminders } from '@/composables/useMessageReminders';
@@ -566,6 +572,7 @@ const { isOpen: shortcutsOpen, toggle: toggleShortcuts } =
     useKeyboardShortcutsModal();
 const { isOpen: statusDialogOpen } = useUserStatusDialog();
 const { isOpen: dndPauseDialogOpen } = useDndPauseDialog();
+const { isOpen: installDialogOpen } = useInstallDialog();
 
 /**
  * The viewer's still-pending reminders in this team, feeding the "Reminders"
@@ -694,6 +701,13 @@ const { timezone, syncDetectedTimezone } = useTimezone();
  * after a change re-binds :side live (no reload).
  */
 const { sidebarPosition } = useSidebarPosition();
+
+/**
+ * Whether the dock currently renders as the full-screen mobile Sheet, which is
+ * when its header carries the close affordance (#834): full screen leaves no
+ * visible scrim to tap, so the header X is the visible way out.
+ */
+const isMobileViewport = useIsMobile();
 
 onMounted(() => {
     // Lazily pull the (optional) shared invitations so the post-login prompt
@@ -849,6 +863,18 @@ onMounted(() => {
                                 }}</span>
                             </Button>
                         </CreateTeamModal>
+                        <SheetClose v-if="isMobileViewport" as-child>
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                :title="$t('Close')"
+                                data-test="dock-close"
+                                class="size-9 rounded-[10px] text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground"
+                            >
+                                <X class="size-4" />
+                                <span class="sr-only">{{ $t('Close') }}</span>
+                            </Button>
+                        </SheetClose>
                     </div>
                 </div>
             </SidebarHeader>
@@ -972,7 +998,7 @@ onMounted(() => {
                                         "
                                         v-model="renameValue"
                                         :data-test="`section-rename-input-${group.section.id}`"
-                                        class="h-auto min-w-0 flex-1 rounded-sm border-sidebar-border bg-sidebar px-1 py-0.5 text-[11px] tracking-normal text-sidebar-foreground normal-case md:text-[11px] dark:bg-sidebar"
+                                        class="h-auto min-w-0 flex-1 rounded-sm border-sidebar-border bg-sidebar px-1 py-0.5 text-base tracking-normal text-sidebar-foreground normal-case md:text-[11px] dark:bg-sidebar"
                                         type="text"
                                         maxlength="50"
                                         @keydown.enter.prevent="
@@ -1290,7 +1316,7 @@ onMounted(() => {
                                 <Input
                                     v-model="newSectionName"
                                     data-test="create-section-input"
-                                    class="h-8 w-full rounded-md border-sidebar-border bg-sidebar px-2 py-1 text-[13px] text-sidebar-foreground md:text-[13px] dark:bg-sidebar"
+                                    class="h-8 w-full rounded-md border-sidebar-border bg-sidebar px-2 py-1 text-base text-sidebar-foreground md:text-[13px] dark:bg-sidebar"
                                     type="text"
                                     maxlength="50"
                                     :placeholder="$t('New section name')"
@@ -1403,6 +1429,7 @@ onMounted(() => {
             </SidebarContent>
 
             <SidebarFooter class="border-t border-sidebar-border p-2.5">
+                <InstallAppCard />
                 <UpdateIndicator />
                 <NavUser />
             </SidebarFooter>
@@ -1465,6 +1492,8 @@ onMounted(() => {
         <KeyboardShortcutsModal v-model:open="shortcutsOpen" />
 
         <UserStatusDialog v-model:open="statusDialogOpen" />
+
+        <InstallAppDialog v-model:open="installDialogOpen" />
 
         <DndPauseDialog v-model:open="dndPauseDialogOpen" />
 

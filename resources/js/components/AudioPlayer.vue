@@ -226,7 +226,7 @@ function isPlayed(index: number): boolean {
         :class="
             compact
                 ? 'h-19 w-70 border-input bg-muted px-3'
-                : 'w-85 max-w-full border-border bg-card px-3.5 py-2.5'
+                : 'w-85 max-w-full border-border bg-card px-3.5 py-2.5 max-md:w-full max-md:rounded-none max-md:border-x-0 max-md:px-5'
         "
     >
         <!-- A user-recorded clip or an uploaded audio file has no caption track

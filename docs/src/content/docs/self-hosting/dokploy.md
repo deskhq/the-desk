@@ -93,9 +93,18 @@ locally and paste them:
 
 ```bash
 docker run --rm ghcr.io/deskhq/the-desk:latest php artisan key:generate --show
-docker run --rm ghcr.io/deskhq/the-desk:latest php artisan reverb:secret
-openssl rand -hex 32   # DB_PASSWORD, and again for MEILISEARCH_KEY
+
+openssl rand -hex 32                       # DB_PASSWORD, and again for MEILISEARCH_KEY
+openssl rand 4 | od -An -tu4 | tr -d ' '   # REVERB_APP_ID
+openssl rand -hex 16                       # REVERB_APP_KEY
+openssl rand -hex 16                       # REVERB_APP_SECRET (run it a second time)
 ```
+
+These are the same recipes
+[`docker/gen-secrets.sh`](https://github.com/deskhq/the-desk/blob/master/docker/gen-secrets.sh)
+uses on the bare-VPS path, so the two installs end up with identically shaped
+values. There is no artisan command for the `REVERB_APP_*` trio: `laravel/reverb`
+ships only `reverb:install`, `reverb:start` and `reverb:restart`.
 
 ## The Domains tab
 
