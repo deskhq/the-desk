@@ -109,6 +109,24 @@ confirmed with their password). At the next sign-in they can authenticate with a
 passkey instead of a password. Registration is **per-user and opt-in** — turning
 the flag on offers the option but never forces anyone to enrol.
 
+### The sign-up prompt
+
+With the flag on, a user who has just **created an account** is offered a passkey
+once, in a dismissible dialog on their first landing in the workspace. The
+ceremony runs inline: they confirm on their device and the passkey is saved
+without ever leaving the page. The name field is prefilled with the device they
+signed up on ("Chrome on macOS") and stays editable, because a passkey cannot be
+renamed afterwards.
+
+Either answer closes the offer for good — "Not now" and a successful enrolment
+both settle it, so a refresh never re-asks. The first-run tour waits until the
+prompt is out of the way, and the prompt is skipped entirely on a browser with no
+WebAuthn support.
+
+Only **new registrations** are prompted. Turning the flag on for an existing
+instance deliberately does **not** nudge everyone already signed up; those users
+enrol from **Settings → Security** whenever they choose.
+
 The toggle takes effect immediately with no data migration: the underlying routes
 are always registered, so flipping the flag only changes whether the option is
 offered.
