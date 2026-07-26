@@ -57,4 +57,30 @@ return [
 
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Account-Activity Retention
+    |--------------------------------------------------------------------------
+    |
+    | The per-user security-event log (sign-ins, credential and two-factor
+    | changes, session revocations, data-export activity) gains a row on every
+    | such action, each carrying an IP address and User-Agent. A scheduled sweep
+    | deletes events older than the window below, so the log answers "how far
+    | back can you see, and how long do you keep it" with one number instead of
+    | growing without bound.
+    |
+    | One year is the default because assessment periods are annual: an auditor
+    | sampling the last twelve months still finds every event.
+    |
+    | Set 0 (or lower) to keep events forever — an explicit "no window", for a
+    | deployment that enforces retention at the database or backup layer instead.
+    |
+    */
+
+    'events' => [
+
+        'retention_days' => (int) env('SECURITY_EVENT_RETENTION_DAYS', 365),
+
+    ],
+
 ];
