@@ -6,10 +6,10 @@ use App\Enums\ChannelVisibility;
 use App\Models\Channel;
 use App\Models\Team;
 use App\Support\Integrations\ApiChannelAccess;
+use App\Support\NameSlug;
 use Closure;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Support\Facades\Gate;
-use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
 
@@ -72,7 +72,7 @@ class StoreChannelRequest extends ApiRequest
 
                 $exists = Channel::query()
                     ->where('team_id', $this->team()->id)
-                    ->where('slug', Str::slug((string) $this->input('name')))
+                    ->where('slug', NameSlug::distinct((string) $this->input('name'), Channel::FALLBACK_SLUG))
                     ->exists();
 
                 if ($exists) {

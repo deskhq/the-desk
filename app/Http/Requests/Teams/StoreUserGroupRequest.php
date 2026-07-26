@@ -4,10 +4,10 @@ namespace App\Http\Requests\Teams;
 
 use App\Concerns\ResolvesUserGroupRoute;
 use App\Models\UserGroup;
+use App\Support\NameSlug;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Gate;
-use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 
 class StoreUserGroupRequest extends FormRequest
@@ -36,7 +36,9 @@ class StoreUserGroupRequest extends FormRequest
     protected function prepareForValidation(): void
     {
         if (blank($this->input('slug'))) {
-            $this->merge(['slug' => Str::slug((string) $this->input('name'))]);
+            $this->merge([
+                'slug' => NameSlug::distinct((string) $this->input('name'), UserGroup::FALLBACK_SLUG),
+            ]);
         }
     }
 

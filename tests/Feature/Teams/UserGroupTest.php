@@ -2,6 +2,7 @@
 
 use App\Actions\Teams\CreateTeam;
 use App\Enums\TeamRole;
+use App\Http\Requests\Teams\StoreUserGroupRequest;
 use App\Models\Team;
 use App\Models\User;
 use App\Models\UserGroup;
@@ -81,12 +82,43 @@ test('a handle that is not lowercase kebab-case is rejected', function (string $
         ->assertSessionHasErrors('slug');
 })->with(['Dev Team', 'dev_team', 'DevTeam', '-devs', 'devs-', 'dev--team', 'dév']);
 
-test('a name that derives to an empty handle is rejected', function (): void {
+test('a name that slugs to nothing still derives a usable handle', function (string $name): void {
     [$owner, $team] = userGroupTeam();
 
     $this->actingAs($owner)
-        ->post(route('teams.groups.store', $team), ['name' => '!!!'])
-        ->assertSessionHasErrors('slug');
+        ->post(route('teams.groups.store', $team), ['name' => $name])
+        ->assertSessionHasNoErrors();
+
+    expect(UserGroup::sole()->slug)->toMatch(StoreUserGroupRequest::SLUG_PATTERN);
+})->with([
+    'japanese' => ['日本語'],
+    'korean' => ['한국어'],
+    'hebrew' => ['עברית'],
+    'punctuation' => ['!!!'],
+    'emoji' => ['🎉🎉'],
+]);
+
+test('two groups whose names slug to nothing get distinct handles', function (): void {
+    [$owner, $team] = userGroupTeam();
+
+    foreach (['日本語', '中文'] as $name) {
+        $this->actingAs($owner)
+            ->post(route('teams.groups.store', $team), ['name' => $name])
+            ->assertSessionHasNoErrors();
+    }
+
+    expect(UserGroup::pluck('slug')->unique())->toHaveCount(2);
+});
+
+test('renaming a group to a name that slugs to nothing keeps a usable handle', function (): void {
+    [$owner, $team] = userGroupTeam();
+    $group = UserGroup::factory()->for($team)->slug('dev-team')->create();
+
+    $this->actingAs($owner)
+        ->patch(route('teams.groups.update', [$team, $group]), ['name' => '日本語'])
+        ->assertSessionHasNoErrors();
+
+    expect($group->fresh()->slug)->toMatch(StoreUserGroupRequest::SLUG_PATTERN);
 });
 
 test('an admin manages groups but a plain member may not', function (): void {
@@ -275,3 +307,13 @@ test('leaving the workspace drops you from its groups', function (): void {
 
     expect($group->members()->count())->toBe(0);
 });
+
+test('a group cannot be saved with a blank handle', function (?string $slug): void {
+    $group = UserGroup::factory()->create(['name' => '日本語', 'slug' => $slug]);
+
+    expect($group->fresh()->slug)->toMatch(StoreUserGroupRequest::SLUG_PATTERN);
+})->with([
+    'empty' => [''],
+    'whitespace' => ['   '],
+    'null' => [null],
+]);
