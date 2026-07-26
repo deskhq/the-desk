@@ -59,7 +59,6 @@ vi.mock('@laravel/passkeys/vue', async () => {
 vi.mock('@lucide/vue', () => ({
     Check: { render: () => h('svg') },
     Lock: { render: () => h('svg') },
-    CircleAlert: { render: () => h('svg') },
     Loader2Icon: { render: () => h('svg') },
 }));
 
@@ -275,7 +274,9 @@ it('keeps the typed name and offers a retry after a cancelled ceremony', async (
 
     expect(nameField(host).value).toBe('Work laptop');
     expect(nameField(host).getAttribute('aria-invalid')).toBe('true');
-    expect(host.textContent).toContain(
+    // Announced the moment it arrives, not just drawn: a cancelled ceremony leaves
+    // nothing else on screen to tell a screen-reader user what happened.
+    expect(host.querySelector('[role="alert"]')?.textContent).toContain(
         "That didn't finish. Your device cancelled or timed out, so try again.",
     );
     expect(
