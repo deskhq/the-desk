@@ -65,4 +65,11 @@ describe('initializeFlashToast', () => {
         expect(error).not.toHaveBeenCalled();
         expect(warning).not.toHaveBeenCalled();
     });
+
+    it.each(['constructor', 'toString', '__proto__'])(
+        'ignores %s rather than reaching a tone it inherited from Object',
+        (type) => {
+            expect(() => flash({ type, message: 'Heads up' })).not.toThrow();
+        },
+    );
 });

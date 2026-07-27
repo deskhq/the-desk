@@ -24,6 +24,13 @@ export function initializeFlashToast(): void {
             return;
         }
 
-        tones[data.type]?.(data.message);
+        // Own-property check, not a bare lookup: `data.type` arrives over the
+        // wire, and `tones.constructor` / `tones.toString` are callable members
+        // `tones` inherits from `Object.prototype`.
+        if (!Object.hasOwn(tones, data.type)) {
+            return;
+        }
+
+        tones[data.type](data.message);
     });
 }
