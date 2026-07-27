@@ -64,10 +64,12 @@ describe('useRailInset', () => {
     });
 
     it('publishes how much of the right edge the panel claims', async () => {
-        harness(panelStub(1080));
+        const { stop } = harness(panelStub(1080));
         await nextTick();
 
         expect(published()).toBe('360px');
+
+        stop();
     });
 
     it('publishes nothing when no panel is open, so the rail falls back to the viewport edge', async () => {
@@ -158,12 +160,15 @@ describe('useRailBottomInset', () => {
     });
 
     it('publishes how much of the bottom edge the composer claims', async () => {
-        const composer = ref<HTMLElement | null>(composerStub(96));
         const scope = effectScope();
-        scope.run(() => useRailBottomInset(composer));
+        scope.run(() =>
+            useRailBottomInset(ref<HTMLElement | null>(composerStub(96))),
+        );
         await nextTick();
 
         expect(publishedBottom()).toBe('96px');
+
+        scope.stop();
     });
 
     it('publishes nothing on a page with no composer, so the rail falls back to the viewport floor', async () => {
@@ -172,6 +177,8 @@ describe('useRailBottomInset', () => {
         await nextTick();
 
         expect(publishedBottom()).toBe('');
+
+        scope.stop();
     });
 
     it('releases the floor when the conversation pane goes away', async () => {

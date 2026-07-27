@@ -892,6 +892,10 @@ export function useMessageActions(
                 only: ['reminders', 'firedReminders'],
                 onSuccess: () =>
                     toast.success(t('Reminder set.'), {
+                        // Merged per message, so setting a reminder twice
+                        // replaces the first toast rather than leaving its Undo
+                        // on screen holding a now-stale snapshot.
+                        key: `reminder:${messageId}`,
                         action: {
                             label: t('Undo'),
                             run: () =>

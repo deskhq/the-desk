@@ -98,17 +98,22 @@ test('the rail tracks the thread panel opening and closing', function (): void {
         ->assertPresent('[data-test=thread-panel]')
         ->wait(0.6);
 
-    // The panel now claims its own width, and the rail insets by it — measured
-    // after the enter transition settles, not while it is still translated.
+    // The panel now claims its own width, and the rail insets by it. Both halves
+    // of the contract are asserted: what the pane publishes, and that the
+    // toaster actually consumes it — a rail that read the wrong variable would
+    // still satisfy the producer half on its own.
     $page->assertScript(<<<'JS'
     (() => {
         const panel = document.querySelector('[data-test=thread-panel]');
+        const region = document.querySelector('[data-sonner-toaster][data-y-position="bottom"]');
         const claimed = window.innerWidth - panel.getBoundingClientRect().left;
         const published = parseFloat(
             getComputedStyle(document.documentElement).getPropertyValue('--rail-right-inset'),
         );
 
-        return published > 100 && Math.abs(published - claimed) < 1.5;
+        return published > 100
+            && Math.abs(published - claimed) < 1.5
+            && Math.abs(parseFloat(getComputedStyle(region).right) - (claimed + 16)) < 1.5;
     })()
     JS, true);
 

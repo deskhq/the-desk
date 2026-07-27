@@ -264,6 +264,10 @@ function snoozeReminder(reminder: MessageReminder): void {
             ...reminderReloadOptions,
             onSuccess: () =>
                 toast.success(t('Reminder snoozed for 20 minutes.'), {
+                    // Shares the set-reminder key: a snooze and a set on the
+                    // same message must not leave two Undos on screen, only one
+                    // of which still reverses anything.
+                    key: `reminder:${reminder.messageId}`,
                     action: {
                         label: t('Undo'),
                         run: () =>

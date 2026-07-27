@@ -26,6 +26,7 @@ export function useToastZoneHeight(): Ref<number> {
 
     const toastCount = useToastCount();
     let observer: ResizeObserver | null = null;
+    let disposed = false;
 
     function measure(): void {
         const front = document.querySelector<HTMLElement>(FRONT_TOAST);
@@ -37,6 +38,13 @@ export function useToastZoneHeight(): Ref<number> {
         toastCount,
         async () => {
             await nextTick();
+
+            // The await means this can land after the layout that owns it has
+            // gone; without the guard it would attach a fresh observer that
+            // nothing is left to disconnect.
+            if (disposed) {
+                return;
+            }
 
             observer?.disconnect();
 
@@ -54,7 +62,10 @@ export function useToastZoneHeight(): Ref<number> {
         { immediate: true },
     );
 
-    onScopeDispose(() => observer?.disconnect());
+    onScopeDispose(() => {
+        disposed = true;
+        observer?.disconnect();
+    });
 
     return height;
 }

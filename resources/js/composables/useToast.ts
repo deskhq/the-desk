@@ -1,4 +1,4 @@
-import { computed } from 'vue';
+import { computed, markRaw } from 'vue';
 import type { ComputedRef } from 'vue';
 import { toast as sonner, useVueSonner } from 'vue-sonner';
 import ToastCard from '@/components/ToastCard.vue';
@@ -66,7 +66,7 @@ function notify(tone: ToastTone, title: string, options: ToastOptions): void {
     // sonner's own card is the pale panel this redesign replaces. `unstyled`
     // keeps its positioning, stacking, swipe and timer behaviour while dropping
     // its surface (#978).
-    sonner.custom(ToastCard, {
+    sonner.custom(markRaw(ToastCard), {
         id: options.key,
         duration,
         unstyled: true,
