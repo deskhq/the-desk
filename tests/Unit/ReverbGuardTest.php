@@ -61,16 +61,18 @@ function listeningPort(): array
 }
 
 /**
- * A loopback port with nothing listening on it: bound to learn a free one, then
- * released.
+ * A loopback port nothing can be listening on.
+ *
+ * Fixed rather than allocated and released, which is the obvious way to find a
+ * free port and is racy under paratest: between the release and the probe,
+ * another worker's `listeningPort()` can be handed the very same ephemeral port
+ * and start listening on it, and a test that needs no server then finds one.
+ * Port 1 is privileged, so no worker can bind it, and the connection is refused
+ * outright rather than left to time out.
  */
-function closedPort(): int
+function refusedPort(): int
 {
-    [$server, $port] = listeningPort();
-
-    fclose($server);
-
-    return $port;
+    return 1;
 }
 
 /**
@@ -179,7 +181,7 @@ it('stays quiet when Reverb is accepting connections', function (): void {
 });
 
 it('names the endpoint and the command that starts it when nothing is listening', function (): void {
-    $port = closedPort();
+    $port = refusedPort();
 
     expect(ReverbGuard::unreachableWarning('127.0.0.1', $port))
         ->toContain('not accepting connections')
@@ -188,7 +190,7 @@ it('names the endpoint and the command that starts it when nothing is listening'
 });
 
 it('says which server is missing rather than which test failed', function (): void {
-    expect(ReverbGuard::unreachableWarning('127.0.0.1', closedPort()))
+    expect(ReverbGuard::unreachableWarning('127.0.0.1', refusedPort()))
         ->toContain('Reverb')
         ->toContain('realtime');
 });
@@ -206,7 +208,7 @@ it('probes a dead endpoint without raising a PHP warning', function (): void {
     });
 
     try {
-        ReverbGuard::unreachableWarning('127.0.0.1', closedPort());
+        ReverbGuard::unreachableWarning('127.0.0.1', refusedPort());
     } finally {
         restore_error_handler();
     }
@@ -248,7 +250,7 @@ it('resolves the defaults when the checkout has no .env at all', function (): vo
 });
 
 it('aborts the run before a single browser test executes', function (): void {
-    $process = runReverbGuard([reverbFixture()], host: '127.0.0.1', port: closedPort());
+    $process = runReverbGuard([reverbFixture()], host: '127.0.0.1', port: refusedPort());
 
     expect($process->getExitCode())->toBe(1)
         ->and($process->getOutput())->not->toContain('the suite ran')
@@ -279,7 +281,7 @@ it('checks once per process rather than once per test', function (): void {
     // Each call reads its own checkout, so the endpoints have to live in the
     // fixtures rather than in the environment the two share.
     $live = reverbFixture(['REVERB_HOST=127.0.0.1', 'REVERB_PORT='.$port]);
-    $dead = reverbFixture(['REVERB_HOST=127.0.0.1', 'REVERB_PORT='.closedPort()]);
+    $dead = reverbFixture(['REVERB_HOST=127.0.0.1', 'REVERB_PORT='.refusedPort()]);
 
     $process = runReverbGuard([$live, $dead]);
 
@@ -306,7 +308,7 @@ it('runs from the browser suite bootstrap, whichever way the suite is started', 
 // usage dump, whereas failing before the fork prints the message and nothing
 // else. `composer test:browser` and CI both come through here.
 it('stops the runner before it forks any worker', function (): void {
-    $process = runRunnerReverbCheck(reverbFixture(), host: '127.0.0.1', port: closedPort());
+    $process = runRunnerReverbCheck(reverbFixture(), host: '127.0.0.1', port: refusedPort());
 
     expect($process->getExitCode())->toBe(1)
         ->and($process->getErrorOutput())
