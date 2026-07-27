@@ -229,8 +229,10 @@ test('a group mention makes the thread show up in the mentioned member inbox', f
 
     // Following a thread is derived from the mention rows, so a fanned-out group
     // mention pulls each member into the thread exactly as naming them would.
+    $panelUrl = route('channels.show', ['team' => $team->slug, 'channel' => $general->slug]).'?nav=threads';
+
     $this->actingAs($ada)
-        ->get(route('channels.threads.index', ['team' => $team->slug]))
+        ->get($panelUrl)
         ->assertInertia(fn (Assert $page): Assert => $page
             ->has('threads.data', 1)
             ->where('threads.data.0.root.id', $root->id)

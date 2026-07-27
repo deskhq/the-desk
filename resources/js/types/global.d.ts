@@ -1,7 +1,7 @@
 import type { ReverbRuntimeConfig } from '@/lib/echo';
 import type { Auth } from '@/types/auth';
 import type { Channel, ChannelSection } from '@/types/channels';
-import type { MessageReminder } from '@/types/messages';
+import type { MessageReminder, ThreadInboxPage } from '@/types/messages';
 import type { PersonRef } from '@/types/people';
 import type { SidebarPositionOption } from '@/types/sidebar';
 import type {
@@ -68,6 +68,13 @@ declare module '@inertiajs/core' {
             slashCommands?: App.Data.SlashCommandData[];
             collapsedChannelSections?: string[];
             hasUnreadThreads?: boolean;
+            /**
+             * The Threads panel's own props, present only while the dock has that
+             * destination pinned (`?nav=threads`) — absent everywhere else, which is
+             * what keeps the inbox query off every workspace navigation.
+             */
+            threads?: ThreadInboxPage;
+            unreadThreadCount?: number;
             pendingInvitations?: DashboardInvitation[];
             reminders?: MessageReminder[];
             firedReminders?: MessageReminder[];

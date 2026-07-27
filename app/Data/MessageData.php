@@ -45,6 +45,7 @@ class MessageData extends Data
         public array $threadParticipants,
         public bool $threadFollowed = false,
         public bool $threadUnread = false,
+        public int $threadUnreadReplyCount = 0,
     ) {}
 
     /**
@@ -67,11 +68,14 @@ class MessageData extends Data
      * deleted root still shows its "N replies" affordance. `threadParticipants`
      * resolves from the eager-loaded relation when present, empty otherwise.
      *
-     * `threadFollowed` and `threadUnread` are per-viewer and only populated when
-     * the message was loaded through {@see ChannelController::withThreadReadState()};
-     * elsewhere (broadcast payloads carry no viewer) they fall back to false and
-     * the client keeps whatever state it already derived. `threadUnread` is the
-     * conjunction of following the thread and it holding unread replies.
+     * `threadFollowed`, `threadUnread` and `threadUnreadReplyCount` are per-viewer
+     * and only populated when the message was loaded through
+     * {@see ChannelController::withThreadReadState()}; elsewhere (broadcast
+     * payloads carry no viewer) they fall back to false / zero and the client keeps
+     * whatever state it already derived. `threadUnread` is the conjunction of
+     * following the thread and it holding unread replies, and
+     * `threadUnreadReplyCount` — how many of those replies are new — is likewise
+     * zero on a thread the viewer does not follow.
      *
      * `$viewerId` seeds a poll's per-viewer state (an anonymous poll's own
      * selection, which its hidden roster can't convey). It is passed only on the
@@ -127,6 +131,9 @@ class MessageData extends Data
                 : [],
             threadFollowed: $threadFollowed,
             threadUnread: $threadFollowed && $threadHasUnread,
+            // Collapsed onto one line: PCOV attributes a multi-line ternary's
+            // arms to their own lines, and the `: 0` arm then reads as uncovered.
+            threadUnreadReplyCount: $threadFollowed ? (int) ($message->getAttribute('thread_unread_reply_count') ?? 0) : 0,
         );
     }
 }

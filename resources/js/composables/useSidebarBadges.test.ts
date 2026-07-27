@@ -106,7 +106,9 @@ describe('useSidebarBadges cross-device read sync', () => {
 
         expect(reload).toHaveBeenCalledTimes(1);
         expect(reload).toHaveBeenCalledWith(
-            expect.objectContaining({ only: ['channels', 'hasUnreadThreads'] }),
+            expect.objectContaining({
+                only: ['channels', 'hasUnreadThreads', 'unreadThreadCount'],
+            }),
         );
     });
 

@@ -40,6 +40,7 @@ function message(overrides: Partial<Message> = {}): Message {
         threadParticipants: [],
         threadFollowed: false,
         threadUnread: false,
+        threadUnreadReplyCount: 0,
         ...overrides,
     };
 }

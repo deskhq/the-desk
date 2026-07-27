@@ -1,12 +1,15 @@
 <?php
 
 use App\Actions\Channels\MarkThreadRead;
+use App\Actions\Channels\OpenDirectMessage;
 use App\Actions\Teams\CreateTeam;
 use App\Enums\NotificationLevel;
 use App\Enums\TeamRole;
+use App\Enums\ThreadInboxFilter;
 use App\Models\Channel;
 use App\Models\Message;
 use App\Models\Team;
+use App\Models\ThreadRead;
 use App\Models\User;
 use Carbon\CarbonInterface;
 use Inertia\Testing\AssertableInertia as Assert;
@@ -50,22 +53,49 @@ function inboxRoot(Channel $channel, User $author, ?CarbonInterface $lastReplyAt
 }
 
 /**
- * Load the Threads inbox as the given user and return the `threads.data` rows.
- *
- * @return array<int, array<string, mixed>>
+ * The workspace URL that pins the Threads destination, which is what brings the
+ * panel's inbox along with the shell route's props.
  */
-function inboxRows(User $viewer, Team $team): array
+function inboxUrl(Team $team, ?ThreadInboxFilter $filter = null): string
+{
+    $query = $filter instanceof ThreadInboxFilter
+        ? ['nav' => 'threads', 'filter' => $filter->value]
+        : ['nav' => 'threads'];
+
+    return route('channels.show', [
+        'team' => $team->slug,
+        'channel' => Channel::GENERAL_SLUG,
+    ]).'?'.http_build_query($query);
+}
+
+/**
+ * Open the Threads panel as the given user and return the whole prop set, so a
+ * test can read the inbox page, its unread tally, or the rail's dot flag.
+ *
+ * @return array<string, mixed>
+ */
+function inboxProps(User $viewer, Team $team, ?ThreadInboxFilter $filter = null): array
 {
     $captured = [];
 
     test()->actingAs($viewer)
-        ->get(route('channels.threads.index', ['team' => $team->slug]))
+        ->get(inboxUrl($team, $filter))
         ->assertInertia(function (Assert $page) use (&$captured): void {
-            $page->component('channels/Threads');
-            $captured = $page->toArray()['props']['threads']['data'];
+            $page->component('channels/Show');
+            $captured = $page->toArray()['props'];
         });
 
     return $captured;
+}
+
+/**
+ * Open the Threads panel as the given user and return the `threads.data` rows.
+ *
+ * @return array<int, array<string, mixed>>
+ */
+function inboxRows(User $viewer, Team $team, ?ThreadInboxFilter $filter = ThreadInboxFilter::All): array
+{
+    return inboxProps($viewer, $team, $filter)['threads']['data'];
 }
 
 test('the inbox lists a thread the user authored the root of', function (): void {
@@ -80,6 +110,7 @@ test('the inbox lists a thread the user authored the root of', function (): void
     expect($rows)->toHaveCount(1)
         ->and($rows[0]['root']['id'])->toBe($root->id)
         ->and($rows[0]['channelName'])->toBe($general->name)
+        ->and($rows[0]['isDirectMessage'])->toBeFalse()
         ->and($rows[0]['root']['threadUnread'])->toBeTrue();
 });
 
@@ -183,7 +214,8 @@ test('a muted channel lists its threads without an unread dot', function (): voi
     $rows = inboxRows($owner, $team);
 
     expect($rows)->toHaveCount(1)
-        ->and($rows[0]['root']['threadUnread'])->toBeFalse();
+        ->and($rows[0]['root']['threadUnread'])->toBeFalse()
+        ->and($rows[0]['root']['threadUnreadReplyCount'])->toBe(0);
 });
 
 test('opening and reading a thread clears its unread dot in the inbox', function (): void {
@@ -201,9 +233,187 @@ test('opening and reading a thread clears its unread dot in the inbox', function
 });
 
 test('the inbox is empty when the user follows no threads', function (): void {
-    [$owner, $team, $general] = inboxSetup();
+    [$owner, $team] = inboxSetup();
 
     expect(inboxRows($owner, $team))->toBeEmpty();
+});
+
+test('the panel props stay off a workspace route that pins no destination', function (): void {
+    [$owner, $team, $general] = inboxSetup();
+    $alice = inboxMember($team, $general);
+
+    $root = inboxRoot($general, $owner);
+    Message::factory()->for($general)->for($alice)->inThread($root)->create();
+
+    // The inbox is a real query with a 30-row payload, so it rides along only
+    // when the dock actually has the destination open.
+    $this->actingAs($owner)
+        ->get(route('channels.show', ['team' => $team->slug, 'channel' => Channel::GENERAL_SLUG]))
+        ->assertInertia(fn (Assert $page): Assert => $page
+            ->missing('threads')
+            ->missing('unreadThreadCount'));
+});
+
+test('the unread filter is the default and hides threads with nothing new', function (): void {
+    [$owner, $team, $general] = inboxSetup();
+    $alice = inboxMember($team, $general);
+
+    $unread = inboxRoot($general, $owner, now());
+    Message::factory()->for($general)->for($alice)->inThread($unread)->create();
+
+    $read = inboxRoot($general, $owner, now()->subHour());
+    Message::factory()->for($general)->for($alice)->inThread($read)->create();
+    app(MarkThreadRead::class)->handle($read, $owner);
+
+    $default = inboxRows($owner, $team, filter: null);
+
+    expect($default)->toHaveCount(1)
+        ->and($default[0]['root']['id'])->toBe($unread->id);
+
+    $explicit = inboxRows($owner, $team, ThreadInboxFilter::Unread);
+
+    expect($explicit)->toHaveCount(1)
+        ->and($explicit[0]['root']['id'])->toBe($unread->id);
+
+    // "All" is the pill that brings the caught-up threads back.
+    expect(inboxRows($owner, $team, ThreadInboxFilter::All))->toHaveCount(2);
+});
+
+test('paging keeps the active filter', function (): void {
+    [$owner, $team, $general] = inboxSetup();
+    $alice = inboxMember($team, $general);
+
+    // A page holds 30 cards, so 31 unread threads plus one the owner has read
+    // prove the second page still asks the same question the first did.
+    foreach (range(1, 31) as $minutesAgo) {
+        $root = inboxRoot($general, $owner, now()->subMinutes($minutesAgo));
+        Message::factory()->for($general)->for($alice)->inThread($root)->create();
+    }
+
+    $read = inboxRoot($general, $owner, now()->subHours(2));
+    Message::factory()->for($general)->for($alice)->inThread($read)->create();
+    app(MarkThreadRead::class)->handle($read, $owner);
+
+    $firstPage = inboxProps($owner, $team)['threads'];
+
+    expect($firstPage['data'])->toHaveCount(30)
+        ->and($firstPage['next_cursor'])->not->toBeNull();
+
+    $captured = [];
+
+    $this->actingAs($owner)
+        ->get(inboxUrl($team).'&'.http_build_query(['cursor' => $firstPage['next_cursor']]))
+        ->assertOk()
+        ->assertInertia(function (Assert $page) use (&$captured): void {
+            $captured = $page->toArray()['props']['threads'];
+        });
+
+    expect($captured['data'])->toHaveCount(1)
+        ->and($captured['data'][0]['root']['id'])->not->toBe($read->id);
+});
+
+test('an unrecognised filter falls back to unread', function (): void {
+    [$owner, $team, $general] = inboxSetup();
+    $alice = inboxMember($team, $general);
+
+    $read = inboxRoot($general, $owner);
+    Message::factory()->for($general)->for($alice)->inThread($read)->create();
+    app(MarkThreadRead::class)->handle($read, $owner);
+
+    $url = route('channels.show', [
+        'team' => $team->slug,
+        'channel' => Channel::GENERAL_SLUG,
+    ]).'?nav=threads&filter=everything';
+
+    $this->actingAs($owner)
+        ->get($url)
+        ->assertInertia(fn (Assert $page): Assert => $page->where('threads.data', []));
+});
+
+test('the unread count tallies only unread followed threads', function (): void {
+    [$owner, $team, $general] = inboxSetup();
+    $alice = inboxMember($team, $general);
+
+    $first = inboxRoot($general, $owner);
+    Message::factory()->for($general)->for($alice)->inThread($first)->create();
+
+    $second = inboxRoot($general, $owner);
+    Message::factory()->for($general)->for($alice)->inThread($second)->create();
+
+    // A thread the owner is caught up on sits outside the tally.
+    $read = inboxRoot($general, $owner);
+    Message::factory()->for($general)->for($alice)->inThread($read)->create();
+    app(MarkThreadRead::class)->handle($read, $owner);
+
+    expect(inboxProps($owner, $team)['unreadThreadCount'])->toBe(2);
+});
+
+test('the unread count ignores a muted channel', function (): void {
+    [$owner, $team, $general] = inboxSetup();
+    $alice = inboxMember($team, $general);
+
+    $general->channelMembers()->where('user_id', $owner->id)->update(['muted' => true]);
+
+    $root = inboxRoot($general, $owner);
+    Message::factory()->for($general)->for($alice)->inThread($root)->create();
+
+    expect(inboxProps($owner, $team)['unreadThreadCount'])->toBe(0);
+});
+
+test('a thread reports how many replies are new to the viewer', function (): void {
+    [$owner, $team, $general] = inboxSetup();
+    $alice = inboxMember($team, $general);
+
+    $root = inboxRoot($general, $owner, attributes: ['reply_count' => 5]);
+    $first = Message::factory()->for($general)->for($alice)->inThread($root)->create();
+    Message::factory()->for($general)->for($alice)->inThread($root)->create();
+    Message::factory()->for($general)->for($alice)->inThread($root)->create();
+    // The viewer's own reply is never new to them.
+    Message::factory()->for($general)->for($owner)->inThread($root)->create();
+    // Neither is a deleted one.
+    Message::factory()->for($general)->for($alice)->inThread($root)->create(['deleted_at' => now()]);
+
+    expect(inboxRows($owner, $team)[0]['root'])
+        ->threadUnreadReplyCount->toBe(3)
+        ->threadReplyCount->toBe(5);
+
+    // Reading part of the thread leaves only what landed after the pointer.
+    ThreadRead::create([
+        'thread_root_id' => $root->id,
+        'user_id' => $owner->id,
+        'last_read_reply_id' => $first->id,
+    ]);
+
+    expect(inboxRows($owner, $team)[0]['root']['threadUnreadReplyCount'])->toBe(2);
+
+    app(MarkThreadRead::class)->handle($root, $owner);
+
+    expect(inboxRows($owner, $team)[0]['root']['threadUnreadReplyCount'])->toBe(0);
+});
+
+test('a direct message thread names the viewer counterpart', function (): void {
+    [$owner, $team, $general] = inboxSetup();
+    $alice = inboxMember($team, $general);
+
+    $dm = app(OpenDirectMessage::class)->handle($team, $owner, $alice);
+
+    $root = inboxRoot($dm, $owner);
+    Message::factory()->for($dm)->for($alice)->inThread($root)->create();
+
+    $rows = inboxRows($owner, $team);
+
+    expect($rows)->toHaveCount(1)
+        ->and($rows[0]['channelName'])->toBe($alice->name)
+        ->and($rows[0]['isDirectMessage'])->toBeTrue()
+        ->and($rows[0]['dmParticipant']['id'])->toBe($alice->id);
+});
+
+test('the legacy threads inbox route redirects onto the pinned destination', function (): void {
+    [$owner, $team] = inboxSetup();
+
+    $this->actingAs($owner)
+        ->get(route('channels.threads.index', ['team' => $team->slug]))
+        ->assertRedirect(route('channels.index', ['team' => $team->slug, 'nav' => 'threads']));
 });
 
 test('hasUnreadThreads flags an unread followed thread and clears when read', function (): void {
@@ -213,15 +423,11 @@ test('hasUnreadThreads flags an unread followed thread and clears when read', fu
     $root = inboxRoot($general, $owner);
     Message::factory()->for($general)->for($alice)->inThread($root)->create();
 
-    $this->actingAs($owner)
-        ->get(route('channels.threads.index', ['team' => $team->slug]))
-        ->assertInertia(fn (Assert $page): Assert => $page->where('hasUnreadThreads', true));
+    expect(inboxProps($owner, $team)['hasUnreadThreads'])->toBeTrue();
 
     app(MarkThreadRead::class)->handle($root, $owner);
 
-    $this->actingAs($owner)
-        ->get(route('channels.threads.index', ['team' => $team->slug]))
-        ->assertInertia(fn (Assert $page): Assert => $page->where('hasUnreadThreads', false));
+    expect(inboxProps($owner, $team)['hasUnreadThreads'])->toBeFalse();
 });
 
 test('hasUnreadThreads ignores threads the user does not follow', function (): void {
@@ -232,9 +438,7 @@ test('hasUnreadThreads ignores threads the user does not follow', function (): v
     $root = inboxRoot($general, $owner);
     Message::factory()->for($general)->for($alice)->inThread($root)->create();
 
-    $this->actingAs($bob)
-        ->get(route('channels.threads.index', ['team' => $team->slug]))
-        ->assertInertia(fn (Assert $page): Assert => $page->where('hasUnreadThreads', false));
+    expect(inboxProps($bob, $team)['hasUnreadThreads'])->toBeFalse();
 });
 
 test('hasUnreadThreads respects channel mute', function (): void {
@@ -247,7 +451,5 @@ test('hasUnreadThreads respects channel mute', function (): void {
     $root = inboxRoot($general, $owner);
     Message::factory()->for($general)->for($alice)->inThread($root)->create();
 
-    $this->actingAs($owner)
-        ->get(route('channels.threads.index', ['team' => $team->slug]))
-        ->assertInertia(fn (Assert $page): Assert => $page->where('hasUnreadThreads', false));
+    expect(inboxProps($owner, $team)['hasUnreadThreads'])->toBeFalse();
 });

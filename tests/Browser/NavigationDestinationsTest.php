@@ -26,29 +26,12 @@ function destinationPanelIsOpen(string $destination): string
 
 /**
  * A script resolving once the URL's `nav` param reaches the given destination —
- * `null` for the param being gone.
- *
- * Switching is a client-side visit ({@see router.replace}), so the panel swaps
- * synchronously off the ref while Inertia writes history a tick later: the URL
- * always lags the DOM here, and the URL assertions are one-shot reads. Polling
- * one animation frame at a time settles that without pinning a sleep to whatever
- * a loaded CI runner happens to take (#947).
+ * `null` for the param being gone. The general form now lives in
+ * {@see queryParamSettles()}, which the Threads panel's own filter param reuses.
  */
 function navParamSettles(?string $destination): string
 {
-    $expected = $destination === null ? 'null' : "'{$destination}'";
-
-    return <<<JS
-    (async () => {
-        const settled = () => new URLSearchParams(location.search).get('nav') === {$expected};
-
-        for (let frame = 0; frame < 120 && ! settled(); frame++) {
-            await new Promise(requestAnimationFrame);
-        }
-
-        return settled();
-    })()
-    JS;
+    return queryParamSettles('nav', $destination);
 }
 
 /** The rendered width of the dock's card, rounded to the nearest pixel. */

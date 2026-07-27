@@ -39,16 +39,22 @@ export function useSidebarBadges(): void {
 
     // reload defaults to preserving scroll and page state; it re-evaluates the
     // shared `channels` prop to recompute every badge count, plus the aggregate
-    // `hasUnreadThreads` flag behind the sidebar's Threads dot. A teammate's
+    // `hasUnreadThreads` flag behind the rail's Threads dot and the
+    // `unreadThreadCount` behind the Threads panel's "Unread" pill. A teammate's
     // message — or another of the viewer's own devices — decides when it fires,
     // so it runs as a background visit ({@see backgroundVisit}); otherwise an
     // arrival landing mid-navigation cancels the visit the user actually asked
     // for.
+    //
+    // `unreadThreadCount` is shared only while that panel is open, so asking for
+    // it off the destination costs nothing: the server simply has no such prop to
+    // resolve. The panel's own card list is deliberately not in this set — pulling
+    // a merge prop here would reset the pages the viewer had scrolled through.
     const refresh = useDebouncedPost(
         () =>
             router.reload({
                 ...backgroundVisit,
-                only: ['channels', 'hasUnreadThreads'],
+                only: ['channels', 'hasUnreadThreads', 'unreadThreadCount'],
             }),
         { delay: REFRESH_DEBOUNCE_MS },
     );

@@ -48,6 +48,7 @@ import KeyboardShortcutsModal from '@/components/KeyboardShortcutsModal.vue';
 import DestinationPanel from '@/components/navigation/DestinationPanel.vue';
 import NavigationRail from '@/components/navigation/NavigationRail.vue';
 import NavigationTabBar from '@/components/navigation/NavigationTabBar.vue';
+import ThreadsPanel from '@/components/navigation/ThreadsPanel.vue';
 import NavUser from '@/components/NavUser.vue';
 import NewDirectMessageModal from '@/components/NewDirectMessageModal.vue';
 import OnboardingTour from '@/components/OnboardingTour.vue';
@@ -1507,6 +1508,9 @@ onMounted(() => {
                                 </SidebarGroupContent>
                             </SidebarGroup>
                         </nav>
+                        <ThreadsPanel
+                            v-else-if="activeDestination === 'threads'"
+                        />
                         <DestinationPanel
                             v-else
                             :destination="activeDestination"

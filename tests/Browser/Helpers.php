@@ -128,6 +128,34 @@ function openCreateChannelDialog(AwaitableWebpage $page, int $width, int $height
 }
 
 /**
+ * A script resolving once a query param on the URL reaches the given value —
+ * `null` for the param being gone.
+ *
+ * Every URL assertion in the browser plugin (`assertQueryStringHas`,
+ * `assertQueryStringMissing`, `assertPathIs`) is a one-shot read of the page's
+ * URL with no retry, and the writes this guards are client-side visits whose
+ * history entry lands a tick after the DOM has already moved. Polling one
+ * animation frame at a time settles that without pinning a sleep to whatever a
+ * loaded CI runner happens to take (#947).
+ */
+function queryParamSettles(string $param, ?string $expected): string
+{
+    $wanted = $expected === null ? 'null' : "'{$expected}'";
+
+    return <<<JS
+    (async () => {
+        const settled = () => new URLSearchParams(location.search).get('{$param}') === {$wanted};
+
+        for (let frame = 0; frame < 120 && ! settled(); frame++) {
+            await new Promise(requestAnimationFrame);
+        }
+
+        return settled();
+    })()
+    JS;
+}
+
+/**
  * Sign a user in through the real login form, returning the page so the caller
  * can continue driving it. Each `visit()` gets its own browser context (isolated
  * cookie jar), so two calls yield two independently authenticated clients.
