@@ -1,4 +1,5 @@
 import { existsSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { ESLint } from 'eslint';
 import { parser as tsParser } from 'typescript-eslint';
 import { beforeAll, describe, expect, it } from 'vitest';
@@ -53,7 +54,15 @@ const grandfathered = config
 /** Options the rule is configured with, resolved once for the whole file. */
 let options: MaxLinesOptions;
 
-/** Lint results for the grandfathered paths, with the exemption forced off. */
+/** Resolved `max-lines` severity per probed path. */
+let severities: Map<string, unknown>;
+
+/**
+ * Whether each grandfathered path still breaches the threshold, keyed by
+ * absolute path. Seeded from the list rather than from the lint results: a
+ * path the probe silently returned nothing for would otherwise be absent from
+ * the map, and an entry nobody counted would clear the shrink test by default.
+ */
 let breaches: Map<string, boolean>;
 
 /** Grandfathered paths the probe could not parse, and so could not count. */
@@ -107,31 +116,42 @@ beforeAll(async () => {
     // turn an empty list into hundreds of unrelated failures.
     const results = existing.length > 0 ? await probe.lintFiles(existing) : [];
 
-    breaches = new Map(
-        results.map((result) => [
+    breaches = new Map(existing.map((path) => [resolve(path), false]));
+
+    for (const result of results) {
+        breaches.set(
             result.filePath,
             result.messages.some((message) => message.ruleId === 'max-lines'),
-        ]),
-    );
+        );
+    }
 
     unparsed = results
         .filter((result) => result.messages.some((message) => message.fatal))
         .map((result) => result.filePath);
+
+    severities = new Map(
+        await Promise.all(
+            [NEW_COMPONENT, NEW_COMPOSABLE, ...grandfathered].map(
+                async (path): Promise<[string, unknown]> => {
+                    const config = await eslint.calculateConfigForFile(path);
+                    const rule = config.rules?.['max-lines'] as
+                        | unknown[]
+                        | undefined;
+
+                    return [path, rule?.at(0)];
+                },
+            ),
+        ),
+    );
 }, 60_000);
 
-async function severityFor(filePath: string): Promise<unknown> {
-    const resolved = await eslint.calculateConfigForFile(filePath);
-
-    return (resolved.rules?.['max-lines'] as unknown[] | undefined)?.at(0);
-}
-
 describe('the max-lines policy', () => {
-    it('caps a new component at the configured threshold', async () => {
-        expect(await severityFor(NEW_COMPONENT)).toBe(2);
+    it('caps a new component at the configured threshold', () => {
+        expect(severities.get(NEW_COMPONENT)).toBe(2);
     });
 
-    it('caps a new composable at the configured threshold', async () => {
-        expect(await severityFor(NEW_COMPOSABLE)).toBe(2);
+    it('caps a new composable at the configured threshold', () => {
+        expect(severities.get(NEW_COMPOSABLE)).toBe(2);
     });
 
     it('skips blank lines and comments, so documenting a declaration is free', () => {
@@ -152,10 +172,12 @@ describe('the max-lines policy', () => {
         );
     });
 
-    it('exempts the files it lists', async () => {
-        for (const path of grandfathered) {
-            expect(await severityFor(path)).toBe(0);
-        }
+    it('exempts the files it lists', () => {
+        const unexempted = grandfathered.filter(
+            (path) => severities.get(path) !== 0,
+        );
+
+        expect(unexempted).toEqual([]);
     });
 
     it('lists only files that still exist', () => {
@@ -172,5 +194,11 @@ describe('the max-lines policy', () => {
             .map(([filePath]) => filePath);
 
         expect(undeserved).toEqual([]);
+    });
+
+    it('counts every grandfathered file it could find, rather than passing on an absent result', () => {
+        expect(breaches.size).toBe(
+            grandfathered.filter((path) => existsSync(path)).length,
+        );
     });
 });
