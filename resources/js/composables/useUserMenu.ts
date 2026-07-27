@@ -1,7 +1,6 @@
 import { router, usePage } from '@inertiajs/vue3';
 import type { ComputedRef } from 'vue';
 import { computed } from 'vue';
-import { toast } from 'vue-sonner';
 import {
     destroy as destroyDndPause,
     update as updateDndPause,
@@ -9,6 +8,7 @@ import {
 import { update as snoozeDndSchedule } from '@/actions/App/Http/Controllers/Settings/DndScheduleSnoozeController';
 import { update as updatePresence } from '@/actions/App/Http/Controllers/Settings/PresenceController';
 import { destroy as destroyStatus } from '@/actions/App/Http/Controllers/Settings/StatusController';
+import { useToast } from '@/composables/useToast';
 import { useTranslations } from '@/composables/useTranslations';
 import { formatTimeOfDay } from '@/lib/datetime';
 import { isDndActiveNow, quietHoursEndsAt } from '@/lib/dnd';
@@ -48,6 +48,7 @@ export type UseUserMenuReturn = {
 export function useUserMenu(): UseUserMenuReturn {
     const page = usePage();
     const { t } = useTranslations();
+    const toast = useToast();
 
     const currentTeam = computed(() => page.props.currentTeam as Team | null);
 

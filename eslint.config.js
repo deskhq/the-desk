@@ -120,6 +120,25 @@ export default defineConfigWithVueTs(
                 'error',
                 { max: 400, skipBlankLines: true, skipComments: true },
             ],
+            // Every toast in the app goes through `useToast()`, which is where
+            // the duration policy, the merge key and the action slot live. A
+            // call site reaching for `vue-sonner` directly would bypass all
+            // three, which is how the app ended up with no place to put them
+            // (#978). Exempted just below for `useToast` itself — the one
+            // module allowed to see the package (`components/ui/` is not
+            // linted at all, so `sonner/Sonner.vue` needs no entry).
+            'no-restricted-imports': [
+                'error',
+                {
+                    paths: [
+                        {
+                            name: 'vue-sonner',
+                            message:
+                                'Raise toasts through useToast() from @/composables/useToast instead.',
+                        },
+                    ],
+                },
+            ],
             // XSS trust boundary. Every run of HTML the client renders as markup
             // must go through `<SafeHtml>`, which sanitizes it with DOMPurify
             // against a named allowlist; a raw `v-html` anywhere else would
@@ -127,6 +146,15 @@ export default defineConfigWithVueTs(
             // `SafeHtml.vue` itself just below — the one place the directive is
             // allowed to appear.
             'vue/no-v-html': 'error',
+        },
+    },
+    {
+        // `useToast` is the app's toast boundary: it wraps `vue-sonner` so no
+        // other module has to, which is precisely what the restriction above
+        // exists to guarantee everywhere else.
+        files: ['resources/js/composables/useToast.ts'],
+        rules: {
+            'no-restricted-imports': 'off',
         },
     },
     {

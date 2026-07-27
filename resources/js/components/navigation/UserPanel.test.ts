@@ -44,7 +44,16 @@ vi.mock('@inertiajs/vue3', () => ({
     }),
 }));
 
-vi.mock('vue-sonner', () => ({ toast: { error: vi.fn(), success: vi.fn() } }));
+vi.mock('@/composables/useToast', () => {
+    const toast = {
+        error: vi.fn(),
+        success: vi.fn(),
+        warning: vi.fn(),
+        progress: vi.fn(),
+    };
+
+    return { useToast: () => toast };
+});
 
 // The workspace sheet is a surface of its own with its own specs; here it is
 // only the wrapper the "Switch workspace" row triggers, so the stub keeps that

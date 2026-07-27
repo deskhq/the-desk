@@ -28,7 +28,16 @@ vi.mock('@inertiajs/vue3', () => ({
     router: { post: vi.fn() },
     usePage: () => ({ props: { auth: { user: { avatar: null } } } }),
 }));
-vi.mock('vue-sonner', () => ({ toast: { error: vi.fn() } }));
+vi.mock('@/composables/useToast', () => {
+    const toast = {
+        error: vi.fn(),
+        success: vi.fn(),
+        warning: vi.fn(),
+        progress: vi.fn(),
+    };
+
+    return { useToast: () => toast };
+});
 vi.mock('@/actions/App/Http/Controllers/Channels/ChannelController', () => ({
     show: () => ({ url: '/team/general' }),
 }));

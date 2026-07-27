@@ -2,7 +2,6 @@
 import { router, usePage } from '@inertiajs/vue3';
 import { Info, Search, X } from '@lucide/vue';
 import { computed, ref, watch } from 'vue';
-import { toast } from 'vue-sonner';
 import { store as addPeople } from '@/actions/App/Http/Controllers/Channels/DirectMessagePeopleController';
 import { Button } from '@/components/ui/button';
 import {
@@ -13,6 +12,7 @@ import {
     DialogTitle,
 } from '@/components/ui/dialog';
 import { useInitials } from '@/composables/useInitials';
+import { useToast } from '@/composables/useToast';
 import { useTranslations } from '@/composables/useTranslations';
 import { findMatchingDirectMessage, groupDmMastheadName } from '@/lib/groupDm';
 import { rankPeople } from '@/lib/peopleDirectory';
@@ -30,6 +30,7 @@ const open = defineModel<boolean>('open', { default: false });
 const page = usePage();
 const { getInitials } = useInitials();
 const { t } = useTranslations();
+const toast = useToast();
 
 // How many ranked candidates to offer at once.
 const MAX_CANDIDATES = 6;

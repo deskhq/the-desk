@@ -2,7 +2,6 @@
 import { router, usePage } from '@inertiajs/vue3';
 import { ChevronDown, Plus, X } from '@lucide/vue';
 import { computed, onMounted, ref } from 'vue';
-import { toast } from 'vue-sonner';
 import { show } from '@/actions/App/Http/Controllers/Channels/ChannelController';
 import {
     destroy as destroyReminder,
@@ -67,6 +66,7 @@ import { useSidebarBadges } from '@/composables/useSidebarBadges';
 import { useSidebarPosition } from '@/composables/useSidebarPosition';
 import { useTeamPresence } from '@/composables/useTeamPresence';
 import { useTimezone } from '@/composables/useTimezone';
+import { useToast } from '@/composables/useToast';
 import { useTranslations } from '@/composables/useTranslations';
 import { useUserStatusDialog } from '@/composables/useUserStatusDialog';
 import { backgroundVisit } from '@/lib/backgroundVisit';
@@ -76,6 +76,7 @@ import type { RoleOption } from '@/types/teams';
 const page = usePage();
 
 const { t } = useTranslations();
+const toast = useToast();
 
 /**
  * The same workspace shell wraps the settings/teams section, but its sidebar

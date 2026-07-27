@@ -13,9 +13,16 @@ const { post, patch, destroy, toastError, toastSuccess } = vi.hoisted(() => ({
 vi.mock('@inertiajs/vue3', () => ({
     router: { post, patch, delete: destroy },
 }));
-vi.mock('vue-sonner', () => ({
-    toast: { error: toastError, success: toastSuccess },
-}));
+vi.mock('@/composables/useToast', () => {
+    const toast = {
+        error: toastError,
+        success: toastSuccess,
+        warning: vi.fn(),
+        progress: vi.fn(),
+    };
+
+    return { useToast: () => toast };
+});
 
 import { useMessageActions } from '@/composables/useMessageActions';
 import type { MessageActions } from '@/composables/useMessageActions';

@@ -2,7 +2,6 @@
 import { Link, router, usePage } from '@inertiajs/vue3';
 import { X } from '@lucide/vue';
 import { computed } from 'vue';
-import { toast } from 'vue-sonner';
 import { show } from '@/actions/App/Http/Controllers/Channels/ChannelController';
 import { store as hideDirectMessage } from '@/actions/App/Http/Controllers/Channels/HideDirectMessageController';
 import AvatarStack from '@/components/AvatarStack.vue';
@@ -17,6 +16,7 @@ import {
 } from '@/components/ui/tooltip';
 import UserStatusEmoji from '@/components/UserStatusEmoji.vue';
 import { useInitials } from '@/composables/useInitials';
+import { useToast } from '@/composables/useToast';
 import { useTranslations } from '@/composables/useTranslations';
 import { groupDmSidebarName } from '@/lib/groupDm';
 import { notificationIndicator } from '@/lib/notificationIndicator';
@@ -38,6 +38,7 @@ const props = defineProps<{
 
 const { getInitials } = useInitials();
 const { t } = useTranslations();
+const toast = useToast();
 
 // How many participant avatars a group row stacks before a "+N" overflow chip.
 const MAX_ROW_AVATARS = 3;

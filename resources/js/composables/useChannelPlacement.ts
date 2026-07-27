@@ -1,9 +1,9 @@
 import { router, usePage } from '@inertiajs/vue3';
 import { computed, ref, watch } from 'vue';
 import type { ComputedRef, Ref } from 'vue';
-import { toast } from 'vue-sonner';
 import { update as updateChannelPlacement } from '@/actions/App/Http/Controllers/Channels/ChannelPlacementController';
 import { reorder as reorderSections } from '@/actions/App/Http/Controllers/Channels/ChannelSectionController';
+import { useToast } from '@/composables/useToast';
 import { useTranslations } from '@/composables/useTranslations';
 import { partitionChannels } from '@/lib/channelSections';
 import type { ChannelSectionGroup } from '@/lib/channelSections';
@@ -58,6 +58,7 @@ export interface ChannelPlacement {
 export function useChannelPlacement(): ChannelPlacement {
     const page = usePage();
     const { t } = useTranslations();
+    const toast = useToast();
 
     const currentTeam = computed(() => page.props.currentTeam);
     const channels = computed(() => page.props.channels ?? []);

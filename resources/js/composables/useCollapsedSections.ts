@@ -1,7 +1,7 @@
 import { router, usePage } from '@inertiajs/vue3';
 import { ref, watch } from 'vue';
-import { toast } from 'vue-sonner';
 import { update as updateSidebarSections } from '@/actions/App/Http/Controllers/SidebarSectionController';
+import { useToast } from '@/composables/useToast';
 import { useTranslations } from '@/composables/useTranslations';
 import { toggleCollapsedSection } from '@/lib/channelSections';
 import type { SidebarSectionKey } from '@/lib/channelSections';
@@ -25,6 +25,7 @@ export interface CollapsedSections {
 export function useCollapsedSections(): CollapsedSections {
     const page = usePage();
     const { t } = useTranslations();
+    const toast = useToast();
 
     const collapsedSections = ref<string[]>([
         ...(page.props.collapsedChannelSections ?? []),

@@ -9,7 +9,16 @@ const { patch, toastError } = vi.hoisted(() => ({
 const page = reactive<{ props: Record<string, unknown> }>({ props: {} });
 
 vi.mock('@inertiajs/vue3', () => ({ router: { patch }, usePage: () => page }));
-vi.mock('vue-sonner', () => ({ toast: { error: toastError } }));
+vi.mock('@/composables/useToast', () => {
+    const toast = {
+        error: toastError,
+        success: vi.fn(),
+        warning: vi.fn(),
+        progress: vi.fn(),
+    };
+
+    return { useToast: () => toast };
+});
 
 import { useChannelPlacement } from '@/composables/useChannelPlacement';
 import type { ChannelPlacement } from '@/composables/useChannelPlacement';
