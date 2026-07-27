@@ -82,9 +82,6 @@ test('the search panel custom range picks its bounds from a calendar', function 
         'body' => 'the quokka danced at dawn today',
     ]);
 
-    // Opened from the rail rather than the masthead: the rail flips the panel
-    // itself instead of going through the URL, which is the steady way in this
-    // soon after a login (#964).
     signInThroughBrowser($alice)
         ->click('@rail-destination-search')
         ->assertPresent('[data-test="destination-panel-search"]')
