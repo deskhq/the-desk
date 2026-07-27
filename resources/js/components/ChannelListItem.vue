@@ -72,9 +72,7 @@ function toggleStar(): void {
             preserveState: true,
             only: ['channels'],
             onError: () => {
-                toast.error(
-                    t('Failed to update the channel. Please try again.'),
-                );
+                toast.error(t('Failed to update the channel'));
             },
         },
     );

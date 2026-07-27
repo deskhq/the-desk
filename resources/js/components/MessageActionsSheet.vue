@@ -232,7 +232,7 @@ async function copyMessageText(): Promise<void> {
         // Also guards the API being absent altogether (a plain-http install).
         await navigator.clipboard.writeText(copyText.value);
     } catch {
-        toast.error(t('The message text could not be copied.'));
+        toast.error(t('The message text could not be copied'));
     } finally {
         close();
     }

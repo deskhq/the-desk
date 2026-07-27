@@ -105,9 +105,7 @@ export function useChannelPreferences(
                 only: ['channels'],
                 onError: () => {
                     starred.value = previous;
-                    toast.error(
-                        'Failed to update the channel. Please try again.',
-                    );
+                    toast.error('Failed to update the channel');
                 },
             },
         );
@@ -129,9 +127,7 @@ export function useChannelPreferences(
                 only: ['channels'],
                 onError: () => {
                     rollback();
-                    toast.error(
-                        'Failed to update notification preferences. Please try again.',
-                    );
+                    toast.error('Failed to update notification preferences');
                 },
             },
         );

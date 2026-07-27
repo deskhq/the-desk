@@ -1153,9 +1153,7 @@ function archive(): void {
         {},
         {
             onError: () => {
-                toast.error(
-                    t('Failed to archive the channel. Please try again.'),
-                );
+                toast.error(t('Failed to archive the channel'));
             },
         },
     );

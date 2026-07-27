@@ -263,7 +263,8 @@ function snoozeReminder(reminder: MessageReminder): void {
         {
             ...reminderReloadOptions,
             onSuccess: () =>
-                toast.success(t('Reminder snoozed for 20 minutes.'), {
+                toast.success(t('Reminder snoozed'), {
+                    detail: t('For 20 minutes'),
                     // Shares the set-reminder key: a snooze and a set on the
                     // same message must not leave two Undos on screen, only one
                     // of which still reverses anything.
@@ -278,10 +279,7 @@ function snoozeReminder(reminder: MessageReminder): void {
                             ),
                     },
                 }),
-            onError: () =>
-                toast.error(
-                    t('Failed to snooze the reminder. Please try again.'),
-                ),
+            onError: () => toast.error(t('Failed to snooze the reminder')),
         },
     );
 }

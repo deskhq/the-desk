@@ -20,9 +20,7 @@ export function useOpenDirectMessage(teamSlug: () => string) {
             {
                 preserveScroll: false,
                 onError: () => {
-                    toast.error(
-                        t('Failed to open the conversation. Please try again.'),
-                    );
+                    toast.error(t('Failed to open the conversation'));
                 },
             },
         );

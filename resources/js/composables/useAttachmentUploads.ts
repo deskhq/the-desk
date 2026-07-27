@@ -245,7 +245,7 @@ export function useAttachmentUploads(
         if (queue.length > remaining) {
             queue = queue.slice(0, Math.max(remaining, 0));
             toast.error(
-                t('You can attach up to :max files per message.', {
+                t('You can attach up to :max files per message', {
                     max: options.maxPerMessage(),
                 }),
             );
@@ -255,15 +255,20 @@ export function useAttachmentUploads(
 
         for (const file of queue) {
             if (file.size > maxBytes) {
+                // The file that was rejected is the title; the limit it broke is
+                // the detail. One toast per over-sized file would bury the rest
+                // of the tray, so they merge under a single key.
                 toast.error(
-                    t(
-                        ':name is too large (:size). Files can be up to :max MB.',
-                        {
-                            name: file.name,
-                            size: formatFileSize(file.size),
+                    t(':name is too large (:size)', {
+                        name: file.name,
+                        size: formatFileSize(file.size),
+                    }),
+                    {
+                        key: 'attachment-too-large',
+                        detail: t('Files can be up to :max MB', {
                             max: options.maxSizeMb(),
-                        },
-                    ),
+                        }),
+                    },
                 );
 
                 continue;
@@ -298,7 +303,7 @@ export function useAttachmentUploads(
         // the CDN url. It has no upload to run — it arrives already `done`.
         if (items.value.length >= options.maxPerMessage()) {
             toast.error(
-                t('You can attach up to :max files per message.', {
+                t('You can attach up to :max files per message', {
                     max: options.maxPerMessage(),
                 }),
             );

@@ -56,11 +56,7 @@ export function useCollapsedSections(): CollapsedSections {
                 only: ['collapsedChannelSections'],
                 onError: () => {
                     collapsedSections.value = previous;
-                    toast.error(
-                        t(
-                            'Failed to save the sidebar layout. Please try again.',
-                        ),
-                    );
+                    toast.error(t('Failed to save the sidebar layout'));
                 },
             },
         );

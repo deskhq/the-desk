@@ -101,9 +101,7 @@ export function useChannelSections(): ChannelSections {
                 only: ['channelSections'],
                 onSuccess: () => cancelSectionForm(),
                 onError: () => {
-                    toast.error(
-                        t('Failed to create the section. Please try again.'),
-                    );
+                    toast.error(t('Failed to create the section'));
                 },
             },
         );
@@ -137,9 +135,7 @@ export function useChannelSections(): ChannelSections {
                 only: ['channelSections'],
                 onSuccess: () => cancelRename(),
                 onError: () => {
-                    toast.error(
-                        t('Failed to rename the section. Please try again.'),
-                    );
+                    toast.error(t('Failed to rename the section'));
                 },
             },
         );
@@ -153,9 +149,7 @@ export function useChannelSections(): ChannelSections {
                 preserveState: true,
                 only: ['channels', 'channelSections'],
                 onError: () => {
-                    toast.error(
-                        t('Failed to delete the section. Please try again.'),
-                    );
+                    toast.error(t('Failed to delete the section'));
                 },
             },
         );
@@ -175,11 +169,7 @@ export function useChannelSections(): ChannelSections {
                 only: ['channelSections'],
                 onError: () => {
                     group.section.collapsed = previous;
-                    toast.error(
-                        t(
-                            'Failed to save the sidebar layout. Please try again.',
-                        ),
-                    );
+                    toast.error(t('Failed to save the sidebar layout'));
                 },
             },
         );

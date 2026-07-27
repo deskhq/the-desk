@@ -122,9 +122,7 @@ describe('useChannelSections', () => {
         sections.createSection();
         callbacks(post).onError();
 
-        expect(toastError).toHaveBeenCalledWith(
-            'Failed to create the section. Please try again.',
-        );
+        expect(toastError).toHaveBeenCalledWith('Failed to create the section');
     });
 
     it('seeds the rename editor with the section name', () => {
@@ -179,9 +177,7 @@ describe('useChannelSections', () => {
         sections.submitRename(section());
         callbacks(patch).onError();
 
-        expect(toastError).toHaveBeenCalledWith(
-            'Failed to rename the section. Please try again.',
-        );
+        expect(toastError).toHaveBeenCalledWith('Failed to rename the section');
     });
 
     it('reloads the channels alongside the sections when one is deleted', () => {
@@ -200,9 +196,7 @@ describe('useChannelSections', () => {
         sections.deleteSection(section());
         callbacks(destroy).onError();
 
-        expect(toastError).toHaveBeenCalledWith(
-            'Failed to delete the section. Please try again.',
-        );
+        expect(toastError).toHaveBeenCalledWith('Failed to delete the section');
     });
 
     it('collapses a custom section optimistically', () => {
@@ -227,7 +221,7 @@ describe('useChannelSections', () => {
 
         expect(target.section.collapsed).toBe(true);
         expect(toastError).toHaveBeenCalledWith(
-            'Failed to save the sidebar layout. Please try again.',
+            'Failed to save the sidebar layout',
         );
     });
 

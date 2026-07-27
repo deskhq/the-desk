@@ -125,7 +125,7 @@ function submit(): void {
             onFinish: () => (processing.value = false),
             onSuccess: () => (open.value = false),
             onError: () => {
-                toast.error(t('Failed to add people. Please try again.'));
+                toast.error(t('Failed to add people'));
             },
         },
     );

@@ -125,7 +125,7 @@ export function useUserMenu(): UseUserMenuReturn {
 
         router.delete(destroyStatus().url, {
             preserveScroll: true,
-            onError: () => toast.error(t('Could not clear your status.')),
+            onError: () => toast.error(t('Could not clear your status')),
         });
     }
 
@@ -138,8 +138,7 @@ export function useUserMenu(): UseUserMenuReturn {
             { state: togglesTo.value },
             {
                 preserveScroll: true,
-                onError: () =>
-                    toast.error(t('Could not change your presence.')),
+                onError: () => toast.error(t('Could not change your presence')),
             },
         );
     }
@@ -167,7 +166,7 @@ export function useUserMenu(): UseUserMenuReturn {
             {
                 preserveScroll: true,
                 onError: () =>
-                    toast.error(t('Could not pause your notifications.')),
+                    toast.error(t('Could not pause your notifications')),
             },
         );
     }
@@ -179,7 +178,7 @@ export function useUserMenu(): UseUserMenuReturn {
         router.delete(destroyDndPause().url, {
             preserveScroll: true,
             onError: () =>
-                toast.error(t('Could not resume your notifications.')),
+                toast.error(t('Could not resume your notifications')),
         });
     }
 
@@ -197,7 +196,7 @@ export function useUserMenu(): UseUserMenuReturn {
             {
                 preserveScroll: true,
                 onError: () =>
-                    toast.error(t('Could not snooze your quiet hours.')),
+                    toast.error(t('Could not snooze your quiet hours')),
             },
         );
     }

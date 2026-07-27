@@ -139,8 +139,7 @@ function save(): void {
         {
             preserveScroll: true,
             onSuccess: () => (open.value = false),
-            onError: () =>
-                toast.error(t('Could not pause your notifications.')),
+            onError: () => toast.error(t('Could not pause your notifications')),
             onFinish: () => (saving.value = false),
         },
     );

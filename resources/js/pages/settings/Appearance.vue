@@ -128,7 +128,7 @@ function persistSchedule(): void {
         },
         {
             preserveScroll: true,
-            onError: () => toast.error(t('Could not update your quiet hours.')),
+            onError: () => toast.error(t('Could not update your quiet hours')),
         },
     );
 }

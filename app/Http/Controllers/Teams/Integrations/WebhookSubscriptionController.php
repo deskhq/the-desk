@@ -74,7 +74,7 @@ class WebhookSubscriptionController extends Controller
 
         $revoke->handle($request->user(), $webhookSubscription);
 
-        Inertia::flash('toast', ['type' => 'success', 'message' => __('Subscription revoked.')]);
+        Inertia::flash('toast', ['type' => 'success', 'message' => __('Subscription revoked')]);
 
         return to_route('teams.integrations.index', ['team' => $team->slug]);
     }
@@ -90,7 +90,7 @@ class WebhookSubscriptionController extends Controller
 
         $reenable->handle($request->user(), $webhookSubscription);
 
-        Inertia::flash('toast', ['type' => 'success', 'message' => __('Subscription re-enabled.')]);
+        Inertia::flash('toast', ['type' => 'success', 'message' => __('Subscription re-enabled')]);
 
         return back();
     }

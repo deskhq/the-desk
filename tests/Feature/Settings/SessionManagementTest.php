@@ -145,7 +145,7 @@ test('a single session can be revoked', function (): void {
         ->delete(route('sessions.destroy', $otherId), ['password' => 'password'])
         ->assertSessionHasNoErrors()
         ->assertRedirect(route('security.edit'))
-        ->assertInertiaFlash('toast', ['type' => 'success', 'message' => 'Session revoked.']);
+        ->assertInertiaFlash('toast', ['type' => 'success', 'message' => 'Session revoked']);
 
     expect(sessionRegistry()->has($user->id, $otherId))->toBeFalse();
     expect(sessionRegistry()->has($user->id, $currentId))->toBeTrue();
@@ -312,7 +312,7 @@ test('logging out other devices removes other sessions but keeps the current one
         ->delete(route('sessions.destroy-others'), ['password' => 'password'])
         ->assertSessionHasNoErrors()
         ->assertRedirect(route('security.edit'))
-        ->assertInertiaFlash('toast', ['type' => 'success', 'message' => 'Logged out of your other devices.']);
+        ->assertInertiaFlash('toast', ['type' => 'success', 'message' => 'Logged out of your other devices']);
 
     expect(sessionRegistry()->has($user->id, $currentId))->toBeTrue();
     expect(sessionRegistry()->has($user->id, $otherId))->toBeFalse();

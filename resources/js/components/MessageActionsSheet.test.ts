@@ -286,7 +286,7 @@ describe('MessageActionsSheet action rows', () => {
         await Promise.resolve();
 
         expect(toastError).toHaveBeenCalledExactlyOnceWith(
-            'The message text could not be copied.',
+            'The message text could not be copied',
         );
         expect(emitted['update:open']).toEqual([[false]]);
     });

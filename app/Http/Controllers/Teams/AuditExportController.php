@@ -97,7 +97,7 @@ class AuditExportController extends Controller
             $export->update(['status' => AuditExportStatus::Failed]);
             report($exception);
 
-            Inertia::flash('toast', ['type' => 'error', 'message' => __('Could not start the export. Please try again.')]);
+            Inertia::flash('toast', ['type' => 'error', 'message' => __('Could not start the export')]);
 
             return back();
         }

@@ -31,7 +31,7 @@ class SessionController extends Controller
             && $this->registry->forget($request->user()->id, $session)) {
             $this->securityEvents->record($request->user(), SecurityEventType::SessionRevoked);
 
-            Inertia::flash('toast', ['type' => 'success', 'message' => __('Session revoked.')]);
+            Inertia::flash('toast', ['type' => 'success', 'message' => __('Session revoked')]);
         }
 
         return back();
@@ -49,7 +49,7 @@ class SessionController extends Controller
         if ($revoked > 0) {
             $this->securityEvents->record($request->user(), SecurityEventType::OtherSessionsRevoked);
 
-            Inertia::flash('toast', ['type' => 'success', 'message' => __('Logged out of your other devices.')]);
+            Inertia::flash('toast', ['type' => 'success', 'message' => __('Logged out of your other devices')]);
         }
 
         return back();

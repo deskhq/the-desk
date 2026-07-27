@@ -49,7 +49,7 @@ class CustomEmojiController extends Controller
             $request->file('image'),
         );
 
-        Inertia::flash('toast', ['type' => 'success', 'message' => __('Emoji added.')]);
+        Inertia::flash('toast', ['type' => 'success', 'message' => __('Emoji added')]);
 
         return back();
     }
@@ -65,7 +65,7 @@ class CustomEmojiController extends Controller
 
         $revokeCustomEmoji->handle($team, $request->user(), $emoji);
 
-        Inertia::flash('toast', ['type' => 'success', 'message' => __('Emoji removed.')]);
+        Inertia::flash('toast', ['type' => 'success', 'message' => __('Emoji removed')]);
 
         return back();
     }
