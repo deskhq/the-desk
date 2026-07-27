@@ -27,17 +27,18 @@ use App\SlashCommands\SlashCommandRegistry;
 use App\Support\FrequentEmoji;
 use App\Support\ReverbConfig;
 use App\Support\ThreadInbox;
+use App\Support\ThreadInboxPage;
 use App\Support\TranslationCatalog;
 use App\Support\UpdateChecker;
 use App\Support\UserAgentParser;
 use App\Support\WebPushConfig;
-use Illuminate\Contracts\Pagination\CursorPaginator;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
 use Inertia\Middleware;
+use Inertia\ProvidesScrollMetadata;
 use Laravel\Fortify\Features;
 
 class HandleInertiaRequests extends Middleware
@@ -571,7 +572,13 @@ class HandleInertiaRequests extends Middleware
         $filter = ThreadInboxFilter::fromQuery($request->query('filter'));
 
         return [
-            'threads' => Inertia::scroll(fn (): CursorPaginator => $inbox->page($filter)),
+            // The page carries its own scroll metadata, read off the models before
+            // they became cards — see {@see ThreadInboxPage} for why the paginator
+            // cannot be handed over directly.
+            'threads' => Inertia::scroll(
+                fn (): ThreadInboxPage => $inbox->page($filter),
+                metadata: fn (ThreadInboxPage $page): ProvidesScrollMetadata => $page->metadata(),
+            ),
             'unreadThreadCount' => $inbox->unreadCount(...),
         ];
     }

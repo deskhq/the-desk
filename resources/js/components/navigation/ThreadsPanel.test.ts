@@ -65,7 +65,10 @@ import ThreadsPanel from './ThreadsPanel.vue';
 
 const author: Mention = { id: 'u-1', name: 'Carol Danvers' };
 
-function threadItem(overrides: Partial<ThreadInboxItem> = {}): ThreadInboxItem {
+function threadItem(
+    overrides: Partial<Omit<ThreadInboxItem, 'root'>> = {},
+    rootOverrides: Partial<Message> = {},
+): ThreadInboxItem {
     const root: Message = {
         id: 'm-1',
         clientUuid: 'uuid-1',
@@ -91,7 +94,7 @@ function threadItem(overrides: Partial<ThreadInboxItem> = {}): ThreadInboxItem {
         threadFollowed: true,
         threadUnread: true,
         threadUnreadReplyCount: 4,
-        ...((overrides.root ?? {}) as Partial<Message>),
+        ...rootOverrides,
     } as Message;
 
     return {
@@ -101,7 +104,6 @@ function threadItem(overrides: Partial<ThreadInboxItem> = {}): ThreadInboxItem {
         isDirectMessage: false,
         dmParticipant: null,
         ...overrides,
-        root,
     };
 }
 
@@ -214,12 +216,10 @@ describe('a card', () => {
     it('drops to the total once the viewer is caught up', () => {
         withInbox(
             [
-                threadItem({
-                    root: {
-                        threadUnread: false,
-                        threadUnreadReplyCount: 0,
-                    } as Message,
-                }),
+                threadItem(
+                    {},
+                    { threadUnread: false, threadUnreadReplyCount: 0 },
+                ),
             ],
             0,
         );
@@ -229,7 +229,9 @@ describe('a card', () => {
         const card = host.querySelector('[data-test="thread-inbox-item"]')!;
 
         expect(card.className).not.toContain('border-brass');
-        expect(card.querySelector('[data-test="thread-unread-dot"]')).toBeNull();
+        expect(
+            card.querySelector('[data-test="thread-unread-dot"]'),
+        ).toBeNull();
         expect(card.textContent).toContain('7 replies');
         // The stack belongs to the unread treatment the design draws.
         expect(card.querySelector('[data-test="avatar-stack"]')).toBeNull();

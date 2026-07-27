@@ -2,13 +2,11 @@
 
 namespace App\Support;
 
-use App\Data\ThreadInboxItemData;
 use App\Enums\ThreadInboxFilter;
 use App\Models\Channel;
 use App\Models\Message;
 use App\Models\Team;
 use App\Models\User;
-use Illuminate\Contracts\Pagination\CursorPaginator;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Support\Collection;
@@ -42,10 +40,8 @@ class ThreadInbox
 
     /**
      * One page of the inbox, as the cards the panel renders.
-     *
-     * @return CursorPaginator<int, ThreadInboxItemData>
      */
-    public function page(ThreadInboxFilter $filter): CursorPaginator
+    public function page(ThreadInboxFilter $filter): ThreadInboxPage
     {
         $threads = $this->followed()
             ->when(
@@ -63,7 +59,7 @@ class ThreadInbox
 
         $this->loadDirectMessageRosters($threads->getCollection());
 
-        return $threads->through(fn (Message $message): ThreadInboxItemData => ThreadInboxItemData::fromMessage($message, $this->viewer));
+        return new ThreadInboxPage($threads, $this->viewer);
     }
 
     /**
