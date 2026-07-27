@@ -141,12 +141,14 @@ function row(host: HTMLElement, name: string): HTMLElement | null {
 it('offers exactly three ways to start something', () => {
     const { host } = mountMenu();
 
-    expect(
-        host.querySelectorAll('[data-test="new-menu"] > *').length,
-    ).toBeGreaterThan(0);
     expect(row(host, 'new-menu-channel')).not.toBeNull();
     expect(row(host, 'new-menu-message')).not.toBeNull();
     expect(row(host, 'create-section-trigger')).not.toBeNull();
+    // And nothing else: the menu is a fixed three, not a drawer for whatever
+    // else needs a home.
+    expect(
+        host.querySelectorAll('[data-test="new-menu"] [data-test]'),
+    ).toHaveLength(3);
 });
 
 it('never carries an invite row — membership is the workspace sheet job', () => {

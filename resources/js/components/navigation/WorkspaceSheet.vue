@@ -22,6 +22,7 @@ import {
 import { useInitials } from '@/composables/useInitials';
 import { useIsMobile } from '@/composables/useIsMobile';
 import { useTeamSwitch } from '@/composables/useTeamSwitch';
+import { useTranslations } from '@/composables/useTranslations';
 import { edit as teamEdit } from '@/routes/teams';
 import type { Team } from '@/types';
 
@@ -61,6 +62,7 @@ const emit = defineEmits<{
 }>();
 
 const page = usePage();
+const { t } = useTranslations();
 const { getInitials } = useInitials();
 const { switchTeam } = useTeamSwitch();
 
@@ -117,9 +119,17 @@ function chooseTeam(team: Team): void {
     }
 }
 
-/** How many members a workspace has, as the one line both surfaces render. */
-function memberCountLabel(team: Team | null): string {
-    return (team?.membersCount ?? 0) === 1 ? 'member' : 'members';
+/**
+ * How many members a workspace has, as the one line both surfaces render. The
+ * count is interpolated rather than concatenated, so a locale is free to put it
+ * anywhere in the phrase.
+ */
+function memberCountLine(team: Team | null): string {
+    const count = team?.membersCount ?? 0;
+
+    return count === 1
+        ? t(':count member', { count })
+        : t(':count members', { count });
 }
 
 /** The shared look of one 52px sheet row. */
@@ -152,10 +162,9 @@ const sheetRowClass =
                     <span class="block truncate text-base font-semibold">{{
                         currentTeam?.name ?? $t('Select team')
                     }}</span>
-                    <span class="block text-xs text-muted-foreground"
-                        >{{ currentTeam?.membersCount ?? 0 }}
-                        {{ $t(memberCountLabel(currentTeam)) }}</span
-                    >
+                    <span class="block text-xs text-muted-foreground">{{
+                        memberCountLine(currentTeam)
+                    }}</span>
                 </span>
             </div>
 
@@ -229,10 +238,9 @@ const sheetRowClass =
                     <span class="block truncate text-[15px]">{{
                         team.name
                     }}</span>
-                    <span class="block text-xs text-muted-foreground"
-                        >{{ team.membersCount }}
-                        {{ $t(memberCountLabel(team)) }}</span
-                    >
+                    <span class="block text-xs text-muted-foreground">{{
+                        memberCountLine(team)
+                    }}</span>
                 </span>
                 <Check
                     v-if="team.isCurrent"
@@ -320,10 +328,9 @@ const sheetRowClass =
                         class="block truncate text-[13.5px] font-semibold text-foreground"
                         >{{ currentTeam?.name ?? $t('Select team') }}</span
                     >
-                    <span class="block text-[11px] text-muted-foreground"
-                        >{{ currentTeam?.membersCount ?? 0 }}
-                        {{ $t(memberCountLabel(currentTeam)) }}</span
-                    >
+                    <span class="block text-[11px] text-muted-foreground">{{
+                        memberCountLine(currentTeam)
+                    }}</span>
                 </span>
             </div>
 
@@ -391,10 +398,9 @@ const sheetRowClass =
                         :class="team.isCurrent ? 'font-semibold' : ''"
                         >{{ team.name }}</span
                     >
-                    <span class="block text-[11px] text-muted-foreground"
-                        >{{ team.membersCount }}
-                        {{ $t(memberCountLabel(team)) }}</span
-                    >
+                    <span class="block text-[11px] text-muted-foreground">{{
+                        memberCountLine(team)
+                    }}</span>
                 </span>
                 <Check
                     v-if="team.isCurrent"

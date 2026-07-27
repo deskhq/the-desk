@@ -161,6 +161,19 @@ test('a thread-only reply stays out of the unread count but its mention still co
         ->toMatchArray(['unreadCount' => 1, 'mentionCount' => 1]);
 });
 
+test('a thread reply also sent to the channel counts like any other message', function (): void {
+    $viewer = User::factory()->create();
+    [$team, $general, $author] = otherWorkspace($viewer);
+
+    $root = crossWorkspacePost($general, $author);
+    crossWorkspacePost($general, $author, attributes: [
+        'thread_root_id' => $root->id,
+        'sent_to_channel' => true,
+    ]);
+
+    expect(workspaceBadge($viewer, $team)['unreadCount'])->toBe(2);
+});
+
 test('an archived channel drops out of the workspace counts', function (): void {
     $viewer = User::factory()->create();
     [$team, $general, $author] = otherWorkspace($viewer);

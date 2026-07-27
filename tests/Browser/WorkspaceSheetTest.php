@@ -138,7 +138,11 @@ test('the rail tiles every workspace, dots the unread one, and switches on a tap
         ->assertScript(<<<'JS'
         (() => document.querySelectorAll('[data-test="rail-workspace-unread-dot"]').length)()
         JS, 1)
-        ->assertPresent('@new-team-trigger');
+        ->assertPresent('@new-team-trigger')
+        // And tapping the dotted tile goes straight there, no sheet in between.
+        ->click('[data-test="rail-workspace-unread-dot"]')
+        ->assertNotPresent('@workspace-sheet')
+        ->assertSee('Nord Bureau');
 });
 
 test('the plus menu offers exactly three ways to start something', function (): void {
@@ -193,6 +197,10 @@ test('the workspace sheet and the plus menu are keyboard-operable', function ():
         ->navigate(browserChannelUrl($team, $channel))
         ->assertPresent('button[data-test="workspace-switcher"]')
         ->assertPresent('button[data-test="new-menu-trigger"]')
+        ->keys('@workspace-switcher', 'Enter')
+        ->assertPresent('@workspace-sheet')
+        ->keys('@workspace-sheet', ['Escape'])
+        ->assertNotPresent('@workspace-sheet')
         ->keys('@new-menu-trigger', 'Enter')
         ->assertPresent('@new-menu');
 });

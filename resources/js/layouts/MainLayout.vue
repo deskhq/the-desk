@@ -870,13 +870,16 @@ onMounted(() => {
                                         <span
                                             class="block text-[11px] text-muted-foreground max-md:text-[12.5px]"
                                             >{{
-                                                currentTeam?.membersCount ?? 0
-                                            }}
-                                            {{
                                                 (currentTeam?.membersCount ??
                                                     0) === 1
-                                                    ? $t('member')
-                                                    : $t('members')
+                                                    ? $t(':count member', {
+                                                          count: 1,
+                                                      })
+                                                    : $t(':count members', {
+                                                          count:
+                                                              currentTeam?.membersCount ??
+                                                              0,
+                                                      })
                                             }}</span
                                         >
                                     </span>
