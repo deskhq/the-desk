@@ -37,28 +37,34 @@ function harness(): { height: { value: number }; stop: () => void } {
     return { height, stop: () => scope.stop() };
 }
 
+/** Records what the stubbed ResizeObserver was pointed at, per test. */
+let observed = vi.fn();
+
 describe('useToastZoneHeight', () => {
     beforeEach(() => {
         document.body.replaceChildren();
         activeToasts.value = [];
+        observed = vi.fn();
         vi.stubGlobal(
             'ResizeObserver',
             class {
-                observe = vi.fn();
+                observe = observed;
                 disconnect = vi.fn();
             },
         );
     });
 
     it('claims no room while no toast is up, leaving the nudges where they were', async () => {
-        const { height } = harness();
+        const { height, stop } = harness();
         await nextTick();
 
         expect(height.value).toBe(0);
+
+        stop();
     });
 
     it('claims the front toast’s height plus the gap between the two zones', async () => {
-        const { height } = harness();
+        const { height, stop } = harness();
 
         renderFrontToast(56);
         activeToasts.value = [{}];
@@ -66,10 +72,24 @@ describe('useToastZoneHeight', () => {
         await nextTick();
 
         expect(height.value).toBe(66);
+
+        stop();
+    });
+
+    it('attaches nothing once the layout that owns it has gone', async () => {
+        const { stop } = harness();
+
+        renderFrontToast(56);
+        activeToasts.value = [{}];
+        stop();
+        await nextTick();
+        await nextTick();
+
+        expect(observed).not.toHaveBeenCalled();
     });
 
     it('gives the room back once the last toast goes', async () => {
-        const { height } = harness();
+        const { height, stop } = harness();
 
         renderFrontToast(56);
         activeToasts.value = [{}];
@@ -82,5 +102,7 @@ describe('useToastZoneHeight', () => {
         await nextTick();
 
         expect(height.value).toBe(0);
+
+        stop();
     });
 });

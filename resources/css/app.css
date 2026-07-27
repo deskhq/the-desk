@@ -355,8 +355,11 @@
   The stack closes the gap *after* an exit rather than during it, which sonner
   already does: a removed toast keeps its slot until its exit finishes.
 */
-[data-sonner-toaster] [data-sonner-toast] {
+[data-sonner-toaster] [data-sonner-toast]:not([data-mounted='true']) {
     --y: translateY(12px);
+}
+
+[data-sonner-toaster] [data-sonner-toast] {
     transition:
         transform 180ms cubic-bezier(0.32, 0.72, 0, 1),
         opacity 180ms cubic-bezier(0.32, 0.72, 0, 1),
