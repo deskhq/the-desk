@@ -134,6 +134,14 @@ browsers, PHP servers and Playwright then compete for the same cores, which
 makes the suite both slower and flakier. Pin a different count with
 `BROWSER_TEST_PROCESSES=N` to measure another setting.
 
+The same runner reaps the processes a run leaves behind — the Playwright server
+every run used to leak, plus the paratest workers a killed run strands — both
+before it starts and once it ends, naming each one it kills. Left alone those
+leftovers eat the cores the cap is there to protect, so a machine that had run a
+few sweeps failed unrelated tests as though the application had regressed. Only
+processes orphaned onto init and running out of this checkout are touched, so a
+second suite (or the PHP gate, whose workers look identical) is safe alongside.
+
 Rebuild the frontend (`./vendor/bin/sail npm run build`) after changing any Vue
 component the tests touch, since the in-process server serves the compiled Vite
 assets — and after pulling someone else's, for the same reason. You don't have
