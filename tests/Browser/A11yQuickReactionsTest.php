@@ -67,17 +67,8 @@ test('the quick cluster and frequently-used strip pass the axe audit in either t
         ->assertPresent('[data-test="frequent-emoji-strip"]')
         ->assertNoAccessibilityIssues();
 
-    // Re-audit against the dark palette, where the pressed shortcut swaps to the
-    // brass-tint fill. Persist the choice before applying the class so the
-    // appearance controller doesn't re-resolve 'system' back to light.
-    $page->script(<<<'JS'
-    () => {
-        localStorage.setItem('appearance', 'dark');
-        document.documentElement.classList.add('dark');
-        document.documentElement.style.colorScheme = 'dark';
-    }
-    JS);
-
-    $page->wait(0.5)
+    // Worth auditing twice: the pressed shortcut swaps to the brass-tint fill in
+    // dark, a pairing the light pass never exercises.
+    switchToDarkTheme($page)
         ->assertNoAccessibilityIssues();
 });

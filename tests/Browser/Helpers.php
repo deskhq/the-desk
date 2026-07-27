@@ -167,6 +167,40 @@ function navParamSettles(?string $destination): string
 }
 
 /**
+ * Repaint a live page in the dark palette, settled enough for an axe audit.
+ *
+ * Persisting to localStorage first keeps the appearance controller from
+ * re-resolving `system` back to light. The injected stylesheet is the part that
+ * makes the audit trustworthy: swapping the palette re-tints every element
+ * carrying `transition-colors`, and axe reads `getComputedStyle` off whatever
+ * frame it lands on, so a tween in flight is reported as if it were the shipped
+ * colour. That is what #946 chased — four "contrast misses" in the mobile
+ * drawer that were each an interpolation between the light and dark values of
+ * `--muted-foreground`, one of them measured against a background matching no
+ * token in the palette at all. The ratios moved run to run, which no real token
+ * pair can do. Killing transitions and animations outright pins the audit to the
+ * settled palette, which is the only thing worth asserting; it also removes the
+ * fade-settle that the dialog audits needed for the same reason (#775).
+ */
+function switchToDarkTheme(AwaitableWebpage $page): AwaitableWebpage
+{
+    $page->script(<<<'JS'
+    () => {
+        const settled = document.createElement('style');
+        settled.textContent =
+            '*, *::before, *::after { transition: none !important; animation: none !important; }';
+        document.head.appendChild(settled);
+
+        localStorage.setItem('appearance', 'dark');
+        document.documentElement.classList.add('dark');
+        document.documentElement.style.colorScheme = 'dark';
+    }
+    JS);
+
+    return $page->wait(0.5);
+}
+
+/**
  * Sign a user in through the real login form, returning the page so the caller
  * can continue driving it. Each `visit()` gets its own browser context (isolated
  * cookie jar), so two calls yield two independently authenticated clients.
