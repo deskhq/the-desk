@@ -1,3 +1,4 @@
+import { HAS_FILE } from '@/lib/searchTokens';
 import type { SearchParams } from '@/lib/searchTokens';
 
 /**
@@ -43,6 +44,7 @@ const SEARCH_URL_PARAMS = [
     'in',
     'after',
     'before',
+    'has',
     'scope',
 ] as const;
 
@@ -70,8 +72,8 @@ function isCalendarDay(value: string): boolean {
 /**
  * Read the search criteria a URL carries, normalized the way the server
  * normalizes them: an over-long value, a date facet that is not a plain calendar
- * day and a scope that names nothing are all dropped rather than rendered as a
- * chip nobody can explain.
+ * day, an attachment kind nothing filters by and a scope that names nothing are
+ * all dropped rather than rendered as a chip nobody can explain.
  */
 export function searchParamsFromUrl(url: string): SearchParams {
     const params = new URL(url, URL_BASE).searchParams;
@@ -94,6 +96,7 @@ export function searchParamsFromUrl(url: string): SearchParams {
         in: value('in'),
         after: day('after'),
         before: day('before'),
+        has: params.get('has') === HAS_FILE ? HAS_FILE : undefined,
         scope: params.get('scope') === 'all' ? 'all' : undefined,
     };
 }

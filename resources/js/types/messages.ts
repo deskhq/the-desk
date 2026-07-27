@@ -339,6 +339,7 @@ export type MessageSearchCriteria = {
     in: string | null;
     after: string | null;
     before: string | null;
+    has: string | null;
     scope: string;
 };
 

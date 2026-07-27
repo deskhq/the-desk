@@ -9,7 +9,7 @@ describe('searchParamsFromUrl', () => {
     it('reads the criteria a shared link carries', () => {
         expect(
             searchParamsFromUrl(
-                '/t/acme/c/general?nav=search&q=brief&from=u-1&in=c-2&after=2026-07-01&before=2026-07-20&scope=all',
+                '/t/acme/c/general?nav=search&q=brief&from=u-1&in=c-2&after=2026-07-01&before=2026-07-20&has=file&scope=all',
             ),
         ).toEqual({
             q: 'brief',
@@ -17,6 +17,7 @@ describe('searchParamsFromUrl', () => {
             in: 'c-2',
             after: '2026-07-01',
             before: '2026-07-20',
+            has: 'file',
             scope: 'all',
         });
     });
@@ -28,6 +29,7 @@ describe('searchParamsFromUrl', () => {
             in: undefined,
             after: undefined,
             before: undefined,
+            has: undefined,
             scope: undefined,
         });
     });
@@ -71,6 +73,13 @@ describe('searchParamsFromUrl', () => {
         expect(searchParamsFromUrl('/t/acme?before=2024-02-29').before).toBe(
             '2024-02-29',
         );
+    });
+
+    // The server honours the one value the chip writes and drops the rest, so a
+    // hand-edited `has=audio` must not draw a chip here that nothing filters by.
+    it('drops an attachment facet naming a kind nothing filters by', () => {
+        expect(searchParamsFromUrl('/t/acme?has=audio').has).toBeUndefined();
+        expect(searchParamsFromUrl('/t/acme?has=file').has).toBe('file');
     });
 
     it('narrows an unknown scope back to the current team', () => {
@@ -139,6 +148,9 @@ describe('searchFingerprint', () => {
         );
         expect(searchFingerprint(base)).not.toBe(
             searchFingerprint({ ...base, scope: 'all' }),
+        );
+        expect(searchFingerprint(base)).not.toBe(
+            searchFingerprint({ ...base, has: 'file' }),
         );
         expect(searchFingerprint(base)).not.toBe(
             searchFingerprint({ q: 'briefing' }),

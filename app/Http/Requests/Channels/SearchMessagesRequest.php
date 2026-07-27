@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Requests\Channels;
 
 use App\Enums\SearchScope;
+use App\Support\MessageSearchPanel;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -38,6 +39,10 @@ class SearchMessagesRequest extends FormRequest
             'in' => ['nullable', 'string', 'max:255'],
             'after' => ['nullable', 'date'],
             'before' => ['nullable', 'date'],
+            // The attachment facet has exactly one value today; an unknown kind is
+            // rejected here rather than quietly ignored, because this endpoint is
+            // a request in its own right and can afford to answer 422.
+            'has' => ['nullable', Rule::in([MessageSearchPanel::HAS_FILE])],
             'scope' => ['nullable', Rule::enum(SearchScope::class)],
         ];
     }

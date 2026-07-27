@@ -125,8 +125,13 @@ class SearchMessages
 
     /**
      * Re-query the candidate ids in Eloquent as the authoritative pass: re-assert
-     * the channel ACL, apply the author, channel, and date facets, order by
-     * recency, and trim to the page. Relations are eager-loaded for rendering.
+     * the channel ACL, apply the author, channel, date, and attachment facets,
+     * order by recency, and trim to the page. Relations are eager-loaded for
+     * rendering.
+     *
+     * The attachment facet is enforced here only, like the channel one: nothing
+     * about a message's files is indexed, so narrowing the engine's candidate
+     * window by it is not on offer for any driver.
      *
      * @param  array<int, string>  $candidateIds
      * @param  array<int, string>  $channelIds
@@ -141,6 +146,9 @@ class SearchMessages
             ->when($criteria->authorId !== null, fn (Builder $query) => $query->where('user_id', $criteria->authorId))
             ->when($criteria->after instanceof CarbonInterface, fn (Builder $query) => $query->where('created_at', '>=', $criteria->after))
             ->when($criteria->before instanceof CarbonInterface, fn (Builder $query) => $query->where('created_at', '<=', $criteria->before))
+            // The relation is unfiltered, so this matches exactly the files the
+            // message renders — a soft-deleted attachment drops out of both.
+            ->when($criteria->hasAttachments, fn (Builder $query) => $query->whereHas('attachments'))
             ->latest()
             ->limit($limit)
             ->get();
