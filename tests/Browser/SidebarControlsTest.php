@@ -7,10 +7,12 @@ use App\Models\ChannelSection;
 test('a section can be created through the inline shadcn input', function (): void {
     ['owner' => $alice] = browserTeamWithChannel();
 
-    // Opening the inline form focuses the shadcn <Input> (resolved by data-test,
-    // not a component ref); typing a name and pressing Enter blurs it, which
+    // "New section" now lives in the dock header's "+ New" menu; opening the
+    // inline form still focuses the shadcn <Input> (resolved by data-test, not
+    // a component ref), and typing a name then pressing Enter blurs it, which
     // commits the section.
     signInThroughBrowser($alice)
+        ->click('@new-menu-trigger')
         ->click('@create-section-trigger')
         ->type('@create-section-input', 'Projects')
         ->keys('@create-section-input', ['Enter'])

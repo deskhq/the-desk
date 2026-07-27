@@ -22,6 +22,25 @@ vi.mock('@/components/CreateTeamModal.vue', () => ({
     }),
 }));
 
+vi.mock('@/components/navigation/WorkspaceSheet.vue', () => ({
+    default: defineComponent({
+        setup:
+            (_, { slots }) =>
+            () =>
+                h(
+                    'div',
+                    { 'data-test': 'workspace-sheet-anchor' },
+                    slots.default?.(),
+                ),
+    }),
+}));
+
+const switchTeam = vi.hoisted(() => vi.fn());
+
+vi.mock('@/composables/useTeamSwitch', () => ({
+    useTeamSwitch: () => ({ switchTeam }),
+}));
+
 vi.mock('@/components/ui/avatar', () => ({
     Avatar: defineComponent({
         setup:
@@ -50,7 +69,19 @@ const viewer: User = {
     avatar: null,
 } as unknown as User;
 
-const team: Team = { id: 't-1', name: 'Acme Corp', slug: 'acme' } as Team;
+function makeTeam(overrides: Partial<Team> = {}): Team {
+    return {
+        id: 't-1',
+        name: 'Acme Corp',
+        slug: 'acme',
+        isPersonal: false,
+        membersCount: 7,
+        isCurrent: true,
+        unreadCount: 0,
+        mentionCount: 0,
+        ...overrides,
+    };
+}
 
 let app: App | null = null;
 
@@ -58,13 +89,14 @@ afterEach(() => {
     app?.unmount();
     app = null;
     document.body.innerHTML = '';
+    switchTeam.mockClear();
 });
 
 function mountRail(
     overrides: {
         active?: NavDestination;
         hasUnreadThreads?: boolean;
-        currentTeam?: Team | null;
+        teams?: Team[];
         avatar?: string;
     } = {},
 ) {
@@ -78,20 +110,35 @@ function mountRail(
             h(NavigationRail, {
                 active: overrides.active ?? 'channels',
                 user: { ...viewer, avatar: overrides.avatar },
-                currentTeam:
-                    overrides.currentTeam === undefined
-                        ? team
-                        : overrides.currentTeam,
+                teams: overrides.teams ?? [makeTeam()],
                 presence: 'active',
                 isDnd: false,
                 hasUnreadThreads: overrides.hasUnreadThreads ?? false,
                 onSelect: select,
             }),
     });
-    app.config.globalProperties.$t = (key: string) => key;
+    app.config.globalProperties.$t = (
+        key: string,
+        replacements?: Record<string, unknown>,
+    ) =>
+        replacements
+            ? Object.entries(replacements).reduce(
+                  (line, [token, value]) =>
+                      line.replaceAll(`:${token}`, String(value)),
+                  key,
+              )
+            : key;
     app.mount(host);
 
     return { host, select };
+}
+
+function tiles(host: HTMLElement): HTMLElement[] {
+    return [
+        ...host.querySelectorAll<HTMLElement>(
+            '[data-test="rail-workspace-tile"]',
+        ),
+    ];
 }
 
 function glyph(host: HTMLElement, destination: NavDestination): HTMLElement {
@@ -168,19 +215,96 @@ it('flags unread threads on the threads glyph only while there are any', () => {
     ).toBeNull();
 });
 
-it('tiles the current workspace above the destinations', () => {
-    const { host } = mountRail();
+it('tiles every workspace above the destinations', () => {
+    const { host } = mountRail({
+        teams: [
+            makeTeam(),
+            makeTeam({ id: 't-2', name: 'Nord Bureau', isCurrent: false }),
+        ],
+    });
 
-    const tile = host.querySelector('[data-test="rail-workspace-tile"]');
-
-    expect(tile).not.toBeNull();
-    expect(tile!.textContent).toContain('AC');
+    expect(tiles(host)).toHaveLength(2);
+    expect(tiles(host)[0].textContent).toContain('AC');
+    expect(tiles(host)[1].textContent).toContain('NB');
 });
 
-it('drops the workspace tile when the viewer is not in a workspace', () => {
-    const { host } = mountRail({ currentTeam: null });
+it('drops the workspace tiles when the viewer is not in a workspace', () => {
+    const { host } = mountRail({ teams: [] });
 
-    expect(host.querySelector('[data-test="rail-workspace-tile"]')).toBeNull();
+    expect(tiles(host)).toHaveLength(0);
+});
+
+it('opens the workspace sheet from the open workspace tile, and switches from the others', () => {
+    const { host } = mountRail({
+        teams: [
+            makeTeam(),
+            makeTeam({
+                id: 't-2',
+                name: 'Nord',
+                slug: 'nord',
+                isCurrent: false,
+            }),
+        ],
+    });
+
+    // The open tile is the sheet's anchor, so it is wrapped rather than wired
+    // to a switch of its own.
+    expect(
+        tiles(host)[0].closest('[data-test="workspace-sheet-anchor"]'),
+    ).not.toBeNull();
+    expect(tiles(host)[0].getAttribute('data-current')).toBe('true');
+
+    tiles(host)[0].click();
+
+    expect(switchTeam).not.toHaveBeenCalled();
+
+    tiles(host)[1].click();
+
+    expect(switchTeam).toHaveBeenCalledWith(
+        expect.objectContaining({ slug: 'nord' }),
+    );
+});
+
+it('dots a workspace holding anything unread, and only that one', () => {
+    const { host } = mountRail({
+        teams: [
+            makeTeam(),
+            makeTeam({
+                id: 't-2',
+                name: 'Nord',
+                isCurrent: false,
+                unreadCount: 4,
+            }),
+            makeTeam({ id: 't-3', name: 'Sud', isCurrent: false }),
+        ],
+    });
+
+    expect(
+        host.querySelectorAll('[data-test="rail-workspace-unread-dot"]'),
+    ).toHaveLength(1);
+});
+
+it('dots a workspace whose only news is a mention', () => {
+    const { host } = mountRail({
+        teams: [
+            makeTeam({
+                id: 't-2',
+                name: 'Nord',
+                isCurrent: false,
+                mentionCount: 2,
+            }),
+        ],
+    });
+
+    expect(
+        host.querySelectorAll('[data-test="rail-workspace-unread-dot"]'),
+    ).toHaveLength(1);
+});
+
+it('keeps a way to create a workspace at the foot of the tiles', () => {
+    const { host } = mountRail();
+
+    expect(host.querySelector('[data-test="new-team-trigger"]')).not.toBeNull();
 });
 
 it('draws an uploaded avatar in place of the initials fallback', () => {

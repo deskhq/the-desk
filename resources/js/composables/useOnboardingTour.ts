@@ -18,7 +18,13 @@ export type TourStep = {
 /**
  * The first-run tour: three coachmarks pointing at the key actions a new user
  * takes. The `target` values match `data-tour` attributes placed on the composer
- * (Show.vue) and the sidebar create-channel / invite affordances (MainLayout).
+ * (Show.vue) and, in MainLayout, the sidebar's create-channel shortcut and the
+ * workspace-sheet trigger.
+ *
+ * The last step spotlights the trigger rather than the invite row itself: the
+ * row now lives inside the workspace sheet, and a `data-tour` anchor inside a
+ * closed surface resolves to nothing, leaving the spotlight with no rect to cut
+ * ({@see OnboardingTour.vue}).
  */
 export const tourSteps: TourStep[] = [
     {
@@ -34,7 +40,7 @@ export const tourSteps: TourStep[] = [
     {
         target: 'invite',
         title: 'Invite your teammates',
-        body: 'A workspace comes alive with people. Invite a few teammates to get the conversation going.',
+        body: 'Open the workspace menu to invite teammates, switch workspace, or manage this one.',
     },
 ];
 

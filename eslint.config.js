@@ -104,6 +104,22 @@ export default defineConfigWithVueTs(
             // on (#894). `error` because every occurrence was converted, so a
             // new fork cannot land silently.
             'local/no-standalone-input-error': 'error',
+            // Cap how large a single file may grow, so the shell's biggest
+            // components can only shrink. Several grew past a thousand lines
+            // with nothing to stop them — `MainLayout.vue` reached 1643 raw
+            // lines before anyone called it (#956) — and `max-lines` counts
+            // the whole `.vue` file, template included, not just the
+            // `<script>` block. `error` rather than `warn` because a warning
+            // leaves `lint:check` green and a new 900-line file lands anyway.
+            // Blank lines and comments are skipped: the conventions here ask
+            // for JSDoc on declarations and for *why* comments, and charging
+            // those against the budget would punish exactly the behaviour the
+            // conventions require. Today's offenders are grandfathered by
+            // explicit path further down (#957).
+            'max-lines': [
+                'error',
+                { max: 400, skipBlankLines: true, skipComments: true },
+            ],
             // XSS trust boundary. Every run of HTML the client renders as markup
             // must go through `<SafeHtml>`, which sanitizes it with DOMPurify
             // against a named allowlist; a raw `v-html` anywhere else would
@@ -195,6 +211,45 @@ export default defineConfigWithVueTs(
         },
     },
     {
+        // Every file that already breached the `max-lines` cap when it was
+        // introduced (#957), listed by explicit path: a glob would hand new
+        // files the same free pass, which is the one thing the rule exists to
+        // prevent. The counts come from running the rule itself, not `wc -l`
+        // — six files over 400 raw lines fall under it once blanks and
+        // comments are skipped, and are deliberately absent here rather than
+        // being granted another 60 lines of room.
+        //
+        // This is a burn-down list, not a settlement: each entry is a file
+        // waiting to be split (#956 takes the first, `MainLayout.vue`).
+        // `eslint-rules/max-lines-policy.test.ts` fails as soon as an entry
+        // stops breaching the threshold, so the list can only shrink.
+        files: [
+            'resources/js/components/ChannelMasthead.vue',
+            'resources/js/components/MessageComposer.vue',
+            'resources/js/components/MessageList.vue',
+            'resources/js/components/QuickSwitcher.vue',
+            'resources/js/components/UserMenuContent.vue',
+            'resources/js/components/UserMenuSheet.vue',
+            'resources/js/components/UserStatusDialog.vue',
+            'resources/js/composables/useAttachmentUploads.test.ts',
+            'resources/js/composables/useMessageActions.test.ts',
+            'resources/js/composables/useMessageActions.ts',
+            'resources/js/layouts/MainLayout.vue',
+            'resources/js/pages/Welcome.vue',
+            'resources/js/pages/channels/Search.vue',
+            'resources/js/pages/channels/Show.vue',
+            'resources/js/pages/teams/Analytics.vue',
+            'resources/js/pages/teams/AuditExports.vue',
+            'resources/js/pages/teams/Edit.vue',
+            'resources/js/pages/teams/Groups.vue',
+            'resources/js/pages/teams/integrations/Bot.vue',
+            'resources/js/pages/teams/integrations/Index.vue',
+        ],
+        rules: {
+            'max-lines': 'off',
+        },
+    },
+    {
         ignores: [
             '.claude',
             'vendor',
@@ -207,6 +262,13 @@ export default defineConfigWithVueTs(
             'vitest.config.ts',
             'resources/js/actions/**',
             'resources/js/components/ui/*',
+            // Ambient types transformed out of the PHP `Data` classes and
+            // enums. Like the Wayfinder output above and below it, it is
+            // git-ignored build output nobody hand-writes, and it is absent
+            // in CI's lint job (which never runs `typescript:transform`) — so
+            // linting it can only ever fail locally, on a file whose shape is
+            // not ours to change.
+            'resources/js/generated/**',
             'resources/js/routes/**',
             'resources/js/wayfinder/**',
         ],

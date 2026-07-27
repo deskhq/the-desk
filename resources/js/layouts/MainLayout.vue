@@ -1,9 +1,8 @@
 <script setup lang="ts">
 import { Link, router, usePage } from '@inertiajs/vue3';
 import {
-    Check,
+    ChevronDown,
     ChevronRight,
-    FolderPlus,
     GripVertical,
     MoreHorizontal,
     MoreVertical,
@@ -11,7 +10,6 @@ import {
     Plus,
     Search,
     Trash2,
-    UserPlus,
     X,
 } from '@lucide/vue';
 import { computed, nextTick, onMounted, ref, watch } from 'vue';
@@ -37,7 +35,6 @@ import { update as updateSidebarSections } from '@/actions/App/Http/Controllers/
 import PasskeyPromptDialog from '@/components/auth/PasskeyPromptDialog.vue';
 import ChannelListItem from '@/components/ChannelListItem.vue';
 import CreateChannelModal from '@/components/CreateChannelModal.vue';
-import CreateTeamModal from '@/components/CreateTeamModal.vue';
 import DemoBanner from '@/components/DemoBanner.vue';
 import DirectMessageListItem from '@/components/DirectMessageListItem.vue';
 import DndPauseDialog from '@/components/DndPauseDialog.vue';
@@ -48,7 +45,9 @@ import KeyboardShortcutsModal from '@/components/KeyboardShortcutsModal.vue';
 import DestinationPanel from '@/components/navigation/DestinationPanel.vue';
 import NavigationRail from '@/components/navigation/NavigationRail.vue';
 import NavigationTabBar from '@/components/navigation/NavigationTabBar.vue';
+import NewMenu from '@/components/navigation/NewMenu.vue';
 import ThreadsPanel from '@/components/navigation/ThreadsPanel.vue';
+import WorkspaceSheet from '@/components/navigation/WorkspaceSheet.vue';
 import NavUser from '@/components/NavUser.vue';
 import NewDirectMessageModal from '@/components/NewDirectMessageModal.vue';
 import OnboardingTour from '@/components/OnboardingTour.vue';
@@ -62,8 +61,6 @@ import {
     DropdownMenu,
     DropdownMenuContent,
     DropdownMenuItem,
-    DropdownMenuLabel,
-    DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
@@ -104,7 +101,6 @@ import { useQuickSwitcher } from '@/composables/useQuickSwitcher';
 import { useSidebarBadges } from '@/composables/useSidebarBadges';
 import { useSidebarPosition } from '@/composables/useSidebarPosition';
 import { useTeamPresence } from '@/composables/useTeamPresence';
-import { useTeamSwitch } from '@/composables/useTeamSwitch';
 import { useTimezone } from '@/composables/useTimezone';
 import { useTranslations } from '@/composables/useTranslations';
 import { useUserStatusDialog } from '@/composables/useUserStatusDialog';
@@ -175,8 +171,8 @@ const pendingInvitations = computed(() => page.props.pendingInvitations ?? []);
 const hasUnreadThreads = computed(() => page.props.hasUnreadThreads ?? false);
 
 /**
- * The dock header's "invite people" mini-button reuses the member-invite modal;
- * the permission and assignable roles ride along on the shared workspace props.
+ * The workspace sheet's "invite people" row reuses the member-invite modal; the
+ * permission and assignable roles ride along on the shared workspace props.
  */
 const canInviteToCurrentTeam = computed(
     () => page.props.canInviteToCurrentTeam ?? false,
@@ -185,6 +181,13 @@ const invitableRoles = computed<RoleOption[]>(
     () => page.props.invitableRoles ?? [],
 );
 const inviteOpen = ref(false);
+
+/**
+ * Whether the pending-invitations modal is presented. It opens itself the moment
+ * the (lazily shared) invitations land, and the workspace sheet's "Join a
+ * workspace" row reopens it once the viewer has dismissed it.
+ */
+const invitationsOpen = ref(true);
 
 /**
  * The user's custom sidebar sections for the current team, kept in their
@@ -380,7 +383,11 @@ const newSectionName = ref('');
 async function openSectionForm(): Promise<void> {
     sectionFormOpen.value = true;
     await nextTick();
-    focusSidebarInput('create-section-input');
+
+    // The "+ New" surface this row now lives on returns focus to its trigger as
+    // it closes, and that lands after this tick — so the field is taken on the
+    // following frame, or the caret would end up back on the "+" instead.
+    requestAnimationFrame(() => focusSidebarInput('create-section-input'));
 }
 
 function cancelSectionForm(): void {
@@ -563,7 +570,6 @@ function toggleSection(section: SidebarSectionKey): void {
 }
 
 const { getInitials } = useInitials();
-const { switchTeam } = useTeamSwitch();
 const { start: startOnboardingTour } = useOnboardingTour();
 
 const { isOpen: quickSwitcherOpen, toggle: toggleQuickSwitcher } =
@@ -811,11 +817,13 @@ onMounted(() => {
                     "
                     :active="activeDestination"
                     :user="page.props.auth.user"
-                    :current-team="currentTeam"
+                    :teams="teams"
                     :presence="ownPresence"
                     :is-dnd="ownDnd"
                     :has-unread-threads="hasUnreadThreads"
                     @select="openDestination"
+                    @invite="inviteOpen = true"
+                    @join="invitationsOpen = true"
                 />
 
                 <div class="flex min-h-0 min-w-0 flex-1 flex-col">
@@ -823,119 +831,92 @@ onMounted(() => {
                         class="gap-0 border-b border-sidebar-border p-3.5 pb-2.5"
                     >
                         <div class="flex items-center gap-2">
-                            <DropdownMenu>
-                                <DropdownMenuTrigger as-child>
-                                    <Button
-                                        variant="ghost"
-                                        data-test="workspace-switcher"
-                                        class="-m-1 flex h-auto min-w-0 flex-1 items-center justify-start gap-2 rounded-[9px] p-1 text-left transition-colors hover:bg-sidebar-accent"
+                            <!-- The whole identity zone is the workspace sheet's
+                                 trigger. Desktop drops the workspace avatar —
+                                 the rail already carries it — while the drawer,
+                                 which has no rail, keeps it. -->
+                            <WorkspaceSheet
+                                @invite="inviteOpen = true"
+                                @join="invitationsOpen = true"
+                            >
+                                <Button
+                                    variant="ghost"
+                                    data-test="workspace-switcher"
+                                    data-tour="invite"
+                                    class="-m-1 flex h-auto min-w-0 flex-1 items-center justify-start gap-2.5 rounded-[9px] p-1 text-left transition-colors hover:bg-sidebar-accent"
+                                >
+                                    <span
+                                        v-if="isMobileViewport"
+                                        aria-hidden="true"
+                                        class="flex size-10 shrink-0 items-center justify-center rounded-[11px] bg-sidebar-primary text-[13px] font-semibold text-sidebar-primary-foreground"
+                                        >{{
+                                            getInitials(currentTeam?.name ?? '')
+                                        }}</span
                                     >
+                                    <span class="min-w-0 flex-1">
                                         <span
-                                            class="flex size-8 shrink-0 items-center justify-center rounded-[9px] bg-sidebar-primary text-[11px] font-semibold text-sidebar-primary-foreground"
-                                            >{{
-                                                getInitials(
-                                                    currentTeam?.name ?? '',
-                                                )
-                                            }}</span
+                                            class="flex items-center gap-1.25"
                                         >
-                                        <span class="min-w-0 flex-1">
                                             <span
-                                                class="block truncate text-sm font-semibold text-sidebar-foreground"
+                                                class="truncate text-sm font-semibold text-sidebar-foreground max-md:text-base"
                                                 >{{
                                                     currentTeam?.name ??
                                                     $t('Select team')
                                                 }}</span
                                             >
-                                            <span
-                                                class="block text-[11px] text-muted-foreground"
-                                                >{{
-                                                    currentTeam?.membersCount ??
-                                                    0
-                                                }}
-                                                {{
-                                                    (currentTeam?.membersCount ??
-                                                        0) === 1
-                                                        ? $t('member')
-                                                        : $t('members')
-                                                }}</span
-                                            >
+                                            <ChevronDown
+                                                class="size-3 shrink-0 text-muted-foreground"
+                                            />
                                         </span>
-                                    </Button>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent align="start" class="w-56">
-                                    <DropdownMenuLabel
-                                        class="text-xs text-muted-foreground"
-                                    >
-                                        {{ $t('Teams') }}
-                                    </DropdownMenuLabel>
-                                    <DropdownMenuItem
-                                        v-for="team in teams"
-                                        :key="team.id"
-                                        data-test="team-switcher-item"
-                                        class="cursor-pointer gap-2"
-                                        @click="switchTeam(team)"
-                                    >
-                                        {{ team.name }}
-                                        <Check
-                                            v-if="team.id === currentTeam?.id"
-                                            class="ml-auto size-4"
-                                        />
-                                    </DropdownMenuItem>
-                                    <DropdownMenuSeparator />
-                                    <CreateTeamModal>
-                                        <DropdownMenuItem
-                                            data-test="team-switcher-new-team"
-                                            class="cursor-pointer gap-2"
-                                            @select.prevent
+                                        <span
+                                            class="block text-[11px] text-muted-foreground max-md:text-[12.5px]"
+                                            >{{
+                                                (currentTeam?.membersCount ??
+                                                    0) === 1
+                                                    ? $t(':count member', {
+                                                          count: 1,
+                                                      })
+                                                    : $t(':count members', {
+                                                          count:
+                                                              currentTeam?.membersCount ??
+                                                              0,
+                                                      })
+                                            }}</span
                                         >
-                                            <Plus class="size-4" />
-                                            <span
-                                                class="text-muted-foreground"
-                                                >{{ $t('New team') }}</span
-                                            >
-                                        </DropdownMenuItem>
-                                    </CreateTeamModal>
-                                </DropdownMenuContent>
-                            </DropdownMenu>
-                            <div class="flex shrink-0 items-center gap-1">
-                                <Button
-                                    v-if="canInviteToCurrentTeam"
-                                    variant="ghost"
-                                    size="icon"
-                                    :title="$t('Invite people')"
-                                    data-test="invite-member-trigger"
-                                    data-tour="invite"
-                                    class="size-6 rounded-[7px] border border-sidebar-border text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground"
-                                    @click="inviteOpen = true"
-                                >
-                                    <UserPlus class="size-3" />
-                                    <span class="sr-only">{{
-                                        $t('Invite people')
-                                    }}</span>
+                                    </span>
                                 </Button>
-                                <CreateTeamModal>
+                            </WorkspaceSheet>
+                            <div class="flex shrink-0 items-center gap-1">
+                                <NewMenu
+                                    v-if="currentTeam"
+                                    :team-slug="currentTeam.slug"
+                                    @message="newDmOpen = true"
+                                    @section="openSectionForm"
+                                >
                                     <Button
                                         variant="ghost"
                                         size="icon"
-                                        :title="$t('New team')"
-                                        data-test="new-team-trigger"
-                                        class="size-6 rounded-[7px] border border-dashed border-sidebar-border text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground"
+                                        :title="$t('New')"
+                                        data-test="new-menu-trigger"
+                                        class="size-7 rounded-[9px] bg-sidebar-accent text-sidebar-foreground transition-colors hover:bg-sidebar-accent/70 data-[state=open]:bg-brass data-[state=open]:text-brass-foreground max-md:size-11 max-md:rounded-[12px]"
                                     >
-                                        <Plus class="size-3" />
+                                        <Plus
+                                            class="size-3.75 max-md:size-5.25"
+                                        />
                                         <span class="sr-only">{{
-                                            $t('New team')
+                                            $t('New')
                                         }}</span>
                                     </Button>
-                                </CreateTeamModal>
+                                </NewMenu>
                                 <SheetClose v-if="isMobileViewport" as-child>
                                     <Button
                                         variant="ghost"
                                         size="icon"
                                         :title="$t('Close')"
                                         data-test="dock-close"
-                                        class="size-9 rounded-[10px] text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground"
+                                        class="size-11 rounded-[12px] text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground"
                                     >
-                                        <X class="size-4" />
+                                        <X class="size-5" />
                                         <span class="sr-only">{{
                                             $t('Close')
                                         }}</span>
@@ -1475,10 +1456,13 @@ onMounted(() => {
                                 </SidebarGroupContent>
                             </SidebarGroup>
 
-                            <!-- Create a new custom section. -->
-                            <SidebarGroup class="py-0">
+                            <!-- Naming a new custom section. The row that used to
+                                 stand here is now the third row of "+ New"; only
+                                 the field it opens still belongs at the foot of
+                                 the list, where the section will appear. -->
+                            <SidebarGroup v-if="sectionFormOpen" class="py-0">
                                 <SidebarGroupContent>
-                                    <div v-if="sectionFormOpen" class="px-2">
+                                    <div class="px-2">
                                         <Input
                                             v-model="newSectionName"
                                             data-test="create-section-input"
@@ -1495,16 +1479,6 @@ onMounted(() => {
                                             @blur="createSection"
                                         />
                                     </div>
-                                    <Button
-                                        v-else
-                                        variant="ghost"
-                                        data-test="create-section-trigger"
-                                        class="flex h-7 w-full items-center justify-start gap-1.5 rounded-md px-2 text-[12px] font-normal text-muted-foreground transition-colors hover:bg-sidebar-accent/60 hover:text-sidebar-foreground"
-                                        @click="openSectionForm"
-                                    >
-                                        <FolderPlus class="size-3.5" />
-                                        {{ $t('New section') }}
-                                    </Button>
                                 </SidebarGroupContent>
                             </SidebarGroup>
                         </nav>
@@ -1574,6 +1548,7 @@ onMounted(() => {
 
         <PendingInvitationsModal
             v-if="pendingInvitations.length > 0"
+            v-model:open="invitationsOpen"
             :invitations="pendingInvitations"
         />
 

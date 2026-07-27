@@ -1373,5 +1373,16 @@
   "File": "Fichier",
   "Choose :action": "Choisissez :action",
   "Click :action to finish": "Cliquez sur :action pour terminer",
-  "Got it": "C’est compris"
+  "Got it": "C’est compris",
+  "Workspaces": "Espaces de travail",
+  "Switch workspace, or manage this one.": "Changez d’espace de travail, ou gérez celui-ci.",
+  "Workspace settings": "Réglages de l’espace",
+  "Create a workspace": "Créer un espace",
+  "Join a workspace": "Rejoindre un espace",
+  "Workspace: :name": "Espace de travail : :name",
+  "Switch to :name": "Basculer vers :name",
+  "New": "Nouveau",
+  "New channel": "Nouveau canal",
+  "Start a channel, a message, or a section.": "Démarrez un canal, un message ou une section.",
+  "Open the workspace menu to invite teammates, switch workspace, or manage this one.": "Ouvrez le menu de l’espace pour inviter des coéquipiers, changer d’espace ou gérer celui-ci."
 }

@@ -74,9 +74,37 @@ test('the workspace shell shares the dock header affordances', function (): void
         ->assertInertia(fn (Assert $page): Assert => $page
             ->where('currentTeam.membersCount', 1)
             ->where('canInviteToCurrentTeam', true)
+            ->where('canUpdateCurrentTeam', true)
             ->has('invitableRoles')
             ->where('invitableRoles.0.value', 'admin')
         );
+});
+
+test('a plain member cannot reach the workspace settings row from the shell', function (): void {
+    $owner = User::factory()->create();
+    $team = Team::factory()->create();
+    $team->members()->attach($owner, ['role' => TeamRole::Owner->value]);
+
+    $member = User::factory()->create();
+    $team->members()->attach($member, ['role' => TeamRole::Member->value]);
+    $member->switchTeam($team);
+
+    $this->actingAs($member)
+        ->get(route('channels.show', [
+            'team' => $team->slug,
+            'channel' => Channel::GENERAL_SLUG,
+        ]))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page): Assert => $page
+            ->where('canUpdateCurrentTeam', false)
+            ->where('canInviteToCurrentTeam', false)
+        );
+});
+
+test('the workspace update permission is false for a guest with no workspace', function (): void {
+    $this->get(route('login'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page): Assert => $page->where('canUpdateCurrentTeam', false));
 });
 
 test('login to workspace smoke: land in #general, create a channel, then browse', function (): void {
