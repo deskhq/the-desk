@@ -27,6 +27,11 @@ const props = defineProps<{
     isDnd: boolean;
     /** Whether any followed thread is unread, dotting the threads tab. */
     hasUnreadThreads: boolean;
+    /**
+     * Whether any reminder is still queued in this workspace, dotting the
+     * reminders tab. Mirrors the rail, which owns the reasoning.
+     */
+    hasPendingReminders: boolean;
 }>();
 
 const emit = defineEmits<{ select: [destination: NavDestination] }>();
@@ -45,6 +50,13 @@ const hasAvatar = computed(
 const safeAreaStyle = {
     paddingBottom: 'calc(0.75rem + env(safe-area-inset-bottom))',
 };
+
+/**
+ * The ambient cue a tab wears when its destination has something waiting. It
+ * rides the tab's own top edge rather than the glyph, which the label sits
+ * under here.
+ */
+const cueClass = 'absolute top-1 right-1/4 size-2 rounded-full bg-brass';
 
 /**
  * The weight an open tab wears, shared by the glyph tabs and the avatar tab.
@@ -82,12 +94,26 @@ function tabClass(destination: NavDestination): string {
         >
             <component :is="item.icon" class="size-5.5" />
             <span class="truncate">{{ $t(item.label) }}</span>
-            <span
-                v-if="item.destination === 'threads' && hasUnreadThreads"
-                data-test="tab-threads-unread-dot"
-                aria-hidden="true"
-                class="absolute top-1 right-1/4 size-2 rounded-full bg-brass"
-            />
+            <!-- Each dot is decorative, so the state it stands for is named
+                 for assistive tech beside it. -->
+            <template v-if="item.destination === 'threads' && hasUnreadThreads">
+                <span
+                    data-test="tab-threads-unread-dot"
+                    aria-hidden="true"
+                    :class="cueClass"
+                />
+                <span class="sr-only">{{ $t('Unread threads') }}</span>
+            </template>
+            <template
+                v-if="item.destination === 'reminders' && hasPendingReminders"
+            >
+                <span
+                    data-test="tab-reminders-pending-dot"
+                    aria-hidden="true"
+                    :class="cueClass"
+                />
+                <span class="sr-only">{{ $t('Reminders pending') }}</span>
+            </template>
         </Button>
 
         <Button
