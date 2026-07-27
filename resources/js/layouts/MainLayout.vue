@@ -67,6 +67,7 @@ import { useSidebarPosition } from '@/composables/useSidebarPosition';
 import { useTeamPresence } from '@/composables/useTeamPresence';
 import { useTimezone } from '@/composables/useTimezone';
 import { useToast } from '@/composables/useToast';
+import { useToastZoneHeight } from '@/composables/useToastZoneHeight';
 import { useTranslations } from '@/composables/useTranslations';
 import { useUserStatusDialog } from '@/composables/useUserStatusDialog';
 import { backgroundVisit } from '@/lib/backgroundVisit';
@@ -77,6 +78,37 @@ const page = usePage();
 
 const { t } = useTranslations();
 const toast = useToast();
+
+/**
+ * The bottom-right rail is one surface with two zones: transient toasts at the
+ * foot, nearest the action that raised them, and persistent reminder nudges
+ * above. sonner stacks its toasts absolutely and so leaves nothing to flow
+ * around, hence the measurement (#978).
+ */
+const toastZoneHeight = useToastZoneHeight();
+
+/**
+ * 16px in from the pane's right edge and 16px above its composer, per the
+ * placement in #978. Both insets are published by whatever the pane has at those
+ * edges and default to zero, so on a page with neither — settings, auth — the
+ * rail falls back to the viewport corner.
+ */
+const toastOffset = {
+    right: 'calc(1rem + var(--rail-right-inset, 0px))',
+    bottom: 'calc(1rem + var(--rail-bottom-inset, 0px))',
+};
+
+/**
+ * Below `md` the toast goes full width minus a 10px gutter and sits 12px above
+ * the composer. The composer pads itself by the software keyboard's inset and
+ * publishes the result, so the rail lifts with the keyboard rather than hiding
+ * behind it.
+ */
+const toastMobileOffset = {
+    left: '10px',
+    right: '10px',
+    bottom: 'calc(12px + var(--rail-bottom-inset, 0px))',
+};
 
 /**
  * The same workspace shell wraps the settings/teams section, but its sidebar
@@ -614,13 +646,22 @@ onMounted(() => {
 
         <DndPauseDialog v-model:open="dndPauseDialogOpen" />
 
-        <!-- Due reminders slide in, stacked, in the bottom-right corner. The
-             wrapper ignores pointer events so it never blocks the app behind
-             the gaps; each card re-enables them. -->
+        <!-- The rail's upper zone. Due reminders are persistent, not transient,
+             so they sit *above* the toasts: the transient thing belongs nearest
+             the action that caused it. The wrapper ignores pointer events so it
+             never blocks the app behind the gaps; each card re-enables them.
+
+             Both zones share the rail's right inset, which the conversation pane
+             publishes while a side panel claims that edge — so a nudge no longer
+             straddles the thread panel either. -->
         <div
             v-if="firedReminders.length > 0"
             data-test="reminder-nudges"
-            class="pointer-events-none fixed right-4 bottom-4 z-50 flex flex-col gap-2.5"
+            class="pointer-events-none fixed z-50 flex flex-col gap-2.5"
+            :style="{
+                right: 'calc(1rem + var(--rail-right-inset, 0px))',
+                bottom: `calc(1rem + var(--rail-bottom-inset, 0px) + ${toastZoneHeight}px)`,
+            }"
         >
             <ReminderNudge
                 v-for="reminder in firedReminders"
@@ -642,6 +683,6 @@ onMounted(() => {
 
         <OnboardingTour />
 
-        <Toaster />
+        <Toaster :offset="toastOffset" :mobile-offset="toastMobileOffset" />
     </SidebarProvider>
 </template>

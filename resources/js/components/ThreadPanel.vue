@@ -14,6 +14,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useIsMobile } from '@/composables/useIsMobile';
+import { useRailInset } from '@/composables/useRailInset';
 import { useScrollPin } from '@/composables/useScrollPin';
 import type { RenderedPresence } from '@/lib/presence';
 import type { Mention, Message } from '@/types';
@@ -83,6 +84,17 @@ const showSkeleton = computed(() => props.loading || !hasRoot.value);
  * placeholder names the thread it replies into.
  */
 const isMobile = useIsMobile();
+
+/**
+ * The panel claims the right edge of the conversation pane while it is open and
+ * laid out beside it, so the bottom-right rail (toasts, reminder nudges) clears
+ * it rather than straddling it. Publishing the measurement rather than
+ * reparenting the rail keeps this panel and its tests exactly where they are —
+ * the coupling is invisible, so `ToastRailTest` asserts it in both directions.
+ */
+const panel = ref<HTMLElement | null>(null);
+
+useRailInset(panel);
 
 /**
  * Shared scroll/pin bookkeeping, identical to the main timeline's: the
@@ -219,6 +231,7 @@ watch(
 
 <template>
     <aside
+        ref="panel"
         data-test="thread-panel"
         class="z-30 flex w-full min-w-0 shrink-0 flex-col overflow-hidden max-md:absolute max-md:inset-0 max-md:bg-card md:rounded-[14px] md:border md:border-border md:bg-sidebar md:shadow-sm md:max-lg:absolute md:max-lg:inset-0 md:max-lg:w-auto lg:relative lg:m-3.5 lg:w-96"
     >
