@@ -1,23 +1,20 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { sonner } = vi.hoisted(() => ({
-    sonner: {
-        success: vi.fn(),
-        error: vi.fn(),
-        warning: vi.fn(),
-        loading: vi.fn(),
-    },
-}));
+const { sonner } = vi.hoisted(() => ({ sonner: { custom: vi.fn() } }));
 
 vi.mock('vue-sonner', () => ({ toast: sonner }));
 
+import ToastCard from '@/components/ToastCard.vue';
 import { useToast } from '@/composables/useToast';
 
-/** The options bag the composable handed to vue-sonner. */
-function optionsOf(spy: {
-    mock: { calls: unknown[][] };
-}): Record<string, unknown> {
-    return spy.mock.calls[0][1] as Record<string, unknown>;
+/** The options bag the composable handed to sonner on its nth call. */
+function optionsOf(call = 0): Record<string, unknown> {
+    return sonner.custom.mock.calls[call][1] as Record<string, unknown>;
+}
+
+/** The props the composable handed the toast card on its nth call. */
+function cardPropsOf(call = 0): Record<string, unknown> {
+    return optionsOf(call).componentProps as Record<string, unknown>;
 }
 
 describe('useToast', () => {
@@ -25,31 +22,35 @@ describe('useToast', () => {
         vi.clearAllMocks();
     });
 
-    describe('tones', () => {
-        it('speaks each tone through the matching sonner variant', () => {
+    describe('the renderer', () => {
+        it('draws every toast with our own card, not sonner’s', () => {
+            useToast().success('Reminder set');
+
+            expect(sonner.custom).toHaveBeenCalledWith(
+                ToastCard,
+                expect.objectContaining({ unstyled: true }),
+            );
+        });
+
+        it('hands the card the tone so the glyph and copy both carry it', () => {
             const toast = useToast();
 
             toast.success('Reminder set');
             toast.error('Could not save your status');
-            toast.warning('Your connection is unstable');
+            toast.warning('Microphone unavailable');
             toast.progress('Uploading');
 
-            expect(sonner.success).toHaveBeenCalledWith(
-                'Reminder set',
-                expect.anything(),
-            );
-            expect(sonner.error).toHaveBeenCalledWith(
-                'Could not save your status',
-                expect.anything(),
-            );
-            expect(sonner.warning).toHaveBeenCalledWith(
-                'Your connection is unstable',
-                expect.anything(),
-            );
-            expect(sonner.loading).toHaveBeenCalledWith(
-                'Uploading',
-                expect.anything(),
-            );
+            expect(cardPropsOf(0).tone).toBe('success');
+            expect(cardPropsOf(1).tone).toBe('error');
+            expect(cardPropsOf(2).tone).toBe('warning');
+            expect(cardPropsOf(3).tone).toBe('progress');
+        });
+
+        it('hands the card its title and detail line', () => {
+            useToast().success('Reminder set', { detail: 'Tomorrow, 9:00 AM' });
+
+            expect(cardPropsOf().title).toBe('Reminder set');
+            expect(cardPropsOf().detail).toBe('Tomorrow, 9:00 AM');
         });
     });
 
@@ -57,7 +58,7 @@ describe('useToast', () => {
         it('holds a bare confirmation for four seconds', () => {
             useToast().success('Reminder set');
 
-            expect(optionsOf(sonner.success).duration).toBe(4_000);
+            expect(optionsOf().duration).toBe(4_000);
         });
 
         it('holds a confirmation carrying an action for seven, so it can be taken', () => {
@@ -65,7 +66,7 @@ describe('useToast', () => {
                 action: { label: 'Undo', run: vi.fn() },
             });
 
-            expect(optionsOf(sonner.success).duration).toBe(7_000);
+            expect(optionsOf().duration).toBe(7_000);
         });
 
         it('leaves an error up until it is dismissed, action or not', () => {
@@ -76,51 +77,44 @@ describe('useToast', () => {
                 action: { label: 'Retry', run: vi.fn() },
             });
 
-            expect(optionsOf(sonner.error).duration).toBe(Infinity);
-            expect(
-                (sonner.error.mock.calls[1][1] as { duration: number })
-                    .duration,
-            ).toBe(Infinity);
+            expect(optionsOf(0).duration).toBe(Infinity);
+            expect(optionsOf(1).duration).toBe(Infinity);
         });
 
         it('leaves work in progress up until it resolves', () => {
             useToast().progress('Uploading');
 
-            expect(optionsOf(sonner.loading).duration).toBe(Infinity);
+            expect(optionsOf().duration).toBe(Infinity);
         });
 
         it('lets a call site override the policy', () => {
             useToast().success('Reminder set', { duration: 1_000 });
 
-            expect(optionsOf(sonner.success).duration).toBe(1_000);
+            expect(optionsOf().duration).toBe(1_000);
+        });
+
+        it('tells the card the same duration its drain has to count', () => {
+            useToast().success('Reminder set');
+
+            expect(cardPropsOf().duration).toBe(optionsOf().duration);
         });
     });
 
     describe('options', () => {
-        it('renders the value that was set as the detail line', () => {
-            useToast().success('Reminder set', { detail: 'Tomorrow, 9:00 AM' });
-
-            expect(optionsOf(sonner.success).description).toBe(
-                'Tomorrow, 9:00 AM',
-            );
-        });
-
         it('merges repeats under a key instead of queueing them', () => {
             const toast = useToast();
 
             toast.error('That file type is not allowed', { key: 'upload' });
             toast.error('That file type is not allowed', { key: 'upload' });
 
-            expect(optionsOf(sonner.error).id).toBe('upload');
-            expect((sonner.error.mock.calls[1][1] as { id: string }).id).toBe(
-                'upload',
-            );
+            expect(optionsOf(0).id).toBe('upload');
+            expect(optionsOf(1).id).toBe('upload');
         });
 
         it('leaves an unkeyed toast to queue on its own', () => {
             useToast().success('Reminder set');
 
-            expect(optionsOf(sonner.success).id).toBeUndefined();
+            expect(optionsOf().id).toBeUndefined();
         });
 
         it('wires the action so taking it runs the call site handler', () => {
@@ -130,14 +124,14 @@ describe('useToast', () => {
                 action: { label: 'Undo', run },
             });
 
-            const action = optionsOf(sonner.success).action as {
+            const action = cardPropsOf().action as {
                 label: string;
-                onClick: () => void;
+                run: () => void;
             };
 
             expect(action.label).toBe('Undo');
 
-            action.onClick();
+            action.run();
 
             expect(run).toHaveBeenCalledOnce();
         });
@@ -145,7 +139,7 @@ describe('useToast', () => {
         it('omits the action slot when the toast carries none', () => {
             useToast().success('Reminder set');
 
-            expect(optionsOf(sonner.success).action).toBeUndefined();
+            expect(cardPropsOf().action).toBeUndefined();
         });
     });
 });

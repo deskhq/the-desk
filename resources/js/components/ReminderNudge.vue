@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { AlarmClock, Lock, X } from '@lucide/vue';
 import { computed } from 'vue';
+import InkSlab from '@/components/InkSlab.vue';
 import { Button } from '@/components/ui/button';
 import { useInitials } from '@/composables/useInitials';
 import { messageBodyPreview } from '@/lib/messageBody';
@@ -31,10 +32,12 @@ const channelLabel = computed(() =>
 </script>
 
 <template>
-    <div
+    <!-- The nudge's surface is the shared ink slab (#978); only its geometry
+         and its contents are its own. -->
+    <InkSlab
         data-test="reminder-nudge"
         :data-reminder="reminder.id"
-        class="pointer-events-auto flex w-[min(22rem,calc(100vw-2rem))] flex-col gap-3 rounded-2xl bg-primary p-4 text-primary-foreground shadow-[0_20px_48px_rgba(29,26,21,0.4)]"
+        class="flex w-[min(22rem,calc(100vw-2rem))] flex-col gap-3 rounded-2xl p-4"
     >
         <div class="flex items-center gap-2">
             <AlarmClock class="size-3.5 text-brass" />
@@ -139,5 +142,5 @@ const channelLabel = computed(() =>
                 {{ $t('Done') }}
             </Button>
         </div>
-    </div>
+    </InkSlab>
 </template>

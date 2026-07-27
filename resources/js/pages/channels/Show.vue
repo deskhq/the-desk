@@ -54,6 +54,7 @@ import {
 import { useScrollPin } from '@/composables/useScrollPin';
 import { useSendFailureAnnouncer } from '@/composables/useSendFailureAnnouncer';
 import { useTeamPresence } from '@/composables/useTeamPresence';
+import { useRailBottomInset } from '@/composables/useRailInset';
 import { useThreadPanel } from '@/composables/useThreadPanel';
 import { useTimezone } from '@/composables/useTimezone';
 import { useToast } from '@/composables/useToast';
@@ -834,6 +835,14 @@ function cancelReply(): void {
  * mention straight into it.
  */
 const channelComposer = ref<InstanceType<typeof MessageComposer> | null>(null);
+
+/**
+ * The composer claims the bottom of the conversation pane, so the bottom-right
+ * rail sits above it rather than over its send button and scheduled chip.
+ */
+useRailBottomInset(
+    computed(() => (channelComposer.value?.$el as HTMLElement | null) ?? null),
+);
 
 function mentionInChannel(member: { id: string; name: string }): void {
     channelComposer.value?.insertMention(member);
