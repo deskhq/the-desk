@@ -69,9 +69,9 @@ function fakeStrayShell(string $command): string
  * which reparents it onto init exactly as a run that ended without stopping it
  * does. Returns its pid once the process table shows it.
  */
-function startOrphanedStray(string $command, ?string $workingDirectory = null): int
+function startOrphanedStray(string $command, ?string $workingDirectory = null, string $prelude = ''): int
 {
-    (new Process(['bash', '-c', fakeStrayShell($command).' &'], $workingDirectory))->mustRun();
+    (new Process(['bash', '-c', $prelude.fakeStrayShell($command).' &'], $workingDirectory))->mustRun();
 
     return waitForStrayPid($command);
 }
@@ -252,6 +252,24 @@ test('the reaper kills the strays and names what it reaped', function (): void {
         expect($output)->toContain((string) $pid)
             ->and($output)->toContain('left behind by an earlier run')
             ->and(strayIsGone($command))->toBeTrue();
+    } finally {
+        killStray($command);
+    }
+});
+
+/*
+ * An ignored signal survives `exec`, so this fake is genuinely deaf to the
+ * SIGTERM the reaper opens with — the only thing that can stop it is the
+ * SIGKILL that follows the grace period.
+ */
+test('a stray that does not answer SIGTERM is killed outright', function (): void {
+    $command = fakeStrayCommand('playwright');
+    startOrphanedStray($command, prelude: "trap '' TERM; ");
+
+    try {
+        runBrowserReaperLib('reap_strays "under test"');
+
+        expect(strayIsGone($command))->toBeTrue();
     } finally {
         killStray($command);
     }

@@ -160,7 +160,33 @@ reap_one_generation() {
 
     kill -TERM "${pids[@]}" 2>/dev/null || true
     sleep "$REAP_GRACE_SECONDS"
-    kill -KILL "${pids[@]}" 2>/dev/null || true
+
+    survivors_of "${pids[@]}"
+}
+
+# SIGKILLs whichever of the given pids are still strays, which is not the same
+# as SIGKILLing whatever is left holding those pids: one of them can have exited
+# and had its number handed to something entirely unrelated during the grace
+# period above. Anything orphaned *since* the sweep started is left to the next
+# one, so that it too gets asked to stop before it is killed.
+survivors_of() {
+    local target line pid survivors=()
+
+    while IFS= read -r line; do
+        pid=${line%% *}
+
+        for target in "$@"; do
+            if [ "$pid" = "$target" ]; then
+                survivors+=("$pid")
+
+                break
+            fi
+        done
+    done < <(stray_processes)
+
+    if [ ${#survivors[@]} -gt 0 ]; then
+        kill -KILL "${survivors[@]}" 2>/dev/null || true
+    fi
 }
 
 # Stops the run this shell is waiting on, then the shell itself with the given
