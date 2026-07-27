@@ -65,6 +65,13 @@ test('the menu switchers are keyboard-operable radiogroups with named options', 
             'role',
             'radio',
         )
+        // The sidebar track is the same pattern, and owes the same roles.
+        ->assertAttribute('[data-test="menu-sidebar-switcher"]', 'role', 'radiogroup')
+        ->assertAttribute(
+            '[data-test="menu-sidebar-switcher"] [aria-label="Right"]',
+            'role',
+            'radio',
+        )
         // Arrow keys move within a group and select: focusing Light then pressing
         // ArrowRight advances to (and checks) the Dark segment.
         ->keys('[data-test="menu-theme-switcher"] [aria-label="Light"]', 'ArrowRight')

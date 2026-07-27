@@ -41,9 +41,9 @@ const props = defineProps<{
 
 const emit = defineEmits<{
     select: [destination: NavDestination];
-    /** Raised by the workspace sheet the current tile and the user menu open. */
+    /** The workspace sheet's "invite people" row was chosen; the host owns the modal. */
     invite: [];
-    /** Raised by the workspace sheet the current tile and the user menu open. */
+    /** The workspace sheet's "join a workspace" row was chosen. */
     join: [];
 }>();
 

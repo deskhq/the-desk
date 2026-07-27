@@ -54,9 +54,9 @@ const props = defineProps<{
 const emit = defineEmits<{
     /** A row traded the menu for a dialog or a page; the popover closes behind it. */
     dismiss: [];
-    /** Raised by the workspace sheet the "Switch workspace" row opens. */
+    /** "Invite people" was chosen in the sheet "Switch workspace" opens. */
     invite: [];
-    /** Raised by the workspace sheet the "Switch workspace" row opens. */
+    /** "Join a workspace" was chosen in the sheet "Switch workspace" opens. */
     join: [];
 }>();
 

@@ -177,17 +177,20 @@ const presetRowClass = computed(() =>
                 $t('Set a status')
             }}</span>
         </Button>
+        <!-- On the panel the card carries no vertical padding of its own: the
+             editing half stretches to fill it, and it can only clear the 44px
+             thumb target if the whole 52px row is its to take. -->
         <div
             v-else
-            class="flex items-center gap-2.5 rounded-[11px] border border-border bg-muted px-2.5 py-1.5"
-            :class="isPanel ? 'min-h-12' : 'min-h-11'"
+            class="flex items-center gap-2.5 rounded-[11px] border border-border bg-muted px-2.5"
+            :class="isPanel ? 'min-h-13' : 'min-h-11 py-1.5'"
         >
             <Button
                 variant="unstyled"
                 size="none"
                 type="button"
                 data-test="edit-status-menu-item"
-                class="flex min-w-0 flex-1 cursor-pointer items-center gap-2.5 text-left"
+                class="flex min-w-0 flex-1 cursor-pointer items-center gap-2.5 self-stretch text-left"
                 @click="openStatus"
             >
                 <UserStatusEmoji

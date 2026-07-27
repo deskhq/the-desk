@@ -42,15 +42,19 @@ function userPanelFillsTheDrawer(): string
     (() => {
         const panel = document.querySelector('[data-test="destination-panel-you"]');
         const tabs = document.querySelector('[data-test="navigation-tab-bar"]');
+        const header = document.querySelector('[data-test="workspace-switcher"]');
 
-        if (panel === null || tabs === null) {
+        if (panel === null || tabs === null || header === null) {
             return false;
         }
 
         const box = panel.getBoundingClientRect();
         const tabsBox = tabs.getBoundingClientRect();
+        const headerBox = header.getBoundingClientRect();
 
-        return box.top >= 0
+        // Bounded on both ends, not merely on screen: the panel takes the room
+        // between the workspace header and the tab bar, and neither overlaps it.
+        return Math.round(box.top) >= Math.round(headerBox.bottom) - 1
             && box.width > 0
             && Math.round(box.bottom) <= Math.round(tabsBox.top) + 1
             && Math.round(tabsBox.bottom) <= window.innerHeight;
@@ -243,6 +247,35 @@ test('every panel row is at least a 44px hit target', function (): void {
     ], JSON_THROW_ON_ERROR);
 
     openUserMenu(signInThroughBrowser($alice), 390, 844)
+        ->assertScript(<<<JS
+        (() => {
+            return {$rows}
+                .map(name => document.querySelector('[data-test="' + name + '"]'))
+                .every(row => row !== null && row.getBoundingClientRect().height >= 44);
+        })()
+        JS, true);
+});
+
+test('the rows that only appear in a state of their own hold the same hit target', function (): void {
+    ['owner' => $alice] = browserTeamWithChannel();
+    $alice->forceFill([
+        'status_emoji' => '🎧',
+        'status_text' => 'Heads down',
+        'status_expires_at' => now()->addHours(2),
+    ])->save();
+
+    // The status card and the disclosed presets never render beside the plain
+    // rows above, so the check they owe has to be arranged for.
+    $rows = json_encode([
+        'edit-status-menu-item',
+        'pause-preset-thirty-minutes',
+        'pause-preset-custom',
+        'quiet-hours-menu-item',
+    ], JSON_THROW_ON_ERROR);
+
+    openUserMenu(signInThroughBrowser($alice), 390, 844)
+        ->click('@pause-notifications-menu-item')
+        ->assertPresent('@pause-notifications-submenu')
         ->assertScript(<<<JS
         (() => {
             return {$rows}
