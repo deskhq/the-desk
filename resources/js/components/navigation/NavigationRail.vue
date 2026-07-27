@@ -3,11 +3,13 @@ import { Plus } from '@lucide/vue';
 import { computed } from 'vue';
 import CreateTeamModal from '@/components/CreateTeamModal.vue';
 import { NAV_DESTINATION_GLYPHS } from '@/components/navigation/destinations';
+import WorkspaceSheet from '@/components/navigation/WorkspaceSheet.vue';
 import PresenceDot from '@/components/PresenceDot.vue';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { useInitials } from '@/composables/useInitials';
 import type { NavDestination } from '@/composables/useNavPanel';
+import { useTeamSwitch } from '@/composables/useTeamSwitch';
 import type { RenderedPresence } from '@/lib/presence';
 import type { Team, User } from '@/types';
 
@@ -26,8 +28,8 @@ const props = defineProps<{
     active: NavDestination;
     /** The viewer, whose avatar is the "You" destination. */
     user: User;
-    /** The open workspace, tiled at the top; absent off a workspace. */
-    currentTeam: Team | null;
+    /** Every workspace the viewer belongs to, one tile each; empty off a workspace. */
+    teams: Team[];
     /** The viewer's own effective presence, for the avatar's corner dot. */
     presence: RenderedPresence;
     /** Whether the viewer is in do-not-disturb, drawn as the dot's crescent. */
@@ -36,9 +38,16 @@ const props = defineProps<{
     hasUnreadThreads: boolean;
 }>();
 
-const emit = defineEmits<{ select: [destination: NavDestination] }>();
+const emit = defineEmits<{
+    select: [destination: NavDestination];
+    /** Raised by the workspace sheet the current tile opens. */
+    invite: [];
+    /** Raised by the workspace sheet the current tile opens. */
+    join: [];
+}>();
 
 const { getInitials } = useInitials();
+const { switchTeam } = useTeamSwitch();
 
 const hasAvatar = computed(
     () => !!props.user.avatar && props.user.avatar !== '',
@@ -53,6 +62,15 @@ const hasAvatar = computed(
  * each other, so an accent press is invisible in the light theme even though
  * it reads fine in the dark one.
  */
+/**
+ * Whether a workspace has anything waiting. The tile draws a plain dot either
+ * way: the exact count belongs to the workspace sheet's rows, where there is
+ * room to read it.
+ */
+function hasUnread(team: Team): boolean {
+    return team.unreadCount > 0 || team.mentionCount > 0;
+}
+
 function glyphClass(destination: NavDestination): string {
     return props.active === destination
         ? 'bg-sidebar text-sidebar-foreground shadow-sm'
@@ -66,25 +84,71 @@ function glyphClass(destination: NavDestination): string {
         :aria-label="$t('Destinations')"
         class="flex w-14 shrink-0 flex-col items-center gap-1.5 border-sidebar-border bg-sidebar-rail py-3"
     >
-        <!-- Workspace identity, not a control: the switcher lives in the panel
-             header beside it, so the tile would only repeat a name assistive
-             technology already reached. Child #2 turns it into the workspace
-             sheet's third anchor. -->
-        <span
-            v-if="currentTeam"
-            data-test="rail-workspace-tile"
-            aria-hidden="true"
-            :title="currentTeam.name"
-            class="flex size-8.5 shrink-0 items-center justify-center rounded-[10px] bg-sidebar-primary text-[11px] font-semibold text-sidebar-primary-foreground"
-            >{{ getInitials(currentTeam.name) }}</span
+        <!-- One tile per workspace, in their own scroller: a viewer in many
+             workspaces must never push the destination glyphs below the fold.
+             Tapping another workspace switches straight to it; tapping the open
+             one opens the workspace sheet — the rail's anchor onto the surface
+             the two headers also carry. -->
+        <div
+            v-if="teams.length > 0"
+            class="flex min-h-0 w-full shrink flex-col items-center gap-2 overflow-y-auto overscroll-contain py-1"
         >
+            <template v-for="team in teams" :key="team.id">
+                <WorkspaceSheet
+                    v-if="team.isCurrent"
+                    side="right"
+                    @invite="emit('invite')"
+                    @join="emit('join')"
+                >
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        data-test="rail-workspace-tile"
+                        data-current="true"
+                        :title="team.name"
+                        class="size-8.5 shrink-0 rounded-[10px] bg-sidebar-primary text-[11px] font-semibold text-sidebar-primary-foreground ring-2 ring-brass ring-offset-2 ring-offset-sidebar-rail hover:bg-sidebar-primary"
+                    >
+                        <span aria-hidden="true">{{
+                            getInitials(team.name)
+                        }}</span>
+                        <span class="sr-only">{{
+                            $t('Workspace: :name', { name: team.name })
+                        }}</span>
+                    </Button>
+                </WorkspaceSheet>
+                <Button
+                    v-else
+                    variant="ghost"
+                    size="icon"
+                    data-test="rail-workspace-tile"
+                    :title="team.name"
+                    class="relative size-8.5 shrink-0 rounded-[10px] bg-sidebar text-[11px] font-semibold text-sidebar-foreground/80 transition-colors hover:text-sidebar-foreground"
+                    @click="switchTeam(team)"
+                >
+                    <span aria-hidden="true">{{ getInitials(team.name) }}</span>
+                    <span class="sr-only">{{
+                        $t('Switch to :name', { name: team.name })
+                    }}</span>
+                    <template v-if="hasUnread(team)">
+                        <span
+                            data-test="rail-workspace-unread-dot"
+                            aria-hidden="true"
+                            class="absolute -top-0.5 -right-0.5 size-2 rounded-full bg-brass ring-2 ring-sidebar-rail"
+                        />
+                        <!-- The dot is decorative; the state is named for
+                             assistive tech in the tile's own label. -->
+                        <span class="sr-only">{{ $t('Unread') }}</span>
+                    </template>
+                </Button>
+            </template>
+        </div>
         <CreateTeamModal>
             <Button
                 variant="ghost"
                 size="icon"
                 :title="$t('New team')"
-                data-test="rail-new-team-trigger"
-                class="size-8.5 rounded-[10px] border border-dashed border-sidebar-border text-sidebar-foreground/70 transition-colors hover:bg-sidebar hover:text-sidebar-foreground"
+                data-test="new-team-trigger"
+                class="size-8.5 shrink-0 rounded-[10px] border border-dashed border-sidebar-border text-sidebar-foreground/70 transition-colors hover:bg-sidebar hover:text-sidebar-foreground"
             >
                 <Plus class="size-3.75" />
                 <span class="sr-only">{{ $t('New team') }}</span>

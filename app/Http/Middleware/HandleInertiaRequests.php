@@ -186,6 +186,13 @@ class HandleInertiaRequests extends Middleware
             'canInviteToCurrentTeam' => fn () => $user?->currentTeam
                 ? $user->toTeamPermissions($user->currentTeam)->canCreateInvitation
                 : false,
+            // The workspace sheet offers "Workspace settings" only to someone who
+            // can actually change the workspace. The page-scoped permission set
+            // is not in reach from the shell, so the one flag the sheet needs
+            // rides along like its siblings below.
+            'canUpdateCurrentTeam' => fn (): bool => $user?->currentTeam
+                ? $user->toTeamPermissions($user->currentTeam)->canUpdateTeam
+                : false,
             // The settings sidebar surfaces a team-admin "evidence" group (Audit
             // log, Security log, Exports) gated by the same permissions as the
             // Team-settings cards, so an admin can jump straight to those surfaces

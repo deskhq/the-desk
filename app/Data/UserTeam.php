@@ -15,6 +15,10 @@ readonly class UserTeam
         public ?string $roleLabel,
         public int $membersCount = 0,
         public ?bool $isCurrent = null,
+        /** Ordinary unread messages waiting in this workspace, muting applied. */
+        public int $unreadCount = 0,
+        /** Unread @mentions waiting in this workspace, muting applied. */
+        public int $mentionCount = 0,
     ) {
         //
     }

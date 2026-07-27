@@ -18,7 +18,13 @@ type Props = {
 
 const props = defineProps<Props>();
 
-const open = ref(true);
+/**
+ * Presented as soon as the invitations land, and re-openable from the workspace
+ * sheet's "Join a workspace" row — invitations are the only way into a
+ * workspace, so dismissing the prompt must not be the end of the road.
+ */
+const open = defineModel<boolean>('open', { default: true });
+
 const processingCode = ref<string | null>(null);
 
 const acceptInvitation = (invitation: DashboardInvitation) => {

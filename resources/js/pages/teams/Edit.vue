@@ -276,8 +276,10 @@ const confirmTransferOwnership = (member: TeamMember) => {
             </Form>
         </section>
 
-        <!-- Team members -->
-        <section class="border-b border-border py-6">
+        <!-- Team members. The id is the anchor the dock's workspace sheet links
+             its "Members" row at, so that row lands on the roster rather than at
+             the top of the page. -->
+        <section id="members" class="border-b border-border py-6">
             <div class="mb-4 flex flex-wrap items-start gap-3">
                 <div class="min-w-0">
                     <h2 class="font-serif text-lg font-semibold">

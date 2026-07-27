@@ -54,6 +54,7 @@ declare module '@inertiajs/core' {
             currentTeam: Team | null;
             teams: Team[];
             canInviteToCurrentTeam: boolean;
+            canUpdateCurrentTeam: boolean;
             canViewCurrentTeamAudit: boolean;
             canViewCurrentTeamSecurityLog: boolean;
             canManageCurrentTeamIntegrations: boolean;
