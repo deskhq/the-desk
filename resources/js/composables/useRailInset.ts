@@ -55,25 +55,42 @@ function publishInset(
         );
     }
 
-    let transitioning: HTMLElement | null = null;
+    let settling = 0;
+
+    /**
+     * Re-publish across the window a panel takes to arrive.
+     *
+     * A panel that opens both reflows the pane beside it and slides in under a
+     * transform, and neither is observable: a ResizeObserver watches size, not
+     * position, and the panel's size never changes across either. `transitionend`
+     * is no help either — it never fires at all where animations are disabled,
+     * as they are under Playwright. So the settled position is read by looking
+     * again, for slightly longer than the 200ms the slide takes.
+     */
+    function settle(): void {
+        cancelAnimationFrame(settling);
+
+        const until = performance.now() + 300;
+
+        const step = (): void => {
+            publish();
+
+            if (performance.now() < until) {
+                settling = requestAnimationFrame(step);
+            }
+        };
+
+        step();
+    }
 
     watch(
         element,
         (target) => {
             observer?.disconnect();
-            transitioning?.removeEventListener('transitionend', publish);
-
             observer = target ? new ResizeObserver(publish) : null;
             observer?.observe(target as HTMLElement);
 
-            // A panel that slides in is still under its enter transform on the
-            // first measurement, which reads as a claim of almost nothing. A
-            // ResizeObserver never fires for a transform, so the settled
-            // position has to be waited for explicitly.
-            transitioning = target;
-            target?.addEventListener('transitionend', publish);
-
-            publish();
+            settle();
         },
         { immediate: true },
     );
@@ -81,8 +98,8 @@ function publishInset(
     window.addEventListener('resize', publish);
 
     onScopeDispose(() => {
+        cancelAnimationFrame(settling);
         window.removeEventListener('resize', publish);
-        transitioning?.removeEventListener('transitionend', publish);
         observer?.disconnect();
         clear();
     });

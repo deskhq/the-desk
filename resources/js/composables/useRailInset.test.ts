@@ -8,6 +8,11 @@ import {
     useRailInset,
 } from '@/composables/useRailInset';
 
+/** Let the composable's settle loop run one more frame. */
+function nextFrame(): Promise<void> {
+    return new Promise((resolve) => requestAnimationFrame(() => resolve()));
+}
+
 /** Resolved `position` per stub panel, since jsdom resolves no Tailwind class. */
 const positions = new WeakMap<Element, string>();
 
@@ -89,8 +94,9 @@ describe('useRailInset', () => {
         expect(published()).toBe('');
     });
 
-    it('re-measures once the panel finishes sliding in, not while it is still transformed', async () => {
-        // Still translated fully off the right edge on the first measurement.
+    it('keeps looking while the panel arrives, since neither its reflow nor its slide is observable', async () => {
+        // Measured off the right edge on mount, the way a panel that is still
+        // translated (or beside a pane that has not reflowed yet) reads.
         const panel = panelStub(1430);
         harness(panel);
         await nextTick();
@@ -98,7 +104,7 @@ describe('useRailInset', () => {
         expect(published()).toBe('10px');
 
         panel.getBoundingClientRect = () => ({ left: 1080 }) as DOMRect;
-        panel.dispatchEvent(new Event('transitionend'));
+        await nextFrame();
 
         expect(published()).toBe('360px');
     });
