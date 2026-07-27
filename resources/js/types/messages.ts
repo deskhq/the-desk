@@ -327,6 +327,22 @@ export type MessageSearchResult = {
 };
 
 /**
+ * The criteria a set of search matches was selected by, as the client writes them
+ * onto the URL. Not the panel's state — the URL is that — but its receipt: the
+ * panel compares this against the URL it is looking at to tell whether the matches
+ * it holds still answer it. Absent facets arrive as `null`, and the scope is
+ * always spelled out.
+ */
+export type MessageSearchCriteria = {
+    q: string;
+    from: string | null;
+    in: string | null;
+    after: string | null;
+    before: string | null;
+    scope: string;
+};
+
+/**
  * A channel in the union the Search panel's channel facet offers in "All
  * workspaces" mode. Carries its owning team so the picker can tell same-named
  * channels in different workspaces apart.

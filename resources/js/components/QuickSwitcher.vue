@@ -185,8 +185,11 @@ watch(open, (isOpen) => {
 
 const page = usePage();
 
-/** The dock's drawer, which the phone hand-off to the Search panel has to open. */
-const { setOpenMobile } = useSidebar();
+/**
+ * The dock, which the hand-off to the Search panel has to reveal: the drawer on a
+ * phone, the collapsed column on a desktop.
+ */
+const { open: dockOpen, setOpen: setDockOpen, setOpenMobile } = useSidebar();
 
 const { map: customEmojis } = useCustomEmojis();
 const { groups: userGroups } = useUserGroups();
@@ -225,9 +228,9 @@ function selectMessage(result: MessageSearchResult): void {
  *
  * The hand-off is a client-side write of the criteria onto the current route:
  * the dock adopts `?nav=search` from the URL, and the panel pulls the matches
- * itself. On a phone the palette is reached from the masthead with the drawer
- * shut, and the panel lives inside that drawer — so it is opened here, or the
- * hand-off would land somewhere nobody can see.
+ * itself. Either way the dock has to be showing first — the palette can be
+ * reached with the drawer shut on a phone and with the column collapsed on a
+ * desktop — or the hand-off lands somewhere nobody can see.
  */
 function seeAllResults(): void {
     open.value = false;
@@ -243,6 +246,8 @@ function seeAllResults(): void {
 
     if (isMobile.value) {
         setOpenMobile(true);
+    } else if (!dockOpen.value) {
+        setDockOpen(true);
     }
 }
 

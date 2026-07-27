@@ -26,6 +26,9 @@ export const SEARCH_WORKSPACE_CHANNELS_PROP = 'searchWorkspaceChannels';
 /** The longest value taken from the URL, mirroring the server's own cap. */
 const MAX_VALUE_LENGTH = 255;
 
+/** The length of a `YYYY-MM-DD` day, for reading one back off an ISO string. */
+const ISO_DAY_LENGTH = 10;
+
 /**
  * Inertia's `page.url` is a root-relative path, which `URL` cannot parse on its
  * own. The base below only satisfies that constructor — it never reaches the
@@ -46,6 +49,25 @@ const SEARCH_URL_PARAMS = [
 const ISO_DAY = /^\d{4}-\d{2}-\d{2}$/;
 
 /**
+ * Whether a value names a real calendar day, not merely something shaped like
+ * one: `2026-13-45` and a February 29th outside a leap year are rejected, which
+ * is what the server's own `Carbon::hasFormat` check does. Were the two to differ
+ * the panel would ask for a facet the server keeps throwing away.
+ */
+function isCalendarDay(value: string): boolean {
+    if (!ISO_DAY.test(value)) {
+        return false;
+    }
+
+    const parsed = new Date(`${value}T00:00:00Z`);
+
+    return (
+        !Number.isNaN(parsed.getTime()) &&
+        parsed.toISOString().slice(0, ISO_DAY_LENGTH) === value
+    );
+}
+
+/**
  * Read the search criteria a URL carries, normalized the way the server
  * normalizes them: an over-long value, a date facet that is not a plain calendar
  * day and a scope that names nothing are all dropped rather than rendered as a
@@ -63,7 +85,7 @@ export function searchParamsFromUrl(url: string): SearchParams {
     const day = (key: 'after' | 'before'): string | undefined => {
         const raw = params.get(key);
 
-        return raw !== null && ISO_DAY.test(raw) ? raw : undefined;
+        return raw !== null && isCalendarDay(raw) ? raw : undefined;
     };
 
     return {

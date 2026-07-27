@@ -3,6 +3,7 @@ import type { Auth } from '@/types/auth';
 import type { Channel, ChannelSection } from '@/types/channels';
 import type {
     MessageReminder,
+    MessageSearchCriteria,
     MessageSearchResult,
     SearchWorkspaceChannel,
     ThreadInboxPage,
@@ -83,9 +84,11 @@ declare module '@inertiajs/core' {
             unreadThreadCount?: number;
             /**
              * The Search panel's props, on the same terms (`?nav=search`). The
-             * criteria themselves are not among them: they live on the URL, which
-             * is where the panel reads them back from.
+             * panel's state is the URL rather than `searchCriteria` — it reads what
+             * to search from there and uses the echo only to tell whether the
+             * matches it holds still answer it.
              */
+            searchCriteria?: MessageSearchCriteria;
             searchResults?: MessageSearchResult[];
             searchWorkspaceChannels?: SearchWorkspaceChannel[];
             pendingInvitations?: DashboardInvitation[];

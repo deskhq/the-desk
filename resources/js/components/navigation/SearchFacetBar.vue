@@ -79,27 +79,25 @@ function daysAgo(count: number): string {
     return isoDay(date);
 }
 
-const datePresets = computed(() => {
-    const today = isoDay(new Date());
+/**
+ * What each preset means, resolved when it is chosen rather than when the row is
+ * drawn — a panel left open across midnight would otherwise offer yesterday
+ * under the name "Today".
+ */
+const PRESET_RANGES: Record<string, () => [string, string | null]> = {
+    today: () => [isoDay(new Date()), isoDay(new Date())],
+    // "Last 7 days" spans today plus the six days before it (30 likewise).
+    '7d': () => [daysAgo(6), null],
+    '30d': () => [daysAgo(29), null],
+    year: () => [`${new Date().getFullYear()}-01-01`, null],
+};
 
-    return [
-        { key: 'today', label: t('Today'), after: today, before: today },
-        // "Last 7 days" spans today plus the six days before it (30 likewise).
-        { key: '7d', label: t('Last 7 days'), after: daysAgo(6), before: null },
-        {
-            key: '30d',
-            label: t('Last 30 days'),
-            after: daysAgo(29),
-            before: null,
-        },
-        {
-            key: 'year',
-            label: t('This year'),
-            after: `${new Date().getFullYear()}-01-01`,
-            before: null,
-        },
-    ];
-});
+const datePresets = computed(() => [
+    { key: 'today', label: t('Today') },
+    { key: '7d', label: t('Last 7 days') },
+    { key: '30d', label: t('Last 30 days') },
+    { key: 'year', label: t('This year') },
+]);
 </script>
 
 <template>
@@ -275,7 +273,7 @@ const datePresets = computed(() => {
                     type="button"
                     class="flex w-full items-center rounded-md px-2 py-1.5 text-left text-[13px] hover:bg-accent max-md:min-h-11"
                     :data-test="`facet-date-preset-${preset.key}`"
-                    @click="emit('range', preset.after, preset.before)"
+                    @click="emit('range', ...PRESET_RANGES[preset.key]())"
                 >
                     {{ preset.label }}
                 </Button>

@@ -249,6 +249,13 @@ function run(params: SearchParams): void {
             onFinish: () => {
                 cancelLoad = null;
             },
+            // A request that never answered must not be remembered as asked, or
+            // the sync below would treat a failed search as a settled empty one
+            // and never try it again. Not on cancel: Inertia cancels the previous
+            // visit as the next one starts, and that one has already claimed this.
+            onError: () => {
+                requested = '';
+            },
         },
     );
 }
@@ -395,7 +402,7 @@ function setRange(from: string | null, to: string | null): void {
                     :placeholder="$t('Search messages')"
                     :aria-label="$t('Search messages')"
                     data-test="search-input"
-                    class="h-8.5 rounded-[10px] border-sidebar-border bg-sidebar-accent pr-8 pl-8 text-[13px] [&::-webkit-search-cancel-button]:hidden max-md:h-11.5 max-md:rounded-[13px] max-md:pr-11 max-md:pl-11 max-md:text-base"
+                    class="h-8.5 rounded-[10px] border-sidebar-border bg-sidebar-accent pr-8 pl-8 text-[13px] max-md:h-11.5 max-md:rounded-[13px] max-md:pr-11 max-md:pl-11 max-md:text-base [&::-webkit-search-cancel-button]:hidden"
                 />
                 <Button
                     v-if="term !== ''"

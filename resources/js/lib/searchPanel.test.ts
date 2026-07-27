@@ -60,6 +60,19 @@ describe('searchParamsFromUrl', () => {
         );
     });
 
+    it('rejects a date that only looks like one', () => {
+        expect(
+            searchParamsFromUrl('/t/acme?after=2026-13-45').after,
+        ).toBeUndefined();
+        // 2026 is not a leap year, so this day never happened.
+        expect(
+            searchParamsFromUrl('/t/acme?before=2026-02-29').before,
+        ).toBeUndefined();
+        expect(searchParamsFromUrl('/t/acme?before=2024-02-29').before).toBe(
+            '2024-02-29',
+        );
+    });
+
     it('narrows an unknown scope back to the current team', () => {
         expect(
             searchParamsFromUrl('/t/acme?scope=sideways').scope,

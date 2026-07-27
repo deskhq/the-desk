@@ -7,6 +7,7 @@ use App\Actions\Teams\CreateTeam;
 use App\Enums\TeamRole;
 use App\Models\Channel;
 use App\Models\Message;
+use App\Models\Team;
 use App\Models\User;
 use Pest\Browser\Api\AwaitableWebpage;
 
@@ -14,7 +15,7 @@ use Pest\Browser\Api\AwaitableWebpage;
  * Seed two of Bob's messages in #general that match "quokka", so the Search
  * destination renders highlighted snippets under a date group when Alice searches.
  *
- * @return array{owner: User}
+ * @return array{owner: User, team: Team, channel: Channel}
  */
 function searchPanelWithMatches(): array
 {
@@ -31,7 +32,7 @@ function searchPanelWithMatches(): array
         'body' => 'another quokka sighting near the lake',
     ]);
 
-    return ['owner' => $alice];
+    return ['owner' => $alice, 'team' => $channel->team, 'channel' => $channel];
 }
 
 /**
@@ -100,7 +101,7 @@ test('the search panel highlights matches, groups them by date, and has no serio
 });
 
 test('the masthead glyph opens the search destination beside the channel it was pressed from', function (): void {
-    ['owner' => $alice] = searchPanelWithMatches();
+    ['owner' => $alice, 'team' => $team, 'channel' => $channel] = searchPanelWithMatches();
 
     // The dock's own trigger for search from inside a conversation. It reaches
     // the panel through the URL rather than flipping it directly, so it needs
@@ -109,6 +110,9 @@ test('the masthead glyph opens the search destination beside the channel it was 
         ->wait(0.5)
         ->click('@masthead-search')
         ->assertPresent('[data-test="destination-panel-search"]')
+        // The panel took the dock's column; the conversation it was pressed from
+        // is still the one the route names.
+        ->assertPathIs(browserChannelUrl($team, $channel))
         ->assertScript(queryParamSettles('nav', 'search'), true);
 });
 

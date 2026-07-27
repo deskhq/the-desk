@@ -47,8 +47,9 @@ function crossTeamSearch(User $user, Team $team, array $params): TestResponse
     return test()->actingAs($user)->get(route('channels.show', [
         'team' => $team->slug,
         'channel' => Channel::GENERAL_SLUG,
-        'nav' => NavDestination::Search->value,
         ...$params,
+        // Last, so a facet a caller passes can never steer the destination.
+        'nav' => NavDestination::Search->value,
     ]));
 }
 
