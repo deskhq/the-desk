@@ -37,6 +37,13 @@ const props = defineProps<{
     isDnd: boolean;
     /** Whether any followed thread is unread, dotting the threads glyph. */
     hasUnreadThreads: boolean;
+    /**
+     * Whether any reminder is still queued in this workspace, dotting the
+     * reminders glyph. Pending rather than overdue: a reminder that comes due
+     * is flipped to fired and leaves the pending set for a nudge card, so
+     * "overdue" would only ever catch scheduler lag (#963).
+     */
+    hasPendingReminders: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -71,6 +78,14 @@ const hasAvatar = computed(
 function hasUnread(team: Team): boolean {
     return team.unreadCount > 0 || team.mentionCount > 0;
 }
+
+/**
+ * The ambient cue a glyph wears when its destination has something waiting.
+ * Both cues are plain dots: the counts they stand for live in the panels, where
+ * there is room to read them.
+ */
+const cueClass =
+    'absolute top-1.25 right-1.25 size-1.75 rounded-full bg-brass ring-2 ring-sidebar-rail';
 
 function glyphClass(destination: NavDestination): string {
     return props.active === destination
@@ -172,12 +187,26 @@ function glyphClass(destination: NavDestination): string {
         >
             <component :is="item.icon" class="size-4.5" />
             <span class="sr-only">{{ $t(item.label) }}</span>
-            <span
-                v-if="item.destination === 'threads' && hasUnreadThreads"
-                data-test="rail-threads-unread-dot"
-                aria-hidden="true"
-                class="absolute top-1.25 right-1.25 size-1.75 rounded-full bg-brass ring-2 ring-sidebar-rail"
-            />
+            <!-- Each dot is decorative, so the state it stands for is named
+                 for assistive tech beside it, as the workspace tiles do. -->
+            <template v-if="item.destination === 'threads' && hasUnreadThreads">
+                <span
+                    data-test="rail-threads-unread-dot"
+                    aria-hidden="true"
+                    :class="cueClass"
+                />
+                <span class="sr-only">{{ $t('Unread threads') }}</span>
+            </template>
+            <template
+                v-if="item.destination === 'reminders' && hasPendingReminders"
+            >
+                <span
+                    data-test="rail-reminders-pending-dot"
+                    aria-hidden="true"
+                    :class="cueClass"
+                />
+                <span class="sr-only">{{ $t('Reminders pending') }}</span>
+            </template>
         </Button>
 
         <span class="flex-1" />

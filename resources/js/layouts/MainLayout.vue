@@ -170,6 +170,16 @@ const pendingInvitations = computed(() => page.props.pendingInvitations ?? []);
 const hasUnreadThreads = computed(() => page.props.hasUnreadThreads ?? false);
 
 /**
+ * Whether the reminders glyph wears its dot. The pending rows already ride
+ * along on every workspace request, so the cue costs nothing beyond reading
+ * them, and every reminder mutation reloads that prop — which is what clears
+ * the dot the moment the last row is checked off (#963).
+ */
+const hasPendingReminders = computed(
+    () => (page.props.reminders ?? []).length > 0,
+);
+
+/**
  * The workspace sheet's "invite people" row reuses the member-invite modal; the
  * permission and assignable roles ride along on the shared workspace props.
  */
@@ -795,6 +805,7 @@ onMounted(() => {
                     :presence="ownPresence"
                     :is-dnd="ownDnd"
                     :has-unread-threads="hasUnreadThreads"
+                    :has-pending-reminders="hasPendingReminders"
                     @select="openDestination"
                     @invite="inviteOpen = true"
                     @join="invitationsOpen = true"
@@ -1494,6 +1505,7 @@ onMounted(() => {
                         :presence="ownPresence"
                         :is-dnd="ownDnd"
                         :has-unread-threads="hasUnreadThreads"
+                        :has-pending-reminders="hasPendingReminders"
                         @select="openDestination"
                     />
                 </div>

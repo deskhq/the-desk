@@ -109,6 +109,7 @@ function mountRail(
     overrides: {
         active?: NavDestination;
         hasUnreadThreads?: boolean;
+        hasPendingReminders?: boolean;
         teams?: Team[];
         avatar?: string;
     } = {},
@@ -127,6 +128,7 @@ function mountRail(
                 presence: 'active',
                 isDnd: false,
                 hasUnreadThreads: overrides.hasUnreadThreads ?? false,
+                hasPendingReminders: overrides.hasPendingReminders ?? false,
                 onSelect: select,
             }),
     });
@@ -233,6 +235,35 @@ it('flags unread threads on the threads glyph only while there are any', () => {
     expect(
         read.host.querySelector('[data-test="rail-threads-unread-dot"]'),
     ).toBeNull();
+});
+
+it('flags pending reminders on the reminders glyph only while there are any', () => {
+    const pending = mountRail({ hasPendingReminders: true });
+
+    const dot = pending.host.querySelector(
+        '[data-test="rail-reminders-pending-dot"]',
+    );
+
+    expect(dot).not.toBeNull();
+    // The dot is decorative, so the state has to reach assistive tech through
+    // a label rather than the mark itself.
+    expect(dot?.getAttribute('aria-hidden')).toBe('true');
+    expect(glyph(pending.host, 'reminders').textContent).toContain(
+        'Reminders pending',
+    );
+
+    app?.unmount();
+    app = null;
+    document.body.innerHTML = '';
+
+    const clear = mountRail();
+
+    expect(
+        clear.host.querySelector('[data-test="rail-reminders-pending-dot"]'),
+    ).toBeNull();
+    expect(glyph(clear.host, 'reminders').textContent).not.toContain(
+        'Reminders pending',
+    );
 });
 
 it('tiles every workspace above the destinations', () => {

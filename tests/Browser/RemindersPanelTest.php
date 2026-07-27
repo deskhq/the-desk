@@ -157,6 +157,48 @@ test('the quick switcher opens the destination rather than a dialog', function (
         ->assertQueryStringHas('nav', 'reminders');
 });
 
+test('the rail glyph carries a dot while a reminder is pending, and loses it once cleared', function (): void {
+    ['owner' => $alice, 'team' => $team, 'channel' => $channel] = browserTeamWithChannel();
+
+    $reminder = reminderOn($channel, $alice, 'Renew the certificate', now()->addMonth());
+
+    signInThroughBrowser($alice)
+        ->resize(1280, 900)
+        ->navigate(browserChannelUrl($team, $channel))
+        // The cue is ambient: it is on the glyph before the panel is ever
+        // opened, which is the whole point of it (#963).
+        ->assertPresent('@rail-reminders-pending-dot')
+        // The dot itself is aria-hidden, so the state has to reach a screen
+        // reader through the glyph's own label.
+        ->assertScript(<<<'JS'
+        (() => (document.querySelector('[data-test="rail-destination-reminders"]')?.textContent ?? '').includes('Reminders pending'))()
+        JS, true)
+        ->click('@rail-destination-reminders')
+        ->assertPresent(reminderRow($reminder))
+        ->click('@reminder-clear')
+        ->assertNotPresent(reminderRow($reminder))
+        ->assertNotPresent('@rail-reminders-pending-dot')
+        ->assertScript(<<<'JS'
+        (() => (document.querySelector('[data-test="rail-destination-reminders"]')?.textContent ?? '').includes('Reminders pending'))()
+        JS, false);
+});
+
+test('the mobile tab mirrors the rail dot', function (): void {
+    ['owner' => $alice, 'team' => $team, 'channel' => $channel] = browserTeamWithChannel();
+
+    reminderOn($channel, $alice, 'Renew the certificate', now()->addMonth());
+
+    signInThroughBrowser($alice)
+        ->resize(390, 844)
+        ->navigate(browserChannelUrl($team, $channel))
+        ->click('@sidebar-toggle')
+        ->assertPresent('@tab-reminders-pending-dot')
+        ->click('@tab-destination-reminders')
+        ->click('@reminders-clear-all')
+        ->assertPresent('@reminders-empty')
+        ->assertNotPresent('@tab-reminders-pending-dot');
+});
+
 test('the panel has no serious accessibility violations, light or dark', function (): void {
     ['owner' => $alice, 'team' => $team, 'channel' => $channel] = browserTeamWithChannel();
 

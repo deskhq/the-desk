@@ -52,6 +52,7 @@ function mountTabBar(
     overrides: {
         active?: NavDestination;
         hasUnreadThreads?: boolean;
+        hasPendingReminders?: boolean;
         avatar?: string;
     } = {},
 ) {
@@ -68,6 +69,7 @@ function mountTabBar(
                 presence: 'active',
                 isDnd: false,
                 hasUnreadThreads: overrides.hasUnreadThreads ?? false,
+                hasPendingReminders: overrides.hasPendingReminders ?? false,
                 onSelect: select,
             }),
     });
@@ -155,6 +157,33 @@ it('flags unread threads on the threads tab only while there are any', () => {
     expect(
         read.host.querySelector('[data-test="tab-threads-unread-dot"]'),
     ).toBeNull();
+});
+
+it('flags pending reminders on the reminders tab only while there are any', () => {
+    const pending = mountTabBar({ hasPendingReminders: true });
+
+    const dot = pending.host.querySelector(
+        '[data-test="tab-reminders-pending-dot"]',
+    );
+
+    expect(dot).not.toBeNull();
+    expect(dot?.getAttribute('aria-hidden')).toBe('true');
+    expect(tab(pending.host, 'reminders').textContent).toContain(
+        'Reminders pending',
+    );
+
+    app?.unmount();
+    app = null;
+    document.body.innerHTML = '';
+
+    const clear = mountTabBar();
+
+    expect(
+        clear.host.querySelector('[data-test="tab-reminders-pending-dot"]'),
+    ).toBeNull();
+    expect(tab(clear.host, 'reminders').textContent).not.toContain(
+        'Reminders pending',
+    );
 });
 
 it('reserves the safe-area inset below the last row of tabs', () => {
