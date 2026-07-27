@@ -30,7 +30,7 @@ class LocaleController extends Controller
     {
         $request->user()->update($request->validated());
 
-        Inertia::flash('toast', ['type' => 'success', 'message' => __('Language updated.')]);
+        Inertia::flash('toast', ['type' => 'success', 'message' => __('Language updated')]);
 
         return to_route('locale.edit');
     }

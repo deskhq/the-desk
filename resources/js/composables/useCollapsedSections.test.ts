@@ -107,7 +107,7 @@ describe('useCollapsedSections', () => {
         expect(sections.isSectionCollapsed('channels')).toBe(false);
         expect(sections.isSectionCollapsed('starred')).toBe(true);
         expect(toastError).toHaveBeenCalledWith(
-            'Failed to save the sidebar layout. Please try again.',
+            'Failed to save the sidebar layout',
         );
 
         stop();

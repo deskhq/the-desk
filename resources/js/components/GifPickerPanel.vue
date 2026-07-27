@@ -193,7 +193,7 @@ async function pick(gif: App.Data.GiphyGifData): Promise<void> {
 
         emit('select', attachment);
     } catch {
-        toast.error(t('That GIF could not be added. Try another one.'));
+        toast.error(t('That GIF could not be added'));
     } finally {
         attaching.value = false;
     }

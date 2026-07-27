@@ -69,7 +69,7 @@ class ChannelController extends Controller
             'channel_name' => $channel->name,
         ]);
 
-        Inertia::flash('toast', ['type' => 'success', 'message' => __('Channel created.')]);
+        Inertia::flash('toast', ['type' => 'success', 'message' => __('Channel created')]);
 
         return to_route('channels.show', ['team' => $team->slug, 'channel' => $channel->slug]);
     }
@@ -248,7 +248,7 @@ class ChannelController extends Controller
 
         $joinChannel->handle($channel, $request->user());
 
-        Inertia::flash('toast', ['type' => 'success', 'message' => __('Joined #:channel.', ['channel' => $channel->name])]);
+        Inertia::flash('toast', ['type' => 'success', 'message' => __('Joined #:channel', ['channel' => $channel->name])]);
 
         return to_route('channels.show', ['team' => $team->slug, 'channel' => $channel->slug]);
     }
@@ -347,7 +347,7 @@ class ChannelController extends Controller
             'channel_name' => $channel->name,
         ]);
 
-        Inertia::flash('toast', ['type' => 'success', 'message' => __('Archived #:channel.', ['channel' => $channel->name])]);
+        Inertia::flash('toast', ['type' => 'success', 'message' => __('Archived #:channel', ['channel' => $channel->name])]);
 
         return to_route('channels.index', ['team' => $team->slug]);
     }

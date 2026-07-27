@@ -58,7 +58,7 @@ class IncomingWebhookController extends Controller
 
         $revoke->handle($request->user(), $incomingWebhook);
 
-        Inertia::flash('toast', ['type' => 'success', 'message' => __('Incoming webhook revoked.')]);
+        Inertia::flash('toast', ['type' => 'success', 'message' => __('Incoming webhook revoked')]);
 
         return back();
     }

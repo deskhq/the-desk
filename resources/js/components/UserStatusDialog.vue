@@ -234,7 +234,7 @@ function save(): void {
         {
             preserveScroll: true,
             onSuccess: () => (open.value = false),
-            onError: () => toast.error(t('Could not save your status.')),
+            onError: () => toast.error(t('Could not save your status')),
             onFinish: () => (saving.value = false),
         },
     );
@@ -246,7 +246,7 @@ function clear(): void {
     router.delete(destroyStatus().url, {
         preserveScroll: true,
         onSuccess: () => (open.value = false),
-        onError: () => toast.error(t('Could not clear your status.')),
+        onError: () => toast.error(t('Could not clear your status')),
         onFinish: () => (saving.value = false),
     });
 }

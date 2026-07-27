@@ -20,7 +20,7 @@ class TimeFormatController extends Controller
     {
         $request->user()->update($request->validated());
 
-        Inertia::flash('toast', ['type' => 'success', 'message' => __('Clock style updated.')]);
+        Inertia::flash('toast', ['type' => 'success', 'message' => __('Clock style updated')]);
 
         return to_route('locale.edit');
     }

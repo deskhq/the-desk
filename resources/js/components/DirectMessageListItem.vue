@@ -106,9 +106,7 @@ function hide(): void {
             preserveState: !leaving,
             ...(leaving ? {} : { only: ['channels'] }),
             onError: () => {
-                toast.error(
-                    t('Failed to close the conversation. Please try again.'),
-                );
+                toast.error(t('Failed to close the conversation'));
             },
         },
     );

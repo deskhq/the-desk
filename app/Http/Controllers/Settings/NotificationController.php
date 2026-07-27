@@ -19,7 +19,7 @@ class NotificationController extends Controller
     {
         $request->user()->update($request->validated());
 
-        Inertia::flash('toast', ['type' => 'success', 'message' => __('Notification settings updated.')]);
+        Inertia::flash('toast', ['type' => 'success', 'message' => __('Notification settings updated')]);
 
         return to_route('appearance.edit');
     }

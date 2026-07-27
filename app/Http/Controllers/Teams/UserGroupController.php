@@ -49,7 +49,7 @@ class UserGroupController extends Controller
     {
         $team->userGroups()->create($request->safe()->only(['name', 'slug']));
 
-        Inertia::flash('toast', ['type' => 'success', 'message' => __('Group created.')]);
+        Inertia::flash('toast', ['type' => 'success', 'message' => __('Group created')]);
 
         return back();
     }
@@ -64,7 +64,7 @@ class UserGroupController extends Controller
     {
         $group->update($request->safe()->only(['name', 'slug']));
 
-        Inertia::flash('toast', ['type' => 'success', 'message' => __('Group updated.')]);
+        Inertia::flash('toast', ['type' => 'success', 'message' => __('Group updated')]);
 
         return back();
     }
@@ -81,7 +81,7 @@ class UserGroupController extends Controller
 
         $group->delete();
 
-        Inertia::flash('toast', ['type' => 'success', 'message' => __('Group deleted.')]);
+        Inertia::flash('toast', ['type' => 'success', 'message' => __('Group deleted')]);
 
         return back();
     }
@@ -95,7 +95,7 @@ class UserGroupController extends Controller
         // tripping the pivot's unique constraint.
         $group->members()->syncWithoutDetaching([$request->validated('user_id')]);
 
-        Inertia::flash('toast', ['type' => 'success', 'message' => __('Member added to the group.')]);
+        Inertia::flash('toast', ['type' => 'success', 'message' => __('Member added to the group')]);
 
         return back();
     }
@@ -111,7 +111,7 @@ class UserGroupController extends Controller
 
         $group->members()->detach($user->id);
 
-        Inertia::flash('toast', ['type' => 'success', 'message' => __('Member removed from the group.')]);
+        Inertia::flash('toast', ['type' => 'success', 'message' => __('Member removed from the group')]);
 
         return back();
     }

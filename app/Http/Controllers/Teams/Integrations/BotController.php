@@ -30,7 +30,7 @@ class BotController extends Controller
     {
         $bot = $createBot->handle($team, $request->user(), $request->validated('name'));
 
-        Inertia::flash('toast', ['type' => 'success', 'message' => __('Bot created.')]);
+        Inertia::flash('toast', ['type' => 'success', 'message' => __('Bot created')]);
 
         return to_route('teams.integrations.bots.show', ['team' => $team->slug, 'bot' => $bot->id]);
     }
@@ -73,7 +73,7 @@ class BotController extends Controller
 
         $deleteBot->handle($request->user(), $bot);
 
-        Inertia::flash('toast', ['type' => 'success', 'message' => __('Bot deleted.')]);
+        Inertia::flash('toast', ['type' => 'success', 'message' => __('Bot deleted')]);
 
         return to_route('teams.integrations.index', ['team' => $team->slug]);
     }

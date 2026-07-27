@@ -28,6 +28,7 @@ import { optimisticMessage } from '@/composables/useMessageStream';
 import { useReminderUndo } from '@/composables/useReminderUndo';
 import { useToast } from '@/composables/useToast';
 import { useTranslations } from '@/composables/useTranslations';
+import { formatDateTime } from '@/lib/datetime';
 import { planForward } from '@/lib/forwardPlacement';
 import type { Outbox } from '@/lib/outbox';
 import { applyVote } from '@/lib/polls';
@@ -342,9 +343,7 @@ export function useMessageActions(
                         message.clientUuid,
                         previousThread,
                     );
-                    toast.error(
-                        t('Your edit failed to save. Please try again.'),
-                    );
+                    toast.error(t('Your edit failed to save'));
                 },
             },
         );
@@ -377,9 +376,7 @@ export function useMessageActions(
                         message.clientUuid,
                         previousThread,
                     );
-                    toast.error(
-                        t('Failed to delete the message. Please try again.'),
-                    );
+                    toast.error(t('Failed to delete the message'));
                 },
             },
         );
@@ -420,9 +417,7 @@ export function useMessageActions(
                         message.clientUuid,
                         previousThread,
                     );
-                    toast.error(
-                        t('Failed to update the reaction. Please try again.'),
-                    );
+                    toast.error(t('Failed to update the reaction'));
                 },
             },
         );
@@ -470,9 +465,7 @@ export function useMessageActions(
                         message.clientUuid,
                         previousThread,
                     );
-                    toast.error(
-                        t('Failed to record your vote. Please try again.'),
-                    );
+                    toast.error(t('Failed to record your vote'));
                 },
             },
         );
@@ -502,9 +495,7 @@ export function useMessageActions(
                 preserveState: true,
                 only: ['channels'],
                 onError: () => {
-                    toast.error(
-                        t('Failed to close the poll. Please try again.'),
-                    );
+                    toast.error(t('Failed to close the poll'));
                 },
             },
         );
@@ -594,9 +585,7 @@ export function useMessageActions(
                         message.clientUuid,
                         previousThread,
                     );
-                    toast.error(
-                        t('Failed to unpin the message. Please try again.'),
-                    );
+                    toast.error(t('Failed to unpin the message'));
                 },
             },
         );
@@ -661,9 +650,7 @@ export function useMessageActions(
                         options.mainStream.removePending(clientUuid);
                     }
 
-                    toast.error(
-                        t('Failed to forward the message. Please try again.'),
-                    );
+                    toast.error(t('Failed to forward the message'));
                 },
             },
         );
@@ -722,9 +709,7 @@ export function useMessageActions(
                         options.mainStream.removePending(clientUuid);
                     }
 
-                    toast.error(
-                        t('Your reply failed to send. Please try again.'),
-                    );
+                    toast.error(t('Your reply failed to send'));
                 },
             },
         );
@@ -761,16 +746,17 @@ export function useMessageActions(
                 preserveState: true,
                 only: ['scheduledMessages', 'channels'],
                 onSuccess: () =>
-                    toast.success(t('Message scheduled.'), {
+                    toast.success(t('Message scheduled'), {
+                        // The value that was just set belongs on the detail
+                        // line, not in the title (#978).
+                        detail: formatDateTime(sendAt),
                         action: {
                             label: t('Undo'),
                             run: () => cancelScheduledByClientUuid(clientUuid),
                         },
                     }),
                 onError: () =>
-                    toast.error(
-                        t('Failed to schedule your message. Please try again.'),
-                    ),
+                    toast.error(t('Failed to schedule your message')),
             },
         );
 
@@ -796,11 +782,7 @@ export function useMessageActions(
                 preserveState: true,
                 only: ['scheduledMessages'],
                 onError: () =>
-                    toast.error(
-                        t(
-                            'Failed to update the scheduled message. Please try again.',
-                        ),
-                    ),
+                    toast.error(t('Failed to update the scheduled message')),
             },
         );
     }
@@ -834,13 +816,9 @@ export function useMessageActions(
                 preserveState: true,
                 only: ['scheduledMessages'],
                 onSuccess: () =>
-                    toast.success(t('Scheduled message cancelled.')),
+                    toast.success(t('Scheduled message cancelled')),
                 onError: () =>
-                    toast.error(
-                        t(
-                            'Failed to cancel the scheduled message. Please try again.',
-                        ),
-                    ),
+                    toast.error(t('Failed to cancel the scheduled message')),
             },
         );
     }
@@ -891,7 +869,8 @@ export function useMessageActions(
                 preserveState: true,
                 only: ['reminders', 'firedReminders'],
                 onSuccess: () =>
-                    toast.success(t('Reminder set.'), {
+                    toast.success(t('Reminder set'), {
+                        detail: formatDateTime(remindAt),
                         // Merged per message, so setting a reminder twice
                         // replaces the first toast rather than leaving its Undo
                         // on screen holding a now-stale snapshot.
@@ -906,10 +885,7 @@ export function useMessageActions(
                                 ),
                         },
                     }),
-                onError: () =>
-                    toast.error(
-                        t('Failed to set the reminder. Please try again.'),
-                    ),
+                onError: () => toast.error(t('Failed to set the reminder')),
             },
         );
     }

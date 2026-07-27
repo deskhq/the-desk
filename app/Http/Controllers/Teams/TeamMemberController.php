@@ -94,7 +94,7 @@ class TeamMemberController extends Controller
             ]);
         }
 
-        Inertia::flash('toast', ['type' => 'success', 'message' => __('Member role updated.')]);
+        Inertia::flash('toast', ['type' => 'success', 'message' => __('Member role updated')]);
 
         return to_route('teams.edit', ['team' => $team->slug]);
     }
@@ -120,7 +120,7 @@ class TeamMemberController extends Controller
             'new_owner_name' => $user->name,
         ]);
 
-        Inertia::flash('toast', ['type' => 'success', 'message' => __('Team ownership transferred.')]);
+        Inertia::flash('toast', ['type' => 'success', 'message' => __('Team ownership transferred')]);
 
         return to_route('teams.edit', ['team' => $team->slug]);
     }
@@ -148,7 +148,7 @@ class TeamMemberController extends Controller
             'member_name' => $user->name,
         ]);
 
-        Inertia::flash('toast', ['type' => 'success', 'message' => __('Member removed.')]);
+        Inertia::flash('toast', ['type' => 'success', 'message' => __('Member removed')]);
 
         return to_route('teams.edit', ['team' => $team->slug]);
     }

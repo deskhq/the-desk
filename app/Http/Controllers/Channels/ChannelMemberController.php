@@ -31,7 +31,7 @@ class ChannelMemberController extends Controller
             'member_name' => $user->name,
         ]);
 
-        Inertia::flash('toast', ['type' => 'success', 'message' => __('Member added.')]);
+        Inertia::flash('toast', ['type' => 'success', 'message' => __('Member added')]);
 
         return to_route('channels.show', ['team' => $team->slug, 'channel' => $channel->slug]);
     }
@@ -50,7 +50,7 @@ class ChannelMemberController extends Controller
             'member_name' => $user->name,
         ]);
 
-        Inertia::flash('toast', ['type' => 'success', 'message' => __('Member removed.')]);
+        Inertia::flash('toast', ['type' => 'success', 'message' => __('Member removed')]);
 
         return to_route('channels.show', ['team' => $team->slug, 'channel' => $channel->slug]);
     }

@@ -245,7 +245,7 @@ describe('useChannelPlacement', () => {
             'ops',
         ]);
         expect(toastError).toHaveBeenCalledWith(
-            'Failed to save the sidebar layout. Please try again.',
+            'Failed to save the sidebar layout',
         );
 
         stop();
@@ -279,7 +279,7 @@ describe('useChannelPlacement', () => {
             placement.customGroups.value.map((group) => group.section.id),
         ).toEqual(['s-1', 's-2']);
         expect(toastError).toHaveBeenCalledWith(
-            'Failed to save the section order. Please try again.',
+            'Failed to save the section order',
         );
 
         stop();

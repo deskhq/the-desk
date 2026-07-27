@@ -48,7 +48,7 @@ class BotTokenController extends Controller
 
         $revoke->handle($request->user(), $accessToken);
 
-        Inertia::flash('toast', ['type' => 'success', 'message' => __('Token revoked.')]);
+        Inertia::flash('toast', ['type' => 'success', 'message' => __('Token revoked')]);
 
         return back();
     }

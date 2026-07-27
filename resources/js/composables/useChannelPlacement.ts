@@ -118,11 +118,7 @@ export function useChannelPlacement(): ChannelPlacement {
                 only: ['channels'],
                 onError: () => {
                     syncSidebarGroups();
-                    toast.error(
-                        t(
-                            'Failed to save the sidebar layout. Please try again.',
-                        ),
-                    );
+                    toast.error(t('Failed to save the sidebar layout'));
                 },
             },
         );
@@ -182,11 +178,7 @@ export function useChannelPlacement(): ChannelPlacement {
                 only: ['channelSections'],
                 onError: () => {
                     syncSidebarGroups();
-                    toast.error(
-                        t(
-                            'Failed to save the section order. Please try again.',
-                        ),
-                    );
+                    toast.error(t('Failed to save the section order'));
                 },
             },
         );

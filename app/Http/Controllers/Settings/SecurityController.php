@@ -146,7 +146,7 @@ class SecurityController extends Controller
 
         $recorder->record($user, SecurityEventType::PasswordChanged);
 
-        Inertia::flash('toast', ['type' => 'success', 'message' => __('Password updated.')]);
+        Inertia::flash('toast', ['type' => 'success', 'message' => __('Password updated')]);
 
         return back();
     }

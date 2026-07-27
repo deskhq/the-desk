@@ -94,7 +94,7 @@ export function useWebPush(): WebPush {
             // half-completed opt-in doesn't read as on.
             subscribed.value = (await currentSubscription()) !== null;
             toast.error(
-                t('Could not update push notifications on this device.'),
+                t('Could not update push notifications on this device'),
             );
         } finally {
             busy.value = false;
