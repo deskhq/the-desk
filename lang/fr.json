@@ -1398,5 +1398,6 @@
   ":name is too large (:size)": ":name est trop volumineux (:size)",
   "Files can be up to :max MB": "Les fichiers peuvent atteindre :max Mo",
   "Reminder snoozed": "Rappel reporté",
-  "For 20 minutes": "De 20 minutes"
+  "For 20 minutes": "De 20 minutes",
+  "Failed to update notification preferences": "Échec de la mise à jour des préférences de notification"
 }

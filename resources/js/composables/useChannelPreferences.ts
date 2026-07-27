@@ -5,6 +5,7 @@ import type { ComputedRef, Ref } from 'vue';
 import { update as updateChannelPreferences } from '@/actions/App/Http/Controllers/Channels/ChannelPreferenceController';
 import { update as updateChannelStar } from '@/actions/App/Http/Controllers/Channels/ChannelStarController';
 import { useToast } from '@/composables/useToast';
+import { useTranslations } from '@/composables/useTranslations';
 import { backgroundVisit } from '@/lib/backgroundVisit';
 import { notificationIndicator } from '@/lib/notificationIndicator';
 import type { NotificationIndicator } from '@/lib/notificationIndicator';
@@ -55,6 +56,7 @@ export interface ChannelPreferences {
 export function useChannelPreferences(
     options: ChannelPreferencesOptions,
 ): ChannelPreferences {
+    const { t } = useTranslations();
     const toast = useToast();
     const notificationLevel = ref<NotificationLevel>(
         options.channel().notificationLevel,
@@ -105,7 +107,7 @@ export function useChannelPreferences(
                 only: ['channels'],
                 onError: () => {
                     starred.value = previous;
-                    toast.error('Failed to update the channel');
+                    toast.error(t('Failed to update the channel'));
                 },
             },
         );
@@ -127,7 +129,7 @@ export function useChannelPreferences(
                 only: ['channels'],
                 onError: () => {
                     rollback();
-                    toast.error('Failed to update notification preferences');
+                    toast.error(t('Failed to update notification preferences'));
                 },
             },
         );

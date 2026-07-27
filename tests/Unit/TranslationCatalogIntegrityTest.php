@@ -231,8 +231,11 @@ test('the key scan finds the keys the app actually uses, so the guard below cann
 
 test('every literal key the app uses exists in every locale catalog', function (): void {
     $used = array_unique([...frontendTranslationKeys(), ...backendTranslationKeys()]);
+    $catalogs = localeCatalogPaths();
 
-    foreach (localeCatalogPaths() as $path) {
+    expect($catalogs)->not->toBeEmpty();
+
+    foreach ($catalogs as $path) {
         $catalog = (array) json_decode((string) file_get_contents($path), true);
         $missing = array_values(array_filter(
             $used,
