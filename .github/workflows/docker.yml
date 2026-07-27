@@ -24,6 +24,10 @@ on:
       - 'package.json'
       - 'package-lock.json'
       - '.github/workflows/docker.yml'
+      # Not a build input, but it decides what the scan below reports — so a
+      # change to it has to be seen against a real image rather than merged on
+      # the strength of the diff alone.
+      - '.trivyignore.yaml'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -103,6 +107,12 @@ jobs:
       # to ignore the check. `ignore-unfixed` keeps the report to what a rebuild
       # or a pin can actually resolve. Tighten to a failing CRITICAL gate once
       # the baseline is clean.
+      #
+      # `trivyignores` is the same file image-scan.yml reads, so this scan and
+      # the weekly one cannot disagree about what counts as a finding: a CVE in
+      # an upstream binary this repository cannot patch is documented and dated
+      # there rather than silently accepted in one place and reported in the
+      # other. See .trivyignore.yaml for what may go on it.
       - name: Scan the built image for known vulnerabilities
         if: env.PUBLISH != 'true'
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
@@ -112,6 +122,7 @@ jobs:
           output: trivy-results.sarif
           severity: 'CRITICAL,HIGH'
           ignore-unfixed: true
+          trivyignores: .trivyignore.yaml
           exit-code: '0'
 
       # The code-scanning tab is what gives the findings history and dedup: the
@@ -141,6 +152,7 @@ jobs:
           output: trivy-report.txt
           severity: 'CRITICAL,HIGH'
           ignore-unfixed: true
+          trivyignores: .trivyignore.yaml
           exit-code: '0'
           skip-setup-trivy: true
 

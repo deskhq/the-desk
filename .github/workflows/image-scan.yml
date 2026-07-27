@@ -27,6 +27,15 @@ jobs:
       issues: write
 
     steps:
+      # Only for .trivyignore.yaml: the scan itself talks to a registry and
+      # needs nothing from the tree. Without the checkout this scan would count
+      # findings the per-build scan in docker.yml has already suppressed, and
+      # reopen an issue about them every week.
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
       - name: Log in to GHCR
         uses: docker/login-action@af1e73f918a031802d376d3c8bbc3fe56130a9b0 # v4.4.0
         with:
@@ -42,9 +51,10 @@ jobs:
       - name: Scan each published tag and report
         env:
           GH_TOKEN: ${{ github.token }}
-          # This job never checks the repository out — it only talks to a
-          # registry — so `gh` has no remote to infer the repository from and
-          # every issue command below would fail without this.
+          # Explicit rather than inferred from the checkout's remote: the
+          # checkout above exists only to bring .trivyignore.yaml in, and an
+          # issue command that silently depends on it would break the day the
+          # ignore file is no longer needed and the step is dropped.
           GH_REPO: ${{ github.repository }}
           IMAGE: ghcr.io/${{ github.repository }}
           TITLE: "fix: patch the vulnerabilities found in the published image"
@@ -68,9 +78,15 @@ jobs:
 
             # --ignore-unfixed: an unfixed upstream CVE is not something this
             # repository can act on, and an issue nobody can close is noise.
+            # --ignorefile: for the same reason, one step further — a CVE that
+            # *is* fixed upstream but only in a build nobody has published yet
+            # is equally unactionable here. Those are enumerated, justified and
+            # dated in .trivyignore.yaml, and reported again the moment an entry
+            # expires.
             trivy image \
               --severity CRITICAL,HIGH \
               --ignore-unfixed \
+              --ignorefile .trivyignore.yaml \
               --format json \
               --output "scan-${tag}.json" \
               "$reference"

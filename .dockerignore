@@ -46,4 +46,6 @@ bootstrap/cache/*.php
 tests
 compose.yaml
 docker-compose.prod.yml
+# Read from the checkout by the two scan workflows, never from inside the image.
+.trivyignore.yaml
 *.md

@@ -1,0 +1,47 @@
+# Findings the image scans report against an artifact this repository consumes
+# as a prebuilt binary, and therefore cannot patch.
+#
+# Both scans read this one file, so a finding is suppressed in both places or in
+# neither: the per-build scan in .github/workflows/docker.yml and the weekly scan
+# of the published tags in .github/workflows/image-scan.yml.
+#
+# An entry belongs here only when the fix is genuinely out of reach — the CVE is
+# fixed upstream but no published build of the artifact carries it yet. Anything
+# a Dockerfile change can reach is patched there instead; `apk upgrade` in the
+# runtime stage covers the OS packages, which is what most base-image findings
+# turn out to be.
+#
+# Every entry is scoped to the artifact it was assessed against, says why in a
+# sentence someone can check, and expires. Trivy reports an expired entry again,
+# which reopens the rolling issue image-scan.yml keeps: that is the point of the
+# date. A suppression is a reminder to re-check, never a way to make a finding
+# go away. tests/Unit/ImageSupplyChainTest.php holds those three rules.
+vulnerabilities:
+  # Both of these are compiled into the FrankenPHP binary the runtime stage
+  # inherits from `dunglas/frankenphp:1-php8.5-alpine`: they are Caddy's
+  # dependency graph, not this application's, and nothing in the Dockerfile can
+  # move them. v1.12.6 (Caddy 2.11.4) is the newest upstream release and still
+  # carries both, so rebuilding on a current base does not clear them either;
+  # only a FrankenPHP rebuild will. The expiry falls on a Monday so the scheduled
+  # scan is what re-reports them (#962).
+  - id: GHSA-r277-6w6q-xmqw
+    paths:
+      - usr/local/bin/frankenphp
+    statement: >-
+      kin-openapi fail-open authentication bypass in ValidationHandler.Load(),
+      fixed in kin-openapi 0.144.0. It reaches this image only through Caddy
+      inside the upstream FrankenPHP binary, which ships no build carrying the
+      fix as of v1.12.6. The Caddyfile this image runs enables php_server alone
+      (Vulcain, the module that pulls in OpenAPI request validation, is left
+      commented out upstream), so no OpenAPI validation handler is loaded.
+    expired_at: 2026-10-26
+  - id: GHSA-hrxh-6v49-42gf
+    paths:
+      - usr/local/bin/frankenphp
+    statement: >-
+      gRPC-Go xDS RBAC and HTTP/2 vulnerabilities, fixed in grpc-go 1.82.1. It
+      reaches this image only through Caddy inside the upstream FrankenPHP
+      binary, which ships no build carrying the fix as of v1.12.6. This image
+      serves HTTP/1.1 and HTTP/2 from Caddy's own stack and exposes neither a
+      gRPC listener nor an xDS control plane.
+    expired_at: 2026-10-26
