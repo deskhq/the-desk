@@ -4,10 +4,7 @@ import { AlarmClock, Search } from '@lucide/vue';
 import { ListboxFilter } from 'reka-ui';
 import { computed, ref, watch } from 'vue';
 import { show } from '@/actions/App/Http/Controllers/Channels/ChannelController';
-import {
-    index as searchPage,
-    suggest as suggestMessages,
-} from '@/actions/App/Http/Controllers/Channels/SearchController';
+import { suggest as suggestMessages } from '@/actions/App/Http/Controllers/Channels/SearchController';
 import PresenceDot from '@/components/PresenceDot.vue';
 import SafeHtml from '@/components/SafeHtml.vue';
 import { Button } from '@/components/ui/button';
@@ -24,6 +21,7 @@ import {
     DialogHeader,
     DialogTitle,
 } from '@/components/ui/dialog';
+import { useSidebar } from '@/components/ui/sidebar';
 import {
     matchRange,
     rankChannels,
@@ -33,6 +31,7 @@ import { useCustomEmojis } from '@/composables/useCustomEmojis';
 import { getInitials } from '@/composables/useInitials';
 import { useIsMobile } from '@/composables/useIsMobile';
 import { useMessageSearch } from '@/composables/useMessageSearch';
+import { urlForDestination } from '@/composables/useNavPanel';
 import { useOpenDirectMessage } from '@/composables/useOpenDirectMessage';
 import { useTranslations } from '@/composables/useTranslations';
 import { useUserGroups } from '@/composables/useUserGroups';
@@ -41,6 +40,7 @@ import { renderMessageBody } from '@/lib/messageBody';
 import { rankPeople } from '@/lib/peopleDirectory';
 import { presenceLabelKey } from '@/lib/presence';
 import type { RenderedPresence } from '@/lib/presence';
+import { urlForSearchParams } from '@/lib/searchPanel';
 import { filtersToParams, parseSearchQuery } from '@/lib/searchTokens';
 import type { SearchParams } from '@/lib/searchTokens';
 import type { MessageSearchResult } from '@/types';
@@ -185,6 +185,12 @@ watch(open, (isOpen) => {
 
 const page = usePage();
 
+/**
+ * The dock, which the hand-off to the Search panel has to reveal: the drawer on a
+ * phone, the collapsed column on a desktop.
+ */
+const { open: dockOpen, setOpen: setDockOpen, setOpenMobile } = useSidebar();
+
 const { map: customEmojis } = useCustomEmojis();
 const { groups: userGroups } = useUserGroups();
 
@@ -216,13 +222,33 @@ function selectMessage(result: MessageSearchResult): void {
     );
 }
 
+/**
+ * Hand the palette's query over to the Search destination, which is where the
+ * full result set lives now that search is a dock panel.
+ *
+ * The hand-off is a client-side write of the criteria onto the current route:
+ * the dock adopts `?nav=search` from the URL, and the panel pulls the matches
+ * itself. Either way the dock has to be showing first — the palette can be
+ * reached with the drawer shut on a phone and with the column collapsed on a
+ * desktop — or the hand-off lands somewhere nobody can see.
+ */
 function seeAllResults(): void {
     open.value = false;
-    router.visit(
-        searchPage(props.teamSlug, {
-            query: filtersToParams(parsedFilters.value),
-        }).url,
-    );
+
+    router.replace({
+        url: urlForSearchParams(
+            urlForDestination(page.url, 'search'),
+            filtersToParams(parsedFilters.value),
+        ),
+        preserveState: true,
+        preserveScroll: true,
+    });
+
+    if (isMobile.value) {
+        setOpenMobile(true);
+    } else if (!dockOpen.value) {
+        setDockOpen(true);
+    }
 }
 
 function openReminders(): void {

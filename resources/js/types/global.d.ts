@@ -1,7 +1,13 @@
 import type { ReverbRuntimeConfig } from '@/lib/echo';
 import type { Auth } from '@/types/auth';
 import type { Channel, ChannelSection } from '@/types/channels';
-import type { MessageReminder, ThreadInboxPage } from '@/types/messages';
+import type {
+    MessageReminder,
+    MessageSearchCriteria,
+    MessageSearchResult,
+    SearchWorkspaceChannel,
+    ThreadInboxPage,
+} from '@/types/messages';
 import type { PersonRef } from '@/types/people';
 import type { SidebarPositionOption } from '@/types/sidebar';
 import type {
@@ -76,6 +82,15 @@ declare module '@inertiajs/core' {
              */
             threads?: ThreadInboxPage;
             unreadThreadCount?: number;
+            /**
+             * The Search panel's props, on the same terms (`?nav=search`). The
+             * panel's state is the URL rather than `searchCriteria` — it reads what
+             * to search from there and uses the echo only to tell whether the
+             * matches it holds still answer it.
+             */
+            searchCriteria?: MessageSearchCriteria;
+            searchResults?: MessageSearchResult[];
+            searchWorkspaceChannels?: SearchWorkspaceChannel[];
             pendingInvitations?: DashboardInvitation[];
             reminders?: MessageReminder[];
             firedReminders?: MessageReminder[];

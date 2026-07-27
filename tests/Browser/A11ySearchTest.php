@@ -7,15 +7,17 @@ use App\Actions\Teams\CreateTeam;
 use App\Enums\TeamRole;
 use App\Models\Channel;
 use App\Models\Message;
+use App\Models\Team;
 use App\Models\User;
+use Pest\Browser\Api\AwaitableWebpage;
 
 /**
- * Seed two of Bob's messages in #general that match "quokka", so the redesigned
- * search page renders highlighted snippets under a date group when Alice searches.
+ * Seed two of Bob's messages in #general that match "quokka", so the Search
+ * destination renders highlighted snippets under a date group when Alice searches.
  *
- * @return array{owner: User}
+ * @return array{owner: User, team: Team, channel: Channel}
  */
-function searchPageWithMatches(): array
+function searchPanelWithMatches(): array
 {
     ['owner' => $alice, 'member' => $bob, 'channel' => $channel] = browserTeamWithChannel();
 
@@ -30,17 +32,26 @@ function searchPageWithMatches(): array
         'body' => 'another quokka sighting near the lake',
     ]);
 
-    return ['owner' => $alice];
+    return ['owner' => $alice, 'team' => $channel->team, 'channel' => $channel];
 }
 
-test('the search page highlights matches, groups them by date, and has no serious a11y violations in either theme', function (): void {
-    ['owner' => $alice] = searchPageWithMatches();
+/**
+ * Sign in and open the Search destination from the rail. Opening it this way is a
+ * client-side panel swap, so the browser session survives (a full `navigate()`
+ * would drop it), and the rail flips the panel itself rather than waiting on the
+ * URL — which is what makes it the steady way in straight after a login (#964).
+ */
+function openSearchPanel(User $user): AwaitableWebpage
+{
+    return signInThroughBrowser($user)
+        ->click('@rail-destination-search')
+        ->assertPresent('[data-test="destination-panel-search"]');
+}
 
-    // Reach the page through the masthead search link — a client-side Inertia
-    // visit, so the browser session survives (a full navigate() would drop it).
-    $page = signInThroughBrowser($alice)
-        ->click('@masthead-search')
-        ->assertPathContains('/search')
+test('the search panel highlights matches, groups them by date, and has no serious a11y violations in either theme', function (): void {
+    ['owner' => $alice] = searchPanelWithMatches();
+
+    $page = openSearchPanel($alice)
         ->assertSee('Search your channels for messages.')
         ->type('@search-input', 'quokka')
         // Debounced scoped reload; wait it out, then the results render.
@@ -48,8 +59,12 @@ test('the search page highlights matches, groups them by date, and has no seriou
         ->assertPresent('[data-test="search-result"]')
         // The snippet arrives as sanitized HTML with a brass <mark> highlight.
         ->assertPresent('[data-test="search-result"] mark')
-        // Recency group header.
+        // Result tally and recency group header.
+        ->assertSee('2 results')
         ->assertSee('Today')
+        // The channel behind the panel is still live: the panel took the dock's
+        // column, not the conversation.
+        ->assertPresent('[data-test="message-composer-input"]')
         ->assertNoAccessibilityIssues();
 
     // The highlight styling is scoped CSS reaching through `<SafeHtml>`'s root
@@ -85,15 +100,47 @@ test('the search page highlights matches, groups them by date, and has no seriou
         ->assertNoAccessibilityIssues();
 });
 
+test('the masthead glyph opens the search destination beside the channel it was pressed from', function (): void {
+    ['owner' => $alice, 'team' => $team, 'channel' => $channel] = searchPanelWithMatches();
+
+    // The dock's own trigger for search from inside a conversation. It reaches
+    // the panel through the URL rather than flipping it directly, so it needs
+    // the shell to have finished its first-paint visits — see #964.
+    signInThroughBrowser($alice)
+        ->wait(0.5)
+        ->click('@masthead-search')
+        ->assertPresent('[data-test="destination-panel-search"]')
+        // The panel took the dock's column; the conversation it was pressed from
+        // is still the one the route names.
+        ->assertPathIs(browserChannelUrl($team, $channel))
+        ->assertScript(queryParamSettles('nav', 'search'), true);
+});
+
+test('the palette hands its query over to the search destination', function (): void {
+    ['owner' => $alice] = searchPanelWithMatches();
+
+    // "See all results" used to be a link to the full-width page; it now writes
+    // the palette's criteria onto the current route and lets the panel pull them.
+    signInThroughBrowser($alice)
+        ->click('@quick-switcher-trigger')
+        ->type('@quick-switcher-input', 'quokka')
+        ->wait(0.8)
+        ->click('@quick-switcher-see-all')
+        ->assertPresent('[data-test="destination-panel-search"]')
+        ->assertScript(queryParamSettles('q', 'quokka'), true)
+        ->assertScript(
+            '(() => document.querySelector(\'[data-test="search-input"]\').value)()',
+            'quokka',
+        )
+        ->assertPresent('[data-test="search-result"]');
+});
+
 test('a member of a single team never sees the workspace scope control', function (): void {
     // A fresh user belongs only to their own personal team, so the scope control
     // — which widens search across teams — has nothing to widen to and stays hidden.
     $solo = User::factory()->create();
 
-    signInThroughBrowser($solo)
-        ->click('@masthead-search')
-        ->assertPathContains('/search')
-        ->assertMissing('[data-test="scope-control"]');
+    openSearchPanel($solo)->assertMissing('[data-test="scope-control"]');
 });
 
 test('a multi-team member can widen the search to all workspaces and see cross-team tags', function (): void {
@@ -118,9 +165,7 @@ test('a multi-team member can widen the search to all workspaces and see cross-t
         'body' => 'the quokka appeared in beta too',
     ]);
 
-    signInThroughBrowser($alice)
-        ->click('@masthead-search')
-        ->assertPathContains('/search')
+    openSearchPanel($alice)
         ->type('@search-input', 'quokka')
         ->wait(0.8)
         // Team scope: only Acme's match, no cross-team tag.
@@ -134,11 +179,9 @@ test('a multi-team member can widen the search to all workspaces and see cross-t
 });
 
 test('the channel facet promotes to a chip and drives the scoped reload', function (): void {
-    ['owner' => $alice] = searchPageWithMatches();
+    ['owner' => $alice] = searchPanelWithMatches();
 
-    signInThroughBrowser($alice)
-        ->click('@masthead-search')
-        ->assertPathContains('/search')
+    openSearchPanel($alice)
         ->type('@search-input', 'quokka')
         ->wait(0.8)
         ->assertPresent('[data-test="search-result"]')
@@ -154,11 +197,9 @@ test('the channel facet promotes to a chip and drives the scoped reload', functi
 });
 
 test('the author facet applies and removes, and a date preset applies', function (): void {
-    ['owner' => $alice] = searchPageWithMatches();
+    ['owner' => $alice] = searchPanelWithMatches();
 
-    signInThroughBrowser($alice)
-        ->click('@masthead-search')
-        ->assertPathContains('/search')
+    openSearchPanel($alice)
         ->type('@search-input', 'quokka')
         ->wait(0.8)
         ->assertPresent('[data-test="search-result"]')
@@ -183,15 +224,18 @@ test('the author facet applies and removes, and a date preset applies', function
         ->assertPresent('[data-test="facet-date-preset-today"]')
         ->click('[data-test="facet-date-preset-today"]')
         ->wait(0.8)
-        ->assertPresent('[data-test="facet-date"]');
+        ->assertPresent('[data-test="facet-date"]')
+        // Every facet leaves together, and the query stays behind.
+        ->click('@facet-clear-all')
+        ->wait(0.8)
+        ->assertMissing('[data-test="facet-date"]')
+        ->assertPresent('[data-test="search-result"]');
 });
 
 test('the facet pickers are comboboxes that keep the open popup accessible in both themes', function (): void {
-    ['owner' => $alice] = searchPageWithMatches();
+    ['owner' => $alice] = searchPanelWithMatches();
 
-    $page = signInThroughBrowser($alice)
-        ->click('@masthead-search')
-        ->assertPathContains('/search')
+    $page = openSearchPanel($alice)
         ->type('@search-input', 'quokka')
         ->wait(0.8)
         ->assertPresent('[data-test="search-result"]')
@@ -278,11 +322,9 @@ test('the facet pickers are comboboxes that keep the open popup accessible in bo
 });
 
 test('the zero-result state names the active filters and offers both escapes', function (): void {
-    ['owner' => $alice] = searchPageWithMatches();
+    ['owner' => $alice] = searchPanelWithMatches();
 
-    signInThroughBrowser($alice)
-        ->click('@masthead-search')
-        ->assertPathContains('/search')
+    openSearchPanel($alice)
         // Filter to a channel, then search a term no message matches, so the
         // zero-result state renders with its channel-scoped escapes.
         ->type('@search-input', 'quokka')
@@ -296,4 +338,17 @@ test('the zero-result state names the active filters and offers both escapes', f
         ->assertPresent('[data-test="search-empty"]')
         ->assertPresent('[data-test="search-clear-filters"]')
         ->assertPresent('[data-test="search-all-channels"]');
+});
+
+test('the panel gives the search back to the conversation list when it closes', function (): void {
+    ['owner' => $alice] = searchPanelWithMatches();
+
+    openSearchPanel($alice)
+        ->type('@search-input', 'quokka')
+        ->wait(0.8)
+        ->assertPresent('[data-test="search-result"]')
+        ->click('@rail-destination-channels')
+        ->assertPresent('[data-test="channels-nav"]')
+        ->assertMissing('[data-test="destination-panel-search"]')
+        ->assertScript(queryParamSettles('nav', null), true);
 });

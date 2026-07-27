@@ -26,7 +26,9 @@ const { stub } = await vi.hoisted(async () => {
 
 vi.mock('@inertiajs/vue3', () => ({
     Link: stub('a'),
+    router: { replace: vi.fn() },
     usePage: () => ({
+        url: '/t/acme/c/general',
         props: { auth: { user: { avatar: null, presence: 'active' } } },
     }),
 }));
@@ -40,9 +42,6 @@ vi.mock('@lucide/vue', () => ({
     Search: stub('svg'),
     Star: stub('svg'),
     UserPlus: stub('svg'),
-}));
-vi.mock('@/actions/App/Http/Controllers/Channels/SearchController', () => ({
-    index: () => ({ url: '/acme/search' }),
 }));
 vi.mock('@/components/AvatarStack.vue', () => ({ default: stub('div') }));
 vi.mock('@/components/PresenceDot.vue', () => ({ default: stub('div') }));
@@ -63,7 +62,12 @@ vi.mock('@/components/ui/dropdown-menu', () => ({
     DropdownMenuSeparator: stub('div'),
     DropdownMenuTrigger: stub('div'),
 }));
-vi.mock('@/components/ui/sidebar', () => ({ SidebarTrigger: stub('button') }));
+// The masthead's search glyph opens the dock's Search destination, so it reads
+// the dock's own open state — a context only `SidebarProvider` supplies.
+vi.mock('@/components/ui/sidebar', () => ({
+    SidebarTrigger: stub('button'),
+    useSidebar: () => ({ open: { value: true }, setOpen: vi.fn() }),
+}));
 vi.mock('@/components/ui/tooltip', () => ({
     Tooltip: stub('div'),
     TooltipTrigger: stub('div'),
@@ -106,7 +110,6 @@ async function render(connectionPill: ConnectionPill): Promise<string> {
         render: () =>
             h(ChannelMasthead, {
                 channel: channel(),
-                teamSlug: 'acme',
                 members: [],
                 presenceFor: () => 'active' as const,
                 title: 'general',

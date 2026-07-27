@@ -73,7 +73,7 @@ test('the audit export period is picked from a calendar and validates its order'
         ->assertNoAccessibilityIssues();
 });
 
-test('the search custom range picks its bounds from a calendar', function (): void {
+test('the search panel custom range picks its bounds from a calendar', function (): void {
     ['owner' => $alice, 'channel' => $channel, 'member' => $bob] = browserTeamWithChannel();
 
     Message::factory()->create([
@@ -82,9 +82,12 @@ test('the search custom range picks its bounds from a calendar', function (): vo
         'body' => 'the quokka danced at dawn today',
     ]);
 
+    // Opened from the rail rather than the masthead: the rail flips the panel
+    // itself instead of going through the URL, which is the steady way in this
+    // soon after a login (#964).
     signInThroughBrowser($alice)
-        ->click('@masthead-search')
-        ->assertPathContains('/search')
+        ->click('@rail-destination-search')
+        ->assertPresent('[data-test="destination-panel-search"]')
         ->type('@search-input', 'quokka')
         ->wait(0.8)
         ->assertPresent('[data-test="search-result"]')
