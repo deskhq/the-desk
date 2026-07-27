@@ -296,11 +296,12 @@ it('checks once per process rather than once per test', function (): void {
 // that script.
 it('runs from the browser suite bootstrap, whichever way the suite is started', function (): void {
     $bootstrap = (string) file_get_contents(dirname(__DIR__).'/Pest.php');
-    $browserChain = strpos($bootstrap, "->group('browser')");
 
-    expect($browserChain)->not->toBeFalse()
-        ->and(substr($bootstrap, $browserChain))
-        ->toContain('ReverbGuard::ensureReverbIsRunning(base_path())');
+    // Narrowed to the chain itself, so a guard call anywhere else in the
+    // bootstrap cannot stand in for one the browser suite actually runs.
+    $browserChain = (string) strstr((string) strstr($bootstrap, "->group('browser')"), "->in('Browser');", before_needle: true);
+
+    expect($browserChain)->toContain('ReverbGuard::ensureReverbIsRunning(base_path())');
 });
 
 // Also checked ahead of paratest, not only inside it: aborting a worker surfaces
