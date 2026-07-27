@@ -141,6 +141,13 @@ to remember: the suite compares `public/build/manifest.json` against everything
 Vite bundles and stops the run with that command if the bundle is behind, rather
 than letting a stale bundle fail the tests as though the app were broken.
 
+The live Reverb server gets the same treatment. Running the PHP gate can leave
+the `reverb` container stopped, and with no WebSocket server the realtime tests
+fail one by one on the message each was waiting for, which reads as a
+broadcasting regression rather than as the absent server it is. The suite
+therefore probes the endpoint once before the first test and stops with
+`./vendor/bin/sail up -d reverb` if nothing answers.
+
 ### Local SSO providers (OIDC & LDAP)
 
 Two opt-in dev containers let you exercise the single sign-on flows against real

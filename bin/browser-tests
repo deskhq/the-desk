@@ -50,6 +50,20 @@ assert_fresh_bundle() {
         "$REPO_ROOT/tests/Support/StaleBundleGuard.php" "${1:-$REPO_ROOT}"
 }
 
+# Refuse to run without a Reverb server: the realtime tests subscribe real Echo
+# clients to one, so a stopped container fails them test by test on the message
+# each was waiting for, which reads as a broadcasting regression rather than as
+# the missing WebSocket server it is (#954). Running the PHP gate is enough to
+# leave the container stopped, and nothing else reports that.
+#
+# Checked here as well as in tests/Pest.php for the same reason as the bundle
+# above: this is the entry point `composer test:browser` and CI come through,
+# and failing before the fork prints one message instead of a worker crash.
+assert_reverb_is_running() {
+    php -r 'require $argv[1]; Tests\Support\ReverbGuard::ensureReverbIsRunning($argv[2]);' \
+        "$REPO_ROOT/tests/Support/ReverbGuard.php" "${1:-$REPO_ROOT}"
+}
+
 # The number of CPUs visible to this machine or container. Falls back to 0 —
 # which worker_count floors — rather than guessing on an exotic host.
 detect_cores() {
@@ -109,6 +123,7 @@ main() {
     cd "$REPO_ROOT"
 
     assert_fresh_bundle
+    assert_reverb_is_running
 
     build_pest_command "$@"
     printf '==> %s\n' "${PEST_COMMAND[*]}" >&2
