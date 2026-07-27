@@ -37,14 +37,6 @@ test('the custom emoji settings page passes the axe audit in either theme', func
         ->assertPresent('[data-test="emoji-remove-party-parrot"]')
         ->assertNoAccessibilityIssues();
 
-    $page->script(<<<'JS'
-    () => {
-        localStorage.setItem('appearance', 'dark');
-        document.documentElement.classList.add('dark');
-        document.documentElement.style.colorScheme = 'dark';
-    }
-    JS);
-
-    $page->wait(0.5)
+    switchToDarkTheme($page)
         ->assertNoAccessibilityIssues();
 });

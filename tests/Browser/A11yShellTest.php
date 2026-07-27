@@ -39,17 +39,7 @@ test('the New Direct Message palette has no serious accessibility violations, li
         ->wait(0.5)
         ->assertNoAccessibilityIssues();
 
-    // Re-audit against the dark palette; persisting to localStorage first keeps
-    // the appearance controller from re-resolving 'system' back to light.
-    $page->script(<<<'JS'
-    () => {
-        localStorage.setItem('appearance', 'dark');
-        document.documentElement.classList.add('dark');
-        document.documentElement.style.colorScheme = 'dark';
-    }
-    JS);
-
-    $page->wait(0.5)
+    switchToDarkTheme($page)
         ->assertNoAccessibilityIssues();
 });
 
@@ -217,34 +207,28 @@ test('an open destination panel has no serious accessibility violations, light o
         ->wait(0.5)
         ->assertNoAccessibilityIssues();
 
-    $page->script(<<<'JS'
-    () => {
-        localStorage.setItem('appearance', 'dark');
-        document.documentElement.classList.add('dark');
-        document.documentElement.style.colorScheme = 'dark';
-    }
-    JS);
-
-    $page->wait(0.5)
+    switchToDarkTheme($page)
         ->assertNoAccessibilityIssues();
 });
 
-test('the mobile tab bar has no serious accessibility violations', function (): void {
+test('the mobile tab bar has no serious accessibility violations, light or dark', function (): void {
     ['owner' => $alice] = browserTeamWithChannel();
 
-    // Light theme only, deliberately: this is the first audit of the drawer, and
-    // it turned up four *pre-existing* dark-theme contrast misses on rows that
-    // predate the tab bar (the jump-to field and the section toggles, all
-    // `--muted-foreground` under 4.5:1). Fixing those means moving the dark
-    // palette's token — see #946, which owns that sweep and re-enables the dark
-    // half here. The tab bar's own labels dodge the token entirely, so they
-    // clear AA on both themes today.
-    signInThroughBrowser($alice)
+    $page = signInThroughBrowser($alice)
         ->resize(390, 844)
         ->click('@sidebar-toggle')
         ->assertPresent('@navigation-tab-bar')
         ->assertAttribute('nav[data-test="navigation-tab-bar"]', 'aria-label', 'Destinations')
         ->assertAttribute('[data-test="tab-destination-channels"]', 'aria-current', 'true')
+        // The `--muted-foreground` rows the drawer inherited from the desktop
+        // sidebar, pinned visible so the audit below provably reaches them —
+        // they are what #946 was opened over.
+        ->assertVisible('@quick-switcher-trigger')
+        ->assertVisible('@section-toggle-channels')
+        ->assertVisible('@section-toggle-direct')
         ->wait(0.5)
+        ->assertNoAccessibilityIssues();
+
+    switchToDarkTheme($page)
         ->assertNoAccessibilityIssues();
 });
