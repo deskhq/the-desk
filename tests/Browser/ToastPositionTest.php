@@ -120,6 +120,32 @@ test('the rail tracks the thread panel opening and closing', function (): void {
     $page->assertScript(browserRailRightInset(), '');
 });
 
+test('the slab is separated by its shadow, since it carries no border', function (): void {
+    $alice = User::factory()->create();
+
+    $page = signInThroughBrowser($alice)
+        ->navigate('/settings/profile')
+        ->assertSee('Profile');
+
+    // Saving flashes a success toast from the server.
+    $page->click('[data-test="update-profile-button"]')
+        ->assertPresent('[data-test="toast"]');
+
+    // The slab has no border by design, so a shadow that resolves to
+    // transparent leaves it floating with nothing separating it from the page.
+    // `shadow-[…_var(--shadow-ink)]` did exactly that, silently (#978).
+    $page->assertScript(<<<'JS'
+    (() => {
+        const style = getComputedStyle(document.querySelector('[data-test="toast"]'));
+        const shadow = style.boxShadow;
+
+        return style.borderTopWidth === '0px'
+            && shadow !== 'none'
+            && /rgba?\([^)]*(?:,\s*0?\.\d+)\)\s+0px\s+20px\s+48px/.test(shadow);
+    })()
+    JS, true);
+});
+
 test('the rail falls back to the viewport corner on a page with no conversation pane', function (): void {
     $alice = User::factory()->create();
 
