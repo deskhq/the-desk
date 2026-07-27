@@ -198,10 +198,7 @@ test('from md up the search icon opens the dock panel and the palette stays a ce
         ->keys('@quick-switcher-input', ['Escape'])
         ->assertNotPresent('@quick-switcher-input')
         // The masthead icon keeps its desktop meaning, which is now the dock's
-        // Search destination rather than a page of its own. Reaching it from a
-        // page-level control needs the shell's first-paint visits to have
-        // settled, or the click is swallowed outright — see #964.
-        ->wait(0.5)
+        // Search destination rather than a page of its own.
         ->click('@masthead-search')
         ->assertPresent('[data-test="destination-panel-search"]')
         ->assertPathIs(browserChannelUrl($team, $channel));

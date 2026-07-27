@@ -1,14 +1,12 @@
 import { describe, expect, it, vi } from 'vitest';
 import { effectScope, nextTick, reactive } from 'vue';
 
-const { replace } = vi.hoisted(() => ({ replace: vi.fn() }));
+const { pinUrl } = vi.hoisted(() => ({ pinUrl: vi.fn() }));
 
 const page = reactive({ url: '/t/acme/c/general' });
 
-vi.mock('@inertiajs/vue3', () => ({
-    router: { replace },
-    usePage: () => page,
-}));
+vi.mock('@inertiajs/vue3', () => ({ usePage: () => page }));
+vi.mock('@/lib/pinUrl', () => ({ pinUrl }));
 
 import {
     destinationFromUrl,
@@ -18,7 +16,7 @@ import {
 import type { NavPanel } from '@/composables/useNavPanel';
 
 function harness(url = '/t/acme/c/general') {
-    replace.mockClear();
+    pinUrl.mockClear();
     page.url = url;
 
     const scope = effectScope();
@@ -99,11 +97,7 @@ describe('useNavPanel', () => {
         panel.openDestination('threads');
 
         expect(panel.activeDestination.value).toBe('threads');
-        expect(replace).toHaveBeenCalledWith({
-            url: '/t/acme/c/general?nav=threads',
-            preserveState: true,
-            preserveScroll: true,
-        });
+        expect(pinUrl).toHaveBeenCalledWith('/t/acme/c/general?nav=threads');
 
         scope.stop();
     });
@@ -113,7 +107,7 @@ describe('useNavPanel', () => {
 
         panel.openDestination('search');
 
-        expect(replace).not.toHaveBeenCalled();
+        expect(pinUrl).not.toHaveBeenCalled();
 
         scope.stop();
     });

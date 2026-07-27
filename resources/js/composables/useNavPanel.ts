@@ -1,6 +1,7 @@
-import { router, usePage } from '@inertiajs/vue3';
+import { usePage } from '@inertiajs/vue3';
 import { ref, watch } from 'vue';
 import type { Ref } from 'vue';
+import { pinUrl } from '@/lib/pinUrl';
 
 /**
  * The dock's pinned destinations, in the order the rail and the tab bar list
@@ -75,11 +76,11 @@ export interface NavPanel {
  * that omits a destination's props cannot blank an open panel, and `?nav=` on
  * the current shell route makes it deep-linkable and reload-proof.
  *
- * Switching is a client-side visit ({@see router.replace}) rather than a server
- * round trip — the destination itself carries no props yet, and a destination
- * that needs data reloads exactly the props it needs on top of this. The
- * watcher adopts the URL's destination on history traversal, and returns the
- * panel to the conversation list when a plain channel link navigates away.
+ * Switching is a client-side visit ({@see pinUrl}) rather than a server round
+ * trip — the destination itself carries no props yet, and a destination that
+ * needs data reloads exactly the props it needs on top of this. The watcher
+ * adopts the URL's destination on history traversal, and returns the panel to
+ * the conversation list when a plain channel link navigates away.
  */
 export function useNavPanel(): NavPanel {
     const page = usePage();
@@ -92,11 +93,7 @@ export function useNavPanel(): NavPanel {
 
         activeDestination.value = destination;
 
-        router.replace({
-            url: urlForDestination(page.url, destination),
-            preserveState: true,
-            preserveScroll: true,
-        });
+        pinUrl(urlForDestination(page.url, destination));
     }
 
     function isActive(destination: NavDestination): boolean {

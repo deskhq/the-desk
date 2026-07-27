@@ -38,6 +38,7 @@ import { useUserGroups } from '@/composables/useUserGroups';
 import { formatDateTime } from '@/lib/datetime';
 import { renderMessageBody } from '@/lib/messageBody';
 import { rankPeople } from '@/lib/peopleDirectory';
+import { pinUrl } from '@/lib/pinUrl';
 import { presenceLabelKey } from '@/lib/presence';
 import type { RenderedPresence } from '@/lib/presence';
 import { urlForSearchParams } from '@/lib/searchPanel';
@@ -235,14 +236,12 @@ function selectMessage(result: MessageSearchResult): void {
 function seeAllResults(): void {
     open.value = false;
 
-    router.replace({
-        url: urlForSearchParams(
+    pinUrl(
+        urlForSearchParams(
             urlForDestination(page.url, 'search'),
             filtersToParams(parsedFilters.value),
         ),
-        preserveState: true,
-        preserveScroll: true,
-    });
+    );
 
     if (isMobile.value) {
         setOpenMobile(true);

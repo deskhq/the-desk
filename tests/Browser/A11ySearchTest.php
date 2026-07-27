@@ -38,9 +38,8 @@ function searchPanelWithMatches(): array
 
 /**
  * Sign in and open the Search destination from the rail. Opening it this way is a
- * client-side panel swap, so the browser session survives (a full `navigate()`
- * would drop it), and the rail flips the panel itself rather than waiting on the
- * URL — which is what makes it the steady way in straight after a login (#964).
+ * client-side panel swap, so the browser session survives — a full `navigate()`
+ * would drop it.
  */
 function openSearchPanel(User $user): AwaitableWebpage
 {
@@ -94,11 +93,11 @@ test('the search panel highlights matches, groups them by date, and has no serio
 test('the masthead glyph opens the search destination beside the channel it was pressed from', function (): void {
     ['owner' => $alice, 'team' => $team, 'channel' => $channel] = searchPanelWithMatches();
 
-    // The dock's own trigger for search from inside a conversation. It reaches
-    // the panel through the URL rather than flipping it directly, so it needs
-    // the shell to have finished its first-paint visits — see #964.
+    // The dock's own trigger for search from inside a conversation, pressed the
+    // instant the post-login redirect lands: it reaches the panel through the
+    // URL, and that write used to be swallowed outright by the shell's own
+    // first-paint visits (#964).
     signInThroughBrowser($alice)
-        ->wait(0.5)
         ->click('@masthead-search')
         ->assertPresent('[data-test="destination-panel-search"]')
         // The panel took the dock's column; the conversation it was pressed from
