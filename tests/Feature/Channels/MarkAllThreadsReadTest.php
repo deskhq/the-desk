@@ -106,6 +106,23 @@ test('marking all read advances the pointer on every unread followed thread', fu
         ->toBe(collect([$first->id, $second->id])->sort()->values()->all());
 });
 
+test('marking all read points past a deleted tail', function (): void {
+    [$owner, $team, $general] = markAllSetup();
+    $alice = markAllMember($team, $general);
+
+    $root = markAllThread($general, $owner, $alice);
+    // A reply deleted after it landed still moved the thread on, so the pointer
+    // has to reach it — stopping at the last live reply would leave the thread
+    // unread forever.
+    $deleted = Message::factory()->for($general)->for($alice)->inThread($root)->create(['deleted_at' => now()]);
+
+    markAllRead($owner, $team);
+
+    expect(ThreadRead::where('user_id', $owner->id)->where('thread_root_id', $root->id)->value('last_read_reply_id'))
+        ->toBe($deleted->id)
+        ->and(markAllPanelProps($owner, $team)['hasUnreadThreads'])->toBeFalse();
+});
+
 test('marking all read leaves a thread in a channel the viewer cannot see alone', function (): void {
     [$owner, $team] = markAllSetup();
 

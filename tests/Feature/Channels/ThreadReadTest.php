@@ -69,7 +69,8 @@ test('a followed thread with an unseen reply raises the root unread flag', funct
     $payload = rootPayload($owner, $team, $general, $root);
 
     expect($payload['threadFollowed'])->toBeTrue()
-        ->and($payload['threadUnread'])->toBeTrue();
+        ->and($payload['threadUnread'])->toBeTrue()
+        ->and($payload['threadUnreadReplyCount'])->toBe(1);
 });
 
 test('a non-participant who was never mentioned does not follow the thread', function (): void {
@@ -83,7 +84,10 @@ test('a non-participant who was never mentioned does not follow the thread', fun
     $payload = rootPayload($bob, $team, $general, $root);
 
     expect($payload['threadFollowed'])->toBeFalse()
-        ->and($payload['threadUnread'])->toBeFalse();
+        ->and($payload['threadUnread'])->toBeFalse()
+        // A thread nobody follows has nothing "new" to report, whatever the
+        // replies say.
+        ->and($payload['threadUnreadReplyCount'])->toBe(0);
 });
 
 test('replying in a thread makes the user a follower', function (): void {

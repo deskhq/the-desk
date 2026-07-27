@@ -3,11 +3,14 @@
 use App\Actions\Channels\MarkThreadRead;
 use App\Actions\Channels\OpenDirectMessage;
 use App\Actions\Teams\CreateTeam;
+use App\Enums\MessageType;
 use App\Enums\NotificationLevel;
 use App\Enums\TeamRole;
 use App\Enums\ThreadInboxFilter;
 use App\Models\Channel;
 use App\Models\Message;
+use App\Models\Poll;
+use App\Models\PollVote;
 use App\Models\Team;
 use App\Models\ThreadRead;
 use App\Models\User;
@@ -389,6 +392,23 @@ test('a thread reports how many replies are new to the viewer', function (): voi
     app(MarkThreadRead::class)->handle($root, $owner);
 
     expect(inboxRows($owner, $team)[0]['root']['threadUnreadReplyCount'])->toBe(0);
+});
+
+test('a card keeps the viewer own selection on an anonymous poll root', function (): void {
+    [$owner, $team, $general] = inboxSetup();
+    $alice = inboxMember($team, $general);
+
+    $root = inboxRoot($general, $owner, attributes: ['type' => MessageType::Poll]);
+    $poll = Poll::factory()->anonymous()->withOptions(['Yes', 'No'])->create([
+        'message_id' => $root->id,
+    ]);
+    PollVote::factory()->for($poll->options->first(), 'option')->for($owner)->create();
+    Message::factory()->for($general)->for($alice)->inThread($root)->create();
+
+    // An anonymous poll hides its roster, so the only way the card can show the
+    // viewer their own vote is the viewer travelling into the payload.
+    expect(inboxRows($owner, $team)[0]['root']['poll']['options'][0]['votedByViewer'])
+        ->toBeTrue();
 });
 
 test('a direct message thread names the viewer counterpart', function (): void {

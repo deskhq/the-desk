@@ -41,7 +41,9 @@ class ThreadInboxItemData extends Data
             : null;
 
         return new self(
-            root: MessageData::fromMessage($message),
+            // The viewer rides along so a root that is an anonymous poll still
+            // carries their own selection, which its hidden roster cannot convey.
+            root: MessageData::fromMessage($message, $viewer->id),
             channelName: $channel->displayNameFor($viewer),
             channelSlug: $channel->slug,
             isDirectMessage: $channel->isDirectMessage(),
