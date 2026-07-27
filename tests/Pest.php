@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Tests\Support\ReverbGuard;
 use Tests\Support\StaleBundleGuard;
 use Tests\TestCase;
 
@@ -100,6 +101,12 @@ pest()->extend(TestCase::class)->in('Unit/ReverbSecretGuidanceTest.php');
 | bundle (issue #949). StaleBundleGuard sweeps the bundled sources once per
 | process and stops the run with the rebuild command instead.
 |
+| The live Reverb server is the other half of that story: without one, every
+| realtime test fails on the message it was waiting for, which reads as a
+| broadcasting regression rather than as the stopped container it is — and
+| running the PHP gate is enough to leave one behind (issue #954). ReverbGuard
+| probes it once per process and names it.
+|
 */
 
 pest()->extend(TestCase::class)
@@ -107,6 +114,7 @@ pest()->extend(TestCase::class)
     ->group('browser')
     ->beforeEach(function (): void {
         StaleBundleGuard::ensureFreshBundle(base_path());
+        ReverbGuard::ensureReverbIsRunning(base_path());
 
         useReverbForBrowserTests();
     })
