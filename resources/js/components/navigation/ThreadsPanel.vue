@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { InfiniteScroll, Link, router, usePage } from '@inertiajs/vue3';
-import { computed, onMounted } from 'vue';
+import { computed, onBeforeUnmount, onMounted } from 'vue';
 import { show } from '@/actions/App/Http/Controllers/Channels/ChannelController';
 import { markAllRead } from '@/actions/App/Http/Controllers/Channels/ThreadsController';
 import AvatarStack from '@/components/AvatarStack.vue';
@@ -57,6 +57,9 @@ const viewerTimeZone = computed(
     () => page.props.auth.user.timezone ?? undefined,
 );
 
+/** Cancels the inbox request currently in flight, if there is one. */
+let cancelLoad: (() => void) | null = null;
+
 /**
  * Pull the inbox for a filter, replacing rather than appending the pages already
  * merged in.
@@ -76,9 +79,22 @@ function load(filter: ThreadInboxFilter): void {
             preserveState: true,
             preserveScroll: true,
             replace: true,
+            onCancelToken: (token) => {
+                cancelLoad = token.cancel;
+            },
+            onFinish: () => {
+                cancelLoad = null;
+            },
         },
     );
 }
+
+// A panel the viewer has already left must not be allowed to finish: this visit
+// pins `?nav=threads` on the URL, and landing after a switch back to the
+// conversation list would drag the destination param back with it.
+onBeforeUnmount(() => {
+    cancelLoad?.();
+});
 
 // Opening the destination is a client-side visit, so the panel arrives without
 // its props and fetches them itself. A deep link (`?nav=threads`) already carries

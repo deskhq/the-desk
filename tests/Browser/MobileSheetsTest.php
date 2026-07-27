@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Enums\AppLocale;
+use App\Models\ScheduledMessage;
 
 /**
  * Dialogs below the `md` breakpoint (#772).
@@ -342,16 +343,16 @@ test('dragging the grab handle down throws the sheet away', function (): void {
 test('a detail sheet stands at 85% of the screen whatever it holds', function (): void {
     ['owner' => $alice, 'team' => $team, 'channel' => $channel] = browserTeamWithChannel();
 
-    // Reminders is a list that shortens as it is worked through; pinning it to
-    // the epic's 85% keeps it from resizing under the thumb between taps. Its
-    // dock row left for the tab bar's Reminders destination (#937), so the
-    // quick switcher is now the entry point that opens this dialog.
+    ScheduledMessage::factory()->for($channel)->for($alice, 'user')->create();
+
+    // Scheduled messages are a list that shortens as it is worked through;
+    // pinning it to the epic's 85% keeps it from resizing under the thumb
+    // between taps. It stands in for the reminders list, which left the dialog
+    // set entirely for the Reminders destination's panel (#940).
     signInThroughBrowser($alice)
         ->resize(390, 844)
         ->navigate(browserChannelUrl($team, $channel))
-        ->click('@sidebar-toggle')
-        ->click('@quick-switcher-trigger')
-        ->click('@quick-switcher-reminders')
+        ->click('@scheduled-trigger')
         ->assertScript(openSurfaceIsASheet(), true)
         ->assertScript(<<<'JS'
         (() => {

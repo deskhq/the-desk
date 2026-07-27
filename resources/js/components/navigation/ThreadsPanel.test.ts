@@ -347,6 +347,45 @@ describe('mark all read', () => {
     });
 });
 
+describe('leaving the destination', () => {
+    it('cancels an inbox request still in flight', () => {
+        // The request pins `?nav=threads` on the URL, so one that lands after
+        // the viewer has switched back drags the destination param with it —
+        // the panel then reads as the conversation list at `?nav=threads`.
+        const cancel = vi.fn();
+
+        mountPanel();
+
+        const options = get.mock.calls[0][2] as {
+            onCancelToken: (token: { cancel: () => void }) => void;
+        };
+        options.onCancelToken({ cancel });
+
+        app?.unmount();
+        app = null;
+
+        expect(cancel).toHaveBeenCalledTimes(1);
+    });
+
+    it('leaves a finished request alone', () => {
+        const cancel = vi.fn();
+
+        mountPanel();
+
+        const options = get.mock.calls[0][2] as {
+            onCancelToken: (token: { cancel: () => void }) => void;
+            onFinish: () => void;
+        };
+        options.onCancelToken({ cancel });
+        options.onFinish();
+
+        app?.unmount();
+        app = null;
+
+        expect(cancel).not.toHaveBeenCalled();
+    });
+});
+
 describe('the empty state', () => {
     it('says the viewer is caught up under the unread pill', () => {
         withInbox([], 0);

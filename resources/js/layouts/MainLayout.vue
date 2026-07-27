@@ -28,7 +28,6 @@ import {
 } from '@/actions/App/Http/Controllers/Channels/ChannelSectionController';
 import {
     destroy as destroyReminder,
-    destroyAll as clearRemindersAction,
     store as storeReminder,
 } from '@/actions/App/Http/Controllers/Channels/MessageReminderController';
 import { update as updateSidebarSections } from '@/actions/App/Http/Controllers/SidebarSectionController';
@@ -46,6 +45,7 @@ import DestinationPanel from '@/components/navigation/DestinationPanel.vue';
 import NavigationRail from '@/components/navigation/NavigationRail.vue';
 import NavigationTabBar from '@/components/navigation/NavigationTabBar.vue';
 import NewMenu from '@/components/navigation/NewMenu.vue';
+import RemindersPanel from '@/components/navigation/RemindersPanel.vue';
 import ThreadsPanel from '@/components/navigation/ThreadsPanel.vue';
 import WorkspaceSheet from '@/components/navigation/WorkspaceSheet.vue';
 import NavUser from '@/components/NavUser.vue';
@@ -54,7 +54,6 @@ import OnboardingTour from '@/components/OnboardingTour.vue';
 import PendingInvitationsModal from '@/components/PendingInvitationsModal.vue';
 import QuickSwitcher from '@/components/QuickSwitcher.vue';
 import ReminderNudge from '@/components/ReminderNudge.vue';
-import RemindersDialog from '@/components/RemindersDialog.vue';
 import SettingsNav from '@/components/SettingsNav.vue';
 import { Button } from '@/components/ui/button';
 import {
@@ -581,14 +580,13 @@ const { isOpen: dndPauseDialogOpen } = useDndPauseDialog();
 const { isOpen: installDialogOpen } = useInstallDialog();
 
 /**
- * The viewer's still-pending reminders in this team, feeding the "Reminders"
- * list and its sidebar count; the due-and-unacknowledged ones drive the nudges.
+ * The reminders that have come due and await acknowledgement, driving the
+ * nudges. The still-pending ones belong to the Reminders destination, which
+ * reads them from the same shared props itself.
  */
-const reminders = computed<MessageReminder[]>(() => page.props.reminders ?? []);
 const firedReminders = computed<MessageReminder[]>(
     () => page.props.firedReminders ?? [],
 );
-const remindersDialogOpen = ref(false);
 
 /**
  * Common reload options for a reminder mutation: leave the page in place and
@@ -649,30 +647,6 @@ function clearReminder(
     );
 }
 
-/** Clear every pending reminder in the current team at once. */
-function clearAllReminders(): void {
-    if (!currentTeam.value) {
-        return;
-    }
-
-    router.delete(
-        clearRemindersAction({ team: currentTeam.value.slug }).url,
-        reminderReloadOptions,
-    );
-}
-
-/**
- * The dialog rows only carry the reminder id; resolve the team from the shared
- * prop (all listed reminders belong to the current team).
- */
-function clearReminderById(id: string): void {
-    const reminder = reminders.value.find((entry) => entry.id === id);
-
-    if (reminder) {
-        clearReminder(reminder);
-    }
-}
-
 /**
  * Jump `delta` channels along the sidebar list from the active one, wrapping at
  * either end. Does nothing until a team and its channels are loaded.
@@ -700,7 +674,7 @@ useKeyboardShortcuts({
     'show-shortcuts': () => toggleShortcuts(),
 });
 
-const { timezone, syncDetectedTimezone } = useTimezone();
+const { syncDetectedTimezone } = useTimezone();
 
 /**
  * Which edge the dock sits on, read from the shared user prop so the redirect
@@ -1485,6 +1459,9 @@ onMounted(() => {
                         <ThreadsPanel
                             v-else-if="activeDestination === 'threads'"
                         />
+                        <RemindersPanel
+                            v-else-if="activeDestination === 'reminders'"
+                        />
                         <DestinationPanel
                             v-else
                             :destination="activeDestination"
@@ -1561,7 +1538,7 @@ onMounted(() => {
             :team-slug="currentTeam.slug"
             :presence-for="presenceFor"
             :is-dnd-for="isDndFor"
-            @open-reminders="remindersDialogOpen = true"
+            @open-reminders="openDestination('reminders')"
         />
 
         <NewDirectMessageModal
@@ -1579,15 +1556,6 @@ onMounted(() => {
         <InstallAppDialog v-model:open="installDialogOpen" />
 
         <DndPauseDialog v-model:open="dndPauseDialogOpen" />
-
-        <RemindersDialog
-            v-model:open="remindersDialogOpen"
-            :reminders="reminders"
-            :timezone="timezone"
-            @open="openReminder"
-            @clear="clearReminderById"
-            @clear-all="clearAllReminders"
-        />
 
         <!-- Due reminders slide in, stacked, in the bottom-right corner. The
              wrapper ignores pointer events so it never blocks the app behind

@@ -64,7 +64,7 @@ const props = defineProps<{
 const open = defineModel<boolean>('open', { default: false });
 
 const emit = defineEmits<{
-    /** The viewer picked the "Reminders" action; the layout owns the dialog. */
+    /** The viewer picked the "Reminders" action; the layout opens its panel. */
     openReminders: [];
 }>();
 
