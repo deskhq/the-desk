@@ -38,8 +38,13 @@ export function useSidebarBadges(): void {
     );
 
     // reload defaults to preserving scroll and page state; it re-evaluates the
-    // shared `channels` prop to recompute every badge count, plus the aggregate
-    // `hasUnreadThreads` flag behind the sidebar's Threads dot. A teammate's
+    // shared `channels` prop to recompute every badge count, the aggregate
+    // `hasUnreadThreads` flag behind the sidebar's Threads dot, and `teams` —
+    // whose per-workspace counts are the cross-workspace dots on the rail. The
+    // last one rides along rather than getting its own signal: no per-member
+    // fanout of MessageSent exists, so a workspace the viewer is not in
+    // refreshes on the next trigger any of their own channels raises. A
+    // teammate's
     // message — or another of the viewer's own devices — decides when it fires,
     // so it runs as a background visit ({@see backgroundVisit}); otherwise an
     // arrival landing mid-navigation cancels the visit the user actually asked
@@ -48,7 +53,7 @@ export function useSidebarBadges(): void {
         () =>
             router.reload({
                 ...backgroundVisit,
-                only: ['channels', 'hasUnreadThreads'],
+                only: ['channels', 'hasUnreadThreads', 'teams'],
             }),
         { delay: REFRESH_DEBOUNCE_MS },
     );

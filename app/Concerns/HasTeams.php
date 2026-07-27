@@ -8,6 +8,7 @@ use App\Enums\TeamPermission;
 use App\Enums\TeamRole;
 use App\Models\Membership;
 use App\Models\Team;
+use App\Support\WorkspaceUnread;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -135,17 +136,26 @@ trait HasTeams
      */
     public function toUserTeams(bool $includeCurrent = false): Collection
     {
+        // One grouped query answers every membership's unread standing, so the
+        // workspace list stays a fixed query cost however many workspaces the
+        // user belongs to ({@see WorkspaceUnread}).
+        $unread = WorkspaceUnread::forUser($this);
+
         return $this->teams()
             ->get()
-            ->map(fn (Team $team) => ! $includeCurrent && $this->isCurrentTeam($team) ? null : $this->toUserTeam($team))
+            ->map(fn (Team $team) => ! $includeCurrent && $this->isCurrentTeam($team)
+                ? null
+                : $this->toUserTeam($team, $unread[$team->id] ?? null))
             ->filter()
             ->values();
     }
 
     /**
      * Get the user's team as a UserTeam object.
+     *
+     * @param  array{unread: int, mention: int}|null  $unread  This workspace's unread standing, when the caller has already resolved it.
      */
-    public function toUserTeam(Team $team): UserTeam
+    public function toUserTeam(Team $team, ?array $unread = null): UserTeam
     {
         $role = $this->teamRole($team);
 
@@ -158,6 +168,8 @@ trait HasTeams
             roleLabel: $role?->label(),
             membersCount: $team->members()->count(),
             isCurrent: $this->isCurrentTeam($team),
+            unreadCount: $unread['unread'] ?? 0,
+            mentionCount: $unread['mention'] ?? 0,
         );
     }
 
