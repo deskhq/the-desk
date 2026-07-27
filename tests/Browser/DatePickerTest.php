@@ -16,7 +16,7 @@ test('the audit export period is picked from a calendar and validates its order'
     // Reached through the settings sidebar — client-side Inertia visits, so the
     // browser session survives (a full navigate() would drop it).
     $page = signInThroughBrowser($alice)
-        ->click('@sidebar-menu-button')
+        ->click('@rail-destination-you')
         ->assertPresent('@settings-menu-item')
         // Let the dropdown settle past its open/pointer-grace window, otherwise
         // the item click can be swallowed and never navigate.

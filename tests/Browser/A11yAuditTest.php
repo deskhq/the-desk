@@ -60,7 +60,7 @@ test('an open dropdown menu has no serious accessibility violations', function (
     // with it, or the skip link, sidebar and composer stay keyboard-reachable
     // from inside an ARIA-hidden region (`aria-hidden-focus`, #730).
     signInThroughBrowser($alice)
-        ->click('@sidebar-menu-button')
+        ->click('@rail-destination-you')
         ->assertPresent('@settings-menu-item')
         // Let the menu's entrance transition settle before axe reads the DOM.
         ->wait(0.5)

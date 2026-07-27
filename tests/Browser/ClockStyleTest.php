@@ -25,7 +25,7 @@ test('a user pins a 24-hour clock and the quiet-hours bounds follow it', functio
     ])->save();
 
     signInThroughBrowser($alice)
-        ->click('@sidebar-menu-button')
+        ->click('@rail-destination-you')
         ->assertPresent('@settings-menu-item')
         // Let the dropdown settle past its open/pointer-grace window.
         ->wait(0.5)

@@ -13,7 +13,7 @@ test('a user moves the dock to the right edge and it applies live', function ():
     signInThroughBrowser($alice)
         // The dock starts on the left.
         ->assertPresent('[data-slot="sidebar"][data-side="left"]')
-        ->click('@sidebar-menu-button')
+        ->click('@rail-destination-you')
         ->assertPresent('@settings-menu-item')
         // Let the dropdown settle past its open/pointer-grace window.
         ->wait(0.5)

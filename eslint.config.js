@@ -228,8 +228,6 @@ export default defineConfigWithVueTs(
             'resources/js/components/MessageComposer.vue',
             'resources/js/components/MessageList.vue',
             'resources/js/components/QuickSwitcher.vue',
-            'resources/js/components/UserMenuContent.vue',
-            'resources/js/components/UserMenuSheet.vue',
             'resources/js/components/UserStatusDialog.vue',
             'resources/js/composables/useAttachmentUploads.test.ts',
             'resources/js/composables/useMessageActions.test.ts',

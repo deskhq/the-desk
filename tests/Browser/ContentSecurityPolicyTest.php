@@ -36,7 +36,7 @@ test('the app runs under an enforcing content security policy', function (): voi
     // because 'strict-dynamic' extends trust to it. This is the exact path a
     // nonce-only script-src would break.
     $violations = $page
-        ->click('@sidebar-menu-button')
+        ->click('@rail-destination-you')
         ->assertPresent('@settings-menu-item')
         // Let the dropdown settle past its open/pointer-grace window, otherwise
         // the item click can be swallowed and never navigate.

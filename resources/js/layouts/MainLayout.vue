@@ -41,15 +41,14 @@ import InstallAppCard from '@/components/InstallAppCard.vue';
 import InstallAppDialog from '@/components/InstallAppDialog.vue';
 import InviteMemberModal from '@/components/InviteMemberModal.vue';
 import KeyboardShortcutsModal from '@/components/KeyboardShortcutsModal.vue';
-import DestinationPanel from '@/components/navigation/DestinationPanel.vue';
 import NavigationRail from '@/components/navigation/NavigationRail.vue';
 import NavigationTabBar from '@/components/navigation/NavigationTabBar.vue';
 import NewMenu from '@/components/navigation/NewMenu.vue';
 import RemindersPanel from '@/components/navigation/RemindersPanel.vue';
 import SearchPanel from '@/components/navigation/SearchPanel.vue';
 import ThreadsPanel from '@/components/navigation/ThreadsPanel.vue';
+import UserPanel from '@/components/navigation/UserPanel.vue';
 import WorkspaceSheet from '@/components/navigation/WorkspaceSheet.vue';
-import NavUser from '@/components/NavUser.vue';
 import NewDirectMessageModal from '@/components/NewDirectMessageModal.vue';
 import OnboardingTour from '@/components/OnboardingTour.vue';
 import PendingInvitationsModal from '@/components/PendingInvitationsModal.vue';
@@ -1466,23 +1465,26 @@ onMounted(() => {
                         <SearchPanel
                             v-else-if="activeDestination === 'search'"
                         />
-                        <DestinationPanel
-                            v-else
-                            :destination="activeDestination"
+                        <!-- Every destination now has a panel of its own, so
+                             there is no generic frame left to fall back to. -->
+                        <UserPanel
+                            v-else-if="activeDestination === 'you'"
+                            @invite="inviteOpen = true"
+                            @join="invitationsOpen = true"
                         />
                     </SidebarContent>
 
-                    <SidebarFooter class="border-t border-sidebar-border p-2.5">
-                        <!-- The install card and the update indicator belong to the
-                     conversation list, not to every destination: they are
-                     workspace furniture, and the other panels own their own
-                     footers. `NavUser` stays put until child #6 folds it into
-                     the "You" destination, so this branch keeps a way out. -->
-                        <template v-if="activeDestination === 'channels'">
-                            <InstallAppCard />
-                            <UpdateIndicator />
-                        </template>
-                        <NavUser />
+                    <!-- The install card and the update indicator belong to the
+                         conversation list, not to every destination: they are
+                         workspace furniture, and the other panels own their own
+                         footers. The footer carries nothing else now — the user
+                         chip it used to hold became the "You" destination. -->
+                    <SidebarFooter
+                        v-if="activeDestination === 'channels'"
+                        class="border-t border-sidebar-border p-2.5"
+                    >
+                        <InstallAppCard />
+                        <UpdateIndicator />
                     </SidebarFooter>
 
                     <NavigationTabBar

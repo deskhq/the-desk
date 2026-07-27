@@ -24,16 +24,6 @@ function destinationPanelIsOpen(string $destination): string
     JS;
 }
 
-/**
- * A script resolving once the URL's `nav` param reaches the given destination —
- * `null` for the param being gone. The general form now lives in
- * {@see queryParamSettles()}, which the Threads panel's own filter param reuses.
- */
-function navParamSettles(?string $destination): string
-{
-    return queryParamSettles('nav', $destination);
-}
-
 /** The rendered width of the dock's card, rounded to the nearest pixel. */
 function dockCardWidth(): string
 {
