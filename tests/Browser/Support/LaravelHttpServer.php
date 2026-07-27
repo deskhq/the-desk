@@ -46,12 +46,21 @@ use Throwable;
  * and every assertion that reads a rendered box reports a bogus layout
  * regression instead (issue #944).
  *
- * The single behavioural change is in `start()`: the connection and stream
- * timeouts are raised past any plausible test duration, so the server never
- * closes a connection the browser still considers usable. Everything else is a
- * verbatim copy. Remove this shadow (and its `require` in `tests/Pest.php`) once
- * the plugin makes the timeouts configurable or long-lived upstream;
- * `tests/Unit/BrowserAssetDeliveryTest.php` pins the shadow until then.
+ * There are two behavioural changes, and everything else is a verbatim copy:
+ *
+ * 1. `start()` raises the connection and stream timeouts past any plausible
+ *    test duration, so the server never closes a connection the browser still
+ *    considers usable. This is what fixes the reuse race above.
+ * 2. `withStylesheetRepair()` gives every served document the means to
+ *    re-request a stylesheet it lost anyway. The timeout is not the only way to
+ *    drop one — a CPU-starved CI runner loses assets for reasons this process
+ *    never observes — and no browser retries a stylesheet on its own. The
+ *    retry is automatic rather than opt-in per test, which is what issue #944
+ *    asks for.
+ *
+ * Remove this shadow (and its `require` in `tests/Pest.php`) once the plugin
+ * fixes asset delivery upstream; `tests/Unit/BrowserAssetDeliveryTest.php` pins
+ * the shadow until then.
  *
  * @internal
  *
@@ -350,8 +359,82 @@ final class LaravelHttpServer implements HttpServer
         return new Response(
             $response->getStatusCode(),
             $response->headers->all(), // @phpstan-ignore-line
-            $content,
+            $this->withStylesheetRepair((string) $content, (string) $response->headers->get('Content-Type')),
         );
+    }
+
+    /**
+     * Give every served document the means to re-request a stylesheet it lost.
+     *
+     * Raising the connection timeout above stops this server closing a socket
+     * the browser still wants, which is what drops an asset on a developer
+     * machine. It is not the only way to lose one: on a CPU-starved runner the
+     * request can fail for reasons this process never sees, and the browser
+     * does not retry a stylesheet on its own. So each document carries a small
+     * repair that re-points any `link[rel=stylesheet]` left without a `sheet`
+     * at its own href, which makes the browser fetch it again.
+     *
+     * Re-pointing the existing element rather than appending a new one matters:
+     * the failed `<link>` is the one the page — and any assertion reading the
+     * document — looks at, and a sibling tag would leave it empty forever.
+     *
+     * The `error` listener is the path that carries its weight. It fires while
+     * the document is still loading, so the retry it starts is one more
+     * subresource the `load` event waits for, and a navigation therefore does
+     * not complete until the stylesheet is really there. The later sweeps only
+     * cover a failure that never raised an error at all.
+     */
+    private function withStylesheetRepair(string $content, string $contentType): string
+    {
+        if (! str_contains($contentType, 'text/html')) {
+            return $content;
+        }
+
+        $position = mb_strpos($content, '</head>');
+
+        if ($position === false) {
+            return $content;
+        }
+
+        // script-src is 'strict-dynamic' with a per-request nonce, under which
+        // an un-nonced tag — inline or sourced — never runs. Reusing the nonce
+        // already in the document keeps this working without reaching into the
+        // container for a value the response has itself.
+        $nonce = preg_match('/nonce="([^"]+)"/', $content, $matches) === 1
+            ? sprintf(' nonce="%s"', $matches[1])
+            : '';
+
+        $repair = <<<'JS'
+        (() => {
+            const attempts = new WeakMap();
+
+            const repair = (link) => {
+                const attempted = attempts.get(link) ?? 0;
+
+                if (link.sheet !== null || attempted >= 3) {
+                    return;
+                }
+
+                attempts.set(link, attempted + 1);
+
+                // A fresh query string, so the retry cannot be answered from
+                // the cache entry the failed request may have poisoned.
+                link.href = `${link.href.split('#')[0].split('?')[0]}?pest-retry=${attempted + 1}`;
+            };
+
+            const sweep = () => document.querySelectorAll('link[rel="stylesheet"]').forEach(repair);
+
+            document.querySelectorAll('link[rel="stylesheet"]').forEach((link) => {
+                link.addEventListener('error', () => repair(link));
+            });
+
+            addEventListener('load', sweep);
+            setTimeout(sweep, 2000);
+            setTimeout(sweep, 6000);
+        })();
+        JS;
+
+        return substr_replace($content, sprintf('<script%s>%s</script>', $nonce, $repair), $position, 0);
     }
 
     /**

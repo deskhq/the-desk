@@ -53,6 +53,58 @@ it('hands the configured timeouts to the Amp server it starts', function (): voi
     }
 });
 
+it('gives a served document the means to re-request a stylesheet it lost', function (): void {
+    $repaired = repairDocument('<html><head><link rel="stylesheet" href="/a.css"></head><body></body></html>');
+
+    expect($repaired)->toContain('link[rel="stylesheet"]')
+        ->toContain('pest-retry')
+        // The failed <link> is the element the page and every assertion read, so
+        // the retry has to re-point it rather than append a sibling.
+        ->toContain('link.href =')
+        ->and(mb_substr_count($repaired, '</head>'))->toBe(1);
+});
+
+it('carries the nonce of the document it is injected into', function (): void {
+    $repaired = repairDocument('<html><head><script nonce="abc123"></script></head><body></body></html>');
+
+    // script-src is 'strict-dynamic' with a per-request nonce; an un-nonced tag
+    // would never run, and the repair would silently do nothing.
+    expect($repaired)->toContain('<script nonce="abc123">(() => {');
+});
+
+it('leaves a document alone when it carries no nonce to borrow', function (): void {
+    $repaired = repairDocument('<html><head></head><body></body></html>');
+
+    expect($repaired)->toContain('<script>(() => {');
+});
+
+it('never touches a response that is not a document', function (): void {
+    $css = 'body{color:red}</head>';
+
+    expect(repairDocument($css, 'text/css'))->toBe($css)
+        ->and(repairDocument('{"json":true}', 'application/json'))->toBe('{"json":true}');
+});
+
+it('leaves an html response with no head alone', function (): void {
+    expect(repairDocument('<html><body>fragment</body></html>'))->toBe('<html><body>fragment</body></html>');
+});
+
+/**
+ * Run a response body through the shadow's document repair.
+ */
+function repairDocument(string $content, string $contentType = 'text/html; charset=UTF-8'): string
+{
+    $server = new LaravelHttpServer('127.0.0.1', 1);
+
+    $repair = new ReflectionMethod($server, 'withStylesheetRepair');
+
+    $repaired = $repair->invoke($server, $content, $contentType);
+
+    assert(is_string($repaired));
+
+    return $repaired;
+}
+
 /**
  * Read a private property off a vendor object the plugin gives us no accessor for.
  */
