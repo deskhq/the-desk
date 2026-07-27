@@ -70,6 +70,34 @@ function supplyChainRunScripts(string $workflow, string $job): string
     return supplyChainSteps($workflow, $job)->pluck('run')->filter()->implode("\n");
 }
 
+/**
+ * The production Dockerfile as text. Whatever the base image ships, this file is
+ * the only place this repository gets to patch it.
+ */
+function supplyChainDockerfile(): string
+{
+    return (string) file_get_contents(dirname(__DIR__, 2).'/Dockerfile');
+}
+
+/**
+ * Path to the Trivy ignore file both scans read.
+ */
+function supplyChainIgnoreFile(): string
+{
+    return dirname(__DIR__, 2).'/.trivyignore.yaml';
+}
+
+/**
+ * Every suppressed finding, with `expired_at` kept as a date rather than folded
+ * to a Unix timestamp (which is what the parser does without the flag).
+ *
+ * @return list<array<string, mixed>>
+ */
+function supplyChainSuppressions(): array
+{
+    return Yaml::parseFile(supplyChainIgnoreFile(), Yaml::PARSE_DATETIME)['vulnerabilities'] ?? [];
+}
+
 test('the composite action can attach provenance and an SBOM to what it pushes', function (): void {
     $action = supplyChainBuildAction();
 
@@ -191,6 +219,72 @@ test('the build-only path scans the image it just built', function (): void {
     // Readable on the run itself, not only behind the Security tab, which most
     // reviewers never open on a PR.
     expect(supplyChainRunScripts('docker', 'build'))->toContain('GITHUB_STEP_SUMMARY');
+});
+
+test('the runtime stage patches the base image OS packages at build time', function (): void {
+    $dockerfile = supplyChainDockerfile();
+    $runtime = substr($dockerfile, (int) strpos($dockerfile, 'AS runtime'));
+
+    // A base image carries the apk snapshot it was built against, and Alpine
+    // publishes security updates to the branch repository continuously — so an
+    // OS package goes stale in the published image without a single commit
+    // landing here (#962, c-ares CVE-2026-33630, fixed upstream but not yet in
+    // any FrankenPHP build). Upgrading at build time is what closes that window.
+    // In the runtime stage specifically: the vendor and assets stages contribute
+    // no packages to the image that ships.
+    expect($runtime)->toContain('apk upgrade --no-cache');
+
+    // Under the same bounded retry as every other apk call in the stage, since
+    // it reaches the network exactly the same way (#626, #641).
+    expect($runtime)->toContain('retry apk upgrade --no-cache');
+});
+
+test('every suppressed vulnerability is justified, scoped, and expires', function (): void {
+    // The list is allowed to be empty — nothing suppressed is strictly better —
+    // but an entry that is on it has to earn its place.
+    foreach (supplyChainSuppressions() as $entry) {
+        expect($entry['id'] ?? '')->toBeString()->not->toBeEmpty();
+
+        // A suppression nobody can read back is indistinguishable from one added
+        // to turn a red scan green.
+        expect($entry['statement'] ?? '')->toBeString()->not->toBeEmpty();
+
+        // Scoped to the artifact it was assessed against, so the same CVE
+        // surfacing in something this repository does control is still reported.
+        expect($entry['paths'] ?? [])->not->toBeEmpty();
+
+        // And never permanent: Trivy reports an expired entry again, which
+        // reopens the rolling issue rather than letting the finding disappear.
+        expect($entry['expired_at'] ?? null)->toBeInstanceOf(DateTimeInterface::class);
+    }
+});
+
+test('both scans read the same checked-in suppression list', function (): void {
+    expect(supplyChainIgnoreFile())->toBeFile();
+
+    // Every trivy-action call on the build path, or the per-build scan and the
+    // weekly one disagree about what counts as a finding.
+    $scans = supplyChainSteps('docker', 'build')
+        ->filter(static fn (array $step): bool => str_starts_with((string) ($step['uses'] ?? ''), 'aquasecurity/trivy-action@'));
+
+    expect($scans)->not->toBeEmpty();
+
+    foreach ($scans as $scan) {
+        expect($scan['with']['trivyignores'] ?? null)->toBe('.trivyignore.yaml');
+    }
+
+    // The weekly scan only ever talked to a registry, so the file it now has to
+    // read has to be fetched first.
+    expect(supplyChainStepUsing('image-scan', 'scan-published-images', 'actions/checkout@'))
+        ->not->toBeNull('the weekly scan cannot read the ignore file without checking the repository out');
+
+    expect(supplyChainRunScripts('image-scan', 'scan-published-images'))->toContain('--ignorefile');
+
+    // Editing the list changes what the build scan reports, so a pull request
+    // that touches it has to rebuild and re-scan rather than merge on the
+    // strength of the diff.
+    expect(supplyChainTriggers(supplyChainWorkflow('docker'))['pull_request']['paths'] ?? [])
+        ->toContain('.trivyignore.yaml');
 });
 
 test('the build job publishes the digest of the image it pushed', function (): void {
