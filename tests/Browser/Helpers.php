@@ -156,6 +156,17 @@ function queryParamSettles(string $param, ?string $expected): string
 }
 
 /**
+ * A script resolving once the URL's `nav` param reaches the given destination —
+ * `null` for the param being gone. Lives here rather than beside the
+ * destinations suite because a second file needs it: the "You" destination has
+ * to prove the rail's popover leaves `?nav=` alone (#942).
+ */
+function navParamSettles(?string $destination): string
+{
+    return queryParamSettles('nav', $destination);
+}
+
+/**
  * Sign a user in through the real login form, returning the page so the caller
  * can continue driving it. Each `visit()` gets its own browser context (isolated
  * cookie jar), so two calls yield two independently authenticated clients.

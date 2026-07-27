@@ -49,14 +49,16 @@ const safeAreaStyle = {
 /**
  * The weight an open tab wears, shared by the glyph tabs and the avatar tab.
  *
- * A resting tab dims the sidebar foreground rather than taking
- * `--muted-foreground`: that token lands at 3.85:1 against `--sidebar-rail` in
- * the dark theme, under the 4.5:1 an 11.5px label owes (#269).
+ * The label keeps the sidebar foreground at full strength in both states: at
+ * 11.5px it owes 4.5:1 (#269), and dimming it — whether through
+ * `--muted-foreground` or an alpha of its own — falls under that against
+ * `--sidebar-rail` in the dark theme. The resting state is carried by the glyph
+ * instead, which is exempt as a graphic, plus the open tab's heavier label.
  */
 function tabClass(destination: NavDestination): string {
     return props.active === destination
         ? 'text-sidebar-foreground font-semibold'
-        : 'text-sidebar-foreground/75';
+        : 'text-sidebar-foreground [&_svg]:opacity-60';
 }
 </script>
 

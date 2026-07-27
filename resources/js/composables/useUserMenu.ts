@@ -36,15 +36,14 @@ export type UseUserMenuReturn = {
 };
 
 /**
- * The user menu's shared state and actions — one source for the desktop
- * dropdown (`UserMenuContent`) and the mobile bottom sheet (`UserMenuSheet`),
- * so the two presentations of the same menu can never drift apart.
+ * The user menu's shared state and actions, behind the one `UserMenuContent`
+ * the rail's popover and the "You" panel both render.
  *
  * Everything reads from the shared `auth.user` prop rather than a `user` prop
  * so a set/clear lands in the open menu without it remounting. The mutation
- * handlers take an optional event: the dropdown passes its `@select` event and
- * prevents the default so the row applies in place without dismissing the
- * menu; the sheet's plain buttons have no default to prevent.
+ * handlers take an optional event so a caller whose row carries a default worth
+ * preventing can hand it over; the plain buttons the menu is built from have
+ * none.
  */
 export function useUserMenu(): UseUserMenuReturn {
     const page = usePage();

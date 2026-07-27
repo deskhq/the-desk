@@ -12,7 +12,7 @@ test('an admin reaches the team-evidence group from the settings sidebar', funct
     ['owner' => $alice] = browserTeamWithChannel();
 
     signInThroughBrowser($alice)
-        ->click('@sidebar-menu-button')
+        ->click('@rail-destination-you')
         ->assertPresent('@settings-menu-item')
         // Let the dropdown settle past its open/pointer-grace window, otherwise
         // the item click can be swallowed and never navigate.
@@ -28,7 +28,7 @@ test('a plain member never sees the team-evidence group', function (): void {
     ['member' => $bob] = browserTeamWithChannel();
 
     signInThroughBrowser($bob)
-        ->click('@sidebar-menu-button')
+        ->click('@rail-destination-you')
         ->assertPresent('@settings-menu-item')
         ->wait(0.5)
         ->click('@settings-menu-item')

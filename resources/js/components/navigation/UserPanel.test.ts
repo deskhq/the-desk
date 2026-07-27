@@ -5,7 +5,7 @@ import { createApp, defineComponent, h } from 'vue';
 import { translate } from '@/lib/i18n';
 import type { User } from '@/types';
 
-/** Mutable stand-in for the shared Inertia props the sheet reads. */
+/** Mutable stand-in for the shared Inertia props the panel reads. */
 const page = vi.hoisted(() => ({
     props: {} as Record<string, unknown>,
 }));
@@ -46,35 +46,22 @@ vi.mock('@inertiajs/vue3', () => ({
 
 vi.mock('vue-sonner', () => ({ toast: { error: vi.fn(), success: vi.fn() } }));
 
-// The sheet rides the app's dialog primitive; its portal/focus behaviour is the
-// primitive's own tested concern. The stub keeps the one contract the specs
-// lean on — a Dialog renders its content only while `open` — so the presets
-// sheet can be asserted closed and opened.
-vi.mock('@/components/ui/dialog', () => {
-    const pass = (name: string) =>
-        defineComponent({
-            name,
-            setup:
-                (_p, { slots }) =>
-                () =>
-                    h('div', slots.default?.()),
-        });
-
-    return {
-        Dialog: defineComponent({
-            name: 'DialogRootStub',
-            props: { open: { type: Boolean, default: false } },
-            emits: ['update:open'],
-            setup:
-                (props, { slots }) =>
-                () =>
-                    props.open ? h('div', slots.default?.()) : null,
-        }),
-        DialogContent: pass('DialogContent'),
-        DialogTitle: pass('DialogTitle'),
-        DialogDescription: pass('DialogDescription'),
-    };
-});
+// The workspace sheet is a surface of its own with its own specs; here it is
+// only the wrapper the "Switch workspace" row triggers, so the stub keeps that
+// row reachable and records what it is anchored on.
+vi.mock('@/components/navigation/WorkspaceSheet.vue', () => ({
+    default: defineComponent({
+        name: 'WorkspaceSheetStub',
+        setup:
+            (_props, { slots }) =>
+            () =>
+                h(
+                    'div',
+                    { 'data-test': 'workspace-sheet-anchor' },
+                    slots.default?.(),
+                ),
+    }),
+}));
 
 const updateAppearance = vi.hoisted(() => vi.fn());
 
@@ -115,7 +102,7 @@ vi.mock('@/composables/useUpdateStatus', async () => {
     };
 });
 
-import UserMenuSheet from './UserMenuSheet.vue';
+import UserPanel from './UserPanel.vue';
 
 function user(overrides: Partial<User> = {}): User {
     return {
@@ -154,32 +141,15 @@ function user(overrides: Partial<User> = {}): User {
 
 let app: App | null = null;
 
-function mount(componentProps: Record<string, unknown> = {}): {
-    host: HTMLElement;
-    emitted: Record<string, unknown[][]>;
-} {
-    const emitted: Record<string, unknown[][]> = {};
-    const capture =
-        (name: string) =>
-        (...args: unknown[]) => {
-            (emitted[name] ??= []).push(args);
-        };
+function mount(): HTMLElement {
     const host = document.createElement('div');
     document.body.appendChild(host);
 
-    app = createApp({
-        render: () =>
-            h(UserMenuSheet, {
-                open: true,
-                user: user(),
-                'onUpdate:open': capture('update:open'),
-                ...componentProps,
-            }),
-    });
+    app = createApp({ render: () => h(UserPanel) });
     app.config.globalProperties.$t = translate;
     app.mount(host);
 
-    return { host, emitted };
+    return host;
 }
 
 function find(host: HTMLElement, selector: string): HTMLElement | null {
@@ -190,6 +160,7 @@ beforeEach(() => {
     page.props = {
         auth: { user: user() },
         currentTeam: { id: 't1', name: 'Acme Co' },
+        teams: [{ id: 't1' }, { id: 't2' }],
         customEmojis: {},
         name: 'The Desk',
     };
@@ -202,29 +173,40 @@ afterEach(() => {
     document.body.innerHTML = '';
 });
 
-describe('UserMenuSheet masthead', () => {
-    it('renders the identity block: name, presence word, email and team', () => {
-        const { host } = mount();
+describe('UserPanel header', () => {
+    it('renders the identity block: the name, and the workspace · presence line', () => {
+        const host = mount();
 
         expect(host.textContent).toContain('Maya Chen');
-        expect(host.textContent).toContain('maya@acme.co');
-        expect(host.textContent).toContain('Acme Co');
         expect(find(host, 'user-menu-presence')).not.toBeNull();
         expect(find(host, 'user-menu-presence-label')!.textContent).toContain(
-            'Active',
+            'Acme Co · Active',
         );
     });
 
-    it('renders nothing at all while closed', () => {
-        const { host } = mount({ open: false });
+    it('names the pause rather than the presence while in do not disturb', () => {
+        page.props.auth = {
+            user: user({
+                dnd: {
+                    until: '2099-01-01T15:00:00.000Z',
+                    scheduleEnabled: false,
+                    startsAt: null,
+                    endsAt: null,
+                    scheduleSnoozedUntil: null,
+                },
+            }),
+        };
+        const host = mount();
 
-        expect(host.textContent).toBe('');
+        expect(find(host, 'user-menu-presence-label')!.textContent).toContain(
+            'Notifications paused',
+        );
     });
 });
 
-describe('UserMenuSheet status section', () => {
+describe('UserPanel status section', () => {
     it('shows the current status as a card with its expiry, and no plain set-status row', () => {
-        const { host } = mount();
+        const host = mount();
 
         const card = find(host, 'edit-status-menu-item');
         expect(card).not.toBeNull();
@@ -235,15 +217,15 @@ describe('UserMenuSheet status section', () => {
 
     it('degrades to the plain set-status row when no status is set', () => {
         page.props.auth = { user: user({ status: null }) };
-        const { host } = mount();
+        const host = mount();
 
         expect(find(host, 'set-status-menu-item')).not.toBeNull();
         expect(find(host, 'edit-status-menu-item')).toBeNull();
         expect(find(host, 'clear-status-menu-item')).toBeNull();
     });
 
-    it('clears the status from the card without dismissing the sheet', () => {
-        const { host, emitted } = mount();
+    it('clears the status from the card in place', () => {
+        const host = mount();
 
         find(host, 'clear-status-menu-item')!.click();
 
@@ -251,21 +233,19 @@ describe('UserMenuSheet status section', () => {
             '/settings/status',
             expect.anything(),
         );
-        expect(emitted['update:open']).toBeUndefined();
     });
 
-    it('trades the sheet for the status dialog when setting a status', () => {
+    it('opens the status dialog from the plain row', () => {
         page.props.auth = { user: user({ status: null }) };
-        const { host, emitted } = mount();
+        const host = mount();
 
         find(host, 'set-status-menu-item')!.click();
 
         expect(openStatusDialog).toHaveBeenCalledOnce();
-        expect(emitted['update:open']).toEqual([[false]]);
     });
 
     it('flips the away override in place from the presence row', () => {
-        const { host, emitted } = mount();
+        const host = mount();
 
         const row = find(host, 'toggle-presence-menu-item')!;
         expect(row.textContent).toContain('Set yourself away');
@@ -277,27 +257,29 @@ describe('UserMenuSheet status section', () => {
             { state: 'away' },
             expect.anything(),
         );
-        expect(emitted['update:open']).toBeUndefined();
     });
 });
 
-describe('UserMenuSheet pause notifications', () => {
-    it('opens the DND presets as a second sheet, not inline', () => {
-        const { host } = mount();
+describe('UserPanel pause notifications', () => {
+    it('discloses the DND presets under the row rather than in a layer of its own', async () => {
+        const host = mount();
 
+        const row = find(host, 'pause-notifications-menu-item')!;
         expect(find(host, 'pause-notifications-submenu')).toBeNull();
+        expect(row.getAttribute('aria-expanded')).toBe('false');
 
-        find(host, 'pause-notifications-menu-item')!.click();
+        row.click();
+        await Promise.resolve();
 
-        return Promise.resolve().then(() => {
-            expect(find(host, 'pause-notifications-submenu')).not.toBeNull();
-            expect(find(host, 'pause-preset-thirty-minutes')).not.toBeNull();
-            expect(find(host, 'pause-preset-custom')).not.toBeNull();
-        });
+        expect(find(host, 'pause-notifications-submenu')).not.toBeNull();
+        expect(row.getAttribute('aria-expanded')).toBe('true');
+        expect(find(host, 'pause-preset-thirty-minutes')).not.toBeNull();
+        expect(find(host, 'pause-preset-custom')).not.toBeNull();
+        expect(find(host, 'quiet-hours-menu-item')).not.toBeNull();
     });
 
-    it('applies a preset and returns to the menu sheet', async () => {
-        const { host, emitted } = mount();
+    it('applies a preset and folds the disclosure back up', async () => {
+        const host = mount();
 
         find(host, 'pause-notifications-menu-item')!.click();
         await Promise.resolve();
@@ -311,19 +293,19 @@ describe('UserMenuSheet pause notifications', () => {
             expect.anything(),
         );
         expect(find(host, 'pause-notifications-submenu')).toBeNull();
-        expect(emitted['update:open']).toBeUndefined();
     });
 
-    it('trades both sheets for the custom-pause dialog', async () => {
-        const { host, emitted } = mount();
+    it('trades the disclosure for the custom-pause dialog', async () => {
+        const host = mount();
 
         find(host, 'pause-notifications-menu-item')!.click();
         await Promise.resolve();
 
         find(host, 'pause-preset-custom')!.click();
+        await Promise.resolve();
 
         expect(openDndPauseDialog).toHaveBeenCalledOnce();
-        expect(emitted['update:open']).toEqual([[false]]);
+        expect(find(host, 'pause-notifications-submenu')).toBeNull();
     });
 
     it('shows the paused card with a resume pill while a manual pause runs', () => {
@@ -338,7 +320,7 @@ describe('UserMenuSheet pause notifications', () => {
                 },
             }),
         };
-        const { host, emitted } = mount();
+        const host = mount();
 
         expect(find(host, 'dnd-paused-card')).not.toBeNull();
 
@@ -348,13 +330,12 @@ describe('UserMenuSheet pause notifications', () => {
             '/settings/dnd',
             expect.anything(),
         );
-        expect(emitted['update:open']).toBeUndefined();
     });
 });
 
-describe('UserMenuSheet appearance', () => {
+describe('UserPanel appearance', () => {
     it('renders the theme segmented control and applies a pick in place', () => {
-        const { host, emitted } = mount();
+        const host = mount();
 
         const control = find(host, 'menu-theme-switcher')!;
         const dark = control.querySelector<HTMLElement>(
@@ -364,48 +345,66 @@ describe('UserMenuSheet appearance', () => {
         dark.click();
 
         expect(updateAppearance).toHaveBeenCalled();
-        expect(emitted['update:open']).toBeUndefined();
     });
 
-    it('drops the sidebar switcher below md', () => {
-        const { host } = mount();
+    it('drops the sidebar switcher: below md the dock is a drawer, not a pane', () => {
+        const host = mount();
 
         expect(find(host, 'menu-sidebar-switcher')).toBeNull();
     });
 });
 
-describe('UserMenuSheet navigation and footer', () => {
+describe('UserPanel account rows', () => {
     it('drops the keyboard-shortcuts row: a phone has no hardware keyboard', () => {
-        const { host } = mount();
+        const host = mount();
 
         expect(find(host, 'keyboard-shortcuts-menu-item')).toBeNull();
     });
 
-    it('keeps the settings link, with prefetch, and dismisses on follow', () => {
-        const { host, emitted } = mount();
+    it('keeps the settings link, with prefetch, on the full-screen index', () => {
+        const host = mount();
 
         const settings = find(host, 'settings-menu-item')!;
+
         expect(settings.getAttribute('data-prefetch')).not.toBeNull();
         // Below `md` Settings opens on its full-screen index (#816), never
         // straight on the profile pane.
         expect(settings.getAttribute('data-href')).toBe('/settings');
-
-        settings.click();
-
-        expect(emitted['update:open']).toEqual([[false]]);
     });
 
-    it('replays the tour and dismisses', () => {
-        const { host, emitted } = mount();
+    it('anchors "Switch workspace" on the workspace sheet, tallying the workspaces', () => {
+        const host = mount();
+
+        const row = find(host, 'switch-workspace-menu-item')!;
+
+        expect(
+            row.closest('[data-test="workspace-sheet-anchor"]'),
+        ).not.toBeNull();
+        expect(find(host, 'switch-workspace-count')!.textContent).toContain(
+            '2',
+        );
+    });
+
+    it('deep-links "Security & devices" into the account security settings', () => {
+        const host = mount();
+
+        expect(
+            find(host, 'security-menu-item')!.getAttribute('data-href'),
+        ).toBe('/settings/security');
+    });
+
+    it('replays the tour', () => {
+        const host = mount();
 
         find(host, 'replay-tour-menu-item')!.click();
 
         expect(replayTour).toHaveBeenCalledOnce();
-        expect(emitted['update:open']).toEqual([[false]]);
     });
+});
 
+describe('UserPanel footer', () => {
     it('logs out through the flush-all path', () => {
-        const { host } = mount();
+        const host = mount();
 
         const logout = find(host, 'logout-button')!;
         expect(logout.textContent).toContain('Log out');
@@ -415,8 +414,8 @@ describe('UserMenuSheet navigation and footer', () => {
         expect(router.flushAll).toHaveBeenCalledOnce();
     });
 
-    it('closes the version line with the running version', () => {
-        const { host } = mount();
+    it('closes with the version line and the running version', () => {
+        const host = mount();
 
         expect(find(host, 'user-menu-version')!.textContent).toContain(
             'The Desk v2.4.1',

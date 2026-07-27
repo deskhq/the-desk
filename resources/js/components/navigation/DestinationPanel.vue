@@ -5,10 +5,13 @@ import type { NavDestination } from '@/composables/useNavPanel';
 /**
  * The frame a non-conversation destination renders into: a heading naming the
  * destination, whatever action that destination hangs beside it, an optional
- * toolbar pinned under the heading, and the scrolling body its own child issue
- * fills in (#939 threads, #940 reminders, #941 search, #942 you). The frame lives
- * here so all four share one geometry and the rail beside them never shifts as
- * the panel swaps.
+ * toolbar pinned under the heading, and its own scrolling body. Threads (#939),
+ * reminders (#940) and search (#941) share it so their geometry matches and the
+ * rail beside them never shifts as the panel swaps.
+ *
+ * "You" (#942) is deliberately not one of them: its identity header — the
+ * portrait, the name and the workspace line — *is* its heading, so it renders
+ * its own root rather than this one.
  */
 withDefaults(
     defineProps<{

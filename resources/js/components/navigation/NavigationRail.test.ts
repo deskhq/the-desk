@@ -35,6 +35,19 @@ vi.mock('@/components/navigation/WorkspaceSheet.vue', () => ({
     }),
 }));
 
+vi.mock('@/components/UserMenuPopover.vue', () => ({
+    default: defineComponent({
+        setup:
+            (_, { slots }) =>
+            () =>
+                h(
+                    'div',
+                    { 'data-test': 'user-menu-popover-anchor' },
+                    slots.default?.(),
+                ),
+    }),
+}));
+
 const switchTeam = vi.hoisted(() => vi.fn());
 
 vi.mock('@/composables/useTeamSwitch', () => ({
@@ -189,12 +202,19 @@ it('asks for a destination when its glyph is activated', () => {
     expect(select).toHaveBeenCalledWith('search');
 });
 
-it('opens the You destination from the viewer avatar', () => {
+it('anchors the user menu on the viewer avatar rather than swapping the panel', () => {
     const { host, select } = mountRail();
+
+    // "You" is the one destination the rail does not hand to the panel: the
+    // design keeps the conversation list live behind its popover, so the avatar
+    // is the popover's anchor and `?nav=` is left alone.
+    expect(
+        glyph(host, 'you').closest('[data-test="user-menu-popover-anchor"]'),
+    ).not.toBeNull();
 
     glyph(host, 'you').click();
 
-    expect(select).toHaveBeenCalledWith('you');
+    expect(select).not.toHaveBeenCalled();
 });
 
 it('flags unread threads on the threads glyph only while there are any', () => {

@@ -1390,5 +1390,8 @@
   "From…": "De…",
   "In…": "Dans…",
   "Clear search": "Effacer la recherche",
-  "This workspace": "Cet espace"
+  "This workspace": "Cet espace",
+  "Switch workspace": "Changer d’espace",
+  "Security & devices": "Sécurité & appareils",
+  ":workspace · :presence": ":workspace · :presence"
 }

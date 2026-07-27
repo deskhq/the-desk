@@ -6,9 +6,9 @@ test('a user pauses notifications from the presence menu and resumes in place', 
     ['owner' => $alice] = browserTeamWithChannel();
 
     $page = signInThroughBrowser($alice)
-        ->click('@sidebar-menu-button')
+        ->click('@rail-destination-you')
         ->assertPresent('@pause-notifications-menu-item')
-        // The flyout offers the presets; choosing one applies in place.
+        // The disclosure offers the presets; choosing one applies in place.
         ->click('@pause-notifications-menu-item')
         ->assertPresent('@pause-notifications-submenu')
         ->click('@pause-preset-thirty-minutes')
@@ -48,7 +48,7 @@ test('a user snoozes the quiet-hours schedule for today from the paused card', f
     ])->save();
 
     $page = signInThroughBrowser($alice)
-        ->click('@sidebar-menu-button')
+        ->click('@rail-destination-you')
         ->assertPresent('@dnd-paused-card')
         ->assertSee('quiet hours')
         // No manual pause runs, so the card offers the snooze pill in place of
@@ -70,7 +70,7 @@ test('the custom pause dialog stores the picked instant', function (): void {
     ['owner' => $alice] = browserTeamWithChannel();
 
     signInThroughBrowser($alice)
-        ->click('@sidebar-menu-button')
+        ->click('@rail-destination-you')
         ->click('@pause-notifications-menu-item')
         ->assertPresent('@pause-notifications-submenu')
         ->click('@pause-preset-custom')
@@ -92,10 +92,10 @@ test('the paused shell with its crescent badge has no serious accessibility viol
     // Audited with the menu closed: an *open* reka dropdown marks the page
     // behind it aria-hidden while the skip link stays focusable, a pre-existing
     // shell-wide finding tracked in #730 that would drown this slice's surfaces.
-    // The crescent badge on the sidebar chip is what this run guards.
+    // The crescent badge on the rail avatar is what this run guards.
     $page = signInThroughBrowser($alice)
         ->assertPresent(
-            '[data-test="nav-user-presence"][data-dnd="true"]',
+            '[data-test="rail-presence"][data-dnd="true"]',
         )
         ->assertNoAccessibilityIssues();
 

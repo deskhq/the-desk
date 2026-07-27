@@ -13,7 +13,7 @@ use Pest\Browser\Api\AwaitableWebpage;
 function visitProfileSettings(User $user): AwaitableWebpage
 {
     return signInThroughBrowser($user)
-        ->click('@sidebar-menu-button')
+        ->click('@rail-destination-you')
         ->assertPresent('@settings-menu-item')
         // Let the dropdown settle past its open/pointer-grace window.
         ->wait(0.5)

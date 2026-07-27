@@ -7,6 +7,7 @@ import WorkspaceSheet from '@/components/navigation/WorkspaceSheet.vue';
 import PresenceDot from '@/components/PresenceDot.vue';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
+import UserMenuPopover from '@/components/UserMenuPopover.vue';
 import { useInitials } from '@/composables/useInitials';
 import type { NavDestination } from '@/composables/useNavPanel';
 import { useTeamSwitch } from '@/composables/useTeamSwitch';
@@ -40,9 +41,9 @@ const props = defineProps<{
 
 const emit = defineEmits<{
     select: [destination: NavDestination];
-    /** Raised by the workspace sheet the current tile opens. */
+    /** The workspace sheet's "invite people" row was chosen; the host owns the modal. */
     invite: [];
-    /** Raised by the workspace sheet the current tile opens. */
+    /** The workspace sheet's "join a workspace" row was chosen. */
     join: [];
 }>();
 
@@ -181,39 +182,44 @@ function glyphClass(destination: NavDestination): string {
 
         <span class="flex-1" />
 
-        <Button
-            variant="ghost"
-            size="icon"
-            data-test="rail-destination-you"
-            :aria-current="active === 'you' ? 'true' : undefined"
-            :title="$t('You')"
-            class="relative size-9.5 rounded-full transition-colors"
-            :class="glyphClass('you')"
-            @click="emit('select', 'you')"
-        >
-            <span class="relative">
-                <Avatar class="size-8.5 rounded-full">
-                    <AvatarImage
-                        v-if="hasAvatar"
-                        :src="user.avatar!"
-                        :alt="''"
+        <!-- The "You" destination is a popover here rather than a panel swap:
+             the design keeps the conversation list live behind it, so the rail's
+             own avatar is the anchor and `?nav=` stays where it was. Below `md`
+             the tab bar takes the same menu full-panel instead. -->
+        <UserMenuPopover @invite="emit('invite')" @join="emit('join')">
+            <Button
+                variant="ghost"
+                size="icon"
+                data-test="rail-destination-you"
+                :aria-current="active === 'you' ? 'true' : undefined"
+                :title="$t('You')"
+                class="relative size-9.5 rounded-full transition-colors data-[state=open]:bg-sidebar data-[state=open]:text-sidebar-foreground data-[state=open]:shadow-sm"
+                :class="glyphClass('you')"
+            >
+                <span class="relative">
+                    <Avatar class="size-8.5 rounded-full">
+                        <AvatarImage
+                            v-if="hasAvatar"
+                            :src="user.avatar!"
+                            :alt="''"
+                        />
+                        <AvatarFallback
+                            class="rounded-full bg-brass/30 text-[11px] font-semibold text-foreground"
+                        >
+                            {{ getInitials(user.name) }}
+                        </AvatarFallback>
+                    </Avatar>
+                    <PresenceDot
+                        data-test="rail-presence"
+                        :presence="presence"
+                        :is-dnd="isDnd"
+                        surface-class="bg-sidebar-rail"
+                        size="36"
+                        class="ring-sidebar-rail"
                     />
-                    <AvatarFallback
-                        class="rounded-full bg-brass/30 text-[11px] font-semibold text-foreground"
-                    >
-                        {{ getInitials(user.name) }}
-                    </AvatarFallback>
-                </Avatar>
-                <PresenceDot
-                    data-test="rail-presence"
-                    :presence="presence"
-                    :is-dnd="isDnd"
-                    surface-class="bg-sidebar-rail"
-                    size="36"
-                    class="ring-sidebar-rail"
-                />
-            </span>
-            <span class="sr-only">{{ $t('You') }}</span>
-        </Button>
+                </span>
+                <span class="sr-only">{{ $t('You') }}</span>
+            </Button>
+        </UserMenuPopover>
     </nav>
 </template>

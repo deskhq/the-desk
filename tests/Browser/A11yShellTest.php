@@ -83,11 +83,11 @@ test('the shell exposes a skip link targeting a focusable main region', function
         );
 });
 
-test('an open dropdown menu takes the shell out of the tab order and hands it back on close', function (): void {
+test('an open overlay takes the shell out of the tab order and hands it back on close', function (): void {
     ['owner' => $alice] = browserTeamWithChannel();
 
     $page = signInThroughBrowser($alice)
-        ->click('@sidebar-menu-button')
+        ->click('@rail-destination-you')
         ->assertPresent('@settings-menu-item')
         ->wait(0.5)
         // The menu hides the shell from assistive tech, so the skip link has to
@@ -107,7 +107,7 @@ test('an open dropdown menu takes the shell out of the tab order and hands it ba
         )
         ->assertScript(
             'document.activeElement?.getAttribute("data-test")',
-            'sidebar-menu-button',
+            'rail-destination-you',
         );
 });
 
@@ -136,7 +136,7 @@ test('the settings sidebar is a labelled landmark with a current-page item', fun
         // visit, so the browser session survives). Gate each step — wait for the
         // menu item to render, then for the settings route to land — before
         // asserting the landmark, so a slow menu/navigation doesn't race the check.
-        ->click('@sidebar-menu-button')
+        ->click('@rail-destination-you')
         ->assertPresent('@settings-menu-item')
         // Let the dropdown settle past its open/pointer-grace window, otherwise
         // the item click can be swallowed and never navigate.

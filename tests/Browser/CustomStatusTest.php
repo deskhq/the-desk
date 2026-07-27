@@ -8,7 +8,7 @@ test('a user sets a status from the user menu and it lands on their name', funct
     ['owner' => $alice] = browserTeamWithChannel();
 
     $page = signInThroughBrowser($alice)
-        ->click('@sidebar-menu-button')
+        ->click('@rail-destination-you')
         // With nothing set, the presence section offers the plain entry point.
         ->assertPresent('@set-status-menu-item')
         ->click('@set-status-menu-item')
@@ -28,7 +28,7 @@ test('a user sets a status from the user menu and it lands on their name', funct
 
     // And the emoji now rides beside the name, on the menu masthead and the
     // status card that has replaced the "Set a status" row.
-    $page->click('@sidebar-menu-button')
+    $page->click('@rail-destination-you')
         ->assertPresent('@edit-status-menu-item')
         ->assertNotPresent('@set-status-menu-item')
         ->assertPresent('@user-status-emoji');
@@ -38,7 +38,7 @@ test('a free-form status with no chosen emoji saves under a default one', functi
     ['owner' => $alice] = browserTeamWithChannel();
 
     signInThroughBrowser($alice)
-        ->click('@sidebar-menu-button')
+        ->click('@rail-destination-you')
         ->click('@set-status-menu-item')
         ->type('@status-text-input', 'Heads down')
         ->click('@status-save')
@@ -59,7 +59,7 @@ test('the menu row clears a status in one tap without opening the dialog', funct
     ])->save();
 
     signInThroughBrowser($alice)
-        ->click('@sidebar-menu-button')
+        ->click('@rail-destination-you')
         ->assertPresent('@clear-status-menu-item')
         ->click('@clear-status-menu-item')
         ->wait(0.8)
@@ -77,7 +77,7 @@ test('choosing a custom expiry opens on a saveable future time', function (): vo
     ['owner' => $alice] = browserTeamWithChannel();
 
     signInThroughBrowser($alice)
-        ->click('@sidebar-menu-button')
+        ->click('@rail-destination-you')
         ->click('@set-status-menu-item')
         ->type('@status-text-input', 'Heads down')
         ->click('@status-expiry')
@@ -144,7 +144,7 @@ test('the status dialog passes the axe audit in either theme', function (): void
     ['owner' => $alice] = browserTeamWithChannel();
 
     $page = signInThroughBrowser($alice)
-        ->click('@sidebar-menu-button')
+        ->click('@rail-destination-you')
         ->click('@set-status-menu-item')
         ->assertPresent('@status-dialog')
         // Let the dialog's entrance transition settle before axe reads the DOM,
@@ -165,7 +165,7 @@ test('the status dialog passes the axe audit in either theme', function (): void
     $page->wait(0.5)->assertNoAccessibilityIssues();
 });
 
-test('the status card passes the axe audit and exposes menu semantics', function (): void {
+test('the status card passes the axe audit and exposes its two controls', function (): void {
     ['owner' => $alice] = browserTeamWithChannel();
 
     $alice->forceFill([
@@ -175,20 +175,26 @@ test('the status card passes the axe audit and exposes menu semantics', function
     ])->save();
 
     signInThroughBrowser($alice)
-        ->click('@sidebar-menu-button')
+        ->click('@rail-destination-you')
         ->assertPresent('@edit-status-menu-item')
         // Let the menu's entrance transition settle before axe reads the DOM,
         // so a mid-animation opacity never manufactures a contrast failure.
         ->wait(0.5)
         ->assertNoAccessibilityIssues()
-        // Both rows are real menu items, so arrow-key navigation reaches them and
+        // Since #942 the menu is a popover rather than a `role="menu"`, so both
+        // halves of the card are ordinary buttons: Tab reaches them and
         // Enter/Space activates them.
-        ->assertAttribute('[data-test="edit-status-menu-item"]', 'role', 'menuitem')
-        ->assertAttribute('[data-test="clear-status-menu-item"]', 'role', 'menuitem')
+        ->assertScript(
+            "document.querySelector('[data-test=\"edit-status-menu-item\"]').tagName",
+            'BUTTON',
+        )
+        ->assertScript(
+            "document.querySelector('[data-test=\"clear-status-menu-item\"]').tagName",
+            'BUTTON',
+        )
         // The ✕ is icon-only, so it carries its own name.
         ->assertAttribute('[data-test="clear-status-menu-item"]', 'aria-label', 'Clear status')
-        // `role="menu"` admits only menu-role children, so the emoji inside the
-        // card is decorative — the card's text says what the status is.
+        // The emoji is decorative — the card's text says what the status is.
         ->assertScript(
             "document.querySelector('[data-test=\"user-status-emoji\"]').getAttribute('aria-hidden')",
             'true',
