@@ -223,7 +223,14 @@ test('the build-only path scans the image it just built', function (): void {
 
 test('the runtime stage patches the base image OS packages at build time', function (): void {
     $dockerfile = supplyChainDockerfile();
-    $runtime = substr($dockerfile, (int) strpos($dockerfile, 'AS runtime'));
+    $runtimeStart = strpos($dockerfile, 'AS runtime');
+
+    // Without this the stage marker could be renamed and `substr` would fall
+    // back to offset 0, quietly widening every assertion below to the whole
+    // file — so an `apk upgrade` in a build stage that ships nothing would pass.
+    expect($runtimeStart)->not->toBeFalse('the runtime stage is what ships, and it can no longer be located');
+
+    $runtime = substr($dockerfile, (int) $runtimeStart);
 
     // A base image carries the apk snapshot it was built against, and Alpine
     // publishes security updates to the branch repository continuously — so an
@@ -251,7 +258,13 @@ test('every suppressed vulnerability is justified, scoped, and expires', functio
 
         // Scoped to the artifact it was assessed against, so the same CVE
         // surfacing in something this repository does control is still reported.
-        expect($entry['paths'] ?? [])->not->toBeEmpty();
+        // A bare scalar reads like a scope but is not one Trivy accepts, so the
+        // shape is asserted rather than just the emptiness.
+        expect($entry['paths'] ?? null)->toBeArray()->not->toBeEmpty();
+
+        foreach ($entry['paths'] as $path) {
+            expect($path)->toBeString()->not->toBeEmpty();
+        }
 
         // And never permanent: Trivy reports an expired entry again, which
         // reopens the rolling issue rather than letting the finding disappear.
@@ -274,11 +287,20 @@ test('both scans read the same checked-in suppression list', function (): void {
     }
 
     // The weekly scan only ever talked to a registry, so the file it now has to
-    // read has to be fetched first.
-    expect(supplyChainStepUsing('image-scan', 'scan-published-images', 'actions/checkout@'))
-        ->not->toBeNull('the weekly scan cannot read the ignore file without checking the repository out');
+    // read has to be fetched first — and fetched *before* the scan runs, which
+    // is the half of it a "the step exists" assertion would miss.
+    $steps = supplyChainSteps('image-scan', 'scan-published-images');
+    $checkout = $steps->search(static fn (array $step): bool => str_starts_with((string) ($step['uses'] ?? ''), 'actions/checkout@'));
+    $scan = $steps->search(static fn (array $step): bool => str_contains((string) ($step['run'] ?? ''), 'trivy image'));
 
-    expect(supplyChainRunScripts('image-scan', 'scan-published-images'))->toContain('--ignorefile');
+    expect($checkout)->not->toBeFalse('the weekly scan cannot read the ignore file without checking the repository out')
+        ->and($scan)->not->toBeFalse()
+        ->and($checkout)->toBeLessThan($scan);
+
+    // The path too, not just the flag: pointed at a file that is not there,
+    // Trivy scans on with no suppressions and the rolling issue never closes.
+    expect(supplyChainRunScripts('image-scan', 'scan-published-images'))
+        ->toContain('--ignorefile .trivyignore.yaml');
 
     // Editing the list changes what the build scan reports, so a pull request
     // that touches it has to rebuild and re-scan rather than merge on the
