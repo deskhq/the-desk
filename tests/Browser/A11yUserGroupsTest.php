@@ -46,15 +46,7 @@ test('a rendered group mention pill passes the axe audit in either theme', funct
         ->assertPresent('[data-test="mention-option-group-count"]')
         ->assertNoAccessibilityIssues();
 
-    $page->script(<<<'JS'
-    () => {
-        localStorage.setItem('appearance', 'dark');
-        document.documentElement.classList.add('dark');
-        document.documentElement.style.colorScheme = 'dark';
-    }
-    JS);
-
-    $page->wait(0.5)
+    switchToDarkTheme($page)
         ->assertNoAccessibilityIssues();
 });
 
@@ -75,14 +67,6 @@ test('the user groups settings page passes the axe audit in either theme', funct
         ->wait(0.5)
         ->assertNoAccessibilityIssues();
 
-    $page->script(<<<'JS'
-    () => {
-        localStorage.setItem('appearance', 'dark');
-        document.documentElement.classList.add('dark');
-        document.documentElement.style.colorScheme = 'dark';
-    }
-    JS);
-
-    $page->wait(0.5)
+    switchToDarkTheme($page)
         ->assertNoAccessibilityIssues();
 });

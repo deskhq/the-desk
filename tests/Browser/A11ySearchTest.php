@@ -85,17 +85,7 @@ test('the search panel highlights matches, groups them by date, and has no serio
 
     expect($highlight)->toBe(['fontWeight' => '600', 'borderRadius' => '3px']);
 
-    // Re-audit the results against the dark palette (localStorage before the
-    // class, so the appearance controller doesn't re-resolve to light mid-audit).
-    $page->script(<<<'JS'
-    () => {
-        localStorage.setItem('appearance', 'dark');
-        document.documentElement.classList.add('dark');
-        document.documentElement.style.colorScheme = 'dark';
-    }
-    JS);
-
-    $page->wait(0.5)
+    switchToDarkTheme($page)
         ->assertPresent('[data-test="search-result"] mark')
         ->assertNoAccessibilityIssues();
 });
@@ -302,18 +292,8 @@ test('the facet pickers are comboboxes that keep the open popup accessible in bo
         ->assertMissing('[data-test="facet-channel-filter"]')
         ->assertMissing('[data-test="facet-channel"]');
 
-    // Re-audit the open picker against the dark palette (localStorage before
-    // the class, so the appearance controller doesn't re-resolve to light
-    // mid-audit) — the popup carries its own surface and border tokens.
-    $page->script(<<<'JS'
-    () => {
-        localStorage.setItem('appearance', 'dark');
-        document.documentElement.classList.add('dark');
-        document.documentElement.style.colorScheme = 'dark';
-    }
-    JS);
-
-    $page->wait(0.5)
+    // Worth auditing twice: the popup carries its own surface and border tokens.
+    switchToDarkTheme($page)
         ->assertPresent('html.dark')
         ->click('@facet-channel-picker')
         ->wait(0.3)
