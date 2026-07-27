@@ -49,8 +49,9 @@ test('the header chevron and the rail tile open the same workspace sheet', funct
         ->keys('@workspace-sheet', ['Escape'])
         ->assertNotPresent('@workspace-sheet');
 
-    // The rail's own tile is the third anchor onto the very same surface.
-    $page->click('@rail-workspace-tile')
+    // The rail's own tile is the third anchor onto the very same surface — the
+    // *open* workspace's tile, since the others switch instead of opening.
+    $page->click('[data-test="rail-workspace-tile"][data-current="true"]')
         ->assertPresent('@workspace-sheet')
         ->assertPresent('@workspace-members-link');
 });
@@ -129,9 +130,10 @@ test('the rail tiles every workspace, dots the unread one, and switches on a tap
     signInThroughBrowser($alice)
         ->resize(1280, 900)
         ->navigate(browserChannelUrl($team, $channel))
+        // Alice's own personal workspace, the shared Acme one, and Nord Bureau.
         ->assertScript(<<<'JS'
         (() => document.querySelectorAll('[data-test="rail-workspace-tile"]').length)()
-        JS, 2)
+        JS, 3)
         // The workspace the viewer is not reading carries the brass dot.
         ->assertScript(<<<'JS'
         (() => document.querySelectorAll('[data-test="rail-workspace-unread-dot"]').length)()

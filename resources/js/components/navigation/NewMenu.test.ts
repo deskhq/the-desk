@@ -27,6 +27,9 @@ vi.mock('@lucide/vue', () => ({
 
 const channelModalTeamSlug = vi.hoisted(() => ({ value: '' }));
 
+/** Lets a test replay the moment the menu finishes closing. */
+const menu = vi.hoisted(() => ({ replayClose: null as null | (() => Event) }));
+
 vi.mock('@/components/CreateChannelModal.vue', () => ({
     default: defineComponent({
         props: { teamSlug: { type: String, default: '' } },
@@ -54,10 +57,32 @@ function passthrough(tag = 'div') {
     });
 }
 
+/**
+ * The menu body, which additionally exposes its `close-auto-focus` — the moment
+ * the real menu is done with focus, and the one the "New section" row is
+ * announced from. `replayClose` lets a test drive that moment.
+ */
+function menuContent() {
+    return defineComponent({
+        inheritAttrs: false,
+        emits: ['closeAutoFocus'],
+        setup(_, { slots, emit, attrs }) {
+            menu.replayClose = () => {
+                const event = new Event('closeautofocus', { cancelable: true });
+                emit('closeAutoFocus', event);
+
+                return event;
+            };
+
+            return () => h('div', { ...attrs }, slots.default?.());
+        },
+    });
+}
+
 vi.mock('@/components/ui/dropdown-menu', () => ({
     DropdownMenu: passthrough(),
     DropdownMenuTrigger: passthrough(),
-    DropdownMenuContent: passthrough(),
+    DropdownMenuContent: menuContent(),
     DropdownMenuItem: passthrough('button'),
 }));
 
@@ -76,6 +101,7 @@ let app: App | null = null;
 beforeEach(() => {
     viewport.setMobile?.(false);
     channelModalTeamSlug.value = '';
+    menu.replayClose = null;
 });
 
 afterEach(() => {
@@ -150,12 +176,31 @@ it('hands the direct message over to its host', () => {
     expect(messaged).toHaveBeenCalledTimes(1);
 });
 
-it('hands the new section over to its host', () => {
+it('hands the new section over once the menu is done with focus', () => {
     const { host, sectioned } = mountMenu();
 
     row(host, 'create-section-trigger')!.click();
 
+    // Announcing on `select` would race the menu's own teardown for the caret,
+    // so the row waits for the close.
+    expect(sectioned).not.toHaveBeenCalled();
+
+    const event = menu.replayClose!();
+
     expect(sectioned).toHaveBeenCalledTimes(1);
+    // And the menu gives up its restore, since focus is going to the field.
+    expect(event.defaultPrevented).toBe(true);
+});
+
+it('leaves the focus restore alone when the menu closes on anything else', () => {
+    const { host, sectioned } = mountMenu();
+
+    row(host, 'new-menu-message')!.click();
+
+    const event = menu.replayClose!();
+
+    expect(sectioned).not.toHaveBeenCalled();
+    expect(event.defaultPrevented).toBe(false);
 });
 
 it('presents the same three rows as a bottom sheet below the breakpoint', () => {

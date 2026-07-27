@@ -54,8 +54,35 @@ function requestMessage(): void {
     emit('message');
 }
 
+/** The bottom sheet has no focus scope to outlive, so it announces at once. */
 function requestSection(): void {
     open.value = false;
+    emit('section');
+}
+
+/** Set between picking "New section" and the menu finishing its close. */
+const sectionPending = ref(false);
+
+function requestSectionFromMenu(): void {
+    sectionPending.value = true;
+    open.value = false;
+}
+
+/**
+ * "New section" opens an inline field at the foot of the list and puts the
+ * caret in it, so the menu announces it from its own close rather than from
+ * `select`: this is the moment it is done with focus. Announcing earlier means
+ * racing the menu's teardown, which traps focus while it runs and then drops it
+ * on the body — leaving the field open but unfocused. The restore to the
+ * trigger is suppressed for the same reason: the field is where focus is going.
+ */
+function onCloseAutoFocus(event: Event): void {
+    if (!sectionPending.value) {
+        return;
+    }
+
+    sectionPending.value = false;
+    event.preventDefault();
     emit('section');
 }
 
@@ -130,6 +157,7 @@ const sheetRowClass =
             data-test="new-menu"
             align="end"
             class="w-53.5 rounded-[14px] p-1.5"
+            @close-auto-focus="onCloseAutoFocus"
         >
             <CreateChannelModal :team-slug="teamSlug">
                 <DropdownMenuItem
@@ -152,7 +180,7 @@ const sheetRowClass =
             <DropdownMenuItem
                 data-test="create-section-trigger"
                 class="h-8.5 cursor-pointer gap-2.25"
-                @select="requestSection"
+                @select="requestSectionFromMenu"
             >
                 <FolderPlus class="size-3.75 text-muted-foreground" />
                 {{ $t('New section') }}
