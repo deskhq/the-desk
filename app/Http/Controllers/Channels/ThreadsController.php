@@ -2,58 +2,42 @@
 
 namespace App\Http\Controllers\Channels;
 
-use App\Data\ThreadInboxItemData;
+use App\Actions\Channels\MarkAllThreadsRead;
+use App\Enums\NavDestination;
 use App\Http\Controllers\Controller;
-use App\Models\Message;
 use App\Models\Team;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Inertia\Inertia;
-use Inertia\Response;
 
 class ThreadsController extends Controller
 {
     /**
-     * How many inbox rows a page loads. The client pages older threads in on
-     * scroll via InfiniteScroll.
+     * Send the legacy full-width Threads inbox onto the pinned destination.
+     *
+     * The inbox is a dock panel now (`?nav=threads` on a workspace route), so the
+     * old URL survives only as a redirect — shared links and bookmarks still land
+     * on the threads the user came for. The hop goes through the bare team URL,
+     * which already forwards its query string on to #general.
      */
-    private const int PAGE_SIZE = 30;
+    public function index(Team $team): RedirectResponse
+    {
+        return to_route('channels.index', [
+            'team' => $team->slug,
+            NavDestination::QUERY_PARAM => NavDestination::Threads->value,
+        ]);
+    }
 
     /**
-     * The current user's Threads inbox: every thread they follow across the
-     * team, newest activity first, with per-thread unread state.
+     * Clear the viewer's Threads inbox for this team: every followed thread holding
+     * unread replies is marked read in one write.
      *
-     * "Follow" is the Slack-style auto-follow rule (authored the root, replied,
-     * or were @mentioned), and the channel-id filter is the whole ACL — the id
-     * set is exactly the channels the user belongs to in this team, so threads
-     * from channels they cannot see never leak. Unread state is muted per
-     * channel, so a muted channel's threads list without a dot.
+     * Redirects back so the panel's own reload picks the emptied inbox, the cleared
+     * "Unread" tally and the dropped rail dot out of fresh props.
      */
-    public function index(Request $request, Team $team): Response
+    public function markAllRead(Request $request, Team $team, MarkAllThreadsRead $markAllThreadsRead): RedirectResponse
     {
-        $user = $request->user();
+        $markAllThreadsRead->handle($request->user(), $team);
 
-        $channelIds = $user->visibleChannelIds($team);
-
-        return Inertia::render('channels/Threads', [
-            'team' => [
-                'id' => $team->id,
-                'name' => $team->name,
-                'slug' => $team->slug,
-            ],
-            'threads' => Inertia::scroll(fn () => Message::query()
-                ->whereIn('channel_id', $channelIds)
-                ->whereNull('thread_root_id')
-                ->where('reply_count', '>', 0)
-                ->followedBy($user)
-                ->withThreadReadState($user)
-                ->withMessageDataRelations()
-                // The inbox row also names the message's own channel; that is the
-                // ThreadInboxItemData shell around the payload, not part of it.
-                ->with('channel')
-                ->orderByDesc('last_reply_at')
-                ->orderByDesc('id')
-                ->cursorPaginate(self::PAGE_SIZE)
-                ->through(fn (Message $message): ThreadInboxItemData => ThreadInboxItemData::fromMessage($message))),
-        ]);
+        return back();
     }
 }

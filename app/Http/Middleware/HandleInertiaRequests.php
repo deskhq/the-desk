@@ -12,9 +12,11 @@ use App\Data\UserData;
 use App\Data\UserGroupData;
 use App\Enums\MessageReminderStatus;
 use App\Enums\MessageType;
+use App\Enums\NavDestination;
 use App\Enums\PostRegistrationPrompt;
 use App\Enums\SidebarPosition;
 use App\Enums\TeamRole;
+use App\Enums\ThreadInboxFilter;
 use App\Models\Channel;
 use App\Models\Message;
 use App\Models\MessageReminder;
@@ -24,6 +26,8 @@ use App\Models\User;
 use App\SlashCommands\SlashCommandRegistry;
 use App\Support\FrequentEmoji;
 use App\Support\ReverbConfig;
+use App\Support\ThreadInbox;
+use App\Support\ThreadInboxPage;
 use App\Support\TranslationCatalog;
 use App\Support\UpdateChecker;
 use App\Support\UserAgentParser;
@@ -34,6 +38,7 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
 use Inertia\Middleware;
+use Inertia\ProvidesScrollMetadata;
 use Laravel\Fortify\Features;
 
 class HandleInertiaRequests extends Middleware
@@ -240,6 +245,9 @@ class HandleInertiaRequests extends Middleware
             'slashCommands' => fn (): array => $this->slashCommandsForWorkspace($request),
             'collapsedChannelSections' => fn () => $user->collapsed_channel_sections ?? [],
             'hasUnreadThreads' => fn (): bool => $this->hasUnreadThreads($request, $user),
+            // The Threads panel's inbox and its "Unread" tally, present only while
+            // the dock actually has that destination pinned.
+            ...$this->threadsPanelProps($request, $user),
             'pendingInvitations' => Inertia::optional(fn (): array => $user ? $this->pendingInvitationsFor($user) : []),
             // The viewer's still-pending reminders in this team, soonest first,
             // feeding the "Reminders" list and its sidebar count.
@@ -527,27 +535,67 @@ class HandleInertiaRequests extends Middleware
 
     /**
      * Whether the user has any unread followed thread in the team, driving the
-     * sidebar's "Threads" unread dot.
+     * rail's and the tab bar's "Threads" unread dot.
      *
-     * Scoped to the user's channels in the team (the same ACL as the inbox), and
-     * muted per channel, so it agrees with the dots the inbox and channel views
-     * show. Returns false off the channel workspace, where the sidebar is absent.
+     * Scoped to the user's channels in the team (the same ACL as the panel), and
+     * muted per channel, so it agrees with the dots the panel and channel views
+     * show. Returns false off the channel workspace, where the dock is absent.
      */
     protected function hasUnreadThreads(Request $request, ?User $user): bool
+    {
+        $inbox = $this->threadInbox($request, $user);
+
+        return $inbox instanceof ThreadInbox && $inbox->hasUnread();
+    }
+
+    /**
+     * The Threads destination's props: one page of the inbox and how many followed
+     * threads are unread.
+     *
+     * Keyed on the destination being pinned (`?nav=threads`) rather than deferred,
+     * exactly as `?thread=` decides whether the thread panel's payload rides along.
+     * A deferred prop would be worse than it sounds: the client requests every
+     * deferred group straight after each visit, so the inbox — a cursor-paginated
+     * query with a 30-card payload — would run on every workspace navigation
+     * instead of only while the panel is open.
+     *
+     * @return array<string, mixed>
+     */
+    protected function threadsPanelProps(Request $request, ?User $user): array
+    {
+        $inbox = $this->threadInbox($request, $user);
+
+        if (! $inbox instanceof ThreadInbox || $request->query(NavDestination::QUERY_PARAM) !== NavDestination::Threads->value) {
+            return [];
+        }
+
+        $filter = ThreadInboxFilter::fromQuery($request->query('filter'));
+
+        return [
+            // The page carries its own scroll metadata, read off the models before
+            // they became cards — see {@see ThreadInboxPage} for why the paginator
+            // cannot be handed over directly.
+            'threads' => Inertia::scroll(
+                fn (): ThreadInboxPage => $inbox->page($filter),
+                metadata: fn (ThreadInboxPage $page): ProvidesScrollMetadata => $page->metadata(),
+            ),
+            'unreadThreadCount' => $inbox->unreadCount(...),
+        ];
+    }
+
+    /**
+     * The viewer's Threads read model for the team in the URL, or null off the
+     * channel workspace / for a guest, where there is no inbox to speak of.
+     */
+    protected function threadInbox(Request $request, ?User $user): ?ThreadInbox
     {
         $team = $request->route('team');
 
         if (! $user || ! $team instanceof Team || ! $this->isWorkspaceRoute($request)) {
-            return false;
+            return null;
         }
 
-        return Message::query()
-            ->whereIn('channel_id', $user->visibleChannelIds($team))
-            ->whereNull('thread_root_id')
-            ->where('reply_count', '>', 0)
-            ->followedBy($user)
-            ->whereThreadUnreadFor($user)
-            ->exists();
+        return new ThreadInbox($user, $team);
     }
 
     /**

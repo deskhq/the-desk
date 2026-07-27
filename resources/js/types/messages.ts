@@ -238,12 +238,15 @@ export type Message = {
      * a root. `threadFollowed` is the Slack-style auto-follow signal — the viewer
      * authored the root, replied, or was mentioned in the thread — and gates
      * whether a live reply raises the dot. `threadUnread` drives the dot on the
-     * root's "N replies" affordance and clears when the thread is read. Broadcast
-     * payloads omit viewer context, so the client preserves its own values across
-     * patches rather than taking the server's defaults.
+     * root's "N replies" affordance and clears when the thread is read, and
+     * `threadUnreadReplyCount` is how many of those replies are new — what the
+     * Threads panel renders as ":count new replies", never derived from the total.
+     * Broadcast payloads omit viewer context, so the client preserves its own
+     * values across patches rather than taking the server's defaults.
      */
     threadFollowed: boolean;
     threadUnread: boolean;
+    threadUnreadReplyCount: number;
 };
 
 /**
@@ -324,15 +327,26 @@ export type MessageSearchResult = {
 };
 
 /**
- * A row in the Threads inbox. Mirrors the `ThreadInboxItemData` DTO: a followed
- * thread's root message (carrying its reply count, participants, and per-viewer
- * `threadUnread` state) plus the channel it lives in, for rendering the row and
- * its jump-to-thread link.
+ * A card in the Threads panel. Mirrors the `ThreadInboxItemData` DTO: a followed
+ * thread's root message (carrying its reply counts, participants, and per-viewer
+ * `threadUnread` state) plus the conversation it lives in, for rendering the card
+ * and its jump-to-thread link.
+ *
+ * Spelled out here rather than taken from `App.Data.ThreadInboxItemData` because
+ * `root` is the hand-rolled `Message` the timeline components already speak.
  */
 export type ThreadInboxItem = {
     root: Message;
+    /**
+     * Viewer-relative: a channel's own name, or the counterpart's name for a DM,
+     * which stores none.
+     */
     channelName: string;
     channelSlug: string;
+    /** Whether the thread lives in a DM, so the card drops the `#`. */
+    isDirectMessage: boolean;
+    /** The 1:1 counterpart, whose avatar stands in for the `#` on a DM card. */
+    dmParticipant: Mention | null;
 };
 
 /**

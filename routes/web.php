@@ -81,6 +81,7 @@ Route::middleware(['auth', 'verified', EnsureTeamMembership::class])->group(func
     Route::get('t/{team}/search', [SearchController::class, 'index'])->name('search');
     Route::get('t/{team}/search/suggest', [SearchController::class, 'suggest'])->name('search.suggest');
     Route::get('t/{team}/threads', [ThreadsController::class, 'index'])->name('channels.threads.index');
+    Route::post('t/{team}/threads/read-all', [ThreadsController::class, 'markAllRead'])->name('channels.threads.readAll');
     Route::get('t/{team}/c/{channel}', [ChannelController::class, 'show'])
         ->scopeBindings()
         ->name('channels.show');

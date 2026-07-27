@@ -277,31 +277,54 @@ class Message extends Model
     ))';
 
     /**
-     * Correlated SQL telling whether the thread holds an unread reply for a user:
-     * a live reply by someone else after their `thread_reads` pointer (a null
-     * pointer means the thread was never opened, so every reply counts). Suppressed
-     * to false when the user has muted or quieted (level below "all") the root's
-     * channel, mirroring the sidebar's unread-badge suppression so a cross-channel
-     * query gets per-channel muting for free. Binds the user id three times, then
-     * the "all" notification level.
+     * The correlated tail of an unread-reply lookup, from the `from` keyword on:
+     * a live reply by someone else after the user's `thread_reads` pointer (a null
+     * pointer means the thread was never opened, so every reply counts). Shared by
+     * the `exists` flag and the count below, so the dot and the ":count new
+     * replies" line can never disagree. Binds the user id twice.
      */
-    private const string THREAD_HAS_UNREAD_SQL = '(exists (
-        select 1 from messages r
+    private const string THREAD_UNREAD_REPLIES_SQL = 'from messages r
         left join thread_reads tr on tr.thread_root_id = messages.id and tr.user_id = ?
         where r.thread_root_id = messages.id
           and r.deleted_at is null
           and r.user_id <> ?
-          and (tr.last_read_reply_id is null or r.id > tr.last_read_reply_id)
-    ) and not exists (
+          and (tr.last_read_reply_id is null or r.id > tr.last_read_reply_id)';
+
+    /**
+     * Correlated SQL telling whether the user has muted or quieted (level below
+     * "all") the root's channel, mirroring the sidebar's unread-badge suppression
+     * so a cross-channel query gets per-channel muting for free. Binds the user
+     * id, then the "all" notification level.
+     */
+    private const string THREAD_CHANNEL_SILENCED_SQL = 'exists (
         select 1 from channel_members cm
         where cm.channel_id = messages.channel_id and cm.user_id = ?
           and (cm.muted = true or cm.notification_level <> ?)
-    ))';
+    )';
+
+    /**
+     * Correlated SQL telling whether the thread holds an unread reply for a user,
+     * silenced per channel. Binds the user id three times, then the "all"
+     * notification level.
+     */
+    private const string THREAD_HAS_UNREAD_SQL = '(exists (
+        select 1 '.self::THREAD_UNREAD_REPLIES_SQL.'
+    ) and not '.self::THREAD_CHANNEL_SILENCED_SQL.')';
+
+    /**
+     * Correlated SQL counting the thread's replies that are new to a user — what
+     * the inbox renders as ":count new replies", never derived from the total.
+     * Silenced to zero on a muted channel, exactly as the dot is. Binds the user
+     * id, the "all" notification level, then the user id twice.
+     */
+    private const string THREAD_UNREAD_REPLY_COUNT_SQL = '(case when '.self::THREAD_CHANNEL_SILENCED_SQL.'
+        then 0 else (select count(*) '.self::THREAD_UNREAD_REPLIES_SQL.') end)';
 
     /**
      * Annotate root messages with the viewer's per-thread follow and unread state
-     * (`thread_followed` / `thread_has_unread`), which {@see MessageData}
-     * reads. Correlated per outer row, so one query fills a page without an N+1.
+     * (`thread_followed` / `thread_has_unread` / `thread_unread_reply_count`),
+     * which {@see MessageData} reads. Correlated per outer row, so one query fills
+     * a page without an N+1.
      *
      * @param  Builder<Message>  $query
      */
@@ -309,7 +332,8 @@ class Message extends Model
     {
         $query->addSelect('messages.*')
             ->selectRaw(self::THREAD_FOLLOWED_SQL.'::int as thread_followed', [$user->id, $user->id])
-            ->selectRaw(self::THREAD_HAS_UNREAD_SQL.'::int as thread_has_unread', [$user->id, $user->id, $user->id, NotificationLevel::All->value]);
+            ->selectRaw(self::THREAD_HAS_UNREAD_SQL.'::int as thread_has_unread', [$user->id, $user->id, $user->id, NotificationLevel::All->value])
+            ->selectRaw(self::THREAD_UNREAD_REPLY_COUNT_SQL.'::int as thread_unread_reply_count', [$user->id, NotificationLevel::All->value, $user->id, $user->id]);
     }
 
     /**

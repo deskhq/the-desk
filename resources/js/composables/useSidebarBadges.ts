@@ -39,7 +39,8 @@ export function useSidebarBadges(): void {
 
     // reload defaults to preserving scroll and page state; it re-evaluates the
     // shared `channels` prop to recompute every badge count, the aggregate
-    // `hasUnreadThreads` flag behind the sidebar's Threads dot, and `teams` —
+    // `hasUnreadThreads` flag behind the rail's Threads dot, the
+    // `unreadThreadCount` behind the Threads panel's "Unread" pill, and `teams` —
     // whose per-workspace counts are the cross-workspace dots on the rail. The
     // last one rides along rather than getting its own signal: no per-member
     // fanout of MessageSent exists, so a workspace the viewer is not in
@@ -49,11 +50,21 @@ export function useSidebarBadges(): void {
     // so it runs as a background visit ({@see backgroundVisit}); otherwise an
     // arrival landing mid-navigation cancels the visit the user actually asked
     // for.
+    //
+    // `unreadThreadCount` is shared only while that panel is open, so asking for
+    // it off the destination costs nothing: the server simply has no such prop to
+    // resolve. The panel's own card list is deliberately not in this set — pulling
+    // a merge prop here would reset the pages the viewer had scrolled through.
     const refresh = useDebouncedPost(
         () =>
             router.reload({
                 ...backgroundVisit,
-                only: ['channels', 'hasUnreadThreads', 'teams'],
+                only: [
+                    'channels',
+                    'hasUnreadThreads',
+                    'unreadThreadCount',
+                    'teams',
+                ],
             }),
         { delay: REFRESH_DEBOUNCE_MS },
     );

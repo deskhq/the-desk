@@ -159,6 +159,53 @@ export function formatMonthLabel(
 }
 
 /**
+ * How many days back still get a weekday rather than a date, so a label stays
+ * unambiguous: past a week, "Mon" could mean any Monday.
+ */
+const COMPACT_WEEKDAY_DAYS = 7;
+
+/**
+ * The narrowest honest timestamp for a list of conversations: a time of day for
+ * today, "Yesterday", a short weekday within the past week, then an abbreviated
+ * date. Built for a column too narrow to hold a full date and time on one line.
+ *
+ * The day boundary follows the runtime's calendar, as {@see formatDayLabel} does;
+ * the target zone still governs the time of day it renders.
+ */
+export function formatCompactTimestamp(
+    iso: string,
+    timeZone?: string,
+    locale: string = i18n.locale,
+    format?: TimeFormat,
+): string {
+    const date = new Date(iso);
+    const today = new Date();
+    const yesterday = new Date();
+    yesterday.setDate(today.getDate() - 1);
+
+    if (date.toDateString() === today.toDateString()) {
+        return formatTimeOfDay(iso, timeZone, locale, format);
+    }
+
+    if (date.toDateString() === yesterday.toDateString()) {
+        return translate('Yesterday');
+    }
+
+    const elapsedDays =
+        (today.getTime() - date.getTime()) / (24 * 60 * 60 * 1000);
+
+    if (elapsedDays < COMPACT_WEEKDAY_DAYS) {
+        return date.toLocaleDateString(locale, { weekday: 'short', timeZone });
+    }
+
+    return date.toLocaleDateString(locale, {
+        month: 'short',
+        day: 'numeric',
+        timeZone,
+    });
+}
+
+/**
  * A day-boundary label for a timeline divider or the sticky date chip: "Today"
  * or "Yesterday" for the two most recent days (translated), otherwise the full
  * weekday, month, and day — with the year only when it differs from this year.
