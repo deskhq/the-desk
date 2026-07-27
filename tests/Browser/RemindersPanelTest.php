@@ -98,7 +98,12 @@ test('checking a row clears its reminder and drops the count with it', function 
         // there being no completed state on the model until #524.
         ->assertNotPresent(reminderRow($overdue))
         ->assertNotPresent('@reminders-group-overdue')
-        ->assertPresent(reminderRow($later));
+        ->assertPresent(reminderRow($later))
+        // And it was the reminder that went, not just its row: a cold load of
+        // the same URL builds the list from the server's own props.
+        ->navigate(browserChannelUrl($team, $channel).'?nav=reminders')
+        ->assertPresent(reminderRow($later))
+        ->assertNotPresent(reminderRow($overdue));
 });
 
 test('clear all empties the panel down to its empty state', function (): void {
@@ -114,7 +119,10 @@ test('clear all empties the panel down to its empty state', function (): void {
         ->click('@reminders-clear-all')
         ->assertPresent('@reminders-empty')
         ->assertNotPresent('@reminders-list')
-        ->assertNotPresent('@reminders-count');
+        ->assertNotPresent('@reminders-count')
+        // The workspace is genuinely empty of reminders, not just this render.
+        ->navigate(browserChannelUrl($team, $channel).'?nav=reminders')
+        ->assertPresent('@reminders-empty');
 });
 
 test('a reminder on a deleted message keeps its row and says so', function (): void {
