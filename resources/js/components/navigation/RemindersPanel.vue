@@ -98,11 +98,11 @@ function dueLabel(reminder: MessageReminder): string {
 }
 
 /**
- * The near buckets take the filled surface the design gives them, the further
- * ones a quieter outline: what is overdue or due today is what the panel is
- * asking the viewer to act on.
+ * Whether a bucket is one the panel is asking the viewer to act on now. The
+ * near two take the filled surface the design gives them, the further two a
+ * quieter outline.
  */
-function isPressing(key: ReminderGroupKey): boolean {
+function isUrgent(key: ReminderGroupKey): boolean {
     return key === 'overdue' || key === 'today';
 }
 </script>
@@ -169,7 +169,7 @@ function isPressing(key: ReminderGroupKey): boolean {
                         :data-reminder="reminder.id"
                         class="flex gap-3 rounded-[14px] p-3.5 md:gap-2.25 md:rounded-xl md:p-2.75"
                         :class="
-                            isPressing(group.key)
+                            isUrgent(group.key)
                                 ? 'bg-sidebar-accent'
                                 : 'border border-sidebar-border'
                         "
@@ -186,7 +186,7 @@ function isPressing(key: ReminderGroupKey): boolean {
                             :aria-label="$t('Mark as done')"
                             class="group relative mt-0.5 flex size-5.5 shrink-0 items-center justify-center rounded-md border-2 text-transparent transition-colors after:absolute after:-inset-2.75 hover:text-sidebar-foreground focus-visible:text-sidebar-foreground md:mt-0.25 md:size-4.25 md:rounded-[5px] md:border md:after:hidden"
                             :class="
-                                isPressing(group.key)
+                                isUrgent(group.key)
                                     ? 'border-sidebar-foreground/45 hover:border-sidebar-foreground'
                                     : 'border-sidebar-foreground/30 hover:border-sidebar-foreground/70'
                             "
@@ -215,7 +215,7 @@ function isPressing(key: ReminderGroupKey): boolean {
                             <span
                                 class="truncate text-[15px] leading-[1.4] md:text-[12.5px]"
                                 :class="
-                                    isPressing(group.key)
+                                    isUrgent(group.key)
                                         ? 'text-sidebar-foreground'
                                         : 'text-sidebar-foreground/80'
                                 "
