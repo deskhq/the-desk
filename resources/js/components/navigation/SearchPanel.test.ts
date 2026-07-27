@@ -41,8 +41,9 @@ vi.mock('@/components/navigation/SearchFacetBar.vue', () => ({
             authorName: { type: String, default: null },
             channelName: { type: String, default: null },
             dateLabel: { type: String, default: null },
+            hasFile: { type: Boolean, default: false },
         },
-        emits: ['author', 'channel', 'range', 'clearAll'],
+        emits: ['author', 'channel', 'range', 'file', 'clearAll'],
         setup:
             (props, { emit }) =>
             () =>
@@ -54,9 +55,18 @@ vi.mock('@/components/navigation/SearchFacetBar.vue', () => ({
                         props.channelName,
                     ),
                     h('span', { 'data-test': 'chip-date' }, props.dateLabel),
+                    h(
+                        'span',
+                        { 'data-test': 'chip-file' },
+                        props.hasFile ? 'on' : 'off',
+                    ),
                     h('button', {
                         'data-test': 'drop-author',
                         onClick: () => emit('author', null),
+                    }),
+                    h('button', {
+                        'data-test': 'apply-file',
+                        onClick: () => emit('file', true),
                     }),
                     h('button', {
                         'data-test': 'clear-all',
@@ -119,6 +129,7 @@ function echo(
         in: null,
         after: null,
         before: null,
+        has: null,
         scope: 'team',
         ...overrides,
     };
@@ -268,13 +279,49 @@ describe('SearchPanel', () => {
         expect(requestedUrl()).toContain('q=brief');
     });
 
+    it('pins the file facet on the url and reads it back as a chip', async () => {
+        page.url = '/t/acme/c/general?nav=search&q=brief';
+        page.props.searchCriteria = echo({ q: 'brief' });
+        page.props.searchResults = [result()];
+
+        mount();
+        expect(find('chip-file')?.textContent).toBe('off');
+
+        find('apply-file')?.click();
+        await nextTick();
+
+        expect(requestedUrl()).toContain('has=file');
+    });
+
+    it('draws the file chip a shared link arrives with', () => {
+        page.url = '/t/acme/c/general?nav=search&q=brief&has=file';
+        page.props.searchCriteria = echo({ q: 'brief', has: 'file' });
+        page.props.searchResults = [result()];
+
+        mount();
+
+        expect(get).not.toHaveBeenCalled();
+        expect(find('chip-file')?.textContent).toBe('on');
+    });
+
+    it('names the file filter back when nothing matches', () => {
+        page.url = '/t/acme/c/general?nav=search&q=quokka&has=file';
+        page.props.searchCriteria = echo({ q: 'quokka', has: 'file' });
+        page.props.searchResults = [];
+
+        mount();
+
+        expect(find('search-empty')?.textContent).toContain('with files');
+    });
+
     it('clears every facet but keeps the query', async () => {
         page.url =
-            '/t/acme/c/general?nav=search&q=brief&from=u-1&after=2026-07-01';
+            '/t/acme/c/general?nav=search&q=brief&from=u-1&after=2026-07-01&has=file';
         page.props.searchCriteria = echo({
             q: 'brief',
             from: 'u-1',
             after: '2026-07-01',
+            has: 'file',
         });
         page.props.searchResults = [result()];
 

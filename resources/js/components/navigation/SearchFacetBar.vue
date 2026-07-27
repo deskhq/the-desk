@@ -42,6 +42,8 @@ const props = defineProps<{
     before: string | null;
     members: ReadonlyArray<{ id: string; name: string }>;
     channels: ReadonlyArray<FacetChannel>;
+    /** Whether results are narrowed to messages carrying an attachment. */
+    hasFile: boolean;
     /** Whether any facet is applied, which is what "Clear all" needs. */
     hasFilters: boolean;
 }>();
@@ -50,6 +52,7 @@ const emit = defineEmits<{
     author: [id: string | null];
     channel: [id: string | null];
     range: [after: string | null, before: string | null];
+    file: [applied: boolean];
     clearAll: [];
 }>();
 
@@ -327,6 +330,37 @@ const datePresets = computed(() => [
                 </div>
             </PopoverContent>
         </Popover>
+
+        <!-- file facet: a boolean, so its chip toggles rather than opening a
+             picker — hence no chevron on the outlined state. -->
+        <span
+            v-if="props.hasFile"
+            class="inline-flex h-6 items-center gap-1 rounded-full bg-brass-fill py-0 pr-1 pl-2.5 text-[11.5px] font-semibold text-brass-fill-foreground max-md:h-11 max-md:pr-1.5 max-md:pl-3.5 max-md:text-[13.5px]"
+            data-test="facet-file"
+        >
+            <span class="truncate">{{ $t('Files') }}</span>
+            <Button
+                variant="unstyled"
+                size="none"
+                type="button"
+                class="flex size-4 items-center justify-center rounded-full text-brass-fill-foreground/70 hover:text-brass-fill-foreground max-md:size-9"
+                :aria-label="$t('Remove file filter')"
+                @click="emit('file', false)"
+            >
+                <X class="size-2.75" aria-hidden="true" />
+            </Button>
+        </span>
+        <Button
+            v-else
+            variant="unstyled"
+            size="none"
+            type="button"
+            class="inline-flex h-6 items-center gap-1 rounded-full border border-sidebar-border px-2.5 text-[11.5px] text-sidebar-foreground/70 hover:text-sidebar-foreground max-md:h-11 max-md:px-4 max-md:text-[13.5px]"
+            data-test="facet-file-toggle"
+            @click="emit('file', true)"
+        >
+            {{ $t('Files') }}
+        </Button>
 
         <Button
             v-if="props.hasFilters"

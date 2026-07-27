@@ -43,6 +43,14 @@ final readonly class MessageSearchPanel
     /** The date format the facets are pinned onto the URL in. */
     private const string DATE_FORMAT = 'Y-m-d';
 
+    /**
+     * The only value the attachment facet is written as. It reads as the `has:`
+     * token it is promoted from, so a later kind (`has:image`) would extend this
+     * rather than rename it; anything else on the URL names no filter and is
+     * dropped, the way an unparseable date is.
+     */
+    public const string HAS_FILE = 'file';
+
     public function __construct(
         private User $viewer,
         private Team $team,
@@ -65,6 +73,7 @@ final readonly class MessageSearchPanel
             after: self::day(self::param($request, 'after'))?->startOfDay(),
             before: self::day(self::param($request, 'before'))?->endOfDay(),
             scope: SearchScope::tryFrom((string) self::param($request, 'scope')) ?? SearchScope::default(),
+            hasAttachments: self::param($request, 'has') === self::HAS_FILE,
         ));
     }
 
@@ -77,7 +86,7 @@ final readonly class MessageSearchPanel
      * disagree, which is how a hand-off from the ⌘K palette and a history
      * traversal both end up showing results for what is actually being asked.
      *
-     * @return array{q: string, from: ?string, in: ?string, after: ?string, before: ?string, scope: string}
+     * @return array{q: string, from: ?string, in: ?string, after: ?string, before: ?string, has: ?string, scope: string}
      */
     public function criteria(): array
     {
@@ -87,6 +96,7 @@ final readonly class MessageSearchPanel
             'in' => $this->criteria->channelId,
             'after' => $this->criteria->after?->format(self::DATE_FORMAT),
             'before' => $this->criteria->before?->format(self::DATE_FORMAT),
+            'has' => $this->criteria->hasAttachments ? self::HAS_FILE : null,
             'scope' => $this->criteria->scope->value,
         ];
     }

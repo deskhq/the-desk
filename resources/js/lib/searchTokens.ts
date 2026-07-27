@@ -1,15 +1,20 @@
 /**
  * The shared search-token model behind both the Cmd+K palette and the search
  * page. A raw query string is parsed once into a structured {@link SearchFilters}
- * — residual text plus single-valued `from` / `in` / `before` / `after` facets —
- * and serialized to the URL params the server understands, so the two entry
- * points drive one filter model and shared links reproduce the filtered view.
+ * — residual text plus single-valued `from` / `in` / `before` / `after` / `has`
+ * facets — and serialized to the URL params the server understands, so the two
+ * entry points drive one filter model and shared links reproduce the filtered
+ * view.
  *
  * `from:name` resolves to a user id and `in:#channel` to a channel id against the
- * loaded members/channels; `before:`/`after:` parse ISO dates. A token that does
- * not resolve (unknown member, absent channel, malformed date) falls back to
- * literal text, so nothing a user types is ever silently dropped.
+ * loaded members/channels; `before:`/`after:` parse ISO dates; `has:file` narrows
+ * to messages carrying an attachment. A token that does not resolve (unknown
+ * member, absent channel, malformed date, a `has:` kind nothing filters by) falls
+ * back to literal text, so nothing a user types is ever silently dropped.
  */
+
+/** The only `has:` kind there is a filter for. */
+export const HAS_FILE = 'file';
 
 /**
  * The resolved, single-valued filter model. Absent facets are `null` to mirror
@@ -21,6 +26,7 @@ export type SearchFilters = {
     in: string | null;
     after: string | null;
     before: string | null;
+    has: typeof HAS_FILE | null;
 };
 
 /**
@@ -40,17 +46,25 @@ export type SearchParams = {
     in?: string;
     after?: string;
     before?: string;
+    has?: string;
     scope?: string;
 };
 
-const TOKEN = /^(from|in|before|after):(.+)$/i;
+const TOKEN = /^(from|in|before|after|has):(.+)$/i;
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 
 /**
  * An empty filter set — the starting point and the "cleared" state.
  */
 export function emptyFilters(): SearchFilters {
-    return { text: '', from: null, in: null, after: null, before: null };
+    return {
+        text: '',
+        from: null,
+        in: null,
+        after: null,
+        before: null,
+        has: null,
+    };
 }
 
 /**
@@ -117,6 +131,16 @@ function applyToken(
         }
 
         filters.in = channel;
+
+        return true;
+    }
+
+    if (key === 'has') {
+        if (value.toLowerCase() !== HAS_FILE) {
+            return false;
+        }
+
+        filters.has = HAS_FILE;
 
         return true;
     }
@@ -217,6 +241,10 @@ export function filtersToParams(
 
     if (filters.before !== null) {
         params.before = filters.before;
+    }
+
+    if (filters.has !== null) {
+        params.has = filters.has;
     }
 
     if (scope !== undefined && scope !== '') {

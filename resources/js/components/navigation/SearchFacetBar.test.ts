@@ -68,6 +68,7 @@ const baseProps: {
         isPrivate: boolean;
         teamName: string | null;
     }>;
+    hasFile: boolean;
     hasFilters: boolean;
 } = {
     authorName: null,
@@ -75,6 +76,7 @@ const baseProps: {
     dateLabel: null,
     after: null,
     before: null,
+    hasFile: false,
     members: [{ id: 'u-1', name: 'Carol Danvers' }],
     channels: [
         { id: 'c-1', name: 'general', isPrivate: false, teamName: null },
@@ -103,6 +105,8 @@ function mount(props: Partial<typeof baseProps> = {}): void {
                         emitted.push(['channel', args]),
                     onRange: (...args: unknown[]) =>
                         emitted.push(['range', args]),
+                    onFile: (...args: unknown[]) =>
+                        emitted.push(['file', args]),
                     onClearAll: (...args: unknown[]) =>
                         emitted.push(['clearAll', args]),
                 }),
@@ -136,6 +140,7 @@ describe('SearchFacetBar', () => {
         expect(find('facet-author-picker')).not.toBeNull();
         expect(find('facet-channel-picker')).not.toBeNull();
         expect(find('facet-date-picker')).not.toBeNull();
+        expect(find('facet-file-toggle')).not.toBeNull();
         expect(find('facet-author')).toBeNull();
         expect(find('facet-clear-all')).toBeNull();
     });
@@ -207,6 +212,29 @@ describe('SearchFacetBar', () => {
         await nextTick();
 
         expect(find('facet-date-after')).not.toBeNull();
+    });
+
+    // The attachment facet is a boolean, so its chip is a toggle rather than a
+    // picker: one click applies it, the chip's own × takes it back off.
+    it('applies the file facet from its outlined chip', async () => {
+        mount();
+
+        find('facet-file-toggle')?.click();
+        await nextTick();
+
+        expect(emitted).toContainEqual(['file', [true]]);
+    });
+
+    it('replaces the file toggle with an applied chip that drops it', async () => {
+        mount({ hasFile: true, hasFilters: true });
+
+        expect(find('facet-file-toggle')).toBeNull();
+        expect(find('facet-file')).not.toBeNull();
+
+        find('facet-file')?.querySelector('button')?.click();
+        await nextTick();
+
+        expect(emitted).toContainEqual(['file', [false]]);
     });
 
     it('picks a channel from the list it was given', async () => {

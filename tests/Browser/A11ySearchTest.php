@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Actions\Channels\JoinChannel;
 use App\Actions\Teams\CreateTeam;
 use App\Enums\TeamRole;
+use App\Models\Attachment;
 use App\Models\Channel;
 use App\Models\Message;
 use App\Models\Team;
@@ -220,6 +221,36 @@ test('the author facet applies and removes, and a date preset applies', function
         ->wait(0.8)
         ->assertMissing('[data-test="facet-date"]')
         ->assertPresent('[data-test="search-result"]');
+});
+
+test('the file facet toggles from its chip and narrows the matches', function (): void {
+    ['owner' => $alice, 'channel' => $channel] = searchPanelWithMatches();
+    $withFile = Message::where('channel_id', $channel->id)
+        ->where('body', 'like', '%danced at dawn%')
+        ->firstOrFail();
+    Attachment::factory()
+        ->for($withFile->user)
+        ->document()
+        ->attachedTo($withFile)
+        ->create();
+
+    openSearchPanel($alice)
+        ->type('@search-input', 'quokka')
+        ->wait(0.8)
+        ->assertSee('2 results')
+        // One click applies the boolean facet: the outlined pill becomes a chip
+        // and only the message carrying a file survives.
+        ->click('@facet-file-toggle')
+        ->wait(0.8)
+        ->assertPresent('[data-test="facet-file"]')
+        ->assertMissing('[data-test="facet-file-toggle"]')
+        ->assertSee('1 result')
+        ->assertNoAccessibilityIssues()
+        // The chip's own control takes it back off.
+        ->click('[data-test="facet-file"] button')
+        ->wait(0.8)
+        ->assertPresent('[data-test="facet-file-toggle"]')
+        ->assertSee('2 results');
 });
 
 test('the facet pickers are comboboxes that keep the open popup accessible in both themes', function (): void {

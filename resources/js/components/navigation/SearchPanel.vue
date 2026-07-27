@@ -12,6 +12,7 @@ import {
 import SearchFacetBar from '@/components/navigation/SearchFacetBar.vue';
 import type { FacetChannel } from '@/components/navigation/SearchFacetBar.vue';
 import SearchResultList from '@/components/navigation/SearchResultList.vue';
+import SearchScopeControl from '@/components/navigation/SearchScopeControl.vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useDebouncedPost } from '@/composables/useDebouncedPost';
@@ -25,7 +26,7 @@ import {
     searchParamsFromUrl,
     urlForSearchParams,
 } from '@/lib/searchPanel';
-import { parseSearchQuery } from '@/lib/searchTokens';
+import { HAS_FILE, parseSearchQuery } from '@/lib/searchTokens';
 import type { SearchParams, TokenLookup } from '@/lib/searchTokens';
 
 /**
@@ -53,6 +54,7 @@ const authorId = computed(() => criteria.value.from ?? null);
 const channelId = computed(() => criteria.value.in ?? null);
 const after = computed(() => criteria.value.after ?? null);
 const before = computed(() => criteria.value.before ?? null);
+const hasFile = computed(() => criteria.value.has === HAS_FILE);
 const scope = computed(() => criteria.value.scope ?? 'team');
 
 const results = computed(() => page.props.searchResults);
@@ -150,7 +152,8 @@ const hasFilters = computed(
         authorId.value !== null ||
         channelId.value !== null ||
         after.value !== null ||
-        before.value !== null,
+        before.value !== null ||
+        hasFile.value,
 );
 
 /** The zero-result summary names the active filters back to the viewer. */
@@ -167,6 +170,10 @@ const activeFilterSummary = computed(() => {
 
     if (dateLabel.value !== null) {
         parts.push(dateLabel.value);
+    }
+
+    if (hasFile.value) {
+        parts.push(t('with files'));
     }
 
     return parts.join(', ');
@@ -324,8 +331,9 @@ onMounted(async () => {
 });
 
 /**
- * Recognized `from:` / `in:` / `before:` / `after:` tokens promote to facet chips
- * and are stripped from the visible input; unknown tokens stay literal.
+ * Recognized `from:` / `in:` / `before:` / `after:` / `has:` tokens promote to
+ * facet chips and are stripped from the visible input; unknown tokens stay
+ * literal.
  */
 function commitTerm(raw: string): void {
     const parsed = parseSearchQuery(raw, tokenLookup.value);
@@ -338,6 +346,7 @@ function commitTerm(raw: string): void {
         ...(parsed.in !== null ? { in: parsed.in } : {}),
         ...(parsed.after !== null ? { after: parsed.after } : {}),
         ...(parsed.before !== null ? { before: parsed.before } : {}),
+        ...(parsed.has !== null ? { has: parsed.has } : {}),
     });
 }
 
@@ -366,6 +375,7 @@ function clearAllFilters(): void {
         in: undefined,
         after: undefined,
         before: undefined,
+        has: undefined,
     });
 }
 
@@ -375,6 +385,10 @@ function searchAllChannels(): void {
 
 function setRange(from: string | null, to: string | null): void {
     apply({ after: from ?? undefined, before: to ?? undefined });
+}
+
+function setFileFilter(applied: boolean): void {
+    apply({ has: applied ? HAS_FILE : undefined });
 }
 </script>
 
@@ -418,41 +432,13 @@ function setRange(from: string | null, to: string | null): void {
                 </Button>
             </div>
 
-            <!-- workspace scope (multi-team viewers only): two halves of one
-                 control rather than the page's inline pills, so a long workspace
-                 name cannot push the second option out of the column. -->
-            <div
+            <!-- workspace scope, for multi-team viewers only -->
+            <SearchScopeControl
                 v-if="showScopeControl"
-                class="grid grid-cols-2 gap-0.5 rounded-full bg-sidebar-accent p-0.5"
-                role="group"
-                :aria-label="$t('Search scope')"
-                data-test="scope-control"
-            >
-                <Button
-                    variant="segmented"
-                    size="none"
-                    type="button"
-                    class="h-6 min-w-0 rounded-full px-2 text-[11.5px] font-medium max-md:h-9 max-md:text-[13px]"
-                    :aria-pressed="scope === 'team'"
-                    data-test="scope-team"
-                    @click="setScope('team')"
-                >
-                    <span class="truncate">{{
-                        page.props.currentTeam?.name ?? $t('This workspace')
-                    }}</span>
-                </Button>
-                <Button
-                    variant="segmented"
-                    size="none"
-                    type="button"
-                    class="h-6 min-w-0 rounded-full px-2 text-[11.5px] font-medium max-md:h-9 max-md:text-[13px]"
-                    :aria-pressed="scope === 'all'"
-                    data-test="scope-all"
-                    @click="setScope('all')"
-                >
-                    <span class="truncate">{{ $t('All workspaces') }}</span>
-                </Button>
-            </div>
+                :scope="scope"
+                :team-name="page.props.currentTeam?.name ?? null"
+                @scope="setScope"
+            />
 
             <SearchFacetBar
                 :author-name="authorName"
@@ -462,10 +448,12 @@ function setRange(from: string | null, to: string | null): void {
                 :before="before"
                 :members="members"
                 :channels="channelOptions"
+                :has-file="hasFile"
                 :has-filters="hasFilters"
                 @author="apply({ from: $event ?? undefined })"
                 @channel="apply({ in: $event ?? undefined })"
                 @range="setRange"
+                @file="setFileFilter"
                 @clear-all="clearAllFilters"
             />
         </div>

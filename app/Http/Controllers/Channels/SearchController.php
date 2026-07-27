@@ -11,6 +11,7 @@ use App\Enums\SearchScope;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Channels\SearchMessagesRequest;
 use App\Models\Team;
+use App\Support\MessageSearchPanel;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -28,7 +29,7 @@ class SearchController extends Controller
      * The facets a legacy search link carries, forwarded onto the destination so
      * a shared URL still reproduces its filtered view (#391).
      */
-    private const array FORWARDED_FACETS = ['q', 'from', 'in', 'after', 'before', 'scope'];
+    private const array FORWARDED_FACETS = ['q', 'from', 'in', 'after', 'before', 'has', 'scope'];
 
     /**
      * Send the legacy full-width search page onto the pinned destination.
@@ -63,6 +64,7 @@ class SearchController extends Controller
             after: $request->date('after')?->startOfDay(),
             before: $request->date('before')?->endOfDay(),
             scope: SearchScope::tryFrom((string) $request->validated('scope')) ?? SearchScope::default(),
+            hasAttachments: $request->validated('has') === MessageSearchPanel::HAS_FILE,
         );
 
         $user = $request->user();

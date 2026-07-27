@@ -4,6 +4,7 @@ use App\Actions\Channels\OpenDirectMessage;
 use App\Actions\Teams\CreateTeam;
 use App\Enums\NavDestination;
 use App\Enums\TeamRole;
+use App\Models\Attachment;
 use App\Models\Channel;
 use App\Models\Message;
 use App\Models\Team;
@@ -172,6 +173,70 @@ test('the date facets limit results to the created-at range', function (): void 
         );
 });
 
+test('the file facet limits results to messages carrying an attachment', function (): void {
+    [$owner, $team, $general] = searchTeamWithGeneral();
+    $member = searchMember($team, $general);
+    $withFile = Message::factory()->for($general)->for($owner)->create(['body' => 'zephyr with the deck']);
+    Message::factory()->for($general)->for($owner)->create(['body' => 'zephyr without anything']);
+    Attachment::factory()->for($owner)->attachedTo($withFile)->create();
+
+    performSearchWith($member, $team, ['q' => 'zephyr', 'has' => 'file'])
+        ->assertInertia(fn (Assert $page): Assert => $page
+            ->has('searchResults', 1)
+            ->where('searchResults.0.message.body', 'zephyr with the deck')
+        );
+});
+
+test('a message whose only attachment was deleted drops out of the file facet', function (): void {
+    [$owner, $team, $general] = searchTeamWithGeneral();
+    $member = searchMember($team, $general);
+    $message = Message::factory()->for($general)->for($owner)->create(['body' => 'zephyr with the deck']);
+    $attachment = Attachment::factory()->for($owner)->attachedTo($message)->create();
+    $attachment->delete();
+
+    // The chip promises the message still carries a file, and a soft-deleted one
+    // is no longer rendered on it — so it must not answer the filter either.
+    performSearchWith($member, $team, ['q' => 'zephyr', 'has' => 'file'])
+        ->assertInertia(fn (Assert $page): Assert => $page->has('searchResults', 0));
+});
+
+test('the file facet never widens the channel ACL', function (): void {
+    [$owner, $team, $general] = searchTeamWithGeneral();
+    $member = searchMember($team, $general);
+    $private = Channel::factory()->for($team)->private()->create(['created_by' => $owner->id]);
+    $secret = Message::factory()->for($private)->for($owner)->create(['body' => 'secret zephyr deck']);
+    Attachment::factory()->for($owner)->attachedTo($secret)->create();
+
+    performSearchWith($member, $team, ['q' => 'zephyr', 'has' => 'file'])
+        ->assertInertia(fn (Assert $page): Assert => $page->has('searchResults', 0));
+});
+
+test('an unknown file facet value is dropped rather than filtering', function (): void {
+    [$owner, $team, $general] = searchTeamWithGeneral();
+    $member = searchMember($team, $general);
+    Message::factory()->for($general)->for($owner)->create(['body' => 'zephyr without anything']);
+
+    // Only the one value the chip writes is honoured; a hand-edited `has=audio`
+    // is dropped rather than silently filtering by something nobody asked for.
+    performSearchWith($member, $team, ['q' => 'zephyr', 'has' => 'audio'])
+        ->assertOk()
+        ->assertInertia(fn (Assert $page): Assert => $page
+            ->has('searchResults', 1)
+            ->where('searchCriteria.has', null)
+        );
+});
+
+test('the file facet is echoed back in the criteria the matches answer', function (): void {
+    [$owner, $team, $general] = searchTeamWithGeneral();
+    $member = searchMember($team, $general);
+    Message::factory()->for($general)->for($owner)->create(['body' => 'zephyr note']);
+
+    performSearchWith($member, $team, ['q' => 'zephyr', 'has' => 'file'])
+        ->assertInertia(fn (Assert $page): Assert => $page
+            ->where('searchCriteria.has', 'file')
+        );
+});
+
 test('results are ordered newest first regardless of engine relevance order', function (): void {
     [$owner, $team, $general] = searchTeamWithGeneral();
     $member = searchMember($team, $general);
@@ -264,10 +329,12 @@ test('the legacy search url redirects onto the destination carrying its facets',
             'team' => $team->slug,
             'q' => 'zephyr',
             'from' => $owner->id,
+            'has' => 'file',
             'nav' => 'threads',
         ]))
         ->assertRedirectContains('q=zephyr')
         ->assertRedirectContains('from='.$owner->id)
+        ->assertRedirectContains('has=file')
         // The destination is pinned last, so a crafted `nav` on the legacy link
         // cannot steer the redirect at another panel.
         ->assertRedirectContains('nav=search');
@@ -465,6 +532,31 @@ test('the suggest endpoint caps results at the preview limit', function (): void
     performSuggest($member, $team, 'zephyr')
         ->assertOk()
         ->assertJsonCount(5, 'results');
+});
+
+test('the suggest endpoint honours the file facet', function (): void {
+    [$owner, $team, $general] = searchTeamWithGeneral();
+    $member = searchMember($team, $general);
+    $withFile = Message::factory()->for($general)->for($owner)->create(['body' => 'zephyr with the deck']);
+    Message::factory()->for($general)->for($owner)->create(['body' => 'zephyr without anything']);
+    Attachment::factory()->for($owner)->attachedTo($withFile)->create();
+
+    // The palette parses `has:file` into the same params the panel writes, so the
+    // preview it shows has to be filtered the same way the full result set is.
+    test()->actingAs($member)
+        ->getJson(route('search.suggest', ['team' => $team->slug, 'q' => 'zephyr', 'has' => 'file']))
+        ->assertOk()
+        ->assertJsonCount(1, 'results')
+        ->assertJsonPath('results.0.message.body', 'zephyr with the deck');
+});
+
+test('the suggest endpoint rejects a file facet it does not offer', function (): void {
+    [, $team, $general] = searchTeamWithGeneral();
+    $member = searchMember($team, $general);
+
+    test()->actingAs($member)
+        ->getJson(route('search.suggest', ['team' => $team->slug, 'q' => 'zephyr', 'has' => 'audio']))
+        ->assertJsonValidationErrorFor('has');
 });
 
 test('the suggest endpoint is ACL-filtered to the user channels', function (): void {
