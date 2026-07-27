@@ -16,7 +16,16 @@ vi.mock('@inertiajs/vue3', () => ({
     router: { delete: destroy, patch, post },
     usePage: () => page,
 }));
-vi.mock('vue-sonner', () => ({ toast: { error: toastError } }));
+vi.mock('@/composables/useToast', () => {
+    const toast = {
+        error: toastError,
+        success: vi.fn(),
+        warning: vi.fn(),
+        progress: vi.fn(),
+    };
+
+    return { useToast: () => toast };
+});
 
 import { useChannelSections } from '@/composables/useChannelSections';
 import type { ChannelSectionGroup } from '@/lib/channelSections';

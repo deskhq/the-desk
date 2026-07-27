@@ -1,6 +1,6 @@
 import { router } from '@inertiajs/vue3';
-import { toast } from 'vue-sonner';
 import { store as openDm } from '@/actions/App/Http/Controllers/Channels/DirectMessageController';
+import { useToast } from '@/composables/useToast';
 import { useTranslations } from '@/composables/useTranslations';
 
 /**
@@ -11,6 +11,7 @@ import { useTranslations } from '@/composables/useTranslations';
  */
 export function useOpenDirectMessage(teamSlug: () => string) {
     const { t } = useTranslations();
+    const toast = useToast();
 
     function openDirectMessage(userId: string): void {
         router.post(

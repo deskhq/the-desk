@@ -11,7 +11,6 @@ import {
     Trash2,
 } from '@lucide/vue';
 import { computed, watch } from 'vue';
-import { toast } from 'vue-sonner';
 import EmojiPickerPopover from '@/components/EmojiPickerPopover.vue';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
@@ -24,6 +23,7 @@ import {
 import { useCustomEmojis } from '@/composables/useCustomEmojis';
 import { useFrequentEmojis } from '@/composables/useFrequentEmojis';
 import { useInitials } from '@/composables/useInitials';
+import { useToast } from '@/composables/useToast';
 import { useTranslations } from '@/composables/useTranslations';
 import { formatTimeOfDay } from '@/lib/datetime';
 import {
@@ -76,6 +76,7 @@ const emit = defineEmits<{
 }>();
 
 const { t } = useTranslations();
+const toast = useToast();
 const { getInitials } = useInitials();
 const { parseToken } = useCustomEmojis();
 const { list: frequentEmojis } = useFrequentEmojis();

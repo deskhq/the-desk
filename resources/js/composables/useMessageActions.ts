@@ -1,7 +1,6 @@
 import { router } from '@inertiajs/vue3';
 import { nextTick } from 'vue';
 import type { Ref } from 'vue';
-import { toast } from 'vue-sonner';
 import { store as forwardMessageAction } from '@/actions/App/Http/Controllers/Channels/ForwardMessageController';
 import {
     destroy as destroyMessage,
@@ -26,6 +25,7 @@ import {
 import { store as storeCommand } from '@/actions/App/Http/Controllers/Channels/SlashCommandController';
 import type { useMessageStream } from '@/composables/useMessageStream';
 import { optimisticMessage } from '@/composables/useMessageStream';
+import { useToast } from '@/composables/useToast';
 import { useTranslations } from '@/composables/useTranslations';
 import { planForward } from '@/lib/forwardPlacement';
 import type { Outbox } from '@/lib/outbox';
@@ -191,6 +191,7 @@ export function useMessageActions(
     options: MessageActionsOptions,
 ): MessageActions {
     const { t } = useTranslations();
+    const toast = useToast();
 
     /** Add an optimistic row to the main timeline, honouring the pin-to-bottom rule. */
     function appendPendingMain(message: Message): void {

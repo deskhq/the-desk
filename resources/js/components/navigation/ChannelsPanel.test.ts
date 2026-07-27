@@ -12,7 +12,16 @@ vi.mock('@inertiajs/vue3', () => ({
     usePage: () => page,
 }));
 
-vi.mock('vue-sonner', () => ({ toast: { error: vi.fn() } }));
+vi.mock('@/composables/useToast', () => {
+    const toast = {
+        error: vi.fn(),
+        success: vi.fn(),
+        warning: vi.fn(),
+        progress: vi.fn(),
+    };
+
+    return { useToast: () => toast };
+});
 
 vi.mock('@lucide/vue', () => ({
     ChevronRight: { render: () => h('svg') },

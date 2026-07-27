@@ -4,7 +4,6 @@ import { CalendarDate, today } from '@internationalized/date';
 import { Clock, Smile } from '@lucide/vue';
 import type { DateValue } from 'reka-ui';
 import { computed, ref, watch } from 'vue';
-import { toast } from 'vue-sonner';
 import {
     destroy as destroyStatus,
     update as updateStatus,
@@ -28,6 +27,7 @@ import {
     SelectValue,
 } from '@/components/ui/select';
 import UserStatusEmoji from '@/components/UserStatusEmoji.vue';
+import { useToast } from '@/composables/useToast';
 import { useTranslations } from '@/composables/useTranslations';
 import {
     to12Hour,
@@ -52,6 +52,7 @@ const open = defineModel<boolean>('open', { default: false });
 
 const page = usePage();
 const { t } = useTranslations();
+const toast = useToast();
 
 const status = computed(() => page.props.auth.user.status ?? null);
 const isEditing = computed(() => status.value !== null);

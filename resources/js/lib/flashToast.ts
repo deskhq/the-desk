@@ -1,8 +1,21 @@
 import { router } from '@inertiajs/vue3';
-import { toast } from 'vue-sonner';
+import { useToast } from '@/composables/useToast';
 import type { FlashToast } from '@/types/ui';
 
 export function initializeFlashToast(): void {
+    const toast = useToast();
+
+    /**
+     * The tones a server flash may ask for. Deliberately a lookup rather than
+     * `toast[data.type]`: the payload crosses the wire, so a tone the client
+     * cannot speak has to be ignorable rather than a call on `undefined`.
+     */
+    const tones: Record<FlashToast['type'], (message: string) => void> = {
+        success: toast.success,
+        error: toast.error,
+        warning: toast.warning,
+    };
+
     router.on('flash', (event) => {
         const flash = (event as CustomEvent).detail?.flash;
         const data = flash?.toast as FlashToast | undefined;
@@ -11,6 +24,13 @@ export function initializeFlashToast(): void {
             return;
         }
 
-        toast[data.type](data.message);
+        // Own-property check, not a bare lookup: `data.type` arrives over the
+        // wire, and `tones.constructor` / `tones.toString` are callable members
+        // `tones` inherits from `Object.prototype`.
+        if (!Object.hasOwn(tones, data.type)) {
+            return;
+        }
+
+        tones[data.type](data.message);
     });
 }

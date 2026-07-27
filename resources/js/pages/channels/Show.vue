@@ -10,7 +10,6 @@ import {
     ref,
     watch,
 } from 'vue';
-import { toast } from 'vue-sonner';
 import {
     archive as archiveChannel,
     read as markChannelRead,
@@ -57,6 +56,7 @@ import { useSendFailureAnnouncer } from '@/composables/useSendFailureAnnouncer';
 import { useTeamPresence } from '@/composables/useTeamPresence';
 import { useThreadPanel } from '@/composables/useThreadPanel';
 import { useTimezone } from '@/composables/useTimezone';
+import { useToast } from '@/composables/useToast';
 import { useTranslations } from '@/composables/useTranslations';
 import { useTypingIndicator } from '@/composables/useTypingIndicator';
 import { useUnreadDivider } from '@/composables/useUnreadDivider';
@@ -149,6 +149,7 @@ const props = defineProps<{
 const page = usePage();
 
 const { t } = useTranslations();
+const toast = useToast();
 
 const currentUser = computed(() => ({
     id: String(page.props.auth.user.id),

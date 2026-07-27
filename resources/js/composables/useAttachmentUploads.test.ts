@@ -4,9 +4,16 @@ import type { EffectScope } from 'vue';
 
 const { toastError } = vi.hoisted(() => ({ toastError: vi.fn() }));
 
-vi.mock('vue-sonner', () => ({
-    toast: { error: toastError, success: vi.fn() },
-}));
+vi.mock('@/composables/useToast', () => {
+    const toast = {
+        error: toastError,
+        success: vi.fn(),
+        warning: vi.fn(),
+        progress: vi.fn(),
+    };
+
+    return { useToast: () => toast };
+});
 
 import { useAttachmentUploads } from '@/composables/useAttachmentUploads';
 import type { AttachmentUploads } from '@/composables/useAttachmentUploads';

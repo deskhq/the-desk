@@ -1,12 +1,12 @@
 import { router, usePage } from '@inertiajs/vue3';
 import { computed, ref } from 'vue';
 import type { Ref } from 'vue';
-import { toast } from 'vue-sonner';
 import {
     destroy as destroySection,
     store as storeSection,
     update as updateSection,
 } from '@/actions/App/Http/Controllers/Channels/ChannelSectionController';
+import { useToast } from '@/composables/useToast';
 import { useTranslations } from '@/composables/useTranslations';
 import type { ChannelSectionGroup } from '@/lib/channelSections';
 import type { ChannelSection } from '@/types/channels';
@@ -69,6 +69,7 @@ export interface ChannelSections {
 export function useChannelSections(): ChannelSections {
     const page = usePage();
     const { t } = useTranslations();
+    const toast = useToast();
 
     const teamSlug = computed(() => page.props.currentTeam?.slug ?? '');
 

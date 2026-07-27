@@ -1,6 +1,6 @@
 import { computed, onScopeDispose, ref } from 'vue';
 import type { ComputedRef, Ref } from 'vue';
-import { toast } from 'vue-sonner';
+import { useToast } from '@/composables/useToast';
 import { useTranslations } from '@/composables/useTranslations';
 import { formatFileSize, isImageMime } from '@/lib/attachments';
 import { isPlayableAudio } from '@/lib/audio';
@@ -141,6 +141,7 @@ export function useAttachmentUploads(
     options: AttachmentUploadsOptions,
 ): AttachmentUploads {
     const { t } = useTranslations();
+    const toast = useToast();
     const upload = options.uploader ?? xhrUpload;
     const createObjectUrl = options.createObjectUrl ?? defaultCreateObjectUrl;
     const revokeObjectUrl = options.revokeObjectUrl ?? defaultRevokeObjectUrl;

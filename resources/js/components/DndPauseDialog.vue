@@ -4,7 +4,6 @@ import { CalendarDate, today } from '@internationalized/date';
 import { Clock } from '@lucide/vue';
 import type { DateValue } from 'reka-ui';
 import { computed, ref, watch } from 'vue';
-import { toast } from 'vue-sonner';
 import { update as updateDndPause } from '@/actions/App/Http/Controllers/Settings/DndController';
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
@@ -22,6 +21,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
+import { useToast } from '@/composables/useToast';
 import { useTranslations } from '@/composables/useTranslations';
 import {
     to12Hour,
@@ -34,6 +34,7 @@ const open = defineModel<boolean>('open', { default: false });
 
 const page = usePage();
 const { t } = useTranslations();
+const toast = useToast();
 
 const effectiveZone = computed(
     () =>
