@@ -15,7 +15,6 @@ import { useChannelPlacement } from '@/composables/useChannelPlacement';
 import { useChannelSections } from '@/composables/useChannelSections';
 import { useCollapsedSections } from '@/composables/useCollapsedSections';
 import { useQuickSwitcher } from '@/composables/useQuickSwitcher';
-import { useTranslations } from '@/composables/useTranslations';
 import type { ChannelSectionGroup } from '@/lib/channelSections';
 import type { RenderedPresence } from '@/lib/presence';
 
@@ -32,8 +31,6 @@ defineEmits<{
 }>();
 
 const page = usePage();
-
-const { t } = useTranslations();
 
 const { isOpen: quickSwitcherOpen } = useQuickSwitcher();
 
@@ -127,7 +124,7 @@ function sectionKey(group: ChannelSectionGroup): string {
         <SidebarGroup v-if="starredList.length > 0" class="pb-0">
             <SidebarSectionHeader
                 name="starred"
-                :label="t('Starred')"
+                :label="$t('Starred')"
                 :collapsed="isSectionCollapsed('starred')"
                 @toggle="toggleSection('starred')"
             />

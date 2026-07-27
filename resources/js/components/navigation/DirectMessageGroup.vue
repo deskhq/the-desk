@@ -9,7 +9,6 @@ import {
     SidebarGroupAction,
     SidebarGroupContent,
 } from '@/components/ui/sidebar';
-import { useTranslations } from '@/composables/useTranslations';
 import { dmParticipantPresence } from '@/lib/presence';
 import type { RenderedPresence } from '@/lib/presence';
 import type { Channel } from '@/types/channels';
@@ -35,8 +34,6 @@ defineEmits<{
 
 const page = usePage();
 
-const { t } = useTranslations();
-
 const currentUser = computed(() => page.props.auth.user);
 
 /**
@@ -59,7 +56,7 @@ function presenceForRow(channel: Channel): RenderedPresence {
     <SidebarGroup class="pb-0" data-test="direct-messages-group">
         <SidebarSectionHeader
             name="direct"
-            :label="t('Direct messages')"
+            :label="$t('Direct messages')"
             :collapsed="collapsed"
             @toggle="$emit('toggle')"
         />

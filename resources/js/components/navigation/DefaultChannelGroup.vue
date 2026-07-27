@@ -18,7 +18,6 @@ import {
     SidebarGroupContent,
 } from '@/components/ui/sidebar';
 import type { ChannelDragChange } from '@/composables/useChannelPlacement';
-import { useTranslations } from '@/composables/useTranslations';
 import type { Channel, ChannelSection } from '@/types/channels';
 
 defineProps<{
@@ -45,15 +44,13 @@ defineEmits<{
     /** vuedraggable reordered the group, or a channel was dragged into it. */
     change: [change: ChannelDragChange];
 }>();
-
-const { t } = useTranslations();
 </script>
 
 <template>
     <SidebarGroup>
         <SidebarSectionHeader
             name="channels"
-            :label="t('Channels')"
+            :label="$t('Channels')"
             :collapsed="collapsed"
             @toggle="$emit('toggle')"
         />
