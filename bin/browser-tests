@@ -21,6 +21,15 @@
 # viewport/geometry assertions read layout before it settles. So: half the
 # cores, never below two.
 #
+# Which is also why this runner reaps. Every run used to leave its Playwright
+# server running (#955): `Pest\Plugins\Parallel::handleArguments()` ends the
+# parallel parent with `exit()` as soon as paratest returns, so the browser
+# plugin's `terminate()` — the only caller of `playwright()->stop()` — never runs
+# in the very process that started the server. A killed run adds its paratest
+# workers to the pile. Those leftovers then eat the cores the paragraph above is
+# about, and a machine that has run a few sweeps starts failing unrelated tests
+# as though the application had regressed.
+#
 # Usage:
 #   bin/browser-tests [extra pest arguments]     # e.g. --ci
 #
@@ -35,6 +44,21 @@ set -euo pipefail
 # This checkout, resolved at source time so the helpers below hold no matter
 # which directory they are called from.
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+
+# Command-line fragments that identify a process this suite owns. The Playwright
+# server is the one every run leaks; the workers leak whenever a run is killed,
+# and the obvious `pkill -f "pest tests/Browser"` misses them entirely because a
+# paratest worker runs as `pest/bin/worker.php --test-directory=tests`, naming
+# neither pest's invocation nor the browser suite.
+SUITE_COMMANDS=(
+    'playwright run-server'
+    'pest/bin/worker.php'
+)
+
+# How long a stray is given to take its own children down before it is killed
+# outright: the Playwright server closes the browsers it launched when it is
+# asked to stop, and a SIGKILL would orphan those in turn.
+REAP_GRACE_SECONDS=2
 
 # Refuse to run against a bundle older than the sources it was built from: the
 # suite serves public/build, so a stale bundle fails every test as though the
@@ -62,6 +86,141 @@ assert_fresh_bundle() {
 assert_reverb_is_running() {
     php -r 'require $argv[1]; Tests\Support\ReverbGuard::ensureReverbIsRunning($argv[2]);' \
         "$REPO_ROOT/tests/Support/ReverbGuard.php" "${1:-$REPO_ROOT}"
+}
+
+# Whether the given pid runs out of this checkout, so that a run here never
+# reaps the server a sibling worktree on the same machine is using.
+#
+# Read from /proc, which exists in the Sail container the suite runs in and on
+# CI. Where it does not — a macOS host — the process is claimed rather than
+# spared: sparing would disable the reaper entirely on the one platform that
+# cannot prove ownership, and `playwright run-server` under this repo's own
+# process table is specific enough to act on.
+runs_from_this_checkout() {
+    [ -d /proc ] || return 0
+
+    [ "$(readlink "/proc/$1/cwd" 2>/dev/null)" = "$REPO_ROOT" ]
+}
+
+# The suite's processes that no longer have an owner, one `<pid> <command>` line
+# each. Being orphaned onto init is what tells a leftover apart from a live one:
+# a run still in progress keeps its parent, so a second suite running alongside
+# this one — or the PHP gate, whose paratest workers are indistinguishable from
+# this suite's — is never touched.
+stray_processes() {
+    local pid parent command fragment
+
+    while read -r pid parent command; do
+        [ "$parent" = '1' ] || continue
+
+        for fragment in "${SUITE_COMMANDS[@]}"; do
+            case "$command" in
+                *"$fragment"*)
+                    if runs_from_this_checkout "$pid"; then
+                        printf '%s %s\n' "$pid" "$command"
+                    fi
+
+                    break
+                    ;;
+            esac
+        done
+    done < <(ps -eo pid=,ppid=,args=)
+}
+
+# Kills the strays, naming each one so a degraded machine says so itself instead
+# of producing a mystery red sweep several minutes later.
+#
+# Swept repeatedly because the leftovers nest: the Playwright server runs behind
+# the shell that launched it, so reaping that orphaned shell is what reparents
+# the node process onto init — one pass too late for the sweep that caused it.
+reap_strays() {
+    local when=$1 pass
+
+    for pass in 1 2 3; do
+        reap_one_generation "$when" || return 0
+    done
+}
+
+# Kills the strays visible right now, reporting them. Returns non-zero when
+# there were none, which is what ends the sweep above.
+reap_one_generation() {
+    local when=$1 line pids=() reaped=()
+
+    while IFS= read -r line; do
+        pids+=("${line%% *}")
+        reaped+=("$line")
+    done < <(stray_processes)
+
+    if [ ${#pids[@]} -eq 0 ]; then
+        return 1
+    fi
+
+    printf '==> reaping %d stray browser-suite process(es) %s:\n' "${#pids[@]}" "$when" >&2
+    printf '      %s\n' "${reaped[@]}" >&2
+
+    kill -TERM "${pids[@]}" 2>/dev/null || true
+    sleep "$REAP_GRACE_SECONDS"
+
+    survivors_of "${pids[@]}"
+}
+
+# SIGKILLs whichever of the given pids are still strays, which is not the same
+# as SIGKILLing whatever is left holding those pids: one of them can have exited
+# and had its number handed to something entirely unrelated during the grace
+# period above. Anything orphaned *since* the sweep started is left to the next
+# one, so that it too gets asked to stop before it is killed.
+survivors_of() {
+    local target line pid survivors=()
+
+    while IFS= read -r line; do
+        pid=${line%% *}
+
+        for target in "$@"; do
+            if [ "$pid" = "$target" ]; then
+                survivors+=("$pid")
+
+                break
+            fi
+        done
+    done < <(stray_processes)
+
+    if [ ${#survivors[@]} -gt 0 ]; then
+        kill -KILL "${survivors[@]}" 2>/dev/null || true
+    fi
+}
+
+# Stops the run this shell is waiting on, then the shell itself with the given
+# status. Signals reap through the EXIT trap rather than directly, so that an
+# interrupted run and a completed one leave by the same path.
+stop_run() {
+    if [ -n "${RUN_PID:-}" ]; then
+        kill -TERM "$RUN_PID" 2>/dev/null || true
+        wait "$RUN_PID" 2>/dev/null || true
+    fi
+
+    exit "$1"
+}
+
+# Runs the given command with the reaping around it: strays from earlier runs
+# before it starts, whatever this run leaves once it ends, however it ends.
+#
+# The command is run as a child rather than exec'd, which is the whole point —
+# an exec'd pest replaces this shell, and a replaced shell has no trap left to
+# fire. It is waited on rather than run in the foreground for the same kind of
+# reason: bash defers a trap until the foreground command returns, so a signal
+# aimed at the runner alone would otherwise be answered only once the suite had
+# run to completion on its own.
+run_reaped() {
+    reap_strays 'left behind by an earlier run'
+
+    trap 'reap_strays "left behind by this run"' EXIT
+    trap 'stop_run 130' INT
+    trap 'stop_run 143' TERM
+
+    "$@" &
+    RUN_PID=$!
+
+    wait "$RUN_PID"
 }
 
 # The number of CPUs visible to this machine or container. Falls back to 0 —
@@ -106,7 +265,7 @@ resolve_processes() {
     printf '%s\n' "$override"
 }
 
-# Fills the PEST_COMMAND array with the invocation to exec, so main and the
+# Fills the PEST_COMMAND array with the invocation to run, so main and the
 # tests that pin it read the same command rather than two copies of it.
 build_pest_command() {
     PEST_COMMAND=(vendor/bin/pest tests/Browser --parallel "--processes=$(resolve_processes)" "$@")
@@ -128,7 +287,7 @@ main() {
     build_pest_command "$@"
     printf '==> %s\n' "${PEST_COMMAND[*]}" >&2
 
-    exec "${PEST_COMMAND[@]}"
+    run_reaped "${PEST_COMMAND[@]}"
 }
 
 # Sourcing with BROWSER_TESTS_LIB=1 defines the helpers without running the
