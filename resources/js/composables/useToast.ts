@@ -1,4 +1,7 @@
-import { toast as sonner } from 'vue-sonner';
+import { computed, markRaw } from 'vue';
+import type { ComputedRef } from 'vue';
+import { toast as sonner, useVueSonner } from 'vue-sonner';
+import ToastCard from '@/components/ToastCard.vue';
 
 /**
  * The single action a toast may carry. One only — when several would apply the
@@ -35,21 +38,7 @@ const ACTIONABLE_MS = 7_000;
 /** Errors and work in progress stay up until they are dismissed or resolve. */
 const UNTIL_DISMISSED = Infinity;
 
-type ToastTone = 'success' | 'error' | 'warning' | 'progress';
-
-/**
- * The design's vocabulary, mapped onto sonner's. `progress` is sonner's
- * `loading`; the other three line up by name.
- */
-const SONNER_VARIANT: Record<
-    ToastTone,
-    (message: string, options: Record<string, unknown>) => unknown
-> = {
-    success: sonner.success,
-    error: sonner.error,
-    warning: sonner.warning,
-    progress: sonner.loading,
-};
+export type ToastTone = 'success' | 'error' | 'warning' | 'progress';
 
 /**
  * The duration policy lives here rather than at the call sites, so a toast's
@@ -70,13 +59,24 @@ function durationFor(tone: ToastTone, options: ToastOptions): number {
 }
 
 function notify(tone: ToastTone, title: string, options: ToastOptions): void {
-    SONNER_VARIANT[tone](title, {
+    const duration = durationFor(tone, options);
+
+    // Rendered through a custom component rather than one of sonner's tone
+    // helpers: the slab, the glyph disc and the drain hairline are ours, and
+    // sonner's own card is the pale panel this redesign replaces. `unstyled`
+    // keeps its positioning, stacking, swipe and timer behaviour while dropping
+    // its surface (#978).
+    sonner.custom(markRaw(ToastCard), {
         id: options.key,
-        description: options.detail,
-        duration: durationFor(tone, options),
-        action: options.action
-            ? { label: options.action.label, onClick: options.action.run }
-            : undefined,
+        duration,
+        unstyled: true,
+        componentProps: {
+            tone,
+            title,
+            detail: options.detail,
+            action: options.action,
+            duration,
+        },
     });
 }
 
@@ -89,6 +89,18 @@ function notify(tone: ToastTone, title: string, options: ToastOptions): void {
  *
  * Copy stays with the caller: titles and details arrive already translated.
  */
+/**
+ * How many toasts are on screen right now. The rail needs it to know how much
+ * room its lower zone is taking, and the front card needs it to say how many
+ * more are stacked behind it — and neither may reach for `vue-sonner` itself,
+ * which is exactly what this module exists to prevent.
+ */
+export function useToastCount(): ComputedRef<number> {
+    const { activeToasts } = useVueSonner();
+
+    return computed(() => activeToasts.value.length);
+}
+
 export function useToast() {
     return {
         success: (title: string, options: ToastOptions = {}): void =>
