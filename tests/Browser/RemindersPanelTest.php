@@ -139,6 +139,24 @@ test('a reminder on a deleted message keeps its row and says so', function (): v
         ->assertScript(remindersPanelShows('the vanished message'), false);
 });
 
+test('the quick switcher opens the destination rather than a dialog', function (): void {
+    ['owner' => $alice, 'team' => $team, 'channel' => $channel] = browserTeamWithChannel();
+
+    $reminder = reminderOn($channel, $alice, 'Review the proposal', now()->subDay());
+
+    signInThroughBrowser($alice)
+        ->resize(1280, 900)
+        ->navigate(browserChannelUrl($team, $channel))
+        ->click('@quick-switcher-trigger')
+        ->click('@quick-switcher-reminders')
+        ->assertPresent('@destination-panel-reminders')
+        ->assertPresent(reminderRow($reminder))
+        // The destination is pinned by a client-side visit whose history write
+        // lands a frame later, so settle before reading the URL (#937).
+        ->assertScript(queryParamSettles('nav', 'reminders'), true)
+        ->assertQueryStringHas('nav', 'reminders');
+});
+
 test('the panel has no serious accessibility violations, light or dark', function (): void {
     ['owner' => $alice, 'team' => $team, 'channel' => $channel] = browserTeamWithChannel();
 
