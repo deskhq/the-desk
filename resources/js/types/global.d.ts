@@ -1,7 +1,12 @@
 import type { ReverbRuntimeConfig } from '@/lib/echo';
 import type { Auth } from '@/types/auth';
 import type { Channel, ChannelSection } from '@/types/channels';
-import type { MessageReminder, ThreadInboxPage } from '@/types/messages';
+import type {
+    MessageReminder,
+    MessageSearchResult,
+    SearchWorkspaceChannel,
+    ThreadInboxPage,
+} from '@/types/messages';
 import type { PersonRef } from '@/types/people';
 import type { SidebarPositionOption } from '@/types/sidebar';
 import type {
@@ -76,6 +81,13 @@ declare module '@inertiajs/core' {
              */
             threads?: ThreadInboxPage;
             unreadThreadCount?: number;
+            /**
+             * The Search panel's props, on the same terms (`?nav=search`). The
+             * criteria themselves are not among them: they live on the URL, which
+             * is where the panel reads them back from.
+             */
+            searchResults?: MessageSearchResult[];
+            searchWorkspaceChannels?: SearchWorkspaceChannel[];
             pendingInvitations?: DashboardInvitation[];
             reminders?: MessageReminder[];
             firedReminders?: MessageReminder[];

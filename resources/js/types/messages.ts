@@ -327,6 +327,20 @@ export type MessageSearchResult = {
 };
 
 /**
+ * A channel in the union the Search panel's channel facet offers in "All
+ * workspaces" mode. Carries its owning team so the picker can tell same-named
+ * channels in different workspaces apart.
+ */
+export type SearchWorkspaceChannel = {
+    id: string;
+    name: string;
+    slug: string;
+    visibility: string;
+    teamName: string;
+    teamSlug: string;
+};
+
+/**
  * A card in the Threads panel. Mirrors the `ThreadInboxItemData` DTO: a followed
  * thread's root message (carrying its reply counts, participants, and per-viewer
  * `threadUnread` state) plus the conversation it lives in, for rendering the card

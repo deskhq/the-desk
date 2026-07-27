@@ -46,6 +46,7 @@ import NavigationRail from '@/components/navigation/NavigationRail.vue';
 import NavigationTabBar from '@/components/navigation/NavigationTabBar.vue';
 import NewMenu from '@/components/navigation/NewMenu.vue';
 import RemindersPanel from '@/components/navigation/RemindersPanel.vue';
+import SearchPanel from '@/components/navigation/SearchPanel.vue';
 import ThreadsPanel from '@/components/navigation/ThreadsPanel.vue';
 import WorkspaceSheet from '@/components/navigation/WorkspaceSheet.vue';
 import NavUser from '@/components/NavUser.vue';
@@ -1461,6 +1462,9 @@ onMounted(() => {
                         />
                         <RemindersPanel
                             v-else-if="activeDestination === 'reminders'"
+                        />
+                        <SearchPanel
+                            v-else-if="activeDestination === 'search'"
                         />
                         <DestinationPanel
                             v-else

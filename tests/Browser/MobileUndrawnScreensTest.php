@@ -142,9 +142,13 @@ test('the browse-channels heading survives a phone width untruncated', function 
 test('the search facet pickers offer 44px touch targets on a phone', function (): void {
     ['owner' => $alice, 'team' => $team] = browserTeamWithChannel();
 
+    // The legacy search URL redirects onto the destination; on a phone the panel
+    // lives inside the drawer, so the tab bar's screen has to be opened for it.
     signInThroughBrowser($alice)
         ->resize(360, 740)
         ->navigate("/t/{$team->slug}/search?q=hello")
+        ->click('@sidebar-toggle')
+        ->assertPresent('[data-test="destination-panel-search"]')
         ->assertScript(offersPhoneTouchTargets(
             '[data-test="facet-author-picker"], [data-test="facet-channel-picker"], [data-test="facet-date-picker"]',
         ), true)

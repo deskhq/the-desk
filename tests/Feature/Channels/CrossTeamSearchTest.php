@@ -1,6 +1,7 @@
 <?php
 
 use App\Actions\Teams\CreateTeam;
+use App\Enums\NavDestination;
 use App\Enums\TeamRole;
 use App\Models\Channel;
 use App\Models\Message;
@@ -37,11 +38,18 @@ function addToTeam(User $user, Team $team): Channel
 }
 
 /**
+ * Open the Search destination on the team's #general with the given facets.
+ *
  * @param  array<string, string>  $params
  */
 function crossTeamSearch(User $user, Team $team, array $params): TestResponse
 {
-    return test()->actingAs($user)->get(route('search', ['team' => $team->slug, ...$params]));
+    return test()->actingAs($user)->get(route('channels.show', [
+        'team' => $team->slug,
+        'channel' => Channel::GENERAL_SLUG,
+        'nav' => NavDestination::Search->value,
+        ...$params,
+    ]));
 }
 
 test('visibleChannelIdsAcrossTeams unions the channels of every team the user is in but never one they are not in', function (): void {
@@ -68,7 +76,7 @@ test('scope=all searches the union of the user teams', function (): void {
     Message::factory()->for($generalB)->for($ownerB)->create(['body' => 'zephyr in beta']);
 
     crossTeamSearch($member, $teamA, ['q' => 'zephyr', 'scope' => 'all'])
-        ->assertInertia(fn (Assert $page): Assert => $page->has('results', 2));
+        ->assertInertia(fn (Assert $page): Assert => $page->has('searchResults', 2));
 });
 
 test('scope=team stays within the current team', function (): void {
@@ -80,8 +88,8 @@ test('scope=team stays within the current team', function (): void {
 
     crossTeamSearch($member, $teamA, ['q' => 'zephyr', 'scope' => 'team'])
         ->assertInertia(fn (Assert $page): Assert => $page
-            ->has('results', 1)
-            ->where('results.0.message.body', 'zephyr in acme')
+            ->has('searchResults', 1)
+            ->where('searchResults.0.message.body', 'zephyr in acme')
         );
 });
 
@@ -93,7 +101,7 @@ test('scope defaults to the current team when omitted', function (): void {
     Message::factory()->for($generalB)->for($ownerB)->create(['body' => 'zephyr in beta']);
 
     crossTeamSearch($member, $teamA, ['q' => 'zephyr'])
-        ->assertInertia(fn (Assert $page): Assert => $page->has('results', 1));
+        ->assertInertia(fn (Assert $page): Assert => $page->has('searchResults', 1));
 });
 
 test('scope=all never surfaces a team the user does not belong to', function (): void {
@@ -103,7 +111,7 @@ test('scope=all never surfaces a team the user does not belong to', function ():
     Message::factory()->for($generalB)->for($ownerB)->create(['body' => 'zephyr in beta']);
 
     crossTeamSearch($member, $teamA, ['q' => 'zephyr', 'scope' => 'all'])
-        ->assertInertia(fn (Assert $page): Assert => $page->has('results', 0));
+        ->assertInertia(fn (Assert $page): Assert => $page->has('searchResults', 0));
 });
 
 test('scope=all never leaks a private channel the user is not in', function (): void {
@@ -114,7 +122,7 @@ test('scope=all never leaks a private channel the user is not in', function (): 
     Message::factory()->for($privateB)->for($ownerB)->create(['body' => 'secret zephyr']);
 
     crossTeamSearch($member, $teamA, ['q' => 'zephyr', 'scope' => 'all'])
-        ->assertInertia(fn (Assert $page): Assert => $page->has('results', 0));
+        ->assertInertia(fn (Assert $page): Assert => $page->has('searchResults', 0));
 });
 
 test('a cross-team result carries its own team for tagging and jump links', function (): void {
@@ -125,37 +133,37 @@ test('a cross-team result carries its own team for tagging and jump links', func
 
     crossTeamSearch($member, $teamA, ['q' => 'zephyr', 'scope' => 'all'])
         ->assertInertia(fn (Assert $page): Assert => $page
-            ->has('results', 1)
-            ->where('results.0.teamSlug', $teamB->slug)
-            ->where('results.0.teamName', $teamB->name)
-            ->where('results.0.teamId', $teamB->id)
+            ->has('searchResults', 1)
+            ->where('searchResults.0.teamSlug', $teamB->slug)
+            ->where('searchResults.0.teamName', $teamB->name)
+            ->where('searchResults.0.teamId', $teamB->id)
         );
 });
 
-test('the scope facet echoes back as url state', function (): void {
-    [$member, $teamA] = crossTeamWithGeneral('Acme');
+test('an unknown scope falls back to the current team', function (): void {
+    [$member, $teamA, $generalA] = crossTeamWithGeneral('Acme');
+    [$ownerB, $teamB] = crossTeamWithGeneral('Beta');
+    $generalB = addToTeam($member, $teamB);
+    Message::factory()->for($generalA)->for($member)->create(['body' => 'zephyr in acme']);
+    Message::factory()->for($generalB)->for($ownerB)->create(['body' => 'zephyr in beta']);
 
-    crossTeamSearch($member, $teamA, ['q' => 'zephyr', 'scope' => 'all'])
-        ->assertInertia(fn (Assert $page): Assert => $page->where('filters.scope', 'all'));
-});
-
-test('an invalid scope is rejected', function (): void {
-    [$member, $teamA] = crossTeamWithGeneral('Acme');
-
+    // The panel's props are resolved off the URL in the shell's shared props, so
+    // a bad scope narrows rather than rejecting the whole workspace.
     crossTeamSearch($member, $teamA, ['q' => 'zephyr', 'scope' => 'sideways'])
-        ->assertSessionHasErrors('scope');
+        ->assertOk()
+        ->assertInertia(fn (Assert $page): Assert => $page->has('searchResults', 1));
 });
 
-test('the page exposes the cross-team channel union for the global-mode facet', function (): void {
+test('the panel exposes the cross-team channel union for the global-mode facet', function (): void {
     [$member, $teamA, $generalA] = crossTeamWithGeneral('Acme');
     [, $teamB] = crossTeamWithGeneral('Beta');
     $generalB = addToTeam($member, $teamB);
 
     crossTeamSearch($member, $teamA, ['q' => 'zephyr', 'scope' => 'all'])
         ->assertInertia(fn (Assert $page): Assert => $page
-            ->has('workspaceChannels')
+            ->has('searchWorkspaceChannels')
             ->where(
-                'workspaceChannels',
+                'searchWorkspaceChannels',
                 fn (Collection $channels): bool => $channels
                     ->pluck('id')
                     ->contains($generalA->id)

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Link, usePage } from '@inertiajs/vue3';
+import { usePage } from '@inertiajs/vue3';
 import {
     Archive,
     Bot,
@@ -13,7 +13,6 @@ import {
 } from '@lucide/vue';
 import type { AcceptableValue } from 'reka-ui';
 import { computed } from 'vue';
-import { index as searchMessages } from '@/actions/App/Http/Controllers/Channels/SearchController';
 import AvatarStack from '@/components/AvatarStack.vue';
 import PresenceDot from '@/components/PresenceDot.vue';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -29,7 +28,7 @@ import {
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { SidebarTrigger } from '@/components/ui/sidebar';
+import { SidebarTrigger, useSidebar } from '@/components/ui/sidebar';
 import {
     Tooltip,
     TooltipContent,
@@ -38,6 +37,7 @@ import {
 import type { ConnectionPill } from '@/composables/useConnectionState';
 import { getInitials } from '@/composables/useInitials';
 import { useIsMobile } from '@/composables/useIsMobile';
+import { useNavPanel } from '@/composables/useNavPanel';
 import { useQuickSwitcher } from '@/composables/useQuickSwitcher';
 import { memberAvatarStack } from '@/lib/memberAvatars';
 import type { NotificationIndicator } from '@/lib/notificationIndicator';
@@ -52,7 +52,6 @@ import type {
 
 const props = defineProps<{
     channel: Channel;
-    teamSlug: string;
     /**
      * The team roster the page already carries for the composer, reused for the
      * overlapping member facepile.
@@ -127,12 +126,39 @@ const mastheadAvatars = computed(() =>
 const page = usePage();
 
 /**
- * Below the breakpoint the search icon is the jump-to overlay's entry point
- * (m5): a phone has no ⌘K, and the overlay leads on to the search page via its
- * message results. From `md` up it stays a plain link to the search page.
+ * Below the breakpoint the search glyph is the jump-to overlay's entry point
+ * (m5): a phone has no ⌘K, and the overlay leads on to the Search panel via its
+ * message results. From `md` up the same glyph opens that panel directly.
  */
 const isMobile = useIsMobile();
 const { open: openQuickSwitcher } = useQuickSwitcher();
+
+const { openDestination } = useNavPanel();
+const { open: dockOpen, setOpen: setDockOpen } = useSidebar();
+
+/**
+ * Search is a dock destination now, so the glyph swaps the panel rather than
+ * navigating anywhere — the channel it was pressed from stays open behind it. A
+ * collapsed dock is expanded first, or the click would pin `?nav=search` on a
+ * panel nobody can see.
+ *
+ * The two behaviours share one button rather than a `v-if` pair, now that both
+ * are handlers rather than a handler beside a link: one control, one selector,
+ * and no chance of the pair disagreeing about which is rendered.
+ */
+function openSearch(): void {
+    if (isMobile.value) {
+        openQuickSwitcher();
+
+        return;
+    }
+
+    if (!dockOpen.value) {
+        setDockOpen(true);
+    }
+
+    openDestination('search');
+}
 
 /** The other participant of a 1:1 DM, whose avatar the masthead shows. */
 const dmParticipant = computed(() => props.channel.dmParticipants?.[0] ?? null);
@@ -515,26 +541,16 @@ const hasActivityReadout = computed(
             </Tooltip>
 
             <Button
-                v-if="isMobile"
                 variant="ghost"
                 size="icon"
                 type="button"
                 data-test="masthead-search"
                 :aria-label="$t('Search messages')"
-                class="size-9 rounded text-muted-foreground hover:bg-muted hover:text-foreground"
-                @click="openQuickSwitcher"
+                class="size-9 rounded text-muted-foreground hover:bg-muted hover:text-foreground @2xl:size-auto @2xl:p-1"
+                @click="openSearch"
             >
                 <Search class="size-4" />
             </Button>
-            <Link
-                v-else
-                :href="searchMessages(props.teamSlug).url"
-                data-test="masthead-search"
-                :aria-label="$t('Search messages')"
-                class="flex size-9 items-center justify-center rounded text-muted-foreground hover:bg-muted hover:text-foreground @2xl:size-auto @2xl:p-1"
-            >
-                <Search class="size-4" />
-            </Link>
 
             <DropdownMenu
                 v-if="

@@ -25,6 +25,7 @@ use App\Models\TeamInvitation;
 use App\Models\User;
 use App\SlashCommands\SlashCommandRegistry;
 use App\Support\FrequentEmoji;
+use App\Support\MessageSearchPanel;
 use App\Support\ReverbConfig;
 use App\Support\ThreadInbox;
 use App\Support\ThreadInboxPage;
@@ -248,6 +249,8 @@ class HandleInertiaRequests extends Middleware
             // The Threads panel's inbox and its "Unread" tally, present only while
             // the dock actually has that destination pinned.
             ...$this->threadsPanelProps($request, $user),
+            // The Search panel's echoed criteria and matches, on the same terms.
+            ...$this->searchPanelProps($request, $user),
             'pendingInvitations' => Inertia::optional(fn (): array => $user ? $this->pendingInvitationsFor($user) : []),
             // The viewer's still-pending reminders in this team, soonest first,
             // feeding the "Reminders" list and its sidebar count.
@@ -286,15 +289,15 @@ class HandleInertiaRequests extends Middleware
      * Whether the current request targets an in-workspace page that renders the
      * shared sidebar.
      *
-     * Every such route binds a `{team}`, but not all live under the `channels.`
-     * name prefix — the message search page is named `search`/`search.suggest`,
-     * so it is matched explicitly. This is the single source of truth for the
-     * sidebar-feeding shared props below; broaden it here to add a new workspace
-     * surface rather than duplicating the pattern per prop.
+     * Every such route binds a `{team}` and lives under the `channels.` name
+     * prefix — search used to be the exception, until it became a dock panel on
+     * these very routes and its old URL a redirect. This is the single source of
+     * truth for the sidebar-feeding shared props below; broaden it here to add a
+     * new workspace surface rather than duplicating the pattern per prop.
      */
     protected function isWorkspaceRoute(Request $request): bool
     {
-        return $request->routeIs('channels.*', 'search', 'search.suggest');
+        return $request->routeIs('channels.*');
     }
 
     /**
@@ -580,6 +583,44 @@ class HandleInertiaRequests extends Middleware
                 metadata: fn (ThreadInboxPage $page): ProvidesScrollMetadata => $page->metadata(),
             ),
             'unreadThreadCount' => $inbox->unreadCount(...),
+        ];
+    }
+
+    /**
+     * The Search destination's props: the matches the URL's criteria select, the
+     * criteria they were selected by, and the cross-workspace channel union the
+     * channel facet offers in "All workspaces" mode.
+     *
+     * The panel's state is the URL, not the echoed criteria — it reads what to
+     * search from there ({@see resources/js/lib/searchPanel.ts}) and uses the echo
+     * only to tell whether the matches it holds still answer it.
+     *
+     * Keyed on `?nav=search` for the same reason the Threads inbox above is: a
+     * search runs a full-text query, and a deferred prop would run it on every
+     * workspace navigation instead of only while the panel is open. Both stay
+     * closures so a partial reload of the matches alone does not also rebuild the
+     * channel union.
+     *
+     * @return array<string, mixed>
+     */
+    protected function searchPanelProps(Request $request, ?User $user): array
+    {
+        $team = $request->route('team');
+
+        if (! $user || ! $team instanceof Team || ! $this->isWorkspaceRoute($request)) {
+            return [];
+        }
+
+        if ($request->query(NavDestination::QUERY_PARAM) !== NavDestination::Search->value) {
+            return [];
+        }
+
+        $panel = MessageSearchPanel::fromRequest($request, $user, $team);
+
+        return [
+            'searchCriteria' => $panel->criteria(),
+            'searchResults' => $panel->results(...),
+            'searchWorkspaceChannels' => $panel->workspaceChannels(...),
         ];
     }
 

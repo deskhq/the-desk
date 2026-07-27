@@ -1185,7 +1185,6 @@ function archive(): void {
         <div class="relative flex min-w-0 flex-1 flex-col">
             <ChannelMasthead
                 :channel="props.channel"
-                :team-slug="props.team.slug"
                 :members="props.members"
                 :presence-for="presenceFor"
                 :is-dnd-for="isDndFor"

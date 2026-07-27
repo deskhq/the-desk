@@ -1385,5 +1385,10 @@
   "New": "Nouveau",
   "New channel": "Nouveau canal",
   "Start a channel, a message, or a section.": "Démarrez un canal, un message ou une section.",
-  "Open the workspace menu to invite teammates, switch workspace, or manage this one.": "Ouvrez le menu de l’espace pour inviter des coéquipiers, changer d’espace ou gérer celui-ci."
+  "Open the workspace menu to invite teammates, switch workspace, or manage this one.": "Ouvrez le menu de l’espace pour inviter des coéquipiers, changer d’espace ou gérer celui-ci.",
+  "From: :name": "De : :name",
+  "From…": "De…",
+  "In…": "Dans…",
+  "Clear search": "Effacer la recherche",
+  "This workspace": "Cet espace"
 }
