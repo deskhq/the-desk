@@ -1,4 +1,4 @@
-import { router } from '@inertiajs/vue3';
+import { router, usePage } from '@inertiajs/vue3';
 import { nextTick } from 'vue';
 import type { Ref } from 'vue';
 import { store as forwardMessageAction } from '@/actions/App/Http/Controllers/Channels/ForwardMessageController';
@@ -25,6 +25,7 @@ import {
 import { store as storeCommand } from '@/actions/App/Http/Controllers/Channels/SlashCommandController';
 import type { useMessageStream } from '@/composables/useMessageStream';
 import { optimisticMessage } from '@/composables/useMessageStream';
+import { useReminderUndo } from '@/composables/useReminderUndo';
 import { useToast } from '@/composables/useToast';
 import { useTranslations } from '@/composables/useTranslations';
 import { planForward } from '@/lib/forwardPlacement';
@@ -192,6 +193,8 @@ export function useMessageActions(
 ): MessageActions {
     const { t } = useTranslations();
     const toast = useToast();
+    const reminderUndo = useReminderUndo();
+    const page = usePage();
 
     /** Add an optimistic row to the main timeline, honouring the pin-to-bottom rule. */
     function appendPendingMain(message: Message): void {
@@ -736,6 +739,11 @@ export function useMessageActions(
 
         const channel = options.channel();
         const target = options.replyTarget.value;
+        // Minted here rather than server-side so Undo can point at exactly the
+        // row this send created. Scheduling is always a create, so cancelling
+        // that row is a true inverse — but "the newest by createdAt" stops being
+        // that row the moment two schedules land in the same second (#978).
+        const clientUuid = generateUuid();
 
         router.post(
             storeScheduledMessage({
@@ -744,7 +752,7 @@ export function useMessageActions(
             }).url,
             {
                 body,
-                client_uuid: generateUuid(),
+                client_uuid: clientUuid,
                 reply_to_id: target?.id ?? null,
                 send_at: sendAt,
             },
@@ -752,7 +760,13 @@ export function useMessageActions(
                 preserveScroll: true,
                 preserveState: true,
                 only: ['scheduledMessages', 'channels'],
-                onSuccess: () => toast.success(t('Message scheduled.')),
+                onSuccess: () =>
+                    toast.success(t('Message scheduled.'), {
+                        action: {
+                            label: t('Undo'),
+                            run: () => cancelScheduledByClientUuid(clientUuid),
+                        },
+                    }),
                 onError: () =>
                     toast.error(
                         t('Failed to schedule your message. Please try again.'),
@@ -789,6 +803,21 @@ export function useMessageActions(
                     ),
             },
         );
+    }
+
+    /**
+     * Undo a just-scheduled message: cancel the row carrying the client id this
+     * send minted. Silent when it cannot be found — the schedule may already
+     * have been sent or cancelled, and there is nothing sensible to guess at.
+     */
+    function cancelScheduledByClientUuid(clientUuid: string): void {
+        const scheduled = (page.props.scheduledMessages ??
+            []) as App.Data.ScheduledMessageData[];
+        const created = scheduled.find((row) => row.clientUuid === clientUuid);
+
+        if (created) {
+            cancelScheduled(created.id);
+        }
     }
 
     function cancelScheduled(id: string): void {
@@ -849,6 +878,11 @@ export function useMessageActions(
     }
 
     function setReminder(messageId: string, remindAt: string): void {
+        // Taken before the write: setting a reminder on a message that already
+        // had one re-arms that row, so Undo has to put the old time back rather
+        // than delete it. See {@see useReminderUndo}.
+        const previous = reminderUndo.snapshot(messageId);
+
         router.post(
             remindMessage({ team: options.teamSlug() }).url,
             { message_id: messageId, remind_at: remindAt },
@@ -856,7 +890,18 @@ export function useMessageActions(
                 preserveScroll: true,
                 preserveState: true,
                 only: ['reminders', 'firedReminders'],
-                onSuccess: () => toast.success(t('Reminder set.')),
+                onSuccess: () =>
+                    toast.success(t('Reminder set.'), {
+                        action: {
+                            label: t('Undo'),
+                            run: () =>
+                                reminderUndo.undo(
+                                    options.teamSlug(),
+                                    messageId,
+                                    previous,
+                                ),
+                        },
+                    }),
                 onError: () =>
                     toast.error(
                         t('Failed to set the reminder. Please try again.'),

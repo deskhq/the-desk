@@ -51,10 +51,10 @@ import {
     optimisticMessage,
     useMessageStream,
 } from '@/composables/useMessageStream';
+import { useRailBottomInset } from '@/composables/useRailInset';
 import { useScrollPin } from '@/composables/useScrollPin';
 import { useSendFailureAnnouncer } from '@/composables/useSendFailureAnnouncer';
 import { useTeamPresence } from '@/composables/useTeamPresence';
-import { useRailBottomInset } from '@/composables/useRailInset';
 import { useThreadPanel } from '@/composables/useThreadPanel';
 import { useTimezone } from '@/composables/useTimezone';
 import { useToast } from '@/composables/useToast';

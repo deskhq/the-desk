@@ -62,6 +62,7 @@ import {
 import { useOwnPresence } from '@/composables/useOwnPresence';
 import { usePresenceReporter } from '@/composables/usePresenceReporter';
 import { useQuickSwitcher } from '@/composables/useQuickSwitcher';
+import { useReminderUndo } from '@/composables/useReminderUndo';
 import { useSidebarBadges } from '@/composables/useSidebarBadges';
 import { useSidebarPosition } from '@/composables/useSidebarPosition';
 import { useTeamPresence } from '@/composables/useTeamPresence';
@@ -78,6 +79,7 @@ const page = usePage();
 
 const { t } = useTranslations();
 const toast = useToast();
+const reminderUndo = useReminderUndo();
 
 /**
  * The bottom-right rail is one surface with two zones: transient toasts at the
@@ -248,6 +250,10 @@ function openReminder(reminder: MessageReminder): void {
 
 /** Push a fired reminder out by 20 minutes, re-arming it back to pending. */
 function snoozeReminder(reminder: MessageReminder): void {
+    // A snooze is a re-arm of a row the user already had, so Undo puts the
+    // original time back rather than clearing the reminder outright.
+    const previous = reminderUndo.snapshot(reminder.messageId);
+
     router.post(
         storeReminder({ team: reminder.teamSlug }).url,
         {
@@ -257,7 +263,17 @@ function snoozeReminder(reminder: MessageReminder): void {
         {
             ...reminderReloadOptions,
             onSuccess: () =>
-                toast.success(t('Reminder snoozed for 20 minutes.')),
+                toast.success(t('Reminder snoozed for 20 minutes.'), {
+                    action: {
+                        label: t('Undo'),
+                        run: () =>
+                            reminderUndo.undo(
+                                reminder.teamSlug,
+                                reminder.messageId,
+                                previous,
+                            ),
+                    },
+                }),
             onError: () =>
                 toast.error(
                     t('Failed to snooze the reminder. Please try again.'),
