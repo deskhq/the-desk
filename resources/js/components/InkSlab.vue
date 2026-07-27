@@ -37,7 +37,7 @@ const surface = computed(() =>
     <div
         :class="
             cn(
-                'pointer-events-auto text-primary-foreground shadow-[0_20px_48px_var(--shadow-ink)]',
+                'pointer-events-auto text-primary-foreground shadow-slab',
                 surface,
                 props.class,
             )

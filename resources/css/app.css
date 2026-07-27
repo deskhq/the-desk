@@ -86,6 +86,12 @@
     --color-slab-glyph-error: var(--slab-glyph-error);
     --color-slab-glyph-warning: var(--slab-glyph-warning);
 
+    /* The slab's elevation. It carries no border at all, so this shadow is the
+       only thing separating it from the surface it interrupts — it has to be a
+       registered shadow token rather than an arbitrary `shadow-[…]`, which
+       silently resolves `var(--shadow-ink)` to transparent. */
+    --shadow-slab: 0 20px 48px var(--shadow-ink);
+
     /* The toast's drain hairline, counting its dismiss timer down. Held wherever
        it is while the pointer or focus is anywhere in the stack. */
     --animate-toast-drain: toast-drain linear forwards;
