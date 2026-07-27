@@ -99,12 +99,13 @@ describe('pinUrl', () => {
 
     it('gives up rather than loop when every attempt is swallowed', () => {
         pinUrl('/t/acme/c/general?nav=search');
+        settle(0, '/t/acme/c/general');
+        settle(1, '/t/acme/c/general');
 
-        for (let attempt = 0; attempt < 5; attempt++) {
-            if (replace.mock.calls.length > attempt) {
-                settle(attempt, '/t/acme/c/general');
-            }
-        }
+        // The third attempt is swallowed too, and this time nothing follows it:
+        // a write that cannot land through three windows is a symptom of
+        // something else, and looping on it would clobber whatever that is.
+        settle(2, '/t/acme/c/general');
 
         expect(replace).toHaveBeenCalledTimes(3);
     });
