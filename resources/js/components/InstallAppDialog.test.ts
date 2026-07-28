@@ -11,6 +11,7 @@ import { createApp, h, nextTick } from 'vue';
  */
 const props = vi.hoisted(() => ({
     name: 'The Desk',
+    branding: { logo: null as string | null, attribution: true },
     currentTeam: { name: 'Acme Co' } as { name: string } | null,
     webPush: { enabled: true, publicKey: 'BKey' } as {
         enabled: boolean;

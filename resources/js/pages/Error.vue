@@ -16,8 +16,8 @@ const name = computed(() => page.props.name);
 
 const content = computed(() => errorContentFor(props.status));
 
-const heading = computed(() => t(content.value.heading));
-const message = computed(() => t(content.value.message));
+const heading = computed(() => t(content.value.heading, { app: name.value }));
+const message = computed(() => t(content.value.message, { app: name.value }));
 
 /**
  * Where "Back to your workspace" points: the current team's channel list for a

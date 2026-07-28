@@ -504,6 +504,33 @@ close endpoints return **404**. Existing poll messages render their last-known
 tally read-only. See
 [Environment variables → Feature toggles](/reference/environment-variables/#feature-toggles).
 
+## "Powered by The Desk" attribution
+
+| Variable               | Default | Effect                                       |
+| ---------------------- | ------- | -------------------------------------------- |
+| `BRANDING_ATTRIBUTION` | `true`  | Shows the attribution line in the footer.    |
+
+A small **Powered by The Desk** attribution, linking to the project. It is **on**
+by default. The attribution appears on the welcome page, in the user menu, and
+at the foot of the mobile settings index.
+
+Set `BRANDING_ATTRIBUTION=false` and it disappears from all three. Nothing else
+changes.
+
+:::note
+This is a request, not a requirement. The Desk is MIT-licensed with no trademark
+clause, so nothing obliges you to display this **attribution** — which is exactly
+why there is a documented switch rather than a line you would have to patch out.
+If it costs you nothing, leaving it on is how people find the project.
+
+Turning it off changes nothing about the licence itself: MIT still requires the
+copyright notice and licence text to travel with any copy or substantial portion
+of the software you redistribute.
+:::
+
+Replacing the name, mark and icons is a separate, larger job: see
+[Branding](/self-hosting/branding/).
+
 ## Demo mode
 
 | Variable    | Default | Effect                                                          |

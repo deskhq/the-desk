@@ -172,6 +172,7 @@ beforeEach(() => {
         teams: [{ id: 't1' }, { id: 't2' }],
         customEmojis: {},
         name: 'The Desk',
+        branding: { logo: null, attribution: true },
     };
 });
 

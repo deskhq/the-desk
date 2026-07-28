@@ -24,6 +24,7 @@ use App\Models\Team;
 use App\Models\TeamInvitation;
 use App\Models\User;
 use App\SlashCommands\SlashCommandRegistry;
+use App\Support\Branding\BrandingAssets;
 use App\Support\FrequentEmoji;
 use App\Support\MessageSearchPanel;
 use App\Support\ReverbConfig;
@@ -53,6 +54,8 @@ class HandleInertiaRequests extends Middleware
      */
     protected $rootView = 'app';
 
+    public function __construct(private readonly BrandingAssets $brandingAssets) {}
+
     /**
      * Determines the current asset version.
      *
@@ -79,6 +82,15 @@ class HandleInertiaRequests extends Middleware
         return [
             ...parent::share($request),
             'name' => config('app.name'),
+            // Instance branding. `logo` is the operator's mark, or null when the
+            // instance still ships ours — the shipped mark is an inline SVG whose
+            // lower planes ride on `currentColor`, which an uploaded file cannot
+            // do, so the client only swaps in an <img> once there is something to
+            // swap in. `attribution` drives the removable "Powered by" line.
+            'branding' => [
+                'logo' => $this->brandingAssets->logoPath() === null ? null : route('branding.logo'),
+                'attribution' => (bool) config('branding.attribution'),
+            ],
             // Browser-facing Reverb connection details, resolved at runtime so a
             // single built image works for any operator without baking VITE_*
             // values into the bundle. Read by app.ts to configure Echo at boot.

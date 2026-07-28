@@ -33,6 +33,12 @@ declare module '@inertiajs/core' {
     export interface InertiaConfig {
         sharedPageProps: {
             name: string;
+            /**
+             * Instance branding. `logo` is the URL of the operator's own mark, or
+             * null on an instance that still ships ours (the inline SVG mark);
+             * `attribution` is the removable "Powered by The Desk" line.
+             */
+            branding: { logo: string | null; attribution: boolean };
             reverb: ReverbRuntimeConfig;
             webPush: { enabled: boolean; publicKey: string | null };
             auth: Auth;
