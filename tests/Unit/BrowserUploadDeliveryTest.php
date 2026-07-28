@@ -89,22 +89,59 @@ it('skips a part carrying no headers or no name', function (): void {
         ->and($files)->toBe([]);
 });
 
-it('discards the temporary file of an upload the application never moved', function (): void {
+it('reads a mime type without the parameters that follow it', function (): void {
     [, $files] = parseMultipart([
-        ['name' => 'file', 'filename' => 'venue.png', 'content' => 'bytes'],
+        ['name' => 'file', 'filename' => 'notes.txt', 'type' => 'text/plain; charset=utf-8', 'content' => 'hi'],
     ]);
 
     $file = $files['file'];
     assert($file instanceof UploadedFile);
-    $path = $file->getPathname();
 
-    expect($path)->toBeFile();
-
-    new ReflectionMethod(new LaravelHttpServer('127.0.0.1', 1), 'discardTemporaryUploads')
-        ->invoke(new LaravelHttpServer('127.0.0.1', 1), $files);
-
-    expect(file_exists($path))->toBeFalse();
+    expect($file->getClientMimeType())->toBe('text/plain');
 });
+
+it('discards the temporary file of every upload the application never moved', function (): void {
+    // Nested as well as flat: the bag is walked recursively, and a `photos[]`
+    // left behind leaks just as readily as a `file` does.
+    [, $files] = parseMultipart([
+        ['name' => 'file', 'filename' => 'venue.png', 'content' => 'bytes'],
+        ['name' => 'photos[]', 'filename' => 'one.png', 'content' => 'a'],
+        ['name' => 'docs[cover]', 'filename' => 'cover.pdf', 'content' => 'c'],
+    ]);
+
+    $paths = [
+        $files['file']->getPathname(),
+        $files['photos'][0]->getPathname(),
+        $files['docs']['cover']->getPathname(),
+    ];
+
+    expect($paths)->each->toBeFile();
+
+    discardUploads($files);
+
+    expect(array_filter($paths, file_exists(...)))->toBe([]);
+});
+
+// Every test here spills temporary files the parser is not asked to clean up,
+// and a failing assertion would strand them. Nothing else in the suite writes
+// this prefix — only the shadow does, and only for a browser test.
+afterEach(function (): void {
+    foreach (glob(sys_get_temp_dir().'/pest-upload-*') ?: [] as $path) {
+        @unlink($path);
+    }
+});
+
+/**
+ * Run a file bag through the shadow's temporary-file cleanup.
+ *
+ * @param  array<string, mixed>  $files
+ */
+function discardUploads(array $files): void
+{
+    $server = new LaravelHttpServer('127.0.0.1', 1);
+
+    new ReflectionMethod($server, 'discardTemporaryUploads')->invoke($server, $files);
+}
 
 /**
  * Build a multipart body out of the given parts and run it through the shadow's
@@ -148,8 +185,10 @@ function parseMultipart(array $parts): array
 
     $body .= "--{$boundary}--\r\n";
 
-    $parsed = new ReflectionMethod(new LaravelHttpServer('127.0.0.1', 1), 'parseMultipartBody')
-        ->invoke(new LaravelHttpServer('127.0.0.1', 1), $body, "multipart/form-data; boundary={$boundary}");
+    $server = new LaravelHttpServer('127.0.0.1', 1);
+
+    $parsed = new ReflectionMethod($server, 'parseMultipartBody')
+        ->invoke($server, $body, "multipart/form-data; boundary={$boundary}");
 
     assert(is_array($parsed));
 

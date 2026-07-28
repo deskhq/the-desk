@@ -59,8 +59,8 @@ use Throwable;
  *    retry is automatic rather than opt-in per test, which is what issue #944
  *    asks for.
  * 3. `parseMultipartBody()` fills in the request bag the vendor class leaves
- *    empty behind a `@TODO files...`. It parses only urlencoded bodies, and
- *    calls `Request::create()` with no files at all, so `$request->file(...)`
+ *    empty behind a `@TODO files...`. That class parses urlencoded bodies only
+ *    and calls `Request::create()` with no files at all, so `$request->file(...)`
  *    is null for every upload a browser makes: the pre-upload 422s, the chip
  *    vanishes, and no attachment behaviour can be covered in a browser test at
  *    all (that is what retired `ComposerAttachmentTest` in #483). #920 needs a
@@ -441,7 +441,8 @@ final class LaravelHttpServer implements HttpServer
 
     /**
      * Read one `Content-Disposition` parameter (`name`, `filename`) off a part's
-     * headers, quoted or bare.
+     * headers. Only the quoted form is matched, which is the only one a browser
+     * or an HTTP client this suite drives emits.
      */
     private function headerParameter(string $rawHeaders, string $parameter): ?string
     {
@@ -458,7 +459,9 @@ final class LaravelHttpServer implements HttpServer
         $path = (string) tempnam(sys_get_temp_dir(), 'pest-upload-');
         file_put_contents($path, $content);
 
-        $mimeType = preg_match('/^content-type:\s*(\S+)/im', $rawHeaders, $matches) === 1
+        // Stop at the parameter separator: `text/plain; charset=utf-8` is a
+        // client mime type of `text/plain`, not `text/plain;`.
+        $mimeType = preg_match('/^content-type:\s*([^;\s]+)/im', $rawHeaders, $matches) === 1
             ? $matches[1]
             : null;
 
