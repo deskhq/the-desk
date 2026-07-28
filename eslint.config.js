@@ -254,7 +254,6 @@ export default defineConfigWithVueTs(
         files: [
             'resources/js/components/UserStatusDialog.vue',
             'resources/js/layouts/MainLayout.vue',
-            'resources/js/pages/teams/AuditExports.vue',
         ],
         rules: {
             'max-lines': 'off',
