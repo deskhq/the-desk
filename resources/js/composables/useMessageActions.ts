@@ -194,6 +194,33 @@ export interface MessageActions {
 export const QUEUED_SENDS_TOAST_KEY = 'queued-sends';
 
 /**
+ * The copy a forward created, as its response flashes it. The channel is the
+ * one the copy landed in rather than the one being viewed, and for a forward to
+ * a person it may be a direct message that very request opened — which is why
+ * the client cannot work either value out for itself.
+ */
+type ForwardedCopy = {
+    messageId: string;
+    channelSlug: string;
+};
+
+/**
+ * Read the forwarded copy off a response's flash, or `null` when it carries
+ * none. The payload crosses the wire, so a missing or malformed one has to
+ * degrade to a confirmation with no Undo rather than to an Undo that would
+ * delete nothing.
+ */
+function forwardedCopy(page: unknown): ForwardedCopy | null {
+    const flashed = (page as { flash?: Record<string, unknown> } | undefined)
+        ?.flash?.forwarded as Partial<ForwardedCopy> | undefined;
+
+    return typeof flashed?.messageId === 'string' &&
+        typeof flashed.channelSlug === 'string'
+        ? { messageId: flashed.messageId, channelSlug: flashed.channelSlug }
+        : null;
+}
+
+/**
  * Own the channel's optimistic-mutation engine: every message action follows the
  * same shape — capture the previous state, apply optimistically, fire the router
  * call, then roll back and toast on failure. Concentrating the eight-plus call
@@ -716,6 +743,32 @@ export function useMessageActions(
         );
     }
 
+    /**
+     * Delete the forwarded copy where it landed. The destroy route redirects to
+     * the deleted message's own channel — the destination, which is the one
+     * place the sender was deliberately not taken — so the visit keeps the URL
+     * and takes back only the sidebar, leaving them where they were.
+     *
+     * Authorization is the ordinary message-delete policy: an Undo the sender is
+     * no longer entitled to is refused exactly as a normal delete would be.
+     */
+    function undoForward(copy: ForwardedCopy): void {
+        router.delete(
+            destroyMessage({
+                team: options.teamSlug(),
+                channel: copy.channelSlug,
+                message: copy.messageId,
+            }).url,
+            {
+                preserveScroll: true,
+                preserveState: true,
+                preserveUrl: true,
+                only: ['channels'],
+                onError: () => toast.error(t('Failed to undo the forward')),
+            },
+        );
+    }
+
     function forwardMessage(
         source: Message,
         payload: { target: ForwardTarget; note: string },
@@ -755,19 +808,29 @@ export function useMessageActions(
                 preserveScroll: true,
                 preserveState: true,
                 only: ['channels'],
-                onSuccess: () => {
+                onSuccess: (page) => {
                     if (plan.toCurrentChannel) {
                         return;
                     }
 
+                    const copy = forwardedCopy(page);
+
                     toast.success(
                         target.kind === 'channel'
-                            ? t('Message forwarded to #:channel.', {
+                            ? t('Message forwarded to #:channel', {
                                   channel: target.name,
                               })
-                            : t('Message forwarded to :name.', {
+                            : t('Message forwarded to :name', {
                                   name: target.name,
                               }),
+                        copy
+                            ? {
+                                  action: {
+                                      label: t('Undo'),
+                                      run: () => undoForward(copy),
+                                  },
+                              }
+                            : {},
                     );
                 },
                 onError: () => {

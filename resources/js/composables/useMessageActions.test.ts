@@ -156,11 +156,19 @@ function optionsOf(
 ): {
     only?: string[];
     onError?: () => void;
-    onSuccess?: () => void;
+    onSuccess?: (page?: unknown) => void;
     onFinish?: () => void;
     onCancel?: () => void;
 } {
     return mock.mock.calls[call][2];
+}
+
+/**
+ * A response page carrying the given flash data. Only `flash` is read by the
+ * paths under test, so the rest of the page object is deliberately absent.
+ */
+function pageFlashing(flash: Record<string, unknown>): unknown {
+    return { flash };
 }
 
 /** The payload (second argument) of the nth recorded call on a router mock. */
@@ -179,6 +187,7 @@ function settle(): Promise<void> {
 /** `router.delete` takes its options as the second argument (no request body). */
 function deleteOptionsOf(call = 0): {
     only?: string[];
+    preserveUrl?: boolean;
     onError?: () => void;
     onSuccess?: () => void;
 } {
@@ -651,8 +660,98 @@ describe('useMessageActions', () => {
                 target_channel_id: 'chan-2',
             });
 
-            optionsOf(post).onSuccess?.();
+            optionsOf(post).onSuccess?.(pageFlashing({}));
             expect(toastSuccess).toHaveBeenCalledOnce();
+        });
+
+        it('offers Undo on a forward elsewhere, deleting the copy where it landed', () => {
+            const h = harness();
+
+            h.actions.forwardMessage(message({ id: 'src' }), {
+                target: channelTarget('chan-2', 'random'),
+                note: '',
+            });
+
+            optionsOf(post).onSuccess?.(
+                pageFlashing({
+                    forwarded: {
+                        messageId: 'fwd-1',
+                        channelSlug: 'random',
+                    },
+                }),
+            );
+
+            const action = toastSuccess.mock.calls.at(-1)?.[1]?.action;
+            expect(action?.label).toBe('Undo');
+
+            action.run();
+
+            // Deleted in the channel it landed in, not the one being viewed —
+            // the whole reason the response has to name that channel.
+            expect(destroy).toHaveBeenCalledOnce();
+            expect(destroy.mock.calls[0][0]).toContain(
+                '/c/random/messages/fwd-1',
+            );
+        });
+
+        it('stays on the source channel while undoing', () => {
+            const h = harness();
+
+            h.actions.forwardMessage(message({ id: 'src' }), {
+                target: channelTarget('chan-2', 'random'),
+                note: '',
+            });
+            optionsOf(post).onSuccess?.(
+                pageFlashing({
+                    forwarded: { messageId: 'fwd-1', channelSlug: 'random' },
+                }),
+            );
+            toastSuccess.mock.calls.at(-1)?.[1]?.action.run();
+
+            // The destroy route redirects to the deleted message's own channel,
+            // which is the destination — the opposite of where the sender is.
+            expect(deleteOptionsOf(0)).toMatchObject({
+                preserveUrl: true,
+                only: ['channels'],
+            });
+        });
+
+        it('confirms without Undo when the response names no copy', () => {
+            const h = harness();
+
+            h.actions.forwardMessage(message({ id: 'src' }), {
+                target: channelTarget('chan-2', 'random'),
+                note: '',
+            });
+
+            optionsOf(post).onSuccess?.(
+                pageFlashing({ forwarded: 'nonsense' }),
+            );
+
+            // A flash that arrives malformed degrades to the plain confirmation
+            // rather than offering an Undo that would delete nothing.
+            expect(toastSuccess.mock.calls.at(-1)?.[1]?.action).toBeUndefined();
+        });
+
+        it('reports a failed undo', () => {
+            const h = harness();
+
+            h.actions.forwardMessage(message({ id: 'src' }), {
+                target: channelTarget('chan-2', 'random'),
+                note: '',
+            });
+            optionsOf(post).onSuccess?.(
+                pageFlashing({
+                    forwarded: { messageId: 'fwd-1', channelSlug: 'random' },
+                }),
+            );
+            toastSuccess.mock.calls.at(-1)?.[1]?.action.run();
+
+            deleteOptionsOf(0).onError?.();
+
+            expect(toastError).toHaveBeenCalledWith(
+                'Failed to undo the forward',
+            );
         });
 
         it('routes a person target to their DM', () => {
