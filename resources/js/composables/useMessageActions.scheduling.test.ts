@@ -40,6 +40,10 @@ import {
 describe('useMessageActions', () => {
     beforeEach(() => {
         clearMessageActionMocks();
+        // Every undo path here reads the workspace props, and each test seeds
+        // the ones it needs; without this they would run against whatever the
+        // test before them left behind.
+        inertiaPage.props = {};
     });
 
     afterEach(() => {
