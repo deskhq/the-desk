@@ -1453,7 +1453,7 @@ function onKeydown(event: KeyboardEvent): void {
             <div
                 v-if="props.replyTarget"
                 data-test="reply-preview"
-                class="mb-2 flex items-center gap-2 rounded-2xl border border-input bg-muted/40 px-3.5 py-2"
+                class="mb-2 flex items-center gap-2 rounded-2xl border border-input bg-muted/40 px-3.5 py-2 max-md:py-1"
             >
                 <span class="min-w-0 flex-1">
                     <MessageQuote
@@ -1468,10 +1468,10 @@ function onKeydown(event: KeyboardEvent): void {
                     type="button"
                     data-test="reply-preview-dismiss"
                     :aria-label="$t('Cancel reply')"
-                    class="shrink-0 rounded p-0.5 text-muted-foreground hover:bg-muted hover:text-foreground"
+                    class="flex shrink-0 items-center justify-center rounded p-0.5 text-muted-foreground hover:bg-muted hover:text-foreground max-md:size-11"
                     @click="emit('cancelReply')"
                 >
-                    <X class="size-3.5" />
+                    <X class="size-3.5 max-md:size-4.5" />
                 </Button>
             </div>
 
@@ -1481,7 +1481,7 @@ function onKeydown(event: KeyboardEvent): void {
             <div
                 v-if="editingMessage"
                 data-test="composer-editing-banner"
-                class="mb-2 flex items-center gap-2 rounded-2xl border border-brass-border bg-brass-fill px-3.5 py-2"
+                class="mb-2 flex items-center gap-2 rounded-2xl border border-brass-border bg-brass-fill px-3.5 py-2 max-md:py-1"
             >
                 <Pencil class="size-3.5 shrink-0 text-brass" />
                 <span
@@ -1498,10 +1498,10 @@ function onKeydown(event: KeyboardEvent): void {
                     type="button"
                     data-test="composer-editing-dismiss"
                     :aria-label="$t('Cancel edit')"
-                    class="shrink-0 rounded p-0.5 text-muted-foreground hover:bg-muted hover:text-foreground"
+                    class="flex shrink-0 items-center justify-center rounded p-0.5 text-muted-foreground hover:bg-muted hover:text-foreground max-md:size-11"
                     @click="exitEditMode"
                 >
-                    <X class="size-3.5" />
+                    <X class="size-3.5 max-md:size-4.5" />
                 </Button>
             </div>
 
@@ -1523,7 +1523,13 @@ function onKeydown(event: KeyboardEvent): void {
             >
                 <!-- Pre-send attachment tray. Row order is the send order
                      (attachment_ids[]). Removing a row is immediate — the upload
-                     is pre-send, so there is nothing to undo. -->
+                     is pre-send, so there is nothing to undo.
+
+                     Every remove control here is hover-revealed from `md` up and
+                     always visible below it: there is no hover on a touch
+                     screen, so a phone had no way at all to drop a staged file
+                     (#920). Each one also carries a 44pt hit box below `md`,
+                     which the three chip shapes reach differently — see each. -->
                 <div
                     v-if="showTray"
                     data-test="composer-attachment-tray"
@@ -1535,6 +1541,7 @@ function onKeydown(event: KeyboardEvent): void {
                         <div
                             v-if="item.status === 'failed'"
                             data-test="composer-attachment"
+                            data-kind="failed"
                             data-status="failed"
                             class="relative flex h-19 min-w-50 items-center gap-2.5 rounded-xl border border-destructive/40 bg-destructive/10 px-3"
                         >
@@ -1569,19 +1576,26 @@ function onKeydown(event: KeyboardEvent): void {
                                 type="button"
                                 data-test="composer-attachment-remove"
                                 :aria-label="$t('Remove attachment')"
-                                class="shrink-0 rounded-full p-1 text-muted-foreground hover:text-foreground"
+                                class="flex shrink-0 items-center justify-center rounded-full p-1 text-muted-foreground hover:text-foreground max-md:size-11"
                                 @click="uploads.remove(item.localId)"
                             >
-                                <X class="size-3" />
+                                <X class="size-3 max-md:size-4.5" />
                             </Button>
                         </div>
 
-                        <!-- Image preview thumbnail (never SVG). -->
+                        <!-- Image preview thumbnail (never SVG). The remove
+                             control is the one chip that cannot spend 44pt on a
+                             visible button: it would bury the picture it belongs
+                             to. Below `md` the thumbnail grows instead and the
+                             painted badge keeps its corner while its hit box
+                             reaches back over the thumbnail, which has no
+                             competing tap target of its own. -->
                         <div
                             v-else-if="item.isImage"
                             data-test="composer-attachment"
+                            data-kind="image"
                             :data-status="item.status"
-                            class="group relative size-19 overflow-hidden rounded-xl border border-input bg-muted"
+                            class="group relative size-19 overflow-hidden rounded-xl border border-input bg-muted max-md:size-25"
                         >
                             <img
                                 v-if="item.previewUrl"
@@ -1608,10 +1622,15 @@ function onKeydown(event: KeyboardEvent): void {
                                 type="button"
                                 data-test="composer-attachment-remove"
                                 :aria-label="$t('Remove attachment')"
-                                class="absolute top-1 right-1 flex size-5.5 items-center justify-center rounded-full bg-foreground/80 text-background opacity-0 transition-opacity group-hover:opacity-100 focus:opacity-100"
+                                class="absolute top-1 right-1 flex items-center justify-center max-md:top-0 max-md:right-0 max-md:size-11 max-md:items-start max-md:justify-end max-md:p-1 md:opacity-0 md:transition-opacity md:group-hover:opacity-100 md:focus:opacity-100"
                                 @click="uploads.remove(item.localId)"
                             >
-                                <X class="size-2.75" />
+                                <span
+                                    data-test="composer-attachment-remove-badge"
+                                    class="flex size-5.5 items-center justify-center rounded-full bg-foreground/80 text-background"
+                                >
+                                    <X class="size-2.75" />
+                                </span>
                             </Button>
                         </div>
 
@@ -1622,33 +1641,43 @@ function onKeydown(event: KeyboardEvent): void {
                         <div
                             v-else-if="item.isAudio && item.previewUrl"
                             data-test="composer-attachment"
+                            data-kind="audio"
                             :data-status="item.status"
-                            class="group relative"
+                            class="group relative flex items-center max-md:gap-1"
                         >
-                            <AudioPlayer
-                                :src="item.previewUrl"
-                                :filename="item.name"
-                                compact
-                            />
-                            <div
-                                v-if="item.status === 'uploading'"
-                                class="absolute inset-x-3 bottom-1.5 h-0.75 overflow-hidden rounded-full bg-border"
-                            >
+                            <!-- The player and its progress bar share a box of
+                                 their own so the bar keeps tracking the player
+                                 once the remove button takes a column beside
+                                 it below `md`. -->
+                            <div class="relative">
+                                <AudioPlayer
+                                    :src="item.previewUrl"
+                                    :filename="item.name"
+                                    compact
+                                />
                                 <div
-                                    class="h-full rounded-full bg-brass"
-                                    :style="{ width: `${item.progress}%` }"
-                                ></div>
+                                    v-if="item.status === 'uploading'"
+                                    class="absolute inset-x-3 bottom-1.5 h-0.75 overflow-hidden rounded-full bg-border"
+                                >
+                                    <div
+                                        class="h-full rounded-full bg-brass"
+                                        :style="{ width: `${item.progress}%` }"
+                                    ></div>
+                                </div>
                             </div>
+                            <!-- A 44pt overlay would sit on the right end of the
+                                 scrubber, so below `md` this one leaves the
+                                 corner and takes a column of its own. -->
                             <Button
                                 variant="unstyled"
                                 size="none"
                                 type="button"
                                 data-test="composer-attachment-remove"
                                 :aria-label="$t('Remove attachment')"
-                                class="absolute top-1.5 right-1.5 rounded-full p-1 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 hover:text-foreground focus:opacity-100"
+                                class="flex items-center justify-center rounded-full p-1 text-muted-foreground hover:text-foreground max-md:size-11 max-md:shrink-0 md:absolute md:top-1.5 md:right-1.5 md:opacity-0 md:transition-opacity md:group-hover:opacity-100 md:focus:opacity-100"
                                 @click="uploads.remove(item.localId)"
                             >
-                                <X class="size-3" />
+                                <X class="size-3 max-md:size-4.5" />
                             </Button>
                         </div>
 
@@ -1656,6 +1685,7 @@ function onKeydown(event: KeyboardEvent): void {
                         <div
                             v-else
                             data-test="composer-attachment"
+                            data-kind="file"
                             :data-status="item.status"
                             class="group relative flex h-19 min-w-52 items-center gap-2.5 rounded-xl border border-input bg-muted px-3"
                         >
@@ -1696,10 +1726,10 @@ function onKeydown(event: KeyboardEvent): void {
                                 type="button"
                                 data-test="composer-attachment-remove"
                                 :aria-label="$t('Remove attachment')"
-                                class="shrink-0 rounded-full p-1 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 hover:text-foreground focus:opacity-100"
+                                class="flex shrink-0 items-center justify-center rounded-full p-1 text-muted-foreground hover:text-foreground max-md:size-11 md:opacity-0 md:transition-opacity md:group-hover:opacity-100 md:focus:opacity-100"
                                 @click="uploads.remove(item.localId)"
                             >
-                                <X class="size-3" />
+                                <X class="size-3 max-md:size-4.5" />
                             </Button>
                         </div>
                     </template>
@@ -1995,15 +2025,20 @@ function onKeydown(event: KeyboardEvent): void {
                 </div>
             </div>
 
+            <!-- The 14px box is far too small to aim at on a phone, but growing
+                 it would make a checkbox the loudest thing under the composer.
+                 The label already wraps the text, so below `md` the whole row
+                 becomes the target instead and the box is left alone (#920). -->
             <label
                 v-if="props.allowSendToChannel && !editingMessage"
-                class="mt-2 flex w-fit cursor-pointer items-center gap-1.5 px-1.5 text-[12px] text-muted-foreground select-none"
+                data-test="send-to-channel-row"
+                class="mt-2 flex w-full cursor-pointer items-center gap-1.5 px-1.5 text-[12px] text-muted-foreground select-none max-md:min-h-11 md:w-fit"
             >
                 <input
                     v-model="sendToChannel"
                     type="checkbox"
                     data-test="send-to-channel"
-                    class="size-3.5 rounded border-input accent-primary"
+                    class="size-3.5 shrink-0 rounded border-input accent-primary"
                 />
                 {{
                     $t('Also send to #:channel', { channel: props.channelName })

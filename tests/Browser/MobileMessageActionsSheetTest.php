@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 use App\Enums\AppLocale;
 use App\Models\Message;
-use Pest\Browser\Api\AwaitableWebpage;
 
 /**
  * Long-press message actions below the `md` breakpoint (#774).
@@ -13,41 +12,10 @@ use Pest\Browser\Api\AwaitableWebpage;
  * a phone. Long-pressing a message lifts it onto a scrim and opens a bottom
  * sheet carrying the same actions, gated by the same guards — nothing the
  * toolbar hides may appear in the sheet.
- */
-
-/**
- * Press and hold a message row: pointer down, wait out the 500ms hold, lift.
  *
- * Synthesised as touch on purpose — the gesture is the touch stand-in for
- * hover. The hold happens between two script calls so the browser's own clock
- * drives the composable's timer.
+ * The gesture itself lives in `Helpers.php` as `longPressMessage()`: the mobile
+ * composer suite needs it too, to reach a reply target on a phone (#920).
  */
-function longPressMessage(AwaitableWebpage $page, string $messageId): AwaitableWebpage
-{
-    $press = fn (string $type): string => <<<JS
-    (() => {
-        const row = document.getElementById('message-{$messageId}');
-        const box = row.getBoundingClientRect();
-
-        row.dispatchEvent(new PointerEvent('{$type}', {
-            pointerId: 1,
-            pointerType: 'touch',
-            isPrimary: true,
-            bubbles: true,
-            cancelable: true,
-            clientX: Math.round(box.x + 40),
-            clientY: Math.round(box.y + 8),
-        }));
-    })()
-    JS;
-
-    $page->script($press('pointerdown'));
-    $page = $page->wait(0.7);
-    $page->script($press('pointerup'));
-
-    return $page;
-}
-
 test('a long-press on a peer message opens the sheet without the author-only actions', function (): void {
     ['owner' => $alice, 'member' => $bob, 'team' => $team, 'channel' => $channel] = browserTeamWithChannel();
 
