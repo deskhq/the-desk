@@ -16,7 +16,7 @@ There are three pieces:
 ## 1. Rename the instance
 
 ```ini title=".env"
-APP_NAME=Acme Chat
+APP_NAME="Acme Chat"
 ```
 
 Then restart the stack:
@@ -31,10 +31,11 @@ rendered per request from `APP_NAME`, so an instance that sets only this
 installs to a home screen or a dock as "Acme Chat".
 
 :::caution
-Editing `.env` through a PaaS environment editor (Dokploy, Coolify, …)? Those
-editors normalise quotes away, so `APP_NAME="Acme Chat"` can land as
-`APP_NAME=Acme Chat` and the boot fails with `Encountered unexpected
-whitespace`. Use a single-word name there, or edit the file on disk.
+Quote a name that contains spaces. Editing `.env` through a PaaS environment
+editor (Dokploy, Coolify, …)? Those editors normalise quotes away, so
+`APP_NAME="Acme Chat"` can land as `APP_NAME=Acme Chat` and the boot fails with
+`Encountered unexpected whitespace`. Use a single-word name there, or edit the
+file on disk.
 :::
 
 ## 2. Replace the marks

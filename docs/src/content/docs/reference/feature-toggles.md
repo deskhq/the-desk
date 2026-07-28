@@ -519,9 +519,13 @@ else changes.
 
 :::note
 This is a request, not a requirement. The Desk is MIT-licensed with no trademark
-clause, so nothing obliges you to display it — which is exactly why there is a
-documented switch rather than a line you would have to patch out. If it costs
-you nothing, leaving it on is how people find the project.
+clause, so nothing obliges you to display this **footer link** — which is exactly
+why there is a documented switch rather than a line you would have to patch out.
+If it costs you nothing, leaving it on is how people find the project.
+
+Turning it off changes nothing about the licence itself: MIT still requires the
+copyright notice and licence text to travel with any copy or substantial portion
+of the software you redistribute.
 :::
 
 Replacing the name, mark and icons is a separate, larger job: see

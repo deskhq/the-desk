@@ -56,7 +56,10 @@ test('it serves each asset as its own content type, revalidated rather than held
     $this->get('/favicon.svg')
         ->assertOk()
         ->assertHeader('Content-Type', 'image/svg+xml')
-        ->assertHeader('Cache-Control', 'no-cache, public');
+        ->assertHeader('Cache-Control', 'no-cache, public')
+        // An operator override is a file we did not author, so the browser is
+        // told to trust the declared type rather than sniff its way to one.
+        ->assertHeader('X-Content-Type-Options', 'nosniff');
 
     $this->get('/favicon.ico')->assertHeader('Content-Type', 'image/x-icon');
     $this->get('/og-image.png')->assertHeader('Content-Type', 'image/png');
