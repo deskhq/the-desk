@@ -110,6 +110,39 @@ function browserChannelUrl(Team $team, Channel $channel): string
 }
 
 /**
+ * Press and hold a message row: pointer down, wait out the 500ms hold, lift.
+ *
+ * Synthesised as touch on purpose — the gesture is the touch stand-in for
+ * hover. The hold happens between two script calls so the browser's own clock
+ * drives the composable's timer.
+ */
+function longPressMessage(AwaitableWebpage $page, string $messageId): AwaitableWebpage
+{
+    $press = fn (string $type): string => <<<JS
+    (() => {
+        const row = document.getElementById('message-{$messageId}');
+        const box = row.getBoundingClientRect();
+
+        row.dispatchEvent(new PointerEvent('{$type}', {
+            pointerId: 1,
+            pointerType: 'touch',
+            isPrimary: true,
+            bubbles: true,
+            cancelable: true,
+            clientX: Math.round(box.x + 40),
+            clientY: Math.round(box.y + 8),
+        }));
+    })()
+    JS;
+
+    $page->script($press('pointerdown'));
+    $page = $page->wait(0.7);
+    $page->script($press('pointerup'));
+
+    return $page;
+}
+
+/**
  * Open the create-channel dialog at the given viewport. It is the plainest of
  * the form dialogs — a header, three fields and a pair of actions — so it stands
  * in for the whole set that shares the primitive.

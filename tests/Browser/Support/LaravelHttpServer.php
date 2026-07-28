@@ -18,6 +18,7 @@ use Illuminate\Contracts\Debug\ExceptionHandler;
 use Illuminate\Contracts\Http\Kernel as HttpKernel;
 use Illuminate\Foundation\Testing\Concerns\WithoutExceptionHandlingHandler;
 use Illuminate\Http\Request;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Routing\UrlGenerator;
 use Illuminate\Support\Uri;
 use Pest\Browser\Contracts\HttpServer;
@@ -46,7 +47,7 @@ use Throwable;
  * and every assertion that reads a rendered box reports a bogus layout
  * regression instead (issue #944).
  *
- * There are two behavioural changes, and everything else is a verbatim copy:
+ * There are three behavioural changes, and everything else is a verbatim copy:
  *
  * 1. `start()` raises the connection and stream timeouts past any plausible
  *    test duration, so the server never closes a connection the browser still
@@ -57,10 +58,18 @@ use Throwable;
  *    never observes — and no browser retries a stylesheet on its own. The
  *    retry is automatic rather than opt-in per test, which is what issue #944
  *    asks for.
+ * 3. `parseMultipartBody()` fills in the request bag the vendor class leaves
+ *    empty behind a `@TODO files...`. It parses only urlencoded bodies, and
+ *    calls `Request::create()` with no files at all, so `$request->file(...)`
+ *    is null for every upload a browser makes: the pre-upload 422s, the chip
+ *    vanishes, and no attachment behaviour can be covered in a browser test at
+ *    all (that is what retired `ComposerAttachmentTest` in #483). #920 needs a
+ *    real staged attachment on a phone viewport to prove its remove target, so
+ *    the shadow parses the multipart body into `UploadedFile`s.
  *
  * Remove this shadow (and its `require` in `tests/Pest.php`) once the plugin
- * fixes asset delivery upstream; `tests/Unit/BrowserAssetDeliveryTest.php` pins
- * the shadow until then.
+ * fixes asset delivery and uploads upstream; `tests/Unit/BrowserAssetDeliveryTest.php`
+ * and `tests/Unit/BrowserUploadDeliveryTest.php` pin the shadow until then.
  *
  * @internal
  *
@@ -292,8 +301,12 @@ final class LaravelHttpServer implements HttpServer
         $method = mb_strtoupper($request->getMethod());
         $rawBody = (string) $request->getBody();
         $parameters = [];
+        $files = [];
         if ($method !== 'GET' && str_starts_with(mb_strtolower($contentType), 'application/x-www-form-urlencoded')) {
             parse_str($rawBody, $parameters);
+        }
+        if ($method !== 'GET' && str_starts_with(mb_strtolower($contentType), 'multipart/form-data')) {
+            [$parameters, $files] = $this->parseMultipartBody($rawBody, $contentType);
         }
         $cookies = array_map(fn (RequestCookie $cookie): string => urldecode($cookie->getValue()), $request->getCookies());
         $cookies = array_merge($cookies, test()->prepareCookiesForRequest()); // @phpstan-ignore-line
@@ -305,7 +318,7 @@ final class LaravelHttpServer implements HttpServer
             $method,
             $parameters,
             $cookies,
-            [], // @TODO files...
+            $files,
             $serverVariables,
             $rawBody
         );
@@ -338,6 +351,8 @@ final class LaravelHttpServer implements HttpServer
 
         $kernel->terminate($laravelRequest, $response);
 
+        $this->discardTemporaryUploads($files);
+
         if (property_exists($response, 'exception') && $response->exception !== null) {
             assert($response->exception instanceof Throwable);
 
@@ -361,6 +376,149 @@ final class LaravelHttpServer implements HttpServer
             $response->headers->all(), // @phpstan-ignore-line
             $this->withStylesheetRepair((string) $content, (string) $response->headers->get('Content-Type')),
         );
+    }
+
+    /**
+     * Split a `multipart/form-data` body into request parameters and uploads.
+     *
+     * The vendor class parses urlencoded bodies only, so every file a browser
+     * posts arrives as nothing at all. Each part is read here into either a
+     * scalar field or a temporary file wrapped in an `UploadedFile` marked as a
+     * test upload — `is_uploaded_file()` is false for anything this process
+     * wrote itself, and without that flag Laravel's `file` rule rejects it.
+     *
+     * Field names go back through `parse_str`, so `tags[]` and `filters[type]`
+     * keep the shape PHP would have given them; file names are walked by hand
+     * for the same reason, since `parse_str` cannot carry an object.
+     *
+     * @return array{0: array<string, mixed>, 1: array<string, mixed>}
+     */
+    private function parseMultipartBody(string $body, string $contentType): array
+    {
+        if (preg_match('/boundary="?([^";,]+)"?/i', $contentType, $matches) !== 1) {
+            return [[], []];
+        }
+
+        $fields = [];
+        $files = [];
+        $segments = explode('--'.$matches[1], $body);
+
+        // The first segment is the preamble before the opening boundary and the
+        // last is the epilogue after the closing one; neither is a part.
+        foreach (array_slice($segments, 1, -1) as $segment) {
+            // Byte functions throughout: a part's content is arbitrary binary,
+            // and the `mb_` family this class otherwise uses would rewrite any
+            // byte that is not valid UTF-8 into a replacement character.
+            $split = explode("\r\n\r\n", ltrim($segment, "\r\n"), 2);
+
+            if (count($split) !== 2) {
+                continue;
+            }
+
+            [$rawHeaders, $content] = $split;
+            $content = (string) preg_replace('/\r\n$/', '', $content);
+            $name = $this->headerParameter($rawHeaders, 'name');
+
+            if ($name === null) {
+                continue;
+            }
+
+            $filename = $this->headerParameter($rawHeaders, 'filename');
+
+            if ($filename === null) {
+                $fields[] = urlencode($name).'='.urlencode($content);
+
+                continue;
+            }
+
+            $this->assignFile($files, $name, $this->temporaryUpload($content, $filename, $rawHeaders));
+        }
+
+        parse_str(implode('&', $fields), $parameters);
+
+        return [$parameters, $files];
+    }
+
+    /**
+     * Read one `Content-Disposition` parameter (`name`, `filename`) off a part's
+     * headers, quoted or bare.
+     */
+    private function headerParameter(string $rawHeaders, string $parameter): ?string
+    {
+        $pattern = sprintf('/;\s*%s="([^"]*)"/i', preg_quote($parameter, '/'));
+
+        return preg_match($pattern, $rawHeaders, $matches) === 1 ? $matches[1] : null;
+    }
+
+    /**
+     * Spill one part's bytes to a temporary file and wrap them as an upload.
+     */
+    private function temporaryUpload(string $content, string $filename, string $rawHeaders): UploadedFile
+    {
+        $path = (string) tempnam(sys_get_temp_dir(), 'pest-upload-');
+        file_put_contents($path, $content);
+
+        $mimeType = preg_match('/^content-type:\s*(\S+)/im', $rawHeaders, $matches) === 1
+            ? $matches[1]
+            : null;
+
+        return new UploadedFile($path, $filename, $mimeType, null, true);
+    }
+
+    /**
+     * Place an upload in the file bag under the bracket path its field name
+     * spells out: `file`, `photos[]` and `docs[cover]` all land where PHP would
+     * have put them.
+     *
+     * @param  array<string, mixed>  $files
+     */
+    private function assignFile(array &$files, string $name, UploadedFile $file): void
+    {
+        if (preg_match('/^([^\[\]]+)((?:\[[^\[\]]*\])*)$/', $name, $matches) !== 1) {
+            return;
+        }
+
+        preg_match_all('/\[([^\[\]]*)\]/', $matches[2], $brackets);
+
+        $keys = array_merge([$matches[1]], $brackets[1]);
+        $cursor = &$files;
+
+        foreach ($keys as $depth => $key) {
+            $isLeaf = $depth === count($keys) - 1;
+
+            if ($key === '') {
+                $cursor[] = $isLeaf ? $file : [];
+                $key = array_key_last($cursor);
+            } elseif ($isLeaf) {
+                $cursor[$key] = $file;
+            } elseif (! isset($cursor[$key]) || ! is_array($cursor[$key])) {
+                $cursor[$key] = [];
+            }
+
+            if ($isLeaf) {
+                return;
+            }
+
+            $cursor = &$cursor[$key];
+        }
+    }
+
+    /**
+     * Delete the temporary files of any upload the application did not move.
+     *
+     * A request that stores its upload has already moved the file away; one that
+     * fails validation leaves it behind, and the browser suite posts enough of
+     * them to matter over a full run.
+     *
+     * @param  array<string, mixed>  $files
+     */
+    private function discardTemporaryUploads(array $files): void
+    {
+        array_walk_recursive($files, function (mixed $file): void {
+            if ($file instanceof UploadedFile && is_file($file->getPathname())) {
+                @unlink($file->getPathname());
+            }
+        });
     }
 
     /**
