@@ -162,9 +162,15 @@ test('the You panel takes the whole drawer rather than a height of its own', fun
                 .getBoundingClientRect();
             const rows = document.querySelector('[data-test="user-menu-rows"]')
                 .getBoundingClientRect();
+            // The tab bar that opened the destination is the drawer's own floor,
+            // so reaching it is what tells a filled panel from one that merely
+            // agrees with itself about being short.
+            const tabs = document.querySelector('[data-test="navigation-tab-bar"]')
+                .getBoundingClientRect();
 
             return Math.abs(rows.top - identity.bottom) <= 1
                 && Math.abs(rows.bottom - panel.bottom) <= 1
+                && Math.abs(panel.bottom - tabs.top) <= 1
                 && rows.height > 0;
         })()
         JS, true);
