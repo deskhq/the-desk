@@ -12,10 +12,11 @@ import type { Outbox } from '@/lib/outbox';
 import type { Mention, Message } from '@/types';
 
 /**
- * The fixtures and mock accessors every `useMessageActions.*.test.ts` file
- * shares. The suite is split by the actions it groups, but they all drive the
- * same composable through the same stubbed router and toast, so the harness
- * lives here rather than being copied into each file and drifting.
+ * Test-only: the fixtures and mock accessors every `useMessageActions.*.test.ts`
+ * file shares. The suite is split by the actions it groups, but they all drive
+ * the same composable through the same stubbed router and toast, so the harness
+ * lives here rather than being copied into each file and drifting. Nothing the
+ * app ships imports it, so it never reaches a bundle.
  *
  * The `vi.mock` calls themselves stay in the test files — vitest hoists them
  * per module graph, so they cannot be shared. This module reads the resulting
