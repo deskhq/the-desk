@@ -51,7 +51,9 @@ const {
     forwardablePeople,
     openForward,
     submitForward,
-} = useForwardDialog({ forwardMessage: props.forwardMessage });
+} = useForwardDialog({
+    forwardMessage: (source, payload) => props.forwardMessage(source, payload),
+});
 
 const {
     reminderCustomOpen,
