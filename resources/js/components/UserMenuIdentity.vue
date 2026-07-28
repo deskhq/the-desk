@@ -44,7 +44,8 @@ const presenceLabel = computed(() =>
 
 <template>
     <div
-        class="flex items-center border-b border-border"
+        data-test="user-menu-identity"
+        class="flex shrink-0 items-center border-b border-border"
         :class="isPanel ? 'gap-3.5 px-4.5 py-5' : 'gap-2.5 px-3 pt-3 pb-3.5'"
     >
         <span class="relative shrink-0">

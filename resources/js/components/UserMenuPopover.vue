@@ -25,6 +25,12 @@ import UserMenuContent from '@/components/UserMenuContent.vue';
  * `modal` is deliberate: it is what puts the shell behind an `aria-hidden`
  * marker, which the app's own observer mirrors onto `inert` so the skip link
  * and the dock leave the tab order with it (#730).
+ *
+ * The card's height is whatever room the rail avatar leaves — Reka measures it
+ * as `--reka-popover-content-available-height`, the same way the emoji picker
+ * sizes itself. A fixed cap cannot do that job: `min(34rem, …)` froze the menu
+ * at 544px on every viewport taller than that, so its rows scrolled with screen
+ * to spare above and below the card (#998).
  */
 const emit = defineEmits<{
     /** The workspace sheet asked for the invite modal, which the host owns. */
@@ -73,7 +79,7 @@ function restoreFocusToTrigger(event: Event): void {
             :side-offset="8"
             :collision-padding="12"
             @close-auto-focus="restoreFocusToTrigger"
-            class="flex max-h-[min(34rem,calc(100dvh-2rem))] w-61.5 flex-col gap-0 rounded-[14px] border-border bg-popover p-0 shadow-[0_18px_40px_rgba(60,55,40,0.18)] dark:shadow-[0_18px_40px_rgba(0,0,0,0.5)]"
+            class="flex max-h-[var(--reka-popover-content-available-height)] w-61.5 flex-col gap-0 rounded-[14px] border-border bg-popover p-0 shadow-[0_18px_40px_rgba(60,55,40,0.18)] dark:shadow-[0_18px_40px_rgba(0,0,0,0.5)]"
         >
             <UserMenuContent
                 :user="page.props.auth.user"
