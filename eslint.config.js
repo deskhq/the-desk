@@ -253,7 +253,6 @@ export default defineConfigWithVueTs(
         // stops breaching the threshold, so the list can only shrink.
         files: [
             'resources/js/components/UserStatusDialog.vue',
-            'resources/js/composables/useAttachmentUploads.test.ts',
             'resources/js/layouts/MainLayout.vue',
         ],
         rules: {
