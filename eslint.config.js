@@ -252,7 +252,6 @@ export default defineConfigWithVueTs(
         // `eslint-rules/max-lines-policy.test.ts` fails as soon as an entry
         // stops breaching the threshold, so the list can only shrink.
         files: [
-            'resources/js/components/QuickSwitcher.vue',
             'resources/js/components/UserStatusDialog.vue',
             'resources/js/composables/useAttachmentUploads.test.ts',
             'resources/js/layouts/MainLayout.vue',
