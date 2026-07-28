@@ -22,6 +22,12 @@ const CHANNEL_URL = `${BASE_URL}${requireEnv('CAPTURE_CHANNEL_PATH')}`;
 const CHECK_ONLY = process.argv.includes('--check');
 
 /**
+ * Exit status meaning "the captures no longer match", as opposed to the 1 that
+ * any crash produces. bin/capture-shell keys its advice off the difference.
+ */
+const DRIFT_EXIT_CODE = 2;
+
+/**
  * Where a `--check` run leaves what it actually rendered, so CI can upload it
  * and a contributor can commit those bytes instead of re-deriving them.
  *
@@ -343,5 +349,8 @@ if (drifted.length > 0) {
         console.error(`  - ${variant}: ${reason}`);
     }
 
-    process.exitCode = 1;
+    // Distinct from the 1 any crash above exits with, so the caller can tell
+    // "the shell drifted" from "the capture never ran" and stop advising a
+    // refresh for what is actually a broken environment.
+    process.exitCode = DRIFT_EXIT_CODE;
 }

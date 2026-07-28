@@ -267,9 +267,10 @@ main() {
     export APP_LOCALE=en
     export APP_URL="http://127.0.0.1:$CAPTURE_PORT"
     export PHP_CLI_SERVER_WORKERS="${PHP_CLI_SERVER_WORKERS:-6}"
-    # Keep the Playwright browser in node_modules, where `npx playwright install`
-    # puts it under Sail, rather than in a root-owned cache.
-    export PLAYWRIGHT_BROWSERS_PATH="${PLAYWRIGHT_BROWSERS_PATH:-0}"
+    # PLAYWRIGHT_BROWSERS_PATH is deliberately left alone: forcing a default here
+    # would override Playwright's own, and only match whichever location this
+    # machine happened to install the browser into. If it is missing, Playwright
+    # says so and names the command that fixes it.
 
     ensure_database
     seed_fixture
@@ -287,7 +288,20 @@ main() {
     export CAPTURE_CHANNEL_PATH="/t/$CAPTURE_TEAM_SLUG/c/$CAPTURE_CHANNEL"
 
     if [ -n "$check_only" ]; then
-        if ! node "$REPO_ROOT/bin/capture-shell.mjs" --check; then
+        local status=0
+
+        node "$REPO_ROOT/bin/capture-shell.mjs" --check || status=$?
+
+        # Only exit status 2 means the shots moved. Anything else is the capture
+        # itself failing — a missing browser, an unreachable service — and
+        # telling someone to refresh their captures because Playwright is not
+        # installed sends them a long way in the wrong direction.
+        if [ "$status" -ne 0 ] && [ "$status" -ne 2 ]; then
+            printf '\nThe capture did not run to completion (exit %s); the error above is the reason.\n' "$status" >&2
+            exit "$status"
+        fi
+
+        if [ "$status" -eq 2 ]; then
             cat >&2 <<EOF
 
 The committed product shots no longer match what the app renders. If the shell

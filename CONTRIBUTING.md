@@ -74,9 +74,10 @@ match, so a redesign cannot merge while the marketing still shows the old one.
 refresh the shots and commit them:
 
 ```bash
-./vendor/bin/sail composer capture:shell   # rewrite the captures
-./vendor/bin/sail npm run build            # the landing page imports them through Vite
-./vendor/bin/sail composer capture:check   # confirm the gate is happy
+./vendor/bin/sail npx playwright install chromium   # once, if you have not already
+./vendor/bin/sail composer capture:shell            # rewrite the captures
+./vendor/bin/sail npm run build                     # the landing page imports them through Vite
+./vendor/bin/sail composer capture:check            # confirm the gate is happy
 ```
 
 If it was not the point, you have found an unintended visual regression — which
