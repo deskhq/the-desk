@@ -257,7 +257,6 @@ export default defineConfigWithVueTs(
             'resources/js/composables/useAttachmentUploads.test.ts',
             'resources/js/layouts/MainLayout.vue',
             'resources/js/pages/teams/AuditExports.vue',
-            'resources/js/pages/teams/Groups.vue',
         ],
         rules: {
             'max-lines': 'off',
