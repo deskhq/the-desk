@@ -259,7 +259,6 @@ export default defineConfigWithVueTs(
             'resources/js/composables/useMessageActions.test.ts',
             'resources/js/composables/useMessageActions.ts',
             'resources/js/layouts/MainLayout.vue',
-            'resources/js/pages/channels/Show.vue',
             'resources/js/pages/teams/Analytics.vue',
             'resources/js/pages/teams/AuditExports.vue',
             'resources/js/pages/teams/Edit.vue',

@@ -1,81 +1,30 @@
 <script setup lang="ts">
-import { Head, InfiniteScroll, router, usePage } from '@inertiajs/vue3';
-import { echo } from '@laravel/echo-vue';
-import { ArrowUp, Upload, WifiOff } from '@lucide/vue';
-import {
-    computed,
-    nextTick,
-    onBeforeUnmount,
-    onMounted,
-    ref,
-    watch,
-} from 'vue';
-import {
-    archive as archiveChannel,
-    read as markChannelRead,
-    typing as postTypingSignal,
-} from '@/actions/App/Http/Controllers/Channels/ChannelController';
-import AddDirectMessagePeopleModal from '@/components/AddDirectMessagePeopleModal.vue';
-import ChannelEmptyState from '@/components/ChannelEmptyState.vue';
-import ChannelMasthead from '@/components/ChannelMasthead.vue';
-import ForwardMessageDialog from '@/components/ForwardMessageDialog.vue';
+import { Head } from '@inertiajs/vue3';
+import { computed, nextTick, onMounted, ref, watch } from 'vue';
+import ArchivedNotice from '@/components/channel/ArchivedNotice.vue';
+import ChannelAnnouncers from '@/components/channel/ChannelAnnouncers.vue';
+import ChannelComposerDock from '@/components/channel/ChannelComposerDock.vue';
+import ChannelDialogs from '@/components/channel/ChannelDialogs.vue';
+import ChannelHeader from '@/components/channel/ChannelHeader.vue';
+import ChannelPane from '@/components/channel/ChannelPane.vue';
 import JoinChannelBar from '@/components/JoinChannelBar.vue';
-import LeaveChannelModal from '@/components/LeaveChannelModal.vue';
-import MessageComposer from '@/components/MessageComposer.vue';
-import MessageList from '@/components/MessageList.vue';
-import PinsPanel from '@/components/PinsPanel.vue';
-import ScheduledCountChip from '@/components/ScheduledCountChip.vue';
-import ScheduledMessagesDialog from '@/components/ScheduledMessagesDialog.vue';
-import ScheduleMessageDialog from '@/components/ScheduleMessageDialog.vue';
-import ScrollableMessageList from '@/components/ScrollableMessageList.vue';
 import ThreadPanel from '@/components/ThreadPanel.vue';
-import TypingIndicator from '@/components/TypingIndicator.vue';
-import { Button } from '@/components/ui/button';
-import {
-    Dialog,
-    DialogClose,
-    DialogContent,
-    DialogDescription,
-    DialogFooter,
-    DialogHeader,
-    DialogTitle,
-} from '@/components/ui/dialog';
 import { useChannelDraft } from '@/composables/useChannelDraft';
-import { useChannelPreferences } from '@/composables/useChannelPreferences';
+import { useChannelIdentity } from '@/composables/useChannelIdentity';
+import { useChannelReaders } from '@/composables/useChannelReaders';
 import { useChannelRealtime } from '@/composables/useChannelRealtime';
-import { useConnectionState } from '@/composables/useConnectionState';
-import { useDebouncedPost } from '@/composables/useDebouncedPost';
-import {
-    QUEUED_SENDS_TOAST_KEY,
-    useMessageActions,
-} from '@/composables/useMessageActions';
-import { useMessageAnnouncer } from '@/composables/useMessageAnnouncer';
-import {
-    optimisticMessage,
-    useMessageStream,
-} from '@/composables/useMessageStream';
+import { useChannelTimeline } from '@/composables/useChannelTimeline';
+import { useChannelTyping } from '@/composables/useChannelTyping';
+import { useComposerTarget } from '@/composables/useComposerTarget';
+import { useMessageActions } from '@/composables/useMessageActions';
+import { useOfflineOutbox } from '@/composables/useOfflineOutbox';
 import { useRailBottomInset } from '@/composables/useRailInset';
+import { useReadOnFocus } from '@/composables/useReadOnFocus';
+import { useReadPointer } from '@/composables/useReadPointer';
 import { useScrollPin } from '@/composables/useScrollPin';
-import { useSendFailureAnnouncer } from '@/composables/useSendFailureAnnouncer';
 import { useTeamPresence } from '@/composables/useTeamPresence';
 import { useThreadPanel } from '@/composables/useThreadPanel';
 import { useTimezone } from '@/composables/useTimezone';
-import { useToast } from '@/composables/useToast';
-import { useTranslations } from '@/composables/useTranslations';
-import { useTypingIndicator } from '@/composables/useTypingIndicator';
-import { useUnreadDivider } from '@/composables/useUnreadDivider';
-import { backgroundVisit } from '@/lib/backgroundVisit';
-import { formatDayLabel } from '@/lib/datetime';
-import { groupDmMastheadName } from '@/lib/groupDm';
-import { createOutbox } from '@/lib/outbox';
-import { buildTimelineItems } from '@/lib/timeline';
-import { parseXsrfToken } from '@/lib/uploadAttachment';
-import {
-    isDividerVisible,
-    shouldShowUnreadJump,
-    timelineItemIndexForMessage,
-    unreadDividerIndex,
-} from '@/lib/virtualTimeline';
 import type {
     Channel,
     ChannelReader,
@@ -86,8 +35,6 @@ import type {
     ScheduledMessage,
     Thread,
 } from '@/types';
-import type { ForwardTarget } from '@/types/forward';
-import type { PersonRef } from '@/types/people';
 
 const props = defineProps<{
     team: { id: string; name: string; slug: string };
@@ -150,50 +97,24 @@ const props = defineProps<{
     scheduledMessages: ScheduledMessage[];
 }>();
 
-const page = usePage();
+const {
+    currentUser,
+    isSelfDm,
+    mastheadTitle,
+    canAddPeople,
+    composerPlaceholder,
+    canModerate,
+    mentionableMembers,
+    channelHasBots,
+} = useChannelIdentity({
+    channel: () => props.channel,
+    members: () => props.members,
+    isMember: () => props.isMember,
+});
 
-const { t } = useTranslations();
-const toast = useToast();
-
-const currentUser = computed(() => ({
-    id: String(page.props.auth.user.id),
-    name: page.props.auth.user.name,
-}));
-
-/**
- * Peers currently composing on this channel, driven by the server-broadcast
- * `UserTyping` event on the same private channel as the message events. The
- * outbound signal is a plain fire-and-forget POST — the server derives the
- * typist identity from the authenticated session, so a member cannot spoof
- * another member's indicator — carrying the Echo socket id so the resulting
- * broadcast skips this tab.
- */
-const typing = useTypingIndicator(() => {
-    const headers: Record<string, string> = {
-        'X-Requested-With': 'XMLHttpRequest',
-    };
-
-    const xsrfToken = parseXsrfToken(document.cookie);
-
-    if (xsrfToken) {
-        headers['X-XSRF-TOKEN'] = xsrfToken;
-    }
-
-    const socketId = echo().socketId();
-
-    if (socketId) {
-        headers['X-Socket-ID'] = socketId;
-    }
-
-    void fetch(
-        postTypingSignal({
-            team: props.team.slug,
-            channel: props.channel.slug,
-        }).url,
-        { method: 'POST', headers },
-    ).catch(() => {
-        // A lost typing beat is invisible; the next keystroke sends another.
-    });
+const typing = useChannelTyping({
+    teamSlug: () => props.team.slug,
+    channelSlug: () => props.channel.slug,
 });
 
 const typingNames = typing.typingNames;
@@ -204,155 +125,39 @@ const typingNames = typing.typingNames;
  */
 const { presenceFor, isDndFor } = useTeamPresence(() => props.team.id);
 
-/**
- * Read positions of the channel's other members who share read receipts, keyed
- * by user id. Seeded from the server prop and kept current from the MessageRead
- * broadcast, driving the "Seen by" affordance under the newest message.
- */
-const readers = ref(new Map<string, ChannelReader>());
-
-function seedReaders(): void {
-    readers.value = new Map(
-        props.channelReaders.map((reader) => [reader.user.id, reader]),
-    );
-}
-
-const channelReadersList = computed(() => Array.from(readers.value.values()));
-
-function onTyping(): void {
-    typing.signalTyping();
-}
-
-// You can't @mention yourself, and bots have no inbox to reach, so drop the
-// current user and any bots from the composer list — the roster facepile still
-// shows the bots.
-const mentionableMembers = computed(() =>
-    props.members.filter(
-        (member) => member.id !== currentUser.value.id && !member.isBot,
-    ),
-);
-
-// Whether this channel has a bot member, so the composer's mention menu can note
-// once, quietly, why bots aren't mentionable.
-const channelHasBots = computed(() =>
-    props.members.some((member) => member.isBot),
-);
-
-/**
- * A direct message renders viewer-relative: no "#", the other participant's
- * name (the viewer's own self-DM reads "You"), or a group's participant-joined
- * name. Drives the `<Head>` title, the masthead, and the empty state's
- * viewer-relative copy; the masthead owns the DM avatar and facepile itself.
- */
-const isSelfDm = computed(
-    () =>
-        props.channel.isDirect &&
-        props.channel.dmUserId === currentUser.value.id,
-);
-const mastheadTitle = computed(() => {
-    if (props.channel.isGroupDirect) {
-        return (
-            groupDmMastheadName(props.channel.dmParticipants ?? []) ||
-            t('Group conversation')
-        );
-    }
-
-    return isSelfDm.value ? t('You') : props.channel.name;
+const { readers, seedReaders, channelReadersList } = useChannelReaders({
+    channelReaders: () => props.channelReaders,
 });
 
-/**
- * The viewer may add people to any DM they belong to; grows a 1:1 into a group
- * or a group further. Drives the masthead's "Add people" button and its modal.
- */
-const canAddPeople = computed(() => props.channel.isDirect && props.isMember);
-const addingPeople = ref(false);
+/** The page's live regions, which also announce a send that failed. */
+const announcers = ref<InstanceType<typeof ChannelAnnouncers> | null>(null);
+
+/** The channel header, which owns the viewer's own preferences and the pins. */
+const header = ref<InstanceType<typeof ChannelHeader> | null>(null);
+
+/** Every dialog the page can raise, opened through its exposed handlers. */
+const dialogs = ref<InstanceType<typeof ChannelDialogs> | null>(null);
 
 /**
- * A DM's composer addresses the conversation by its participant name rather than
- * a "#channel", so its placeholder overrides the composer's channel default.
+ * The composer dock, so a profile hover card in the main timeline can drop a
+ * mention straight into the composer and a pane drop can stage its files.
  */
-const composerPlaceholder = computed(() =>
-    props.channel.isDirect
-        ? t('Message :name', { name: mastheadTitle.value })
-        : undefined,
-);
+const dock = ref<InstanceType<typeof ChannelComposerDock> | null>(null);
 
-/** A team Admin+ may delete anyone's message in the channel (moderation). */
-const canModerate = computed(() =>
-    ['admin', 'owner'].includes(page.props.currentTeam?.role ?? ''),
-);
+/**
+ * The conversation pane, through which the page jumps to a message (from the
+ * pins popover, a thread, or a search deep link) and returns to the present.
+ */
+const pane = ref<InstanceType<typeof ChannelPane> | null>(null);
 
 const scrollContainer = ref<HTMLElement | null>(null);
 /**
- * `ScrollableMessageList` owns the scroll element; this points our ref at it so
- * `useScrollPin`, `useUnreadDivider`, and the virtualized `MessageList` all bind
- * to the very same node.
+ * The pane owns the scroll element; this points our ref at it so `useScrollPin`
+ * binds to the very same node the timeline and its affordances read.
  */
 const setScrollContainer = (el: HTMLElement | null): void => {
     scrollContainer.value = el;
 };
-
-/**
- * The windowed timeline exposes `scrollToIndex` so off-screen jump targets can be
- * brought into view; Inertia's `<InfiniteScroll>` (driven manually) exposes the
- * older-page fetch. Both are read through template refs.
- */
-const messageListRef = ref<{
-    scrollToIndex: (
-        index: number,
-        align?: 'auto' | 'start' | 'center' | 'end',
-    ) => void;
-    scrollToLatest: (behavior?: ScrollBehavior) => void;
-} | null>(null);
-
-const infiniteScrollRef = ref<{
-    fetchNext: () => void;
-    hasNext: () => boolean;
-} | null>(null);
-
-/**
- * The virtualizer's visible render-item window, surfaced by `MessageList` so the
- * unread-jump pill can be derived without a DOM `IntersectionObserver`.
- */
-const timelineRange = ref<{ startIndex: number; endIndex: number } | null>(
-    null,
-);
-
-/**
- * True while an older page is being fetched, gating the virtualizer's top-load
- * trigger so a burst of range updates can't stack duplicate requests. Cleared
- * once the merged page grows (older rows have landed).
- */
-const loadingOlder = ref(false);
-
-/**
- * In reverse mode, older history is the paginator's *next* page (the server
- * returns messages newest-first), so "load older" maps to fetchNext/hasNext.
- */
-const hasOlder = (): boolean => infiniteScrollRef.value?.hasNext() ?? false;
-
-const isLoadingOlder = (): boolean => loadingOlder.value;
-
-/**
- * Fetch the next older page through Inertia's merge engine. The virtualizer
- * decides *when* (the reader nears the top of loaded history); Inertia handles
- * the cursor request, prepend, and scroll positioning.
- */
-function loadOlderMessages(): void {
-    if (loadingOlder.value || !hasOlder()) {
-        return;
-    }
-
-    loadingOlder.value = true;
-    infiniteScrollRef.value?.fetchNext();
-}
-
-watch(
-    () => props.messages?.data?.length ?? 0,
-    () => {
-        loadingOlder.value = false;
-    },
-);
 
 /**
  * Shared scroll/pin bookkeeping: the pinned-to-newest flag, the "N new messages"
@@ -372,69 +177,11 @@ const {
     // of the present; drive the jump through the virtualizer, which re-targets
     // the true bottom as off-screen rows measure (#347).
     scrollToLatest: (smooth) =>
-        messageListRef.value?.scrollToLatest(smooth ? 'smooth' : 'auto'),
+        pane.value?.scrollToLatest(smooth ? 'smooth' : 'auto'),
 });
 
-/**
- * Whether the timeline has conversation scrolled above its top edge. Below the
- * breakpoint the masthead sits over the timeline rather than beside it, so it
- * takes a hairline shadow exactly when there is something passing under it.
- */
-const timelineScrolled = ref(false);
-
-function onTimelineScroll(): void {
-    onScroll();
-    timelineScrolled.value = (scrollContainer.value?.scrollTop ?? 0) > 0;
-}
-
-/** `Inertia::scroll` delivers messages newest-first; reverse for display. */
-const serverMessages = computed<Message[]>(() =>
-    [...(props.messages?.data ?? [])].reverse(),
-);
-
-/**
- * The main channel timeline: optimistic sends + live echoes + edit/delete
- * patches, all merged over the server page and deduped by client uuid.
- */
-const mainStream = useMessageStream(serverMessages);
-const displayMessages = mainStream.displayMessages;
-
-/**
- * Announce genuine inbound messages to screen readers via a polite live region;
- * the virtualized timeline itself can't be a `role="log"` (rows unmount).
- */
-const { announcement } = useMessageAnnouncer({
-    messages: () => displayMessages.value,
-    currentUserId: () => currentUser.value.id,
-});
-
-/**
- * A failed optimistic send rolls its row back silently; this polite live region
- * announces the failure so a screen-reader user hears it, mirroring the toast.
- */
-const { announcement: sendFailureAnnouncement, announce: announceSendFailure } =
-    useSendFailureAnnouncer();
-const pendingUuids = mainStream.pendingUuids;
-
-const hasMessages = computed(() => displayMessages.value.length > 0);
-
-/**
- * The same grouped render list the virtualized `MessageList` builds, recomputed
- * here so index-based affordances (jump-to-message, the unread boundary) can map
- * a message or divider to the render-item index the virtualizer scrolls to. Pure
- * and cheap; `unreadDividerId` is resolved lazily by the composable below.
- */
-const timelineItems = computed(() =>
-    buildTimelineItems(displayMessages.value, unreadDividerId.value ?? null),
-);
-
-/**
- * Focus the channel composer — from the empty-state welcome's "Post your first
- * message" card, or a profile hover card dropping in a mention.
- */
-function focusComposer(): void {
-    channelComposer.value?.focus();
-}
+const { serverMessages, mainStream, displayMessages, pendingUuids } =
+    useChannelTimeline({ messages: () => props.messages });
 
 /**
  * The thread panel's whole open → load → reset → mark-read lifecycle, with its own
@@ -461,275 +208,17 @@ const {
     threadReplies: () => props.threadReplies,
 });
 
-/**
- * The message to briefly highlight after a search jump. The server windows the
- * initial page so the target is loaded; we scroll it into view and clear the
- * highlight after a short beat.
- */
-const highlightedMessageId = ref<string | null>(null);
-let highlightTimer: ReturnType<typeof setTimeout> | null = null;
-
+/** Bring a message into view in the timeline and mark it for a beat. */
 function jumpToMessage(id: string): void {
-    // Bring the target's render item into the window first — with windowing its
-    // element may not exist yet to scroll to — then refine and highlight once the
-    // row mounts. A missing index (target not loaded) still highlights on arrival.
-    const index = timelineItemIndexForMessage(timelineItems.value, id);
-
-    if (index >= 0) {
-        messageListRef.value?.scrollToIndex(index, 'center');
-    }
-
-    nextTick(() => {
-        document
-            .getElementById(`message-${id}`)
-            ?.scrollIntoView({ block: 'center' });
-
-        highlightedMessageId.value = id;
-
-        if (highlightTimer) {
-            clearTimeout(highlightTimer);
-        }
-
-        highlightTimer = setTimeout(() => {
-            highlightedMessageId.value = null;
-        }, 2000);
-    });
+    pane.value?.jumpToMessage(id);
 }
 
-/**
- * The "New messages" divider's lifecycle — freeze its position at open, refreeze
- * on each channel switch, and hide the jump pill once it scrolls into view —
- * lives in this composable. It reads the server page (not the live-merged list)
- * so the boundary is immune to the order per-channel state resets on a switch.
- */
-const { unreadDividerId } = useUnreadDivider({
-    channelId: () => props.channel.id,
-    scrollContainer,
-    messages: () => serverMessages.value,
-    lastReadMessageId: () => props.lastReadMessageId ?? null,
-    currentUserId: () => currentUser.value.id,
-});
-
-/** The unread boundary's render-item index, or -1 when there's none. */
-const unreadIndex = computed(() => unreadDividerIndex(timelineItems.value));
-
-/**
- * Per-visit latch: once the reader reaches the unread boundary (it scrolls into
- * the window) or jumps back to the present, the "New messages" pill is dismissed
- * for the rest of this channel visit. Without it the pill reappears whenever the
- * (frozen) divider sits above the window again — e.g. right after Jump to present
- * (#411). Both flags are refrozen alongside the divider on every channel switch.
- */
-const unreadDividerSeen = ref(false);
-
-/**
- * Whether the boundary has ever sat above the window this visit. The reader
- * "reaches" the divider only when it scrolls back into view *after* having been
- * above — the transition the seen latch keys off. This guards against the initial
- * pre-`scrollToBottom` render (rows start at the top, so the divider is briefly
- * on screen before the open pins to the newest message) latching it prematurely.
- */
-const unreadDividerWasAbove = ref(false);
-
-watch(
-    () => props.channel.id,
-    () => {
-        unreadDividerSeen.value = false;
-        unreadDividerWasAbove.value = false;
-    },
-);
-
-// Track the boundary's position relative to the window and latch it as seen the
-// moment it scrolls back into view after having been above — the reader clicking
-// the pill or scrolling up to the divider.
-watch([timelineRange, unreadIndex], ([range, index]) => {
-    if (!range || index < 0) {
-        return;
-    }
-
-    if (index < range.startIndex) {
-        unreadDividerWasAbove.value = true;
-    } else if (
-        unreadDividerWasAbove.value &&
-        isDividerVisible(index, range.startIndex, range.endIndex)
-    ) {
-        unreadDividerSeen.value = true;
-    }
-});
-
-/**
- * Show the floating "New messages" pill while the unread boundary sits above the
- * virtualizer's window and the reader hasn't reached it yet. Windowing drops the
- * off-screen divider from the DOM, so this replaces the old IntersectionObserver
- * with pure range math plus the per-visit seen latch. Before the first range
- * lands the view is pinned to the bottom, so an existing, unseen boundary is
- * necessarily above it.
- */
-const showJumpToUnread = computed(() => {
-    const range = timelineRange.value;
-
-    if (!range) {
-        return unreadIndex.value >= 0 && !unreadDividerSeen.value;
-    }
-
-    return shouldShowUnreadJump(
-        unreadIndex.value,
-        range.startIndex,
-        range.endIndex,
-        unreadDividerSeen.value,
-    );
-});
-
-/**
- * Scroll the unread boundary to the top of the viewport via the virtualizer,
- * bringing it on screen even when it wasn't rendered.
- */
-function scrollToUnread(): void {
-    if (unreadIndex.value >= 0) {
-        messageListRef.value?.scrollToIndex(unreadIndex.value, 'start');
-    }
-}
-
-/**
- * Return to the newest message. Jumping to present counts as reaching the unread
- * boundary, so latch it — the reader is done with the "New messages" pill for
- * this visit even if the frozen divider now sits above the window again (#411).
- */
-function jumpToPresent(): void {
-    unreadDividerSeen.value = true;
-    scrollToBottom(true);
-}
-
-/**
- * The day the topmost visible row falls in, driving the floating sticky date
- * chip while the reader is scrolled up into history (design 1a). Reads the first
- * dated render item at or after the window's top — a group's lead timestamp or a
- * day divider's own ISO.
- */
-const stickyDayLabel = computed<string | null>(() => {
-    const range = timelineRange.value;
-    const items = timelineItems.value;
-
-    if (!range || items.length === 0) {
-        return null;
-    }
-
-    for (
-        let i = Math.min(range.startIndex, items.length - 1);
-        i < items.length;
-        i += 1
-    ) {
-        const item = items[i];
-
-        // A day boundary already sits at the top of the window, shown inline —
-        // the chip would just duplicate it (e.g. scrolled to the very top), so
-        // suppress it until the divider scrolls off and a group leads instead.
-        if (item.type === 'divider' && item.variant === 'day') {
-            return null;
-        }
-
-        if (item.type === 'group') {
-            return formatDayLabel(item.leadCreatedAt);
-        }
-    }
-
-    return null;
-});
-
-/**
- * Advance the read pointer for the open channel so its sidebar badge clears.
- * Debounced and gated on tab focus: a channel is only "read" while the user is
- * actually looking at it, and a burst of arriving messages collapses to one
- * request. The redirect refreshes just the shared `channels` prop.
- *
- * The Echo socket id rides along so the resulting `ReadStateAdvanced` broadcast
- * skips this tab: the response above already brings it fresh counts, and its
- * own signal would only buy a second, redundant sidebar reload. The reader's
- * *other* devices still receive it, which is the point of the broadcast.
- */
-const readPost = useDebouncedPost(
-    () => {
-        const socketId = echo().socketId();
-
-        router.post(
-            markChannelRead({
-                team: props.team.slug,
-                channel: props.channel.slug,
-            }).url,
-            {},
-            {
-                // Interrupting a thread-panel GET strands the panel empty (#581)
-                // and the redirect-follow would drop the `?thread=` param; see
-                // {@see backgroundVisit}.
-                ...backgroundVisit,
-                preserveScroll: true,
-                preserveState: true,
-                only: ['channels'],
-                headers: socketId ? { 'X-Socket-ID': socketId } : {},
-            },
-        );
-    },
-    { delay: 400, gate: () => document.hasFocus() },
-);
-
-function markRead(): void {
-    readPost.schedule();
-}
-
-/**
- * The member's own star/mute/notification-level preferences for this channel:
- * seeded from the server, reseeded on every channel switch, saved optimistically
- * and rolled back on error. `threadUnreadSuppressed` mirrors the server's dot
- * suppression and feeds the realtime router below.
- */
-const {
-    notificationLevel,
-    muted,
-    starred,
-    threadUnreadSuppressed,
-    notificationStatus,
-    toggleStar,
-    onNotificationLevelChange,
-    onMuteChange,
-} = useChannelPreferences({
-    channelId: () => props.channel.id,
-    channel: () => props.channel,
+const { markRead } = useReadPointer({
     teamSlug: () => props.team.slug,
     channelSlug: () => props.channel.slug,
 });
 
-/**
- * The channel-level pin count driving the masthead badge, and the pins popover
- * state. The count is seeded from the server, resynced on partial reloads and
- * channel switches (the prop watch below), and patched live by the MessagePinned
- * broadcast; the pins list itself rides the `pins` prop, refreshed whenever the
- * panel opens or a pin changes.
- */
-const pinCount = ref(props.pinCount);
-watch(
-    () => props.pinCount,
-    (count) => {
-        pinCount.value = count;
-    },
-);
-
-const pinsPanelOpen = ref(false);
-
-/**
- * Open the pins popover, pulling the freshest pins first — another member may
- * have pinned or unpinned since this page loaded, and the count badge and list
- * should agree with the server on open.
- */
-function openPinsPanel(): void {
-    pinsPanelOpen.value = true;
-    router.reload({ only: ['pins', 'pinCount'] });
-}
-
-/** Jump to a pinned message from the panel, closing the popover on the way. */
-function jumpToPin(id: string): void {
-    pinsPanelOpen.value = false;
-    jumpToMessage(id);
-}
+useReadOnFocus(markRead, markThreadRead);
 
 // The active channel's Echo subscribe/route/teardown lives in this composable: it
 // moves the subscription as the open channel changes and routes each broadcast
@@ -741,23 +230,20 @@ useChannelRealtime({
     threadStream,
     activeThreadRootId,
     displayMessages: () => displayMessages.value,
-    isThreadUnreadSuppressed: () => threadUnreadSuppressed.value,
+    isThreadUnreadSuppressed: () =>
+        header.value?.threadUnreadSuppressed ?? false,
     readers,
     isNearBottom,
     notifyAppended,
     typing,
     markRead,
     markThreadRead,
-    updatePinCount: (count: number) => {
-        pinCount.value = count;
-    },
+    updatePinCount: (count: number) => header.value?.setPinCount(count),
 });
 
 onMounted(() => {
     seedReaders();
     markRead();
-    window.addEventListener('focus', markRead);
-    window.addEventListener('focus', markThreadRead);
 
     if (props.jumpToMessageId) {
         jumpToMessage(props.jumpToMessageId);
@@ -792,185 +278,23 @@ watch(
     () => {
         mainStream.reset();
         resetScrollPin();
-        timelineScrolled.value = false;
         replyTarget.value = null;
         typing.reset();
-        pinsPanelOpen.value = false;
-        // Close the add-people modal so a switch to another conversation never
-        // carries it over onto the wrong DM.
-        addingPeople.value = false;
+        header.value?.closePins();
+        dialogs.value?.closeAddPeople();
         seedReaders();
         markRead();
     },
 );
 
-onBeforeUnmount(() => {
-    // The draft persists itself on teardown (flushOnUnmount) and the read posts
-    // cancel themselves, so leaving the workspace neither loses a just-typed draft
-    // nor fires a stale mark-read.
-    window.removeEventListener('focus', markRead);
-    window.removeEventListener('focus', markThreadRead);
-
-    if (highlightTimer) {
-        clearTimeout(highlightTimer);
-    }
-});
-
-/** The message the composer is currently quoting, or null for a normal send. */
-const replyTarget = ref<Message | null>(null);
-
-/**
- * The id of the message the main composer is editing in place (via the ↑
- * shortcut), or null. Highlights the target row in the timeline while editing.
- */
-const composerEditingId = ref<string | null>(null);
-
-function startReply(message: Message): void {
-    replyTarget.value = message;
-}
-
-function cancelReply(): void {
-    replyTarget.value = null;
-}
-
-/**
- * The channel composer, so a profile hover card in the main timeline can drop a
- * mention straight into it.
- */
-const channelComposer = ref<InstanceType<typeof MessageComposer> | null>(null);
+const { replyTarget, composerEditingId, startReply, cancelReply } =
+    useComposerTarget();
 
 /**
  * The composer claims the bottom of the conversation pane, so the bottom-right
  * rail sits above it rather than over its send button and scheduled chip.
  */
-useRailBottomInset(
-    computed(() => (channelComposer.value?.$el as HTMLElement | null) ?? null),
-);
-
-function mentionInChannel(member: { id: string; name: string }): void {
-    channelComposer.value?.insertMention(member);
-}
-
-/**
- * Whole-pane drag-and-drop: dropping files anywhere over the channel content
- * stages them in the composer tray. A depth counter tracks nested
- * dragenter/dragleave so the brass overlay doesn't flicker as the pointer
- * crosses child elements. Only meaningful where the composer itself is shown.
- */
-const isDraggingFiles = ref(false);
-let dragDepth = 0;
-
-function canDropAttachments(): boolean {
-    return props.isMember && !props.channel.isArchived;
-}
-
-/** Whether a drag actually carries files (vs. selected text or an element). */
-function dragCarriesFiles(event: DragEvent): boolean {
-    return Array.from(event.dataTransfer?.types ?? []).includes('Files');
-}
-
-function onPaneDragEnter(event: DragEvent): void {
-    if (!canDropAttachments() || !dragCarriesFiles(event)) {
-        return;
-    }
-
-    dragDepth += 1;
-    isDraggingFiles.value = true;
-}
-
-function onPaneDragOver(event: DragEvent): void {
-    if (!dragCarriesFiles(event)) {
-        return;
-    }
-
-    // Claim every file drag so the browser never navigates to the dropped file,
-    // even where we won't accept it (archived channel, non-member).
-    event.preventDefault();
-
-    if (!canDropAttachments()) {
-        return;
-    }
-
-    // Show the copy cursor only where the drop will actually be staged.
-    if (event.dataTransfer) {
-        event.dataTransfer.dropEffect = 'copy';
-    }
-}
-
-function onPaneDragLeave(): void {
-    if (!isDraggingFiles.value) {
-        return;
-    }
-
-    dragDepth -= 1;
-
-    if (dragDepth <= 0) {
-        dragDepth = 0;
-        isDraggingFiles.value = false;
-    }
-}
-
-function onPaneDrop(event: DragEvent): void {
-    dragDepth = 0;
-    isDraggingFiles.value = false;
-
-    if (!dragCarriesFiles(event)) {
-        return;
-    }
-
-    // Prevent the browser navigating to the dropped file for every file drag,
-    // then only stage the files where the channel actually accepts them.
-    event.preventDefault();
-
-    if (!canDropAttachments()) {
-        return;
-    }
-
-    const files = Array.from(event.dataTransfer?.files ?? []);
-
-    if (files.length > 0) {
-        channelComposer.value?.addFiles(files);
-    }
-}
-
-/**
- * The message being forwarded and whether the forward dialog is open. The dialog
- * picks a target channel (from the sidebar list — the channels the viewer can
- * post to) and an optional note.
- */
-const forwardTarget = ref<Message | null>(null);
-const forwardDialogOpen = ref(false);
-
-const forwardableChannels = computed<Channel[]>(
-    () => page.props.channels ?? [],
-);
-
-/**
- * Team members offered as DM forward targets; selecting one opens-or-creates the
- * 1:1 DM on the server.
- */
-const forwardablePeople = computed<PersonRef[]>(
-    () => page.props.teamMembers ?? [],
-);
-
-function openForward(message: Message): void {
-    forwardTarget.value = message;
-    forwardDialogOpen.value = true;
-}
-
-/**
- * Submit the forward dialog: hand the selected source and destination to the
- * actions engine, then clear the target so the dialog resets.
- */
-function submitForward(payload: { target: ForwardTarget; note: string }): void {
-    const source = forwardTarget.value;
-
-    if (source) {
-        actions.forwardMessage(source, payload);
-    }
-
-    forwardTarget.value = null;
-}
+useRailBottomInset(computed(() => dock.value?.composerElement ?? null));
 
 /**
  * The member's unsent composer text is persisted per channel so it survives
@@ -991,32 +315,13 @@ const {
 /**
  * The realtime connection cue (reconnecting / back-online pill) and the offline
  * outbox: sends made while the socket is down queue here and flush on recovery.
- * The outbox persists per channel, so a refresh while offline keeps the queue.
  */
-const connection = useConnectionState();
-const outbox = createOutbox({ storageKey: `outbox:${props.channel.id}` });
-
-// A queue rehydrated from a previous session has no optimistic rows yet; re-add
-// them so the queued sends still render in the timeline after a refresh. The
-// reply quote isn't persisted, so a rehydrated row shows its body without it.
-for (const item of outbox.items.value) {
-    mainStream.addPending(
-        optimisticMessage({
-            clientUuid: item.clientUuid,
-            body: item.body,
-            author: currentUser.value,
-            mentions: [],
-        }),
-    );
-}
-
-/**
- * Client uuids currently held in the outbox, so the timeline can mark each queued
- * row until it flushes.
- */
-const queuedUuids = computed(() =>
-    outbox.items.value.map((item) => item.clientUuid),
-);
+const { connection, outbox, queuedUuids, discardQueue, flushOnReconnect } =
+    useOfflineOutbox({
+        channelId: () => props.channel.id,
+        currentUser: () => currentUser.value,
+        mainStream,
+    });
 
 /**
  * The channel's optimistic-mutation engine: send/edit/delete/react/forward,
@@ -1028,7 +333,7 @@ const actions = useMessageActions({
     channel: () => props.channel,
     currentUser: () => currentUser.value,
     isOnline: () => connection.isOnline.value,
-    onSendFailure: announceSendFailure,
+    onSendFailure: (message) => announcers.value?.announce(message),
     outbox,
     mainStream,
     threadStream,
@@ -1041,133 +346,13 @@ const actions = useMessageActions({
     cancelReply,
 });
 
-const {
-    send,
-    flushOutbox,
-    editMessage,
-    deleteMessage,
-    reactToMessage,
-    voteOnPoll,
-    closePoll,
-    pinMessage,
-    unpinMessage,
-    sendThreadReply,
-    scheduleMessage,
-    updateScheduled,
-    cancelScheduled,
-    setReminder,
-    sendCommand,
-} = actions;
-
-/** Discard the whole offline queue: drop the optimistic rows and clear the outbox. */
-function discardQueue(): void {
-    for (const item of outbox.items.value) {
-        mainStream.removePending(item.clientUuid);
-    }
-
-    outbox.clear();
-}
-
-// Whenever the socket connects, flush any queued sends — including a queue
-// rehydrated on load, which connects for the first time rather than reconnecting.
-// Only on a genuine reconnect do we also backfill messages that landed while the
-// socket was down (the stream dedupes by client uuid, so re-fetching the latest
-// page adds no gaps or dupes) and confirm the flush with a toast.
-connection.onConnected(({ isReconnect }) => {
-    const flushed = flushOutbox();
-
-    if (!isReconnect) {
-        return;
-    }
-
-    // A reconnect is the socket's timing, not the user's; see
-    // {@see backgroundVisit}. Fired before the flush settles so the backfill
-    // isn't held up by a queue that is slow — or failing — to drain.
-    router.reload({ ...backgroundVisit, only: ['messages'] });
-
-    // "You're caught up" is only true of the sends that actually landed, so it
-    // waits for the flush and reports what it says landed. Anything still queued
-    // has already raised its own failure card, under the same key this replaces.
-    void flushed.then((sent) => {
-        if (sent === 0) {
-            return;
-        }
-
-        toast.success(
-            sent === 1
-                ? t("Reconnected — 1 queued message sent, you're caught up.")
-                : t(
-                      "Reconnected — :count queued messages sent, you're caught up.",
-                      { count: sent },
-                  ),
-            { key: QUEUED_SENDS_TOAST_KEY },
-        );
-    });
-});
-
-// If we mount already connected with a rehydrated queue — the socket was up
-// before this page (re)loaded, so no connect event will fire — flush it now.
-if (connection.isOnline.value && outbox.count.value > 0) {
-    void flushOutbox();
-}
+flushOnReconnect(actions.flushOutbox);
 
 /**
  * The viewer's stored timezone, driving the schedule picker's presets and the
  * list's "sends at" labels so a scheduled time always reads in their own zone.
  */
 const { timezone } = useTimezone();
-
-/** Whether the "Scheduled messages" management dialog is open. */
-const scheduledDialogOpen = ref(false);
-
-/**
- * The message a custom-time reminder is being set for, and whether the custom
- * date & time picker is open.
- */
-const reminderTargetId = ref<string | null>(null);
-const reminderCustomOpen = ref(false);
-
-/** A preset was chosen from a message's reminder popover. */
-function remindWith(message: Message, remindAt: string): void {
-    setReminder(message.id, remindAt);
-}
-
-/** The viewer chose "Custom date & time…"; remember the target and open the picker. */
-function openCustomReminder(message: Message): void {
-    reminderTargetId.value = message.id;
-    reminderCustomOpen.value = true;
-}
-
-/** Confirm the custom reminder time picked in the dialog. */
-function confirmCustomReminder(remindAt: string): void {
-    if (reminderTargetId.value === null) {
-        return;
-    }
-
-    setReminder(reminderTargetId.value, remindAt);
-    reminderTargetId.value = null;
-}
-
-/** Drives the archive confirmation dialog opened from the channel header menu. */
-const confirmingArchive = ref(false);
-
-/** Drives the leave-channel confirmation modal opened from the header menu. */
-const confirmingLeave = ref(false);
-
-function archive(): void {
-    confirmingArchive.value = false;
-
-    router.post(
-        archiveChannel({ team: props.team.slug, channel: props.channel.slug })
-            .url,
-        {},
-        {
-            onError: () => {
-                toast.error(t('Failed to archive the channel'));
-            },
-        },
-    );
-}
 </script>
 
 <template>
@@ -1177,23 +362,11 @@ function archive(): void {
         "
     />
 
-    <div
-        aria-live="polite"
-        aria-atomic="true"
-        class="sr-only"
-        data-test="message-announcer"
-    >
-        {{ announcement }}
-    </div>
-
-    <div
-        aria-live="polite"
-        aria-atomic="true"
-        class="sr-only"
-        data-test="send-failure-announcer"
-    >
-        {{ sendFailureAnnouncement }}
-    </div>
+    <ChannelAnnouncers
+        ref="announcers"
+        :messages="displayMessages"
+        :current-user-id="currentUser.id"
+    />
 
     <!-- `relative` anchors the thread panel below `lg`, where it covers this
          whole pane — masthead included — rather than being a flex sibling
@@ -1201,7 +374,9 @@ function archive(): void {
          card-sized overlay through the tablet band (#788). -->
     <div class="relative flex min-h-0 flex-1 overflow-hidden">
         <div class="relative flex min-w-0 flex-1 flex-col">
-            <ChannelMasthead
+            <ChannelHeader
+                ref="header"
+                :team="props.team"
                 :channel="props.channel"
                 :members="props.members"
                 :presence-for="presenceFor"
@@ -1211,227 +386,64 @@ function archive(): void {
                 :can-archive="props.canArchive"
                 :can-leave="props.canLeave"
                 :can-add-people="canAddPeople"
-                :notification-levels="props.notificationLevels"
-                :starred="starred"
-                :muted="muted"
-                :pin-count="pinCount"
-                :notification-level="notificationLevel"
-                :notification-status="notificationStatus"
-                :connection-pill="connection.pill.value"
-                :scrolled="timelineScrolled"
-                @toggle-star="toggleStar"
-                @notification-level-change="onNotificationLevelChange"
-                @mute-change="onMuteChange"
-                @archive="confirmingArchive = true"
-                @leave="confirmingLeave = true"
-                @add-people="addingPeople = true"
-                @open-pins="openPinsPanel"
-            />
-
-            <PinsPanel
-                v-if="pinsPanelOpen"
-                :pins="props.pins"
-                :pin-count="pinCount"
                 :can-pin="props.canReact"
+                :notification-levels="props.notificationLevels"
+                :pins="props.pins"
+                :pin-count="props.pinCount"
+                :connection-pill="connection.pill.value"
+                :scrolled="pane?.scrolled ?? false"
                 :viewer-timezone="timezone"
-                @close="pinsPanelOpen = false"
-                @jump="jumpToPin"
-                @unpin="(message) => unpinMessage(message)"
+                @archive="dialogs?.confirmArchive()"
+                @leave="dialogs?.confirmLeave()"
+                @add-people="dialogs?.openAddPeople()"
+                @jump="jumpToMessage"
+                @unpin="actions.unpinMessage"
             />
 
-            <!-- eslint-disable-next-line vuejs-accessibility/no-static-element-interactions -- the pane is a file drop zone; keyboard users attach via the composer's Add-attachment button -->
-            <div
-                class="relative flex min-h-0 flex-1 flex-col"
-                @dragenter="onPaneDragEnter"
-                @dragover="onPaneDragOver"
-                @dragleave="onPaneDragLeave"
-                @drop="onPaneDrop"
+            <ChannelPane
+                ref="pane"
+                :team="props.team"
+                :channel="props.channel"
+                :messages="displayMessages"
+                :server-messages="serverMessages"
+                :current-user-id="currentUser.id"
+                :is-self-dm="isSelfDm"
+                :pending-uuids="pendingUuids"
+                :queued-uuids="queuedUuids"
+                :can-moderate="canModerate"
+                :can-react="props.canReact"
+                :can-drop-files="props.isMember && !props.channel.isArchived"
+                :presence-for="presenceFor"
+                :is-dnd-for="isDndFor"
+                :readers="channelReadersList"
+                :active-thread-root-id="activeThreadRootId"
+                :editing-message-id="composerEditingId"
+                :last-read-message-id="props.lastReadMessageId ?? null"
+                :register-container="setScrollContainer"
+                :pinned-to-bottom="pinnedToBottom"
+                :new-message-count="newMessageCount"
+                :scroll-to-bottom="scrollToBottom"
+                @scroll="onScroll"
+                @files="(files) => dock?.addFiles(files)"
+                @focus-composer="dock?.focus()"
+                @edit="actions.editMessage"
+                @delete="actions.deleteMessage"
+                @reply="startReply"
+                @forward="(message) => dialogs?.openForward(message)"
+                @react="actions.reactToMessage"
+                @vote="actions.voteOnPoll"
+                @close-poll="actions.closePoll"
+                @pin="actions.pinMessage"
+                @unpin="actions.unpinMessage"
+                @remind="(message, at) => dialogs?.remindWith(message, at)"
+                @remind-custom="
+                    (message) => dialogs?.openCustomReminder(message)
+                "
+                @open-thread="openThread"
+                @jump="jumpToMessage"
+                @mention="(member) => dock?.insertMention(member)"
             >
-                <!-- Whole-pane drop target: dropping files anywhere over the
-                     channel stages them in the composer. Pointer-events-none so
-                     the drop lands on the pane's own handler, not the overlay. -->
-                <div
-                    v-if="isDraggingFiles && canDropAttachments()"
-                    data-test="channel-drop-overlay"
-                    class="pointer-events-none absolute inset-2.5 z-20 flex flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed border-brass bg-card/75 backdrop-blur-[2px]"
-                >
-                    <span
-                        class="flex size-14 items-center justify-center rounded-full bg-foreground text-brass"
-                    >
-                        <Upload class="size-6" />
-                    </span>
-                    <span
-                        class="font-serif text-2xl font-semibold text-foreground"
-                    >
-                        {{
-                            $t('Drop to attach to #:channel', {
-                                channel: props.channel.name,
-                            })
-                        }}
-                    </span>
-                    <span class="text-[13px] text-muted-foreground">
-                        {{
-                            $t('Up to :count files · :size MB each', {
-                                count: page.props.attachments.maxPerMessage,
-                                size: page.props.attachments.maxSizeMb,
-                            })
-                        }}
-                    </span>
-                </div>
-                <div class="relative flex min-h-0 flex-1 flex-col">
-                    <Transition
-                        enter-active-class="transition duration-150 ease-out"
-                        enter-from-class="-translate-y-1 opacity-0"
-                        enter-to-class="translate-y-0 opacity-100"
-                        leave-active-class="transition duration-100 ease-in"
-                        leave-from-class="translate-y-0 opacity-100"
-                        leave-to-class="-translate-y-1 opacity-0"
-                    >
-                        <!-- eslint-disable-next-line local/no-raw-button -- jump pill: stays raw with the deferred jump-to-latest pills (#316); the primitive does not compose as a <Transition> child here -->
-                        <button
-                            v-if="showJumpToUnread"
-                            type="button"
-                            data-test="jump-to-unread"
-                            class="absolute top-2.5 left-1/2 z-10 inline-flex -translate-x-1/2 items-center gap-1.5 rounded-full bg-rose-600 px-3 py-1 text-[12px] font-semibold text-white shadow-md hover:bg-rose-700"
-                            @click="scrollToUnread"
-                        >
-                            <ArrowUp class="size-3.5" />
-                            {{ $t('New messages') }}
-                        </button>
-                    </Transition>
-
-                    <Transition
-                        enter-active-class="transition duration-150 ease-out"
-                        enter-from-class="-translate-y-1 opacity-0"
-                        enter-to-class="translate-y-0 opacity-100"
-                        leave-active-class="transition duration-100 ease-in"
-                        leave-from-class="translate-y-0 opacity-100"
-                        leave-to-class="-translate-y-1 opacity-0"
-                    >
-                        <div
-                            v-if="
-                                !pinnedToBottom &&
-                                stickyDayLabel &&
-                                !showJumpToUnread
-                            "
-                            data-test="sticky-date"
-                            class="pointer-events-none absolute top-2.5 left-1/2 z-10 inline-flex h-6.5 -translate-x-1/2 items-center rounded-full bg-card px-3.5 text-[11.5px] font-semibold text-muted-foreground shadow-md ring-1 ring-border"
-                        >
-                            {{ stickyDayLabel }}
-                        </div>
-                    </Transition>
-
-                    <!-- The message history is a focusable, labelled region so
-                         keyboard users can Tab to it and arrow-scroll (which
-                         remounts virtualized rows). `ScrollableMessageList`
-                         renders the region + the jump-to-latest pill; the
-                         timeline itself can't be a `role="log"` since its rows
-                         unmount, so `role="region"` names it instead. -->
-                    <ScrollableMessageList
-                        variant="channel"
-                        :region-label="$t('Message history')"
-                        :register-container="setScrollContainer"
-                        :pinned-to-bottom="pinnedToBottom"
-                        :new-message-count="newMessageCount"
-                        @scroll="onTimelineScroll"
-                        @jump="jumpToPresent"
-                    >
-                        <Transition
-                            enter-active-class="transition duration-150 ease-out"
-                            enter-from-class="opacity-0"
-                            enter-to-class="opacity-100"
-                            leave-active-class="transition duration-100 ease-in"
-                            leave-from-class="opacity-100"
-                            leave-to-class="opacity-0"
-                        >
-                            <div
-                                v-if="loadingOlder"
-                                data-test="loading-older"
-                                class="pointer-events-none absolute inset-x-0 top-2 z-10 flex justify-center"
-                            >
-                                <span
-                                    class="inline-flex items-center gap-2 rounded-full bg-card px-3 py-1 text-[12px] text-muted-foreground shadow-sm ring-1 ring-border"
-                                >
-                                    <span
-                                        aria-hidden="true"
-                                        class="size-3 animate-spin rounded-full border-2 border-border border-t-foreground"
-                                    />
-                                    {{ $t('Loading earlier messages…') }}
-                                </span>
-                            </div>
-                        </Transition>
-
-                        <InfiniteScroll
-                            v-if="hasMessages"
-                            ref="infiniteScrollRef"
-                            data="messages"
-                            reverse
-                            manual
-                            preserve-url
-                        >
-                            <MessageList
-                                ref="messageListRef"
-                                virtualize
-                                :scroll-element="scrollContainer"
-                                :has-older="hasOlder"
-                                :is-loading-older="isLoadingOlder"
-                                :messages="displayMessages"
-                                :team-slug="props.team.slug"
-                                :pending-uuids="pendingUuids"
-                                :queued-uuids="queuedUuids"
-                                :current-user-id="currentUser.id"
-                                :is-direct="props.channel.isDirect"
-                                :can-moderate="canModerate"
-                                :can-react="props.canReact"
-                                :can-pin="props.canReact"
-                                :presence-for="presenceFor"
-                                :is-dnd-for="isDndFor"
-                                :readers="channelReadersList"
-                                :highlight-message-id="highlightedMessageId"
-                                :unread-divider-id="unreadDividerId"
-                                :active-thread-root-id="activeThreadRootId"
-                                :editing-message-id="composerEditingId"
-                                @edit="editMessage"
-                                @delete="deleteMessage"
-                                @reply="startReply"
-                                @forward="openForward"
-                                @react="reactToMessage"
-                                @vote="voteOnPoll"
-                                @close-poll="closePoll"
-                                @pin="pinMessage"
-                                @unpin="unpinMessage"
-                                @remind="remindWith"
-                                @remind-custom="openCustomReminder"
-                                @open-thread="openThread"
-                                @jump="jumpToMessage"
-                                @mention="mentionInChannel"
-                                @load-older="loadOlderMessages"
-                                @range-change="timelineRange = $event"
-                            />
-                        </InfiniteScroll>
-
-                        <ChannelEmptyState
-                            v-else
-                            :channel="props.channel"
-                            :is-self-dm="isSelfDm"
-                            :team-name="props.team.name"
-                            :team-slug="props.team.slug"
-                            @focus-composer="focusComposer"
-                        />
-                    </ScrollableMessageList>
-                </div>
-
-                <div
-                    v-if="props.channel.isArchived"
-                    data-test="archived-notice"
-                    class="m-5 shrink-0 rounded-lg border border-border bg-muted/40 px-4 py-3 text-center text-[13px] text-muted-foreground"
-                >
-                    {{
-                        $t(
-                            "This channel is archived. It's read-only, but its history is preserved.",
-                        )
-                    }}
-                </div>
+                <ArchivedNotice v-if="props.channel.isArchived" />
 
                 <!-- A non-member reached this public channel by URL: the timeline
                      is read-only and the composer is replaced by a "Join channel"
@@ -1445,103 +457,35 @@ function archive(): void {
                     :member-count="props.memberCount"
                 />
 
-                <template v-else>
-                    <!-- Offline queue banner: the socket is down and the viewer's
-                         sends are being held locally; they flush automatically on
-                         reconnect, or can be discarded here. -->
-                    <div
-                        v-if="
-                            !connection.isOnline.value && outbox.count.value > 0
-                        "
-                        data-test="offline-queue-banner"
-                        class="mx-5 mb-1 flex shrink-0 items-center gap-2.5 rounded-lg border border-amber-200 bg-amber-50 px-3.5 py-2.5 text-[12.5px] font-medium text-amber-700 dark:border-amber-900/50 dark:bg-amber-950/40 dark:text-amber-500"
-                    >
-                        <WifiOff class="size-3.5 shrink-0" />
-                        <span class="min-w-0">
-                            {{
-                                outbox.count.value === 1
-                                    ? $t(
-                                          "You're offline. 1 message is queued and will send automatically.",
-                                      )
-                                    : $t(
-                                          "You're offline. :count messages are queued and will send automatically.",
-                                          { count: outbox.count.value },
-                                      )
-                            }}
-                        </span>
-                        <Button
-                            variant="unstyled"
-                            size="none"
-                            type="button"
-                            data-test="discard-queue"
-                            class="ml-auto shrink-0 font-semibold text-rose-600 hover:text-rose-700 dark:text-rose-400 dark:hover:text-rose-300"
-                            @click="discardQueue"
-                        >
-                            {{ $t('Discard queue') }}
-                        </Button>
-                    </div>
-
-                    <!-- Below `md` the line is indented to the message text
-                         column, so it reads as the next message rather than a
-                         stray note against the screen edge. -->
-                    <TypingIndicator
-                        :names="typingNames"
-                        class="mx-5 shrink-0 max-md:pl-9"
-                    />
-
-                    <ScheduledCountChip
-                        v-if="props.scheduledMessages.length > 0"
-                        :count="props.scheduledMessages.length"
-                        :channel-name="props.channel.name"
-                        class="mx-5 mb-2.5"
-                        @view="scheduledDialogOpen = true"
-                    />
-
-                    <MessageComposer
-                        ref="channelComposer"
-                        :key="props.channel.id"
-                        data-tour="composer"
-                        :channel-name="props.channel.name"
-                        :placeholder="composerPlaceholder"
-                        :members="mentionableMembers"
-                        :has-bots="channelHasBots"
-                        :reply-target="replyTarget"
-                        :initial-body="props.channel.draft ?? ''"
-                        :messages="displayMessages"
-                        :current-user-id="currentUser.id"
-                        :pending-uuids="pendingUuids"
-                        :team-slug="props.team.slug"
-                        :channel-slug="props.channel.slug"
-                        :max-attachment-size-mb="
-                            page.props.attachments.maxSizeMb
-                        "
-                        :max-attachments-per-message="
-                            page.props.attachments.maxPerMessage
-                        "
-                        allow-schedule
-                        :timezone="timezone"
-                        :slash-commands="page.props.slashCommands"
-                        :gif-picker-enabled="page.props.gifPickerEnabled"
-                        :polls-enabled="page.props.pollsEnabled"
-                        @send="
-                            (
-                                body,
-                                mentions,
-                                _sendToChannel,
-                                attachmentIds,
-                                callbacks,
-                            ) => send(body, mentions, attachmentIds, callbacks)
-                        "
-                        @command="sendCommand"
-                        @schedule="scheduleMessage"
-                        @typing="onTyping"
-                        @cancel-reply="cancelReply"
-                        @draft-change="onDraftChange"
-                        @edit="editMessage"
-                        @editing-change="composerEditingId = $event"
-                    />
-                </template>
-            </div>
+                <ChannelComposerDock
+                    v-else
+                    ref="dock"
+                    :team="props.team"
+                    :channel="props.channel"
+                    :members="mentionableMembers"
+                    :has-bots="channelHasBots"
+                    :placeholder="composerPlaceholder"
+                    :reply-target="replyTarget"
+                    :messages="displayMessages"
+                    :current-user-id="currentUser.id"
+                    :pending-uuids="pendingUuids"
+                    :timezone="timezone"
+                    :typing-names="typingNames"
+                    :scheduled-messages="props.scheduledMessages"
+                    :queued-count="outbox.count.value"
+                    :is-offline="!connection.isOnline.value"
+                    @send="actions.send"
+                    @command="actions.sendCommand"
+                    @schedule="actions.scheduleMessage"
+                    @typing="typing.signalTyping"
+                    @cancel-reply="cancelReply"
+                    @draft-change="onDraftChange"
+                    @edit="actions.editMessage"
+                    @editing-change="composerEditingId = $event"
+                    @discard-queue="discardQueue"
+                    @view-scheduled="dialogs?.openScheduled()"
+                />
+            </ChannelPane>
         </div>
 
         <Transition
@@ -1570,91 +514,35 @@ function archive(): void {
                 :loading="threadLoading"
                 :read-only="props.channel.isArchived"
                 @close="closeThread"
-                @send="sendThreadReply"
-                @edit="editMessage"
-                @delete="deleteMessage"
-                @forward="openForward"
-                @react="reactToMessage"
-                @vote="voteOnPoll"
-                @close-poll="closePoll"
-                @pin="pinMessage"
-                @unpin="unpinMessage"
-                @remind="remindWith"
-                @remind-custom="openCustomReminder"
-                @typing="onTyping"
+                @send="actions.sendThreadReply"
+                @edit="actions.editMessage"
+                @delete="actions.deleteMessage"
+                @forward="(message) => dialogs?.openForward(message)"
+                @react="actions.reactToMessage"
+                @vote="actions.voteOnPoll"
+                @close-poll="actions.closePoll"
+                @pin="actions.pinMessage"
+                @unpin="actions.unpinMessage"
+                @remind="(message, at) => dialogs?.remindWith(message, at)"
+                @remind-custom="
+                    (message) => dialogs?.openCustomReminder(message)
+                "
+                @typing="typing.signalTyping"
                 @jump="jumpToMessage"
             />
         </Transition>
     </div>
 
-    <ForwardMessageDialog
-        v-model:open="forwardDialogOpen"
-        :message="forwardTarget"
-        :channels="forwardableChannels"
-        :people="forwardablePeople"
+    <ChannelDialogs
+        ref="dialogs"
+        :team="props.team"
+        :channel="props.channel"
         :current-user-id="currentUser.id"
-        @submit="submitForward"
-    />
-
-    <ScheduledMessagesDialog
-        v-model:open="scheduledDialogOpen"
+        :timezone="timezone"
         :scheduled-messages="props.scheduledMessages"
-        :channel-name="props.channel.name"
-        :timezone="timezone"
-        @update="updateScheduled"
-        @cancel="cancelScheduled"
-    />
-
-    <ScheduleMessageDialog
-        v-model:open="reminderCustomOpen"
-        :timezone="timezone"
-        :title="$t('Remind me about this')"
-        :confirm-label="$t('Set reminder')"
-        @confirm="confirmCustomReminder"
-    />
-
-    <Dialog v-model:open="confirmingArchive">
-        <DialogContent>
-            <DialogHeader>
-                <DialogTitle>{{
-                    $t('Archive #:channel', { channel: props.channel.name })
-                }}</DialogTitle>
-                <DialogDescription>
-                    {{
-                        $t(
-                            'The channel becomes read-only and leaves the sidebar. Its messages are kept and stay searchable.',
-                        )
-                    }}
-                </DialogDescription>
-            </DialogHeader>
-
-            <DialogFooter class="gap-2">
-                <DialogClose as-child>
-                    <Button variant="secondary"> {{ $t('Cancel') }} </Button>
-                </DialogClose>
-
-                <Button
-                    data-test="archive-channel-confirm"
-                    variant="destructive"
-                    @click="archive"
-                >
-                    {{ $t('Archive') }}
-                </Button>
-            </DialogFooter>
-        </DialogContent>
-    </Dialog>
-
-    <LeaveChannelModal
-        v-model:open="confirmingLeave"
-        :channel="props.channel"
-        :team-slug="props.team.slug"
-    />
-
-    <AddDirectMessagePeopleModal
-        v-if="props.channel.isDirect"
-        v-model:open="addingPeople"
-        :channel="props.channel"
-        :team-slug="props.team.slug"
-        :current-user-id="currentUser.id"
+        :forward-message="actions.forwardMessage"
+        :set-reminder="actions.setReminder"
+        :update-scheduled="actions.updateScheduled"
+        :cancel-scheduled="actions.cancelScheduled"
     />
 </template>
