@@ -255,7 +255,6 @@ export default defineConfigWithVueTs(
             'resources/js/components/UserStatusDialog.vue',
             'resources/js/composables/useAttachmentUploads.test.ts',
             'resources/js/layouts/MainLayout.vue',
-            'resources/js/pages/teams/AuditExports.vue',
         ],
         rules: {
             'max-lines': 'off',
