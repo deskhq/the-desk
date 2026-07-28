@@ -256,8 +256,6 @@ export default defineConfigWithVueTs(
             'resources/js/components/QuickSwitcher.vue',
             'resources/js/components/UserStatusDialog.vue',
             'resources/js/composables/useAttachmentUploads.test.ts',
-            'resources/js/composables/useMessageActions.test.ts',
-            'resources/js/composables/useMessageActions.ts',
             'resources/js/layouts/MainLayout.vue',
             'resources/js/pages/channels/Show.vue',
             'resources/js/pages/teams/Analytics.vue',
