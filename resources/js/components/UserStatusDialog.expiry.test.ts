@@ -188,11 +188,13 @@ describe('the "Clear after" choices', () => {
 
         const browserZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
+        // `hourCycle: 'h23'` rather than `hour12: false`, which renders midnight
+        // as 24:00:00 under some ICU builds.
         expect(
             new Date(requests.puts[0].payload.expires_at as string)
                 .toLocaleString('en-CA', {
                     timeZone: browserZone,
-                    hour12: false,
+                    hourCycle: 'h23',
                 })
                 .slice(-8),
         ).toBe('00:00:00');
