@@ -1,66 +1,27 @@
 <script setup lang="ts">
 import { usePage } from '@inertiajs/vue3';
-import { Bot, Clock, Pin } from '@lucide/vue';
-import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
-import InlineMarks from '@/components/InlineMarks.vue';
-import LinkPreview from '@/components/LinkPreview.vue';
-import MessageActions from '@/components/MessageActions.vue';
+import { computed, ref } from 'vue';
 import MessageActionsSheet from '@/components/MessageActionsSheet.vue';
-import MessageAttachments from '@/components/MessageAttachments.vue';
-import MessageForward from '@/components/MessageForward.vue';
-import MessagePoll from '@/components/MessagePoll.vue';
-import MessageQuote from '@/components/MessageQuote.vue';
-import MessageReactions from '@/components/MessageReactions.vue';
-import PresenceDot from '@/components/PresenceDot.vue';
-import SafeHtml from '@/components/SafeHtml.vue';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Button } from '@/components/ui/button';
-import {
-    Dialog,
-    DialogClose,
-    DialogContent,
-    DialogDescription,
-    DialogFooter,
-    DialogHeader,
-    DialogTitle,
-} from '@/components/ui/dialog';
-import {
-    HoverCard,
-    HoverCardContent,
-    HoverCardTrigger,
-} from '@/components/ui/hover-card';
-import UserHoverCard from '@/components/UserHoverCard.vue';
-import UserStatusEmoji from '@/components/UserStatusEmoji.vue';
-import { useCustomEmojis } from '@/composables/useCustomEmojis';
-import { useInitials } from '@/composables/useInitials';
+import DayDivider from '@/components/timeline/DayDivider.vue';
+import DeleteMessageDialog from '@/components/timeline/DeleteMessageDialog.vue';
+import MessageAuthorLine from '@/components/timeline/MessageAuthorLine.vue';
+import MessageAvatarGutter from '@/components/timeline/MessageAvatarGutter.vue';
+import MessageRow from '@/components/timeline/MessageRow.vue';
+import MessageSkeleton from '@/components/timeline/MessageSkeleton.vue';
+import SeenByRow from '@/components/timeline/SeenByRow.vue';
+import SystemNotice from '@/components/timeline/SystemNotice.vue';
+import ThreadRepliesDivider from '@/components/timeline/ThreadRepliesDivider.vue';
+import UnreadDivider from '@/components/timeline/UnreadDivider.vue';
 import { useIsMobile } from '@/composables/useIsMobile';
-import { useLongPress } from '@/composables/useLongPress';
-import { NEAR_BOTTOM_THRESHOLD } from '@/composables/useScrollPin';
-import { useTimelineVirtualizer } from '@/composables/useTimelineVirtualizer';
-import { useTranslations } from '@/composables/useTranslations';
-import { useUserGroups } from '@/composables/useUserGroups';
-import { formatDayLabel, formatTimeOfDay } from '@/lib/datetime';
-import {
-    canReactToMessage,
-    hasAnyMessageAction,
-    showsThreadSummary,
-} from '@/lib/messageActions';
-import type { MessageActionContext } from '@/lib/messageActions';
-import { tokenizeMessageBody } from '@/lib/messageBody';
-import type { MessageBodySegment } from '@/lib/messageBody';
-import { presenceLabelKey } from '@/lib/presence';
+import { useMessageActionSheet } from '@/composables/useMessageActionSheet';
+import { useTimelineWindow } from '@/composables/useTimelineWindow';
+import { formatTimeOfDay } from '@/lib/datetime';
+import { hasAnyMessageAction } from '@/lib/messageActions';
 import type { RenderedPresence } from '@/lib/presence';
 import { readersForMessage } from '@/lib/readReceipts';
-import { buildTimelineItems, messageAccessibleName } from '@/lib/timeline';
-import type { TimelineGroup, TimelineItem } from '@/lib/timeline';
-import { bottomGlueSettled, shouldRenderSkeleton } from '@/lib/virtualTimeline';
-import type {
-    ChannelReader,
-    Mention,
-    Message,
-    MessageAuthor,
-    MessagePreview,
-} from '@/types';
+import { buildTimelineItems } from '@/lib/timeline';
+import type { TimelineGroup } from '@/lib/timeline';
+import type { ChannelReader, Message, MessageAuthor } from '@/types';
 
 const props = defineProps<{
     messages: Message[];
@@ -175,33 +136,20 @@ const emit = defineEmits<{
     rangeChange: [range: { startIndex: number; endIndex: number }];
 }>();
 
+const page = usePage();
+
 /** The viewer's stored zone, feeding the reminder popover's wall-clock presets. */
 const viewerTimezone = computed<string | null>(
     () => page.props.auth.user.timezone ?? null,
 );
 
-/** How many participant avatars to preview on a root's "N replies" affordance. */
-const MAX_THREAD_AVATARS = 3;
+/** Render timestamps in the viewer's stored zone, falling back to the browser's. */
+const viewerTimeZone = computed(
+    () => page.props.auth.user.timezone ?? undefined,
+);
 
-/**
- * Below `md`, a rich card (poll, attachments, reply quote) breaks out of the
- * message row so it runs the full width of the timeline instead of the
- * 36px-indented text column, trading its rounded box for hairline top and
- * bottom rules (design "Mobile Message List", screen `1c`).
- *
- * The offsets are this row's own geometry — 20px of timeline padding plus the
- * 36px avatar gutter on the left, 20px of padding on the right — so they live
- * beside the row that defines them rather than inside each card.
- */
-const CARD_BLEED =
-    'max-md:-ml-14 max-md:-mr-5 max-md:rounded-none max-md:border-x-0';
-
-function threadAvatars(message: Message): Mention[] {
-    return message.threadParticipants.slice(0, MAX_THREAD_AVATARS);
-}
-
-function extraThreadParticipants(message: Message): number {
-    return Math.max(0, message.threadParticipants.length - MAX_THREAD_AVATARS);
+function formatTime(iso: string): string {
+    return formatTimeOfDay(iso, viewerTimeZone.value);
 }
 
 /**
@@ -212,22 +160,6 @@ function extraThreadParticipants(message: Message): number {
 function isThreadRoot(item: TimelineGroup): boolean {
     return props.inThread === true && item.messages[0]?.threadRootId === null;
 }
-
-/**
- * The reply-divider rule's label, shared by its visible text and the
- * separator's accessible name.
- */
-const replyDividerLabel = computed(() =>
-    props.replyDividerCount === 1
-        ? t(':count reply', { count: 1 })
-        : t(':count replies', { count: props.replyDividerCount ?? 0 }),
-);
-
-/**
- * How many reader avatars to preview on the "Seen by" row before collapsing the
- * rest into a "+N" overflow chip.
- */
-const MAX_SEEN_AVATARS = 3;
 
 /**
  * The members who have read up to the newest message, driving the "Seen by" row.
@@ -247,61 +179,6 @@ const seenByReaders = computed<MessageAuthor[]>(() => {
     );
 });
 
-const seenByAvatars = computed(() =>
-    seenByReaders.value.slice(0, MAX_SEEN_AVATARS),
-);
-
-const extraSeenBy = computed(() =>
-    Math.max(0, seenByReaders.value.length - MAX_SEEN_AVATARS),
-);
-
-/**
- * A full, human-readable roster ("Seen by Alice, Bob and 3 others") used as the
- * row's accessible label and hover title, so the compact avatars still name who.
- */
-const seenByLabel = computed(() => {
-    const names = seenByReaders.value.map((reader) => reader.name);
-
-    if (names.length === 0) {
-        return '';
-    }
-
-    if (names.length === 1) {
-        return t('Seen by :name', { name: names[0] });
-    }
-
-    if (names.length <= MAX_SEEN_AVATARS) {
-        return t('Seen by :names and :last', {
-            names: names.slice(0, -1).join(', '),
-            last: names[names.length - 1],
-        });
-    }
-
-    const shown = names.slice(0, MAX_SEEN_AVATARS).join(', ');
-    const others = names.length - MAX_SEEN_AVATARS;
-
-    return others === 1
-        ? t('Seen by :names and :count other', { names: shown, count: others })
-        : t('Seen by :names and :count others', {
-              names: shown,
-              count: others,
-          });
-});
-
-const { getInitials } = useInitials();
-
-const { t } = useTranslations();
-
-const { map: customEmojis } = useCustomEmojis();
-const { groups: userGroups } = useUserGroups();
-
-const page = usePage();
-
-/** Render timestamps in the viewer's stored zone, falling back to the browser's. */
-const viewerTimeZone = computed(
-    () => page.props.auth.user.timezone ?? undefined,
-);
-
 /**
  * How a message author reads on the team presence roster.
  */
@@ -317,53 +194,6 @@ function dndOf(authorId: string): boolean {
 }
 
 /**
- * Split a message body into HTML and link segments so the timeline can wrap each
- * URL in its own element (and, when the link has been unfurled, a hover card).
- */
-function bodySegments(message: Message): MessageBodySegment[] {
-    return tokenizeMessageBody(
-        message.body,
-        message.mentions,
-        customEmojis.value,
-        userGroups.value,
-    );
-}
-
-/**
- * The unfurled preview for a URL in a message, or undefined when the link has no
- * preview row yet. Pending rows resolve too, so the hover card can show a
- * skeleton until the queued unfurl broadcasts the resolved metadata.
- */
-function previewFor(
-    message: Message,
-    href: string,
-): MessagePreview | undefined {
-    return message.linkPreviews.find((preview) => preview.url === href);
-}
-
-function formatTime(iso: string): string {
-    return formatTimeOfDay(iso, viewerTimeZone.value);
-}
-
-/**
- * The localized line for a system notice, rendered from its type and author in
- * the viewer's own locale — the row stores no rendered English.
- */
-function systemNoticeText(message: Message): string {
-    const name = message.user.name;
-
-    if (message.type === 'member_left') {
-        return props.isDirect
-            ? t(':name left the conversation', { name })
-            : t(':name left the channel', { name });
-    }
-
-    return props.isDirect
-        ? t(':name joined the conversation', { name })
-        : t(':name joined the channel', { name });
-}
-
-/**
  * The grouped, divider-interleaved render list. The grouping and boundary logic
  * lives in a pure, unit-tested helper; the day label is formatted here so it
  * stays relative to the viewer's "today".
@@ -372,292 +202,23 @@ const renderItems = computed(() =>
     buildTimelineItems(props.messages, props.unreadDividerId ?? null),
 );
 
-/**
- * Windowed rendering. Only the main channel timeline opts in (`virtualize`); the
- * thread panel leaves the virtualizer idle (count 0) and renders every row. The
- * virtualizer drives the parent's scroll container, keeping its real
- * `scrollHeight`/`scrollTop` so the shared pin-to-bottom math is untouched.
- * Windowing is client-only: the virtualizer needs a live scroll element and
- * measured heights, neither of which exist during SSR. Rendering the full list
- * on the server (and through first hydration) keeps server and client markup
- * identical, then we switch to the window once mounted — a post-hydration
- * re-render, not a mismatch.
- */
-const isMounted = ref(false);
-
-onMounted(() => {
-    isMounted.value = true;
-});
-
-const virtualizeActive = computed(
-    () => props.virtualize === true && isMounted.value,
-);
-
-/**
- * True while a deliberate jump-to-present is in flight. The scrub skeletons swap
- * full message content for a fixed 56px placeholder, so measuring them mid-jump
- * feeds the virtualizer short heights; when rows then swap to their taller real
- * content the list grows and the animation is left stranded above the newest
- * message — the "it stops when the skeleton loads" symptom (#347). While this is
- * set, skeletons are suppressed so every row entering the window measures its
- * real height, and the virtualizer's upward size-change anchoring is disabled so
- * a row measured above the viewport can't drift us up as we settle on the bottom.
- */
-const jumpingToBottom = ref(false);
-
 const {
-    virtualRows,
+    virtualizeActive,
     totalSize,
-    isScrolling,
-    range,
-    scrollToIndex,
-    scrollToEnd,
+    renderRows,
     measureRow,
-} = useTimelineVirtualizer({
-    scrollElement: computed(() => props.scrollElement ?? null),
-    count: computed(() =>
-        virtualizeActive.value ? renderItems.value.length : 0,
-    ),
+    showsSkeleton,
+    scrollToIndex,
+    scrollToLatest,
+} = useTimelineWindow({
+    scrollElement: () => props.scrollElement ?? null,
+    renderItems,
+    virtualize: () => props.virtualize === true,
     hasOlder: () => props.hasOlder?.() ?? false,
     isLoadingOlder: () => props.isLoadingOlder?.() ?? false,
     loadOlder: () => emit('loadOlder'),
-    // Suppress upward anchor adjustments while jumping to the bottom: there we
-    // want to stay glued to the newest message, not compensate an upper row.
-    isPinning: () => jumpingToBottom.value,
+    onRangeChange: (range) => emit('rangeChange', range),
 });
-
-/** One rendered row: a render item plus its absolute offset when windowed. */
-type RenderRow = {
-    item: TimelineItem;
-    index: number;
-    offsetTop: number | null;
-};
-
-/**
- * The rows to render: the full list when the thread panel renders it flat, or
- * just the virtualizer's window (each carrying its absolute offset) for the main
- * timeline.
- */
-const renderRows = computed<RenderRow[]>(() => {
-    if (!virtualizeActive.value) {
-        return renderItems.value.map((item, index) => ({
-            item,
-            index,
-            offsetTop: null,
-        }));
-    }
-
-    return virtualRows.value.map((row) => ({
-        item: renderItems.value[row.index],
-        index: row.index,
-        offsetTop: row.start,
-    }));
-});
-
-/**
- * Render items whose height the virtualizer has already settled. A row is
- * recorded once scrolling stops, so a fast scrub shows height-stable skeletons
- * for rows it hasn't paused on, and they materialize the instant it settles.
- */
-const settledKeys = ref<Set<string>>(new Set());
-
-/**
- * Whether the container sits within the pinned threshold of the real bottom.
- * A missing element counts as pinned, mirroring `useScrollPin`.
- */
-function isAtBottom(): boolean {
-    const el = props.scrollElement;
-
-    if (!el) {
-        return true;
-    }
-
-    return (
-        el.scrollHeight - el.scrollTop - el.clientHeight <=
-        NEAR_BOTTOM_THRESHOLD
-    );
-}
-
-watch(isScrolling, (scrolling) => {
-    if (scrolling) {
-        return;
-    }
-
-    for (const row of virtualRows.value) {
-        const item = renderItems.value[row.index];
-
-        if (item) {
-            settledKeys.value.add(item.key);
-        }
-    }
-});
-
-/**
- * A windowed jump can't know the true bottom up front: `scrollToEnd` aims at the
- * bottom the virtualizer can see now, but each row measured as the animation
- * passes it grows the list, so the target keeps moving. `finalizeJump` follows
- * the animation to the bottom, then glues the view there frame by frame until both
- * the measured height plateaus and the scroll goes quiet, so late measurements
- * settle without a visible bounce.
- *
- * The glue releases on convergence, not a fixed frame count: it holds until the
- * scroll height has been steady for `JUMP_SETTLE_FRAMES` consecutive frames *and*
- * the container has stopped scrolling. A fixed budget let go too early on a slow
- * render — while rows were still measuring, or while the glue's own `scrollTop`
- * writes still counted as scrolling — so unsettled rows flipped in their scrub
- * skeletons and the virtualizer's re-enabled size-change anchoring drifted the
- * view below the fold: the timeline landing short of the newest message on initial
- * open of a long list of tall rows (#500).
- */
-const JUMP_SETTLE_FRAMES = 4;
-const JUMP_MAX_FRAMES = 180;
-let jumpRaf: number | null = null;
-
-/**
- * Drive an in-flight jump-to-present all the way to the newest message.
- *
- * Phase one follows the scroll: while the virtualizer reports it's still
- * scrolling the (possibly smooth) animation is running, so leave it be; only
- * once it has stopped short — stalled on a skeleton-height estimate rather than
- * the real bottom — snap the residual gap. Gating on the scrolling flag means an
- * explicit `smooth` jump keeps animating instead of being force-converted to an
- * instant snap. Once the bottom is reached, phase two pins `scrollTop` to the end
- * every frame — so a row measured late (taller or shorter than its estimate)
- * can't drift the view up or leave it short — and releases only once the measured
- * height has settled (`bottomGlueSettled`) *and* the scroll has quiesced, rather
- * than after a fixed budget that could expire mid-measurement and strand the view
- * (#347, #500). Bounded by a frame budget so a list that never settles can't spin
- * forever.
- */
-function finalizeJump(): void {
-    if (jumpRaf !== null) {
-        cancelAnimationFrame(jumpRaf);
-    }
-
-    let reachedBottom = false;
-    let stableFrames = 0;
-    // Sentinel so the first glue frame always registers as a change: the glue
-    // needs at least `JUMP_SETTLE_FRAMES` genuine same-height frames to release.
-    let lastHeight = -1;
-    let frames = 0;
-
-    const step = (): void => {
-        const el = props.scrollElement;
-
-        if (!el || !jumpingToBottom.value || frames >= JUMP_MAX_FRAMES) {
-            jumpingToBottom.value = false;
-            jumpRaf = null;
-
-            return;
-        }
-
-        frames += 1;
-
-        if (!reachedBottom) {
-            if (isAtBottom()) {
-                reachedBottom = true;
-            } else if (!isScrolling.value) {
-                // The scroll stopped short of the newest message; snap the gap
-                // and let the newly measured rows re-target.
-                scrollToEnd('auto');
-            }
-        } else {
-            // Glue to the bottom so late row measurements settle invisibly, and
-            // hold until the height stops moving — the true bottom has arrived.
-            el.scrollTop = el.scrollHeight;
-
-            const settle = bottomGlueSettled(
-                el.scrollHeight,
-                lastHeight,
-                stableFrames,
-                JUMP_SETTLE_FRAMES,
-            );
-            stableFrames = settle.stableFrames;
-            lastHeight = el.scrollHeight;
-
-            // Release only once the height has settled *and* the scroll has gone
-            // quiet. Letting go while `isScrolling` is still true (the glue's own
-            // `scrollTop` writes keep it set for ~150ms after the last change)
-            // would flip `jumpingToBottom` off mid-scroll, so unsettled rows render
-            // their 56px scrub skeletons — shrinking the content above the viewport
-            // and drifting the view up off the newest message (#347, #500). Waiting
-            // for the scroll to quiesce keeps skeletons suppressed until the view is
-            // safely at rest on the bottom.
-            if (settle.settled && !isScrolling.value) {
-                jumpingToBottom.value = false;
-                jumpRaf = null;
-
-                return;
-            }
-        }
-
-        jumpRaf = requestAnimationFrame(step);
-    };
-
-    jumpRaf = requestAnimationFrame(step);
-}
-
-onUnmounted(() => {
-    if (jumpRaf !== null) {
-        cancelAnimationFrame(jumpRaf);
-    }
-});
-
-/**
- * Whether a windowed group row should show its skeleton placeholder rather than
- * its full content: only mid-scrub, never during a jump-to-present (measuring
- * the placeholder height would strand the jump short), and only before the row
- * has settled.
- */
-function showsSkeleton(item: TimelineItem): boolean {
-    return (
-        virtualizeActive.value &&
-        !jumpingToBottom.value &&
-        item.type === 'group' &&
-        shouldRenderSkeleton(isScrolling.value, settledKeys.value.has(item.key))
-    );
-}
-
-// Surface the visible window so the parent can drive the unread-jump pill.
-watch(
-    () =>
-        range.value
-            ? `${range.value.startIndex}:${range.value.endIndex}`
-            : null,
-    () => {
-        if (range.value) {
-            emit('rangeChange', {
-                startIndex: range.value.startIndex,
-                endIndex: range.value.endIndex,
-            });
-        }
-    },
-);
-
-/**
- * Scroll to the newest message. When windowed, drive the virtualizer so it
- * re-targets the real bottom as off-screen rows measure (a native
- * `scrollTo(scrollHeight)` settles short on an estimated spacer, #347); when the
- * list is rendered flat (the thread panel), `scrollHeight` is already exact, so
- * scroll the container directly.
- */
-function scrollToLatest(behavior: ScrollBehavior = 'auto'): void {
-    if (virtualizeActive.value) {
-        // Suppress scrub skeletons for the whole jump so their fixed placeholder
-        // height can't strand the scroll short of the newest message (#347), then
-        // let `finalizeJump` watch the animation to the true bottom and release.
-        jumpingToBottom.value = true;
-        scrollToEnd(behavior);
-        finalizeJump();
-
-        return;
-    }
-
-    props.scrollElement?.scrollTo({
-        top: props.scrollElement.scrollHeight,
-        behavior,
-    });
-}
 
 // Let the parent bring an off-screen row (a jump target, the unread boundary)
 // into the window: with windowing the element may not exist to `scrollIntoView`.
@@ -676,65 +237,19 @@ function isQueued(message: Message): boolean {
     return queued.value.has(message.clientUuid);
 }
 
-/**
- * The viewer context each per-message guard resolves against. The hover-action
- * bar (extracted to MessageActions) owns the toolbar guards; the two rules below
- * stay here because they drive non-toolbar UI — the reaction pills and the
- * thread summary — and share the same context.
- */
-function actionContext(message: Message): MessageActionContext {
-    return {
-        currentUserId: props.currentUserId,
-        canReact: Boolean(props.canReact),
-        canPin: Boolean(props.canPin),
-        canModerate: Boolean(props.canModerate),
-        inThread: Boolean(props.inThread),
-        pending: isPending(message),
-    };
-}
-
-/**
- * The viewer may react to any live, confirmed message when they're a member of
- * the (non-archived) channel; drives whether the reaction pills accept toggles.
- */
-function canReactTo(message: Message): boolean {
-    return canReactToMessage(message, actionContext(message));
-}
-
-/**
- * The "N replies" affordance shows on any root that has replies, even a deleted
- * one — the thread outlives its root as a tombstone.
- */
-function showThreadSummary(message: Message): boolean {
-    return showsThreadSummary(message, actionContext(message));
-}
-
-/** The message currently being edited inline, and its working draft. */
+/** The message currently being edited inline. */
 const editingId = ref<string | null>(null);
-const editDraft = ref('');
-const editField = ref<HTMLTextAreaElement | null>(null);
-
-/**
- * A plain template ref inside v-for collects into an array; a function ref keeps
- * the single visible editor element (only one row edits at a time).
- */
-function setEditField(el: unknown): void {
-    editField.value = (el as HTMLTextAreaElement | null) ?? null;
-}
 
 function startEdit(message: Message): void {
     editingId.value = message.id;
-    editDraft.value = message.body;
-    nextTick(() => editField.value?.focus());
 }
 
 function cancelEdit(): void {
     editingId.value = null;
-    editDraft.value = '';
 }
 
-function saveEdit(message: Message): void {
-    const body = editDraft.value.trim();
+function saveEdit(message: Message, draft: string): void {
+    const body = draft.trim();
 
     // An empty or unchanged draft is a no-op; the server would reject the former.
     if (body !== '' && body !== message.body) {
@@ -744,75 +259,33 @@ function saveEdit(message: Message): void {
     cancelEdit();
 }
 
-/**
- * The touch stand-in for the hover toolbar (design m4): below `md`, pressing
- * and holding a message row opens its actions bottom sheet. The sheet resolves
- * the message live by id, so reaction and pin state stay current while it is
- * open, and the id survives the close animation.
- */
 const isMobile = useIsMobile();
-const actionSheetId = ref<string | null>(null);
-const actionSheetOpen = ref(false);
 
-const actionSheetMessage = computed(
-    () =>
-        props.messages.find((entry) => entry.id === actionSheetId.value) ??
-        null,
-);
-
-const longPress = useLongPress<Message>({
-    enabled: isMobile,
-    onLongPress: openActionsSheet,
+const {
+    open: actionSheetOpen,
+    message: actionSheetMessage,
+    longPress,
+    isHeld,
+} = useMessageActionSheet({
+    isMobile,
+    messages: () => props.messages,
+    canOpen: (message) =>
+        editingId.value !== message.id &&
+        hasAnyMessageAction(message, {
+            currentUserId: props.currentUserId,
+            canReact: Boolean(props.canReact),
+            canPin: Boolean(props.canPin),
+            canModerate: Boolean(props.canModerate),
+            inThread: Boolean(props.inThread),
+            pending: isPending(message),
+        }),
 });
-
-function openActionsSheet(message: Message): void {
-    if (
-        editingId.value === message.id ||
-        !hasAnyMessageAction(message, actionContext(message))
-    ) {
-        return;
-    }
-
-    actionSheetId.value = message.id;
-    actionSheetOpen.value = true;
-}
-
-/** The pressed row's hold cue while the long-press timer runs. */
-function isHeld(message: Message): boolean {
-    return longPress.pressing.value?.id === message.id;
-}
-
-// Crossing up over the breakpoint mid-press leaves the sheet stranded on a
-// hover-capable layout; the toolbar owns the actions there.
-watch(isMobile, (mobile) => {
-    if (!mobile) {
-        actionSheetOpen.value = false;
-    }
-});
-
-// A message deleted (or pruned from the window) while its sheet is up has no
-// actions left to offer. Watched through a getter so an in-place tombstone
-// patch from a broadcast closes it too, not only a replaced array entry.
-watch(
-    () => actionSheetMessage.value?.isDeleted,
-    (isDeleted) => {
-        if (isDeleted !== false) {
-            actionSheetOpen.value = false;
-        }
-    },
-);
 
 /** The message queued for deletion; a non-null value drives the confirm dialog. */
 const pendingDelete = ref<Message | null>(null);
 
 function requestDelete(message: Message): void {
     pendingDelete.value = message;
-}
-
-function setDeleteOpen(open: boolean): void {
-    if (!open) {
-        pendingDelete.value = null;
-    }
 }
 
 function confirmDelete(): void {
@@ -848,158 +321,39 @@ function confirmDelete(): void {
                         : undefined
                 "
             >
-                <div
-                    v-if="showsSkeleton(item)"
-                    data-test="message-skeleton"
-                    aria-hidden="true"
-                    class="mt-4.5 flex gap-3"
-                    :style="{ minHeight: '56px' }"
-                >
-                    <div class="size-8.5 shrink-0 rounded-full bg-muted" />
-                    <div class="flex flex-1 flex-col gap-2 pt-1">
-                        <div class="h-3 w-40 rounded bg-muted" />
-                        <div class="h-3 w-[60%] rounded bg-muted" />
-                    </div>
-                </div>
+                <MessageSkeleton v-if="showsSkeleton(item)" />
 
-                <div
+                <UnreadDivider
                     v-else-if="
                         item.type === 'divider' && item.variant === 'unread'
                     "
-                    id="unread-divider"
-                    data-test="unread-divider"
-                    role="separator"
-                    :aria-label="$t('New messages')"
-                    class="my-4 flex items-center gap-3"
-                >
-                    <span
-                        aria-hidden="true"
-                        class="h-px flex-1 bg-gradient-to-r from-transparent to-brass-border"
-                    />
-                    <span
-                        aria-hidden="true"
-                        class="font-serif text-[13px] text-brass-fill-foreground italic"
-                    >
-                        {{ $t('new') }}
-                    </span>
-                    <span
-                        aria-hidden="true"
-                        class="h-px flex-1 bg-gradient-to-r from-brass-border to-transparent"
-                    />
-                </div>
+                />
 
-                <div
+                <DayDivider
                     v-else-if="item.type === 'divider'"
-                    data-test="day-divider"
-                    class="my-4 flex items-center gap-3"
-                >
-                    <span aria-hidden="true" class="h-px flex-1 bg-border" />
-                    <span
-                        class="font-serif text-[13px] text-muted-foreground italic"
-                    >
-                        {{ formatDayLabel(item.iso!) }}
-                    </span>
-                    <span aria-hidden="true" class="h-px flex-1 bg-border" />
-                </div>
+                    :iso="item.iso!"
+                />
 
-                <!-- A system notice (member joined / left): a centered, inert
-                     line with no avatar, author bubble, or hover actions. -->
-                <div
+                <SystemNotice
                     v-else-if="item.type === 'system'"
-                    :id="`message-${item.message.id}`"
-                    data-test="system-notice"
-                    :data-system-type="item.message.type"
-                    class="my-2 flex justify-center"
-                >
-                    <span
-                        class="rounded-full bg-muted/60 px-3 py-1 text-center text-[12px] text-muted-foreground"
-                    >
-                        {{ systemNoticeText(item.message) }}
-                    </span>
-                </div>
+                    :message="item.message"
+                    :is-direct="props.isDirect"
+                />
 
                 <div
                     v-else
                     data-test="message-group"
                     class="mt-4.5 flex max-md:mt-3.5"
                 >
-                    <!-- The avatar gutter: 64px of centred column on desktop,
-                         a 26px avatar plus a 10px gap below `md`, where 64px of
-                         a 390px screen is a quarter of the row spent on chrome. -->
-                    <div
-                        class="flex w-16 shrink-0 flex-col items-center gap-1 pt-0.5 max-md:w-9 max-md:items-start max-md:gap-0 max-md:pt-0"
-                    >
-                        <UserHoverCard
-                            :team-slug="props.teamSlug"
-                            :user-id="item.author.id"
-                            :name="item.author.name"
-                            :presence="presenceOf(item.author.id)"
-                            :is-dnd="dndOf(item.author.id)"
-                            @mention="(member) => emit('mention', member)"
-                        >
-                            <div
-                                data-test="message-avatar"
-                                class="relative size-8.5 cursor-pointer max-md:size-6.5"
-                            >
-                                <!-- A bot squares off its avatar (rounded-lg vs a
-                                     human's full circle) and shows a glyph on the
-                                     ink-stone fill, so it reads as non-human at a
-                                     glance; a human keeps their gravatar/initials. -->
-                                <Avatar
-                                    class="size-8.5 text-[11px] max-md:size-6.5 max-md:text-[9px]"
-                                    :class="
-                                        item.author.isBot ? 'rounded-lg' : ''
-                                    "
-                                    aria-hidden="true"
-                                >
-                                    <AvatarImage
-                                        v-if="
-                                            item.author.avatar &&
-                                            !item.author.isBot
-                                        "
-                                        :src="item.author.avatar"
-                                        :alt="item.author.name"
-                                    />
-                                    <AvatarFallback
-                                        :class="
-                                            item.author.isBot
-                                                ? 'rounded-lg bg-muted-foreground text-background'
-                                                : 'bg-primary/10 font-semibold text-primary'
-                                        "
-                                    >
-                                        <Bot
-                                            v-if="item.author.isBot"
-                                            class="size-4.5"
-                                        />
-                                        <template v-else>{{
-                                            getInitials(item.author.name)
-                                        }}</template>
-                                    </AvatarFallback>
-                                </Avatar>
-                                <!-- Presence is announced once per author group
-                                     via the sr-only text beside the name below,
-                                     so this repeated dot is decorative to AT. A bot
-                                     has no presence, so it shows no dot. -->
-                                <PresenceDot
-                                    v-if="!item.author.isBot"
-                                    data-test="presence-dot"
-                                    :presence="presenceOf(item.author.id)"
-                                    :is-dnd="dndOf(item.author.id)"
-                                    surface-class="bg-card"
-                                    :size="isMobile ? '24' : '36'"
-                                    class="ring-card"
-                                />
-                            </div>
-                        </UserHoverCard>
-                        <!-- The stacked time sets a tall floor on every row even
-                             for a one-word message, so below `md` it gives way
-                             to the inline stamp on the author's own line. -->
-                        <span
-                            data-test="message-group-time"
-                            class="font-mono text-[9.5px] text-muted-foreground max-md:hidden"
-                            >{{ formatTime(item.leadCreatedAt) }}</span
-                        >
-                    </div>
+                    <MessageAvatarGutter
+                        :author="item.author"
+                        :team-slug="props.teamSlug"
+                        :presence="presenceOf(item.author.id)"
+                        :is-dnd="dndOf(item.author.id)"
+                        :time="formatTime(item.leadCreatedAt)"
+                        :is-mobile="isMobile"
+                        @mention="(member) => emit('mention', member)"
+                    />
                     <div
                         data-test="message-column"
                         class="min-w-0 flex-1 pl-4.5 max-md:border-l-0 max-md:pl-0"
@@ -1009,651 +363,90 @@ function confirmDelete(): void {
                                 : 'border-l border-border'
                         "
                     >
-                        <UserHoverCard
+                        <MessageAuthorLine
+                            :author="item.author"
                             :team-slug="props.teamSlug"
-                            :user-id="item.author.id"
-                            :name="item.author.name"
                             :presence="presenceOf(item.author.id)"
                             :is-dnd="dndOf(item.author.id)"
+                            :time="formatTime(item.leadCreatedAt)"
                             @mention="(member) => emit('mention', member)"
-                        >
-                            <span
-                                data-test="message-author-name"
-                                class="cursor-pointer text-[14px] font-semibold text-foreground hover:underline"
-                                >{{ item.author.name }}</span
-                            >
-                        </UserHoverCard>
-                        <!-- The author's status emoji rides beside their name;
-                             the full text lives on the hover card. -->
-                        <UserStatusEmoji
-                            :status="item.author.status"
-                            :name="item.author.name"
-                            class="ml-1.5 align-[-1px] text-[13px]"
                         />
-                        <!-- The uppercase "Bot" tag rides beside a bot author's
-                             name; a bot has no presence, so it replaces the
-                             Online/Offline announcement rather than adding to it. -->
-                        <span
-                            v-if="item.author.isBot"
-                            data-test="author-bot-badge"
-                            class="ml-1.5 inline-flex items-center rounded border border-border px-1.5 align-[1px] text-[9px] font-bold tracking-[0.08em] text-muted-foreground uppercase"
-                            >{{ $t('Bot') }}</span
-                        >
-                        <span v-else class="sr-only">{{
-                            $t(presenceLabelKey(presenceOf(item.author.id)))
-                        }}</span>
-                        <!-- Below `md` the group's time rides beside the author
-                             name instead of stacking under the avatar, where a
-                             36px gutter has no room for it. Hidden from AT on
-                             both layouts: each row's accessible name already
-                             carries its own time. -->
-                        <span
-                            data-test="message-group-time-inline"
-                            aria-hidden="true"
-                            class="ml-1.5 font-mono text-[10.5px] text-muted-foreground md:hidden"
-                            >{{ formatTime(item.leadCreatedAt) }}</span
-                        >
                         <div role="list">
-                            <!-- eslint-disable-next-line vuejs-accessibility/no-static-element-interactions -- a touch-only long-press gesture; every action it opens stays reachable through the toolbar's focusable buttons -->
-                            <div
-                                v-for="(message, index) in item.messages"
-                                :id="`message-${message.id}`"
+                            <MessageRow
+                                v-for="(message, row) in item.messages"
                                 :key="message.id"
-                                role="listitem"
-                                :aria-label="
-                                    messageAccessibleName(
-                                        item.author.name,
-                                        message.createdAt,
-                                        viewerTimeZone,
-                                    )
-                                "
-                                class="group/message relative -mx-2 rounded-md px-2 transition-colors duration-1000 hover:bg-muted/40 max-md:select-none max-md:[-webkit-touch-callout:none]"
-                                :class="[
-                                    index === 0
-                                        ? 'mt-0.5'
-                                        : 'mt-1.5 max-md:mt-0.5',
+                                :message="message"
+                                :author-name="item.author.name"
+                                :team-slug="props.teamSlug"
+                                :current-user-id="props.currentUserId"
+                                :can-react="props.canReact"
+                                :can-pin="props.canPin"
+                                :can-moderate="props.canModerate"
+                                :in-thread="props.inThread"
+                                :is-lead="row === 0"
+                                :pending="isPending(message)"
+                                :queued="isQueued(message)"
+                                :held="isHeld(message)"
+                                :editing="editingId === message.id"
+                                :highlighted="
                                     message.id === props.highlightMessageId
-                                        ? 'bg-primary/10'
-                                        : '',
+                                "
+                                :active-thread-root="
                                     message.id === props.activeThreadRootId
-                                        ? 'bg-primary/5'
-                                        : '',
+                                "
+                                :composer-editing="
                                     message.id === props.editingMessageId
-                                        ? 'bg-brass-fill'
-                                        : '',
-                                    isHeld(message)
-                                        ? 'scale-[0.98] opacity-80 transition-[transform,opacity] delay-100 duration-200'
-                                        : '',
-                                ]"
-                                @pointerdown="longPress.start($event, message)"
-                                @pointermove="longPress.move($event)"
-                                @pointerup="longPress.end()"
-                                @pointerleave="longPress.end()"
-                                @pointercancel="longPress.cancel()"
-                                @contextmenu="longPress.onContextMenu($event)"
-                            >
-                                <!-- Per-message timestamp: revealed in the avatar
-                                 gutter on hover, and hidden from AT since the
-                                 row's accessible name already carries the time.
-                                 The `<time datetime>` keeps the row machine-
-                                 readable regardless of the hover styling.
-                                 Only non-lead rows (index > 0) reveal it on
-                                 hover — the lead row already shows the group
-                                 time above, so revealing this here would stack a
-                                 duplicate on top of it. The lead's <time> stays
-                                 present but never fades in, so its machine-
-                                 readable value is unchanged.
-                                 Touch has no hover to reveal it with, so below
-                                 `md` it drops out entirely rather than compete
-                                 for a 36px gutter. -->
-                                <time
-                                    :datetime="message.createdAt"
-                                    data-test="message-hover-time"
-                                    aria-hidden="true"
-                                    class="pointer-events-none absolute top-1.5 -left-10.75 -translate-x-1/2 font-mono text-[9.5px] text-muted-foreground opacity-0 transition-opacity max-md:hidden"
-                                    :class="
-                                        index > 0
-                                            ? 'group-hover/message:opacity-100'
-                                            : ''
-                                    "
-                                    >{{ formatTime(message.createdAt) }}</time
-                                >
-
-                                <!-- Pinned indicator: renders whenever the
-                                 message is pinned, in the same slot as the
-                                 "edited" treatment above the body. Brass marks
-                                 pinned-ness; the content column is already
-                                 indented, so it aligns to the text column. -->
-                                <div
-                                    v-if="message.pin"
-                                    data-test="message-pinned-indicator"
-                                    class="flex items-center gap-1.5 pt-0.5 text-[11px] text-muted-foreground"
-                                >
-                                    <Pin class="size-3 fill-brass text-brass" />
-                                    <span>{{
-                                        $t('Pinned by :name', {
-                                            name: message.pin.pinnedBy.name,
-                                        })
-                                    }}</span>
-                                </div>
-
-                                <Button
-                                    v-if="
-                                        message.replyTo &&
-                                        !message.isDeleted &&
-                                        editingId !== message.id
-                                    "
-                                    variant="unstyled"
-                                    size="none"
-                                    type="button"
-                                    data-test="message-quote"
-                                    :aria-label="
-                                        $t(
-                                            'Jump to replied message from :author',
-                                            {
-                                                author: message.replyTo
-                                                    .authorName,
-                                            },
-                                        )
-                                    "
-                                    class="mt-0.5 flex max-w-full items-center rounded pr-1 text-left hover:opacity-80 max-md:border-y max-md:border-border max-md:bg-card max-md:py-1.5 max-md:pr-5 max-md:pl-5"
-                                    :class="CARD_BLEED"
-                                    @click="emit('jump', message.replyTo.id)"
-                                >
-                                    <MessageQuote
-                                        :author-name="
-                                            message.replyTo.authorName
-                                        "
-                                        :body="message.replyTo.body"
-                                        :is-deleted="message.replyTo.isDeleted"
-                                    />
-                                </Button>
-
-                                <p
-                                    v-if="message.isDeleted"
-                                    :data-test="'message-tombstone'"
-                                    class="py-0.5 font-serif text-[13.5px] text-muted-foreground italic"
-                                >
-                                    {{ $t('This message was deleted') }}
-                                </p>
-
-                                <div
-                                    v-else-if="editingId === message.id"
-                                    class="py-0.5"
-                                >
-                                    <textarea
-                                        :ref="setEditField"
-                                        v-model="editDraft"
-                                        data-test="message-edit-input"
-                                        rows="1"
-                                        class="w-full resize-none rounded-md border border-input bg-background px-2.5 py-1.5 text-base leading-[1.55] text-foreground outline-none focus:border-ring focus:ring-1 focus:ring-ring md:text-[14.5px]"
-                                        @keydown.enter.exact.prevent="
-                                            saveEdit(message)
-                                        "
-                                        @keydown.esc.prevent="cancelEdit"
-                                    ></textarea>
-                                    <div
-                                        class="mt-1 flex items-center gap-2 text-[11.5px] text-muted-foreground"
-                                    >
-                                        <Button
-                                            size="sm"
-                                            type="button"
-                                            class="h-7 px-2"
-                                            @click="saveEdit(message)"
-                                        >
-                                            {{ $t('Save') }}
-                                        </Button>
-                                        <Button
-                                            variant="outline"
-                                            size="sm"
-                                            type="button"
-                                            class="h-7 px-2"
-                                            @click="cancelEdit"
-                                        >
-                                            {{ $t('Cancel') }}
-                                        </Button>
-                                        <span>{{
-                                            $t('Enter to save · Esc to cancel')
-                                        }}</span>
-                                    </div>
-                                </div>
-
-                                <p
-                                    v-else-if="message.body !== ''"
-                                    :data-test="'message-body'"
-                                    class="py-0.5 text-[14.5px] leading-[1.55] break-words whitespace-pre-wrap text-foreground/90 max-md:text-[15px] max-md:leading-[1.45]"
-                                    :class="
-                                        isPending(message) ? 'opacity-60' : ''
-                                    "
-                                >
-                                    <template
-                                        v-for="(segment, index) in bodySegments(
-                                            message,
-                                        )"
-                                        :key="index"
-                                    >
-                                        <SafeHtml
-                                            v-if="segment.kind === 'html'"
-                                            :html="segment.html"
-                                            variant="messageBody"
-                                        />
-                                        <InlineMarks
-                                            v-else-if="
-                                                segment.kind === 'mention'
-                                            "
-                                            :marks="segment.marks"
-                                        >
-                                            <UserHoverCard
-                                                :team-slug="props.teamSlug"
-                                                :user-id="segment.id"
-                                                :name="segment.name"
-                                                @mention="
-                                                    (member) =>
-                                                        emit('mention', member)
-                                                "
-                                            >
-                                                <span
-                                                    data-test="message-mention"
-                                                    class="cursor-pointer border-b-[1.5px] border-brass font-medium text-foreground hover:border-brass-border"
-                                                    >@{{ segment.name }}</span
-                                                >
-                                            </UserHoverCard>
-                                        </InlineMarks>
-                                        <InlineMarks
-                                            v-else-if="
-                                                segment.kind === 'groupMention'
-                                            "
-                                            :marks="segment.marks"
-                                        >
-                                            <!-- A group has no profile to hover,
-                                                 so the pill is inert: its own hue
-                                                 is what marks it as reaching more
-                                                 than one person. -->
-                                            <span
-                                                data-test="message-group-mention"
-                                                class="rounded bg-violet-500/10 px-1 py-0.5 font-medium text-violet-700 dark:bg-violet-400/15 dark:text-violet-300"
-                                                >@{{ segment.name }}</span
-                                            >
-                                        </InlineMarks>
-                                        <InlineMarks
-                                            v-else-if="segment.kind === 'emoji'"
-                                            :marks="segment.marks"
-                                        >
-                                            <img
-                                                :src="segment.url"
-                                                :alt="`:${segment.name}:`"
-                                                :title="`:${segment.name}:`"
-                                                data-test="message-emoji"
-                                                class="custom-emoji inline-block h-[1.35em] w-[1.35em] align-text-bottom"
-                                            />
-                                        </InlineMarks>
-                                        <InlineMarks
-                                            v-else
-                                            :marks="segment.marks"
-                                        >
-                                            <HoverCard
-                                                v-if="
-                                                    previewFor(
-                                                        message,
-                                                        segment.href,
-                                                    )
-                                                "
-                                                :open-delay="200"
-                                                :close-delay="100"
-                                            >
-                                                <HoverCardTrigger as-child>
-                                                    <a
-                                                        :href="segment.href"
-                                                        target="_blank"
-                                                        rel="noopener noreferrer nofollow"
-                                                        data-test="message-link"
-                                                        class="text-primary underline underline-offset-2 hover:no-underline"
-                                                        >{{ segment.href }}</a
-                                                    >
-                                                </HoverCardTrigger>
-                                                <HoverCardContent
-                                                    data-test="link-preview-card"
-                                                    class="w-80 overflow-hidden p-0"
-                                                >
-                                                    <LinkPreview
-                                                        :preview="
-                                                            previewFor(
-                                                                message,
-                                                                segment.href,
-                                                            )!
-                                                        "
-                                                    />
-                                                </HoverCardContent>
-                                            </HoverCard>
-                                            <a
-                                                v-else
-                                                :href="segment.href"
-                                                target="_blank"
-                                                rel="noopener noreferrer nofollow"
-                                                data-test="message-link"
-                                                class="text-primary underline underline-offset-2 hover:no-underline"
-                                                >{{ segment.href }}</a
-                                            >
-                                        </InlineMarks>
-                                    </template>
-                                    <span
-                                        v-if="message.editedAt"
-                                        :data-test="'message-edited'"
-                                        class="ml-1 align-baseline text-[11px] text-muted-foreground select-none"
-                                        >{{ $t('(edited)') }}</span
-                                    >
-                                </p>
-
-                                <MessageAttachments
-                                    v-if="
-                                        message.attachments.length > 0 &&
-                                        !message.isDeleted &&
-                                        editingId !== message.id
-                                    "
-                                    :class="CARD_BLEED"
-                                    :attachments="message.attachments"
-                                    :author-name="message.user.name"
-                                    :created-at="message.createdAt"
-                                    :viewer-time-zone="viewerTimeZone"
-                                />
-
-                                <MessagePoll
-                                    v-if="
-                                        message.poll &&
-                                        !message.isDeleted &&
-                                        editingId !== message.id
-                                    "
-                                    :class="CARD_BLEED"
-                                    :poll="message.poll"
-                                    :current-user-id="props.currentUserId"
-                                    :can-vote="canReactTo(message)"
-                                    :can-manage="
-                                        message.user.id ===
-                                            props.currentUserId ||
-                                        Boolean(props.canModerate)
-                                    "
-                                    @vote="
-                                        (optionId) =>
-                                            emit('vote', message, optionId)
-                                    "
-                                    @close="emit('closePoll', message)"
-                                />
-
-                                <span
-                                    v-if="isQueued(message)"
-                                    data-test="message-queued"
-                                    class="mt-0.5 inline-flex items-center gap-1 text-[11px] font-semibold text-muted-foreground select-none"
-                                >
-                                    <Clock class="size-3" />
-                                    {{ $t('Queued — will send on reconnect') }}
-                                </span>
-
-                                <MessageForward
-                                    v-if="
-                                        message.forwardedFrom &&
-                                        !message.isDeleted &&
-                                        editingId !== message.id
-                                    "
-                                    data-test="forwarded-message"
-                                    :author-name="
-                                        message.forwardedFrom.authorName
-                                    "
-                                    :channel-name="
-                                        message.forwardedFrom.channelName
-                                    "
-                                    :body="message.forwardedFrom.body"
-                                    :is-deleted="
-                                        message.forwardedFrom.isDeleted
-                                    "
-                                    :mentions="message.forwardedFrom.mentions"
-                                />
-
-                                <MessageReactions
-                                    v-if="
-                                        !message.isDeleted &&
-                                        editingId !== message.id
-                                    "
-                                    :reactions="message.reactions"
-                                    :current-user-id="props.currentUserId"
-                                    :can-react="canReactTo(message)"
-                                    @toggle="
-                                        (emoji) => emit('react', message, emoji)
-                                    "
-                                />
-
-                                <div
-                                    v-if="showThreadSummary(message)"
-                                    class="mt-1.5 flex flex-wrap items-center gap-2"
-                                >
-                                    <Button
-                                        variant="unstyled"
-                                        size="none"
-                                        type="button"
-                                        data-test="thread-summary"
-                                        :aria-label="
-                                            message.threadReplyCount === 1
-                                                ? $t(
-                                                      'View thread, :count reply',
-                                                      {
-                                                          count: message.threadReplyCount,
-                                                      },
-                                                  )
-                                                : $t(
-                                                      'View thread, :count replies',
-                                                      {
-                                                          count: message.threadReplyCount,
-                                                      },
-                                                  )
-                                        "
-                                        class="inline-flex items-center gap-2 rounded-full border border-border bg-card px-2.5 py-1 text-left transition-colors hover:bg-muted/50"
-                                        @click="emit('openThread', message.id)"
-                                    >
-                                        <span class="flex -space-x-1">
-                                            <Avatar
-                                                v-for="participant in threadAvatars(
-                                                    message,
-                                                )"
-                                                :key="participant.id"
-                                                class="size-4 text-[8px] ring-2 ring-card"
-                                                aria-hidden="true"
-                                            >
-                                                <AvatarImage
-                                                    v-if="participant.avatar"
-                                                    :src="participant.avatar"
-                                                    :alt="participant.name"
-                                                />
-                                                <AvatarFallback
-                                                    class="bg-primary/10 font-semibold text-primary"
-                                                >
-                                                    {{
-                                                        getInitials(
-                                                            participant.name,
-                                                        )
-                                                    }}
-                                                </AvatarFallback>
-                                            </Avatar>
-                                            <span
-                                                v-if="
-                                                    extraThreadParticipants(
-                                                        message,
-                                                    ) > 0
-                                                "
-                                                class="flex size-4 items-center justify-center rounded-full bg-muted text-[8px] font-semibold text-muted-foreground ring-2 ring-card select-none"
-                                                aria-hidden="true"
-                                            >
-                                                +{{
-                                                    extraThreadParticipants(
-                                                        message,
-                                                    )
-                                                }}
-                                            </span>
-                                        </span>
-                                        <span
-                                            v-if="message.threadUnread"
-                                            data-test="thread-unread-dot"
-                                            :aria-label="$t('Unread replies')"
-                                            class="size-2 shrink-0 rounded-full bg-rose-500"
-                                        ></span>
-                                        <span
-                                            class="text-[12px] font-semibold text-foreground"
-                                        >
-                                            {{
-                                                message.threadReplyCount === 1
-                                                    ? $t(':count reply', {
-                                                          count: message.threadReplyCount,
-                                                      })
-                                                    : $t(':count replies', {
-                                                          count: message.threadReplyCount,
-                                                      })
-                                            }}
-                                        </span>
-                                        <span
-                                            aria-hidden="true"
-                                            class="text-[12px] text-muted-foreground"
-                                            >→</span
-                                        >
-                                    </Button>
-                                    <span
-                                        v-if="message.threadLastReplyAt"
-                                        class="text-[11.5px] text-muted-foreground"
-                                    >
-                                        {{ $t('Last reply') }}
-                                        {{
-                                            formatTime(
-                                                message.threadLastReplyAt,
-                                            )
-                                        }}
-                                    </span>
-                                </div>
-
-                                <MessageActions
-                                    v-if="editingId !== message.id"
-                                    :message="message"
-                                    :current-user-id="props.currentUserId"
-                                    :can-react="props.canReact"
-                                    :can-pin="props.canPin"
-                                    :can-moderate="props.canModerate"
-                                    :in-thread="props.inThread"
-                                    :pending="isPending(message)"
-                                    :viewer-timezone="viewerTimezone"
-                                    @react="
-                                        (emoji) => emit('react', message, emoji)
-                                    "
-                                    @reply="emit('reply', message)"
-                                    @forward="emit('forward', message)"
-                                    @pin="emit('pin', message)"
-                                    @unpin="emit('unpin', message)"
-                                    @open-thread="
-                                        emit('openThread', message.id)
-                                    "
-                                    @remind="
-                                        (remindAt) =>
-                                            emit('remind', message, remindAt)
-                                    "
-                                    @remind-custom="
-                                        emit('remindCustom', message)
-                                    "
-                                    @edit="startEdit(message)"
-                                    @delete="requestDelete(message)"
-                                />
-                            </div>
+                                "
+                                :viewer-time-zone="viewerTimeZone"
+                                :viewer-timezone="viewerTimezone"
+                                :long-press="longPress"
+                                @start-edit="startEdit(message)"
+                                @save-edit="(body) => saveEdit(message, body)"
+                                @cancel-edit="cancelEdit"
+                                @request-delete="requestDelete(message)"
+                                @reply="emit('reply', message)"
+                                @forward="emit('forward', message)"
+                                @pin="emit('pin', message)"
+                                @unpin="emit('unpin', message)"
+                                @close-poll="emit('closePoll', message)"
+                                @remind-custom="emit('remindCustom', message)"
+                                @open-thread="(id) => emit('openThread', id)"
+                                @react="
+                                    (emoji) => emit('react', message, emoji)
+                                "
+                                @vote="
+                                    (optionId) =>
+                                        emit('vote', message, optionId)
+                                "
+                                @remind="
+                                    (remindAt) =>
+                                        emit('remind', message, remindAt)
+                                "
+                                @jump="(id) => emit('jump', id)"
+                                @mention="(member) => emit('mention', member)"
+                            />
                         </div>
                     </div>
                 </div>
 
-                <!-- The mobile thread push moves the reply count out of the
-                     panel header and into this rule under the root, separating
-                     the parent message from its replies (design m3). -->
-                <div
+                <ThreadRepliesDivider
                     v-if="
                         item.type === 'group' &&
                         isThreadRoot(item) &&
                         (props.replyDividerCount ?? 0) > 0
                     "
-                    data-test="thread-replies-divider"
-                    role="separator"
-                    :aria-label="replyDividerLabel"
-                    class="mt-4 flex items-center gap-2.5"
-                >
-                    <span
-                        aria-hidden="true"
-                        class="text-[11px] font-semibold tracking-[0.06em] whitespace-nowrap text-muted-foreground uppercase"
-                    >
-                        {{ replyDividerLabel }}
-                    </span>
-                    <span aria-hidden="true" class="h-px flex-1 bg-border" />
-                </div>
+                    :count="props.replyDividerCount ?? 0"
+                />
             </div>
         </div>
 
-        <div
-            v-if="seenByReaders.length > 0"
-            data-test="seen-by"
-            class="mt-1.5 flex items-center justify-end gap-1.5 pr-1"
-            :title="seenByLabel"
-        >
-            <span class="font-serif text-[11px] text-muted-foreground italic">
-                {{ $t('Seen by') }}
-            </span>
-            <span class="flex -space-x-1">
-                <Avatar
-                    v-for="reader in seenByAvatars"
-                    :key="reader.id"
-                    class="size-4 text-[8px] ring-2 ring-card"
-                    aria-hidden="true"
-                >
-                    <AvatarImage
-                        v-if="reader.avatar"
-                        :src="reader.avatar"
-                        :alt="reader.name"
-                    />
-                    <AvatarFallback
-                        class="bg-primary/10 font-semibold text-primary"
-                    >
-                        {{ getInitials(reader.name) }}
-                    </AvatarFallback>
-                </Avatar>
-                <span
-                    v-if="extraSeenBy > 0"
-                    class="flex size-4 items-center justify-center rounded-full bg-muted text-[8px] font-semibold text-muted-foreground ring-2 ring-card select-none"
-                    aria-hidden="true"
-                >
-                    +{{ extraSeenBy }}
-                </span>
-            </span>
-            <span class="sr-only">{{ seenByLabel }}</span>
-        </div>
+        <SeenByRow v-if="seenByReaders.length > 0" :readers="seenByReaders" />
 
-        <Dialog :open="pendingDelete !== null" @update:open="setDeleteOpen">
-            <DialogContent>
-                <DialogHeader>
-                    <DialogTitle>{{ $t('Delete message') }}</DialogTitle>
-                    <DialogDescription>
-                        {{
-                            $t(
-                                "Are you sure you want to delete this message? This can't be undone.",
-                            )
-                        }}
-                    </DialogDescription>
-                </DialogHeader>
-
-                <DialogFooter class="gap-2">
-                    <DialogClose as-child>
-                        <Button variant="secondary">
-                            {{ $t('Cancel') }}
-                        </Button>
-                    </DialogClose>
-
-                    <Button
-                        data-test="delete-message-confirm"
-                        variant="destructive"
-                        @click="confirmDelete"
-                    >
-                        {{ $t('Delete') }}
-                    </Button>
-                </DialogFooter>
-            </DialogContent>
-        </Dialog>
+        <DeleteMessageDialog
+            :open="pendingDelete !== null"
+            @confirm="confirmDelete"
+            @close="pendingDelete = null"
+        />
 
         <MessageActionsSheet
             v-model:open="actionSheetOpen"

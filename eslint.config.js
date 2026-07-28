@@ -253,7 +253,6 @@ export default defineConfigWithVueTs(
         // stops breaching the threshold, so the list can only shrink.
         files: [
             'resources/js/components/ChannelMasthead.vue',
-            'resources/js/components/MessageList.vue',
             'resources/js/components/QuickSwitcher.vue',
             'resources/js/components/UserStatusDialog.vue',
             'resources/js/composables/useAttachmentUploads.test.ts',
