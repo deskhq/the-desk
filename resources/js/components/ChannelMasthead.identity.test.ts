@@ -18,37 +18,37 @@ vi.mock('@inertiajs/vue3', async () => {
 });
 
 vi.mock('@lucide/vue', async () => {
-    const { lucideDouble } = await import('./ChannelMasthead.doubles');
+    const { lucideDouble } = await import('./ChannelMasthead.stubs');
 
     return lucideDouble();
 });
 
 vi.mock('@/components/AvatarStack.vue', async () => {
-    const { passthrough } = await import('./ChannelMasthead.doubles');
+    const { passthrough } = await import('./ChannelMasthead.stubs');
 
     return { default: passthrough('div') };
 });
 
 vi.mock('@/components/PresenceDot.vue', async () => {
-    const { passthrough } = await import('./ChannelMasthead.doubles');
+    const { passthrough } = await import('./ChannelMasthead.stubs');
 
     return { default: passthrough('span') };
 });
 
 vi.mock('@/components/ui/avatar', async () => {
-    const { avatarDouble } = await import('./ChannelMasthead.doubles');
+    const { avatarDouble } = await import('./ChannelMasthead.stubs');
 
     return avatarDouble();
 });
 
 vi.mock('@/components/ui/button', async () => {
-    const { buttonDouble } = await import('./ChannelMasthead.doubles');
+    const { buttonDouble } = await import('./ChannelMasthead.stubs');
 
     return buttonDouble();
 });
 
 vi.mock('@/components/ui/dropdown-menu', async () => {
-    const { dropdownMenuDouble } = await import('./ChannelMasthead.doubles');
+    const { dropdownMenuDouble } = await import('./ChannelMasthead.stubs');
 
     return dropdownMenuDouble();
 });
@@ -60,7 +60,7 @@ vi.mock('@/components/ui/sidebar', async () => {
 });
 
 vi.mock('@/components/ui/tooltip', async () => {
-    const { tooltipDouble } = await import('./ChannelMasthead.doubles');
+    const { tooltipDouble } = await import('./ChannelMasthead.stubs');
 
     return tooltipDouble();
 });
