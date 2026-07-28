@@ -7,6 +7,7 @@ export type ShortcutId =
     | 'quick-switcher'
     | 'previous-channel'
     | 'next-channel'
+    | 'focus-notifications'
     | 'edit-last-message'
     | 'show-shortcuts';
 
@@ -37,6 +38,14 @@ export interface ShortcutDefinition {
      * dispatcher must not claim the bare keypress.
      */
     displayOnly?: boolean;
+    /**
+     * Whether the shortcut still fires while the user is typing in a field.
+     * Non-modifier shortcuts are otherwise suppressed there so they never hijack
+     * a keystroke mid-word — which a function key cannot do, and which F6 in
+     * particular must not be: the composer is exactly where the user is standing
+     * when a send fails, and the toast offering Retry is the thing F6 reaches.
+     */
+    firesWhileTyping?: boolean;
 }
 
 /**
@@ -69,6 +78,14 @@ export const SHORTCUTS: readonly ShortcutDefinition[] = [
         description: 'Next channel',
         keys: ['⌥', '↓'],
         match: { key: 'ArrowDown', alt: true },
+    },
+    {
+        id: 'focus-notifications',
+        category: 'Navigation',
+        description: 'Focus notifications',
+        keys: ['F6'],
+        match: { key: 'F6' },
+        firesWhileTyping: true,
     },
     {
         id: 'edit-last-message',
@@ -174,7 +191,11 @@ export function dispatchKeydown(
         return false;
     }
 
-    if (isEditableTarget(event.target) && !shortcut.match.mod) {
+    if (
+        isEditableTarget(event.target) &&
+        !shortcut.match.mod &&
+        !shortcut.firesWhileTyping
+    ) {
         return false;
     }
 
