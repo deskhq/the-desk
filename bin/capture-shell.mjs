@@ -24,8 +24,12 @@ const CHECK_ONLY = process.argv.includes('--check');
 /**
  * Where a `--check` run leaves what it actually rendered, so CI can upload it
  * and a contributor can commit those bytes instead of re-deriving them.
+ *
+ * Deliberately not the asset directory: a check that wrote its findings over the
+ * committed captures would turn "your shell drifted" into "your shell drifted
+ * and I have already accepted the drift".
  */
-const ACTUAL_DIR = process.env.CAPTURE_ACTUAL_DIR ?? ASSET_DIR;
+const ACTUAL_DIR = requireEnv('CAPTURE_ACTUAL_DIR');
 
 /**
  * The share of pixels allowed to differ before a variant counts as drifted.

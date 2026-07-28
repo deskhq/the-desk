@@ -36,7 +36,7 @@
 #                           compiled against, or the masthead photographs a
 #                           "Reconnecting" pill instead of live presence.
 #   CAPTURE_ACTUAL_DIR      Where `--check` writes what it actually rendered
-#                           (default: alongside the committed captures).
+#                           (default: storage/app/shell-capture).
 #   CAPTURE_MAX_DIFF_RATIO  Share of pixels allowed to differ (default: 0.002).
 
 set -euo pipefail
@@ -60,6 +60,11 @@ CAPTURE_PORT="${CAPTURE_PORT:-8123}"
 CAPTURE_REVERB_PORT="${CAPTURE_REVERB_PORT:-${REVERB_PORT:-8080}}"
 
 ASSET_DIR="$REPO_ROOT/resources/js/images/shell"
+
+# Where a failing `--check` leaves the shots as this machine rendered them. Kept
+# out of the asset directory on purpose: a check that overwrote the committed
+# captures would silently accept the very drift it exists to report.
+ACTUAL_DIR="${CAPTURE_ACTUAL_DIR:-$REPO_ROOT/storage/app/shell-capture}"
 
 # The README's screenshot is the desktop light capture, copied rather than
 # re-shot, so the two can never disagree.
@@ -221,7 +226,7 @@ main() {
 
     assert_fresh_bundle
 
-    mkdir -p "$ASSET_DIR" "$REPO_ROOT/storage/logs"
+    mkdir -p "$ASSET_DIR" "$ACTUAL_DIR" "$REPO_ROOT/storage/logs"
 
     export DB_DATABASE="$CAPTURE_DB"
     export GRAVATAR_ENABLED=false
@@ -243,6 +248,7 @@ main() {
 
     export CAPTURE_BASE_URL="$APP_URL"
     export CAPTURE_ASSET_DIR="$ASSET_DIR"
+    export CAPTURE_ACTUAL_DIR="$ACTUAL_DIR"
     export CAPTURE_CLOCK CAPTURE_EMAIL CAPTURE_PASSWORD
     export CAPTURE_CHANNEL_PATH="/t/$CAPTURE_TEAM_SLUG/c/$CAPTURE_CHANNEL"
 
@@ -255,9 +261,10 @@ changed on purpose, refresh them and commit the result:
 
     ./vendor/bin/sail composer capture:shell
 
-If you are looking at this on CI, download the "shell-capture" artifact from
-this run: it holds the captures as this runner rendered them, which are the
-bytes to commit.
+What this machine actually rendered is in ${ACTUAL_DIR#"$REPO_ROOT/"}. On CI that
+directory is uploaded as the "shell-capture" artifact: because the committed
+bytes come from one machine and are verified on another, those are the ones to
+commit when the drift is intended.
 EOF
             exit 1
         fi
