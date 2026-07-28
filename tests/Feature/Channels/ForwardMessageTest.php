@@ -345,3 +345,109 @@ test('a forward must name either a target channel or a target user', function ()
         'client_uuid' => (string) Str::uuid7(),
     ])->assertInvalid(['target_channel_id']);
 });
+
+/*
+|--------------------------------------------------------------------------
+| Undoing a forward (#979)
+|--------------------------------------------------------------------------
+|
+| The forwarded copy lands in a channel the sender is not looking at, and the
+| source page's props say nothing about it — so an "Undo" on the confirmation
+| toast has nothing to delete. The response flashes the created copy's id and
+| the channel it landed in, which is the least that identifies it, and the undo
+| itself is the ordinary message-destroy route under the ordinary policy.
+|
+*/
+
+test('a forward flashes the created copy so its sender can undo it', function (): void {
+    [$owner, $team, $general, $target, $source] = forwardFixture();
+    $clientUuid = (string) Str::uuid7();
+
+    $response = $this->actingAs($owner)->post(forwardRoute($team, $general, $source), [
+        'body' => 'undo me',
+        'client_uuid' => $clientUuid,
+        'target_channel_id' => $target->id,
+    ]);
+
+    $forwarded = Message::where('client_uuid', $clientUuid)->firstOrFail();
+
+    $response->assertInertiaFlash('forwarded', [
+        'messageId' => $forwarded->id,
+        'channelSlug' => $target->slug,
+    ]);
+});
+
+test('a forward into a direct message opened by the forward flashes that channel', function (): void {
+    [$owner, $team, $general, $target, $source] = forwardFixture();
+
+    $friend = User::factory()->create();
+    $team->memberships()->create(['user_id' => $friend->id, 'role' => TeamRole::Member]);
+
+    $clientUuid = (string) Str::uuid7();
+
+    // No DM exists yet, so the slug the undo needs is one only this response
+    // knows: it is created by the very forward being confirmed.
+    $response = $this->actingAs($owner)->post(forwardRoute($team, $general, $source), [
+        'body' => 'for you',
+        'client_uuid' => $clientUuid,
+        'target_user_id' => $friend->id,
+    ]);
+
+    $forwarded = Message::where('client_uuid', $clientUuid)->firstOrFail();
+
+    $response->assertInertiaFlash('forwarded', [
+        'messageId' => $forwarded->id,
+        'channelSlug' => $forwarded->channel->slug,
+    ]);
+});
+
+test('the flashed copy can be deleted through the ordinary destroy route', function (): void {
+    [$owner, $team, $general, $target, $source] = forwardFixture();
+
+    $friend = User::factory()->create();
+    $team->memberships()->create(['user_id' => $friend->id, 'role' => TeamRole::Member]);
+
+    $clientUuid = (string) Str::uuid7();
+
+    $this->actingAs($owner)->post(forwardRoute($team, $general, $source), [
+        'body' => 'sent by mistake',
+        'client_uuid' => $clientUuid,
+        'target_user_id' => $friend->id,
+    ]);
+
+    $forwarded = Message::where('client_uuid', $clientUuid)->firstOrFail();
+
+    $this->actingAs($owner)->delete(route('channels.messages.destroy', [
+        'team' => $team->slug,
+        'channel' => $forwarded->channel->slug,
+        'message' => $forwarded->id,
+    ]))->assertRedirect();
+
+    expect($forwarded->fresh()->trashed())->toBeTrue();
+});
+
+test('the undo is refused to anyone the ordinary delete would refuse', function (): void {
+    [$owner, $team, $general, $target, $source] = forwardFixture();
+
+    $bystander = User::factory()->create();
+    $team->memberships()->create(['user_id' => $bystander->id, 'role' => TeamRole::Member]);
+    $target->members()->attach($bystander->id);
+
+    $clientUuid = (string) Str::uuid7();
+
+    $this->actingAs($owner)->post(forwardRoute($team, $general, $source), [
+        'body' => 'not yours to take back',
+        'client_uuid' => $clientUuid,
+        'target_channel_id' => $target->id,
+    ]);
+
+    $forwarded = Message::where('client_uuid', $clientUuid)->firstOrFail();
+
+    $this->actingAs($bystander)->delete(route('channels.messages.destroy', [
+        'team' => $team->slug,
+        'channel' => $target->slug,
+        'message' => $forwarded->id,
+    ]))->assertForbidden();
+
+    expect($forwarded->fresh()->trashed())->toBeFalse();
+});

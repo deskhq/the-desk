@@ -11,6 +11,7 @@ use App\Models\Message;
 use App\Models\Team;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
+use Inertia\Inertia;
 
 class ForwardMessageController extends Controller
 {
@@ -23,18 +24,30 @@ class ForwardMessageController extends Controller
      * carries an optional note as its body and enters the normal post + broadcast
      * flow in the target. Redirecting back keeps the author on the source channel
      * rather than navigating them to the destination.
+     *
+     * That is also why the created copy is flashed: it lands somewhere the author
+     * is not looking, and nothing in the source page's props identifies it, so an
+     * "Undo" on the confirmation toast would have nothing to delete. Its id and
+     * the channel it landed in are the least that names it — and for a forward to
+     * a person, the destination may be a direct message this very request opened,
+     * whose slug the client cannot have known (#979).
      */
     public function store(ForwardMessageRequest $request, Team $team, Channel $channel, Message $message, PostMessage $postMessage, OpenDirectMessage $openDirectMessage): RedirectResponse
     {
         $target = $this->resolveTarget($request, $team, $openDirectMessage);
 
-        $postMessage->handle(
+        $forwarded = $postMessage->handle(
             channel: $target,
             author: $request->user(),
             body: (string) $request->validated('body'),
             clientUuid: $request->validated('client_uuid'),
             forwardedFromId: $message->id,
         );
+
+        Inertia::flash('forwarded', [
+            'messageId' => $forwarded->id,
+            'channelSlug' => $target->slug,
+        ]);
 
         return back();
     }
