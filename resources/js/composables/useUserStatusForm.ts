@@ -9,7 +9,12 @@ import {
 } from '@/actions/App/Http/Controllers/Settings/StatusController';
 import { useToast } from '@/composables/useToast';
 import { useTranslations } from '@/composables/useTranslations';
-import { to12Hour, to24Hour, wallTimeToInstant, zonedWallTime } from '@/lib/scheduleTime';
+import {
+    to12Hour,
+    to24Hour,
+    wallTimeToInstant,
+    zonedWallTime,
+} from '@/lib/scheduleTime';
 import type { StatusExpiryKey } from '@/lib/statusExpiry';
 import { resolveStatusExpiry } from '@/lib/statusExpiry';
 
