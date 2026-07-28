@@ -372,15 +372,23 @@ export function useMessageActions(
         );
     }
 
-    function flushOutbox(): Promise<number> {
+    async function flushOutbox(): Promise<number> {
         // Snapshot first: `postMessage` never mutates the queue, but draining as
         // we go keeps the queued-row markers clearing in send order.
-        const posts = [...options.outbox.items.value].map((item) => {
+        const queued = [...options.outbox.items.value];
+        // Counted from the posts rather than from how the queue's length moved:
+        // a send made while the flush is in flight would skew that difference.
+        let landed = 0;
+
+        for (const item of queued) {
             options.outbox.remove(item.clientUuid);
 
             let failed = false;
 
-            return postMessage({
+            // Awaited before the next one goes out, so a queued conversation
+            // reaches the server in the order it was typed rather than in
+            // whatever order concurrent requests happen to land.
+            await postMessage({
                 ...item,
                 // A flush that fails leaves the send exactly where it was —
                 // queued, with its row still marked as such — so the user can
@@ -390,14 +398,14 @@ export function useMessageActions(
                     options.outbox.enqueue(item);
                     announceQueuedSends();
                 },
-            }).then(() => !failed);
-        });
+            });
 
-        // Counted from the posts rather than from how the queue's length moved:
-        // a send made while the flush is in flight would skew that difference.
-        return Promise.all(posts).then(
-            (outcomes) => outcomes.filter((landed) => landed).length,
-        );
+            if (!failed) {
+                landed += 1;
+            }
+        }
+
+        return landed;
     }
 
     async function retryQueuedSends(): Promise<void> {

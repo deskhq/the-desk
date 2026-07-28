@@ -334,18 +334,30 @@ describe('useMessageActions', () => {
     });
 
     describe('flushOutbox', () => {
-        it('posts each queued send in order and empties the queue', () => {
+        it('posts each queued send in order and empties the queue', async () => {
             const h = harness({ isOnline: false });
 
             h.actions.send('first', []);
             h.actions.send('second', []);
             expect(post).not.toHaveBeenCalled();
 
-            h.actions.flushOutbox();
+            const flushed = h.actions.flushOutbox();
+
+            // One at a time: the second only goes out once the first has
+            // settled, so a queued conversation arrives in the order it was
+            // typed rather than in whatever order the requests happen to land.
+            expect(post).toHaveBeenCalledTimes(1);
+            expect(payloadOf(post, 0)).toMatchObject({ body: 'first' });
+
+            optionsOf(post, 0).onFinish?.();
+            await settle();
 
             expect(post).toHaveBeenCalledTimes(2);
-            expect(payloadOf(post, 0)).toMatchObject({ body: 'first' });
             expect(payloadOf(post, 1)).toMatchObject({ body: 'second' });
+
+            optionsOf(post, 1).onFinish?.();
+
+            await expect(flushed).resolves.toBe(2);
             expect(h.outbox.count.value).toBe(0);
         });
 
@@ -366,7 +378,7 @@ describe('useMessageActions', () => {
             expect(h.mainStream.pendingUuids.value).toHaveLength(1);
         });
 
-        it('announces a failed flush as one toast counting the queue', () => {
+        it('announces a failed flush as one toast counting the queue', async () => {
             const h = harness({ isOnline: false });
 
             h.actions.send('first', []);
@@ -374,7 +386,12 @@ describe('useMessageActions', () => {
             h.actions.flushOutbox();
 
             optionsOf(post, 0).onError?.();
+            optionsOf(post, 0).onFinish?.();
+            await settle();
+
             optionsOf(post, 1).onError?.();
+            optionsOf(post, 1).onFinish?.();
+            await settle();
 
             // The count is the queue's, not a tally of failures seen, and the
             // repeats merge onto one card rather than stacking two.
@@ -413,6 +430,8 @@ describe('useMessageActions', () => {
             const flushed = h.actions.flushOutbox();
 
             optionsOf(post, 0).onFinish?.();
+            await settle();
+
             optionsOf(post, 1).onError?.();
             optionsOf(post, 1).onFinish?.();
 
