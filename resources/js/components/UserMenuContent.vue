@@ -2,6 +2,7 @@
 import { Link, usePage } from '@inertiajs/vue3';
 import { LogOut } from '@lucide/vue';
 import { computed } from 'vue';
+import PoweredBy from '@/components/PoweredBy.vue';
 import UserMenuAccountRows from '@/components/UserMenuAccountRows.vue';
 import UserMenuIdentity from '@/components/UserMenuIdentity.vue';
 import UserMenuStatusRows from '@/components/UserMenuStatusRows.vue';
@@ -115,6 +116,13 @@ const isPanel = computed(() => props.variant === 'panel');
                     {{ appName }} v{{ status.current }}
                 </div>
             </template>
+
+            <div
+                v-if="page.props.branding.attribution"
+                class="border-t border-border bg-muted/50 px-2 py-1.5 text-center text-[10.5px]"
+            >
+                <PoweredBy />
+            </div>
         </div>
     </div>
 </template>

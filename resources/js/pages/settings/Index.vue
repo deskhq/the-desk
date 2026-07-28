@@ -2,6 +2,7 @@
 import { Head, Link, router, usePage } from '@inertiajs/vue3';
 import { ChevronLeft, ChevronRight, LogOut, Users } from '@lucide/vue';
 import { computed, onMounted, watch } from 'vue';
+import PoweredBy from '@/components/PoweredBy.vue';
 import PresenceDot from '@/components/PresenceDot.vue';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
@@ -297,6 +298,10 @@ const appName = computed(() => page.props.name);
                 >{{ appName }} · v{{ status.current }}</template
             >
             <template v-else>{{ appName }}</template>
+            <template v-if="page.props.branding.attribution">
+                ·
+                <PoweredBy />
+            </template>
         </div>
     </div>
 

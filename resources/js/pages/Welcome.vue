@@ -4,6 +4,7 @@ import { computed } from 'vue';
 import { index as channelsWorkspace } from '@/actions/App/Http/Controllers/Channels/ChannelController';
 import AppLogoIcon from '@/components/AppLogoIcon.vue';
 import DemoEnterButton from '@/components/DemoEnterButton.vue';
+import PoweredBy from '@/components/PoweredBy.vue';
 import { Button } from '@/components/ui/button';
 import { useDemoMode } from '@/composables/useDemoMode';
 import { login, register } from '@/routes';
@@ -646,6 +647,10 @@ const getStartedUrl = computed(() =>
             <span class="font-serif italic">{{ name }}</span>
             <span>&middot;</span>
             <span>{{ $t('Team chat, quietly done') }}</span>
+            <template v-if="page.props.branding.attribution">
+                <span>&middot;</span>
+                <PoweredBy />
+            </template>
         </footer>
     </div>
 </template>
