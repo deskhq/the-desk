@@ -34,17 +34,6 @@ vi.mock('@/composables/useIsMobile', async () => {
     return { useIsMobile: () => value };
 });
 
-/** Renders a child's default slot, so a stubbed wrapper stays transparent. */
-function passthrough(name: string) {
-    return defineComponent({
-        name,
-        setup:
-            (_props, { slots }) =>
-            () =>
-                h('div', slots.default?.()),
-    });
-}
-
 /** Renders nothing, standing in for a leaf whose own tests cover it. */
 function inert(name: string) {
     return defineComponent({ name, setup: () => () => null });
@@ -68,48 +57,12 @@ vi.mock('@/components/UserHoverCard.vue', () => ({
     }),
 }));
 
-vi.mock('@/components/ui/hover-card', () => ({
-    HoverCard: passthrough('HoverCardStub'),
-    HoverCardTrigger: passthrough('HoverCardTriggerStub'),
-    HoverCardContent: passthrough('HoverCardContentStub'),
-}));
-
-vi.mock('@/components/ui/dialog', () => ({
-    Dialog: passthrough('DialogStub'),
-    DialogClose: passthrough('DialogCloseStub'),
-    DialogContent: passthrough('DialogContentStub'),
-    DialogDescription: passthrough('DialogDescriptionStub'),
-    DialogFooter: passthrough('DialogFooterStub'),
-    DialogHeader: passthrough('DialogHeaderStub'),
-    DialogTitle: passthrough('DialogTitleStub'),
-}));
-
 vi.mock('@/components/MessageActions.vue', () => ({
     default: inert('MessageActionsStub'),
 }));
 
 vi.mock('@/components/MessageActionsSheet.vue', () => ({
     default: inert('MessageActionsSheetStub'),
-}));
-
-vi.mock('@/components/MessageAttachments.vue', () => ({
-    default: inert('MessageAttachmentsStub'),
-}));
-
-vi.mock('@/components/MessagePoll.vue', () => ({
-    default: inert('MessagePollStub'),
-}));
-
-vi.mock('@/components/MessageReactions.vue', () => ({
-    default: inert('MessageReactionsStub'),
-}));
-
-vi.mock('@/components/MessageForward.vue', () => ({
-    default: inert('MessageForwardStub'),
-}));
-
-vi.mock('@/components/LinkPreview.vue', () => ({
-    default: inert('LinkPreviewStub'),
 }));
 
 import MessageList from './MessageList.vue';

@@ -69,16 +69,6 @@ vi.mock('@/components/ui/hover-card', () => ({
     HoverCardContent: passthrough('HoverCardContent'),
 }));
 
-vi.mock('@/components/ui/dialog', () => ({
-    Dialog: passthrough('Dialog'),
-    DialogClose: passthrough('DialogClose'),
-    DialogContent: passthrough('DialogContent'),
-    DialogDescription: passthrough('DialogDescription'),
-    DialogFooter: passthrough('DialogFooter'),
-    DialogHeader: passthrough('DialogHeader'),
-    DialogTitle: passthrough('DialogTitle'),
-}));
-
 vi.mock('@/components/MessageActions.vue', () => ({
     default: marker('MessageActions'),
 }));

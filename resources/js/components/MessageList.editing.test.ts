@@ -100,12 +100,6 @@ vi.mock('@/components/UserHoverCard.vue', () => ({
     }),
 }));
 
-vi.mock('@/components/ui/hover-card', () => ({
-    HoverCard: passthrough('HoverCard'),
-    HoverCardTrigger: passthrough('HoverCardTrigger'),
-    HoverCardContent: passthrough('HoverCardContent'),
-}));
-
 vi.mock('@/components/ui/dialog', () => ({
     Dialog: defineComponent({
         name: 'DialogStub',
@@ -143,10 +137,6 @@ vi.mock('@/components/MessageReactions.vue', () => ({
 
 vi.mock('@/components/MessageForward.vue', () => ({
     default: marker('MessageForward'),
-}));
-
-vi.mock('@/components/LinkPreview.vue', () => ({
-    default: marker('LinkPreview'),
 }));
 
 import MessageList from './MessageList.vue';

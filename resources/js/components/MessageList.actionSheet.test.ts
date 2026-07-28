@@ -34,17 +34,6 @@ vi.mock('@/composables/useIsMobile', async () => {
     return { useIsMobile: () => value };
 });
 
-/** Renders a child's default slot, so a stubbed wrapper stays transparent. */
-function passthrough(name: string) {
-    return defineComponent({
-        name,
-        setup:
-            (_props, { slots }) =>
-            () =>
-                h('div', { 'data-stub': name }, slots.default?.()),
-    });
-}
-
 /** Renders an empty marker element, so a stubbed leaf is still findable. */
 function marker(name: string) {
     return defineComponent({
@@ -84,35 +73,6 @@ vi.mock('@/components/UserHoverCard.vue', () => ({
     }),
 }));
 
-vi.mock('@/components/ui/hover-card', () => ({
-    HoverCard: passthrough('HoverCard'),
-    HoverCardTrigger: passthrough('HoverCardTrigger'),
-    HoverCardContent: passthrough('HoverCardContent'),
-}));
-
-vi.mock('@/components/ui/dialog', () => ({
-    Dialog: defineComponent({
-        name: 'DialogStub',
-        props: { open: { type: Boolean, default: false } },
-        setup:
-            (props, { slots }) =>
-            () =>
-                props.open
-                    ? h(
-                          'div',
-                          { 'data-test': 'delete-dialog' },
-                          slots.default?.(),
-                      )
-                    : null,
-    }),
-    DialogClose: passthrough('DialogClose'),
-    DialogContent: passthrough('DialogContent'),
-    DialogDescription: passthrough('DialogDescription'),
-    DialogFooter: passthrough('DialogFooter'),
-    DialogHeader: passthrough('DialogHeader'),
-    DialogTitle: passthrough('DialogTitle'),
-}));
-
 vi.mock('@/components/MessageAttachments.vue', () => ({
     default: marker('MessageAttachments'),
 }));
@@ -127,10 +87,6 @@ vi.mock('@/components/MessageReactions.vue', () => ({
 
 vi.mock('@/components/MessageForward.vue', () => ({
     default: marker('MessageForward'),
-}));
-
-vi.mock('@/components/LinkPreview.vue', () => ({
-    default: marker('LinkPreview'),
 }));
 
 import MessageList from './MessageList.vue';
