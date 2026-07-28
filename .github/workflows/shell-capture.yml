@@ -77,6 +77,21 @@ jobs:
           --health-timeout=5s
           --health-retries=5
 
+      # Unlike the test suites, this job drives the *real* application rather
+      # than one booted under phpunit.xml's array drivers, so it needs the cache,
+      # session and queue backend the app actually ships with (`.env.example`
+      # points all three at redis). Without it the demo seeder dies resolving a
+      # cache connection long before anything is photographed.
+      redis:
+        image: redis:8
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd="redis-cli ping"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+
     env:
       DB_CONNECTION: pgsql
       DB_HOST: 127.0.0.1
@@ -86,6 +101,10 @@ jobs:
       DB_DATABASE: testing
       DB_USERNAME: laravel
       DB_PASSWORD: password
+      # Service containers are reachable over the mapped port on the runner, not
+      # under the compose hostname `.env.example` uses.
+      REDIS_HOST: 127.0.0.1
+      REDIS_PORT: 6379
       # The shell photographs its realtime state, so Reverb has to be reachable
       # at the address the *bundle* was compiled against — hence the same values
       # here as in the browser job, set before the build below.

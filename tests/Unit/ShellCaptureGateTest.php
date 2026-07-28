@@ -102,6 +102,20 @@ test('the check writes its findings outside the committed captures', function ()
     expect($script)->toContain('ACTUAL_DIR="${CAPTURE_ACTUAL_DIR:-$REPO_ROOT/storage/app/shell-capture}"');
 });
 
+/**
+ * This job drives the real application rather than one booted under
+ * phpunit.xml's array drivers, so it needs the backing services the app ships
+ * with — `.env.example` points cache, session and queue at redis, and the demo
+ * seeder dies resolving a cache connection without one.
+ */
+test('the gate provisions the services the real application needs', function (string $service) use ($job): void {
+    expect($job()['services'] ?? [])->toHaveKey($service);
+})->with(['postgres', 'redis']);
+
+test('the gate reaches redis over the mapped port rather than the compose hostname', function () use ($job): void {
+    expect((string) ($job()['env']['REDIS_HOST'] ?? null))->toBe('127.0.0.1');
+});
+
 test('the gate runs on linux, matching the environment the captures are verified on', function () use ($job): void {
     expect($job()['runs-on'])->toMatch('/^\$\{\{\s*vars\.CI_RUNNER\s*\|\|\s*\'ubuntu-[^\']+\'\s*\}\}$/');
 });
