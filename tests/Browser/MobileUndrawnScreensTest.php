@@ -168,23 +168,28 @@ test('the disclosed composer tools offer 44px touch targets on a phone', functio
         ), true);
 });
 
-test('the welcome preview thread pill stays inside its row on a phone', function (): void {
+/**
+ * The preview used to be a hand-drawn mockup of the shell, and this guarded the
+ * one part of it that overflowed at a phone width. It is now a screenshot of the
+ * real shell (#1013), so the overflow risk moved from an inner pill to the image
+ * itself — and with it, the question of whether exactly one theme's shot is live,
+ * since both are in the markup and swapped in CSS.
+ */
+test('the welcome preview shows one theme and stays inside the viewport on a phone', function (): void {
     visit('/')
         ->resize(360, 740)
         ->assertScript(<<<'JS'
         (() => {
-            const matches = [...document.querySelectorAll('span')]
-                .filter(el => el.textContent.includes('4 replies'));
-            const pill = matches[matches.length - 1];
+            const shots = [...document.querySelectorAll('[data-test="welcome-preview"] img')]
+                .filter(img => img.offsetParent !== null);
 
-            if (!pill) {
+            if (shots.length !== 1) {
                 return false;
             }
 
-            const row = pill.parentElement.getBoundingClientRect();
+            const rect = shots[0].getBoundingClientRect();
 
-            return pill.getBoundingClientRect().right <= row.right + 1
-                && pill.getBoundingClientRect().right <= window.innerWidth + 1;
+            return rect.left >= -1 && rect.right <= window.innerWidth + 1;
         })()
         JS, true);
 });

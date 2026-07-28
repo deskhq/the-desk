@@ -155,7 +155,10 @@ const previewClass =
         JS, so the correct one is on screen at first paint — the `dark` class is
         already on <html> server-side, while a reactive theme ref only settles
         after mount and would flash the other shot. -->
-        <div class="mx-auto w-full max-w-[1280px] px-6 pt-16 pb-6 sm:px-8">
+        <div
+            class="mx-auto w-full max-w-[1280px] px-6 pt-16 pb-6 sm:px-8"
+            data-test="welcome-preview"
+        >
             <picture class="dark:hidden">
                 <source
                     :srcset="shellMobileLight"
