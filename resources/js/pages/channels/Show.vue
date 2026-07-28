@@ -45,7 +45,10 @@ import { useChannelPreferences } from '@/composables/useChannelPreferences';
 import { useChannelRealtime } from '@/composables/useChannelRealtime';
 import { useConnectionState } from '@/composables/useConnectionState';
 import { useDebouncedPost } from '@/composables/useDebouncedPost';
-import { useMessageActions } from '@/composables/useMessageActions';
+import {
+    QUEUED_SENDS_TOAST_KEY,
+    useMessageActions,
+} from '@/composables/useMessageActions';
 import { useMessageAnnouncer } from '@/composables/useMessageAnnouncer';
 import {
     optimisticMessage,
@@ -1071,34 +1074,44 @@ function discardQueue(): void {
 // socket was down (the stream dedupes by client uuid, so re-fetching the latest
 // page adds no gaps or dupes) and confirm the flush with a toast.
 connection.onConnected(({ isReconnect }) => {
-    const flushed = outbox.count.value;
-
-    flushOutbox();
+    const queued = outbox.count.value;
+    const flushed = flushOutbox();
 
     if (!isReconnect) {
         return;
     }
 
     // A reconnect is the socket's timing, not the user's; see
-    // {@see backgroundVisit}.
+    // {@see backgroundVisit}. Fired before the flush settles so the backfill
+    // isn't held up by a queue that is slow — or failing — to drain.
     router.reload({ ...backgroundVisit, only: ['messages'] });
 
-    if (flushed > 0) {
+    // "You're caught up" is only true of the sends that actually landed, so it
+    // waits for the flush and counts what left the queue. Anything still queued
+    // has already raised its own failure card, under the same key this replaces.
+    void flushed.then(() => {
+        const sent = queued - outbox.count.value;
+
+        if (sent === 0) {
+            return;
+        }
+
         toast.success(
-            flushed === 1
+            sent === 1
                 ? t("Reconnected — 1 queued message sent, you're caught up.")
                 : t(
                       "Reconnected — :count queued messages sent, you're caught up.",
-                      { count: flushed },
+                      { count: sent },
                   ),
+            { key: QUEUED_SENDS_TOAST_KEY },
         );
-    }
+    });
 });
 
 // If we mount already connected with a rehydrated queue — the socket was up
 // before this page (re)loaded, so no connect event will fire — flush it now.
 if (connection.isOnline.value && outbox.count.value > 0) {
-    flushOutbox();
+    void flushOutbox();
 }
 
 /**
