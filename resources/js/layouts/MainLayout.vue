@@ -67,7 +67,7 @@ import { useSidebarBadges } from '@/composables/useSidebarBadges';
 import { useSidebarPosition } from '@/composables/useSidebarPosition';
 import { useTeamPresence } from '@/composables/useTeamPresence';
 import { useTimezone } from '@/composables/useTimezone';
-import { useToast } from '@/composables/useToast';
+import { useToast, useToastCount } from '@/composables/useToast';
 import { useToastZoneHeight } from '@/composables/useToastZoneHeight';
 import { useTranslations } from '@/composables/useTranslations';
 import { useUserStatusDialog } from '@/composables/useUserStatusDialog';
@@ -88,6 +88,28 @@ const reminderUndo = useReminderUndo();
  * around, hence the measurement (#978).
  */
 const toastZoneHeight = useToastZoneHeight();
+
+/** How many toasts are up, so F6 only claims focus for a rail that has cards. */
+const toastCount = useToastCount();
+
+/**
+ * sonner's stock hotkey, which it keeps whenever the rail has no toasts on it.
+ * Restoring it there rather than leaving F6 bound is the point: sonner's handler
+ * focuses its list unconditionally, and an F6 that pulled the caret out of the
+ * composer into an empty corner would be worse than no shortcut at all.
+ */
+const SONNER_DEFAULT_HOTKEY = ['altKey', 'KeyT'];
+
+/**
+ * F6 is sonner's hotkey while it has something to show. Its handler expands the
+ * stack — which is what holds every dismiss timer — and focuses the list, and
+ * neither is reachable from outside the component, so the shortcut is handed
+ * over rather than reimplemented against its internals. The registry entry
+ * remains the single source of truth for what F6 does and how it is documented.
+ */
+const toasterHotkey = computed<string[]>(() =>
+    toastCount.value > 0 ? ['F6'] : SONNER_DEFAULT_HOTKEY,
+);
 
 /**
  * 16px in from the pane's right edge and 16px above its composer, per the
@@ -314,10 +336,30 @@ function moveChannel(delta: number): void {
     }
 }
 
+/**
+ * Move focus to the bottom-right rail, so a card's action is reachable before
+ * its timer runs out. The rail is one surface with two zones, and F6 goes to
+ * whichever cards are on it — but only one of the zones is ours.
+ *
+ * The toast zone belongs to sonner, and {@link toasterHotkey} hands F6 to it:
+ * its own handler expands the stack, which is what *pauses* the dismiss timers,
+ * and none of that is reachable from out here (focusing the list is not enough —
+ * sonner counts only a pointer press as interaction). So this handler owns the
+ * zone sonner knows nothing about, and takes precedence when both are occupied:
+ * the nudges are the upper zone and the persistent cards, and sonner's handler
+ * has already run by the time this one does.
+ */
+function focusNotificationRail(): void {
+    document
+        .querySelector<HTMLElement>('[data-test="reminder-nudges"]')
+        ?.focus();
+}
+
 useKeyboardShortcuts({
     'quick-switcher': () => toggleQuickSwitcher(),
     'previous-channel': () => moveChannel(-1),
     'next-channel': () => moveChannel(1),
+    'focus-notifications': () => focusNotificationRail(),
     'show-shortcuts': () => toggleShortcuts(),
 });
 
@@ -675,6 +717,9 @@ onMounted(() => {
         <div
             v-if="firedReminders.length > 0"
             data-test="reminder-nudges"
+            role="region"
+            :aria-label="$t('Reminders')"
+            tabindex="-1"
             class="pointer-events-none fixed z-50 flex flex-col gap-2.5"
             :style="{
                 right: 'calc(1rem + var(--rail-right-inset, 0px))',
@@ -701,6 +746,10 @@ onMounted(() => {
 
         <OnboardingTour />
 
-        <Toaster :offset="toastOffset" :mobile-offset="toastMobileOffset" />
+        <Toaster
+            :offset="toastOffset"
+            :mobile-offset="toastMobileOffset"
+            :hotkey="toasterHotkey"
+        />
     </SidebarProvider>
 </template>
