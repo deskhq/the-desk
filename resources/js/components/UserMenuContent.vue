@@ -50,7 +50,7 @@ const isPanel = computed(() => props.variant === 'panel');
     <div class="flex min-h-0 flex-1 flex-col">
         <UserMenuIdentity :user="user" :variant="variant" />
 
-        <div class="min-h-0 flex-1 overflow-y-auto">
+        <div data-test="user-menu-rows" class="min-h-0 flex-1 overflow-y-auto">
             <UserMenuStatusRows
                 :user="user"
                 :variant="variant"
