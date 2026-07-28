@@ -1074,7 +1074,6 @@ function discardQueue(): void {
 // socket was down (the stream dedupes by client uuid, so re-fetching the latest
 // page adds no gaps or dupes) and confirm the flush with a toast.
 connection.onConnected(({ isReconnect }) => {
-    const queued = outbox.count.value;
     const flushed = flushOutbox();
 
     if (!isReconnect) {
@@ -1087,11 +1086,9 @@ connection.onConnected(({ isReconnect }) => {
     router.reload({ ...backgroundVisit, only: ['messages'] });
 
     // "You're caught up" is only true of the sends that actually landed, so it
-    // waits for the flush and counts what left the queue. Anything still queued
+    // waits for the flush and reports what it says landed. Anything still queued
     // has already raised its own failure card, under the same key this replaces.
-    void flushed.then(() => {
-        const sent = queued - outbox.count.value;
-
+    void flushed.then((sent) => {
         if (sent === 0) {
             return;
         }

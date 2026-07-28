@@ -158,6 +158,7 @@ function optionsOf(
     onError?: () => void;
     onSuccess?: () => void;
     onFinish?: () => void;
+    onCancel?: () => void;
 } {
     return mock.mock.calls[call][2];
 }
@@ -385,10 +386,45 @@ describe('useMessageActions', () => {
             });
         });
 
-        it('is a no-op with an empty queue', () => {
+        it('re-queues a flushed send whose visit is cancelled', () => {
+            const h = harness({ isOnline: false });
+
+            h.actions.send('interrupted', []);
+            h.isOnline.value = true;
+            h.actions.flushOutbox();
+
+            // A cancelled visit never reports through `onError`, so without this
+            // the send would vanish from the queue having never been posted.
+            optionsOf(post, 0).onCancel?.();
+
+            expect(h.outbox.count.value).toBe(1);
+            expect(h.outbox.items.value[0]).toMatchObject({
+                body: 'interrupted',
+            });
+        });
+
+        it('resolves with how many of the queued sends actually landed', async () => {
+            const h = harness({ isOnline: false });
+
+            h.actions.send('lands', []);
+            h.actions.send('fails', []);
+            h.isOnline.value = true;
+
+            const flushed = h.actions.flushOutbox();
+
+            optionsOf(post, 0).onFinish?.();
+            optionsOf(post, 1).onError?.();
+            optionsOf(post, 1).onFinish?.();
+
+            // Counted from the posts themselves, not from how the queue's length
+            // moved — a send made while the flush is in flight would skew that.
+            await expect(flushed).resolves.toBe(1);
+        });
+
+        it('is a no-op with an empty queue', async () => {
             const h = harness();
 
-            h.actions.flushOutbox();
+            await expect(h.actions.flushOutbox()).resolves.toBe(0);
 
             expect(post).not.toHaveBeenCalled();
         });

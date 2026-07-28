@@ -126,11 +126,10 @@ export interface MessageActions {
     ) => void;
     /**
      * Post every queued send, in order, dropping each from the queue as it goes
-     * and putting back the ones that fail. Resolves once every post has settled,
-     * so the caller can read {@link MessageActionsOptions.outbox}'s count to see
-     * what is left.
+     * and putting back the ones that fail. Resolves, once every post has
+     * settled, with how many of them actually landed.
      */
-    flushOutbox: () => Promise<void>;
+    flushOutbox: () => Promise<number>;
     /**
      * Flush the queue at the user's request — the "Retry all" the failure toast
      * carries — and report the outcome on that same card: a confirmation when
@@ -283,6 +282,12 @@ export function useMessageActions(
                         // Hand the staged attachments back so the send is retryable.
                         item.callbacks?.onRejected?.();
                     },
+                    // A cancelled visit reports through neither `onSuccess` nor
+                    // `onError`, so a flushed send would otherwise leave the
+                    // queue having never been posted. The live-send path keeps
+                    // its existing behaviour, which is to let the composer's
+                    // callbacks stand.
+                    onCancel: () => item.onFailure?.(),
                     onFinish: () => resolve(),
                 },
             );
@@ -367,11 +372,13 @@ export function useMessageActions(
         );
     }
 
-    function flushOutbox(): Promise<void> {
+    function flushOutbox(): Promise<number> {
         // Snapshot first: `postMessage` never mutates the queue, but draining as
         // we go keeps the queued-row markers clearing in send order.
         const posts = [...options.outbox.items.value].map((item) => {
             options.outbox.remove(item.clientUuid);
+
+            let failed = false;
 
             return postMessage({
                 ...item,
@@ -379,13 +386,18 @@ export function useMessageActions(
                 // queued, with its row still marked as such — so the user can
                 // retry the whole queue rather than losing it a message at a time.
                 onFailure: () => {
+                    failed = true;
                     options.outbox.enqueue(item);
                     announceQueuedSends();
                 },
-            });
+            }).then(() => !failed);
         });
 
-        return Promise.all(posts).then(() => undefined);
+        // Counted from the posts rather than from how the queue's length moved:
+        // a send made while the flush is in flight would skew that difference.
+        return Promise.all(posts).then(
+            (outcomes) => outcomes.filter((landed) => landed).length,
+        );
     }
 
     async function retryQueuedSends(): Promise<void> {
@@ -404,7 +416,7 @@ export function useMessageActions(
             return;
         }
 
-        await flushOutbox();
+        const sent = await flushOutbox();
 
         // Anything still queued has already re-raised the failure card with its
         // new count, so the only outcome left to report is a clean drain.
@@ -413,9 +425,9 @@ export function useMessageActions(
         }
 
         toast.success(
-            retrying === 1
+            sent === 1
                 ? t('Queued message sent')
-                : t(':count queued messages sent', { count: retrying }),
+                : t(':count queued messages sent', { count: sent }),
             { key: QUEUED_SENDS_TOAST_KEY },
         );
     }
