@@ -510,16 +510,16 @@ tally read-only. See
 | ---------------------- | ------- | -------------------------------------------- |
 | `BRANDING_ATTRIBUTION` | `true`  | Shows the attribution line in the footer.    |
 
-The footer carries a small **Powered by The Desk** link — on the welcome page,
-in the user menu, and at the foot of the mobile settings index. It is **on** by
-default.
+A small **Powered by The Desk** attribution, linking to the project. It is **on**
+by default. The attribution appears on the welcome page, in the user menu, and
+at the foot of the mobile settings index.
 
-Set `BRANDING_ATTRIBUTION=false` and the line disappears everywhere. Nothing
-else changes.
+Set `BRANDING_ATTRIBUTION=false` and it disappears from all three. Nothing else
+changes.
 
 :::note
 This is a request, not a requirement. The Desk is MIT-licensed with no trademark
-clause, so nothing obliges you to display this **footer link** — which is exactly
+clause, so nothing obliges you to display this **attribution** — which is exactly
 why there is a documented switch rather than a line you would have to patch out.
 If it costs you nothing, leaving it on is how people find the project.
 
