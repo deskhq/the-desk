@@ -132,3 +132,18 @@ exists`.
 These survive `docker compose down` / `up`. See
 [Upgrading](/self-hosting/upgrading/) for how the version-scoped Meilisearch
 volume behaves across upgrades.
+
+## Host bind mounts
+
+| Path on the host | Mounted at              | Contents                          |
+| ---------------- | ----------------------- | --------------------------------- |
+| `./.env`         | `/app/.env` (read-only) | Your configuration                 |
+| `./branding`     | `/app/storage/branding` (read-only) | Replacement brand assets |
+
+`./branding` is where whitelabeling happens: the app resolves the logo mark,
+favicons, Open Graph image and PWA icons from it per request, falling back file
+by file to the ones shipped in the image. It is a bind mount rather than a named
+volume so the files are yours to edit with an ordinary editor, and because it
+lives outside the image it survives every upgrade. Compose creates it empty on
+first `up`, and an empty directory changes nothing. See
+[Branding](/self-hosting/branding/).

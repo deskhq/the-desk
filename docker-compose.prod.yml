@@ -104,6 +104,15 @@ x-app: &app
     # owns and edits the file on the host.
     - ./.env:/app/.env:ro
     - storage-app:/app/storage/app
+    # Whitelabeling: drop replacement brand assets (logo mark, favicons, the
+    # Open Graph image, the PWA icon set) into ./branding on the host and the
+    # app serves them in place of the shipped ones, per file. A bind mount
+    # rather than a named volume so the files are yours to edit with an
+    # ordinary editor, and read-only because the app only ever reads them.
+    # Compose creates the directory empty on first `up`; an empty directory
+    # means every asset falls back to the shipped default, so leaving it alone
+    # changes nothing. See docs/self-hosting/branding for the filenames.
+    - ./branding:/app/storage/branding:ro
   depends_on: *infra-depends-on
 
 services:

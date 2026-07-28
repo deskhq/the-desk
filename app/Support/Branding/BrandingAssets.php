@@ -50,7 +50,7 @@ class BrandingAssets
      *
      * @var array<string, string>
      */
-    private const MIME_TYPES = [
+    private const array MIME_TYPES = [
         'ico' => 'image/x-icon',
         'svg' => 'image/svg+xml',
         'png' => 'image/png',

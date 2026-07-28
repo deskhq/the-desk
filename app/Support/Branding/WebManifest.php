@@ -20,7 +20,7 @@ class WebManifest
      * Brand ink — the plate the icon mark sits on, reused for the installed
      * app's title bar and splash screen so launching it reads as one surface.
      */
-    private const BRAND_INK = '#1d1a15';
+    private const string BRAND_INK = '#1d1a15';
 
     /**
      * @return array<string, mixed>

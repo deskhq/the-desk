@@ -42,11 +42,21 @@ The stack **refuses to start** without these (no defaults):
 | Variable   | Default        | Notes                                             |
 | ---------- | -------------- | ------------------------------------------------- |
 | `APP_URL`  | —              | Public URL of your instance. **Set this.**        |
-| `APP_NAME` | `The Desk`     | Shown in the UI and emails. Served at runtime.    |
+| `APP_NAME` | `The Desk`     | Shown in the UI, in emails, and as the installed app's name. Read at runtime, so renaming the instance needs no rebuild. See [Branding](/self-hosting/branding/). |
 | `APP_PORT` | `8000`         | Host port the web app is published on (bound to `APP_BIND`). |
 | `APP_BIND` | `127.0.0.1`    | Address the published app/reverb ports bind to. `0.0.0.0` exposes the raw HTTP origin off-box. |
 | `APP_VERSION` | — **(required)** | The release to run. The compose file pins the image to `ghcr.io/deskhq/the-desk:$APP_VERSION`, so upgrading is an `APP_VERSION` bump plus `docker compose pull && docker compose up -d` — no git checkout. It has no default: `up -d` fails fast with a clear message if it is unset. |
 | `APP_IMAGE`| *(uses `APP_VERSION`)* | Full image override. Set it to run a tag on another registry (a fork, an air-gapped mirror) or a floating tag like `edge`. When set it wins completely and `APP_VERSION` is ignored. |
+
+## Branding
+
+| Variable                | Default                 | Notes                                              |
+| ----------------------- | ----------------------- | -------------------------------------------------- |
+| `BRANDING_ATTRIBUTION`  | `true`                  | Renders the "Powered by The Desk" line in the footer. Set `false` to remove it. |
+| `BRANDING_PATH`         | `/app/storage/branding` | Where the app looks for replacement brand assets. The compose file bind-mounts `./branding` onto it, so you only change this if you mount them elsewhere. |
+
+Full guide, including the filenames and sizes each asset expects:
+[Branding](/self-hosting/branding/).
 
 ## Database
 
