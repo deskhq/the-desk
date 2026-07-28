@@ -264,7 +264,6 @@ export default defineConfigWithVueTs(
             'resources/js/pages/teams/AuditExports.vue',
             'resources/js/pages/teams/Groups.vue',
             'resources/js/pages/teams/integrations/Bot.vue',
-            'resources/js/pages/teams/integrations/Index.vue',
         ],
         rules: {
             'max-lines': 'off',
