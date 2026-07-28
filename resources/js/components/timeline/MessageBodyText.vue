@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { computed } from 'vue';
 import InlineMarks from '@/components/InlineMarks.vue';
 import LinkPreview from '@/components/LinkPreview.vue';
 import SafeHtml from '@/components/SafeHtml.vue';
@@ -33,14 +34,14 @@ const { groups: userGroups } = useUserGroups();
  * Split a message body into HTML and link segments so the timeline can wrap each
  * URL in its own element (and, when the link has been unfurled, a hover card).
  */
-function bodySegments(): MessageBodySegment[] {
-    return tokenizeMessageBody(
+const bodySegments = computed<MessageBodySegment[]>(() =>
+    tokenizeMessageBody(
         props.message.body,
         props.message.mentions,
         customEmojis.value,
         userGroups.value,
-    );
-}
+    ),
+);
 
 /**
  * The unfurled preview for a URL in a message, or undefined when the link has no
@@ -58,7 +59,7 @@ function previewFor(href: string): MessagePreview | undefined {
         class="py-0.5 text-[14.5px] leading-[1.55] break-words whitespace-pre-wrap text-foreground/90 max-md:text-[15px] max-md:leading-[1.45]"
         :class="pending ? 'opacity-60' : ''"
     >
-        <template v-for="(segment, index) in bodySegments()" :key="index">
+        <template v-for="(segment, index) in bodySegments" :key="index">
             <SafeHtml
                 v-if="segment.kind === 'html'"
                 :html="segment.html"
