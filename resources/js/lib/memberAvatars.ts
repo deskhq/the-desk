@@ -13,6 +13,13 @@ export type StackMember = {
 };
 
 /**
+ * How many member avatars a channel masthead shows before collapsing the rest
+ * into a single "+N" overflow chip. Read by both of the masthead's stacks — a
+ * group DM's participants and a channel's roster facepile — which must agree.
+ */
+export const MAX_MASTHEAD_AVATARS = 3;
+
+/**
  * The overlapping member avatars: the first `max` members render as circles and
  * the remainder collapse into a single `+N` overflow chip.
  */
