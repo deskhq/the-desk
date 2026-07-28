@@ -109,6 +109,14 @@
             "Composer\\Config::disableProcessTimeout",
             "bin/browser-tests"
         ],
+        "capture:shell": [
+            "Composer\\Config::disableProcessTimeout",
+            "bin/capture-shell"
+        ],
+        "capture:check": [
+            "Composer\\Config::disableProcessTimeout",
+            "bin/capture-shell --check"
+        ],
         "post-autoload-dump": [
             "Illuminate\\Foundation\\ComposerScripts::postAutoloadDump",
             "@php artisan package:discover --ansi"

@@ -464,14 +464,14 @@ class DemoSeeder extends Seeder
             [$cast['leo'], 'Team effort. The new deploy checks caught two regressions early.'],
             [$owner, 'Let\'s write that up so the whole team benefits.'],
             [$cast['leo'], 'On it — I\'ll draft something for #engineering tomorrow.'],
-        ]);
+        ], hoursAgo: 2);
 
         // Fully caught-up 1:1 — read pointer at the latest message, no badge.
         $withPriya = $this->openDirectMessage->handle($team, $owner, $cast['priya']);
         $this->seedConversation($withPriya, [
             [$cast['priya'], 'Sent over the final hero export. Let me know if you need other sizes.'],
             [$owner, 'Perfect, thank you! Nothing else for now.'],
-        ]);
+        ], hoursAgo: 6);
         $latest = $withPriya->messages()->latest()->first();
         $owner->channels()->updateExistingPivot($withPriya->id, ['last_read_message_id' => $latest?->id]);
 
@@ -480,13 +480,13 @@ class DemoSeeder extends Seeder
         $this->seedConversation($withAmara, [
             [$cast['amara'], 'Embargo assets are all staged and ready to publish Thursday.'],
             [$owner, 'You\'re a machine. 🙌'],
-        ]);
+        ], hoursAgo: 9);
 
         // A self-DM the sidebar renders as "You" — notes to self.
         $notes = $this->openDirectMessage->handle($team, $owner, $owner);
         $this->seedConversation($notes, [
             [$owner, 'Remember to thank the team individually after launch. 💛'],
-        ]);
+        ], hoursAgo: 26);
     }
 
     /**
@@ -636,11 +636,18 @@ class DemoSeeder extends Seeder
      * Post an ad-hoc conversation into a channel (used for DMs), rotating the
      * given [author, body] pairs and back-dating them in order.
      *
+     * `$hoursAgo` is what separates one conversation from the next. The dock
+     * orders direct messages by recent activity, so conversations that all ended
+     * at the same instant leave the tiebreak to the database and reorder
+     * themselves between runs — which is both less believable than a staggered
+     * day and, since the landing page photographs this workspace, enough to make
+     * the product shot irreproducible (#1013).
+     *
      * @param  non-empty-list<array{0: User, 1: string}>  $lines
      */
-    private function seedConversation(Channel $channel, array $lines): void
+    private function seedConversation(Channel $channel, array $lines, int $hoursAgo): void
     {
-        $start = Carbon::now()->subHours(6);
+        $start = Carbon::now()->subHours($hoursAgo);
 
         foreach ($lines as $index => [$author, $body]) {
             $this->postMessage($channel, $author, $body, $start->copy()->addMinutes($index));

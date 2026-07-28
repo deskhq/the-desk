@@ -1,0 +1,180 @@
+name: shell-capture
+
+# The landing page, the README and the docs all advertise the product with
+# captures of the real shell (`resources/js/images/shell/*.png`), taken from the
+# seeded demo workspace by `bin/capture-shell`. Nothing stops those going stale
+# on their own — which is exactly how the hand-drawn mockup they replaced ended
+# up selling a product that no longer existed (#1013). This job re-photographs
+# the shell on every change that could move it and fails when the committed
+# shots no longer match, so a redesign cannot merge while the marketing still
+# shows the old one.
+on:
+  push:
+    branches:
+      - develop
+      - master
+    # Duplicated under `pull_request` below: GitHub Actions does not resolve YAML
+    # anchors in workflow files, so the two lists have to be kept in step by
+    # hand — `tests/Unit/ShellCaptureGateTest.php` fails when they drift.
+    paths:
+      # Anything that renders the shell. Deliberately wider than the handful of
+      # components in frame: a restyled primitive, a changed token or a moved
+      # composable all reach the screenshot without touching the panes named in
+      # the issue.
+      - 'resources/js/**'
+      - 'resources/css/**'
+      - '!resources/js/**/*.test.ts'
+      # The fixture *is* half the picture: the workspace, its copy and its
+      # timestamps all come from the demo seeder.
+      - 'database/seeders/DemoSeeder.php'
+      - 'app/Console/Commands/DemoSeedCommand.php'
+      # A dependency bump can restyle the shell without a line of our own code
+      # changing, and those PRs touch nothing but a lockfile.
+      - 'package-lock.json'
+      - 'composer.lock'
+      - 'bin/capture-shell'
+      - 'bin/capture-shell.mjs'
+      - '.github/workflows/shell-capture.yml'
+  pull_request:
+    branches:
+      - develop
+      - master
+    paths:
+      - 'resources/js/**'
+      - 'resources/css/**'
+      - '!resources/js/**/*.test.ts'
+      - 'database/seeders/DemoSeeder.php'
+      - 'app/Console/Commands/DemoSeedCommand.php'
+      - 'package-lock.json'
+      - 'composer.lock'
+      - 'bin/capture-shell'
+      - 'bin/capture-shell.mjs'
+      - '.github/workflows/shell-capture.yml'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  capture:
+    runs-on: ${{ vars.CI_RUNNER || 'ubuntu-latest' }}
+
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_DB: testing
+          POSTGRES_USER: laravel
+          POSTGRES_PASSWORD: password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd=pg_isready
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+
+      # Unlike the test suites, this job drives the *real* application rather
+      # than one booted under phpunit.xml's array drivers, so it needs the cache,
+      # session and queue backend the app actually ships with (`.env.example`
+      # points all three at redis). Without it the demo seeder dies resolving a
+      # cache connection long before anything is photographed.
+      redis:
+        image: redis:8
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd="redis-cli ping"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+
+    env:
+      DB_CONNECTION: pgsql
+      DB_HOST: 127.0.0.1
+      DB_PORT: 5432
+      # The capture builds its own throwaway database beside this one, so the
+      # fixture is rebuilt from scratch rather than inherited.
+      DB_DATABASE: testing
+      DB_USERNAME: laravel
+      DB_PASSWORD: password
+      # Service containers are reachable over the mapped port on the runner, not
+      # under the compose hostname `.env.example` uses.
+      REDIS_HOST: 127.0.0.1
+      REDIS_PORT: 6379
+      # The shell photographs its realtime state, so Reverb has to be reachable
+      # at the address the *bundle* was compiled against — hence the same values
+      # here as in the browser job, set before the build below.
+      REVERB_APP_ID: 'ci-app'
+      REVERB_APP_KEY: 'ci-app-key'
+      REVERB_APP_SECRET: 'ci-app-secret'
+      REVERB_HOST: '127.0.0.1'
+      REVERB_PORT: 8080
+      REVERB_SCHEME: http
+      REVERB_SERVER_HOST: '127.0.0.1'
+      REVERB_SERVER_PORT: 8080
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # v2
+        with:
+          php-version: '8.5'
+          extensions: gd, imagick
+          tools: composer:v2
+
+      - name: Setup Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v6
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install Node Dependencies
+        run: npm ci
+
+      - name: Install Dependencies
+        uses: ramsey/composer-install@65e4f84970763564f46a70b8a54b90d033b3bdda # v4.0.0
+        with:
+          composer-options: '--optimize-autoloader'
+
+      - name: Install Playwright Browser
+        run: npx playwright install --with-deps chromium
+
+      - name: Copy Environment File
+        run: cp .env.example .env
+
+      - name: Generate Application Key
+        run: php artisan key:generate
+
+      - name: Generate TypeScript Types
+        run: |
+          mkdir -p resources/js/generated
+          php artisan typescript:transform
+
+      # The capture serves public/build, so the bundle has to be current — and
+      # bin/capture-shell refuses to run against a stale one.
+      - name: Build Assets
+        run: npm run build
+
+      # Seeds a throwaway database, serves the app, brings up Reverb and
+      # re-photographs every variant. Reports the share of pixels that moved per
+      # variant, so a near-miss is visible in the log before it becomes a break.
+      - name: Check the committed captures against the shell
+        run: ./bin/capture-shell --check
+
+      # The committed bytes are produced on a contributor's machine and verified
+      # here, so when the drift is intended these are the ones to commit.
+      - name: Upload the captures this runner rendered
+        if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: shell-capture
+          path: storage/app/shell-capture
+          if-no-files-found: ignore
