@@ -4,8 +4,8 @@ import { Bot, Plus } from '@lucide/vue';
 import { computed } from 'vue';
 import { Button } from '@/components/ui/button';
 import { useTimezone } from '@/composables/useTimezone';
+import { useTranslations } from '@/composables/useTranslations';
 import { formatRelativeTime } from '@/lib/datetime';
-import { translate } from '@/lib/i18n';
 import { show as botShow } from '@/routes/teams/integrations/bots';
 
 type BotSummary = App.Data.BotData;
@@ -24,6 +24,7 @@ defineEmits<{
 const page = usePage();
 const currentUserId = computed(() => String(page.props.auth.user.id));
 const { timezone } = useTimezone();
+const { t } = useTranslations();
 
 function relative(iso: string | null): string {
     return iso ? formatRelativeTime(iso, timezone.value ?? undefined) : '';
@@ -31,12 +32,12 @@ function relative(iso: string | null): string {
 
 function createdByLabel(bot: BotSummary): string {
     if (!bot.createdBy) {
-        return translate('Unknown creator');
+        return t('Unknown creator');
     }
 
     return bot.createdBy.id === currentUserId.value
-        ? translate('created by you')
-        : translate('created by :name', { name: bot.createdBy.name });
+        ? t('created by you')
+        : t('created by :name', { name: bot.createdBy.name });
 }
 </script>
 
