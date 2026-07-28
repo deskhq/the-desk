@@ -53,12 +53,17 @@ function threadsPanelInbox(): array
     ];
 }
 
-/** How many thread cards the panel is currently rendering. */
-function threadCardCount(): string
+/**
+ * A script resolving once the panel is rendering exactly `$count` thread cards.
+ *
+ * Polled rather than read once: the panel fetches its own props with
+ * `reset: ['threads']`, so the list is momentarily empty between the first card
+ * appearing and the fresh page merging in, and a one-shot read on a loaded
+ * parallel runner lands inside that window (#965).
+ */
+function threadCardsSettle(int $count): string
 {
-    return <<<'JS'
-    (() => document.querySelectorAll('[data-test="thread-inbox-item"]').length)()
-    JS;
+    return elementCountSettles('[data-test="thread-inbox-item"]', $count);
 }
 
 /**
@@ -87,7 +92,11 @@ test('the rail opens the inbox in the panel, filtered to what is unread', functi
         ->assertPresent('@thread-inbox-item')
         // The panel fetched its own props: the unread thread is here with the
         // count of what is new, and the caught-up one is filtered out.
-        ->assertScript(threadCardCount(), 1)
+        ->assertScript(threadCardsSettle(1), true)
+        // Negative control: the poll is a real assertion, not one that reports
+        // true for anything. Pointed at a total the inbox never reaches it runs
+        // out of frames and says so.
+        ->assertScript(threadCardsSettle(99), false)
         ->assertScript(threadsPanelShows('Shall we move Thursday to 3pm?'), true)
         ->assertScript(threadsPanelShows('Thanks everyone for the release push.'), false)
         ->assertScript(threadsPanelShows('1 new reply'), true)
@@ -96,20 +105,12 @@ test('the rail opens the inbox in the panel, filtered to what is unread', functi
     // The default filter stays off the URL, so the everyday address is the plain
     // pinned destination.
     $page->assertScript(queryParamSettles('nav', 'threads'), true)
-        ->assertQueryStringMissing('filter')
-        ->assertNoAccessibilityIssues();
+        ->assertQueryStringMissing('filter');
 
-    // Re-audit against the dark palette; persisting to localStorage first keeps
-    // the choice through any re-render the audit triggers.
-    $page->script(<<<'JS'
-    () => {
-        localStorage.setItem('appearance', 'dark');
-        document.documentElement.classList.add('dark');
-        document.documentElement.style.colorScheme = 'dark';
-    }
-    JS);
+    suppressTransitions($page)->assertNoAccessibilityIssues();
 
-    $page->wait(0.5)->assertNoAccessibilityIssues();
+    // Re-audit against the dark palette.
+    switchToDarkTheme($page)->assertNoAccessibilityIssues();
 });
 
 test('the All pill brings back the caught-up threads, server-side and shareable', function (): void {
@@ -123,16 +124,18 @@ test('the All pill brings back the caught-up threads, server-side and shareable'
         // Two cards now, which only a fresh server page can produce: the read
         // thread was never in the client's list to un-filter.
         ->assertScript(threadsPanelShows('Thanks everyone for the release push.'), true)
-        ->assertScript(threadCardCount(), 2);
+        ->assertScript(threadCardsSettle(2), true);
 
     $page->assertScript(queryParamSettles('filter', 'all'), true)
         ->assertQueryStringHas('filter', 'all')
         // The caught-up card shows the thread's whole length, not a new-reply count.
-        ->assertScript(threadsPanelShows('1 reply'), true)
-        // Audited here as well as on the unread view: the caught-up card is a
-        // different treatment (plain outline, dimmer copy) and carries its own
-        // contrast risk.
-        ->assertNoAccessibilityIssues();
+        ->assertScript(threadsPanelShows('1 reply'), true);
+
+    // Audited here as well as on the unread view: the caught-up card is a
+    // different treatment (plain outline, dimmer copy) and carries its own
+    // contrast risk. The pills swap foreground and background on `aria-pressed`,
+    // so the audit has to wait out that tween like the theme flip does (#965).
+    suppressTransitions($page)->assertNoAccessibilityIssues();
 });
 
 test('a filter deep link renders the panel on a cold load, with no client fetch', function (): void {
@@ -142,7 +145,7 @@ test('a filter deep link renders the panel on a cold load, with no client fetch'
         ->resize(1280, 900)
         ->navigate(browserChannelUrl($team, $channel).'?nav=threads&filter=all')
         ->assertPresent('@thread-inbox-item')
-        ->assertScript(threadCardCount(), 2)
+        ->assertScript(threadCardsSettle(2), true)
         ->assertScript(
             '(() => document.querySelector(\'[data-test="threads-filter-all"]\').getAttribute("aria-pressed"))()',
             'true',
@@ -163,7 +166,7 @@ test('mark all read empties the inbox and drops the rail dot', function (): void
         // The redirect back re-renders the route, so the emptied inbox, the zeroed
         // tally and the dropped dot all arrive as fresh props.
         ->assertPresent('@threads-empty')
-        ->assertScript(threadCardCount(), 0)
+        ->assertScript(threadCardsSettle(0), true)
         ->assertNotPresent('@rail-threads-unread-dot')
         ->assertNotPresent('@threads-unread-count');
 });

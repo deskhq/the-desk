@@ -200,22 +200,50 @@ function navParamSettles(?string $destination): string
 }
 
 /**
- * Repaint a live page in the dark palette, settled enough for an axe audit.
+ * A script resolving once exactly `$count` elements match `$selector`.
  *
- * Persisting to localStorage first keeps the appearance controller from
- * re-resolving `system` back to light. The injected stylesheet is the part that
- * makes the audit trustworthy: swapping the palette re-tints every element
- * carrying `transition-colors`, and axe reads `getComputedStyle` off whatever
- * frame it lands on, so a tween in flight is reported as if it were the shipped
- * colour. That is what #946 chased — four "contrast misses" in the mobile
- * drawer that were each an interpolation between the light and dark values of
- * `--muted-foreground`, one of them measured against a background matching no
- * token in the palette at all. The ratios moved run to run, which no real token
- * pair can do. Killing transitions and animations outright pins the audit to the
- * settled palette, which is the only thing worth asserting; it also removes the
- * fade-settle that the dialog audits needed for the same reason (#775).
+ * `assertScript` is a one-shot evaluation with no retry, the same trap
+ * `queryParamSettles()` covers on the URL side. A dock panel opens on a
+ * client-side switch and then fetches its own props with `reset:`, so between
+ * its first row appearing (which `assertPresent` waits for) and the list
+ * settling there is a window where the merged page is being replaced and the
+ * list is momentarily empty. On a loaded parallel runner the one-shot read
+ * lands inside that window and sees 0 (#965).
+ *
+ * Polling stops at the first frame the count matches, which is the settled
+ * value in practice: the transient the panel passes through is the empty list,
+ * never a different non-zero total.
  */
-function switchToDarkTheme(AwaitableWebpage $page): AwaitableWebpage
+function elementCountSettles(string $selector, int $count): string
+{
+    $needle = json_encode($selector, JSON_THROW_ON_ERROR);
+
+    return <<<JS
+    (async () => {
+        const settled = () => document.querySelectorAll({$needle}).length === {$count};
+
+        for (let frame = 0; frame < 120 && ! settled(); frame++) {
+            await new Promise(requestAnimationFrame);
+        }
+
+        return settled();
+    })()
+    JS;
+}
+
+/**
+ * Pin a live page to its settled styles by killing transitions and animations.
+ *
+ * axe reads `getComputedStyle` off whatever frame it lands on, so a tween in
+ * flight is reported as if it were the shipped colour — a "contrast miss"
+ * between two states that each pass, against a blended background matching no
+ * token in the palette. #946 chased that through the theme flip; the same trap
+ * catches any audit that follows a control changing state, such as the threads
+ * filter pills swapping foreground and background on `aria-pressed` (#965).
+ * Applying `transition: none` also cancels whatever is already running, so the
+ * elements snap to their target styles rather than finishing the tween.
+ */
+function suppressTransitions(AwaitableWebpage $page): AwaitableWebpage
 {
     $page->script(<<<'JS'
     () => {
@@ -223,7 +251,32 @@ function switchToDarkTheme(AwaitableWebpage $page): AwaitableWebpage
         settled.textContent =
             '*, *::before, *::after { transition: none !important; animation: none !important; }';
         document.head.appendChild(settled);
+    }
+    JS);
 
+    return $page;
+}
+
+/**
+ * Repaint a live page in the dark palette, settled enough for an axe audit.
+ *
+ * Persisting to localStorage first keeps the appearance controller from
+ * re-resolving `system` back to light. Suppressing transitions first is the part
+ * that makes the audit trustworthy: swapping the palette re-tints every element
+ * carrying `transition-colors`, and #946 was four "contrast misses" in the
+ * mobile drawer that were each an interpolation between the light and dark
+ * values of `--muted-foreground`, one of them measured against a background
+ * matching no token in the palette at all. The ratios moved run to run, which no
+ * real token pair can do. Pinning the audit to the settled palette is the only
+ * thing worth asserting; it also removes the fade-settle that the dialog audits
+ * needed for the same reason (#775). See suppressTransitions().
+ */
+function switchToDarkTheme(AwaitableWebpage $page): AwaitableWebpage
+{
+    $page = suppressTransitions($page);
+
+    $page->script(<<<'JS'
+    () => {
         localStorage.setItem('appearance', 'dark');
         document.documentElement.classList.add('dark');
         document.documentElement.style.colorScheme = 'dark';
