@@ -34,7 +34,7 @@
         <link rel="icon" href="/favicon.svg" type="image/svg+xml">
         <link rel="apple-touch-icon" href="/apple-touch-icon.png">
 
-        <link rel="manifest" href="/build/manifest.webmanifest">
+        <link rel="manifest" href="/manifest.webmanifest">
         <meta name="mobile-web-app-capable" content="yes">
         {{-- iOS reads the legacy meta, not the manifest, when adding to the home screen. --}}
         <meta name="apple-mobile-web-app-capable" content="yes">
