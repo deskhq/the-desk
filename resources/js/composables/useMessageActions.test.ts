@@ -30,7 +30,10 @@ vi.mock('@/composables/useToast', () => {
     return { useToast: () => toast };
 });
 
-import { useMessageActions } from '@/composables/useMessageActions';
+import {
+    QUEUED_SENDS_TOAST_KEY,
+    useMessageActions,
+} from '@/composables/useMessageActions';
 import type { MessageActions } from '@/composables/useMessageActions';
 import { useMessageStream } from '@/composables/useMessageStream';
 import { createOutbox } from '@/lib/outbox';
@@ -99,6 +102,8 @@ function harness(
         setup.activeThreadRootId ?? null,
     );
     const replyTarget: Ref<Message | null> = ref(setup.replyTarget ?? null);
+    /** Flippable so a test can queue offline and then reconnect, as the app does. */
+    const isOnline = ref(setup.isOnline ?? true);
 
     let actions!: MessageActions;
     let mainStream!: Stream;
@@ -113,7 +118,7 @@ function harness(
             teamSlug: () => 'acme',
             channel: () => channel,
             currentUser: () => me,
-            isOnline: () => setup.isOnline ?? true,
+            isOnline: () => isOnline.value,
             outbox,
             mainStream,
             threadStream,
@@ -133,6 +138,7 @@ function harness(
         mainStream,
         threadStream,
         outbox,
+        isOnline,
         activeThreadRootId,
         cancelDraft,
         clearDraft,
@@ -151,6 +157,8 @@ function optionsOf(
     only?: string[];
     onError?: () => void;
     onSuccess?: () => void;
+    onFinish?: () => void;
+    onCancel?: () => void;
 } {
     return mock.mock.calls[call][2];
 }
@@ -158,6 +166,14 @@ function optionsOf(
 /** The payload (second argument) of the nth recorded call on a router mock. */
 function payloadOf(mock: typeof post, call = 0): Record<string, unknown> {
     return mock.mock.calls[call][1];
+}
+
+/**
+ * Drain the microtask queue. A flush resolves through several awaits before it
+ * reports its outcome, so a single `nextTick` is not far enough down the chain.
+ */
+function settle(): Promise<void> {
+    return new Promise((resolve) => setTimeout(resolve, 0));
 }
 
 /** `router.delete` takes its options as the second argument (no request body). */
@@ -318,40 +334,208 @@ describe('useMessageActions', () => {
     });
 
     describe('flushOutbox', () => {
-        it('posts each queued send in order and empties the queue', () => {
+        it('posts each queued send in order and empties the queue', async () => {
             const h = harness({ isOnline: false });
 
             h.actions.send('first', []);
             h.actions.send('second', []);
             expect(post).not.toHaveBeenCalled();
 
-            h.actions.flushOutbox();
+            const flushed = h.actions.flushOutbox();
+
+            // One at a time: the second only goes out once the first has
+            // settled, so a queued conversation arrives in the order it was
+            // typed rather than in whatever order the requests happen to land.
+            expect(post).toHaveBeenCalledTimes(1);
+            expect(payloadOf(post, 0)).toMatchObject({ body: 'first' });
+
+            optionsOf(post, 0).onFinish?.();
+            await settle();
 
             expect(post).toHaveBeenCalledTimes(2);
-            expect(payloadOf(post, 0)).toMatchObject({ body: 'first' });
             expect(payloadOf(post, 1)).toMatchObject({ body: 'second' });
+
+            optionsOf(post, 1).onFinish?.();
+
+            await expect(flushed).resolves.toBe(2);
             expect(h.outbox.count.value).toBe(0);
         });
 
-        it('rolls a flushed row back and toasts if its post fails', () => {
+        it('re-queues a flushed send whose post fails, keeping its row', () => {
             const h = harness({ isOnline: false });
 
             h.actions.send('doomed', []);
             h.actions.flushOutbox();
+            expect(h.outbox.count.value).toBe(0);
             expect(h.mainStream.pendingUuids.value).toHaveLength(1);
 
             optionsOf(post).onError?.();
 
-            expect(h.mainStream.pendingUuids.value).toHaveLength(0);
-            expect(toastError).toHaveBeenCalledOnce();
+            // The send is back on the queue rather than lost, so "Retry all"
+            // has something to retry, and its row still reads as queued.
+            expect(h.outbox.count.value).toBe(1);
+            expect(h.outbox.items.value[0]).toMatchObject({ body: 'doomed' });
+            expect(h.mainStream.pendingUuids.value).toHaveLength(1);
         });
 
-        it('is a no-op with an empty queue', () => {
-            const h = harness();
+        it('announces a failed flush as one toast counting the queue', async () => {
+            const h = harness({ isOnline: false });
 
+            h.actions.send('first', []);
+            h.actions.send('second', []);
             h.actions.flushOutbox();
 
+            optionsOf(post, 0).onError?.();
+            optionsOf(post, 0).onFinish?.();
+            await settle();
+
+            optionsOf(post, 1).onError?.();
+            optionsOf(post, 1).onFinish?.();
+            await settle();
+
+            // The count is the queue's, not a tally of failures seen, and the
+            // repeats merge onto one card rather than stacking two.
+            const [title, options] = toastError.mock.calls.at(-1) ?? [];
+            expect(title).toBe("2 messages didn't send");
+            expect(options).toMatchObject({
+                key: QUEUED_SENDS_TOAST_KEY,
+                action: { label: 'Retry all' },
+            });
+        });
+
+        it('re-queues a flushed send whose visit is cancelled', () => {
+            const h = harness({ isOnline: false });
+
+            h.actions.send('interrupted', []);
+            h.isOnline.value = true;
+            h.actions.flushOutbox();
+
+            // A cancelled visit never reports through `onError`, so without this
+            // the send would vanish from the queue having never been posted.
+            optionsOf(post, 0).onCancel?.();
+
+            expect(h.outbox.count.value).toBe(1);
+            expect(h.outbox.items.value[0]).toMatchObject({
+                body: 'interrupted',
+            });
+        });
+
+        it('resolves with how many of the queued sends actually landed', async () => {
+            const h = harness({ isOnline: false });
+
+            h.actions.send('lands', []);
+            h.actions.send('fails', []);
+            h.isOnline.value = true;
+
+            const flushed = h.actions.flushOutbox();
+
+            optionsOf(post, 0).onFinish?.();
+            await settle();
+
+            optionsOf(post, 1).onError?.();
+            optionsOf(post, 1).onFinish?.();
+
+            // Counted from the posts themselves, not from how the queue's length
+            // moved — a send made while the flush is in flight would skew that.
+            await expect(flushed).resolves.toBe(1);
+        });
+
+        it('is a no-op with an empty queue', async () => {
+            const h = harness();
+
+            await expect(h.actions.flushOutbox()).resolves.toBe(0);
+
             expect(post).not.toHaveBeenCalled();
+        });
+    });
+
+    describe('retryQueuedSends', () => {
+        /**
+         * Walk the real sequence: a send queued offline, a reconnect, and a
+         * flush that fails. Hands back the failure toast's Retry all.
+         */
+        function queueOneFailedSend(): {
+            h: ReturnType<typeof harness>;
+            retryAll: () => void;
+        } {
+            const h = harness({ isOnline: false });
+
+            h.actions.send('doomed', []);
+            h.isOnline.value = true;
+            h.actions.flushOutbox();
+            optionsOf(post, 0).onError?.();
+            optionsOf(post, 0).onFinish?.();
+
+            const options = toastError.mock.calls.at(-1)?.[1];
+
+            return { h, retryAll: options.action.run };
+        }
+
+        it('reposts the queue from the toast action', () => {
+            const { retryAll } = queueOneFailedSend();
+
+            retryAll();
+
+            expect(post).toHaveBeenCalledTimes(2);
+            expect(payloadOf(post, 1)).toMatchObject({ body: 'doomed' });
+        });
+
+        it('confirms on the same card once the queue drains', async () => {
+            const { h, retryAll } = queueOneFailedSend();
+            toastError.mockClear();
+
+            retryAll();
+            optionsOf(post, 1).onFinish?.();
+            await settle();
+
+            expect(h.outbox.count.value).toBe(0);
+            expect(toastSuccess).toHaveBeenCalledWith('Queued message sent', {
+                key: QUEUED_SENDS_TOAST_KEY,
+            });
+            expect(toastError).not.toHaveBeenCalled();
+        });
+
+        it('re-announces the still-queued count when the retry fails again', async () => {
+            const { h, retryAll } = queueOneFailedSend();
+            toastError.mockClear();
+
+            retryAll();
+            optionsOf(post, 1).onError?.();
+            optionsOf(post, 1).onFinish?.();
+            await settle();
+
+            expect(h.outbox.count.value).toBe(1);
+            expect(toastError).toHaveBeenCalledWith("1 message didn't send", {
+                key: QUEUED_SENDS_TOAST_KEY,
+                action: { label: 'Retry all', run: expect.any(Function) },
+            });
+            expect(toastSuccess).not.toHaveBeenCalled();
+        });
+
+        it('holds the queue instead of reposting while still offline', async () => {
+            const h = harness({ isOnline: false });
+
+            h.actions.send('later', []);
+            await h.actions.retryQueuedSends();
+
+            // Posting into a dead connection would drain the queue on a request
+            // that never lands, losing the send.
+            expect(post).not.toHaveBeenCalled();
+            expect(h.outbox.count.value).toBe(1);
+            expect(toastSuccess).not.toHaveBeenCalled();
+            expect(toastError).toHaveBeenCalledWith("1 message didn't send", {
+                key: QUEUED_SENDS_TOAST_KEY,
+                action: { label: 'Retry all', run: expect.any(Function) },
+            });
+        });
+
+        it('does nothing with an empty queue', async () => {
+            const h = harness();
+
+            await h.actions.retryQueuedSends();
+
+            expect(post).not.toHaveBeenCalled();
+            expect(toastSuccess).not.toHaveBeenCalled();
         });
     });
 

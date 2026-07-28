@@ -124,8 +124,18 @@ export interface MessageActions {
         attachmentIds?: string[],
         callbacks?: SendCallbacks,
     ) => void;
-    /** Post every queued send, in order, then drop each from the queue. */
-    flushOutbox: () => void;
+    /**
+     * Post every queued send, in order, dropping each from the queue as it goes
+     * and putting back the ones that fail. Resolves, once every post has
+     * settled, with how many of them actually landed.
+     */
+    flushOutbox: () => Promise<number>;
+    /**
+     * Flush the queue at the user's request — the "Retry all" the failure toast
+     * carries — and report the outcome on that same card: a confirmation when
+     * the queue drains, or the failure card again with its new count.
+     */
+    retryQueuedSends: () => Promise<void>;
     /** Save an edit, optimistically, rolling the patch back on error. */
     editMessage: (message: Message, body: string) => void;
     /** Delete a message, optimistically, rolling the tombstone back on error. */
@@ -177,6 +187,13 @@ export interface MessageActions {
 }
 
 /**
+ * Merge identity for every toast about the offline queue. The failure card and
+ * the retry's confirmation share it so the outcome swaps into the card the user
+ * pressed Retry all on, instead of stacking a second one behind it.
+ */
+export const QUEUED_SENDS_TOAST_KEY = 'queued-sends';
+
+/**
  * Own the channel's optimistic-mutation engine: every message action follows the
  * same shape — capture the previous state, apply optimistically, fire the router
  * call, then roll back and toast on failure. Concentrating the eight-plus call
@@ -224,34 +241,57 @@ export function useMessageActions(
         replyToId: string | null;
         attachmentIds: string[];
         callbacks?: SendCallbacks;
-    }): void {
-        router.post(
-            storeMessage({
-                team: options.teamSlug(),
-                channel: options.channel().slug,
-            }).url,
-            {
-                body: item.body,
-                client_uuid: item.clientUuid,
-                reply_to_id: item.replyToId,
-                attachment_ids: item.attachmentIds,
-            },
-            {
-                preserveScroll: true,
-                onSuccess: () => item.callbacks?.onAccepted?.(),
-                onError: () => {
-                    // The optimistic row failed to persist; roll it back and notify.
-                    options.mainStream.removePending(item.clientUuid);
-                    const message = t(
-                        'Your message failed to send. Please try again.',
-                    );
-                    toast.error(message);
-                    options.onSendFailure?.(message);
-                    // Hand the staged attachments back so the send is retryable.
-                    item.callbacks?.onRejected?.();
+        /**
+         * Replaces the default rollback-and-toast when the post fails. A flushed
+         * send is not a lost send — it goes back on the queue with its row
+         * intact — so the flush path substitutes its own handling here.
+         */
+        onFailure?: () => void;
+    }): Promise<void> {
+        // Resolves once the request has settled either way, so a flush can wait
+        // for the whole queue before reporting what became of it.
+        return new Promise((resolve) => {
+            router.post(
+                storeMessage({
+                    team: options.teamSlug(),
+                    channel: options.channel().slug,
+                }).url,
+                {
+                    body: item.body,
+                    client_uuid: item.clientUuid,
+                    reply_to_id: item.replyToId,
+                    attachment_ids: item.attachmentIds,
                 },
-            },
-        );
+                {
+                    preserveScroll: true,
+                    onSuccess: () => item.callbacks?.onAccepted?.(),
+                    onError: () => {
+                        if (item.onFailure) {
+                            item.onFailure();
+
+                            return;
+                        }
+
+                        // The optimistic row failed to persist; roll it back and notify.
+                        options.mainStream.removePending(item.clientUuid);
+                        const message = t(
+                            'Your message failed to send. Please try again.',
+                        );
+                        toast.error(message);
+                        options.onSendFailure?.(message);
+                        // Hand the staged attachments back so the send is retryable.
+                        item.callbacks?.onRejected?.();
+                    },
+                    // A cancelled visit reports through neither `onSuccess` nor
+                    // `onError`, so a flushed send would otherwise leave the
+                    // queue having never been posted. The live-send path keeps
+                    // its existing behaviour, which is to let the composer's
+                    // callbacks stand.
+                    onCancel: () => item.onFailure?.(),
+                    onFinish: () => resolve(),
+                },
+            );
+        });
     }
 
     function send(
@@ -284,7 +324,9 @@ export function useMessageActions(
         nextTick(() => options.scrollToBottom());
 
         if (options.isOnline()) {
-            postMessage({
+            // A live send reports itself through `callbacks`; nothing here waits
+            // on it, unlike a flush, which needs the whole queue to settle.
+            void postMessage({
                 clientUuid,
                 body,
                 replyToId,
@@ -306,13 +348,96 @@ export function useMessageActions(
         callbacks.onAccepted?.();
     }
 
-    function flushOutbox(): void {
+    /**
+     * Report that the queue did not fully drain. Every failure in a flush calls
+     * this, and they merge onto one card under {@link QUEUED_SENDS_TOAST_KEY};
+     * the count is read off the queue at announce time rather than tallied per
+     * failure, so ten failed sends read "10 messages didn't send" once instead
+     * of stacking ten identical toasts.
+     */
+    function announceQueuedSends(): void {
+        const queued = options.outbox.count.value;
+
+        toast.error(
+            queued === 1
+                ? t("1 message didn't send")
+                : t(":count messages didn't send", { count: queued }),
+            {
+                key: QUEUED_SENDS_TOAST_KEY,
+                action: {
+                    label: t('Retry all'),
+                    run: () => void retryQueuedSends(),
+                },
+            },
+        );
+    }
+
+    async function flushOutbox(): Promise<number> {
         // Snapshot first: `postMessage` never mutates the queue, but draining as
         // we go keeps the queued-row markers clearing in send order.
-        for (const item of [...options.outbox.items.value]) {
+        const queued = [...options.outbox.items.value];
+        // Counted from the posts rather than from how the queue's length moved:
+        // a send made while the flush is in flight would skew that difference.
+        let landed = 0;
+
+        for (const item of queued) {
             options.outbox.remove(item.clientUuid);
-            postMessage(item);
+
+            let failed = false;
+
+            // Awaited before the next one goes out, so a queued conversation
+            // reaches the server in the order it was typed rather than in
+            // whatever order concurrent requests happen to land.
+            await postMessage({
+                ...item,
+                // A flush that fails leaves the send exactly where it was —
+                // queued, with its row still marked as such — so the user can
+                // retry the whole queue rather than losing it a message at a time.
+                onFailure: () => {
+                    failed = true;
+                    options.outbox.enqueue(item);
+                    announceQueuedSends();
+                },
+            });
+
+            if (!failed) {
+                landed += 1;
+            }
         }
+
+        return landed;
+    }
+
+    async function retryQueuedSends(): Promise<void> {
+        const retrying = options.outbox.count.value;
+
+        if (retrying === 0) {
+            return;
+        }
+
+        // Posting into a connection that is still down would drain the queue on
+        // a request that never lands. Say so instead, and leave Retry all for
+        // when it can do something.
+        if (!options.isOnline()) {
+            announceQueuedSends();
+
+            return;
+        }
+
+        const sent = await flushOutbox();
+
+        // Anything still queued has already re-raised the failure card with its
+        // new count, so the only outcome left to report is a clean drain.
+        if (options.outbox.count.value > 0) {
+            return;
+        }
+
+        toast.success(
+            sent === 1
+                ? t('Queued message sent')
+                : t(':count queued messages sent', { count: sent }),
+            { key: QUEUED_SENDS_TOAST_KEY },
+        );
     }
 
     function editMessage(message: Message, body: string): void {
@@ -893,6 +1018,7 @@ export function useMessageActions(
     return {
         send,
         flushOutbox,
+        retryQueuedSends,
         editMessage,
         deleteMessage,
         reactToMessage,
