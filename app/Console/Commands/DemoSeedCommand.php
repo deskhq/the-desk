@@ -47,16 +47,37 @@ class DemoSeedCommand extends Command
     }
 
     /**
-     * Freeze the clock at the given instant, reporting rather than guessing when
-     * it cannot be parsed.
+     * An absolute ISO 8601 instant: a date, a time, and an explicit zone.
      *
-     * The seeder back-dates its entire narrative from `Carbon::now()`, so an
-     * unparseable value silently falling back to the wall clock would produce a
-     * fixture that looks right and photographs differently on every run — the
-     * exact failure the shell capture's gate exists to catch (see issue #1013).
+     * Anything looser defeats the point. `Carbon::parse()` happily accepts
+     * `tomorrow` (which re-anchors to the wall clock, so nothing is pinned at
+     * all) and a bare `2026-06-10` (which resolves against the machine's
+     * timezone, so the same command produces different fixtures on different
+     * hosts). Both parse, both look like they worked, and both make the capture
+     * irreproducible — so neither is accepted.
+     */
+    private const string INSTANT_PATTERN = '/^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}(:\d{2})?(Z|[+-]\d{2}:?\d{2})$/';
+
+    /**
+     * Freeze the clock at the given instant, reporting rather than guessing when
+     * it is not one.
+     *
+     * The seeder back-dates its entire narrative from `Carbon::now()`, so a
+     * value that silently falls back to the wall clock would produce a fixture
+     * that looks right and photographs differently on every run — the exact
+     * failure the shell capture's gate exists to catch (see issue #1013).
      */
     private function pinClock(string $at): bool
     {
+        if (preg_match(self::INSTANT_PATTERN, $at) !== 1) {
+            $this->components->error(sprintf(
+                '[%s] is not a valid instant. Pass an absolute ISO 8601 timestamp with a zone, e.g. 2026-06-10T14:30:00Z.',
+                $at,
+            ));
+
+            return false;
+        }
+
         try {
             Carbon::setTestNow(Carbon::parse($at));
         } catch (InvalidFormatException) {

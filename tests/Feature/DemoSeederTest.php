@@ -230,11 +230,24 @@ test('--at releases the clock so it cannot leak into whatever runs next', functi
     expect(Carbon::hasTestNow())->toBeFalse();
 });
 
-test('--at rejects an instant it cannot parse rather than seeding from a silent fallback', function (): void {
-    artisan('demo:seed', ['--at' => 'launch day'])
+/**
+ * Every one of these parses as *something* — which is the danger. A relative
+ * value re-anchors to the wall clock, so nothing is pinned; a bare date resolves
+ * against the machine's timezone, so the same command seeds differently on
+ * different hosts. Both would leave a capture that looks pinned and is not.
+ */
+test('--at rejects anything that is not an absolute instant, rather than seeding from a silent fallback', function (string $at): void {
+    artisan('demo:seed', ['--at' => $at])
         ->expectsOutputToContain('not a valid instant')
         ->assertFailed();
-});
+})->with([
+    'prose' => 'launch day',
+    'relative' => 'tomorrow',
+    'relative offset' => '-2 days',
+    'date without a time' => '2026-06-10',
+    'time without a zone' => '2026-06-10T14:30:00',
+    'well-formed but impossible' => '2026-13-45T14:30:00Z',
+]);
 
 test('re-running the command rebuilds a single pristine workspace', function (): void {
     // A deterministic seeder must reproduce the same shape on every run, so

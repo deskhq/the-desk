@@ -59,6 +59,11 @@ test('the gate watches every input that can move the shell', function (string $p
     // component does.
     'database/seeders/DemoSeeder.php',
     'app/Console/Commands/DemoSeedCommand.php',
+    // A dependency bump can restyle the shell without a line of our own code
+    // changing, and those PRs touch nothing but a lockfile — so without these
+    // the gate would wave through exactly the changes nobody reads closely.
+    'package-lock.json',
+    'composer.lock',
     // The capture pipeline itself, so a change to how the shot is taken is
     // proven against the committed bytes rather than assumed.
     'bin/capture-shell',

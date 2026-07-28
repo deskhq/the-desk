@@ -83,6 +83,27 @@ assert_fresh_bundle() {
         "$REPO_ROOT/tests/Support/StaleBundleGuard.php" "$REPO_ROOT"
 }
 
+# Refuse to run when the capture database *is* the application's own.
+#
+# The next thing this script does is `migrate:fresh`, so getting this wrong drops
+# a working database — the developer's, or in CI the one the rest of the suite
+# is using. Nothing about the failure would point back here: the capture would
+# succeed and the loss would surface later, somewhere else.
+assert_capture_database_is_disposable() {
+    local configured
+
+    configured="$(php artisan tinker --execute 'echo config("database.connections.".config("database.default").".database");')"
+
+    if [ "$CAPTURE_DB" = "$configured" ]; then
+        cat >&2 <<EOF
+Refusing to capture: CAPTURE_DB is [$CAPTURE_DB], which is the database this
+application is configured to use. bin/capture-shell runs migrate:fresh against
+it, so it has to be a throwaway. Set CAPTURE_DB to a different name.
+EOF
+        exit 1
+    fi
+}
+
 # Create the throwaway capture database if it is not there yet.
 #
 # Done over the app's own PDO connection rather than `createdb`, so the script
@@ -134,9 +155,18 @@ seed_fixture() {
 read_fixture_identity() {
     local identity
 
-    identity="$(php artisan tinker --execute 'echo implode(" ", [Database\Seeders\DemoSeeder::DEMO_EMAIL, Database\Seeders\DemoSeeder::DEMO_PASSWORD, Database\Seeders\DemoSeeder::TEAM_SLUG]);')"
+    # One value per line, read whole: splitting three values out of a single
+    # space-separated line would silently truncate a demo password that ever
+    # gained a space, and the capture would then fail at the login form with
+    # nothing pointing back to here. A non-printing delimiter would be tidier
+    # still, but tinker strips those from its output.
+    identity="$(php artisan tinker --execute 'echo implode(PHP_EOL, [Database\Seeders\DemoSeeder::DEMO_EMAIL, Database\Seeders\DemoSeeder::DEMO_PASSWORD, Database\Seeders\DemoSeeder::TEAM_SLUG]);')"
 
-    read -r CAPTURE_EMAIL CAPTURE_PASSWORD CAPTURE_TEAM_SLUG <<<"$identity"
+    {
+        IFS= read -r CAPTURE_EMAIL
+        IFS= read -r CAPTURE_PASSWORD
+        IFS= read -r CAPTURE_TEAM_SLUG
+    } <<<"$identity"
 
     if [ -z "${CAPTURE_TEAM_SLUG:-}" ]; then
         printf 'Could not read the demo fixture identity from DemoSeeder.\n' >&2
@@ -227,6 +257,10 @@ main() {
     assert_fresh_bundle
 
     mkdir -p "$ASSET_DIR" "$ACTUAL_DIR" "$REPO_ROOT/storage/logs"
+
+    # Checked before DB_DATABASE is overridden below, while the configuration
+    # still reports the database the application actually uses.
+    assert_capture_database_is_disposable
 
     export DB_DATABASE="$CAPTURE_DB"
     export GRAVATAR_ENABLED=false

@@ -28,6 +28,10 @@ on:
       # timestamps all come from the demo seeder.
       - 'database/seeders/DemoSeeder.php'
       - 'app/Console/Commands/DemoSeedCommand.php'
+      # A dependency bump can restyle the shell without a line of our own code
+      # changing, and those PRs touch nothing but a lockfile.
+      - 'package-lock.json'
+      - 'composer.lock'
       - 'bin/capture-shell'
       - 'bin/capture-shell.mjs'
       - '.github/workflows/shell-capture.yml'
@@ -41,6 +45,8 @@ on:
       - '!resources/js/**/*.test.ts'
       - 'database/seeders/DemoSeeder.php'
       - 'app/Console/Commands/DemoSeedCommand.php'
+      - 'package-lock.json'
+      - 'composer.lock'
       - 'bin/capture-shell'
       - 'bin/capture-shell.mjs'
       - '.github/workflows/shell-capture.yml'

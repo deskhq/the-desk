@@ -41,7 +41,34 @@ const ACTUAL_DIR = requireEnv('CAPTURE_ACTUAL_DIR');
  * Wide enough to swallow that, far too narrow to swallow a redesign: a moved
  * pane or a changed control shifts percent, not per-mille.
  */
-const MAX_DIFF_RATIO = Number(process.env.CAPTURE_MAX_DIFF_RATIO ?? '0.002');
+const MAX_DIFF_RATIO = diffRatioLimit(process.env.CAPTURE_MAX_DIFF_RATIO);
+
+/**
+ * The configured limit, or the default when nothing usable was configured.
+ *
+ * A bare `Number()` would turn a typo into `NaN`, and every `ratio > NaN` is
+ * false — so a mistyped override would not loosen the gate, it would disable it,
+ * silently and while still reporting each variant as a match.
+ */
+function diffRatioLimit(configured) {
+    const fallback = 0.002;
+
+    if (configured === undefined) {
+        return fallback;
+    }
+
+    const parsed = Number(configured);
+
+    if (!Number.isFinite(parsed) || parsed < 0 || parsed > 1) {
+        console.warn(
+            `CAPTURE_MAX_DIFF_RATIO=${configured} is not a ratio between 0 and 1; using ${fallback}.`,
+        );
+
+        return fallback;
+    }
+
+    return parsed;
+}
 
 /**
  * How different two pixels must be to count as different at all, per channel,
@@ -254,52 +281,60 @@ function shortHash(png) {
     return createHash('sha256').update(png).digest('hex').slice(0, 12);
 }
 
-const browser = await chromium.launch({ headless: true });
-const storageState = await clearUnreadState(browser);
-
 const drifted = [];
+const browser = await chromium.launch({ headless: true });
 
-// A blank page to run the pixel comparison in; `about:blank` is same-origin
-// with nothing, so the canvas it draws data: URLs into stays readable.
-const comparisonPage = CHECK_ONLY ? await browser.newPage() : null;
+// Closed however this ends: a browser left running holds a Chromium and its
+// pages open for the life of the shell that started it, and this repo has spent
+// enough time chasing leaked Playwright processes already (see bin/browser-tests).
+try {
+    const storageState = await clearUnreadState(browser);
 
-for (const variant of VARIANTS) {
-    const shot = await capture(browser, variant, storageState);
-    const path = assetPath(variant);
+    // A blank page to run the pixel comparison in; `about:blank` is same-origin
+    // with nothing, so the canvas it draws data: URLs into stays readable.
+    const comparisonPage = CHECK_ONLY ? await browser.newPage() : null;
 
-    if (!CHECK_ONLY) {
-        writeFileSync(path, shot);
-        console.log(`wrote ${path} (${shortHash(shot)})`);
+    for (const variant of VARIANTS) {
+        const shot = await capture(browser, variant, storageState);
+        const path = assetPath(variant);
 
-        continue;
+        if (!CHECK_ONLY) {
+            writeFileSync(path, shot);
+            console.log(`wrote ${path} (${shortHash(shot)})`);
+
+            continue;
+        }
+
+        if (!existsSync(path)) {
+            drifted.push({
+                variant: variant.name,
+                reason: 'no committed capture',
+            });
+            writeFileSync(join(ACTUAL_DIR, `${variant.name}.png`), shot);
+
+            continue;
+        }
+
+        const ratio = await diffRatio(comparisonPage, readFileSync(path), shot);
+
+        if (ratio > MAX_DIFF_RATIO) {
+            const actualPath = join(ACTUAL_DIR, `${variant.name}.png`);
+            writeFileSync(actualPath, shot);
+            drifted.push({
+                variant: variant.name,
+                reason: `${(ratio * 100).toFixed(3)}% of pixels differ (limit ${(MAX_DIFF_RATIO * 100).toFixed(3)}%), rendered ${basename(actualPath)}`,
+            });
+
+            continue;
+        }
+
+        console.log(
+            `${variant.name} matches (${(ratio * 100).toFixed(3)}% of pixels differ)`,
+        );
     }
-
-    if (!existsSync(path)) {
-        drifted.push({ variant: variant.name, reason: 'no committed capture' });
-        writeFileSync(join(ACTUAL_DIR, `${variant.name}.png`), shot);
-
-        continue;
-    }
-
-    const ratio = await diffRatio(comparisonPage, readFileSync(path), shot);
-
-    if (ratio > MAX_DIFF_RATIO) {
-        const actualPath = join(ACTUAL_DIR, `${variant.name}.png`);
-        writeFileSync(actualPath, shot);
-        drifted.push({
-            variant: variant.name,
-            reason: `${(ratio * 100).toFixed(3)}% of pixels differ (limit ${(MAX_DIFF_RATIO * 100).toFixed(3)}%), rendered ${basename(actualPath)}`,
-        });
-
-        continue;
-    }
-
-    console.log(
-        `${variant.name} matches (${(ratio * 100).toFixed(3)}% of pixels differ)`,
-    );
+} finally {
+    await browser.close();
 }
-
-await browser.close();
 
 if (drifted.length > 0) {
     console.error('\nThe app shell no longer matches its committed captures:');
