@@ -60,6 +60,14 @@ return [
         'block_private_urls' => (bool) env('WEBHOOKS_BLOCK_PRIVATE_URLS', true),
 
         /*
+         * How many days of delivery attempts to keep. Each attempt stores the
+         * envelope it POSTed — which is what makes a manual replay possible —
+         * so the log holds a copy of workspace data and is pruned daily. Set to
+         * 0 to keep every attempt forever.
+         */
+        'retention_days' => (int) env('WEBHOOKS_DELIVERY_RETENTION_DAYS', 30),
+
+        /*
          * Seconds to wait before each retry, indexed by the number of prior
          * attempts. The last value is reused once the list is exhausted.
          */

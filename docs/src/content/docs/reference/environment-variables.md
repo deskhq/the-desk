@@ -144,6 +144,7 @@ production — see [Configuration](/self-hosting/configuration/#reverb-websocket
 | `WEBHOOKS_TIMEOUT`           | `5`     | [Feature toggles → Integrations platform](/reference/feature-toggles/#outgoing-webhooks) |
 | `WEBHOOKS_DISABLE_AFTER`     | `5`     | [Feature toggles → Integrations platform](/reference/feature-toggles/#outgoing-webhooks) |
 | `WEBHOOKS_BLOCK_PRIVATE_URLS`| `true`  | [Feature toggles → Integrations platform](/reference/feature-toggles/#outgoing-webhooks) |
+| `WEBHOOKS_DELIVERY_RETENTION_DAYS` | `30` | [Feature toggles → Integrations platform](/reference/feature-toggles/#outgoing-webhooks) |
 | `DEMO_MODE`                  | `false` | [Feature toggles → Demo mode](/reference/feature-toggles/#demo-mode) |
 | `CSP_ENABLED`                | `true`  | [Feature toggles → Content Security Policy](/reference/feature-toggles/#content-security-policy) |
 | `CSP_REPORT_ONLY`            | `false` | [Feature toggles → Content Security Policy](/reference/feature-toggles/#content-security-policy) |

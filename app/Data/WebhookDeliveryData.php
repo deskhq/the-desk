@@ -8,8 +8,8 @@ use Spatie\TypeScriptTransformer\Attributes\TypeScript;
 
 /**
  * One recorded delivery attempt as shown in a subscription's delivery log — the
- * event, the endpoint's answer (status + latency), which retry it was, and any
- * error summary.
+ * event, the endpoint's answer (status + latency), which retry it was, any
+ * error summary, and whether it was (or can be) replayed by hand.
  */
 #[TypeScript]
 class WebhookDeliveryData extends Data
@@ -24,6 +24,10 @@ class WebhookDeliveryData extends Data
         public int $attempt,
         public ?string $error,
         public string $createdAt,
+        /** Whether this attempt was itself fired by a manual replay. */
+        public bool $isReplay,
+        /** Whether the attempt kept the envelope needed to re-fire it. */
+        public bool $replayable,
     ) {}
 
     /**
@@ -41,6 +45,8 @@ class WebhookDeliveryData extends Data
             attempt: $delivery->attempt,
             error: $delivery->error,
             createdAt: $delivery->created_at?->toISOString() ?? '',
+            isReplay: $delivery->is_replay,
+            replayable: $delivery->isReplayable(),
         );
     }
 }

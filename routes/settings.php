@@ -217,6 +217,12 @@ Route::middleware(['auth', 'verified'])->group(function (): void {
                 ->name('teams.integrations.webhooks.reenable');
             Route::post('settings/teams/{team}/integrations/webhooks/{webhookSubscription}/rotate-secret', [WebhookSubscriptionController::class, 'rotateSecret'])
                 ->name('teams.integrations.webhooks.rotate-secret');
+            // Replaying re-POSTs to an operator-supplied external URL, so it is
+            // throttled per actor to keep the button from being used to hammer
+            // a third party.
+            Route::post('settings/teams/{team}/integrations/webhooks/{webhookSubscription}/deliveries/{webhookDelivery}/replay', [WebhookSubscriptionController::class, 'replay'])
+                ->middleware('throttle:webhook-replay')
+                ->name('teams.integrations.webhooks.deliveries.replay');
         });
     });
 });

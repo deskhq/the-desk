@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Head, useForm } from '@inertiajs/vue3';
-import { RotateCw, TriangleAlert } from '@lucide/vue';
+import { RefreshCw, RotateCw, TriangleAlert } from '@lucide/vue';
 import { computed, ref } from 'vue';
 import RevealSecretDialog from '@/components/integrations/RevealSecretDialog.vue';
 import { Button } from '@/components/ui/button';
@@ -24,6 +24,7 @@ import {
     reenable as webhookReenable,
     rotateSecret as webhookRotateSecret,
 } from '@/routes/teams/integrations/webhooks';
+import { replay as webhookReplay } from '@/routes/teams/integrations/webhooks/deliveries';
 import type { Team } from '@/types';
 
 type Detail = App.Data.WebhookSubscriptionDetailData;
@@ -104,6 +105,26 @@ function rotate(): void {
             webhookSubscription: subscription.value.id,
         }).url,
         { preserveScroll: true },
+    );
+}
+
+const replayForm = useForm({});
+const replayingId = ref<string | null>(null);
+
+function replay(delivery: Delivery): void {
+    replayingId.value = delivery.id;
+    replayForm.post(
+        webhookReplay({
+            team: props.team.slug,
+            webhookSubscription: subscription.value.id,
+            webhookDelivery: delivery.id,
+        }).url,
+        {
+            preserveScroll: true,
+            onFinish: () => {
+                replayingId.value = null;
+            },
+        },
     );
 }
 
@@ -234,9 +255,12 @@ function confirmRevoke(): void {
                             </th>
                             <th
                                 scope="col"
-                                class="py-2 text-right font-semibold"
+                                class="py-2 pr-2 text-right font-semibold"
                             >
                                 {{ $t('Time') }}
+                            </th>
+                            <th scope="col" class="py-2">
+                                <span class="sr-only">{{ $t('Replay') }}</span>
                             </th>
                         </tr>
                     </thead>
@@ -278,18 +302,52 @@ function confirmRevoke(): void {
                                 · {{ latency(delivery) }}
                             </td>
                             <td class="py-2 pr-2 text-xs text-muted-foreground">
-                                {{
-                                    delivery.succeeded
-                                        ? '—'
-                                        : $t('retry :n', {
-                                              n: delivery.attempt,
-                                          })
-                                }}
+                                <span
+                                    v-if="delivery.isReplay"
+                                    class="inline-flex items-center rounded-full border border-border px-2 py-0.5 text-[10px] font-semibold tracking-wide uppercase"
+                                >
+                                    {{ $t('Replay') }}
+                                </span>
+                                <template v-else>
+                                    {{
+                                        delivery.succeeded
+                                            ? '—'
+                                            : $t('retry :n', {
+                                                  n: delivery.attempt,
+                                              })
+                                    }}
+                                </template>
                             </td>
                             <td
-                                class="py-2 text-right text-xs text-muted-foreground"
+                                class="py-2 pr-2 text-right text-xs text-muted-foreground"
                             >
                                 {{ deliveredAt(delivery.createdAt) }}
+                            </td>
+                            <td class="py-2 text-right">
+                                <Button
+                                    v-if="delivery.replayable"
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    class="rounded-full"
+                                    :data-test="`replay-delivery-${delivery.id}`"
+                                    :aria-label="
+                                        $t(
+                                            'Replay the :event delivery from :time',
+                                            {
+                                                event: delivery.eventType,
+                                                time: deliveredAt(
+                                                    delivery.createdAt,
+                                                ),
+                                            },
+                                        )
+                                    "
+                                    :disabled="replayingId === delivery.id"
+                                    @click="replay(delivery)"
+                                >
+                                    <RefreshCw class="size-3.5" />
+                                    {{ $t('Replay') }}
+                                </Button>
                             </td>
                         </tr>
                     </tbody>

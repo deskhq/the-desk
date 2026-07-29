@@ -130,3 +130,35 @@ timeout, and disable threshold with the
 
 Your endpoint should respond `2xx` quickly and do its own work asynchronously,
 and should treat deliveries as **at-least-once** — dedupe on the envelope `id`.
+
+## Replaying a delivery
+
+The delivery log on **Team settings → Integrations → *(subscription)*** has a
+**Replay** button on each attempt. Replaying re-sends that attempt's original
+payload to the endpoint, freshly signed with the subscription's **current**
+secret, so a delivery recorded before a secret rotation still verifies. The
+envelope keeps its original `id`, so a receiver that dedupes on it (as it
+should) will recognise the replay as the same event.
+
+A replay is deliberately a single shot with no side effects on the
+subscription:
+
+- It is attempted **once** and is never retried.
+- It does **not** count toward the failure streak, so replaying against a dead
+  endpoint can't auto-disable a working subscription — and a successful replay
+  doesn't clear a streak that a real endpoint problem produced.
+- It works on an **auto-disabled** subscription, which is the point: fix the
+  endpoint, replay one delivery to confirm, then re-enable.
+
+The new attempt is appended to the log, marked *Replay*, and the action is
+recorded in the workspace audit log. Attempts logged by a version older than the
+one that introduced replay have no stored payload and so offer no button.
+
+## Delivery-log retention
+
+Every attempt — each retry included — is a row carrying the payload it sent, so
+the log holds a copy of data that left the workspace. Attempts older than
+[`WEBHOOKS_DELIVERY_RETENTION_DAYS`](/reference/feature-toggles/#outgoing-webhooks)
+(30 by default) are deleted by a daily job; once an attempt is pruned it can no
+longer be replayed. Set the variable to `0` to keep attempts forever, e.g. when
+retention is enforced at the database or backup layer instead.

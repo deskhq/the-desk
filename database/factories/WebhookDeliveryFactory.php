@@ -20,15 +20,24 @@ class WebhookDeliveryFactory extends Factory
      */
     public function definition(): array
     {
+        $eventId = (string) Str::uuid();
+
         return [
             'webhook_subscription_id' => WebhookSubscription::factory(),
             'event_type' => WebhookEvent::MessageCreated->value,
-            'event_id' => (string) Str::uuid(),
+            'event_id' => $eventId,
             'succeeded' => true,
             'response_status' => 200,
             'duration_ms' => fake()->numberBetween(20, 800),
             'attempt' => 1,
             'error' => null,
+            'envelope' => [
+                'id' => $eventId,
+                'type' => WebhookEvent::MessageCreated->value,
+                'created_at' => now()->toIso8601String(),
+                'data' => ['body' => fake()->sentence()],
+            ],
+            'is_replay' => false,
         ];
     }
 
@@ -42,5 +51,13 @@ class WebhookDeliveryFactory extends Factory
             'response_status' => 500,
             'error' => 'HTTP 500',
         ]);
+    }
+
+    /**
+     * An attempt logged before envelopes were retained, which cannot be replayed.
+     */
+    public function withoutEnvelope(): static
+    {
+        return $this->state(fn (array $attributes): array => ['envelope' => null]);
     }
 }
