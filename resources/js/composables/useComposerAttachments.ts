@@ -5,7 +5,10 @@ import type {
     AttachmentUploads,
     PendingAttachment,
 } from '@/composables/useAttachmentUploads';
-import { useChannelUploads } from '@/composables/useChannelUploads';
+import {
+    channelUploadKey,
+    useChannelUploads,
+} from '@/composables/useChannelUploads';
 import { useVoiceRecorder } from '@/composables/useVoiceRecorder';
 import type { VoiceRecorder } from '@/composables/useVoiceRecorder';
 import { isVoiceRecordingSupported } from '@/lib/audio';
@@ -57,9 +60,12 @@ export function useComposerAttachments(options: {
      * mid-upload no longer aborts the transfer. Resolved once: a composer is
      * mounted per channel and remounts when that changes.
      */
-    const channelKey = attachmentsEnabled.value
-        ? `${options.teamSlug()}/${options.channelSlug()}`
-        : null;
+    const teamSlug = options.teamSlug();
+    const channelSlug = options.channelSlug();
+    const channelKey =
+        teamSlug && channelSlug
+            ? channelUploadKey(teamSlug, channelSlug)
+            : null;
 
     const uploads = useChannelUploads({
         channelKey,

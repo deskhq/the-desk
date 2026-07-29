@@ -1407,5 +1407,11 @@
   "Files can be up to :max MB": "Les fichiers peuvent atteindre :max Mo",
   "Reminder snoozed": "Rappel reporté",
   "For 20 minutes": "De 20 minutes",
-  "Failed to update notification preferences": "Échec de la mise à jour des préférences de notification"
+  "Failed to update notification preferences": "Échec de la mise à jour des préférences de notification",
+  "Uploading 1 file": "Envoi d’un fichier",
+  "Uploading :count files": "Envoi de :count fichiers",
+  "1 file ready to send": "1 fichier prêt à envoyer",
+  ":count files ready to send": ":count fichiers prêts à envoyer",
+  "1 file didn't upload": "1 fichier n’a pas été envoyé",
+  ":count files didn't upload": ":count fichiers n’ont pas été envoyés"
 }
