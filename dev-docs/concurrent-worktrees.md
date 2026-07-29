@@ -99,6 +99,13 @@ cd "$(bin/worktree create 441)"    # drops you into the isolated worktree
 
 ## Notes & limits
 
+- **stdout carries machine-readable output only** — the path from `create`, the
+  table from `list` — so `cd "$(bin/worktree create <NNN>)"` is composable even
+  on a fresh bootstrap, where Composer, npm and artisan each write kilobytes.
+  The script enforces that rather than relying on every call site remembering a
+  `>&2`: it parks the real stdout on fd 3 and points its own at stderr, and a
+  single `emit` helper is the only way back out. Progress is still shown — it is
+  simply all on stderr.
 - Dependencies are installed per worktree (isolation over speed). The first
   worktree pays the Sail image build; later ones reuse the cached image.
 - Running the **full** coverage gate in several worktrees at once is bound by
