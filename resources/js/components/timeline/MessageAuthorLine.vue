@@ -1,12 +1,20 @@
 <script setup lang="ts">
+import { computed } from 'vue';
+import BotBadge from '@/components/BotBadge.vue';
 import UserHoverCard from '@/components/UserHoverCard.vue';
 import UserStatusEmoji from '@/components/UserStatusEmoji.vue';
+import { displayAuthorName, marksAuthorAsBot } from '@/lib/authorIdentity';
 import { presenceLabelKey } from '@/lib/presence';
 import type { RenderedPresence } from '@/lib/presence';
-import type { MessageAuthor } from '@/types';
+import type { AuthorOverride, MessageAuthor } from '@/types';
 
-defineProps<{
+const props = defineProps<{
     author: MessageAuthor;
+    /**
+     * The display identity the run's messages asked for, if any. It replaces the
+     * name shown here; the bot badge below rides along regardless.
+     */
+    authorOverride?: AuthorOverride | null;
     teamSlug: string;
     presence: RenderedPresence;
     isDnd: boolean;
@@ -17,6 +25,23 @@ defineProps<{
 defineEmits<{
     mention: [member: { id: string; name: string }];
 }>();
+
+const displayName = computed(() =>
+    displayAuthorName(props.author.name, props.authorOverride),
+);
+
+const isBot = computed(() =>
+    marksAuthorAsBot(props.author.isBot, props.authorOverride),
+);
+
+/**
+ * The account behind a displayed name that isn't its own, so the hover card can
+ * name it ("via Deploy Bot") and a suspicious reader can always reach the real
+ * account. Null when the row shows the author's own name.
+ */
+const viaName = computed(() =>
+    displayName.value === props.author.name ? null : props.author.name,
+);
 </script>
 
 <template>
@@ -25,6 +50,7 @@ defineEmits<{
             :team-slug="teamSlug"
             :user-id="author.id"
             :name="author.name"
+            :via-name="viaName"
             :presence="presence"
             :is-dnd="isDnd"
             @mention="(member) => $emit('mention', member)"
@@ -32,25 +58,20 @@ defineEmits<{
             <span
                 data-test="message-author-name"
                 class="cursor-pointer text-[14px] font-semibold text-foreground hover:underline"
-                >{{ author.name }}</span
+                >{{ displayName }}</span
             >
         </UserHoverCard>
         <!-- The author's status emoji rides beside their name; the full text
              lives on the hover card. -->
         <UserStatusEmoji
             :status="author.status"
-            :name="author.name"
+            :name="displayName"
             class="ml-1.5 align-[-1px] text-[13px]"
         />
         <!-- The uppercase "Bot" tag rides beside a bot author's name; a bot has
              no presence, so it replaces the Online/Offline announcement rather
              than adding to it. -->
-        <span
-            v-if="author.isBot"
-            data-test="author-bot-badge"
-            class="ml-1.5 inline-flex items-center rounded border border-border px-1.5 align-[1px] text-[9px] font-bold tracking-[0.08em] text-muted-foreground uppercase"
-            >{{ $t('Bot') }}</span
-        >
+        <BotBadge v-if="isBot" class="ml-1.5 align-[1px]" />
         <span v-else class="sr-only">{{ $t(presenceLabelKey(presence)) }}</span>
         <!-- Below `md` the group's time rides beside the author name instead of
              stacking under the avatar, where a 36px gutter has no room for it.

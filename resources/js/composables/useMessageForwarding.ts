@@ -114,6 +114,8 @@ export function useMessageForwarding(
                         id: source.id,
                         body: source.body,
                         authorName: source.user.name,
+                        authorIsBot: source.user.isBot,
+                        authorOverride: source.authorOverride ?? null,
                         channelName: plan.quoteChannelName,
                         isDeleted: source.isDeleted,
                         mentions: source.mentions,

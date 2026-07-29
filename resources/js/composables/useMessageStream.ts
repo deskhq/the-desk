@@ -291,6 +291,8 @@ export function optimisticMessage(params: {
                   id: target.id,
                   body: target.body,
                   authorName: target.user.name,
+                  authorIsBot: target.user.isBot,
+                  authorOverride: target.authorOverride ?? null,
                   isDeleted: target.isDeleted,
                   mentions: target.mentions,
               }

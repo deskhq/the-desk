@@ -17,6 +17,14 @@ class MessageForwardData extends Data
         public string $id,
         public string $body,
         public string $authorName,
+        /**
+         * Whether the forwarded author is a bot, so the attribution can badge it.
+         * Carried because a forward hands the client a bare name string: without
+         * this an overridden name would render here unmarked.
+         */
+        public bool $authorIsBot,
+        /** The display identity the forwarded message asked for, if any. */
+        public ?AuthorOverrideData $authorOverride,
         // The source channel's name, or null when the source is a direct message
         // (a DM has no name); the client then reads "a direct message" instead of
         // a "#channel" attribution.
@@ -33,7 +41,8 @@ class MessageForwardData extends Data
      * render its "Forwarded from #name" attribution. The `user` and `channel`
      * relations are expected to be eager-loaded. A soft-deleted source blanks its
      * body and mentions, leaving only the `isDeleted` flag so the client can
-     * render a "message deleted" stub.
+     * render a "message deleted" stub; its author's identity survives that, so
+     * the `authorIsBot` marker and override travel with the attribution.
      */
     public static function fromMessage(Message $message): self
     {
@@ -43,6 +52,8 @@ class MessageForwardData extends Data
             id: $message->id,
             body: $isDeleted ? '' : $message->body,
             authorName: $message->user->name,
+            authorIsBot: $message->user->isBot(),
+            authorOverride: AuthorOverrideData::forMessage($message),
             channelName: $message->channel->name,
             isDeleted: $isDeleted,
             mentions: $isDeleted ? [] : $message->mentionedUsers->map(fn (User $user): MentionData => MentionData::fromUser($user))->all(),

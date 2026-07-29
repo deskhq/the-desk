@@ -51,6 +51,65 @@ describe('buildTimelineItems', () => {
         expect(group.type === 'group' && group.author.name).toBe('Maya');
     });
 
+    it('starts a new group when one bot posts as a different logical source', () => {
+        const first = message('m1', 'bot', 'Deploy Bot', DAY_1_NOON);
+        const second = message(
+            'm2',
+            'bot',
+            'Deploy Bot',
+            minutesLater(DAY_1_NOON, 1),
+        );
+        first.authorOverride = { name: 'Release Train', avatar: null };
+        second.authorOverride = { name: 'Nightly', avatar: null };
+
+        const groups = buildTimelineItems([first, second], null).filter(
+            (item) => item.type === 'group',
+        );
+
+        expect(groups).toHaveLength(2);
+        expect(
+            groups[0].type === 'group' && groups[0].authorOverride?.name,
+        ).toBe('Release Train');
+    });
+
+    it('keeps one group when the same bot posts as the same source', () => {
+        const first = message('m1', 'bot', 'Deploy Bot', DAY_1_NOON);
+        const second = message(
+            'm2',
+            'bot',
+            'Deploy Bot',
+            minutesLater(DAY_1_NOON, 1),
+        );
+        first.authorOverride = { name: 'Release Train', avatar: '/a.png' };
+        second.authorOverride = { name: 'Release Train', avatar: '/a.png' };
+
+        const groups = buildTimelineItems([first, second], null).filter(
+            (item) => item.type === 'group',
+        );
+
+        expect(groups).toHaveLength(1);
+    });
+
+    it('separates an overridden run from the bot posting under its own name', () => {
+        const first = message('m1', 'bot', 'Deploy Bot', DAY_1_NOON);
+        const second = message(
+            'm2',
+            'bot',
+            'Deploy Bot',
+            minutesLater(DAY_1_NOON, 1),
+        );
+        first.authorOverride = { name: 'Release Train', avatar: null };
+
+        const groups = buildTimelineItems([first, second], null).filter(
+            (item) => item.type === 'group',
+        );
+
+        expect(groups).toHaveLength(2);
+        expect(
+            groups[1].type === 'group' && groups[1].authorOverride,
+        ).toBeNull();
+    });
+
     it('starts a new group when the author changes', () => {
         const items = buildTimelineItems(
             [

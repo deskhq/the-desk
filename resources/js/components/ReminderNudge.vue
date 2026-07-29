@@ -1,9 +1,11 @@
 <script setup lang="ts">
 import { AlarmClock, Lock, X } from '@lucide/vue';
 import { computed } from 'vue';
+import BotBadge from '@/components/BotBadge.vue';
 import InkSlab from '@/components/InkSlab.vue';
 import { Button } from '@/components/ui/button';
 import { useInitials } from '@/composables/useInitials';
+import { displayAuthorName, marksAuthorAsBot } from '@/lib/authorIdentity';
 import { messageBodyPreview } from '@/lib/messageBody';
 import type { MessageReminder } from '@/types';
 
@@ -28,6 +30,24 @@ const excerpt = computed(() => messageBodyPreview(props.reminder.body));
 /** "#design" for a channel, blank for a direct message (no channel name). */
 const channelLabel = computed(() =>
     props.reminder.channelName ? `#${props.reminder.channelName}` : null,
+);
+
+/** The saved message's author as it was displayed when it was posted. */
+const authorName = computed(() =>
+    displayAuthorName(props.reminder.authorName, props.reminder.authorOverride),
+);
+
+/**
+ * An inaccessible row names no author at all, so it carries no marker either —
+ * the badge would otherwise sit beside "No longer available".
+ */
+const authorIsBot = computed(
+    () =>
+        props.reminder.isAccessible &&
+        marksAuthorAsBot(
+            props.reminder.authorIsBot,
+            props.reminder.authorOverride,
+        ),
 );
 </script>
 
@@ -71,17 +91,20 @@ const channelLabel = computed(() =>
                 class="flex size-7 shrink-0 items-center justify-center rounded-lg bg-primary-foreground/15 text-[10px] font-semibold"
             >
                 <Lock v-if="!reminder.isAccessible" class="size-3.5" />
-                <template v-else>{{
-                    getInitials(reminder.authorName)
-                }}</template>
+                <template v-else>{{ getInitials(authorName) }}</template>
             </div>
             <div class="flex min-w-0 flex-col gap-0.5">
                 <div class="flex items-baseline gap-1.5">
                     <span class="text-[13px] font-semibold">{{
                         reminder.isAccessible
-                            ? reminder.authorName
+                            ? authorName
                             : $t('No longer available')
                     }}</span>
+                    <BotBadge
+                        v-if="authorIsBot"
+                        surface="slab"
+                        class="shrink-0"
+                    />
                     <span
                         v-if="channelLabel"
                         class="truncate text-[11px] text-slab-muted-foreground"

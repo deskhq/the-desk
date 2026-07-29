@@ -269,6 +269,68 @@ test('a direct message banner is titled by its sender alone', function (): void 
         ->and($push['body'])->toBe('Got a minute?');
 });
 
+test('an overridden banner name is marked as non-human', function (): void {
+    [, $recipient, $team, $channel] = pushScenario();
+    $bot = User::factory()->bot($team)->create(['name' => 'Deploy Bot']);
+
+    $message = Message::factory()->create([
+        'channel_id' => $channel->id,
+        'user_id' => $bot->id,
+        'body' => 'Deploy is green',
+        'author_override_name' => 'Release Train',
+    ]);
+    $message->loadMessageDataRelations();
+
+    $push = (new NewMessageNotification($channel, MessageData::fromMessage($message)))
+        ->toWebPush($recipient)
+        ->toArray();
+
+    expect($push['title'])->toBe('Release Train (bot) in #deploys');
+});
+
+test('a bot posting under its own name needs no disambiguation', function (): void {
+    [, $recipient, $team, $channel] = pushScenario();
+    $bot = User::factory()->bot($team)->create(['name' => 'Deploy Bot']);
+
+    $message = Message::factory()->create([
+        'channel_id' => $channel->id,
+        'user_id' => $bot->id,
+        'body' => 'Deploy is green',
+    ]);
+    $message->loadMessageDataRelations();
+
+    $push = (new NewMessageNotification($channel, MessageData::fromMessage($message)))
+        ->toWebPush($recipient)
+        ->toArray();
+
+    expect($push['title'])->toBe('Deploy Bot in #deploys');
+});
+
+test('an icon-only override leaves the banner name alone', function (): void {
+    [, $recipient, $team, $channel] = pushScenario();
+    $bot = User::factory()->bot($team)->create(['name' => 'Deploy Bot']);
+
+    $dm = Channel::factory()->create([
+        'team_id' => $team->id,
+        'name' => null,
+        'type' => ChannelType::Direct,
+    ]);
+
+    $message = Message::factory()->create([
+        'channel_id' => $dm->id,
+        'user_id' => $bot->id,
+        'body' => 'Deploy is green',
+        'author_override_avatar_url' => 'https://cdn.example.test/train.png',
+    ]);
+    $message->loadMessageDataRelations();
+
+    $push = (new NewMessageNotification($dm, MessageData::fromMessage($message)))
+        ->toWebPush($recipient)
+        ->toArray();
+
+    expect($push['title'])->toBe('Deploy Bot');
+});
+
 test('the preview unwraps mention tokens and truncates a long body', function (): void {
     [$author, $recipient, , $channel] = pushScenario();
 

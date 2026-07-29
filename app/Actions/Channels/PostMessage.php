@@ -58,17 +58,25 @@ class PostMessage
      * the `loadMessageDataRelations()` + broadcast below. A `client_uuid` retry
      * finds the existing row and skips the hook, keeping the send idempotent.
      *
+     * `$authorOverrideName` and `$authorOverrideAvatarUrl` are the display identity
+     * this one message asked to be shown under (an incoming webhook posting as a
+     * logical source of its own). They are a snapshot frozen here at post time, and
+     * they override only what is *displayed* — `$author` still authors the row, so
+     * every surface keeps its non-human marking.
+     *
      * @param  list<string>  $attachmentIds
      * @param  (Closure(Message): void)|null  $afterCreate
      */
-    public function handle(Channel $channel, User $author, string $body, string $clientUuid, ?string $replyToId = null, ?string $forwardedFromId = null, ?string $threadRootId = null, bool $sentToChannel = false, bool $clearDraft = true, array $attachmentIds = [], MessageType $type = MessageType::Standard, ?Closure $afterCreate = null): Message
+    public function handle(Channel $channel, User $author, string $body, string $clientUuid, ?string $replyToId = null, ?string $forwardedFromId = null, ?string $threadRootId = null, bool $sentToChannel = false, bool $clearDraft = true, array $attachmentIds = [], MessageType $type = MessageType::Standard, ?Closure $afterCreate = null, ?string $authorOverrideName = null, ?string $authorOverrideAvatarUrl = null): Message
     {
-        $message = DB::transaction(function () use ($channel, $author, $body, $clientUuid, $replyToId, $forwardedFromId, $threadRootId, $sentToChannel, $attachmentIds, $type, $afterCreate): Message {
+        $message = DB::transaction(function () use ($channel, $author, $body, $clientUuid, $replyToId, $forwardedFromId, $threadRootId, $sentToChannel, $attachmentIds, $type, $afterCreate, $authorOverrideName, $authorOverrideAvatarUrl): Message {
             $message = $channel->messages()->firstOrCreate(
                 ['client_uuid' => $clientUuid],
                 [
                     'user_id' => $author->id,
                     'body' => $body,
+                    'author_override_name' => $authorOverrideName,
+                    'author_override_avatar_url' => $authorOverrideAvatarUrl,
                     'type' => $type,
                     'reply_to_id' => $replyToId,
                     'forwarded_from_id' => $forwardedFromId,

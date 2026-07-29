@@ -33,6 +33,8 @@ use Laravel\Scout\Searchable;
  * @property int $reply_count
  * @property Carbon|null $last_reply_at
  * @property string $body
+ * @property string|null $author_override_name
+ * @property string|null $author_override_avatar_url
  * @property MessageType $type
  * @property Carbon|null $edited_at
  * @property Carbon|null $deleted_at
@@ -50,7 +52,7 @@ use Laravel\Scout\Searchable;
  * @property-read MessagePin|null $pin
  * @property-read Collection<int, Attachment> $attachments
  */
-#[Fillable(['channel_id', 'user_id', 'client_uuid', 'reply_to_id', 'forwarded_from_id', 'thread_root_id', 'sent_to_channel', 'body', 'type', 'edited_at'])]
+#[Fillable(['channel_id', 'user_id', 'client_uuid', 'reply_to_id', 'forwarded_from_id', 'thread_root_id', 'sent_to_channel', 'body', 'author_override_name', 'author_override_avatar_url', 'type', 'edited_at'])]
 class Message extends Model
 {
     /** @use HasFactory<MessageFactory> */

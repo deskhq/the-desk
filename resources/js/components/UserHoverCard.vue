@@ -26,6 +26,13 @@ const props = defineProps<{
     userId: string;
     name: string;
     /**
+     * The account a row was actually posted by, when what it displayed was a
+     * per-message identity override. The card names it ("via Deploy Bot") so a
+     * suspicious reader can always reach the real account. Null on every ordinary
+     * row, where the displayed name already is the account.
+     */
+    viaName?: string | null;
+    /**
      * How the member reads on the team presence roster. Absent on the surfaces
      * that open a card without a roster to hand, which then show no dot at all.
      */
@@ -148,6 +155,15 @@ function onMessage(): void {
                                 >{{ profile.pronouns }}</span
                             >
                         </div>
+                        <!-- Provenance for a row that displayed a name of its
+                             own: which account actually posted it. -->
+                        <p
+                            v-if="viaName"
+                            data-test="hover-card-via"
+                            class="truncate font-serif text-xs text-muted-foreground italic"
+                        >
+                            {{ $t('via :name', { name: viaName }) }}
+                        </p>
                         <p
                             v-if="profile?.title"
                             class="truncate text-sm text-muted-foreground"

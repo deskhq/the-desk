@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Events\MessageSent;
 use App\Models\Channel;
 use App\Models\IncomingWebhook;
+use App\Models\Message;
 use App\Models\Team;
 use App\Models\User;
 use Illuminate\Support\Facades\Event;
@@ -165,6 +166,137 @@ it('403s when the bot is no longer a member of the channel', function (): void {
 
     $this->postJson("/webhooks/incoming/{$token}", ['body' => 'orphaned'])
         ->assertStatus(403);
+});
+
+it('snapshots the requested display identity onto the message', function (): void {
+    [$webhook, $token] = makeWebhook();
+
+    $this->postJson("/webhooks/incoming/{$token}", [
+        'text' => 'Rolled out to production',
+        'username' => 'Release Train',
+        'icon_url' => 'https://cdn.example.test/train.png',
+    ])->assertStatus(202);
+
+    $this->assertDatabaseHas('messages', [
+        'channel_id' => $webhook->channel_id,
+        // The bot still authors the row: the override changes what is displayed,
+        // never who posted.
+        'user_id' => $webhook->bot_id,
+        'author_override_name' => 'Release Train',
+        'author_override_avatar_url' => 'https://cdn.example.test/train.png',
+    ]);
+});
+
+it('broadcasts the override beside a truthful, still-flagged bot author', function (): void {
+    Event::fake([MessageSent::class]);
+    [, $token] = makeWebhook();
+
+    $this->postJson("/webhooks/incoming/{$token}", [
+        'text' => 'Rolled out',
+        'username' => 'Release Train',
+        'icon_url' => 'https://cdn.example.test/train.png',
+    ])->assertStatus(202);
+
+    Event::assertDispatched(MessageSent::class, function (MessageSent $event): bool {
+        expect($event->message->user->name)->toBe('Deploy Bot')
+            ->and($event->message->user->isBot)->toBeTrue()
+            ->and($event->message->authorOverride?->name)->toBe('Release Train')
+            // The icon is proxied, so no reader's IP reaches the icon's host.
+            ->and($event->message->authorOverride?->avatar)->toStartWith('/images/proxy');
+
+        return true;
+    });
+});
+
+it('accepts an override that names only the icon, keeping the bot name', function (): void {
+    [$webhook, $token] = makeWebhook();
+
+    $this->postJson("/webhooks/incoming/{$token}", [
+        'text' => 'Icon only',
+        'icon_url' => 'https://cdn.example.test/train.png',
+    ])->assertStatus(202);
+
+    $this->assertDatabaseHas('messages', [
+        'channel_id' => $webhook->channel_id,
+        'author_override_name' => null,
+        'author_override_avatar_url' => 'https://cdn.example.test/train.png',
+    ]);
+});
+
+it('accepts a plain http icon url', function (): void {
+    [$webhook, $token] = makeWebhook();
+
+    $this->postJson("/webhooks/incoming/{$token}", [
+        'text' => 'Self-hosted asset host',
+        'icon_url' => 'http://assets.internal/bot.png',
+    ])->assertStatus(202);
+
+    $this->assertDatabaseHas('messages', [
+        'channel_id' => $webhook->channel_id,
+        'author_override_avatar_url' => 'http://assets.internal/bot.png',
+    ]);
+});
+
+it('treats a blank override field as absent and posts under the bot identity', function (): void {
+    [$webhook, $token] = makeWebhook();
+
+    $this->postJson("/webhooks/incoming/{$token}", [
+        'text' => 'Unset template variable',
+        'username' => '',
+        'icon_url' => '   ',
+    ])->assertStatus(202);
+
+    $this->assertDatabaseHas('messages', [
+        'channel_id' => $webhook->channel_id,
+        'body' => 'Unset template variable',
+        'author_override_name' => null,
+        'author_override_avatar_url' => null,
+    ]);
+});
+
+it('ignores the Slack icon_emoji field', function (): void {
+    [$webhook, $token] = makeWebhook();
+
+    $this->postJson("/webhooks/incoming/{$token}", [
+        'text' => 'Emoji icons are not resolved',
+        'icon_emoji' => ':rocket:',
+    ])->assertStatus(202);
+
+    $this->assertDatabaseHas('messages', [
+        'channel_id' => $webhook->channel_id,
+        'author_override_name' => null,
+        'author_override_avatar_url' => null,
+    ]);
+});
+
+it('422s a malformed identity override rather than posting under the wrong name', function (array $payload): void {
+    [, $token] = makeWebhook();
+
+    $this->postJson("/webhooks/incoming/{$token}", ['text' => 'hi', ...$payload])
+        ->assertStatus(422);
+
+    $this->assertDatabaseCount('messages', 0);
+})->with([
+    'an over-long username' => [['username' => str_repeat('a', 256)]],
+    'a non-string username' => [['username' => 42]],
+    'an over-long icon url' => [['icon_url' => 'https://cdn.example.test/'.str_repeat('a', 2048)]],
+    'a non-http icon url' => [['icon_url' => 'ftp://cdn.example.test/train.png']],
+    'a javascript icon url' => [['icon_url' => 'javascript:alert(1)']],
+    'a non-string icon url' => [['icon_url' => ['nested']]],
+]);
+
+it('keeps the snapshot after the webhook is revoked and its bot renamed', function (): void {
+    [$webhook, $token] = makeWebhook();
+
+    $this->postJson("/webhooks/incoming/{$token}", ['text' => 'Shipped', 'username' => 'Release Train'])
+        ->assertStatus(202);
+
+    $webhook->bot->update(['name' => 'Retired Bot']);
+    $webhook->update(['revoked_at' => now()]);
+
+    $message = Message::query()->where('channel_id', $webhook->channel_id)->sole();
+
+    expect($message->author_override_name)->toBe('Release Train');
 });
 
 it('throttles each webhook token independently, not by shared IP', function (): void {
