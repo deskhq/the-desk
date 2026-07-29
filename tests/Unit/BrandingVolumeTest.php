@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-use Symfony\Component\Yaml\Yaml;
+use Tests\Support\ProductionCompose;
 
 /**
  * Whitelabeling has to survive an upgrade, so an operator's brand assets are
@@ -11,14 +11,10 @@ use Symfony\Component\Yaml\Yaml;
  * same directory: the web app resolves the assets, and the workers render mail
  * and notifications that reference them. See issue #970.
  */
-$compose = fn (): array => Yaml::parseFile(dirname(__DIR__, 2).'/docker-compose.prod.yml');
-
-$appServices = ['app', 'queue', 'queue-broadcasts', 'reverb', 'scheduler'];
-
-test('every app-role service mounts the operator branding directory read-only', function (string $service) use ($compose): void {
-    expect($compose()['services'][$service]['volumes'])
+test('every app-role service mounts the operator branding directory read-only', function (string $service): void {
+    expect(ProductionCompose::services()[$service]['volumes'])
         ->toContain('./branding:/app/storage/branding:ro');
-})->with($appServices);
+})->with(fn (): array => ProductionCompose::appRoleServices());
 
 test('the branding mount lands where the app resolves overrides from', function (): void {
     // The image installs the application at /app, so the mount target has to
