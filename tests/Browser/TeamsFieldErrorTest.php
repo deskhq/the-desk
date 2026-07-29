@@ -49,6 +49,20 @@ function browserRecordLayout(array $watched): string
     JS;
 }
 
+/**
+ * A script resolving once the given dialog has stopped moving.
+ *
+ * The baseline below is a single read, so it has to be taken at rest: the dialog
+ * fades and zooms in, and one recorded mid-transition measures the animation
+ * rather than the error line. `assertPresent` returns a whole animation before
+ * that, and the fixed settle this replaces was a guess — a CSS animation only
+ * advances as frames are committed, so a starved runner outlasts it (#1049).
+ */
+function browserDialogSettles(string $selector): string
+{
+    return geometrySettles(elementBox($selector));
+}
+
 /** Whether every element recorded by `browserRecordLayout` is still where it was. */
 function browserLayoutHeldStill(): string
 {
@@ -152,9 +166,7 @@ test('a rejected group rename leaves the editor dialog exactly where it was', fu
         ->navigate("/settings/teams/{$team->slug}/groups")
         ->click('@group-edit-dev-team')
         ->assertPresent('[data-test="group-edit-dialog"]')
-        // The dialog fades and zooms in; a baseline recorded mid-transition
-        // measures the animation rather than the error line.
-        ->wait(0.5)
+        ->assertScript(browserDialogSettles('[data-test="group-edit-dialog"]'), true)
         ->type('[data-test="group-edit-slug-input"]', 'BAD!!');
 
     $page->script(browserRecordLayout([
@@ -181,7 +193,7 @@ test('a rejected bot create leaves the dialog footer exactly where it was', func
         ->navigate("/settings/teams/{$team->slug}/integrations")
         ->click('@new-bot-button')
         ->assertPresent('[data-test="new-bot-dialog"]')
-        ->wait(0.5);
+        ->assertScript(browserDialogSettles('[data-test="new-bot-dialog"]'), true);
 
     $page->script(browserRecordLayout([
         'create' => '[data-test="bot-create-button"]',
