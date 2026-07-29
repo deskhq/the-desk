@@ -135,7 +135,7 @@ jobs:
       # the run summary below, which is what a reviewer reads anyway.
       - name: Upload the scan to code scanning
         if: env.PUBLISH != 'true' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
-        uses: github/codeql-action/upload-sarif@7188fc363630916deb702c7fdcf4e481b751f97a # v4.37.1
+        uses: github/codeql-action/upload-sarif@e4fba868fa4b1b91e1fdab776edc8cfbe6e9fb81 # v4.37.3
         with:
           sarif_file: trivy-results.sarif
           category: trivy-image
@@ -200,7 +200,7 @@ jobs:
       # ---- Publish to GitHub Container Registry (master + v* tags) ----
       - name: Log in to GHCR
         if: env.PUBLISH == 'true'
-        uses: docker/login-action@af1e73f918a031802d376d3c8bbc3fe56130a9b0 # v4.4.0
+        uses: docker/login-action@abd2ef45e78c5afb21d64d4ca52ee8550d9572c7 # v4.5.1
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
