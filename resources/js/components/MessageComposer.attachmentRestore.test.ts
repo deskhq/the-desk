@@ -140,9 +140,10 @@ function attachmentDto(id: string, isImage = false) {
     };
 }
 
-function mountComposer() {
+function mountComposer(props: Record<string, unknown> = {}) {
     const sent: Array<{
         body: string;
+        toChannel: boolean;
         attachmentIds: string[];
         callbacks: SendCallbacks;
     }> = [];
@@ -162,10 +163,17 @@ function mountComposer() {
                     onSend: (
                         body: string,
                         _mentions: unknown,
-                        _toChannel: boolean,
+                        toChannel: boolean,
                         attachmentIds: string[],
                         callbacks: SendCallbacks,
-                    ) => sent.push({ body, attachmentIds, callbacks }),
+                    ) =>
+                        sent.push({
+                            body,
+                            toChannel,
+                            attachmentIds,
+                            callbacks,
+                        }),
+                    ...props,
                 }),
         }),
     );
@@ -298,5 +306,41 @@ describe('MessageComposer failed-send attachment restore', () => {
             container.querySelector('[data-test="composer-attachment"]'),
         ).toBeNull();
         expect(textarea.value).toBe('');
+    });
+
+    it('hands the "also send to channel" choice back when the send is rejected', async () => {
+        const { container, sent } = mountComposer({ allowSendToChannel: true });
+
+        const textarea = container.querySelector<HTMLTextAreaElement>(
+            '[data-test="message-composer-input"]',
+        )!;
+        const alsoSend = container.querySelector<HTMLInputElement>(
+            '[data-test="send-to-channel"]',
+        )!;
+
+        alsoSend.checked = true;
+        alsoSend.dispatchEvent(new Event('change', { bubbles: true }));
+        textarea.value = 'Shipping today';
+        textarea.dispatchEvent(new Event('input', { bubbles: true }));
+        await nextTick();
+
+        container
+            .querySelector<HTMLButtonElement>(
+                '[data-test="message-composer-send"]',
+            )!
+            .click();
+        await nextTick();
+
+        expect(sent[0].toChannel).toBe(true);
+        expect(alsoSend.checked).toBe(false);
+
+        // The retry has to post the same reply the user composed, so the ticked
+        // box comes back alongside the body rather than silently going
+        // thread-only.
+        sent[0].callbacks.onRejected?.();
+        await nextTick();
+
+        expect(textarea.value).toBe('Shipping today');
+        expect(alsoSend.checked).toBe(true);
     });
 });

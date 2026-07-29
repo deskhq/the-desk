@@ -7,10 +7,26 @@ import { isComposerEditTrigger } from '@/lib/composerEdit';
 import type { Message } from '@/types';
 
 /**
- * The composer's keydown model, in priority order: whichever autocomplete menu
- * is open owns the arrows, Enter/Tab and Escape; then the format shortcuts;
- * then Escape's fallbacks (leave edit mode, else drop the reply); then ArrowUp's
- * "edit last message" recall; and finally Enter to send or save.
+ * The keyCode browsers without `isComposing` report for any key pressed while an
+ * IME composition is open. Safari and older WebKit builds still lean on it.
+ */
+const COMPOSITION_KEY_CODE = 229;
+
+/**
+ * Whether the keypress belongs to an in-progress IME composition, where Enter
+ * commits the candidate word (and Escape/the arrows pick between candidates)
+ * rather than meaning anything to the composer.
+ */
+function isComposing(event: KeyboardEvent): boolean {
+    return event.isComposing || event.keyCode === COMPOSITION_KEY_CODE;
+}
+
+/**
+ * The composer's keydown model, in priority order: an open IME composition owns
+ * every key; then whichever autocomplete menu is open owns the arrows, Enter/Tab
+ * and Escape; then the format shortcuts; then Escape's fallbacks (leave edit
+ * mode, else drop the reply); then ArrowUp's "edit last message" recall; and
+ * finally Enter to send or save.
  */
 export function useComposerKeyboard(options: {
     field: ComposerField;
@@ -26,6 +42,12 @@ export function useComposerKeyboard(options: {
     const { mentions, slash, editing } = options;
 
     function onKeydown(event: KeyboardEvent): void {
+        // Stand down entirely until the composition ends, or a CJK user posts a
+        // half-finished word every time they accept an IME candidate.
+        if (isComposing(event)) {
+            return;
+        }
+
         if (mentions.showMenu.value) {
             if (event.key === 'ArrowDown') {
                 event.preventDefault();
