@@ -144,16 +144,21 @@ function publishedBottom(): string {
 }
 
 describe('useRailBottomInset', () => {
+    let observed: unknown[];
+
     beforeEach(() => {
         document.documentElement.style.removeProperty(
             RAIL_BOTTOM_INSET_PROPERTY,
         );
         document.body.replaceChildren();
         vi.stubGlobal('innerHeight', 900);
+        observed = [];
         vi.stubGlobal(
             'ResizeObserver',
             class {
-                observe = vi.fn();
+                observe = (target: unknown): void => {
+                    observed.push(target);
+                };
                 disconnect = vi.fn();
             },
         );
@@ -177,6 +182,36 @@ describe('useRailBottomInset', () => {
         await nextTick();
 
         expect(publishedBottom()).toBe('');
+
+        scope.stop();
+    });
+
+    it('publishes nothing, rather than throwing, when the composer resolves to a fragment anchor', async () => {
+        // A component whose template opens with a comment is a fragment in a
+        // dev build, and its `$el` is then the anchor comment (#1051).
+        const anchor = document.createComment('') as unknown as HTMLElement;
+        const scope = effectScope();
+        scope.run(() => useRailBottomInset(ref<HTMLElement | null>(anchor)));
+        await nextTick();
+
+        expect(publishedBottom()).toBe('');
+        expect(observed).toEqual([]);
+
+        scope.stop();
+    });
+
+    it('claims the floor again once the anchor is replaced by the composer itself', async () => {
+        const composer = ref<HTMLElement | null>(
+            document.createComment('') as unknown as HTMLElement,
+        );
+        const scope = effectScope();
+        scope.run(() => useRailBottomInset(composer));
+        await nextTick();
+
+        composer.value = composerStub(96);
+        await nextTick();
+
+        expect(publishedBottom()).toBe('96px');
 
         scope.stop();
     });
