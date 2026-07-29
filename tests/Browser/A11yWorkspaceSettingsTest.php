@@ -88,6 +88,35 @@ test('the demo-locked controls stay focusable, named, and axe-clean', function (
     // keyboard, where the previous `disabled` control only ever answered a hover.
     $page->assertSee('Disabled in the demo');
 
+    // The tooltip is readable to `assertSee` the moment its text lands in the
+    // DOM, which is a whole fade before it is opaque — and axe blends that
+    // mid-animation opacity into its contrast arithmetic, reading the tooltip's
+    // near-black-on-near-white pair as 2.14:1 (#775). A fixed settle would be a
+    // guess: a CSS animation only advances as frames are committed, so on a
+    // starved runner the fade takes far longer than its 150ms. Waiting on the
+    // frames themselves adapts, and asserting the end state keeps it honest —
+    // a tooltip that never reached full opacity fails here rather than as an
+    // unexplained contrast violation. The second focus above leaves the first
+    // tooltip animating out, so every one of them has to be settled, not just
+    // the one `querySelector` happens to reach first.
+    $page->assertScript(<<<'JS'
+    (async () => {
+        const settled = () => {
+            const tooltips = document.querySelectorAll('[data-slot="tooltip-content"]');
+
+            return tooltips.length > 0 && [...tooltips].every(
+                (tooltip) => getComputedStyle(tooltip).opacity === '1',
+            );
+        };
+
+        for (let frame = 0; frame < 120 && ! settled(); frame++) {
+            await new Promise((resolve) => requestAnimationFrame(resolve));
+        }
+
+        return settled();
+    })()
+    JS, true);
+
     $page->assertNoAccessibilityIssues();
 
     switchToDarkTheme($page)
