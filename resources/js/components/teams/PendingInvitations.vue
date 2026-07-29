@@ -86,6 +86,7 @@ defineEmits<{
                                     variant="ghost"
                                     size="icon"
                                     class="rounded-full text-muted-foreground"
+                                    :aria-label="$t('Cancel invitation')"
                                     @click="$emit('cancel', invitation)"
                                 >
                                     <X class="h-4 w-4" />

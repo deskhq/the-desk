@@ -54,6 +54,14 @@ const { t } = useTranslations();
 const { demoMode } = useDemoMode();
 
 /**
+ * How a demo-locked owner-level control paints: dimmed and inert-looking, but
+ * still a live button, so it keeps its place in the tab order and its tooltip
+ * still opens on hover.
+ */
+const lockedClass =
+    'cursor-not-allowed opacity-50 hover:bg-transparent dark:hover:bg-transparent';
+
+/**
  * The one-line description of what each assignable role can do, shown under the
  * role name inside the role dropdown. Keyed by role so the copy stays with the
  * permission it describes.
@@ -182,34 +190,20 @@ const roleDescription = (role: TeamRole): string => {
                 "
             >
                 <Tooltip>
-                    <!-- Off the demo the tooltip triggers on the
-                         focusable button (keyboard + hover); in the
-                         demo the button is disabled, so a
-                         tabindex'd span carries the trigger to keep
-                         the reason reachable by keyboard. -->
-                    <TooltipTrigger v-if="demoMode" as-child>
-                        <span
-                            tabindex="0"
-                            class="inline-flex cursor-not-allowed"
-                        >
-                            <Button
-                                data-test="member-transfer-ownership-button"
-                                variant="ghost"
-                                size="icon"
-                                class="rounded-full text-muted-foreground"
-                                disabled
-                            >
-                                <Crown class="h-4 w-4" />
-                            </Button>
-                        </span>
-                    </TooltipTrigger>
-                    <TooltipTrigger v-else as-child>
+                    <!-- The demo lock is `aria-disabled`, not `disabled`: a
+                         disabled button leaves the tab order and swallows
+                         pointer events, so its reason would be reachable
+                         neither by keyboard nor on hover. -->
+                    <TooltipTrigger as-child>
                         <Button
                             data-test="member-transfer-ownership-button"
                             variant="ghost"
                             size="icon"
                             class="rounded-full text-muted-foreground"
-                            @click="$emit('transferOwnership')"
+                            :class="demoMode ? lockedClass : undefined"
+                            :aria-disabled="demoMode || undefined"
+                            :aria-label="$t('Transfer ownership')"
+                            @click="!demoMode && $emit('transferOwnership')"
                         >
                             <Crown class="h-4 w-4" />
                         </Button>
@@ -230,33 +224,17 @@ const roleDescription = (role: TeamRole): string => {
                 v-if="member.role !== 'owner' && permissions.canRemoveMember"
             >
                 <Tooltip>
-                    <!-- Same focusable-trigger split as the transfer
-                         button above: enabled button off the demo,
-                         tabindex'd span around the disabled button
-                         in the demo. -->
-                    <TooltipTrigger v-if="demoMode" as-child>
-                        <span
-                            tabindex="0"
-                            class="inline-flex cursor-not-allowed"
-                        >
-                            <Button
-                                data-test="member-remove-button"
-                                variant="ghost"
-                                size="icon"
-                                class="rounded-full text-muted-foreground"
-                                disabled
-                            >
-                                <X class="h-4 w-4" />
-                            </Button>
-                        </span>
-                    </TooltipTrigger>
-                    <TooltipTrigger v-else as-child>
+                    <!-- Same demo lock as the transfer control above. -->
+                    <TooltipTrigger as-child>
                         <Button
                             data-test="member-remove-button"
                             variant="ghost"
                             size="icon"
                             class="rounded-full text-muted-foreground"
-                            @click="$emit('remove')"
+                            :class="demoMode ? lockedClass : undefined"
+                            :aria-disabled="demoMode || undefined"
+                            :aria-label="$t('Remove member')"
+                            @click="!demoMode && $emit('remove')"
                         >
                             <X class="h-4 w-4" />
                         </Button>

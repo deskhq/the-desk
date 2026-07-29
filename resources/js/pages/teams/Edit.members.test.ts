@@ -414,11 +414,17 @@ describe('the role control', () => {
 });
 
 describe('the owner-level affordances', () => {
-    it('offers transfer and removal on a non-owner row', () => {
+    it('offers transfer and removal on a non-owner row, each one named', () => {
         const host = mount();
 
-        expect(find(host, 'member-transfer-ownership-button')).not.toBeNull();
-        expect(find(host, 'member-remove-button')).not.toBeNull();
+        expect(
+            find(host, 'member-transfer-ownership-button')?.getAttribute(
+                'aria-label',
+            ),
+        ).toBe('Transfer ownership');
+        expect(
+            find(host, 'member-remove-button')?.getAttribute('aria-label'),
+        ).toBe('Remove member');
     });
 
     it('offers neither on the owner row', () => {
@@ -460,16 +466,28 @@ describe('the owner-level affordances', () => {
         expect(stub(host, 'RemoveMemberModal')?.dataset.open).toBe('true');
     });
 
-    it('disables both controls in the demo and says why', () => {
+    it('locks both controls in the demo and says why', async () => {
         pageProps.demoMode = true;
 
         const host = mount();
 
         const transfer = find(host, 'member-transfer-ownership-button');
         const remove = find(host, 'member-remove-button');
+        const opened = (name: string) => stub(host, name)?.dataset.open;
 
-        expect(transfer?.hasAttribute('disabled')).toBe(true);
-        expect(remove?.hasAttribute('disabled')).toBe(true);
+        // `aria-disabled` rather than the `disabled` attribute: a disabled
+        // button leaves the tab order, so the reason would only reach a mouse.
+        expect(transfer?.hasAttribute('disabled')).toBe(false);
+        expect(transfer?.getAttribute('aria-disabled')).toBe('true');
+        expect(remove?.hasAttribute('disabled')).toBe(false);
+        expect(remove?.getAttribute('aria-disabled')).toBe('true');
         expect(host.textContent).toContain('Disabled in the demo');
+
+        transfer?.click();
+        remove?.click();
+        await Promise.resolve();
+
+        expect(opened('TransferOwnershipModal')).toBe('false');
+        expect(opened('RemoveMemberModal')).toBe('false');
     });
 });
