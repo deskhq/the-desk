@@ -39,6 +39,39 @@ function browserFocusedTestId(): string
     JS;
 }
 
+/**
+ * A workspace whose owner has two reminders already fired, so the rail carries
+ * two nudges at once: one for a live message — the card in full, quote and
+ * channel line and all — and one for a since-deleted message, which is the only
+ * way its "message deleted" stub reaches the screen. Between the two, every
+ * muted string the card can paint is up at the same time (#1009).
+ */
+function browserOwnerWithFiredNudges(): User
+{
+    ['owner' => $alice, 'channel' => $channel] = browserTeamWithChannel();
+
+    $message = Message::factory()->for($channel)->for($alice, 'user')->create([
+        'body' => 'The message being reminded about',
+    ]);
+    MessageReminder::factory()->fired()->create([
+        'user_id' => $alice->id,
+        'message_id' => $message->id,
+        'remind_at' => now()->subMinute(),
+    ]);
+
+    $deleted = Message::factory()->for($channel)->for($alice, 'user')->create([
+        'body' => 'The message that has since been deleted',
+    ]);
+    MessageReminder::factory()->fired()->create([
+        'user_id' => $alice->id,
+        'message_id' => $deleted->id,
+        'remind_at' => now()->subMinutes(2),
+    ]);
+    $deleted->delete();
+
+    return $alice;
+}
+
 test('F6 focuses the toast region and holds its timer there', function (): void {
     $alice = User::factory()->create();
 
@@ -83,16 +116,7 @@ test('F6 leaves focus alone when the rail is empty', function (): void {
 });
 
 test('F6 goes to the reminder nudges when one is on the rail', function (): void {
-    ['owner' => $alice, 'channel' => $channel] = browserTeamWithChannel();
-
-    $message = Message::factory()->for($channel)->for($alice, 'user')->create([
-        'body' => 'The message being reminded about',
-    ]);
-    MessageReminder::factory()->fired()->create([
-        'user_id' => $alice->id,
-        'message_id' => $message->id,
-        'remind_at' => now()->subMinute(),
-    ]);
+    $alice = browserOwnerWithFiredNudges();
 
     $page = signInThroughBrowser($alice)
         ->assertPresent('[data-test=reminder-nudges]');
@@ -108,9 +132,22 @@ test('F6 goes to the reminder nudges when one is on the rail', function (): void
     // A named region, so landing there announces what it is rather than
     // dropping a screen-reader user into an unlabelled box — and a name on a
     // role that can carry one, which a bare div could not.
-    //
-    // An axe audit belongs here too, but the nudge card already carries a
-    // serious contrast failure of its own (#1009) and would fail it on arrival.
     $page->assertAttribute('[data-test=reminder-nudges]', 'role', 'region')
         ->assertAttribute('[data-test=reminder-nudges]', 'aria-label', 'Reminders');
+});
+
+test('a nudge on the rail passes the axe audit in either theme', function (): void {
+    $alice = browserOwnerWithFiredNudges();
+
+    // The slab inverts between themes — ink in light, paper in dark — so a
+    // colour that clears the floor on one of them says nothing about the other.
+    // Nothing audited a page with a nudge actually on the rail until now, which
+    // is how a serious contrast failure went unseen (#1009).
+    $page = signInThroughBrowser($alice)
+        ->assertPresent('[data-test=reminder-nudge]')
+        ->assertSee('in #general')
+        ->assertSee('This message was deleted.')
+        ->assertNoAccessibilityIssues();
+
+    switchToDarkTheme($page)->assertNoAccessibilityIssues();
 });
