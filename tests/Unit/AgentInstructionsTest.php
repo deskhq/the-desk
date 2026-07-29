@@ -30,12 +30,24 @@ function agentInstructionsRoot(): string
  */
 function projectRules(): array
 {
-    $paths = (array) glob(agentInstructionsRoot().'/.claude/rules/**/*.md', GLOB_BRACE);
-    $paths = [...(array) glob(agentInstructionsRoot().'/.claude/rules/*.md'), ...$paths];
+    $directory = new RecursiveDirectoryIterator(
+        agentInstructionsRoot().'/.claude/rules',
+        FilesystemIterator::SKIP_DOTS | FilesystemIterator::FOLLOW_SYMLINKS,
+    );
+
+    $paths = [];
+
+    foreach (new RecursiveIteratorIterator($directory) as $file) {
+        if ($file instanceof SplFileInfo && $file->getExtension() === 'md') {
+            $paths[] = $file->getPathname();
+        }
+    }
+
+    sort($paths);
 
     $relative = array_map(
         static fn (string $path): string => str_replace(agentInstructionsRoot().'/', '', $path),
-        array_values(array_unique($paths)),
+        $paths,
     );
 
     return array_combine($relative, array_map(
@@ -128,6 +140,10 @@ test('boost writes its generated block into a scoped rule', function (): void {
  */
 test('regenerating the boost block keeps the frontmatter that scopes it', function (): void {
     $rule = projectRules()['.claude/rules/laravel-boost.md'];
+
+    expect(str_contains($rule, '=== foundation rules ==='))
+        ->toBeTrue('the sentinel the rewrite is measured against must be in the rule to begin with');
+
     $path = (string) tempnam(sys_get_temp_dir(), 'boost-rule');
     file_put_contents($path, $rule);
 

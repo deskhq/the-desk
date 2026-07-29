@@ -47,7 +47,7 @@ Layer-specific conventions live in `.claude/rules/`, loaded when you touch a mat
 ## Quality gates — both must be green before you push
 
 - **Backend:** `./vendor/bin/sail composer test` runs Pint, PHPStan, Rector's dry-run, and `php artisan test --parallel --coverage --min=100`. **100% coverage is non-negotiable**; do not push or open a PR until it reports `Total: 100.0 %`.
-- **Frontend:** `./vendor/bin/sail npm run lint:check`, `npm run format:check`, `npm run types:check`, `npm run test:js` (the Vitest suite, which the PHP coverage gate cannot reach) and `npm run build`. All five must pass. `./vendor/bin/sail composer ci:check` runs both gates at once.
+- **Frontend:** `./vendor/bin/sail npm run lint:check`, `./vendor/bin/sail npm run format:check`, `./vendor/bin/sail npm run types:check`, `./vendor/bin/sail npm run test:js` (the Vitest suite, which the PHP coverage gate cannot reach) and `./vendor/bin/sail npm run build`. All five must pass. `./vendor/bin/sail composer ci:check` runs both gates at once.
 - **Always run Node/npm tooling through Sail**, never bare `npm` on the host: `node_modules` lives inside the Linux container and its native bindings are Linux-only, so a host run fails with `Cannot find native binding`.
 - **Accessibility is part of a green UI change**, and the automated gate does not catch it. Run the repo's axe/contrast checks and match the patterns in the existing a11y browser tests before calling UI work done.
 
