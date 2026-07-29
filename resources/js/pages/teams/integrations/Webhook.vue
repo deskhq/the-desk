@@ -109,22 +109,24 @@ function rotate(): void {
 }
 
 const replayForm = useForm({});
-const replayingId = ref<string | null>(null);
 
+/**
+ * Re-fire one logged attempt. The whole column is disabled while a replay is in
+ * flight — the form is shared, so a second click would cancel the first — and
+ * this guard covers the keyboard-repeat case the disabled state can't.
+ */
 function replay(delivery: Delivery): void {
-    replayingId.value = delivery.id;
+    if (replayForm.processing) {
+        return;
+    }
+
     replayForm.post(
         webhookReplay({
             team: props.team.slug,
             webhookSubscription: subscription.value.id,
             webhookDelivery: delivery.id,
         }).url,
-        {
-            preserveScroll: true,
-            onFinish: () => {
-                replayingId.value = null;
-            },
-        },
+        { preserveScroll: true },
     );
 }
 
@@ -333,16 +335,17 @@ function confirmRevoke(): void {
                                     :data-test="`replay-delivery-${delivery.id}`"
                                     :aria-label="
                                         $t(
-                                            'Replay the :event delivery from :time',
+                                            'Replay the :event delivery :id from :time',
                                             {
                                                 event: delivery.eventType,
+                                                id: shortId(delivery.eventId),
                                                 time: deliveredAt(
                                                     delivery.createdAt,
                                                 ),
                                             },
                                         )
                                     "
-                                    :disabled="replayingId === delivery.id"
+                                    :disabled="replayForm.processing"
                                     @click="replay(delivery)"
                                 >
                                     <RefreshCw class="size-3.5" />

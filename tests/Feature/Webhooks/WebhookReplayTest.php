@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Actions\Integrations\RotateWebhookSecret;
 use App\Data\WebhookSubscriptionDetailData;
 use App\Enums\AuditAction;
 use App\Enums\TeamRole;
@@ -13,6 +14,7 @@ use App\Models\User;
 use App\Models\WebhookDelivery;
 use App\Models\WebhookSubscription;
 use App\Support\HostResolver;
+use App\Support\Webhooks\WebhookSignature;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
 
@@ -103,6 +105,27 @@ it('re-signs and re-POSTs the stored envelope, logging a new attempt', function 
         ->and($replay->succeeded)->toBeTrue()
         ->and($replay->response_status)->toBe(200)
         ->and($replay->attempt)->toBe(1);
+});
+
+it('signs the replay with the subscription current secret, not the original one', function (): void {
+    Http::fake(['example.test/*' => Http::response('', 200)]);
+    $delivery = replayableDelivery($this->subscription);
+
+    app(RotateWebhookSecret::class)->handle($this->owner, $this->subscription);
+    $rotated = $this->subscription->refresh()->secret;
+
+    $this->actingAs($this->owner)
+        ->post(replayRoute($this->team, $this->subscription, $delivery))
+        ->assertRedirect();
+
+    Http::assertSent(function ($request) use ($rotated): bool {
+        preg_match('/^t=(\d+),v1=([a-f0-9]+)$/', $request->header('X-Desk-Signature')[0], $matches);
+
+        return hash_equals(
+            WebhookSignature::digest($rotated, (string) $request->body(), (int) $matches[1]),
+            $matches[2],
+        );
+    });
 });
 
 it('leaves the subscription health untouched when a replay fails', function (): void {

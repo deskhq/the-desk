@@ -1192,7 +1192,7 @@
   "Webhook delivery replayed": "Livraison de webhook rejouée",
   "Replayed a %s delivery to the “%s” webhook subscription": "Livraison %s rejouée vers l’abonnement au webhook « %s »",
   "Replay": "Rejouer",
-  "Replay the :event delivery from :time": "Rejouer la livraison :event de :time",
+  "Replay the :event delivery :id from :time": "Rejouer la livraison :event :id de :time",
   "Delivery queued for replay": "Livraison mise en file d’attente pour être rejouée",
   "This delivery was logged before payloads were retained, so it cannot be replayed.": "Cette livraison a été enregistrée avant la conservation des charges utiles ; elle ne peut donc pas être rejouée.",
   "Bot added to :channel": "Bot ajouté à :channel",
