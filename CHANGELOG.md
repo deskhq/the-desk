@@ -1,5 +1,80 @@
 # Changelog
 
+## [1.18.0](https://github.com/deskhq/the-desk/compare/v1.17.1...v1.18.0) (2026-07-29)
+
+
+### Features
+
+* dot the reminders glyph while reminders are pending ([#977](https://github.com/deskhq/the-desk/issues/977)) ([f2340d5](https://github.com/deskhq/the-desk/commit/f2340d54de5abf37ebcce554ebbcaafa65e633cc))
+* filter search results to messages with attachments (has:file facet) ([#975](https://github.com/deskhq/the-desk/issues/975)) ([70076e1](https://github.com/deskhq/the-desk/commit/70076e1bfc491155247dbab31c7a98af5d77ac7c))
+* focus the notification rail with F6 ([#1010](https://github.com/deskhq/the-desk/issues/1010)) ([1c5bf7f](https://github.com/deskhq/the-desk/commit/1c5bf7f79d9e6575d1145f7313083ca621df6941))
+* keep composer uploads running when you leave a channel ([#1050](https://github.com/deskhq/the-desk/issues/1050)) ([e8d7ba6](https://github.com/deskhq/the-desk/commit/e8d7ba6caeedbb1ce2dc6ed8e405593970358655))
+* pin navigation destinations to a desktop rail and a mobile tab bar ([#947](https://github.com/deskhq/the-desk/issues/947)) ([c10f318](https://github.com/deskhq/the-desk/commit/c10f31807ec7e70d9d1e5cbf09497835d320f41c))
+* prompt a newly registered user to create a passkey ([#923](https://github.com/deskhq/the-desk/issues/923)) ([cd54d22](https://github.com/deskhq/the-desk/commit/cd54d227a071b06fa06267e604ac28c30345aadd))
+* prune security events and purge expired data-export archives ([#918](https://github.com/deskhq/the-desk/issues/918)) ([a26a7d0](https://github.com/deskhq/the-desk/commit/a26a7d09684a763311ab3026854e8e960f14db9b))
+* raise the composer tray and banner controls to 44pt on touch ([#1011](https://github.com/deskhq/the-desk/issues/1011)) ([4058380](https://github.com/deskhq/the-desk/commit/405838051d34d610ab368b40903909528aa6b6ca))
+* redesign toasts as a shared ink-slab rail ([#1004](https://github.com/deskhq/the-desk/issues/1004)) ([24416a1](https://github.com/deskhq/the-desk/commit/24416a12159417e149a767267436d8f83a84a0d0))
+* reminders as a pinned destination with grouped rows and inline done ([#961](https://github.com/deskhq/the-desk/issues/961)) ([3e287c5](https://github.com/deskhq/the-desk/commit/3e287c5f5ac3a7aa588543a72bc25d4da975bced))
+* replace the landing page mockup with captures of the real shell ([#1014](https://github.com/deskhq/the-desk/issues/1014)) ([df27a78](https://github.com/deskhq/the-desk/commit/df27a78f143230493bef2a56c73e9887643ad054))
+* retry queued sends from the failure toast ([#1007](https://github.com/deskhq/the-desk/issues/1007)) ([5e5d25c](https://github.com/deskhq/the-desk/commit/5e5d25c33e66e0336957006cbf9faec09d6274f9))
+* search as a pinned destination in the dock panel ([#966](https://github.com/deskhq/the-desk/issues/966)) ([0b0db58](https://github.com/deskhq/the-desk/commit/0b0db584cfb0ad8188b71cfda79147d05cb6ed4f))
+* the You destination as a rail popover, a mobile tab, and one shared menu ([#967](https://github.com/deskhq/the-desk/issues/967)) ([0a735ee](https://github.com/deskhq/the-desk/commit/0a735ee2cf0fc22462e0d7faa8d1de2a8b21f8f5))
+* threads as a pinned destination with an unread filter and mark all read ([#960](https://github.com/deskhq/the-desk/issues/960)) ([90649d7](https://github.com/deskhq/the-desk/commit/90649d7a2f373c2e273e6c153367506fc6b81362))
+* undo a forward from its confirmation toast ([#1008](https://github.com/deskhq/the-desk/issues/1008)) ([2b81802](https://github.com/deskhq/the-desk/commit/2b818020ee2f5982e60a6cbae6cde716465df3a8))
+* whitelabel the instance name, mark, icons and manifest ([#1012](https://github.com/deskhq/the-desk/issues/1012)) ([d05e067](https://github.com/deskhq/the-desk/commit/d05e067f73f93bc2767aca864f8ef08865783107))
+* workspace sheet, + New menu, and cross-workspace unread on the rail ([#958](https://github.com/deskhq/the-desk/issues/958)) ([91bdc2d](https://github.com/deskhq/the-desk/commit/91bdc2dd992fe235187e46598655fafef3cca530))
+
+
+### Bug Fixes
+
+* allow the vite dev server as a font source in hot mode ([#929](https://github.com/deskhq/the-desk/issues/929)) ([e0fec4e](https://github.com/deskhq/the-desk/commit/e0fec4e5efda3d739fc4a0e0d1707ba43c5c6c63))
+* build queue-broadcasts from source instead of pulling it from GHCR ([#1045](https://github.com/deskhq/the-desk/issues/1045)) ([ee2ed7f](https://github.com/deskhq/the-desk/commit/ee2ed7f37e5654986ef755cc4483974ce98ea361))
+* format the bots rack's last-post stamp against the locale, not the zone ([#1041](https://github.com/deskhq/the-desk/issues/1041)) ([207ad7f](https://github.com/deskhq/the-desk/commit/207ad7fd1d2b02b3ed640e162c7d97e9770ea6a3))
+* four pre-existing composer defects surfaced by the [#981](https://github.com/deskhq/the-desk/issues/981) split ([#1038](https://github.com/deskhq/the-desk/issues/1038)) ([5daa057](https://github.com/deskhq/the-desk/commit/5daa057eb939d281178e4c0c03ffe877d47e88f6))
+* hold the pins panel row together at any label width ([#1036](https://github.com/deskhq/the-desk/issues/1036)) ([7b2c802](https://github.com/deskhq/the-desk/commit/7b2c802ad6370f060f2b7e110dd2d99dd0e645be))
+* keep a client-side URL write from being swallowed by a concurrent response ([#997](https://github.com/deskhq/the-desk/issues/997)) ([3597f07](https://github.com/deskhq/the-desk/commit/3597f075680245fb17e5577d3609610ac9077fbd))
+* keep a team reachable when its name slugs to nothing ([#925](https://github.com/deskhq/the-desk/issues/925)) ([a439e99](https://github.com/deskhq/the-desk/commit/a439e995544be49176521d00218c57a00ec6c237))
+* keep the paused card readable when its pill label runs long ([#933](https://github.com/deskhq/the-desk/issues/933)) ([5d78f96](https://github.com/deskhq/the-desk/commit/5d78f9677d0809d9ce7e4f7988ee9f3253d648da))
+* keep the teams pages still when a validation error appears ([#922](https://github.com/deskhq/the-desk/issues/922)) ([4813cb6](https://github.com/deskhq/the-desk/commit/4813cb62f6cbc8952b10a668345955251378a4b8))
+* keep the toast rail off the composer under the dev server ([#1054](https://github.com/deskhq/the-desk/issues/1054)) ([73f6ae0](https://github.com/deskhq/the-desk/commit/73f6ae063f00f7e0b7a93c150c16c5c8cdbee116))
+* keep the worktree bootstrap's output off stdout ([#1048](https://github.com/deskhq/the-desk/issues/1048)) ([6c2809c](https://github.com/deskhq/the-desk/commit/6c2809cb842b6804b2a3ea505c707c3ebac5d420))
+* make the search facet pickers proper comboboxes ([#945](https://github.com/deskhq/the-desk/issues/945)) ([52e58f1](https://github.com/deskhq/the-desk/commit/52e58f19ace9044bde9de71675292f3df5ef114f))
+* name the workspace settings page's icon-only controls ([#1039](https://github.com/deskhq/the-desk/issues/1039)) ([b07ce44](https://github.com/deskhq/the-desk/commit/b07ce4492c18bfabc62e31e27e277fb78db10339))
+* paint the reminder nudge from the slab's own colour tokens ([#1037](https://github.com/deskhq/the-desk/issues/1037)) ([39d0b66](https://github.com/deskhq/the-desk/commit/39d0b660feee57c6ba8747fd4e4036e6b482cc01))
+* patch the OS packages the published image inherits from its base ([#973](https://github.com/deskhq/the-desk/issues/973)) ([f4d6f86](https://github.com/deskhq/the-desk/commit/f4d6f865d3c800087c9e5c71e335e6d565d0f144))
+* reject private and reserved hosts as web push endpoints ([#926](https://github.com/deskhq/the-desk/issues/926)) ([b3a73b9](https://github.com/deskhq/the-desk/commit/b3a73b9571d70404d5a9673d9c5a67b2bd18dcc2))
+* restore a thread root's follow and unread state when the reply fails ([#1046](https://github.com/deskhq/the-desk/issues/1046)) ([2d174b0](https://github.com/deskhq/the-desk/commit/2d174b06620f0f7d8a255819a2b6886b4014f53d))
+* return focus to the control that opened a dialog when it closes ([#935](https://github.com/deskhq/the-desk/issues/935)) ([e9adf1c](https://github.com/deskhq/the-desk/commit/e9adf1cb78707aeff21fa3f47248ba51065dfd76))
+* schedule the workspace audit-log retention sweep ([#934](https://github.com/deskhq/the-desk/issues/934)) ([b131be1](https://github.com/deskhq/the-desk/commit/b131be1330277bc8ace055a385de2e36454b084d))
+* stop the browser suite's in-process server dropping assets on a reused connection ([#953](https://github.com/deskhq/the-desk/issues/953)) ([cff1a89](https://github.com/deskhq/the-desk/commit/cff1a89e128f73615255b7f4d2d50572324cefeb))
+* survive an unreachable apt mirror during the worktree Playwright install ([#1044](https://github.com/deskhq/the-desk/issues/1044)) ([3e94c99](https://github.com/deskhq/the-desk/commit/3e94c99fb979a9f46f3e2817d0552161445b31e9))
+
+
+### Performance
+
+* run the browser suite in parallel with a capped worker count ([#951](https://github.com/deskhq/the-desk/issues/951)) ([ab7bb84](https://github.com/deskhq/the-desk/commit/ab7bb84e1aecad3d51b57e07ebe654c2e4e2aaf0))
+
+
+### Code Refactoring
+
+* drop terminal full stops from toast copy ([#1002](https://github.com/deskhq/the-desk/issues/1002)) ([983b447](https://github.com/deskhq/the-desk/commit/983b44794a8d7333d7117a36fefac856b9e99896))
+* extract the composer's surfaces out of MessageComposer.vue ([#1017](https://github.com/deskhq/the-desk/issues/1017)) ([4e67e78](https://github.com/deskhq/the-desk/commit/4e67e78915fca600937b94a7628dc7f42e5b401a))
+* extract the conversation list out of MainLayout.vue ([#996](https://github.com/deskhq/the-desk/issues/996)) ([5c5ce25](https://github.com/deskhq/the-desk/commit/5c5ce25a7344d9dc11d7b1a1e2392e0179296909))
+* route every toast through a useToast composable ([#1000](https://github.com/deskhq/the-desk/issues/1000)) ([83469fc](https://github.com/deskhq/the-desk/commit/83469fce8af4b22e7e8c62793086665037e80162))
+* split ChannelMasthead.vue ([#1028](https://github.com/deskhq/the-desk/issues/1028)) ([5524fe0](https://github.com/deskhq/the-desk/commit/5524fe0c3ff974629e7c4dcfee7a635b2b42b3c7))
+* split MessageList.vue ([#1018](https://github.com/deskhq/the-desk/issues/1018)) ([4bb6260](https://github.com/deskhq/the-desk/commit/4bb62608af7f8e3a0116e2b64b3aa9a8b5680f7e))
+* split QuickSwitcher.vue ([#1031](https://github.com/deskhq/the-desk/issues/1031)) ([a79c6d4](https://github.com/deskhq/the-desk/commit/a79c6d408656df8c8013e967c57615a1319d2b65))
+* split the audit exports page (pages/teams/AuditExports.vue) ([#1032](https://github.com/deskhq/the-desk/issues/1032)) ([995c73a](https://github.com/deskhq/the-desk/commit/995c73a9205bd1a3a76ab97babf6ec909b0b71ea))
+* split the bot integration page into racks and dialogs ([#1025](https://github.com/deskhq/the-desk/issues/1025)) ([6cd2a5a](https://github.com/deskhq/the-desk/commit/6cd2a5a156090f56e332b3cd7f091c4fb5e01524))
+* split the channel page (pages/channels/Show.vue) ([#1024](https://github.com/deskhq/the-desk/issues/1024)) ([a4da616](https://github.com/deskhq/the-desk/commit/a4da6161c14d84ddaf7c46ded50f212cd875bbeb))
+* split the integrations index page ([#1022](https://github.com/deskhq/the-desk/issues/1022)) ([e97483e](https://github.com/deskhq/the-desk/commit/e97483e8224576b276e621ea05692171f9839910))
+* split the user groups page (pages/teams/Groups.vue) ([#1030](https://github.com/deskhq/the-desk/issues/1030)) ([a5dfcaf](https://github.com/deskhq/the-desk/commit/a5dfcaf3810dfe0181a7a782c06ae20fc7c6be24))
+* split the workspace analytics page into sections ([#1029](https://github.com/deskhq/the-desk/issues/1029)) ([e3db019](https://github.com/deskhq/the-desk/commit/e3db019e2828f5a115d4c73b16c56e147caec706))
+* split the workspace settings page into sections ([#1020](https://github.com/deskhq/the-desk/issues/1020)) ([1eed152](https://github.com/deskhq/the-desk/commit/1eed152a244110c24406c32807121a6509efcace))
+* split useAttachmentUploads.test.ts ([#1034](https://github.com/deskhq/the-desk/issues/1034)) ([887b2c7](https://github.com/deskhq/the-desk/commit/887b2c78a521409edf8eafa947dc17b186014ac2))
+* split useMessageActions into one composable per action group ([#1027](https://github.com/deskhq/the-desk/issues/1027)) ([bc968f5](https://github.com/deskhq/the-desk/commit/bc968f5772cc4befffa53a142cc6e4a11ca17078))
+* split UserStatusDialog.vue ([#1033](https://github.com/deskhq/the-desk/issues/1033)) ([e05800b](https://github.com/deskhq/the-desk/commit/e05800b7d3b24f020dfca74c2187e91ed496a0f9))
+
 ## [1.17.1](https://github.com/deskhq/the-desk/compare/v1.17.0...v1.17.1) (2026-07-26)
 
 
