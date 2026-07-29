@@ -48,7 +48,7 @@ test('a member reads the channel purpose and edits it from the masthead', functi
         ->fill('@channel-details-description', 'Where the launch is run from.')
         ->click('@channel-details-save')
         // The masthead reads the saved topic back, so the page picked the edit up.
-        ->assertSee('Launch coordination');
+        ->assertSeeIn('@masthead-topic', 'Launch coordination');
 
     expect($channel->fresh())
         ->topic->toBe('Launch coordination')
@@ -58,4 +58,38 @@ test('a member reads the channel purpose and edits it from the masthead', functi
     // beside it stays silent.
     expect(Message::where('channel_id', $channel->id)->pluck('type')->all())
         ->toBe([MessageType::TopicChanged]);
+});
+
+test('an edit reaches another member without them reloading', function (): void {
+    ['owner' => $alice, 'member' => $bob] = browserTeamWithChannel();
+
+    $alicePage = signInThroughBrowser($alice);
+    $bobPage = signInThroughBrowser($bob);
+
+    // Bob is sitting in the channel, subscribed, before Alice touches anything.
+    $bobPage->assertPresent('@message-composer-input');
+
+    $alicePage
+        ->click('@channel-options')
+        ->click('@channel-details')
+        ->click('@channel-details-edit')
+        ->fill('@channel-details-topic', 'Launch coordination')
+        ->fill('@channel-details-description', 'Where the launch is run from.')
+        ->click('@channel-details-save')
+        ->assertSeeIn('@masthead-topic', 'Launch coordination');
+
+    // The masthead Bob is already looking at re-reads the topic off the
+    // ChannelUpdated broadcast — asserted on the masthead itself, since the
+    // topic notice in his timeline quotes the same words.
+    $bobPage->assertSeeIn('@masthead-topic', 'Launch coordination');
+
+    // The description edit is silent in the timeline, so the broadcast is the
+    // only thing that could have refreshed what his modal now reads.
+    $bobPage
+        ->click('@channel-options')
+        ->click('@channel-details')
+        ->assertSeeIn(
+            '@channel-details-description-value',
+            'Where the launch is run from.',
+        );
 });
