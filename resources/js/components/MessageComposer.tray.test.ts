@@ -2,6 +2,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { App, Component } from 'vue';
 import { createApp, defineComponent, h, nextTick } from 'vue';
+import { releaseChannelUploads } from '@/composables/useChannelUploads';
 import type { UploadHandle } from '@/lib/uploadAttachment';
 import MessageComposer from './MessageComposer.vue';
 
@@ -111,6 +112,13 @@ function mountComposer(props: Record<string, unknown> = {}) {
     return { container };
 }
 
+/** Unmount the composer mounted last, the way leaving a channel does. */
+function unmountLast(): void {
+    const { app, container } = active.pop()!;
+    app.unmount();
+    container.remove();
+}
+
 /** Set the hidden input's `files` (read-only in jsdom) and fire `change`. */
 async function stage(container: HTMLElement, file: File): Promise<void> {
     const input = container.querySelector<HTMLInputElement>(
@@ -158,6 +166,9 @@ afterEach(() => {
     });
     active = [];
     uploads.length = 0;
+    // The tray is held by the channel now, not by the composer: unmounting is no
+    // longer enough to forget what a test staged in #general.
+    releaseChannelUploads();
 });
 
 describe('MessageComposer attachment tray', () => {
@@ -278,6 +289,40 @@ describe('MessageComposer attachment tray', () => {
         uploads[0].resolve({ id: 'att-1' });
         await settle();
         expect(send.hasAttribute('disabled')).toBe(false);
+    });
+
+    it('finds the tray as it left it when the channel is opened again', async () => {
+        const first = mountComposer();
+        await stage(first.container, textFile());
+        uploads[0].progress(40);
+
+        // Leaving the channel unmounts the composer; the upload runs on and
+        // lands while nobody is showing it.
+        unmountLast();
+        uploads[0].resolve({ id: 'att-1' });
+        await settle();
+
+        const { container } = mountComposer();
+
+        const [chip] = chips(container);
+        expect(chip.getAttribute('data-status')).toBe('done');
+        expect(chip.textContent).toContain('launch-checklist.txt');
+        // Still claimable, so the send the user came back to make can take it.
+        expect(
+            container
+                .querySelector('[data-test="message-composer-send"]')
+                ?.hasAttribute('disabled'),
+        ).toBe(false);
+    });
+
+    it('gives another channel a tray of its own', async () => {
+        const first = mountComposer();
+        await stage(first.container, textFile());
+        unmountLast();
+
+        const { container } = mountComposer({ channelSlug: 'design' });
+
+        expect(chips(container)).toHaveLength(0);
     });
 
     it('keeps saving drafts after an attachment-only send', async () => {

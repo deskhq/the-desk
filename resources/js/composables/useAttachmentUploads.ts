@@ -81,6 +81,12 @@ export interface AttachmentUploads {
     isUploading: ComputedRef<boolean>;
     /** Whether any row failed and still needs a retry or removal (blocks send). */
     hasFailed: ComputedRef<boolean>;
+    /**
+     * Whether the tray holds nothing at all — no rows, and no snapshot detached
+     * for a send that could still restore them. The owner of a tray that
+     * outlives its composer reads this to know when it is safe to let go.
+     */
+    isIdle: ComputedRef<boolean>;
     /** The claimable ids of the finished uploads, in tray order. */
     attachmentIds: ComputedRef<string[]>;
     /** Stage and begin uploading the given files, validating size and count. */
@@ -130,12 +136,17 @@ function defaultRevokeObjectUrl(url: string): void {
 }
 
 /**
- * Own the composer's pre-send attachment tray: files upload the moment they are
- * dropped, pasted, or picked (the two-phase flow), each row tracking its own
- * progress, so the send later just claims the finished ids. Size and count are
- * pre-checked here for instant feedback; the server re-enforces both as the
- * source of truth. Pure and Vue-reactive with an injectable uploader, so the
- * whole lifecycle unit-tests without a real network or DOM.
+ * Own a pre-send attachment tray: files upload the moment they are dropped,
+ * pasted, or picked (the two-phase flow), each row tracking its own progress,
+ * so the send later just claims the finished ids. Size and count are pre-checked
+ * here for instant feedback; the server re-enforces both as the source of truth.
+ * Pure and Vue-reactive with an injectable uploader, so the whole lifecycle
+ * unit-tests without a real network or DOM.
+ *
+ * The tray is torn down with the scope that built it. A channel's tray is
+ * therefore built by {@see useChannelUploads} in a scope of the registry's own,
+ * not by the composer rendering it — a composer-owned tray would abort its
+ * uploads on every channel switch.
  */
 export function useAttachmentUploads(
     options: AttachmentUploadsOptions,
@@ -157,6 +168,10 @@ export function useAttachmentUploads(
     // preview URLs; disposing them on teardown keeps the no-leak guarantee.
     const outstanding = new Set<() => void>();
 
+    // The same set's size, reactively — `isIdle` has to see a send detach and
+    // settle, and a plain Set cannot be watched.
+    const outstandingCount = ref(0);
+
     const count = computed(() => items.value.length);
     const isUploading = computed(() =>
         items.value.some((item) => item.status === 'uploading'),
@@ -168,6 +183,9 @@ export function useAttachmentUploads(
         items.value.flatMap((item) =>
             item.attachment ? [item.attachment.id] : [],
         ),
+    );
+    const isIdle = computed(
+        () => items.value.length === 0 && outstandingCount.value === 0,
     );
 
     /** The current row for a local id, or undefined once it has been removed. */
@@ -380,6 +398,7 @@ export function useAttachmentUploads(
 
             settled = true;
             outstanding.delete(dispose);
+            outstandingCount.value = outstanding.size;
 
             for (const { row } of captured) {
                 if (row.previewUrl) {
@@ -395,6 +414,7 @@ export function useAttachmentUploads(
 
             settled = true;
             outstanding.delete(dispose);
+            outstandingCount.value = outstanding.size;
 
             for (const { row, source } of captured) {
                 if (source) {
@@ -407,6 +427,7 @@ export function useAttachmentUploads(
         }
 
         outstanding.add(dispose);
+        outstandingCount.value = outstanding.size;
 
         return { restore, dispose };
     }
@@ -433,6 +454,7 @@ export function useAttachmentUploads(
         count,
         isUploading,
         hasFailed,
+        isIdle,
         attachmentIds,
         addFiles,
         addRemote,

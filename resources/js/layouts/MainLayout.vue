@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { router, usePage } from '@inertiajs/vue3';
 import { ChevronDown, Plus, X } from '@lucide/vue';
-import { computed, onMounted, ref } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
 import { show } from '@/actions/App/Http/Controllers/Channels/ChannelController';
 import {
     destroy as destroyReminder,
@@ -44,6 +44,7 @@ import UpdateIndicator from '@/components/UpdateIndicator.vue';
 import UserStatusDialog from '@/components/UserStatusDialog.vue';
 import { adjacentSlug } from '@/composables/keyboardShortcuts';
 import { useChannelSections } from '@/composables/useChannelSections';
+import { releaseChannelUploads } from '@/composables/useChannelUploads';
 import { useChimeNotifications } from '@/composables/useChimeNotifications';
 import { useDemoMode } from '@/composables/useDemoMode';
 import { useDndPauseDialog } from '@/composables/useDndPauseDialog';
@@ -164,6 +165,16 @@ useNewDirectMessages();
 useMessageReminders();
 
 const currentTeam = computed(() => page.props.currentTeam);
+
+// Staged attachments outlive the composer that started them, but not the
+// workspace they were staged in: the channels they belong to are gone from the
+// sidebar, so their trays have no surface to come back to. Dropping the whole
+// registry here is what releases their previews.
+watch(
+    () => currentTeam.value?.id,
+    () => releaseChannelUploads(),
+);
+
 const teams = computed(() => page.props.teams ?? []);
 const channels = computed(() => page.props.channels ?? []);
 const currentUserId = computed(() => String(page.props.auth.user.id));

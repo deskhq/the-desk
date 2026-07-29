@@ -3,6 +3,7 @@ import { effectScope } from 'vue';
 import type { EffectScope } from 'vue';
 import { useAttachmentUploads } from '@/composables/useAttachmentUploads';
 import type { AttachmentUploads } from '@/composables/useAttachmentUploads';
+import { useChannelUploads } from '@/composables/useChannelUploads';
 import type { UploadFailure, UploadHandle } from '@/lib/uploadAttachment';
 
 /**
@@ -111,4 +112,78 @@ export function buildUploads(): UploadsHarness {
     });
 
     return { scope, uploads, calls: fake.calls, created, revoked };
+}
+
+/** One composer's view of a registry-backed tray, and the way it goes away. */
+export interface OpenedTray {
+    uploads: AttachmentUploads;
+    /** Tear this composer down, the way unmounting its component would. */
+    close: () => void;
+}
+
+/** What the registry harness hands its suite: openers and shared recorders. */
+export interface RegistryHarness {
+    /**
+     * Open a composer for a channel — or, with a null key, one that has no
+     * channel and so gets a tray of its own.
+     */
+    open: (
+        channelKey: string | null,
+        overrides?: { endpoint?: string; maxPerMessage?: number },
+    ) => OpenedTray;
+    /** Tear down every composer still open, as unmounting them would. */
+    closeAll: () => void;
+    calls: Deferred[];
+    created: string[];
+    revoked: string[];
+}
+
+/**
+ * A registry harness: many composers over one fake uploader and one pair of
+ * object-URL recorders, so a suite can watch what a channel's tray keeps as the
+ * composers around it come and go.
+ */
+export function buildRegistry(): RegistryHarness {
+    const fake = fakeUploader();
+    const created: string[] = [];
+    const revoked: string[] = [];
+    const scopes: EffectScope[] = [];
+
+    function open(
+        channelKey: string | null,
+        overrides: { endpoint?: string; maxPerMessage?: number } = {},
+    ): OpenedTray {
+        let uploads!: AttachmentUploads;
+
+        const scope = effectScope();
+        scopes.push(scope);
+        scope.run(() => {
+            uploads = useChannelUploads({
+                channelKey,
+                endpoint: () =>
+                    overrides.endpoint ??
+                    `/t/${channelKey ?? 'none'}/attachments`,
+                maxSizeMb: () => 25,
+                maxPerMessage: () => overrides.maxPerMessage ?? 3,
+                uploader: fake.uploader,
+                createObjectUrl: (file) => {
+                    const url = `blob:${file.name}`;
+                    created.push(url);
+
+                    return url;
+                },
+                revokeObjectUrl: (url) => revoked.push(url),
+            });
+        });
+
+        return { uploads, close: () => scope.stop() };
+    }
+
+    return {
+        open,
+        closeAll: () => scopes.forEach((scope) => scope.stop()),
+        calls: fake.calls,
+        created,
+        revoked,
+    };
 }
