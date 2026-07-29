@@ -84,10 +84,16 @@ afterEach(() => {
 
 describe('PinsPanel rows', () => {
     it('lists a row per pin, with who pinned it and a body preview', () => {
-        const { host } = mount();
+        const { host } = mount({
+            pins: [message(), message({ id: 'm2', clientUuid: 'uuid-2' })],
+            pinCount: 2,
+        });
 
         const row = find(host, 'pins-panel-row');
 
+        expect(
+            host.querySelectorAll('[data-test="pins-panel-row"]'),
+        ).toHaveLength(2);
         expect(row.textContent).toContain(
             'Pinned by Alexandra Featherstonehaugh',
         );
@@ -110,6 +116,9 @@ describe('PinsPanel rows', () => {
 
         expect(emitted.unpin).toHaveLength(1);
         expect((emitted.unpin[0][0] as Message).id).toBe('m1');
+        // The control sits beside the row rather than inside it, so unpinning
+        // never doubles as a jump.
+        expect(emitted.jump).toBeUndefined();
     });
 
     it('drops the unpin control entirely for a read-only viewer', () => {
