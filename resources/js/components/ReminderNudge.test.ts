@@ -57,3 +57,37 @@ describe('ReminderNudge inaccessible reminders', () => {
         expect(html).toContain('the secret plan');
     });
 });
+
+describe('ReminderNudge author identity', () => {
+    it('leaves a human author unbadged', async () => {
+        const html = await render();
+
+        expect(html).toContain('Jordan West');
+        expect(html).not.toContain('data-test="author-bot-badge"');
+    });
+
+    it('shows a saved bot message under its display identity, badged', async () => {
+        const html = await render({
+            authorName: 'Deploy Bot',
+            authorIsBot: true,
+            authorOverride: { name: 'Release Train', avatar: null },
+        });
+
+        // The override replaces the bot's own name rather than sitting beside it.
+        expect(html).toContain('Release Train');
+        expect(html).not.toContain('Deploy Bot');
+        expect(html).toContain('data-test="author-bot-badge"');
+    });
+
+    it('never names an author the viewer may no longer see', async () => {
+        const html = await render({
+            isAccessible: false,
+            authorName: 'Deploy Bot',
+            authorIsBot: true,
+            authorOverride: { name: 'Release Train', avatar: null },
+        });
+
+        expect(html).not.toContain('Release Train');
+        expect(html).not.toContain('Deploy Bot');
+    });
+});

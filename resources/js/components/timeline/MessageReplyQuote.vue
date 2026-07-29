@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import MessageQuote from '@/components/MessageQuote.vue';
 import { Button } from '@/components/ui/button';
+import { displayAuthorName } from '@/lib/authorIdentity';
 import type { MessageReply } from '@/types';
 
 defineProps<{
@@ -27,7 +28,10 @@ defineEmits<{
         data-test="message-quote"
         :aria-label="
             $t('Jump to replied message from :author', {
-                author: replyTo.authorName,
+                author: displayAuthorName(
+                    replyTo.authorName,
+                    replyTo.authorOverride,
+                ),
             })
         "
         class="mt-0.5 flex max-w-full items-center rounded pr-1 text-left hover:opacity-80 max-md:border-y max-md:border-border max-md:bg-card max-md:py-1.5 max-md:pr-5 max-md:pl-5"
@@ -36,6 +40,8 @@ defineEmits<{
     >
         <MessageQuote
             :author-name="replyTo.authorName"
+            :author-is-bot="replyTo.authorIsBot"
+            :author-override="replyTo.authorOverride"
             :body="replyTo.body"
             :is-deleted="replyTo.isDeleted"
         />

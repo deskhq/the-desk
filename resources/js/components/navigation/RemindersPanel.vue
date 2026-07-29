@@ -7,8 +7,10 @@ import {
     destroy as destroyReminder,
     destroyAll as clearReminders,
 } from '@/actions/App/Http/Controllers/Channels/MessageReminderController';
+import BotBadge from '@/components/BotBadge.vue';
 import DestinationPanel from '@/components/navigation/DestinationPanel.vue';
 import { Button } from '@/components/ui/button';
+import { displayAuthorName, marksAuthorAsBot } from '@/lib/authorIdentity';
 import { messageBodyPreview } from '@/lib/messageBody';
 import { formatReminderDue, groupReminders } from '@/lib/reminderTime';
 import type { ReminderGroupKey } from '@/lib/reminderTime';
@@ -90,7 +92,19 @@ function clearAll(): void {
 function sourceLabel(reminder: MessageReminder): string {
     return reminder.channelName
         ? `#${reminder.channelName}`
-        : reminder.authorName;
+        : displayAuthorName(reminder.authorName, reminder.authorOverride);
+}
+
+/**
+ * Whether the source label above is a *name* that needs its non-human marker: a
+ * direct message names its author, and an overridden name may only render where
+ * its bot marker renders with it.
+ */
+function sourceIsBotAuthor(reminder: MessageReminder): boolean {
+    return (
+        !reminder.channelName &&
+        marksAuthorAsBot(reminder.authorIsBot, reminder.authorOverride)
+    );
 }
 
 function dueLabel(reminder: MessageReminder): string {
@@ -238,7 +252,11 @@ function isUrgent(key: ReminderGroupKey): boolean {
                                 class="truncate text-[13px] text-sidebar-foreground/70 md:text-[11px]"
                             >
                                 <template v-if="reminder.isAccessible"
-                                    >{{ sourceLabel(reminder) }} ·
+                                    >{{ sourceLabel(reminder) }}
+                                    <BotBadge
+                                        v-if="sourceIsBotAuthor(reminder)"
+                                    />
+                                    ·
                                 </template>
                                 <span data-test="reminder-when">{{
                                     dueLabel(reminder)

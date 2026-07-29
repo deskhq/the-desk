@@ -83,13 +83,32 @@ class NewMessageNotification extends Notification implements ShouldQueue
     private function title(): string
     {
         if ($this->channel->isDirectMessage()) {
-            return $this->message->user->name;
+            return $this->sender();
         }
 
         return __(':sender in #:channel', [
-            'sender' => $this->message->user->name,
+            'sender' => $this->sender(),
             'channel' => (string) $this->channel->name,
         ]);
+    }
+
+    /**
+     * The name the banner attributes the message to.
+     *
+     * A displayed name the author chose per message gets "(bot)" spelled into it,
+     * so a webhook cannot put a human's name on a lock screen unqualified. This is
+     * honestly a weaker guarantee than the in-app badge — the marker is part of the
+     * display string rather than a separate element — but a push title has nowhere
+     * else to put it. A bot posting under its own name needs no disambiguation:
+     * that name is its real, admin-controlled account name.
+     */
+    private function sender(): string
+    {
+        $overrideName = $this->message->authorOverride?->name;
+
+        // Collapsed onto one line: PCOV attributes a multi-line ternary's arms to
+        // their own lines, and the null arm then reads as uncovered.
+        return $overrideName === null ? $this->message->user->name : __(':name (bot)', ['name' => $overrideName]);
     }
 
     /**

@@ -15,6 +15,7 @@ import UnreadDivider from '@/components/timeline/UnreadDivider.vue';
 import { useIsMobile } from '@/composables/useIsMobile';
 import { useMessageActionSheet } from '@/composables/useMessageActionSheet';
 import { useTimelineWindow } from '@/composables/useTimelineWindow';
+import { displayAuthorName } from '@/lib/authorIdentity';
 import { formatTimeOfDay } from '@/lib/datetime';
 import { hasAnyMessageAction } from '@/lib/messageActions';
 import type { RenderedPresence } from '@/lib/presence';
@@ -347,6 +348,7 @@ function confirmDelete(): void {
                 >
                     <MessageAvatarGutter
                         :author="item.author"
+                        :author-override="item.authorOverride"
                         :team-slug="props.teamSlug"
                         :presence="presenceOf(item.author.id)"
                         :is-dnd="dndOf(item.author.id)"
@@ -365,6 +367,7 @@ function confirmDelete(): void {
                     >
                         <MessageAuthorLine
                             :author="item.author"
+                            :author-override="item.authorOverride"
                             :team-slug="props.teamSlug"
                             :presence="presenceOf(item.author.id)"
                             :is-dnd="dndOf(item.author.id)"
@@ -376,7 +379,12 @@ function confirmDelete(): void {
                                 v-for="(message, row) in item.messages"
                                 :key="message.id"
                                 :message="message"
-                                :author-name="item.author.name"
+                                :author-name="
+                                    displayAuthorName(
+                                        item.author.name,
+                                        item.authorOverride,
+                                    )
+                                "
                                 :team-slug="props.teamSlug"
                                 :current-user-id="props.currentUserId"
                                 :can-react="props.canReact"

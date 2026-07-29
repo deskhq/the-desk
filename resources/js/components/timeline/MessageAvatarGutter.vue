@@ -1,14 +1,25 @@
 <script setup lang="ts">
 import { Bot } from '@lucide/vue';
+import { computed } from 'vue';
 import PresenceDot from '@/components/PresenceDot.vue';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import UserHoverCard from '@/components/UserHoverCard.vue';
 import { useInitials } from '@/composables/useInitials';
+import {
+    displayAuthorAvatar,
+    displayAuthorName,
+    marksAuthorAsBot,
+} from '@/lib/authorIdentity';
 import type { RenderedPresence } from '@/lib/presence';
-import type { MessageAuthor } from '@/types';
+import type { AuthorOverride, MessageAuthor } from '@/types';
 
-defineProps<{
+const props = defineProps<{
     author: MessageAuthor;
+    /**
+     * The display identity the run's messages asked for, if any. It replaces the
+     * tile's image; the squared-off bot shape rides along regardless.
+     */
+    authorOverride?: AuthorOverride | null;
     teamSlug: string;
     presence: RenderedPresence;
     isDnd: boolean;
@@ -23,6 +34,27 @@ defineEmits<{
 }>();
 
 const { getInitials } = useInitials();
+
+const displayName = computed(() =>
+    displayAuthorName(props.author.name, props.authorOverride),
+);
+
+const displayAvatar = computed(() =>
+    displayAuthorAvatar(
+        props.author.avatar,
+        props.author.isBot,
+        props.authorOverride,
+    ),
+);
+
+const isBot = computed(() =>
+    marksAuthorAsBot(props.author.isBot, props.authorOverride),
+);
+
+/** The real account behind a displayed name that isn't its own. */
+const viaName = computed(() =>
+    displayName.value === props.author.name ? null : props.author.name,
+);
 </script>
 
 <template>
@@ -36,6 +68,7 @@ const { getInitials } = useInitials();
             :team-slug="teamSlug"
             :user-id="author.id"
             :name="author.name"
+            :via-name="viaName"
             :presence="presence"
             :is-dnd="isDnd"
             @mention="(member) => $emit('mention', member)"
@@ -47,27 +80,28 @@ const { getInitials } = useInitials();
                 <!-- A bot squares off its avatar (rounded-lg vs a human's full
                      circle) and shows a glyph on the ink-stone fill, so it reads
                      as non-human at a glance; a human keeps their
-                     gravatar/initials. -->
+                     gravatar/initials. A per-message icon override swaps the
+                     glyph for its image but never the squared shape. -->
                 <Avatar
                     class="size-8.5 text-[11px] max-md:size-6.5 max-md:text-[9px]"
-                    :class="author.isBot ? 'rounded-lg' : ''"
+                    :class="isBot ? 'rounded-lg' : ''"
                     aria-hidden="true"
                 >
                     <AvatarImage
-                        v-if="author.avatar && !author.isBot"
-                        :src="author.avatar"
-                        :alt="author.name"
+                        v-if="displayAvatar"
+                        :src="displayAvatar"
+                        :alt="displayName"
                     />
                     <AvatarFallback
                         :class="
-                            author.isBot
+                            isBot
                                 ? 'rounded-lg bg-muted-foreground text-background'
                                 : 'bg-primary/10 font-semibold text-primary'
                         "
                     >
-                        <Bot v-if="author.isBot" class="size-4.5" />
+                        <Bot v-if="isBot" class="size-4.5" />
                         <template v-else>{{
-                            getInitials(author.name)
+                            getInitials(displayName)
                         }}</template>
                     </AvatarFallback>
                 </Avatar>
@@ -75,7 +109,7 @@ const { getInitials } = useInitials();
                      text beside the name below, so this repeated dot is
                      decorative to AT. A bot has no presence, so it shows no dot. -->
                 <PresenceDot
-                    v-if="!author.isBot"
+                    v-if="!isBot"
                     data-test="presence-dot"
                     :presence="presence"
                     :is-dnd="isDnd"

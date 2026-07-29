@@ -36,6 +36,49 @@ curl -X POST $WEBHOOK_URL \
 
 The message appears in the channel authored by the webhook's bot.
 
+## Posting under a different name or icon
+
+One webhook can post as several logical sources. Add `username`, `icon_url`, or
+both, and that single message is displayed under them instead of the bot's own
+name and avatar:
+
+```bash
+curl -X POST $WEBHOOK_URL \
+  -H 'Content-Type: application/json' \
+  -d '{"text": "Rolled out to production", "username": "Release Train", "icon_url": "https://cdn.example.com/train.png"}'
+```
+
+Both fields are optional and independent: send only `icon_url` to keep the bot's
+name with a different picture. The values are stored on the message as a
+snapshot, so an old message keeps rendering as it did even after the webhook is
+revoked or its bot renamed.
+
+:::caution[The BOT badge cannot be removed]
+An override changes only the **displayed** name and icon. The message is still
+authored by the webhook's bot, so it keeps the uppercase **BOT** badge and the
+squared-off avatar, and its hover card names the account that actually posted it
+("via Deploy Bot"). There is no way to make a webhook message read as a person.
+:::
+
+Rules for the two fields:
+
+| Field | Rules |
+| --- | --- |
+| `username` | Up to 255 characters. |
+| `icon_url` | Up to 2048 characters, and must start with `http://` or `https://`. |
+
+- **Blank is the same as absent.** An empty or whitespace-only value posts under
+  the bot's own identity and still returns **202**, so a templated sender that
+  emits `"username": ""` for an unset variable keeps working.
+- **A malformed value is rejected with 422** rather than silently posting under a
+  different name than the one you asked for.
+- **The icon is never fetched at post time.** It is loaded through the app's image
+  proxy when a reader views the message, so no reader's IP reaches its host. A URL
+  that 404s simply falls back to the bot glyph, so a typo in `icon_url` never
+  drops an alert.
+- **`icon_emoji` is ignored.** Only `icon_url` is read, the same way Slack Block
+  Kit (`blocks`) and legacy `attachments` are ignored.
+
 ## Membership gating
 
 Posting is **membership-gated**: the webhook only works while its bot is a member

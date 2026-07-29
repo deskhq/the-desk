@@ -27,6 +27,12 @@ class MessageData extends Data
         public string $body,
         public MessageType $type,
         public UserData $user,
+        /**
+         * The display identity this message asked to be shown under, riding
+         * beside — never replacing — the truthful `user` above. Null on an
+         * ordinary message. See {@see AuthorOverrideData}.
+         */
+        public ?AuthorOverrideData $authorOverride,
         public string $createdAt,
         public ?string $editedAt,
         public bool $isDeleted,
@@ -50,6 +56,12 @@ class MessageData extends Data
 
     /**
      * Build the DTO from a Message model.
+     *
+     * `authorOverride` is the display identity the message asked for, carried
+     * beside the truthful `user` so a surface that does not know about overrides
+     * renders the real, admin-controlled identity rather than an unbadged
+     * impersonation. It survives a soft delete, since a tombstone still renders
+     * an author line.
      *
      * The message's `user` and `mentionedUsers` relations should be eager-loaded
      * to avoid N+1 queries. A soft-deleted message renders as a tombstone: its
@@ -95,6 +107,10 @@ class MessageData extends Data
             body: $isDeleted ? '' : $message->body,
             type: $message->type,
             user: UserData::fromUser($message->user),
+            // Identity, not content: a tombstone still renders an author line, so
+            // it keeps rendering as it always did rather than reverting to the
+            // bot's own name the moment the body is withdrawn.
+            authorOverride: AuthorOverrideData::forMessage($message),
             createdAt: $message->created_at->toIso8601String(),
             editedAt: $message->edited_at?->toIso8601String(),
             isDeleted: $isDeleted,

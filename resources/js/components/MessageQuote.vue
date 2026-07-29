@@ -1,9 +1,19 @@
 <script setup lang="ts">
 import { computed } from 'vue';
+import BotBadge from '@/components/BotBadge.vue';
+import { displayAuthorName, marksAuthorAsBot } from '@/lib/authorIdentity';
 import { messageBodyPreview } from '@/lib/messageBody';
+import type { AuthorOverride } from '@/types';
 
 const props = defineProps<{
     authorName: string;
+    /** Whether the quoted author is a bot, so the quote badges it. */
+    authorIsBot?: boolean;
+    /**
+     * The display identity the quoted message asked for, if any. It replaces the
+     * name shown here; the bot badge rides along with it.
+     */
+    authorOverride?: AuthorOverride | null;
     body: string;
     isDeleted: boolean;
 }>();
@@ -12,6 +22,14 @@ const props = defineProps<{
 // whose body is never sent to the client.
 const preview = computed(() =>
     props.isDeleted ? '' : messageBodyPreview(props.body),
+);
+
+const displayName = computed(() =>
+    displayAuthorName(props.authorName, props.authorOverride),
+);
+
+const isBot = computed(() =>
+    marksAuthorAsBot(props.authorIsBot, props.authorOverride),
 );
 </script>
 
@@ -29,8 +47,9 @@ const preview = computed(() =>
         </span>
         <template v-else>
             <span class="shrink-0 font-semibold text-foreground/80">{{
-                authorName
+                displayName
             }}</span>
+            <BotBadge v-if="isBot" class="shrink-0 align-[1px]" />
             <span class="truncate text-muted-foreground">{{ preview }}</span>
         </template>
     </span>

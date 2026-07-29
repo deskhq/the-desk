@@ -1,20 +1,37 @@
 <script setup lang="ts">
 import { Forward } from '@lucide/vue';
 import { computed } from 'vue';
+import BotBadge from '@/components/BotBadge.vue';
 import SafeHtml from '@/components/SafeHtml.vue';
 import { useCustomEmojis } from '@/composables/useCustomEmojis';
 import { useUserGroups } from '@/composables/useUserGroups';
+import { displayAuthorName, marksAuthorAsBot } from '@/lib/authorIdentity';
 import { renderMessageBody } from '@/lib/messageBody';
-import type { Mention } from '@/types';
+import type { AuthorOverride, Mention } from '@/types';
 
 const props = defineProps<{
     authorName: string;
+    /** Whether the forwarded author is a bot, so the attribution badges it. */
+    authorIsBot?: boolean;
+    /**
+     * The display identity the forwarded message asked for, if any. It replaces
+     * the name shown here; the bot badge rides along with it.
+     */
+    authorOverride?: AuthorOverride | null;
     /** Null when the source is a direct message, which has no channel name. */
     channelName: string | null;
     body: string;
     isDeleted: boolean;
     mentions: Mention[];
 }>();
+
+const displayName = computed(() =>
+    displayAuthorName(props.authorName, props.authorOverride),
+);
+
+const isBot = computed(() =>
+    marksAuthorAsBot(props.authorIsBot, props.authorOverride),
+);
 
 const { map: customEmojis } = useCustomEmojis();
 const { groups: userGroups } = useUserGroups();
@@ -60,8 +77,11 @@ const rendered = computed(() =>
                 {{ $t('Original message was deleted') }}
             </p>
             <template v-else>
-                <p class="text-[12.5px] font-semibold text-foreground">
-                    {{ authorName }}
+                <p
+                    class="flex items-baseline gap-1.5 text-[12.5px] font-semibold text-foreground"
+                >
+                    <span class="min-w-0 truncate">{{ displayName }}</span>
+                    <BotBadge v-if="isBot" class="shrink-0 align-[1px]" />
                 </p>
                 <p
                     class="mt-0.5 text-[13.5px] leading-[1.5] break-words whitespace-pre-wrap text-foreground/85"

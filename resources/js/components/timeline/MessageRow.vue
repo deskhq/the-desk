@@ -249,6 +249,8 @@ const showThreadSummary = computed(() =>
             v-if="message.forwardedFrom && !message.isDeleted && !editing"
             data-test="forwarded-message"
             :author-name="message.forwardedFrom.authorName"
+            :author-is-bot="message.forwardedFrom.authorIsBot"
+            :author-override="message.forwardedFrom.authorOverride"
             :channel-name="message.forwardedFrom.channelName"
             :body="message.forwardedFrom.body"
             :is-deleted="message.forwardedFrom.isDeleted"
