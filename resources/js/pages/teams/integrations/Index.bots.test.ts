@@ -197,6 +197,7 @@ function formFor(...fields: string[]): RecordedForm['form'] {
 beforeEach(() => {
     inertia.forms = [];
     inertia.posts = [];
+    inertia.pageProps.auth.user.timezone = 'UTC';
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2024-03-06T10:00:00.000Z'));
 });
@@ -278,6 +279,19 @@ describe('the bots rack', () => {
 
         expect(text(host, 'bot-row-b1')).toContain('never posted');
         expect(text(host, 'bot-row-b2')).toContain('last post 2 days ago');
+    });
+
+    it('still stamps the last post for a viewer whose zone is not UTC', () => {
+        // 'UTC' is structurally valid as a language tag, so a UTC viewer never
+        // catches a zone handed to a locale-taking formatter; any Region/City
+        // zone does, and only past the minute where the phrase is built.
+        inertia.pageProps.auth.user.timezone = 'America/New_York';
+
+        const host = mount({
+            bots: [bot({ lastPostedAt: '2024-03-04T10:00:00.000Z' })],
+        });
+
+        expect(text(host, 'bot-row-b1')).toContain('last post 2 days ago');
     });
 
     it('points each row at its own management page', () => {

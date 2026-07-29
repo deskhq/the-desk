@@ -3,7 +3,6 @@ import { Link, usePage } from '@inertiajs/vue3';
 import { Bot, Plus } from '@lucide/vue';
 import { computed } from 'vue';
 import { Button } from '@/components/ui/button';
-import { useTimezone } from '@/composables/useTimezone';
 import { useTranslations } from '@/composables/useTranslations';
 import { formatRelativeTime } from '@/lib/datetime';
 import { show as botShow } from '@/routes/teams/integrations/bots';
@@ -23,11 +22,10 @@ defineEmits<{
 
 const page = usePage();
 const currentUserId = computed(() => String(page.props.auth.user.id));
-const { timezone } = useTimezone();
 const { t } = useTranslations();
 
 function relative(iso: string | null): string {
-    return iso ? formatRelativeTime(iso, timezone.value ?? undefined) : '';
+    return iso ? formatRelativeTime(iso) : '';
 }
 
 function createdByLabel(bot: BotSummary): string {
