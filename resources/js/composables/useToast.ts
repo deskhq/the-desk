@@ -19,6 +19,20 @@ export type ToastOptions = {
      * carries "Tomorrow, 9:00 AM".
      */
     detail?: string;
+    /**
+     * A muted continuation of the title, on the same line and separated by a
+     * middle dot the card draws itself: "Uploading 3 files · 12.4 MB". Already
+     * translated. Where `detail` is a second line below the title, this is the
+     * same line — use it for a figure that belongs to the title's phrase.
+     */
+    meta?: string;
+    /**
+     * A short figure set hard right in monospace, e.g. a progress percentage.
+     * It takes the slot the stack's `+N` overflow otherwise has, and like it is
+     * `aria-hidden`: a toast re-firing once a second would otherwise be read
+     * aloud every second, so never put anything here that is said nowhere else.
+     */
+    value?: string;
     action?: ToastAction;
     /**
      * Merge identity. A repeat under the same key replaces the toast on screen
@@ -74,6 +88,8 @@ function notify(tone: ToastTone, title: string, options: ToastOptions): void {
             tone,
             title,
             detail: options.detail,
+            meta: options.meta,
+            value: options.value,
             action: options.action,
             duration,
         },
@@ -111,5 +127,13 @@ export function useToast() {
             notify('warning', title, options),
         progress: (title: string, options: ToastOptions = {}): void =>
             notify('progress', title, options),
+        /**
+         * Take a keyed toast off the screen without resolving it. For work that
+         * stops being worth reporting rather than finishing — a progress card
+         * whose inline surface the user has just come back to.
+         */
+        dismiss: (key: string): void => {
+            sonner.dismiss(key);
+        },
     };
 }

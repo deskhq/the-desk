@@ -1,6 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { sonner } = vi.hoisted(() => ({ sonner: { custom: vi.fn() } }));
+const { sonner } = vi.hoisted(() => ({
+    sonner: { custom: vi.fn(), dismiss: vi.fn() },
+}));
 
 vi.mock('vue-sonner', () => ({ toast: sonner }));
 
@@ -51,6 +53,16 @@ describe('useToast', () => {
 
             expect(cardPropsOf().title).toBe('Reminder set');
             expect(cardPropsOf().detail).toBe('Tomorrow, 9:00 AM');
+        });
+
+        it('hands the card the title’s continuation and its right-hand figure', () => {
+            useToast().progress('Uploading 3 files', {
+                meta: '12.4 MB',
+                value: '64%',
+            });
+
+            expect(cardPropsOf().meta).toBe('12.4 MB');
+            expect(cardPropsOf().value).toBe('64%');
         });
     });
 
@@ -140,6 +152,12 @@ describe('useToast', () => {
             useToast().success('Reminder set');
 
             expect(cardPropsOf().action).toBeUndefined();
+        });
+
+        it('takes a keyed toast back off the screen on request', () => {
+            useToast().dismiss('attachment-uploads');
+
+            expect(sonner.dismiss).toHaveBeenCalledWith('attachment-uploads');
         });
     });
 });

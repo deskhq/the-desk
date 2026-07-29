@@ -1,5 +1,11 @@
-import { effectScope, onScopeDispose, watch } from 'vue';
-import type { EffectScope } from 'vue';
+import {
+    computed,
+    effectScope,
+    onScopeDispose,
+    shallowReactive,
+    watch,
+} from 'vue';
+import type { ComputedRef, EffectScope } from 'vue';
 import { useAttachmentUploads } from '@/composables/useAttachmentUploads';
 import type {
     AttachmentUploads,
@@ -24,7 +30,39 @@ interface RegistryEntry {
     consumers: number;
 }
 
-const registry = new Map<string, RegistryEntry>();
+/**
+ * Shallow rather than deep, so an entry reads back as the object that was put
+ * in: the tray a composer holds and the tray the registry hands the next one
+ * have to be the same object, not two proxies of it.
+ */
+const registry = shallowReactive(new Map<string, RegistryEntry>());
+
+/** One channel's tray, as everything outside the composer sees it. */
+export interface ChannelUploads {
+    /** The channel it belongs to, as `team/channel`. */
+    channelKey: string;
+    uploads: AttachmentUploads;
+}
+
+/**
+ * Every channel holding a tray right now — the whole of what is staged across
+ * the workspace, which is what lets a surface outside the composer (the upload
+ * toast) report on channels the user is not looking at.
+ */
+export const channelUploads: ComputedRef<ChannelUploads[]> = computed(() =>
+    [...registry.entries()].map(([channelKey, entry]) => ({
+        channelKey,
+        uploads: entry.uploads,
+    })),
+);
+
+/** The registry key for a channel's tray. */
+export function channelUploadKey(
+    teamSlug: string,
+    channelSlug: string,
+): string {
+    return `${teamSlug}/${channelSlug}`;
+}
 
 /**
  * Build a channel's tray in a scope of its own, outside whichever component

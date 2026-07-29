@@ -44,7 +44,11 @@ import UpdateIndicator from '@/components/UpdateIndicator.vue';
 import UserStatusDialog from '@/components/UserStatusDialog.vue';
 import { adjacentSlug } from '@/composables/keyboardShortcuts';
 import { useChannelSections } from '@/composables/useChannelSections';
-import { releaseChannelUploads } from '@/composables/useChannelUploads';
+import {
+    channelUploadKey,
+    channelUploads,
+    releaseChannelUploads,
+} from '@/composables/useChannelUploads';
 import { useChimeNotifications } from '@/composables/useChimeNotifications';
 import { useDemoMode } from '@/composables/useDemoMode';
 import { useDndPauseDialog } from '@/composables/useDndPauseDialog';
@@ -71,8 +75,10 @@ import { useTimezone } from '@/composables/useTimezone';
 import { useToast, useToastCount } from '@/composables/useToast';
 import { useToastZoneHeight } from '@/composables/useToastZoneHeight';
 import { useTranslations } from '@/composables/useTranslations';
+import { useUploadProgressToast } from '@/composables/useUploadProgressToast';
 import { useUserStatusDialog } from '@/composables/useUserStatusDialog';
 import { backgroundVisit } from '@/lib/backgroundVisit';
+import type { Channel } from '@/types/channels';
 import type { MessageReminder } from '@/types/messages';
 import type { RoleOption } from '@/types/teams';
 
@@ -195,6 +201,57 @@ const activeChannelSlug = computed(
 );
 const pendingInvitations = computed(() => page.props.pendingInvitations ?? []);
 const hasUnreadThreads = computed(() => page.props.hasUnreadThreads ?? false);
+
+/**
+ * The sidebar's channels by the key their upload tray is filed under, so the
+ * upload toast can name and open a channel without taking the key apart again.
+ */
+const channelsByUploadKey = computed(() => {
+    const team = currentTeam.value;
+
+    if (!team) {
+        return new Map<string, Channel>();
+    }
+
+    return new Map(
+        channels.value.map((channel) => [
+            channelUploadKey(team.slug, channel.slug),
+            channel,
+        ]),
+    );
+});
+
+/**
+ * Report staged uploads whose composer is no longer on screen. It lives here
+ * because the layout is what knows which channel that is — and it outlives
+ * every channel the user passes through, which is the whole point of it.
+ */
+useUploadProgressToast({
+    channels: () => channelUploads.value,
+    activeChannelKey: () =>
+        currentTeam.value && activeChannelSlug.value
+            ? channelUploadKey(currentTeam.value.slug, activeChannelSlug.value)
+            : null,
+    channelName: (key) => {
+        const channel = channelsByUploadKey.value.get(key);
+
+        if (!channel) {
+            return null;
+        }
+
+        return channel.isDirect ? channel.name : `#${channel.name}`;
+    },
+    openChannel: (key) => {
+        const channel = channelsByUploadKey.value.get(key);
+
+        if (channel && currentTeam.value) {
+            router.visit(
+                show({ team: currentTeam.value.slug, channel: channel.slug })
+                    .url,
+            );
+        }
+    },
+});
 
 /**
  * Whether the reminders glyph wears its dot. The pending rows already ride
