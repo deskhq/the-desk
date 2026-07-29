@@ -76,6 +76,18 @@ describe('totalsForUploadBatch', () => {
         expect(totals.percent).toBe(99);
     });
 
+    it('holds at 99 while a fully-sent row waits for its answer', () => {
+        // `xhr.upload` reports 100 the moment the last byte leaves, but the row
+        // is only `done` once the server hands back the stored attachment — a
+        // card reading "Uploading 1 file · 100%" would be claiming otherwise.
+        const totals = totalsForUploadBatch([
+            row({ sizeBytes: MB, progress: 100 }),
+        ]);
+
+        expect(totals.percent).toBe(99);
+        expect(totals.isUploading).toBe(true);
+    });
+
     it('averages the rows when the batch carries no bytes at all', () => {
         const totals = totalsForUploadBatch([
             row({ sizeBytes: 0, status: 'done', progress: 100 }),

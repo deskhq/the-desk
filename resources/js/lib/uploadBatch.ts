@@ -36,17 +36,22 @@ export function totalsForUploadBatch(
     rows: PendingAttachment[],
 ): UploadBatchTotals {
     const totalBytes = rows.reduce((total, row) => total + row.sizeBytes, 0);
+    const isUploading = rows.some((row) => row.status === 'uploading');
+
+    // 100% has to mean finished. Floored rather than rounded, so a batch at
+    // 99.6% does not claim it — and held at 99 for as long as anything is still
+    // in flight, because `xhr.upload` reports 100 the moment the last byte is
+    // sent, with the server's answer (and the stored id) still to come.
+    const ceiling = isUploading ? 99 : 100;
 
     return {
         fileCount: rows.length,
         totalBytes,
-        // Floored, never rounded: 100% has to mean finished, so a batch at
-        // 99.6% must not claim it.
         percent: Math.max(
             0,
-            Math.min(100, Math.floor(weigh(rows, totalBytes))),
+            Math.min(ceiling, Math.floor(weigh(rows, totalBytes))),
         ),
-        isUploading: rows.some((row) => row.status === 'uploading'),
+        isUploading,
         failed: rows.filter((row) => row.status === 'failed'),
     };
 }
