@@ -6,6 +6,7 @@ use App\Actions\Channels\DispatchDueMessageReminders;
 use App\Actions\Channels\DispatchDueScheduledMessages;
 use App\Actions\Channels\PurgeExpiredAttachments;
 use App\Actions\Images\PurgeCachedProxyImages;
+use App\Actions\Integrations\PruneWebhookDeliveries;
 use App\Actions\Teams\PurgeExpiredAuditExports;
 use App\Actions\Users\BroadcastDndScheduleEdges;
 use App\Actions\Users\ClearExpiredUserStatuses;
@@ -76,6 +77,12 @@ Schedule::call(fn (PurgeExpiredDataExports $purge): int => $purge->handle())
     ->daily()
     ->withoutOverlapping()
     ->description('Purge expired data-export archives (files and rows)');
+
+Schedule::call(fn (PruneWebhookDeliveries $prune): int => $prune->handle())
+    ->name('prune-webhook-deliveries')
+    ->daily()
+    ->withoutOverlapping()
+    ->description('Prune webhook delivery attempts past the retention window');
 
 Schedule::call(fn (PruneSecurityEvents $prune): int => $prune->handle())
     ->name('prune-security-events')

@@ -114,6 +114,12 @@ class AppServiceProvider extends ServiceProvider
         RateLimiter::for('incoming-webhook', fn (Request $request): Limit => Limit::perMinute(
             (int) config('integrations.api_rate_limit'),
         )->by(sha1((string) $request->route('token'))));
+
+        // Replaying a delivery POSTs to a third-party endpoint on demand, so it
+        // is throttled per acting admin — generous enough to walk a delivery log
+        // after fixing an endpoint, tight enough not to become a traffic source.
+        RateLimiter::for('webhook-replay', fn (Request $request): Limit => Limit::perMinute(30)
+            ->by((string) $request->user()?->getAuthIdentifier()));
     }
 
     /**

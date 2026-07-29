@@ -413,3 +413,23 @@ it('exposes the configured backoff schedule and try ceiling', function (): void 
     expect($job->backoff())->toBe(config('integrations.webhooks.backoff'))
         ->and($job->tries())->toBe((int) config('integrations.webhooks.disable_after'));
 });
+
+it('makes a single attempt for a replay rather than retrying', function (): void {
+    $job = new DeliverWebhook((string) Str::uuid(), [], isReplay: true);
+
+    expect($job->tries())->toBe(1);
+});
+
+it('stores the delivered envelope on every logged attempt so it can be replayed', function (): void {
+    Http::fake(['example.test/*' => Http::response('', 200)]);
+
+    emit(WebhookEvent::MessageCreated, $this->channel, ['body' => 'hi']);
+
+    $delivery = $this->subscription->deliveries()->sole();
+    expect($delivery->envelope)->toMatchArray([
+        'type' => WebhookEvent::MessageCreated->value,
+        'data' => ['body' => 'hi'],
+    ])
+        ->and($delivery->envelope['id'])->toBe($delivery->event_id)
+        ->and($delivery->is_replay)->toBeFalse();
+});

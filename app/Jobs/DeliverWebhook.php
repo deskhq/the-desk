@@ -30,6 +30,14 @@ use Throwable;
  * job throws so the queue retries it with the configured backoff — the retry
  * ceiling is the same threshold, so a permanently dead endpoint retries, then
  * disables, then goes quiet.
+ *
+ * A manual **replay** ({@see self::$isReplay}) is deliberately inert with
+ * respect to all of that: it makes exactly one attempt, never retries, and
+ * touches none of the health fields. An operator poking a suspect endpoint by
+ * hand must not be able to auto-disable a live subscription, and a hand-fired
+ * success must not paper over an endpoint that is genuinely failing. It also
+ * ignores the subscription's status, so an auto-disabled subscription can be
+ * used to verify a fix before being re-enabled.
  */
 class DeliverWebhook implements ShouldQueue
 {
@@ -39,19 +47,23 @@ class DeliverWebhook implements ShouldQueue
      * @param  array<string, mixed>  $envelope  The full payload body (id, type,
      *                                          created_at, data), stable across
      *                                          retries so the receiver can dedupe.
+     * @param  bool  $isReplay  Whether this delivery was fired by hand from the
+     *                          delivery log rather than by the event itself.
      */
     public function __construct(
         public readonly string $subscriptionId,
         public readonly array $envelope,
+        public readonly bool $isReplay = false,
     ) {}
 
     /**
      * The maximum number of attempts, capped at the auto-disable threshold so the
-     * final failed attempt is the one that disables the subscription.
+     * final failed attempt is the one that disables the subscription. A replay
+     * is a single deliberate shot, so it never retries.
      */
     public function tries(): int
     {
-        return (int) config('integrations.webhooks.disable_after');
+        return $this->isReplay ? 1 : (int) config('integrations.webhooks.disable_after');
     }
 
     /**
@@ -79,7 +91,11 @@ class DeliverWebhook implements ShouldQueue
 
         $subscription = WebhookSubscription::find($this->subscriptionId);
 
-        if ($subscription === null || ! $subscription->isActive()) {
+        if ($subscription === null) {
+            return;
+        }
+
+        if (! $this->isReplay && ! $subscription->isActive()) {
             return;
         }
 
@@ -140,15 +156,11 @@ class DeliverWebhook implements ShouldQueue
         DB::transaction(function () use ($subscription, $response, $durationMs): void {
             $locked = $this->lockSubscription($subscription);
 
-            $locked->deliveries()->create([
-                'event_type' => (string) $this->envelope['type'],
-                'event_id' => (string) $this->envelope['id'],
-                'succeeded' => true,
-                'response_status' => $response->status(),
-                'duration_ms' => $durationMs,
-                'attempt' => $this->attempts(),
-                'error' => null,
-            ]);
+            $this->logAttempt($locked, true, $response->status(), null, $durationMs);
+
+            if ($this->isReplay) {
+                return;
+            }
 
             $locked->forceFill([
                 'consecutive_failures' => 0,
@@ -167,18 +179,14 @@ class DeliverWebhook implements ShouldQueue
      */
     private function recordFailure(WebhookSubscription $subscription, AuditRecorder $recorder, ?int $status, string $error, int $durationMs): void
     {
-        $disabled = DB::transaction(function () use ($subscription, $recorder, $status, $error, $durationMs): bool {
+        $stopRetrying = DB::transaction(function () use ($subscription, $recorder, $status, $error, $durationMs): bool {
             $locked = $this->lockSubscription($subscription);
 
-            $locked->deliveries()->create([
-                'event_type' => (string) $this->envelope['type'],
-                'event_id' => (string) $this->envelope['id'],
-                'succeeded' => false,
-                'response_status' => $status,
-                'duration_ms' => $durationMs,
-                'attempt' => $this->attempts(),
-                'error' => $error,
-            ]);
+            $this->logAttempt($locked, false, $status, $error, $durationMs);
+
+            if ($this->isReplay) {
+                return true;
+            }
 
             $failures = $locked->consecutive_failures + 1;
             $locked->forceFill(['consecutive_failures' => $failures])->save();
@@ -192,7 +200,26 @@ class DeliverWebhook implements ShouldQueue
             return false;
         });
 
-        throw_unless($disabled, RuntimeException::class, 'Webhook delivery failed: '.$error);
+        throw_unless($stopRetrying, RuntimeException::class, 'Webhook delivery failed: '.$error);
+    }
+
+    /**
+     * Append one attempt to the subscription's delivery log, keeping the
+     * envelope alongside it so the attempt can later be replayed verbatim.
+     */
+    private function logAttempt(WebhookSubscription $subscription, bool $succeeded, ?int $status, ?string $error, int $durationMs): void
+    {
+        $subscription->deliveries()->create([
+            'event_type' => (string) $this->envelope['type'],
+            'event_id' => (string) $this->envelope['id'],
+            'succeeded' => $succeeded,
+            'response_status' => $status,
+            'duration_ms' => $durationMs,
+            'attempt' => $this->attempts(),
+            'error' => $error,
+            'envelope' => $this->envelope,
+            'is_replay' => $this->isReplay,
+        ]);
     }
 
     /**

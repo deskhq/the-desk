@@ -6,12 +6,14 @@ namespace App\Http\Controllers\Teams\Integrations;
 
 use App\Actions\Integrations\CreateWebhookSubscription;
 use App\Actions\Integrations\ReenableWebhookSubscription;
+use App\Actions\Integrations\ReplayWebhookDelivery;
 use App\Actions\Integrations\RevokeWebhookSubscription;
 use App\Actions\Integrations\RotateWebhookSecret;
 use App\Data\WebhookSubscriptionDetailData;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Teams\Integrations\StoreWebhookSubscriptionRequest;
 use App\Models\Team;
+use App\Models\WebhookDelivery;
 use App\Models\WebhookSubscription;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -91,6 +93,29 @@ class WebhookSubscriptionController extends Controller
         $reenable->handle($request->user(), $webhookSubscription);
 
         Inertia::flash('toast', ['type' => 'success', 'message' => __('Subscription re-enabled')]);
+
+        return back();
+    }
+
+    /**
+     * Re-fire one past delivery attempt against the endpoint.
+     *
+     * The replay is a single shot that leaves the subscription's health alone,
+     * so it is offered on a disabled subscription too — verifying a fixed
+     * endpoint is exactly what it is for.
+     */
+    public function replay(Request $request, Team $team, WebhookSubscription $webhookSubscription, WebhookDelivery $webhookDelivery, ReplayWebhookDelivery $replay): RedirectResponse
+    {
+        Gate::authorize('manageIntegrations', $team);
+
+        $this->ensureSubscriptionBelongsToTeam($webhookSubscription, $team);
+
+        abort_unless($webhookDelivery->webhook_subscription_id === $webhookSubscription->id, 404);
+        abort_unless($webhookDelivery->isReplayable(), 422, __('This delivery was logged before payloads were retained, so it cannot be replayed.'));
+
+        $replay->handle($request->user(), $webhookDelivery);
+
+        Inertia::flash('toast', ['type' => 'success', 'message' => __('Delivery queued for replay')]);
 
         return back();
     }
