@@ -340,6 +340,17 @@ const toolsOpen = ref(false);
 /**
  * How much of the screen the on-screen keyboard covers, so the pill can sit
  * above it with its Send button reachable instead of behind it.
+ *
+ * The root pads itself by this on top of the device's home-indicator inset, so
+ * the pill stays clear of both: the safe-area inset is static, while the
+ * keyboard inset has to be measured live off visualViewport (the layout viewport
+ * `dvh` sizes against does not shrink when the keyboard opens).
+ *
+ * That note lives here rather than above the template's root element on purpose.
+ * Vue keeps a root-level comment in a dev build and strips it in production, so
+ * a leading comment would make this component a fragment under the dev server —
+ * and `$el`, which the page measures for the bottom-right rail's inset, would be
+ * the fragment's anchor comment instead of the root div (#1051).
  */
 const keyboardInsetPx = useKeyboardInset();
 
@@ -367,10 +378,6 @@ defineExpose({ insertMention, focus, addFiles: attachments.addFiles });
 </script>
 
 <template>
-    <!-- The pill stays clear of both the device's home indicator and the
-         on-screen keyboard: the safe-area inset is static, the keyboard inset is
-         measured live off visualViewport (the layout viewport `dvh` sizes
-         against does not shrink when the keyboard opens). -->
     <div
         class="@container mx-3 mb-2 shrink-0 md:mx-5 md:mb-4"
         :style="{

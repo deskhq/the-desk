@@ -18,6 +18,22 @@ export const RAIL_INSET_PROPERTY = '--rail-right-inset';
 export const RAIL_BOTTOM_INSET_PROPERTY = '--rail-bottom-inset';
 
 /**
+ * The element to measure, or null where there is nothing measurable.
+ *
+ * A caller that reads a child component's `$el` can hand us something that is
+ * not an element at all: a component whose template opens with a comment renders
+ * as a fragment, and its `$el` is then the fragment's anchor comment. Vue keeps
+ * root-level comments in a dev build and strips them in production, so the very
+ * same component resolves to a comment under the dev server and to its root
+ * element in a build (#1051). Neither `getBoundingClientRect` nor
+ * `ResizeObserver.observe` accepts a comment, so anything that is not an element
+ * claims nothing — the documented fallback — instead of throwing.
+ */
+function measurable(node: HTMLElement | null): HTMLElement | null {
+    return node instanceof Element ? node : null;
+}
+
+/**
  * Keep `property` in step with what `element` claims of its edge, for as long as
  * the element is mounted.
  *
@@ -40,7 +56,7 @@ function publishInset(
     }
 
     function publish(): void {
-        const target = element.value;
+        const target = measurable(element.value);
         const inset = target ? claim(target) : null;
 
         if (inset === null) {
@@ -85,7 +101,9 @@ function publishInset(
 
     watch(
         element,
-        (target) => {
+        (node) => {
+            const target = measurable(node);
+
             observer?.disconnect();
             observer = target ? new ResizeObserver(publish) : null;
             observer?.observe(target as HTMLElement);
