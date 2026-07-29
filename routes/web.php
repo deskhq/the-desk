@@ -110,6 +110,9 @@ Route::middleware(['auth', 'verified', EnsureTeamMembership::class])->group(func
     Route::get('t/{team}/c/{channel}', [ChannelController::class, 'show'])
         ->scopeBindings()
         ->name('channels.show');
+    Route::patch('t/{team}/c/{channel}', [ChannelController::class, 'update'])
+        ->scopeBindings()
+        ->name('channels.update');
     Route::post('t/{team}/c/{channel}/join', [ChannelController::class, 'join'])
         ->scopeBindings()
         ->name('channels.join');
