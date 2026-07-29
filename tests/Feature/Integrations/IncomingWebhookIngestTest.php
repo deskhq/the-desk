@@ -285,6 +285,23 @@ it('422s a malformed identity override rather than posting under the wrong name'
     'a non-string icon url' => [['icon_url' => ['nested']]],
 ]);
 
+it('answers a sender that never set an Accept header with a machine-readable 422', function (): void {
+    [, $token] = makeWebhook();
+
+    // What a plain `curl -H 'Content-Type: application/json'` sends: without the
+    // guard, Laravel would redirect and the sender would read a 302 as success.
+    $this->call(
+        'POST',
+        "/webhooks/incoming/{$token}",
+        server: ['CONTENT_TYPE' => 'application/json', 'HTTP_ACCEPT' => '*/*'],
+        content: json_encode(['text' => 'hi', 'icon_url' => 'ftp://cdn.example.test/train.png'], JSON_THROW_ON_ERROR),
+    )
+        ->assertStatus(422)
+        ->assertJsonValidationErrors('icon_url');
+
+    $this->assertDatabaseCount('messages', 0);
+});
+
 it('keeps the snapshot after the webhook is revoked and its bot renamed', function (): void {
     [$webhook, $token] = makeWebhook();
 

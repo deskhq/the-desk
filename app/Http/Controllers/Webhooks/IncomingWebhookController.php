@@ -37,6 +37,12 @@ class IncomingWebhookController extends Controller
 
     public function __invoke(Request $request, string $token, PostMessage $postMessage): JsonResponse
     {
+        // The sender is a machine and rarely sets `Accept`. Without it Laravel
+        // renders a validation failure as a redirect, and a `302` reads as
+        // success to curl — the opposite of the self-diagnosing `422` this
+        // endpoint promises. It only ever speaks JSON, so say so on its behalf.
+        $request->headers->set('Accept', 'application/json');
+
         $webhook = IncomingWebhook::query()
             ->active()
             ->where('token_hash', IncomingWebhook::hashToken($token))
