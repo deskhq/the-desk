@@ -318,6 +318,14 @@ describe('pending invitations', () => {
         expect(stub(host, 'CancelInvitationModal')?.dataset.open).toBe('true');
     });
 
+    it('names the icon-only cancel control for a screen reader', () => {
+        const host = mount();
+
+        expect(
+            find(host, 'invitation-cancel-button')?.getAttribute('aria-label'),
+        ).toBe('Cancel invitation');
+    });
+
     it('offers cancellation only to someone who may cancel', () => {
         const host = mount({
             permissions: permissions({ canCancelInvitation: false }),
