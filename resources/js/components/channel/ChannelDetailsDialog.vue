@@ -38,6 +38,14 @@ const props = defineProps<{
 
 const open = defineModel<boolean>('open', { required: true });
 
+/**
+ * The server's own caps (`UpdateChannelRequest`), mirrored onto the controls so
+ * the field stops accepting characters the save would only reject. The server
+ * rule stays the authority; this is courtesy, not validation.
+ */
+const MAX_TOPIC_LENGTH = 255;
+const MAX_DESCRIPTION_LENGTH = 1500;
+
 /** Whether the modal is showing the edit form rather than the details. */
 const editing = ref(false);
 
@@ -136,7 +144,7 @@ watch(() => props.channel.id, stopEditing);
                             data-test="channel-details-topic"
                             :default-value="props.channel.topic ?? ''"
                             :placeholder="$t('What\'s this channel about?')"
-                            maxlength="255"
+                            :maxlength="MAX_TOPIC_LENGTH"
                         />
                     </FormField>
 
@@ -156,7 +164,7 @@ watch(() => props.channel.id, stopEditing);
                             :placeholder="
                                 $t('What is this channel for, in full?')
                             "
-                            maxlength="1500"
+                            :maxlength="MAX_DESCRIPTION_LENGTH"
                             class="w-full resize-none rounded-lg border border-input bg-popover px-3 py-2.5 text-base leading-[1.5] text-foreground outline-none focus:border-ring focus:ring-1 focus:ring-ring md:text-[13.5px]"
                         ></textarea>
                     </FormField>
