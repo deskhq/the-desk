@@ -34,8 +34,19 @@ make that work:
   driver. They install in two steps because the shared libraries Chromium links
   against need `apt` and therefore root (`sail root-shell -c "npx playwright
   install-deps chromium"`), while the browser itself installs as the `sail` user
-  so its cache lands in the `HOME` Pest reads it back from. Re-entry probes the
-  cache and skips both when a chromium build is already unpacked.
+  so its cache lands in the `HOME` Pest reads it back from. Each step is gated
+  separately: the browser download is skipped once the cache probe finds an
+  unpacked chromium, the `apt` step once a `.worktree-playwright-deps` sentinel
+  says it completed.
+- `install-deps` shells out to `apt-get update`, which fails the whole run when
+  *any* configured source is unreachable — including the third-party lists the
+  Sail image ships (nodesource, pgdg, `ppa:ondrej/php`), which Chromium's
+  libraries have nothing to do with. A 403 from one of those mirrors used to take
+  out an otherwise-complete bootstrap several minutes in (issue #1005). The
+  bootstrap now parks those lists for the duration of the install and puts them
+  back afterwards, and this is the one step allowed to fail soft: the worktree
+  still reaches `ready`, the run says that `tests/Browser` is unavailable, and
+  the next `bin/worktree create <NNN>` retries just that step.
 - `REVERB_PORT` is overloaded in `compose.yaml`: it is both the host side of
   `${REVERB_PORT}:8080` and — via `config/broadcasting.php` — the port the app
   dials at `reverb:<port>`. The generated `.env` therefore pins it to the

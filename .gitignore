@@ -35,3 +35,4 @@ yarn-error.log
 /compose.override.yaml
 /.worktree-ready
 /.worktree-seeded
+/.worktree-playwright-deps
