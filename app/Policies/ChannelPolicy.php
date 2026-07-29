@@ -34,6 +34,40 @@ class ChannelPolicy
     }
 
     /**
+     * Determine whether the user can edit the channel's topic and description.
+     *
+     * These are collaborative, shared-context fields rather than administrative
+     * settings, so any member of the channel may change them. A direct message
+     * has neither field (it is named by its participants), and an archived
+     * channel is read-only, so neither is editable.
+     */
+    public function update(User $user, Channel $channel): bool
+    {
+        if ($channel->isDirectMessage() || $channel->isArchived()) {
+            return false;
+        }
+
+        return $this->isMember($user, $channel);
+    }
+
+    /**
+     * Determine whether the user can rename the channel.
+     *
+     * Renaming changes what the whole team calls the channel, so it stays with
+     * the people accountable for it: the creator or a team Admin+, and only
+     * from within the channel (an Admin joins before they rename).
+     */
+    public function rename(User $user, Channel $channel): bool
+    {
+        if (! $this->update($user, $channel)) {
+            return false;
+        }
+
+        return $channel->created_by === $user->id
+            || ($user->teamRole($channel->team)?->isAtLeast(TeamRole::Admin) ?? false);
+    }
+
+    /**
      * Determine whether the user can update their own notification preferences.
      *
      * Preferences live on the membership pivot, so only a member of the channel

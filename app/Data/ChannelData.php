@@ -18,6 +18,8 @@ class ChannelData extends Data
         public string $slug,
         public string $visibility,
         public ?string $topic,
+        /** The long-form "what this channel is for", rendered with links and basic Markdown. */
+        public ?string $description,
         public bool $isGeneral,
         public bool $isArchived,
         public bool $muted = false,
@@ -138,6 +140,7 @@ class ChannelData extends Data
             slug: $channel->slug,
             visibility: $channel->visibility->value,
             topic: $channel->topic,
+            description: $channel->description,
             isGeneral: $channel->isGeneral(),
             isArchived: $channel->isArchived(),
             muted: $muted,

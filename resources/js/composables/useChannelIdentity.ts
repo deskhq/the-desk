@@ -19,6 +19,11 @@ export interface ChannelIdentity {
     isSelfDm: ComputedRef<boolean>;
     /** What the channel is called from the viewer's side of it. */
     mastheadTitle: ComputedRef<string>;
+    /**
+     * The same name as the browser tab reads it: a channel wears its `#`, a DM
+     * is named by whoever is in it.
+     */
+    pageTitle: ComputedRef<string>;
     /** Whether the viewer may grow this DM by adding people. */
     canAddPeople: ComputedRef<boolean>;
     /** A DM's composer placeholder, or undefined to keep the channel default. */
@@ -68,6 +73,12 @@ export function useChannelIdentity(
         return isSelfDm.value ? t('You') : options.channel().name;
     });
 
+    const pageTitle = computed(() =>
+        options.channel().isDirect
+            ? mastheadTitle.value
+            : `#${options.channel().name}`,
+    );
+
     /**
      * The viewer may add people to any DM they belong to; grows a 1:1 into a group
      * or a group further. Drives the masthead's "Add people" button and its modal.
@@ -112,6 +123,7 @@ export function useChannelIdentity(
         currentUser,
         isSelfDm,
         mastheadTitle,
+        pageTitle,
         canAddPeople,
         composerPlaceholder,
         canModerate,

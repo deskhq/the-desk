@@ -33,11 +33,19 @@ export type MessageAuthor = {
 
 /**
  * A message's kind (mirrors the `MessageType` enum). `standard` is an ordinary
- * user-authored message; `member_joined` / `member_left` are inert system
- * notices the timeline renders as centered, localized lines rather than chat
- * bubbles, and which never carry interactions or advance unread badges.
+ * user-authored message and `poll` is an interactive poll card; every other type
+ * is an inert system notice, which the timeline renders as a centered, localized
+ * line rather than a chat bubble and which never carries interactions or
+ * advances unread badges. A `topic_changed` / `channel_renamed` notice carries
+ * the new topic or name in its `body`, which the line quotes.
  */
-export type MessageType = 'standard' | 'member_joined' | 'member_left' | 'poll';
+export type MessageType =
+    | 'standard'
+    | 'member_joined'
+    | 'member_left'
+    | 'topic_changed'
+    | 'channel_renamed'
+    | 'poll';
 
 /**
  * A team member referenced by an `@mention` in a message body. Mirrors the
@@ -198,9 +206,10 @@ export type Message = {
     clientUuid: string;
     body: string;
     /**
-     * The message kind. `standard` for a normal user message; a `member_joined`
-     * or `member_left` system notice renders as a centered, inert timeline line
-     * (from the `type` and author) and is guarded out of every interaction path.
+     * The message kind. `standard` for a normal user message; a system notice
+     * renders as a centered, inert timeline line (from the `type`, the author,
+     * and — for a topic or rename notice — the `body`) and is guarded out of
+     * every interaction path.
      */
     type: MessageType;
     user: MessageAuthor;

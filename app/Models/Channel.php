@@ -26,6 +26,7 @@ use Illuminate\Support\Carbon;
  * @property ChannelType $type
  * @property string|null $dm_key
  * @property string|null $topic
+ * @property string|null $description
  * @property string|null $created_by
  * @property Carbon|null $archived_at
  * @property Carbon|null $created_at
@@ -40,7 +41,7 @@ use Illuminate\Support\Carbon;
  * @property-read Collection<int, User> $members
  * @property-read Collection<int, Message> $messages
  */
-#[Fillable(['team_id', 'name', 'slug', 'visibility', 'type', 'dm_key', 'topic', 'created_by', 'archived_at'])]
+#[Fillable(['team_id', 'name', 'slug', 'visibility', 'type', 'dm_key', 'topic', 'description', 'created_by', 'archived_at'])]
 class Channel extends Model
 {
     /** @use HasFactory<ChannelFactory> */

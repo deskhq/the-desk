@@ -4,6 +4,7 @@ import { ref } from 'vue';
 import { archive as archiveChannel } from '@/actions/App/Http/Controllers/Channels/ChannelController';
 import AddDirectMessagePeopleModal from '@/components/AddDirectMessagePeopleModal.vue';
 import ArchiveChannelDialog from '@/components/channel/ArchiveChannelDialog.vue';
+import ChannelDetailsDialog from '@/components/channel/ChannelDetailsDialog.vue';
 import ForwardMessageDialog from '@/components/ForwardMessageDialog.vue';
 import LeaveChannelModal from '@/components/LeaveChannelModal.vue';
 import ScheduledMessagesDialog from '@/components/ScheduledMessagesDialog.vue';
@@ -25,6 +26,10 @@ const props = defineProps<{
     team: { slug: string };
     channel: Channel;
     currentUserId: string;
+    /** Whether the viewer may reword the channel's topic and description. */
+    canEditChannel: boolean;
+    /** Whether the viewer may also rename it. */
+    canRenameChannel: boolean;
     timezone: string | null;
     /** The viewer's own pending scheduled messages for this channel. */
     scheduledMessages: ScheduledMessage[];
@@ -68,6 +73,9 @@ const {
 /** Whether the "Scheduled messages" management dialog is open. */
 const scheduledDialogOpen = ref(false);
 
+/** Drives the channel-details modal opened from the channel header menu. */
+const detailsOpen = ref(false);
+
 /** Drives the archive confirmation dialog opened from the channel header menu. */
 const confirmingArchive = ref(false);
 
@@ -97,6 +105,9 @@ defineExpose({
     openCustomReminder,
     openScheduled: (): void => {
         scheduledDialogOpen.value = true;
+    },
+    openDetails: (): void => {
+        detailsOpen.value = true;
     },
     confirmArchive: (): void => {
         confirmingArchive.value = true;
@@ -143,6 +154,14 @@ defineExpose({
             :title="$t('Remind me about this')"
             :confirm-label="$t('Set reminder')"
             @confirm="confirmCustomReminder"
+        />
+
+        <ChannelDetailsDialog
+            v-model:open="detailsOpen"
+            :channel="props.channel"
+            :team-slug="props.team.slug"
+            :can-edit="props.canEditChannel"
+            :can-rename="props.canRenameChannel"
         />
 
         <ArchiveChannelDialog

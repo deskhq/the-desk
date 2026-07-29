@@ -28,6 +28,7 @@ function dmChannel(id: string, participants: DmParticipant[]): Channel {
         slug: `dm-${id}`,
         visibility: 'private',
         topic: null,
+        description: null,
         isGeneral: false,
         isArchived: false,
         muted: false,

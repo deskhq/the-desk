@@ -1,3 +1,4 @@
+import { router } from '@inertiajs/vue3';
 import { echo } from '@laravel/echo-vue';
 import type { Ref } from 'vue';
 import { onBeforeUnmount, onMounted, watch } from 'vue';
@@ -6,6 +7,7 @@ import type {
     TypingUser,
     useTypingIndicator,
 } from '@/composables/useTypingIndicator';
+import { backgroundVisit } from '@/lib/backgroundVisit';
 import { createChannelFleet } from '@/lib/channelFleet';
 import { placeIncomingMessage } from '@/lib/messagePlacement';
 import type {
@@ -217,6 +219,17 @@ export function useChannelRealtime(options: ChannelRealtimeOptions): void {
                         options.readers.value = next;
                     },
                 )
+                .listen('ChannelUpdated', () => {
+                    // Someone edited the channel's name, topic, or description.
+                    // Those feed the masthead, the sidebar row and the page
+                    // title alike, so refetch them rather than merging the
+                    // broadcast into each of the three by hand. Nobody asked
+                    // for this request, so it rides `backgroundVisit`.
+                    router.reload({
+                        ...backgroundVisit,
+                        only: ['channel', 'channels'],
+                    });
+                })
                 .listen('UserTyping', (user: TypingUser) => {
                     // The server broadcasts to others only, but that exclusion
                     // rides the X-Socket-ID header — if it was ever missing, the

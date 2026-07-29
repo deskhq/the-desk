@@ -76,6 +76,7 @@ const props = defineProps<{
 }>();
 
 const emit = defineEmits<{
+    openDetails: [];
     toggleStar: [];
     notificationLevelChange: [value: AcceptableValue];
     muteChange: [value: boolean];
@@ -201,6 +202,7 @@ const { isMobile, openSearch } = useMastheadSearch();
 
             <MastheadOptionsMenu
                 :is-direct="props.channel.isDirect"
+                :can-view-details="!props.channel.isDirect"
                 :can-manage-preferences="props.canManagePreferences"
                 :can-archive="props.canArchive"
                 :can-leave="props.canLeave"
@@ -208,6 +210,7 @@ const { isMobile, openSearch } = useMastheadSearch();
                 :starred="props.starred"
                 :muted="props.muted"
                 :notification-level="props.notificationLevel"
+                @open-details="emit('openDetails')"
                 @toggle-star="emit('toggleStar')"
                 @notification-level-change="
                     (value) => emit('notificationLevelChange', value)
