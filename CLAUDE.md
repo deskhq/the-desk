@@ -283,6 +283,14 @@ Vue components must have a single root element.
 - **Every worker's schema bootstrap is guarded against Postgres deadlocks.** The first test a worker runs creates that worker's database and migrates it, and all of them do so at once; those transactions write shared catalogs (`pg_shdepend`), and because transaction-id locks are cluster-wide the wait cycle can span two worker databases and get one killed with `SQLSTATE[40P01]` (#812). `Tests\Support\SchemaBootstrapGuard` (wired into `Tests\TestCase::setUp()`) holds a shared `flock` for the normal path — so the bootstrap stays as parallel as it was — and re-runs a deadlocked worker under an exclusive one, alone in the cluster. Do not remove it to "simplify" the base test case; a red run would come back as a rerun-and-it-passes flake.
 - If new code drops coverage, add or update tests until it is back at 100%. When a line reads as uncovered even though a test exercises it (e.g. the `: null` branch of a multi-line ternary is a known PCOV line-attribution quirk), collapse it onto a single line rather than leaving the gate red.
 
+## Browser Testing — always headless
+
+- **Every browser you drive runs headless. Never open a visible window.** This covers the Pest browser suite, interactive tooling (the Playwright MCP, the `browser-use` and `run` skills) and any raw Playwright/Chromium launch. A window popping open steals focus from whoever is at the keyboard, and on a machine running several worktrees at once it is a stream of them.
+- **The Pest browser suite is already headless by default** (`Playwright::$headless` in `pestphp/pest-plugin-browser`), so this rule is about not turning it off. Do not pass `--headed`, do not call `pest()->browser()->headed()` in `tests/Pest.php`, and do not leave a `->debug()` on a `visit()`.
+- **`->debug()` is the one that bites**, because opening a window is only half of what it does: it also calls `Only::enable()`, so the run silently shrinks to the single test carrying it. A stray `->debug()` therefore reports green while skipping the whole suite. `--headed` is the loud one by comparison, and it is rejected outright under `--parallel`, which is how `bin/browser-tests` runs the suite.
+- **Drive interactive tooling headless too:** `@playwright/mcp --headless`, `chromium.launch({ headless: true })`. To *see* the page, take a screenshot and read it, which is what the design comparison in the `implement-issue` skill needs anyway.
+- **If you genuinely need to watch a browser, ask first and revert it before committing.** `tests/Unit/HeadlessBrowserTestingTest.php` fails the gate if `--headed`, `headed()` or `->debug()` reaches the repo.
+
 ## Reporting Bugs Found While Doing Something Else
 
 - **When you discover a bug, broken tooling, or other pre-existing defect while implementing an unrelated feature, do not fix it inline.** Keep the current change focused on its own scope.
