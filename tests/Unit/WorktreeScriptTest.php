@@ -80,20 +80,24 @@ function tempGitDir(string $prefix): string
  * Stand up a throwaway worktree directory whose ./vendor/bin/sail is a stub that
  * records every invocation, so the Playwright bootstrap can be driven without
  * Docker. The stub answers the "is chromium already there?" probe (`sail shell`)
- * with $probeExit and succeeds for everything else.
+ * with $probeExit, exits 100 (apt's own failure code) for any invocation whose
+ * arguments contain $failing, and succeeds for everything else.
  *
  * @return array{0: string, 1: string} the fake worktree path and its call log
  */
-function fakeSailWorktree(int $probeExit): array
+function fakeSailWorktree(int $probeExit, string $failing = ''): array
 {
     $path = tempGitDir('worktree-sail');
     mkdir($path.'/vendor/bin', 0o755, true);
+
+    $failClause = $failing === '' ? ':' : 'case "$*" in *'.$failing.'*) exit 100 ;; esac';
 
     $log = $path.'/sail-calls.log';
     file_put_contents($path.'/vendor/bin/sail', <<<BASH
         #!/usr/bin/env bash
         printf '%s\n' "\$*" >> {$log}
         [ "\$1" = "shell" ] && exit {$probeExit}
+        {$failClause}
         exit 0
         BASH);
     chmod($path.'/vendor/bin/sail', 0o755);
@@ -313,14 +317,61 @@ test('a fresh worktree installs the Playwright system deps as root and the chrom
         ->and(sailCalls($log))->toContain('npx playwright install chromium');
 });
 
+test('the Playwright dependency install parks third-party apt sources around itself', function (): void {
+    [$path, $log] = fakeSailWorktree(probeExit: 1);
+
+    $process = runWorktreeLib($path, 'install_playwright_browsers '.escapeshellarg($path));
+    $calls = sailCalls($log);
+    $install = array_search('root-shell -c npx playwright install-deps chromium', $calls, true);
+
+    expect($process->getExitCode())->toBe(0)
+        ->and($install)->toBeInt()
+        ->and($calls[$install - 1])->toContain('/etc/apt/sources.list.d')
+        ->and($calls[$install + 1])->toContain('/etc/apt/sources.list.d');
+});
+
+test('an unreachable apt mirror degrades the Playwright step instead of aborting the bootstrap', function (): void {
+    [$path, $log] = fakeSailWorktree(probeExit: 1, failing: 'install-deps');
+
+    $process = runWorktreeLib($path, 'install_playwright_browsers '.escapeshellarg($path));
+    $calls = sailCalls($log);
+    $install = array_search('root-shell -c npx playwright install-deps chromium', $calls, true);
+
+    expect($process->getExitCode())->toBe(0)
+        ->and($process->getErrorOutput())->toContain('tests/Browser')
+        ->and($calls[$install + 1])->toContain('/etc/apt/sources.list.d')
+        ->and($calls)->toContain('npx playwright install chromium');
+});
+
 test('a worktree that already has chromium skips the Playwright install', function (): void {
     [$path, $log] = fakeSailWorktree(probeExit: 0);
+    touch($path.'/.worktree-playwright-deps');
 
     $process = runWorktreeLib($path, 'install_playwright_browsers '.escapeshellarg($path));
 
     expect($process->getExitCode())->toBe(0)
         ->and(sailCalls($log))->not->toContain('root-shell -c npx playwright install-deps chromium')
         ->and(sailCalls($log))->not->toContain('npx playwright install chromium');
+});
+
+test('a degraded system-dependency install is retried even once chromium is downloaded', function (): void {
+    [$path, $log] = fakeSailWorktree(probeExit: 0);
+
+    $process = runWorktreeLib($path, 'install_playwright_browsers '.escapeshellarg($path));
+
+    expect($process->getExitCode())->toBe(0)
+        ->and(sailCalls($log))->toContain('root-shell -c npx playwright install-deps chromium')
+        ->and(sailCalls($log))->not->toContain('npx playwright install chromium')
+        ->and(is_file($path.'/.worktree-playwright-deps'))->toBeTrue();
+});
+
+test('a failed system-dependency install leaves no sentinel behind to skip the retry', function (): void {
+    [$path] = fakeSailWorktree(probeExit: 0, failing: 'install-deps');
+
+    $process = runWorktreeLib($path, 'install_playwright_browsers '.escapeshellarg($path));
+
+    expect($process->getExitCode())->toBe(0)
+        ->and(is_file($path.'/.worktree-playwright-deps'))->toBeFalse();
 });
 
 test('a fresh worktree migrates and seeds so the demo account can sign in', function (): void {
