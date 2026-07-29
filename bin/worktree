@@ -58,7 +58,15 @@
 #                            php ^8.3 and the resulting vendor/ runs on php8.5.
 #
 # All diagnostics go to stderr; only machine-readable output (the worktree path
-# from `create`, the table from `list`) goes to stdout.
+# from `create`, the table from `list`) goes to stdout. That contract is enforced
+# rather than remembered: main() parks the real stdout on fd 3 and points the
+# script's own at stderr, so everything a subcommand shells out to — git,
+# Composer, npm, artisan, Sail — writes to stderr whether or not its call site
+# says so, and `emit` is the only way back out. Redirecting each call site
+# instead only held until the next bootstrap step was added without a `>&2`, and
+# the kilobytes it then wrote ahead of the path made the documented one-liner
+# `cd "$(bin/worktree create <NNN>)"` land nowhere on a fresh bootstrap (issue
+# #1043).
 
 set -euo pipefail
 
@@ -79,6 +87,10 @@ LOCK_DIR="${REGISTRY_DIR}/worktrees.lock"
 
 log() { printf '%s\n' "$*" >&2; }
 die() { printf 'error: %s\n' "$*" >&2; exit 1; }
+
+# The one route to the caller's stdout (fd 3; see main()), for machine-readable
+# output only. Everything else on the way past is diagnostics.
+emit() { printf '%s\n' "$*" >&3; }
 
 # --- git anchoring -----------------------------------------------------------
 # Resolve the MAIN working tree from the shared .git dir, so the script behaves
@@ -329,10 +341,9 @@ cmd_create() {
             # A bootstrap that could only degrade the Playwright step still
             # reached "ready" (issue #1005), so re-entry is where it gets its
             # retry. The sentinel keeps a healthy worktree's re-entry free of
-            # any container round-trip at all, and the retry is kept off stdout
-            # so `cd "$(bin/worktree create NNN)"` still sees only the path.
-            [ -f "${path}/.worktree-playwright-deps" ] || install_playwright_browsers "$path" >&2
-            printf '%s\n' "$path"
+            # any container round-trip at all.
+            [ -f "${path}/.worktree-playwright-deps" ] || install_playwright_browsers "$path"
+            emit "$path"
             return 0
         fi
         if [ ! -d "$path" ]; then
@@ -469,7 +480,7 @@ cmd_create() {
     touch "${path}/.worktree-ready"
     log "worktree ready — cd into it and run: ./vendor/bin/sail composer test"
     [ -z "$PLAYWRIGHT_DEGRADED" ] || log "note: Playwright is not fully installed (${PLAYWRIGHT_DEGRADED}), so tests/Browser will not run here yet — re-run 'bin/worktree create ${nnn}' to retry that step"
-    printf '%s\n' "$path"
+    emit "$path"
 }
 
 # Playwright ships its browser binaries out of band: `npm install` fetches the
@@ -705,9 +716,9 @@ cmd_list() {
     )"
     # Prefer aligned columns; fall back to raw TSV where `column` is unavailable.
     if command -v column >/dev/null 2>&1; then
-        printf '%s\n' "$rows" | column -t -s "$(printf '\t')"
+        printf '%s\n' "$rows" | column -t -s "$(printf '\t')" >&3
     else
-        printf '%s\n' "$rows"
+        emit "$rows"
     fi
 }
 
@@ -761,6 +772,12 @@ EOF
 }
 
 main() {
+    # Park the caller's stdout on fd 3 and send the script's own to stderr, so no
+    # step of a subcommand can reach stdout except through `emit`. Done here
+    # rather than at load time so sourcing the script as a library (WORKTREE_LIB)
+    # leaves the streams alone.
+    exec 3>&1 1>&2
+
     # EXIT runs the cleanup on any exit; INT/TERM just trigger an exit (with the
     # conventional 128+signal code) so an interrupted run can't resume bootstrap
     # or teardown without its locks.
