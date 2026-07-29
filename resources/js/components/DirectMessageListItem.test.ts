@@ -73,6 +73,7 @@ function channel(overrides: Partial<Channel> = {}): Channel {
         slug: 'jordan-west',
         visibility: 'private',
         topic: null,
+        description: null,
         isGeneral: false,
         isArchived: false,
         muted: false,

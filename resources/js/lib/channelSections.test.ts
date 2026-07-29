@@ -16,6 +16,7 @@ function channel(overrides: Partial<Channel> = {}): Channel {
         slug: overrides.slug ?? 'general',
         visibility: 'public',
         topic: null,
+        description: null,
         isGeneral: false,
         isArchived: false,
         muted: false,

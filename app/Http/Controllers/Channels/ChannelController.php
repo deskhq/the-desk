@@ -8,6 +8,7 @@ use App\Actions\Channels\JoinChannel;
 use App\Actions\Channels\LeaveChannel;
 use App\Actions\Channels\MarkChannelRead;
 use App\Actions\Channels\MarkThreadRead;
+use App\Actions\Channels\UpdateChannel;
 use App\Data\ChannelData;
 use App\Data\ChannelReaderData;
 use App\Data\MessageData;
@@ -20,6 +21,7 @@ use App\Enums\UserType;
 use App\Events\UserTyping;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Channels\CreateChannelRequest;
+use App\Http\Requests\Channels\UpdateChannelRequest;
 use App\Models\Channel;
 use App\Models\Message;
 use App\Models\Team;
@@ -75,6 +77,24 @@ class ChannelController extends Controller
     }
 
     /**
+     * Update the channel's own details — its name, topic, and description.
+     *
+     * The request authorizes the member-vs-creator/Admin split (any member may
+     * edit the topic and description; only a creator or team Admin+ may rename),
+     * and only validated keys are applied, so a partial edit leaves the rest
+     * alone. No audit case: these are routine collaborative edits, and a name or
+     * topic change already leaves its own system notice in the timeline.
+     */
+    public function update(UpdateChannelRequest $request, Team $team, Channel $channel, UpdateChannel $updateChannel): RedirectResponse
+    {
+        $updateChannel->handle($channel, $request->user(), $request->validated());
+
+        Inertia::flash('toast', ['type' => 'success', 'message' => __('Channel updated')]);
+
+        return back();
+    }
+
+    /**
      * Show a channel. The channel sidebar is fed by the globally-shared `channels` prop.
      */
     public function show(Request $request, Team $team, Channel $channel): Response
@@ -117,6 +137,12 @@ class ChannelController extends Controller
             // Gates the notification settings menu; only a member of the channel
             // has preferences to manage.
             'canManagePreferences' => Gate::allows('updatePreference', $channel),
+            // Gates the channel-details modal's edit mode: any member of a live
+            // standard channel may reword its topic and description.
+            'canEditChannel' => Gate::allows('update', $channel),
+            // Narrows that to the name field, which only the creator or a team
+            // Admin+ may change.
+            'canRenameChannel' => Gate::allows('rename', $channel),
             // Gates the "Leave channel" menu item + modal; a member of a standard
             // channel that isn't #general may leave.
             'canLeave' => Gate::allows('leave', $channel),

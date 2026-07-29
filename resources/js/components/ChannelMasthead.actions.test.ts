@@ -243,7 +243,29 @@ describe('the masthead controls', () => {
 
 describe('the masthead options menu', () => {
     it('stays away entirely when the viewer may do none of it', () => {
-        expect(find(mount().host, 'channel-options')).toBeNull();
+        // A DM has no details to read, so with every permission closed there is
+        // nothing left in the menu at all.
+        const { host } = mount({
+            channel: channel({
+                isDirect: true,
+                dmUserId: 'peer',
+                dmParticipants: [participant()],
+            }),
+        });
+
+        expect(find(host, 'channel-options')).toBeNull();
+    });
+
+    it('keeps the menu on a channel for its details alone', () => {
+        const { host, emitted } = mount();
+
+        const details = find(host, 'channel-details') as HTMLElement;
+
+        expect(details.textContent).toContain('Channel details');
+
+        details.click();
+
+        expect(emitted.map(([event]) => event)).toContain('openDetails');
     });
 
     it('stars and unstars a channel without closing the menu', () => {

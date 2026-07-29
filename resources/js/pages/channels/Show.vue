@@ -44,6 +44,13 @@ const props = defineProps<{
     canArchive: boolean;
     canManagePreferences: boolean;
     /**
+     * Whether the viewer may reword the channel's topic and description (any
+     * member of a live standard channel); drives the details modal's edit mode.
+     */
+    canEditChannel: boolean;
+    /** Whether the viewer may also rename it (the creator or a team Admin+). */
+    canRenameChannel: boolean;
+    /**
      * Whether the viewer may leave the channel (a member of a standard channel
      * that isn't #general); drives the "Leave channel" menu item and modal.
      */
@@ -101,6 +108,7 @@ const {
     currentUser,
     isSelfDm,
     mastheadTitle,
+    pageTitle,
     canAddPeople,
     composerPlaceholder,
     canModerate,
@@ -208,9 +216,20 @@ const {
     threadReplies: () => props.threadReplies,
 });
 
-/** Bring a message into view in the timeline and mark it for a beat. */
-function jumpToMessage(id: string): void {
-    pane.value?.jumpToMessage(id);
+/**
+ * Bring a message into view in the timeline and mark it for a beat. A nullish
+ * id is the ordinary "no jump asked for" case (a plain channel visit), so it is
+ * a no-op rather than the caller's business to guard.
+ */
+function jumpToMessage(id: string | null | undefined): void {
+    if (id) {
+        pane.value?.jumpToMessage(id);
+    }
+}
+
+/** Raise the "remind me at…" picker, from either timeline. */
+function openCustomReminder(message: Message): void {
+    dialogs.value?.openCustomReminder(message);
 }
 
 const { markRead } = useReadPointer({
@@ -259,14 +278,7 @@ onMounted(() => {
 
 // A jump to another result in the same already-open channel reuses this
 // component, so the channel-id watch won't fire; react to the target changing.
-watch(
-    () => props.jumpToMessageId,
-    (id) => {
-        if (id) {
-            jumpToMessage(id);
-        }
-    },
-);
+watch(() => props.jumpToMessageId, jumpToMessage);
 
 // Inertia may reuse this page component when navigating between channels; reset
 // the message-orchestration state this page owns when the channel changes. The
@@ -356,11 +368,7 @@ const { timezone } = useTimezone();
 </script>
 
 <template>
-    <Head
-        :title="
-            props.channel.isDirect ? mastheadTitle : `#${props.channel.name}`
-        "
-    />
+    <Head :title="pageTitle" />
 
     <ChannelAnnouncers
         ref="announcers"
@@ -393,6 +401,7 @@ const { timezone } = useTimezone();
                 :connection-pill="connection.pill.value"
                 :scrolled="pane?.scrolled ?? false"
                 :viewer-timezone="timezone"
+                @open-details="dialogs?.openDetails()"
                 @archive="dialogs?.confirmArchive()"
                 @leave="dialogs?.confirmLeave()"
                 @add-people="dialogs?.openAddPeople()"
@@ -436,9 +445,7 @@ const { timezone } = useTimezone();
                 @pin="actions.pinMessage"
                 @unpin="actions.unpinMessage"
                 @remind="(message, at) => dialogs?.remindWith(message, at)"
-                @remind-custom="
-                    (message) => dialogs?.openCustomReminder(message)
-                "
+                @remind-custom="openCustomReminder"
                 @open-thread="openThread"
                 @jump="jumpToMessage"
                 @mention="(member) => dock?.insertMention(member)"
@@ -524,9 +531,7 @@ const { timezone } = useTimezone();
                 @pin="actions.pinMessage"
                 @unpin="actions.unpinMessage"
                 @remind="(message, at) => dialogs?.remindWith(message, at)"
-                @remind-custom="
-                    (message) => dialogs?.openCustomReminder(message)
-                "
+                @remind-custom="openCustomReminder"
                 @typing="typing.signalTyping"
                 @jump="jumpToMessage"
             />
@@ -538,6 +543,8 @@ const { timezone } = useTimezone();
         :team="props.team"
         :channel="props.channel"
         :current-user-id="currentUser.id"
+        :can-edit-channel="props.canEditChannel"
+        :can-rename-channel="props.canRenameChannel"
         :timezone="timezone"
         :scheduled-messages="props.scheduledMessages"
         :forward-message="actions.forwardMessage"

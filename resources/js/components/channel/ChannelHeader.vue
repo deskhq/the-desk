@@ -46,6 +46,8 @@ const props = defineProps<{
 }>();
 
 const emit = defineEmits<{
+    /** The channel-details modal was asked for from the masthead menu. */
+    openDetails: [];
     archive: [];
     leave: [];
     addPeople: [];
@@ -115,6 +117,7 @@ defineExpose({
             :notification-status="notificationStatus"
             :connection-pill="props.connectionPill"
             :scrolled="props.scrolled"
+            @open-details="emit('openDetails')"
             @toggle-star="toggleStar"
             @notification-level-change="onNotificationLevelChange"
             @mute-change="onMuteChange"
