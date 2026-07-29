@@ -1421,5 +1421,21 @@
   "1 file ready to send": "1 fichier prêt à envoyer",
   ":count files ready to send": ":count fichiers prêts à envoyer",
   "1 file didn't upload": "1 fichier n’a pas été envoyé",
-  ":count files didn't upload": ":count fichiers n’ont pas été envoyés"
+  ":count files didn't upload": ":count fichiers n’ont pas été envoyés",
+  "Channel details": "Détails du canal",
+  "What this channel is called and about.": "Le nom et l’objet de ce canal.",
+  "Edit what this channel is called and about.": "Modifiez le nom et l’objet de ce canal.",
+  "Topic": "Sujet",
+  "One line, shown beside the channel name.": "Une ligne, affichée à côté du nom du canal.",
+  "Description": "Description",
+  "Links and basic formatting are supported.": "Les liens et la mise en forme simple sont pris en charge.",
+  "What is this channel for, in full?": "À quoi sert ce canal, en détail ?",
+  "No topic set": "Aucun sujet défini",
+  "No description yet": "Aucune description pour le moment",
+  "Edit": "Modifier",
+  "Save changes": "Enregistrer les modifications",
+  "Channel updated": "Canal mis à jour",
+  ":name set the topic to :topic": ":name a défini le sujet sur :topic",
+  ":name cleared the topic": ":name a supprimé le sujet",
+  ":name renamed the channel to :channel": ":name a renommé le canal en :channel"
 }

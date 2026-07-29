@@ -7,14 +7,16 @@ use App\Events\ChannelUpdated;
 use App\Http\Requests\Channels\UpdateChannelRequest;
 use App\Models\Channel;
 use App\Models\Message;
+use App\Models\Team;
 use App\Models\User;
 use Illuminate\Support\Facades\Event;
+use Illuminate\Testing\TestResponse;
 
 /**
  * Build a team with a channel the given roles can be hung off, returning the
  * owner (who also created the channel), the team, and the channel.
  *
- * @return array{0: User, 1: \App\Models\Team, 2: Channel}
+ * @return array{0: User, 1: Team, 2: Channel}
  */
 function channelToEdit(): array
 {
@@ -47,7 +49,7 @@ function joinChannelAs(Channel $channel, TeamRole $role): User
  *
  * @param  array<string, mixed>  $payload
  */
-function patchChannel(User $actor, Channel $channel, array $payload): Illuminate\Testing\TestResponse
+function patchChannel(User $actor, Channel $channel, array $payload): TestResponse
 {
     return test()->actingAs($actor)->patch(
         route('channels.update', ['team' => $channel->team->slug, 'channel' => $channel->slug]),
@@ -210,11 +212,9 @@ test('an edit broadcasts the channel details to open clients', function (): void
 
     patchChannel($owner, $channel, ['description' => 'What this channel is for.'])->assertRedirect();
 
-    Event::assertDispatched(ChannelUpdated::class, function (ChannelUpdated $event) use ($channel): bool {
-        return $event->channel->is($channel)
-            && $event->broadcastWith()['description'] === 'What this channel is for.'
-            && $event->broadcastOn()[0]->name === 'private-channel.'.$channel->id;
-    });
+    Event::assertDispatched(ChannelUpdated::class, fn (ChannelUpdated $event): bool => $event->channel->is($channel)
+        && $event->broadcastWith()['description'] === 'What this channel is for.'
+        && $event->broadcastOn()[0]->name === 'private-channel.'.$channel->id);
 });
 
 test('the channel page exposes the description and who may edit it', function (): void {

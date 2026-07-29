@@ -17,6 +17,12 @@ export type Channel = {
     slug: string;
     visibility: string;
     topic: string | null;
+    /**
+     * The long-form "what this channel is for", shown in the channel-details
+     * modal with links and basic Markdown rendered. Null when unset; the
+     * one-line `topic` stays plain text.
+     */
+    description: string | null;
     isGeneral: boolean;
     isArchived: boolean;
     muted: boolean;

@@ -33,8 +33,11 @@ class UpdateChannelRequest extends FormRequest
         if (! Gate::allows('update', $channel)) {
             return false;
         }
+        if (! $this->isRenaming()) {
+            return true;
+        }
 
-        return ! $this->isRenaming() || Gate::allows('rename', $channel);
+        return Gate::allows('rename', $channel);
     }
 
     /**

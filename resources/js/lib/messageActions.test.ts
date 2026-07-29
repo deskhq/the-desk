@@ -270,12 +270,19 @@ describe('messageActions guards', () => {
     });
 
     describe('isSystemMessage', () => {
-        it('is true for a member joined/left notice and false for a standard message', () => {
+        it('is true for every system notice and false for authored messages', () => {
             expect(isSystemMessage(message())).toBe(false);
+            expect(isSystemMessage(message({ type: 'poll' }))).toBe(false);
             expect(isSystemMessage(message({ type: 'member_joined' }))).toBe(
                 true,
             );
             expect(isSystemMessage(message({ type: 'member_left' }))).toBe(
+                true,
+            );
+            expect(isSystemMessage(message({ type: 'topic_changed' }))).toBe(
+                true,
+            );
+            expect(isSystemMessage(message({ type: 'channel_renamed' }))).toBe(
                 true,
             );
         });

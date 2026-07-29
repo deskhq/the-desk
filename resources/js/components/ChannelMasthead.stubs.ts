@@ -60,6 +60,7 @@ export function lucideDouble(): Record<string, Component> {
             'Bot',
             'Check',
             'EllipsisVertical',
+            'Info',
             'LogOut',
             'Pin',
             'Search',
