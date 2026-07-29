@@ -19,6 +19,17 @@ const props = defineProps<{
     title: string;
     /** The value that was just set. Already translated. */
     detail?: string;
+    /**
+     * A muted continuation of the title on the same line, separated by the
+     * middle dot drawn below: "Uploading 3 files · 12.4 MB". Already translated.
+     */
+    meta?: string;
+    /**
+     * A short figure set hard right in monospace — a progress percentage. It
+     * takes the slot the overflow count otherwise has, and is `aria-hidden`
+     * with it: see the template.
+     */
+    value?: string;
     action?: ToastAction;
     /** Drives the drain hairline; `Infinity` leaves the toast up. */
     duration: number;
@@ -62,6 +73,12 @@ const glyphTint = computed(() => GLYPH_TINTS[props.tone]);
  */
 const overflow = computed(() => toastCount.value - 1);
 
+/**
+ * The title's continuation, separator included, so the dot never has to be
+ * carried in a translated string.
+ */
+const metaText = computed(() => ` · ${props.meta}`);
+
 const drains = computed(() => Number.isFinite(props.duration));
 
 /**
@@ -102,9 +119,15 @@ const closeable = computed(() => props.tone === 'error');
         </span>
 
         <div class="flex min-w-0 flex-1 flex-col gap-0.5">
-            <span data-test="toast-title" class="text-[13.5px] font-semibold">{{
-                title
-            }}</span>
+            <span data-test="toast-title" class="text-[13.5px] font-semibold"
+                >{{ title
+                }}<span
+                    v-if="meta"
+                    data-test="toast-meta"
+                    class="font-normal text-slab-muted-foreground"
+                    >{{ metaText }}</span
+                ></span
+            >
             <span
                 v-if="detail"
                 data-test="toast-detail"
@@ -125,8 +148,22 @@ const closeable = computed(() => props.tone === 'error');
             {{ action.label }}
         </Button>
 
+        <!-- One figure holds this slot. A `value` wins it: the overflow count
+             is decoration, whereas the percent is what the card is about. Both
+             are hidden from the announcement — the count says nothing the stack
+             does not, and the percent re-fires about once a second, which
+             `aria-relevant="additions text"` on sonner's region would otherwise
+             read aloud every time it changed. -->
         <span
-            v-if="overflow > 0"
+            v-if="value"
+            data-test="toast-value"
+            aria-hidden="true"
+            class="shrink-0 self-center font-mono text-[11px] text-slab-muted-foreground"
+            >{{ value }}</span
+        >
+
+        <span
+            v-else-if="overflow > 0"
             data-test="toast-overflow"
             aria-hidden="true"
             class="shrink-0 self-center font-mono text-[11px] text-slab-muted-foreground"

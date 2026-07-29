@@ -1,11 +1,14 @@
 import { computed } from 'vue';
 import type { ComputedRef } from 'vue';
 import { store as storeAttachment } from '@/actions/App/Http/Controllers/Channels/AttachmentController';
-import { useAttachmentUploads } from '@/composables/useAttachmentUploads';
 import type {
     AttachmentUploads,
     PendingAttachment,
 } from '@/composables/useAttachmentUploads';
+import {
+    channelUploadKey,
+    useChannelUploads,
+} from '@/composables/useChannelUploads';
 import { useVoiceRecorder } from '@/composables/useVoiceRecorder';
 import type { VoiceRecorder } from '@/composables/useVoiceRecorder';
 import { isVoiceRecordingSupported } from '@/lib/audio';
@@ -52,8 +55,20 @@ export function useComposerAttachments(options: {
     /**
      * The pre-send attachment tray: files upload immediately on pick/paste/drop,
      * each row tracking its own progress; the send later claims the finished ids.
+     *
+     * It belongs to the channel, not to this composer, so leaving the channel
+     * mid-upload no longer aborts the transfer. Resolved once: a composer is
+     * mounted per channel and remounts when that changes.
      */
-    const uploads = useAttachmentUploads({
+    const teamSlug = options.teamSlug();
+    const channelSlug = options.channelSlug();
+    const channelKey =
+        teamSlug && channelSlug
+            ? channelUploadKey(teamSlug, channelSlug)
+            : null;
+
+    const uploads = useChannelUploads({
+        channelKey,
         endpoint: () =>
             storeAttachment({
                 team: options.teamSlug() ?? '',
