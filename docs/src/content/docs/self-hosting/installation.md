@@ -158,8 +158,9 @@ your `.env` to drop the flag.
 
 Building from source genuinely needs the source tree, so this is the one path
 that still uses `git`: clone and check out the tag you want, then layer the build
-overlay (`docker-compose.build.yml`) on top, which restores a local build for the
-app services (they share one image):
+overlay (`docker-compose.build.yml`) on top, which restores a local build for
+every app-role service — `app`, `reverb`, `queue`, `queue-broadcasts`, and
+`scheduler` (they share one image), so nothing is pulled from the registry:
 
 ```bash
 # 1. Clone and check out the latest release tag.
