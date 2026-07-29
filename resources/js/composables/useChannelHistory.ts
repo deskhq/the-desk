@@ -8,6 +8,8 @@ interface InfiniteScrollHandle {
 }
 
 export interface ChannelHistoryOptions {
+    /** The channel on show, so a switch can retire an in-flight page. */
+    channelId: () => string;
     /** How many messages the server page currently holds. */
     loadedCount: () => number;
 }
@@ -29,7 +31,7 @@ export interface ChannelHistory {
  * returns messages newest-first), so "load older" maps to fetchNext/hasNext.
  * The in-flight flag gates the virtualizer's top-load trigger so a burst of
  * range updates can't stack duplicate requests; it clears once the merged page
- * grows (older rows have landed).
+ * grows (older rows have landed) or the channel changes under it.
  */
 export function useChannelHistory(
     options: ChannelHistoryOptions,
@@ -55,7 +57,11 @@ export function useChannelHistory(
         infiniteScrollRef.value?.fetchNext();
     }
 
-    watch(options.loadedCount, () => {
+    // The channel id is watched alongside the count because the pane component is
+    // reused across a switch: a page still in flight when the reader leaves would
+    // otherwise keep the flag raised in the new channel whenever the two first
+    // pages happen to hold the same number of messages (#1023).
+    watch([options.loadedCount, options.channelId], () => {
         loadingOlder.value = false;
     });
 

@@ -146,7 +146,10 @@ const {
     hasOlder,
     isLoadingOlder,
     loadOlderMessages,
-} = useChannelHistory({ loadedCount: () => props.serverMessages.length });
+} = useChannelHistory({
+    channelId: () => props.channel.id,
+    loadedCount: () => props.serverMessages.length,
+});
 
 /**
  * The "New messages" divider's lifecycle — freeze its position at open, refreeze
