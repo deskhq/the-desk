@@ -23,7 +23,11 @@ const COMPOSER = fileURLToPath(
 
 /** The template's root nodes, ignoring the whitespace between them. */
 function rootNodes(source: string): { type: NodeTypes }[] {
-    const { descriptor } = parse(source);
+    // The parser keeps comments only in a dev build by default, and comments are
+    // the whole subject here, so ask for them rather than inherit them.
+    const { descriptor } = parse(source, {
+        templateParseOptions: { comments: true },
+    });
 
     return (descriptor.template?.ast?.children ?? []).filter(
         (node) => node.type !== NodeTypes.TEXT || node.content.trim() !== '',

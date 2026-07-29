@@ -212,6 +212,7 @@ describe('useRailBottomInset', () => {
         await nextTick();
 
         expect(publishedBottom()).toBe('96px');
+        expect(observed).toEqual([composer.value]);
 
         scope.stop();
     });
