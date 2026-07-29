@@ -33,16 +33,20 @@ const channelLabel = computed(() =>
 
 <template>
     <!-- The nudge's surface is the shared ink slab (#978); only its geometry
-         and its contents are its own. -->
+         and its contents are its own. That extends to the colours painted on
+         it: muted copy and the gold accent come from the slab's own tokens, not
+         from an opacity on --primary-foreground. The slab inverts between
+         themes, so a fixed opacity that clears contrast on ink falls under the
+         floor once the same slab is paper (#1009). -->
     <InkSlab
         data-test="reminder-nudge"
         :data-reminder="reminder.id"
         class="flex w-[min(22rem,calc(100vw-2rem))] flex-col gap-3 rounded-2xl p-4"
     >
         <div class="flex items-center gap-2">
-            <AlarmClock class="size-3.5 text-brass" />
+            <AlarmClock class="size-3.5 text-slab-accent" />
             <span
-                class="text-[11px] font-semibold tracking-[0.08em] text-brass uppercase"
+                class="text-[11px] font-semibold tracking-[0.08em] text-slab-accent uppercase"
             >
                 {{ $t('Reminder · due now') }}
             </span>
@@ -52,7 +56,7 @@ const channelLabel = computed(() =>
                 type="button"
                 data-test="reminder-nudge-close"
                 :aria-label="$t('Dismiss reminder')"
-                class="ml-auto rounded p-0.5 text-primary-foreground/50 transition-colors hover:text-primary-foreground"
+                class="ml-auto rounded p-0.5 text-slab-muted-foreground transition-colors hover:text-primary-foreground"
                 @click="emit('dismiss', reminder)"
             >
                 <X class="size-3.5" />
@@ -80,7 +84,7 @@ const channelLabel = computed(() =>
                     }}</span>
                     <span
                         v-if="channelLabel"
-                        class="truncate text-[11px] text-primary-foreground/50"
+                        class="truncate text-[11px] text-slab-muted-foreground"
                         >{{
                             $t('in :channel', { channel: channelLabel })
                         }}</span
@@ -95,7 +99,7 @@ const channelLabel = computed(() =>
                 >
                 <span
                     v-else-if="reminder.isDeleted"
-                    class="text-[13px] text-primary-foreground/50 italic"
+                    class="text-[13px] text-slab-muted-foreground italic"
                     >{{ $t('This message was deleted.') }}</span
                 >
                 <span
@@ -136,7 +140,7 @@ const channelLabel = computed(() =>
                 size="none"
                 type="button"
                 data-test="reminder-nudge-done"
-                class="ml-auto text-[12.5px] font-medium text-primary-foreground/60 transition-colors hover:text-primary-foreground"
+                class="ml-auto text-[12.5px] font-medium text-slab-muted-foreground transition-colors hover:text-primary-foreground"
                 @click="emit('dismiss', reminder)"
             >
                 {{ $t('Done') }}
