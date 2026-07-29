@@ -52,6 +52,19 @@ function userMenuRowsOverflow(): string
     JS;
 }
 
+/**
+ * A script resolving once the popover has stopped moving, so the box every
+ * assertion below measures is the resting one rather than a zoom-in frame.
+ *
+ * `assertPresent` returns on the card reaching the DOM, which is a whole open
+ * animation earlier, and `assertScript` never retries — the fixed settle this
+ * replaces was a guess a starved runner could outlast (#1049).
+ */
+function userMenuSettles(): string
+{
+    return geometrySettles(elementBox('[data-test="user-menu-popover"]'));
+}
+
 /** Whether the given row sits fully inside both the menu card and the screen. */
 function menuRowIsFullyVisible(string $selector): string
 {
@@ -85,9 +98,7 @@ test('the rail menu shows every row without an inner scrollbar when the screen h
         ->resize(1280, 1000)
         ->click('@rail-destination-you')
         ->assertPresent('@user-menu-popover')
-        // Let the popover settle past its open animation, so the box being
-        // measured is the resting one rather than a zoom-in frame.
-        ->wait(0.5)
+        ->assertScript(userMenuSettles(), true)
         ->assertScript(userMenuStaysInsideTheViewport(), true)
         // The menu grew past the cap that used to freeze it — without this the
         // "no scrollbar" assertion below would hold for a menu that simply fits.
@@ -114,7 +125,7 @@ test('the rail menu stays inside a short screen and scrolls its rows instead', f
         ->resize(1024, 520)
         ->click('@rail-destination-you')
         ->assertPresent('@user-menu-popover')
-        ->wait(0.5)
+        ->assertScript(userMenuSettles(), true)
         ->assertScript(userMenuStaysInsideTheViewport(), true)
         ->assertScript(userMenuRowsOverflow(), true)
         // Log out and the version footer are reachable by scrolling the rows...
@@ -153,7 +164,10 @@ test('the You panel takes the whole drawer rather than a height of its own', fun
         ->click('@sidebar-toggle')
         ->click('@tab-destination-you')
         ->assertPresent('@destination-panel-you')
-        ->wait(0.5)
+        ->assertScript(geometrySettles(
+            elementBox('[data-test="destination-panel-you"]'),
+            elementBox('[data-test="user-menu-rows"]'),
+        ), true)
         ->assertScript(<<<'JS'
         (() => {
             const panel = document.querySelector('[data-test="destination-panel-you"]')

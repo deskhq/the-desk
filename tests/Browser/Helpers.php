@@ -232,6 +232,76 @@ function elementCountSettles(string $selector, int $count): string
 }
 
 /**
+ * A JS expression for an element's bounding box, or `null` while it is absent.
+ *
+ * The usual probe to hand `geometrySettles()`, including for something on its
+ * way out — whose settled state is being gone.
+ */
+function elementBox(string $selector): string
+{
+    $needle = json_encode($selector, JSON_THROW_ON_ERROR);
+
+    return "document.querySelector({$needle})?.getBoundingClientRect() ?? null";
+}
+
+/**
+ * A script resolving once the page has stopped moving under it: every one of
+ * `$probes` — JS expressions, compared by their JSON form — has held the same
+ * value across two consecutive animation frames.
+ *
+ * This is the geometry counterpart of `queryParamSettles()`, and it closes the
+ * same trap. `assertPresent` returns the moment a panel or popover reaches the
+ * DOM, which is a whole open animation before its geometry is final, and
+ * `assertScript` is a one-shot read that never retries — so what has to cover
+ * that animation is the settle in between. A fixed `->wait()` is a guess at how
+ * long it takes, and a CSS animation only advances as frames are committed, so
+ * on a CPU-starved runner it takes considerably longer than its nominal duration
+ * and the window is missed (#775, #1049). Waiting on the frames themselves
+ * adapts to whatever the runner can deliver.
+ *
+ * Pass every value the assertion depends on, not just the moving element: a
+ * measurement republished across a window of its own can still be in flight
+ * while the element it describes already looks settled.
+ */
+function geometrySettles(string ...$probes): string
+{
+    $sample = implode(",\n            ", array_map(
+        static fn (string $probe): string => "() => ({$probe})",
+        $probes,
+    ));
+
+    return <<<JS
+    (async () => {
+        const probes = [
+            {$sample},
+        ];
+        const sample = () => JSON.stringify(probes.map((probe) => probe()));
+
+        let previous = sample();
+        let stable = 0;
+
+        for (let frame = 0; frame < 120; frame++) {
+            await new Promise(requestAnimationFrame);
+
+            const current = sample();
+
+            stable = current === previous ? stable + 1 : 0;
+            previous = current;
+
+            // Two frames agreeing rather than one: a measurement republished on
+            // a frame of its own can hold still across a single frame before it
+            // has landed on its final value (see useRailInset).
+            if (stable === 2) {
+                return true;
+            }
+        }
+
+        return false;
+    })()
+    JS;
+}
+
+/**
  * Pin a live page to its settled styles by killing transitions and animations.
  *
  * axe reads `getComputedStyle` off whatever frame it lands on, so a tween in

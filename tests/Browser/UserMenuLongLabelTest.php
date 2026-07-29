@@ -20,6 +20,19 @@ const MENU_WIDTH = 246;
 const MENU_ROW_HEIGHT = 32;
 
 /**
+ * A script resolving once the popover has stopped moving, past its open and
+ * pointer-grace window, so every row measured below is measured at rest.
+ *
+ * `assertPresent` returns on the row reaching the DOM, an animation earlier, and
+ * `assertScript` never retries — a fixed settle is a guess a starved runner can
+ * outlast, since a CSS animation only advances as frames are committed (#1049).
+ */
+function userMenuLabelsSettle(): string
+{
+    return geometrySettles(elementBox('[data-test="user-menu-popover"]'));
+}
+
+/**
  * A script asserting every fixed-height label row of the presence menu still
  * measures exactly one row (h-8) — the height a wrapped label overflows.
  */
@@ -54,8 +67,7 @@ test('the presence menu keeps its rows on one line in French', function (): void
     signInThroughBrowser($alice)
         ->click('@rail-destination-you')
         ->assertPresent('@pause-notifications-menu-item')
-        // Let the popover settle past its open/pointer-grace window.
-        ->wait(0.5)
+        ->assertScript(userMenuLabelsSettle(), true)
         // The French catalog is the one the middleware inlined...
         ->assertSee('Pause des notifications')
         ->assertSee('Définir un statut')
@@ -109,7 +121,7 @@ test('a menu label longer than the row ellipsises instead of wrapping', function
     signInThroughBrowser($alice)
         ->click('@rail-destination-you')
         ->assertPresent('@pause-notifications-menu-item')
-        ->wait(0.5)
+        ->assertScript(userMenuLabelsSettle(), true)
         ->assertScript(<<<'JS'
         (() => {
             const label = document.querySelector('[data-test="pause-notifications-menu-item"] span');
@@ -147,7 +159,7 @@ test('the presence menu renders at the width the design draws', function (): voi
         ->refresh()
         ->click('@rail-destination-you')
         ->assertPresent('@pause-notifications-menu-item')
-        ->wait(0.5)
+        ->assertScript(userMenuLabelsSettle(), true)
         ->assertScript(<<<JS
         (() => {
             const menu = document.querySelector('[data-test="user-menu-popover"]');
@@ -212,7 +224,7 @@ test('the paused card keeps its quiet-hours readout legible in French', function
     signInThroughBrowser($alice)
         ->click('@rail-destination-you')
         ->assertPresent('@dnd-paused-card')
-        ->wait(0.5)
+        ->assertScript(userMenuLabelsSettle(), true)
         // The state the card exists to show is on screen, not squeezed out by
         // the pill standing next to it...
         ->assertSee('En pause')
@@ -228,7 +240,7 @@ test('the paused card holds up against a pill label no locale would exceed', fun
     signInThroughBrowser($alice)
         ->click('@rail-destination-you')
         ->assertPresent('@dnd-snooze-menu-item')
-        ->wait(0.5)
+        ->assertScript(userMenuLabelsSettle(), true)
         // The English pill left the readout 14px to live in, which was already
         // too little to read even before the French one erased it outright.
         ->assertScript(pausedCardStillReads(), true)
@@ -264,7 +276,7 @@ test('the paused card leaves the manual-pause variant on one line', function ():
     signInThroughBrowser($alice)
         ->click('@rail-destination-you')
         ->assertPresent('@dnd-resume-menu-item')
-        ->wait(0.5)
+        ->assertScript(userMenuLabelsSettle(), true)
         ->assertSee('Reprendre')
         ->assertScript(pausedCardStillReads(), true)
         ->assertScript(<<<'JS'

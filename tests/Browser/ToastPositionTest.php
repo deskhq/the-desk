@@ -39,6 +39,24 @@ function browserRailRightInset(): string
     JS;
 }
 
+/**
+ * A script resolving once the thread panel has stopped moving and the inset the
+ * pane publishes for it has stopped changing with it.
+ *
+ * Both halves are needed, in either direction. The panel reflows the pane beside
+ * it and slides in under a transform, and the pane re-reads its position across
+ * a settling window of its own (see useRailInset), so either can still be in
+ * flight while the other already looks final. The panel's box reads `null` once
+ * it is gone, which is exactly the settled state on the way back out.
+ */
+function browserRailSettles(): string
+{
+    return geometrySettles(
+        elementBox('[data-test=thread-panel]'),
+        browserRailRightInset(),
+    );
+}
+
 test('toasts render in the bottom-right rail in the authenticated shell', function (): void {
     ['owner' => $alice] = browserTeamWithChannel();
 
@@ -94,9 +112,12 @@ test('the rail tracks the thread panel opening and closing', function (): void {
     // Nothing claims the right edge yet, so the rail sits at the viewport's.
     $page->assertScript(browserRailRightInset(), '');
 
+    // `assertPresent` returns as soon as the panel is in the DOM, a whole open
+    // animation before its geometry is final, and every assertion below is a
+    // one-shot read — so the settle in between is what has to cover it (#1049).
     $page->click('[data-test=thread-summary]')
         ->assertPresent('[data-test=thread-panel]')
-        ->wait(0.6);
+        ->assertScript(browserRailSettles(), true);
 
     // The panel now claims its own width, and the rail insets by it. Both halves
     // of the contract are asserted: what the pane publishes, and that the
@@ -119,7 +140,7 @@ test('the rail tracks the thread panel opening and closing', function (): void {
 
     $page->click('[data-test=thread-close]')
         ->assertMissing('[data-test=thread-panel]')
-        ->wait(0.6);
+        ->assertScript(browserRailSettles(), true);
 
     // Closing gives the edge back rather than stranding the rail inset.
     $page->assertScript(browserRailRightInset(), '');
