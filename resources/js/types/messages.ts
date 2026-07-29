@@ -33,11 +33,11 @@ export type MessageAuthor = {
 
 /**
  * A message's kind (mirrors the `MessageType` enum). `standard` is an ordinary
- * user-authored message; the rest bar `poll` are inert system notices the
- * timeline renders as centered, localized lines rather than chat bubbles, and
- * which never carry interactions or advance unread badges. A `topic_changed` /
- * `channel_renamed` notice carries the new topic or name in its `body`, which
- * the line quotes.
+ * user-authored message and `poll` is an interactive poll card; every other type
+ * is an inert system notice, which the timeline renders as a centered, localized
+ * line rather than a chat bubble and which never carries interactions or
+ * advances unread badges. A `topic_changed` / `channel_renamed` notice carries
+ * the new topic or name in its `body`, which the line quotes.
  */
 export type MessageType =
     | 'standard'
