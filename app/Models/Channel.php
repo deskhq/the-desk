@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Enums\ChannelType;
 use App\Enums\ChannelVisibility;
+use App\Support\NameSlug;
 use Database\Factories\ChannelFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Collection;
@@ -49,6 +50,31 @@ class Channel extends Model
      * The reserved slug of the auto-created, undeletable channel.
      */
     public const string GENERAL_SLUG = 'general';
+
+    /**
+     * Slug base used when a channel name carries no sluggable characters.
+     */
+    public const string FALLBACK_SLUG = 'channel';
+
+    /**
+     * Keep a usable slug on the row however the channel is written.
+     *
+     * The slug is the route key ({@see getRouteKeyName()}), so a blank one
+     * leaves the channel unreachable with no UI path back to it (issue #924).
+     * The create path derives the slug itself; this is the backstop for every
+     * other writer, including a slug blanked on an existing row.
+     */
+    #[\Override]
+    protected static function boot(): void
+    {
+        parent::boot();
+
+        static::saving(function (Channel $channel): void {
+            if (blank($channel->slug)) {
+                $channel->slug = NameSlug::distinct((string) $channel->name, self::FALLBACK_SLUG);
+            }
+        });
+    }
 
     /**
      * Determine whether this is the team's protected #general channel.

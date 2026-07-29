@@ -18,8 +18,8 @@ test('the masthead search icon opens the switcher as a full-screen overlay below
         ->resize(390, 844)
         ->navigate(browserChannelUrl($team, $channel))
         ->click('@masthead-search')
-        // The tap opens the overlay in place — it must not navigate to the
-        // search page the way the desktop icon does.
+        // The tap opens the overlay in place — it must not navigate anywhere, and
+        // it must not swap the dock's panel the way the desktop glyph does.
         ->assertPathContains("/c/{$channel->slug}")
         ->assertVisible('@quick-switcher-input')
         // The overlay is the screen: its panel spans the whole viewport.
@@ -177,7 +177,7 @@ test('the overlay has no serious accessibility violations, light or dark', funct
         ->assertNoAccessibilityIssues();
 });
 
-test('from md up the search icon still links to the search page and the palette stays a centred dialog', function (): void {
+test('from md up the search icon opens the dock panel and the palette stays a centred dialog', function (): void {
     ['owner' => $alice, 'team' => $team, 'channel' => $channel] = browserTeamWithChannel();
 
     signInThroughBrowser($alice)
@@ -197,7 +197,33 @@ test('from md up the search icon still links to the search page and the palette 
         JS, true)
         ->keys('@quick-switcher-input', ['Escape'])
         ->assertNotPresent('@quick-switcher-input')
-        // The masthead icon keeps its desktop meaning: a link to the search page.
+        // The masthead icon keeps its desktop meaning, which is now the dock's
+        // Search destination rather than a page of its own.
         ->click('@masthead-search')
-        ->assertPathContains('/search');
+        ->assertPresent('[data-test="destination-panel-search"]')
+        ->assertPathIs(browserChannelUrl($team, $channel));
+});
+
+test('see all results hands the query to the search panel inside the drawer', function (): void {
+    ['owner' => $alice, 'team' => $team, 'channel' => $channel] = browserTeamWithChannel();
+
+    Message::factory()->create([
+        'channel_id' => $channel->id,
+        'user_id' => $alice->id,
+        'body' => 'the quokka danced at dawn',
+    ]);
+
+    // A phone reaches search through this overlay, and the panel it hands over to
+    // lives in the drawer — so the hand-off has to open the drawer as well, or it
+    // would land somewhere nobody can see.
+    signInThroughBrowser($alice)
+        ->resize(390, 844)
+        ->navigate(browserChannelUrl($team, $channel))
+        ->click('@masthead-search')
+        ->type('@quick-switcher-input', 'quokka')
+        ->wait(0.8)
+        ->click('@quick-switcher-see-all')
+        ->assertVisible('@navigation-tab-bar')
+        ->assertPresent('[data-test="destination-panel-search"]')
+        ->assertPresent('[data-test="search-result"]');
 });

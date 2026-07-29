@@ -33,7 +33,7 @@ class StatusController extends Controller
 
         event(new UserProfileUpdated($user));
 
-        Inertia::flash('toast', ['type' => 'success', 'message' => __('Status updated.')]);
+        Inertia::flash('toast', ['type' => 'success', 'message' => __('Status updated')]);
 
         return back();
     }
@@ -53,7 +53,7 @@ class StatusController extends Controller
 
         event(new UserProfileUpdated($user));
 
-        Inertia::flash('toast', ['type' => 'success', 'message' => __('Status cleared.')]);
+        Inertia::flash('toast', ['type' => 'success', 'message' => __('Status cleared')]);
 
         return back();
     }

@@ -11,6 +11,8 @@ use App\Actions\Users\BroadcastDndScheduleEdges;
 use App\Actions\Users\ClearExpiredUserStatuses;
 use App\Actions\Users\ClearLapsedDndPauses;
 use App\Actions\Users\ClearLapsedDndScheduleSnoozes;
+use App\Actions\Users\PruneSecurityEvents;
+use App\Actions\Users\PurgeExpiredDataExports;
 use App\Models\TeamInvitation;
 use Illuminate\Support\Facades\Schedule;
 
@@ -68,6 +70,28 @@ Schedule::call(fn (PurgeExpiredAuditExports $purge): int => $purge->handle())
     ->daily()
     ->withoutOverlapping()
     ->description('Purge expired audit-log exports (files and rows)');
+
+Schedule::call(fn (PurgeExpiredDataExports $purge): int => $purge->handle())
+    ->name('purge-expired-data-exports')
+    ->daily()
+    ->withoutOverlapping()
+    ->description('Purge expired data-export archives (files and rows)');
+
+Schedule::call(fn (PruneSecurityEvents $prune): int => $prune->handle())
+    ->name('prune-security-events')
+    ->daily()
+    ->withoutOverlapping()
+    ->description('Prune security events past the retention window');
+
+// Spatie's clean command reads `activitylog.clean_after_days` itself, so the
+// window lives in config rather than in a --days flag here. --force is required:
+// the command is confirmable, and unattended in production it would otherwise
+// cancel itself at the prompt instead of pruning.
+Schedule::command('activitylog:clean --force')
+    ->daily()
+    ->withoutOverlapping()
+    ->when(fn (): bool => (int) config('activitylog.clean_after_days') >= 1)
+    ->description('Prune workspace audit-log entries past the retention window');
 
 Schedule::call(fn (PurgeCachedProxyImages $purge): int => $purge->handle())
     ->name('purge-cached-proxy-images')

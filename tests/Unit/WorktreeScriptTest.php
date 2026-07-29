@@ -12,13 +12,17 @@ use Symfony\Component\Yaml\Yaml;
  * branch resolution can be driven against throwaway repositories instead of
  * booting Docker.
  */
-function runWorktreeLib(string $cwd, string $snippet): Process
+/**
+ * @param  array<string, string>  $env  extra environment for the run, merged into the inherited one
+ */
+function runWorktreeLib(string $cwd, string $snippet, array $env = []): Process
 {
     $script = dirname(__DIR__, 2).'/bin/worktree';
 
     $process = new Process(
         ['bash', '-c', 'WORKTREE_LIB=1 . '.escapeshellarg($script).'; '.$snippet],
         $cwd,
+        $env,
     );
     $process->run();
 
@@ -80,20 +84,24 @@ function tempGitDir(string $prefix): string
  * Stand up a throwaway worktree directory whose ./vendor/bin/sail is a stub that
  * records every invocation, so the Playwright bootstrap can be driven without
  * Docker. The stub answers the "is chromium already there?" probe (`sail shell`)
- * with $probeExit and succeeds for everything else.
+ * with $probeExit, exits 100 (apt's own failure code) for any invocation whose
+ * arguments contain $failing, and succeeds for everything else.
  *
  * @return array{0: string, 1: string} the fake worktree path and its call log
  */
-function fakeSailWorktree(int $probeExit): array
+function fakeSailWorktree(int $probeExit, string $failing = ''): array
 {
     $path = tempGitDir('worktree-sail');
     mkdir($path.'/vendor/bin', 0o755, true);
+
+    $failClause = $failing === '' ? ':' : 'case "$*" in *'.$failing.'*) exit 100 ;; esac';
 
     $log = $path.'/sail-calls.log';
     file_put_contents($path.'/vendor/bin/sail', <<<BASH
         #!/usr/bin/env bash
         printf '%s\n' "\$*" >> {$log}
         [ "\$1" = "shell" ] && exit {$probeExit}
+        {$failClause}
         exit 0
         BASH);
     chmod($path.'/vendor/bin/sail', 0o755);
@@ -116,6 +124,72 @@ function sailCalls(string $log): array
     }
 
     return array_values(array_filter(explode("\n", (string) file_get_contents($log)), strlen(...)));
+}
+
+/**
+ * A ./vendor/bin/sail that echoes its own argv on STDOUT, the way the Composer,
+ * npm and artisan steps of a real bootstrap do. fakeSailWorktree's stub keeps its
+ * record in a file instead, which is what makes it useless for telling apart the
+ * two streams.
+ */
+function writeNoisySail(string $path): void
+{
+    mkdir($path.'/vendor/bin', 0o755, true);
+    file_put_contents($path.'/vendor/bin/sail', <<<'BASH'
+        #!/usr/bin/env bash
+        printf 'sail %s: fetching packages, building, seeding...\n' "$*"
+        exit 0
+        BASH);
+    chmod($path.'/vendor/bin/sail', 0o755);
+}
+
+/**
+ * An "upstream" whose master already carries what a bootstrap expects to find in
+ * the worktree it checks out — an .env to copy and an executable, noisy
+ * ./vendor/bin/sail — cloned into a "main checkout". A committed sail is what
+ * lets cmd_create run to completion without Docker: its bootstrap only reaches
+ * for the throwaway Composer image when ./vendor/bin/sail is missing.
+ *
+ * @return array{0: string, 1: string} the clone path and its parent directory
+ */
+function worktreeBootstrapFixture(): array
+{
+    $root = realpath(sys_get_temp_dir()).'/worktree-bootstrap-'.bin2hex(random_bytes(6));
+    mkdir($root.'/upstream', 0o755, true);
+
+    file_put_contents($root.'/upstream/.env', "APP_NAME=Desk\nAPP_KEY=\nAPP_PORT=80\n");
+    writeNoisySail($root.'/upstream');
+
+    runGit($root.'/upstream', 'init', '--quiet', '--initial-branch=master', '.');
+    runGit($root.'/upstream', 'add', '-A', '-f');
+    runGit($root.'/upstream', 'commit', '--quiet', '-m', 'init');
+
+    runGit($root, 'clone', '--quiet', $root.'/upstream', 'main');
+
+    return [$root.'/main', $root];
+}
+
+/**
+ * The bootstrap dependencies this suite's container does not have, defined as
+ * shell functions so they shadow the binaries bin/worktree would otherwise call:
+ * `require_tooling` aborts on the missing docker, jq backs the registry, and gh
+ * supplies the title the branch slug is derived from. The jq stub answers the
+ * three filters a first-time `create` reaches — nothing registered for the issue
+ * yet, slot 0 free, and the entry it then stores.
+ */
+function worktreeCreateStubs(): string
+{
+    return <<<'BASH'
+        require_tooling() { :; }
+        gh() { printf 'fix the bootstrap\n'; }
+        jq() {
+            case "$*" in
+                *'// empty'*) return 0 ;;
+                *'any('*) return 1 ;;
+                *) printf '{}\n' ;;
+            esac
+        }
+        BASH;
 }
 
 function gitRevision(string $cwd, string $revision): string
@@ -313,14 +387,61 @@ test('a fresh worktree installs the Playwright system deps as root and the chrom
         ->and(sailCalls($log))->toContain('npx playwright install chromium');
 });
 
+test('the Playwright dependency install parks third-party apt sources around itself', function (): void {
+    [$path, $log] = fakeSailWorktree(probeExit: 1);
+
+    $process = runWorktreeLib($path, 'install_playwright_browsers '.escapeshellarg($path));
+    $calls = sailCalls($log);
+    $install = array_search('root-shell -c npx playwright install-deps chromium', $calls, true);
+
+    expect($process->getExitCode())->toBe(0)
+        ->and($install)->toBeInt()
+        ->and($calls[$install - 1])->toContain('/etc/apt/sources.list.d')
+        ->and($calls[$install + 1])->toContain('/etc/apt/sources.list.d');
+});
+
+test('an unreachable apt mirror degrades the Playwright step instead of aborting the bootstrap', function (): void {
+    [$path, $log] = fakeSailWorktree(probeExit: 1, failing: 'install-deps');
+
+    $process = runWorktreeLib($path, 'install_playwright_browsers '.escapeshellarg($path));
+    $calls = sailCalls($log);
+    $install = array_search('root-shell -c npx playwright install-deps chromium', $calls, true);
+
+    expect($process->getExitCode())->toBe(0)
+        ->and($process->getErrorOutput())->toContain('tests/Browser')
+        ->and($calls[$install + 1])->toContain('/etc/apt/sources.list.d')
+        ->and($calls)->toContain('npx playwright install chromium');
+});
+
 test('a worktree that already has chromium skips the Playwright install', function (): void {
     [$path, $log] = fakeSailWorktree(probeExit: 0);
+    touch($path.'/.worktree-playwright-deps');
 
     $process = runWorktreeLib($path, 'install_playwright_browsers '.escapeshellarg($path));
 
     expect($process->getExitCode())->toBe(0)
         ->and(sailCalls($log))->not->toContain('root-shell -c npx playwright install-deps chromium')
         ->and(sailCalls($log))->not->toContain('npx playwright install chromium');
+});
+
+test('a degraded system-dependency install is retried even once chromium is downloaded', function (): void {
+    [$path, $log] = fakeSailWorktree(probeExit: 0);
+
+    $process = runWorktreeLib($path, 'install_playwright_browsers '.escapeshellarg($path));
+
+    expect($process->getExitCode())->toBe(0)
+        ->and(sailCalls($log))->toContain('root-shell -c npx playwright install-deps chromium')
+        ->and(sailCalls($log))->not->toContain('npx playwright install chromium')
+        ->and(is_file($path.'/.worktree-playwright-deps'))->toBeTrue();
+});
+
+test('a failed system-dependency install leaves no sentinel behind to skip the retry', function (): void {
+    [$path] = fakeSailWorktree(probeExit: 0, failing: 'install-deps');
+
+    $process = runWorktreeLib($path, 'install_playwright_browsers '.escapeshellarg($path));
+
+    expect($process->getExitCode())->toBe(0)
+        ->and(is_file($path.'/.worktree-playwright-deps'))->toBeFalse();
 });
 
 test('a fresh worktree migrates and seeds so the demo account can sign in', function (): void {
@@ -449,6 +570,78 @@ test('no generated env value dials a compose service the bootstrap leaves down',
     );
 
     expect(envAssignmentsDialing($path.'/.env', unstartedComposeServices()))->toBe([]);
+});
+
+test('a fresh bootstrap prints nothing but the worktree path on stdout', function (): void {
+    [$clone, $root] = worktreeBootstrapFixture();
+
+    $process = runWorktreeLib(
+        $clone,
+        worktreeCreateStubs()."\nmain create 1043 master",
+        ['HOME' => $root.'/home'],
+    );
+
+    expect($process->getExitCode())->toBe(0)
+        ->and($process->getOutput())->toBe($root."/the-desk-worktrees/1043-fix-the-bootstrap\n")
+        ->and(is_file($root.'/the-desk-worktrees/1043-fix-the-bootstrap/.worktree-ready'))->toBeTrue();
+});
+
+test('a fresh bootstrap still shows every step it runs, on stderr', function (): void {
+    [$clone, $root] = worktreeBootstrapFixture();
+
+    $process = runWorktreeLib(
+        $clone,
+        worktreeCreateStubs()."\nmain create 1043 master",
+        ['HOME' => $root.'/home'],
+    );
+
+    expect($process->getExitCode())->toBe(0)
+        ->and($process->getErrorOutput())->toContain('composer install --no-interaction')
+        ->and($process->getErrorOutput())->toContain('npm run build')
+        ->and($process->getErrorOutput())->toContain('worktree ready');
+});
+
+test('re-entering a ready worktree prints nothing but its path either', function (): void {
+    $path = tempGitDir('worktree-reentry');
+    writeNoisySail($path);
+    touch($path.'/.worktree-ready');
+
+    $stubs = <<<BASH
+        require_tooling() { :; }
+        jq() {
+            case "\$*" in
+                *'// empty'*) printf '%s\n' '{"path":"{$path}"}' ;;
+                *) printf '%s\n' '{$path}' ;;
+            esac
+        }
+        BASH;
+
+    $process = runWorktreeLib($path, $stubs."\nmain create 1043", ['HOME' => $path.'/home']);
+
+    expect($process->getExitCode())->toBe(0)
+        ->and($process->getOutput())->toBe($path."\n")
+        ->and($process->getErrorOutput())->toContain('playwright install-deps chromium');
+});
+
+test('list keeps its machine-readable table on stdout', function (): void {
+    $path = tempGitDir('worktree-list');
+
+    $stubs = <<<'BASH'
+        require_tooling() { :; }
+        jq() {
+            case "$*" in
+                *length*) printf '1\n' ;;
+                *) printf '1043\t0\t20000\t20001\t20002\t20003\t1043-slug\t/wt/1043-slug\n' ;;
+            esac
+        }
+        BASH;
+
+    $process = runWorktreeLib($path, $stubs."\nmain list", ['HOME' => $path.'/home']);
+
+    expect($process->getExitCode())->toBe(0)
+        ->and($process->getOutput())->toContain('ISSUE')
+        ->and($process->getOutput())->toContain('1043-slug')
+        ->and($process->getOutput())->toContain('/wt/1043-slug');
 });
 
 test('the services the bootstrap starts all exist in compose.yaml', function (): void {

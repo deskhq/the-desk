@@ -39,17 +39,7 @@ test('the New Direct Message palette has no serious accessibility violations, li
         ->wait(0.5)
         ->assertNoAccessibilityIssues();
 
-    // Re-audit against the dark palette; persisting to localStorage first keeps
-    // the appearance controller from re-resolving 'system' back to light.
-    $page->script(<<<'JS'
-    () => {
-        localStorage.setItem('appearance', 'dark');
-        document.documentElement.classList.add('dark');
-        document.documentElement.style.colorScheme = 'dark';
-    }
-    JS);
-
-    $page->wait(0.5)
+    switchToDarkTheme($page)
         ->assertNoAccessibilityIssues();
 });
 
@@ -83,11 +73,11 @@ test('the shell exposes a skip link targeting a focusable main region', function
         );
 });
 
-test('an open dropdown menu takes the shell out of the tab order and hands it back on close', function (): void {
+test('an open overlay takes the shell out of the tab order and hands it back on close', function (): void {
     ['owner' => $alice] = browserTeamWithChannel();
 
     $page = signInThroughBrowser($alice)
-        ->click('@sidebar-menu-button')
+        ->click('@rail-destination-you')
         ->assertPresent('@settings-menu-item')
         ->wait(0.5)
         // The menu hides the shell from assistive tech, so the skip link has to
@@ -107,7 +97,7 @@ test('an open dropdown menu takes the shell out of the tab order and hands it ba
         )
         ->assertScript(
             'document.activeElement?.getAttribute("data-test")',
-            'sidebar-menu-button',
+            'rail-destination-you',
         );
 });
 
@@ -136,7 +126,7 @@ test('the settings sidebar is a labelled landmark with a current-page item', fun
         // visit, so the browser session survives). Gate each step — wait for the
         // menu item to render, then for the settings route to land — before
         // asserting the landmark, so a slow menu/navigation doesn't race the check.
-        ->click('@sidebar-menu-button')
+        ->click('@rail-destination-you')
         ->assertPresent('@settings-menu-item')
         // Let the dropdown settle past its open/pointer-grace window, otherwise
         // the item click can be swallowed and never navigate.
@@ -177,4 +167,68 @@ test('a direct message row exposes the participant presence to assistive tech', 
 
     signInThroughBrowser($alice)
         ->assertSeeIn('[data-test="dm-presence-label"]', 'Offline');
+});
+
+test('the destination rail is a named landmark of keyboard-operable buttons', function (): void {
+    ['owner' => $alice] = browserTeamWithChannel();
+
+    signInThroughBrowser($alice)
+        ->resize(1280, 900)
+        // The rail is its own landmark, distinct from the conversation list it
+        // drives, and each glyph is a real button an accessible name reaches.
+        ->assertAttribute('nav[data-test="navigation-rail"]', 'aria-label', 'Destinations')
+        ->assertPresent('button[data-test="rail-destination-threads"]')
+        ->assertAttribute('[data-test="rail-destination-channels"]', 'aria-current', 'true')
+        ->assertScript(<<<'JS'
+        (() => ['channels', 'threads', 'reminders', 'search', 'you'].every((destination) => {
+            const glyph = document.querySelector(`[data-test="rail-destination-${destination}"]`);
+
+            return glyph !== null && glyph.textContent.trim().length > 0;
+        }))()
+        JS, true)
+        // Activating one from the keyboard swaps the panel, and the press moves
+        // with it — only the open destination is marked current.
+        ->keys('@rail-destination-reminders', 'Enter')
+        ->assertPresent('@destination-panel-reminders')
+        ->assertAttribute('[data-test="rail-destination-reminders"]', 'aria-current', 'true')
+        ->assertScript(
+            '(() => document.querySelector(\'[data-test="rail-destination-channels"]\').getAttribute("aria-current"))()',
+            null,
+        );
+});
+
+test('an open destination panel has no serious accessibility violations, light or dark', function (): void {
+    ['owner' => $alice] = browserTeamWithChannel();
+
+    $page = signInThroughBrowser($alice)
+        ->resize(1280, 900)
+        ->click('@rail-destination-search')
+        ->assertPresent('@destination-panel-search')
+        ->wait(0.5)
+        ->assertNoAccessibilityIssues();
+
+    switchToDarkTheme($page)
+        ->assertNoAccessibilityIssues();
+});
+
+test('the mobile tab bar has no serious accessibility violations, light or dark', function (): void {
+    ['owner' => $alice] = browserTeamWithChannel();
+
+    $page = signInThroughBrowser($alice)
+        ->resize(390, 844)
+        ->click('@sidebar-toggle')
+        ->assertPresent('@navigation-tab-bar')
+        ->assertAttribute('nav[data-test="navigation-tab-bar"]', 'aria-label', 'Destinations')
+        ->assertAttribute('[data-test="tab-destination-channels"]', 'aria-current', 'true')
+        // The `--muted-foreground` rows the drawer inherited from the desktop
+        // sidebar, pinned visible so the audit below provably reaches them —
+        // they are what #946 was opened over.
+        ->assertVisible('@quick-switcher-trigger')
+        ->assertVisible('@section-toggle-channels')
+        ->assertVisible('@section-toggle-direct')
+        ->wait(0.5)
+        ->assertNoAccessibilityIssues();
+
+    switchToDarkTheme($page)
+        ->assertNoAccessibilityIssues();
 });

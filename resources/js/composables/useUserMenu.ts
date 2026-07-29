@@ -1,7 +1,6 @@
 import { router, usePage } from '@inertiajs/vue3';
 import type { ComputedRef } from 'vue';
 import { computed } from 'vue';
-import { toast } from 'vue-sonner';
 import {
     destroy as destroyDndPause,
     update as updateDndPause,
@@ -9,6 +8,7 @@ import {
 import { update as snoozeDndSchedule } from '@/actions/App/Http/Controllers/Settings/DndScheduleSnoozeController';
 import { update as updatePresence } from '@/actions/App/Http/Controllers/Settings/PresenceController';
 import { destroy as destroyStatus } from '@/actions/App/Http/Controllers/Settings/StatusController';
+import { useToast } from '@/composables/useToast';
 import { useTranslations } from '@/composables/useTranslations';
 import { formatTimeOfDay } from '@/lib/datetime';
 import { isDndActiveNow, quietHoursEndsAt } from '@/lib/dnd';
@@ -36,19 +36,19 @@ export type UseUserMenuReturn = {
 };
 
 /**
- * The user menu's shared state and actions — one source for the desktop
- * dropdown (`UserMenuContent`) and the mobile bottom sheet (`UserMenuSheet`),
- * so the two presentations of the same menu can never drift apart.
+ * The user menu's shared state and actions, behind the one `UserMenuContent`
+ * the rail's popover and the "You" panel both render.
  *
  * Everything reads from the shared `auth.user` prop rather than a `user` prop
  * so a set/clear lands in the open menu without it remounting. The mutation
- * handlers take an optional event: the dropdown passes its `@select` event and
- * prevents the default so the row applies in place without dismissing the
- * menu; the sheet's plain buttons have no default to prevent.
+ * handlers take an optional event so a caller whose row carries a default worth
+ * preventing can hand it over; the plain buttons the menu is built from have
+ * none.
  */
 export function useUserMenu(): UseUserMenuReturn {
     const page = usePage();
     const { t } = useTranslations();
+    const toast = useToast();
 
     const currentTeam = computed(() => page.props.currentTeam as Team | null);
 
@@ -125,7 +125,7 @@ export function useUserMenu(): UseUserMenuReturn {
 
         router.delete(destroyStatus().url, {
             preserveScroll: true,
-            onError: () => toast.error(t('Could not clear your status.')),
+            onError: () => toast.error(t('Could not clear your status')),
         });
     }
 
@@ -138,8 +138,7 @@ export function useUserMenu(): UseUserMenuReturn {
             { state: togglesTo.value },
             {
                 preserveScroll: true,
-                onError: () =>
-                    toast.error(t('Could not change your presence.')),
+                onError: () => toast.error(t('Could not change your presence')),
             },
         );
     }
@@ -167,7 +166,7 @@ export function useUserMenu(): UseUserMenuReturn {
             {
                 preserveScroll: true,
                 onError: () =>
-                    toast.error(t('Could not pause your notifications.')),
+                    toast.error(t('Could not pause your notifications')),
             },
         );
     }
@@ -179,7 +178,7 @@ export function useUserMenu(): UseUserMenuReturn {
         router.delete(destroyDndPause().url, {
             preserveScroll: true,
             onError: () =>
-                toast.error(t('Could not resume your notifications.')),
+                toast.error(t('Could not resume your notifications')),
         });
     }
 
@@ -197,7 +196,7 @@ export function useUserMenu(): UseUserMenuReturn {
             {
                 preserveScroll: true,
                 onError: () =>
-                    toast.error(t('Could not snooze your quiet hours.')),
+                    toast.error(t('Could not snooze your quiet hours')),
             },
         );
     }

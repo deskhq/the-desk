@@ -51,6 +51,7 @@ describe('parseSearchQuery', () => {
             in: 'c-design',
             after: null,
             before: null,
+            has: null,
         });
     });
 
@@ -63,6 +64,26 @@ describe('parseSearchQuery', () => {
         expect(filters.after).toBe('2026-01-01');
         expect(filters.before).toBe('2026-06-30');
         expect(filters.text).toBe('report');
+    });
+
+    it('promotes a has:file token into the attachment facet', () => {
+        const filters = parseSearchQuery('has:file brief', lookup);
+
+        expect(filters.has).toBe('file');
+        expect(filters.text).toBe('brief');
+    });
+
+    it('is case-insensitive on the has: kind', () => {
+        expect(parseSearchQuery('has:FILE', lookup).has).toBe('file');
+    });
+
+    it('keeps a has: kind nothing filters by as literal text', () => {
+        // Only files are filterable today; `has:audio` is a search for those
+        // words rather than a filter that would silently match nothing.
+        const filters = parseSearchQuery('has:audio hello', lookup);
+
+        expect(filters.has).toBeNull();
+        expect(filters.text).toBe('has:audio hello');
     });
 
     it('keeps an unresolved member token as literal text', () => {
@@ -131,6 +152,12 @@ describe('filtersToParams', () => {
             from: 'u-maya',
             in: 'c-design',
         });
+    });
+
+    it('serializes the attachment facet', () => {
+        expect(
+            filtersToParams(parseSearchQuery('has:file brief', lookup)),
+        ).toEqual({ q: 'brief', has: 'file' });
     });
 
     it('omits empty text and appends a scope when given', () => {

@@ -23,7 +23,7 @@ const FOREGROUND_RELOADS: { file: string; call: string; reason: string }[] = [
         reason: 'refreshes the list the user just registered a passkey into',
     },
     {
-        file: 'pages/channels/Show.vue',
+        file: 'composables/useChannelPins.ts',
         call: "router.reload({ only: ['pins', 'pinCount'] })",
         reason: 'the user opened the pins popover and is waiting on it',
     },

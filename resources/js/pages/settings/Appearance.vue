@@ -2,7 +2,6 @@
 import { Head, router, usePage } from '@inertiajs/vue3';
 import { Moon, Play } from '@lucide/vue';
 import { computed, ref, watch } from 'vue';
-import { toast } from 'vue-sonner';
 import { update as updateDndSchedule } from '@/actions/App/Http/Controllers/Settings/DndScheduleController';
 import AppearanceTabs from '@/components/AppearanceTabs.vue';
 import SettingsPane from '@/components/SettingsPane.vue';
@@ -19,6 +18,7 @@ import {
 import { Switch } from '@/components/ui/switch';
 import { useChimes } from '@/composables/useChimes';
 import { useReadReceipts } from '@/composables/useReadReceipts';
+import { useToast } from '@/composables/useToast';
 import { useTranslations } from '@/composables/useTranslations';
 import { useWebPush } from '@/composables/useWebPush';
 import { formatWallTime } from '@/lib/datetime';
@@ -73,6 +73,7 @@ const {
 
 const page = usePage();
 const { t } = useTranslations();
+const toast = useToast();
 
 /**
  * The stored quiet-hours schedule, from the viewer's own `auth.user` prop. The
@@ -127,7 +128,7 @@ function persistSchedule(): void {
         },
         {
             preserveScroll: true,
-            onError: () => toast.error(t('Could not update your quiet hours.')),
+            onError: () => toast.error(t('Could not update your quiet hours')),
         },
     );
 }

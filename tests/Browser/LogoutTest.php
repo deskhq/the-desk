@@ -13,7 +13,7 @@ test('logging out renders the login page immediately without a manual refresh', 
     // down and the login form renders in the same flow — no manual refresh, and
     // the URL and rendered page stay in sync.
     $page
-        ->click('@sidebar-menu-button')
+        ->click('@rail-destination-you')
         ->click('@logout-button')
         ->assertPathIs('/login')
         ->assertPresent('@login-button')

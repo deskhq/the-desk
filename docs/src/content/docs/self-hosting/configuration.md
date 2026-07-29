@@ -22,7 +22,10 @@ on/off feature switches, see [Feature toggles](/reference/feature-toggles/).
 | `APP_BIND`  | Address the published app/reverb ports bind to (default `127.0.0.1`). |
 
 `APP_NAME` and the browser-facing Reverb settings are served to the frontend at
-runtime, which is why one published image works for any host.
+runtime, which is why one published image works for any host. `APP_NAME` also
+names the **installed** app: the web app manifest is rendered per request, so
+renaming the instance needs no rebuild. To replace the mark and icons too, see
+[Branding](/self-hosting/branding/).
 
 ## Mail (SMTP)
 

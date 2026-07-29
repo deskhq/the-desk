@@ -3,6 +3,8 @@
 declare(strict_types=1);
 
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Tests\Support\ReverbGuard;
+use Tests\Support\StaleBundleGuard;
 use Tests\TestCase;
 
 /*
@@ -21,6 +23,25 @@ use Tests\TestCase;
 */
 
 require_once __DIR__.'/Browser/Support/Execution.php';
+
+/*
+|--------------------------------------------------------------------------
+| Browser Plugin Shadow (#944)
+|--------------------------------------------------------------------------
+|
+| The same plugin serves the app in-process from an Amp server built with
+| `createForDirectAccess()`'s defaults, which close an HTTP/1 connection after
+| 15s idle. Browser tests routinely leave one idle for longer while the PHP
+| side works, and Chrome reuses it regardless, so the next document races the
+| server's overdue close and silently loses an asset — a dropped stylesheet
+| renders the page unstyled and every geometry assertion then reports a bogus
+| layout regression (issue #944). This patched copy raises those timeouts past
+| any plausible test duration. Same story as the shadow above: it must be
+| declared before the autoloader can load the vendor class.
+|
+*/
+
+require_once __DIR__.'/Browser/Support/LaravelHttpServer.php';
 
 /*
 |--------------------------------------------------------------------------
@@ -73,18 +94,34 @@ pest()->extend(TestCase::class)->in('Unit/ReverbSecretGuidanceTest.php');
 | live Reverb server. They are tagged `browser` and excluded from the default
 | coverage gate; run them with `composer test:browser` (see README).
 |
+| That in-process server hands the browser the *compiled* assets under
+| `public/build`, so a bundle older than the working tree fails these tests as
+| though the application were broken — and it fails them on whatever landed most
+| recently, which reads as a regression in those very PRs rather than as a stale
+| bundle (issue #949). StaleBundleGuard sweeps the bundled sources once per
+| process and stops the run with the rebuild command instead.
+|
+| The live Reverb server is the other half of that story: without one, every
+| realtime test fails on the message it was waiting for, which reads as a
+| broadcasting regression rather than as the stopped container it is — and
+| running the PHP gate is enough to leave one behind (issue #954). ReverbGuard
+| probes it once per process and names it.
+|
 */
 
 pest()->extend(TestCase::class)
     ->use(RefreshDatabase::class)
     ->group('browser')
     ->beforeEach(function (): void {
+        StaleBundleGuard::ensureFreshBundle(base_path());
+        ReverbGuard::ensureReverbIsRunning(base_path());
+
         useReverbForBrowserTests();
     })
     ->in('Browser');
 
 // The plugin's default 5 s assertion timeout flakes on slow CI runners: the
-// 80-reply virtualized thread panel and the search page need longer to render
+// 80-reply virtualized thread panel and the search panel need longer to render
 // before their assertions can pass (#581). Assertions retry and return as soon
 // as they hold, so raising the ceiling only slows genuinely failing tests.
 pest()->browser()->timeout(15000);

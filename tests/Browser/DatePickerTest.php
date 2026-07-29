@@ -16,7 +16,7 @@ test('the audit export period is picked from a calendar and validates its order'
     // Reached through the settings sidebar — client-side Inertia visits, so the
     // browser session survives (a full navigate() would drop it).
     $page = signInThroughBrowser($alice)
-        ->click('@sidebar-menu-button')
+        ->click('@rail-destination-you')
         ->assertPresent('@settings-menu-item')
         // Let the dropdown settle past its open/pointer-grace window, otherwise
         // the item click can be swallowed and never navigate.
@@ -73,7 +73,7 @@ test('the audit export period is picked from a calendar and validates its order'
         ->assertNoAccessibilityIssues();
 });
 
-test('the search custom range picks its bounds from a calendar', function (): void {
+test('the search panel custom range picks its bounds from a calendar', function (): void {
     ['owner' => $alice, 'channel' => $channel, 'member' => $bob] = browserTeamWithChannel();
 
     Message::factory()->create([
@@ -83,8 +83,8 @@ test('the search custom range picks its bounds from a calendar', function (): vo
     ]);
 
     signInThroughBrowser($alice)
-        ->click('@masthead-search')
-        ->assertPathContains('/search')
+        ->click('@rail-destination-search')
+        ->assertPresent('[data-test="destination-panel-search"]')
         ->type('@search-input', 'quokka')
         ->wait(0.8)
         ->assertPresent('[data-test="search-result"]')

@@ -45,7 +45,7 @@ class TeamInvitationController extends Controller
         Notification::route('mail', $invitation->email)
             ->notify(new TeamInvitationNotification($invitation));
 
-        Inertia::flash('toast', ['type' => 'success', 'message' => __('Invitation sent.')]);
+        Inertia::flash('toast', ['type' => 'success', 'message' => __('Invitation sent')]);
 
         return to_route('teams.edit', ['team' => $team->slug]);
     }
@@ -65,7 +65,7 @@ class TeamInvitationController extends Controller
 
         $invitation->delete();
 
-        Inertia::flash('toast', ['type' => 'success', 'message' => __('Invitation cancelled.')]);
+        Inertia::flash('toast', ['type' => 'success', 'message' => __('Invitation cancelled')]);
 
         return to_route('teams.edit', ['team' => $team->slug]);
     }
@@ -84,7 +84,7 @@ class TeamInvitationController extends Controller
         $throttleKey = 'resend-invitation:'.$invitation->id;
 
         if (RateLimiter::tooManyAttempts($throttleKey, 1)) {
-            Inertia::flash('toast', ['type' => 'error', 'message' => __('Please wait a moment before resending this invitation.')]);
+            Inertia::flash('toast', ['type' => 'error', 'message' => __('Please wait a moment before resending this invitation')]);
 
             return to_route('teams.edit', ['team' => $team->slug]);
         }
@@ -100,7 +100,7 @@ class TeamInvitationController extends Controller
         Notification::route('mail', $invitation->email)
             ->notify(new TeamInvitationNotification($invitation));
 
-        Inertia::flash('toast', ['type' => 'success', 'message' => __('Invitation resent.')]);
+        Inertia::flash('toast', ['type' => 'success', 'message' => __('Invitation resent')]);
 
         return to_route('teams.edit', ['team' => $team->slug]);
     }
@@ -129,7 +129,7 @@ class TeamInvitationController extends Controller
             'email' => $invitation->email,
         ]);
 
-        Inertia::flash('toast', ['type' => 'success', 'message' => __('Invitation accepted.')]);
+        Inertia::flash('toast', ['type' => 'success', 'message' => __('Invitation accepted')]);
 
         return to_route('channels.index', ['team' => $invitation->team->slug]);
     }
@@ -141,7 +141,7 @@ class TeamInvitationController extends Controller
     {
         $invitation->delete();
 
-        Inertia::flash('toast', ['type' => 'success', 'message' => __('Invitation declined.')]);
+        Inertia::flash('toast', ['type' => 'success', 'message' => __('Invitation declined')]);
 
         return to_route('channels.index', ['team' => $request->user()->currentTeam->slug]);
     }

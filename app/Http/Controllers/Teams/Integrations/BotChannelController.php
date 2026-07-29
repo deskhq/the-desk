@@ -48,7 +48,7 @@ class BotChannelController extends Controller
             'member_name' => $bot->name,
         ]);
 
-        Inertia::flash('toast', ['type' => 'success', 'message' => __('Bot added to :channel.', ['channel' => $channel->name])]);
+        Inertia::flash('toast', ['type' => 'success', 'message' => __('Bot added to :channel', ['channel' => $channel->name])]);
 
         return to_route('teams.integrations.bots.show', ['team' => $team->slug, 'bot' => $bot->id]);
     }
@@ -71,7 +71,7 @@ class BotChannelController extends Controller
             'member_name' => $bot->name,
         ]);
 
-        Inertia::flash('toast', ['type' => 'success', 'message' => __('Bot removed from :channel.', ['channel' => $channel->name])]);
+        Inertia::flash('toast', ['type' => 'success', 'message' => __('Bot removed from :channel', ['channel' => $channel->name])]);
 
         return to_route('teams.integrations.bots.show', ['team' => $team->slug, 'bot' => $bot->id]);
     }

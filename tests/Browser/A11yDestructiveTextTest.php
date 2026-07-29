@@ -43,14 +43,6 @@ test('destructive status text passes the axe audit in either theme', function ()
         ->assertPresent('[data-test="auto-disable-banner"]')
         ->assertNoAccessibilityIssues();
 
-    $page->script(<<<'JS'
-    () => {
-        localStorage.setItem('appearance', 'dark');
-        document.documentElement.classList.add('dark');
-        document.documentElement.style.colorScheme = 'dark';
-    }
-    JS);
-
-    $page->wait(0.5)
+    switchToDarkTheme($page)
         ->assertNoAccessibilityIssues();
 });

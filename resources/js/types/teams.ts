@@ -9,6 +9,14 @@ export type Team = {
     roleLabel?: string;
     membersCount: number;
     isCurrent?: boolean;
+    /**
+     * Ordinary unread messages waiting in this workspace, muting and the
+     * per-channel notification level already applied server-side. Drives the
+     * rail tile's dot and the workspace sheet's row cue.
+     */
+    unreadCount: number;
+    /** Unread @mentions waiting in this workspace, drawn as a numeric badge. */
+    mentionCount: number;
 };
 
 export type TeamMember = {

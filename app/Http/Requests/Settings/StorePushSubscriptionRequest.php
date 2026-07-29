@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Requests\Settings;
 
+use App\Rules\PublicWebhookUrl;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 
@@ -18,17 +19,25 @@ class StorePushSubscriptionRequest extends FormRequest
      * services issue long URLs, and a longer one would fail at insert rather
      * than at validation.
      *
-     * HTTPS only. This value decides where the server itself posts every push,
-     * so a plaintext endpoint would put the delivery on the wire in the clear
-     * and let a signed-in user aim the instance's own requests wherever they
-     * like. Real push services are HTTPS without exception.
+     * HTTPS only, and public only. This value decides where the server itself
+     * posts every push, from a queue worker inside the instance's own network:
+     * a plaintext endpoint would put the delivery on the wire in the clear, and
+     * a private or reserved host would turn the subscription into a blind
+     * request forger aimed at whatever the app container can reach. Real push
+     * services are public HTTPS without exception, so the guard costs nothing.
      *
      * @return array<string, ValidationRule|array<mixed>|string>
      */
     public function rules(): array
     {
         return [
-            'endpoint' => ['required', 'string', 'url:https', 'max:500'],
+            'endpoint' => [
+                'required',
+                'string',
+                'url:https',
+                'max:500',
+                new PublicWebhookUrl(__('The push endpoint must be a public HTTPS address.')),
+            ],
             'keys.p256dh' => ['required', 'string', 'max:255'],
             'keys.auth' => ['required', 'string', 'max:255'],
             // Firefox's older endpoints negotiate `aesgcm`; everything current

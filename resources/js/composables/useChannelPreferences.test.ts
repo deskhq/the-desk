@@ -8,7 +8,16 @@ const { patch, toastError } = vi.hoisted(() => ({
 }));
 
 vi.mock('@inertiajs/vue3', () => ({ router: { patch } }));
-vi.mock('vue-sonner', () => ({ toast: { error: toastError } }));
+vi.mock('@/composables/useToast', () => {
+    const toast = {
+        error: toastError,
+        success: vi.fn(),
+        warning: vi.fn(),
+        progress: vi.fn(),
+    };
+
+    return { useToast: () => toast };
+});
 
 import { useChannelPreferences } from '@/composables/useChannelPreferences';
 import type { ChannelPreferences } from '@/composables/useChannelPreferences';

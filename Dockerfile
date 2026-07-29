@@ -121,6 +121,16 @@ ARG PHPREDIS_VERSION=6.3.0
 #
 # phpredis is cloned rather than fetched as an archive: the codeload tarball
 # omits the liblzf submodule and the build fails on the missing sources.
+#
+# `apk upgrade` comes first, before anything is installed on top of it. A base
+# image carries the package snapshot it was built against, and Alpine publishes
+# security updates to the branch repository continuously — so an OS package goes
+# stale in the published image without a single commit landing in this
+# repository, and the weekly scan of the published tags is what finds out (#962,
+# where the base shipped c-ares 1.34.6-r0 against a 1.34.8-r0 fix already in
+# v3.24/main). Only the runtime stage needs it: the vendor and assets stages
+# contribute no packages to the image that ships. PHP and FrankenPHP are not apk
+# packages in this base, so nothing the app is pinned to moves underneath it.
 RUN set -eu; \
     max_attempts=5; \
     retry_delay=10; \
@@ -137,6 +147,7 @@ RUN set -eu; \
             attempt=$((attempt + 1)); \
         done; \
     }; \
+    retry apk upgrade --no-cache; \
     retry apk add --no-cache --virtual .phpredis-source git; \
     retry git clone \
             --depth 1 \

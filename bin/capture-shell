@@ -1,0 +1,339 @@
+#!/usr/bin/env bash
+#
+# bin/capture-shell — photograph the real app shell from the seeded demo
+# workspace, so the landing page advertises the product that actually ships
+# (see issue #1013).
+#
+# The landing page used to draw its own three-pane mockup by hand: ~450 lines of
+# bespoke markup duplicating the app's design. Nothing kept the two in step, and
+# they drifted — the mockup was still selling a flat sidebar long after the shell
+# had grown an icon rail, a dock panel and a mobile tab bar. This script removes
+# the copy: `resources/js/images/shell/*.png` *are* the app, and `--check` fails
+# the build when they stop being.
+#
+# What it does, in order: stands up a throwaway database beside the developer's
+# own, seeds the demo workspace with the clock pinned, serves the app, brings up
+# Reverb, and hands all of that to bin/capture-shell.mjs.
+#
+# Usage:
+#   bin/capture-shell            # rewrite the committed captures
+#   bin/capture-shell --check    # fail if the shell has drifted from them
+#
+# Run it through Sail locally, which is where node_modules' Linux bindings and
+# the Playwright browser live:
+#
+#   ./vendor/bin/sail composer capture:shell
+#   ./vendor/bin/sail composer capture:check
+#
+# Config (environment overrides):
+#   CAPTURE_DB              Database to build the fixture in (default: capture).
+#                           Deliberately *not* the app's own — this runs
+#                           `migrate:fresh`, and pointing it at a working
+#                           database would drop it.
+#   CAPTURE_PORT            Port to serve the app on (default: 8123).
+#   CAPTURE_REVERB_PORT     Port Reverb listens on (default: $REVERB_PORT or
+#                           8080). Must match the host the *built bundle* was
+#                           compiled against, or the masthead photographs a
+#                           "Reconnecting" pill instead of live presence.
+#   CAPTURE_ACTUAL_DIR      Where `--check` writes what it actually rendered
+#                           (default: storage/app/shell-capture).
+#   CAPTURE_MAX_DIFF_RATIO  Share of pixels allowed to differ (default: 0.002).
+
+set -euo pipefail
+
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+
+# The instant the whole fixture is anchored to: the seeder back-dates its
+# narrative from here (`demo:seed --at`) and the browser's clock is frozen to the
+# same value, so relative timestamps and date separators render identically on
+# every run. Changing it re-photographs every capture; it is otherwise arbitrary.
+CAPTURE_CLOCK='2026-06-10T14:30:00Z'
+
+# The channel the shot lands on. #product-launch is the seeder's flagship: a
+# hand-authored launch narrative with a thread, reactions, a pin and a PDF
+# attachment. The filler channels are faker prose, which is fine to click through
+# in a demo and wrong to put on a marketing page.
+CAPTURE_CHANNEL='product-launch'
+
+CAPTURE_DB="${CAPTURE_DB:-capture}"
+CAPTURE_PORT="${CAPTURE_PORT:-8123}"
+CAPTURE_REVERB_PORT="${CAPTURE_REVERB_PORT:-${REVERB_PORT:-8080}}"
+
+ASSET_DIR="$REPO_ROOT/resources/js/images/shell"
+
+# Where a failing `--check` leaves the shots as this machine rendered them. Kept
+# out of the asset directory on purpose: a check that overwrote the committed
+# captures would silently accept the very drift it exists to report.
+ACTUAL_DIR="${CAPTURE_ACTUAL_DIR:-$REPO_ROOT/storage/app/shell-capture}"
+
+# The README's screenshot is the desktop light capture, copied rather than
+# re-shot, so the two can never disagree.
+README_SCREENSHOT="$REPO_ROOT/.github/screenshot-app.png"
+README_SOURCE_VARIANT='desktop-light'
+
+SERVER_PID=''
+REVERB_PID=''
+
+# Refuse to photograph a bundle older than the sources it was built from. The
+# server below serves public/build, so a stale bundle would either fail the check
+# against a shell nobody has shipped, or — worse, in write mode — commit it
+# (#949, and the same guard bin/browser-tests runs).
+assert_fresh_bundle() {
+    php -r 'require $argv[1]; Tests\Support\StaleBundleGuard::ensureFreshBundle($argv[2]);' \
+        "$REPO_ROOT/tests/Support/StaleBundleGuard.php" "$REPO_ROOT"
+}
+
+# Refuse to run when the capture database *is* the application's own.
+#
+# The next thing this script does is `migrate:fresh`, so getting this wrong drops
+# a working database — the developer's, or in CI the one the rest of the suite
+# is using. Nothing about the failure would point back here: the capture would
+# succeed and the loss would surface later, somewhere else.
+assert_capture_database_is_disposable() {
+    local configured
+
+    configured="$(php artisan tinker --execute 'echo config("database.connections.".config("database.default").".database");')"
+
+    if [ "$CAPTURE_DB" = "$configured" ]; then
+        cat >&2 <<EOF
+Refusing to capture: CAPTURE_DB is [$CAPTURE_DB], which is the database this
+application is configured to use. bin/capture-shell runs migrate:fresh against
+it, so it has to be a throwaway. Set CAPTURE_DB to a different name.
+EOF
+        exit 1
+    fi
+}
+
+# Create the throwaway capture database if it is not there yet.
+#
+# Done over the app's own PDO connection rather than `createdb`, so the script
+# depends on nothing that the application does not already need. Postgres cannot
+# create a database from inside a transaction, hence the plain statement.
+ensure_database() {
+    php artisan tinker --execute "$(cat <<'PHP'
+$default = (string) config('database.default');
+$connection = config('database.connections.'.$default);
+
+if (($connection['driver'] ?? null) !== 'pgsql') {
+    fwrite(STDERR, 'bin/capture-shell expects a pgsql connection, got ['.($connection['driver'] ?? 'none').'].'.PHP_EOL);
+    exit(1);
+}
+
+// Whatever DB_DATABASE resolved to, which main() has already pointed at the
+// throwaway capture database.
+$name = (string) $connection['database'];
+
+// `postgres` always exists, so it is somewhere to stand while asking whether the
+// capture database does.
+config(['database.connections.capture_bootstrap' => ['database' => 'postgres'] + $connection]);
+
+$exists = DB::connection('capture_bootstrap')->select('select 1 from pg_database where datname = ?', [$name]);
+
+if ($exists === []) {
+    DB::connection('capture_bootstrap')->statement('create database "'.str_replace('"', '', $name).'"');
+    echo 'created database '.$name.PHP_EOL;
+}
+PHP
+)"
+}
+
+# Build the fixture: a fresh schema and the demo workspace seeded from the pinned
+# instant.
+#
+# Gravatar is off for the whole capture. It is the app's only outbound request on
+# a render path, so leaving it on would make the shot depend on gravatar.com
+# being up and on its identicons never changing; with it off every persona falls
+# back to the app's own initials avatar, which is derived from the user id and so
+# is as deterministic as the rest of the fixture.
+seed_fixture() {
+    php artisan migrate:fresh --force --no-interaction --quiet
+    php artisan demo:seed --at="$CAPTURE_CLOCK" --no-interaction
+}
+
+# The credentials and team the fixture actually seeded, read back from the seeder
+# rather than restated here, so this script cannot drift from it.
+read_fixture_identity() {
+    local identity
+
+    # One value per line, read whole: splitting three values out of a single
+    # space-separated line would silently truncate a demo password that ever
+    # gained a space, and the capture would then fail at the login form with
+    # nothing pointing back to here. A non-printing delimiter would be tidier
+    # still, but tinker strips those from its output.
+    identity="$(php artisan tinker --execute 'echo implode(PHP_EOL, [Database\Seeders\DemoSeeder::DEMO_EMAIL, Database\Seeders\DemoSeeder::DEMO_PASSWORD, Database\Seeders\DemoSeeder::TEAM_SLUG]);')"
+
+    {
+        IFS= read -r CAPTURE_EMAIL
+        IFS= read -r CAPTURE_PASSWORD
+        IFS= read -r CAPTURE_TEAM_SLUG
+    } <<<"$identity"
+
+    if [ -z "${CAPTURE_TEAM_SLUG:-}" ]; then
+        printf 'Could not read the demo fixture identity from DemoSeeder.\n' >&2
+        exit 1
+    fi
+}
+
+# Serve the app on the built-in PHP server, through the framework's own router.
+#
+# Not `artisan serve`, which filters the environment it hands the server down to
+# `ServeCommand::$passthroughVariables` — a list that does not include DB_*. The
+# capture would then quietly photograph the developer's own database instead of
+# the fixture, which is exactly the sort of thing that only shows up once it is
+# on the landing page.
+start_server() {
+    local router="$REPO_ROOT/vendor/laravel/framework/src/Illuminate/Foundation/resources/server.php"
+
+    (cd "$REPO_ROOT/public" && exec php -S "127.0.0.1:$CAPTURE_PORT" "$router") \
+        >"$REPO_ROOT/storage/logs/capture-server.log" 2>&1 &
+    SERVER_PID=$!
+
+    wait_for_port "$CAPTURE_PORT" 'the application server'
+}
+
+# Bring up Reverb unless something already answers on its port.
+#
+# The shell photographs its realtime state: with no broadcaster reachable the
+# masthead renders a "Reconnecting" pill and presence reads "0 of 7 active",
+# neither of which is what the product does.
+start_reverb() {
+    if port_is_open "$CAPTURE_REVERB_PORT"; then
+        return
+    fi
+
+    php artisan reverb:start --host=0.0.0.0 --port="$CAPTURE_REVERB_PORT" \
+        >"$REPO_ROOT/storage/logs/capture-reverb.log" 2>&1 &
+    REVERB_PID=$!
+
+    wait_for_port "$CAPTURE_REVERB_PORT" 'the Reverb server'
+}
+
+port_is_open() {
+    php -r 'exit(@fsockopen("127.0.0.1", (int) $argv[1], $e, $s, 0.5) ? 0 : 1);' "$1" 2>/dev/null
+}
+
+wait_for_port() {
+    local port=$1 what=$2 attempt
+
+    for attempt in $(seq 1 60); do
+        if port_is_open "$port"; then
+            return
+        fi
+
+        sleep 0.5
+    done
+
+    printf '%s never came up on port %s.\n' "$what" "$port" >&2
+    exit 1
+}
+
+stop_services() {
+    local pid
+
+    for pid in "$SERVER_PID" "$REVERB_PID"; do
+        if [ -n "$pid" ]; then
+            kill -TERM "$pid" 2>/dev/null || true
+        fi
+    done
+}
+
+# Keep the README's screenshot a copy of the desktop capture rather than a second
+# thing to remember to refresh.
+sync_readme_screenshot() {
+    cp "$ASSET_DIR/$README_SOURCE_VARIANT.png" "$README_SCREENSHOT"
+    printf 'wrote %s\n' "${README_SCREENSHOT#"$REPO_ROOT/"}"
+}
+
+main() {
+    cd "$REPO_ROOT"
+
+    local check_only=''
+
+    if [ "${1:-}" = '--check' ]; then
+        check_only='--check'
+        shift
+    fi
+
+    assert_fresh_bundle
+
+    mkdir -p "$ASSET_DIR" "$ACTUAL_DIR" "$REPO_ROOT/storage/logs"
+
+    # Checked before DB_DATABASE is overridden below, while the configuration
+    # still reports the database the application actually uses.
+    assert_capture_database_is_disposable
+
+    export DB_DATABASE="$CAPTURE_DB"
+    export GRAVATAR_ENABLED=false
+    export APP_LOCALE=en
+    export APP_URL="http://127.0.0.1:$CAPTURE_PORT"
+    export PHP_CLI_SERVER_WORKERS="${PHP_CLI_SERVER_WORKERS:-6}"
+    # PLAYWRIGHT_BROWSERS_PATH is deliberately left alone: forcing a default here
+    # would override Playwright's own, and only match whichever location this
+    # machine happened to install the browser into. If it is missing, Playwright
+    # says so and names the command that fixes it.
+
+    ensure_database
+    seed_fixture
+    read_fixture_identity
+
+    trap stop_services EXIT INT TERM
+
+    start_reverb
+    start_server
+
+    export CAPTURE_BASE_URL="$APP_URL"
+    export CAPTURE_ASSET_DIR="$ASSET_DIR"
+    export CAPTURE_ACTUAL_DIR="$ACTUAL_DIR"
+    export CAPTURE_CLOCK CAPTURE_EMAIL CAPTURE_PASSWORD
+    export CAPTURE_CHANNEL_PATH="/t/$CAPTURE_TEAM_SLUG/c/$CAPTURE_CHANNEL"
+
+    if [ -n "$check_only" ]; then
+        local status=0
+
+        node "$REPO_ROOT/bin/capture-shell.mjs" --check || status=$?
+
+        # Only exit status 2 means the shots moved. Anything else is the capture
+        # itself failing — a missing browser, an unreachable service — and
+        # telling someone to refresh their captures because Playwright is not
+        # installed sends them a long way in the wrong direction.
+        if [ "$status" -ne 0 ] && [ "$status" -ne 2 ]; then
+            printf '\nThe capture did not run to completion (exit %s); the error above is the reason.\n' "$status" >&2
+            exit "$status"
+        fi
+
+        if [ "$status" -eq 2 ]; then
+            cat >&2 <<EOF
+
+The committed product shots no longer match what the app renders. If the shell
+changed on purpose, refresh them and commit the result:
+
+    ./vendor/bin/sail composer capture:shell
+
+What this machine actually rendered is in ${ACTUAL_DIR#"$REPO_ROOT/"}. On CI that
+directory is uploaded as the "shell-capture" artifact: because the committed
+bytes come from one machine and are verified on another, those are the ones to
+commit when the drift is intended.
+EOF
+            exit 1
+        fi
+
+        return
+    fi
+
+    node "$REPO_ROOT/bin/capture-shell.mjs"
+    sync_readme_screenshot
+
+    # The landing page imports these through Vite, so their content hashes are
+    # baked into the bundle: refreshed captures that are never rebuilt ship the
+    # old shot under the old URL.
+    cat <<'EOF'
+
+Captures refreshed. Rebuild the bundle so the landing page picks them up:
+
+    ./vendor/bin/sail npm run build
+EOF
+}
+
+# Sourcing with CAPTURE_SHELL_LIB=1 defines the helpers without running the
+# capture, so tests/Unit/ShellCaptureGateTest.php can drive them directly.
+[ -n "${CAPTURE_SHELL_LIB:-}" ] || main "$@"

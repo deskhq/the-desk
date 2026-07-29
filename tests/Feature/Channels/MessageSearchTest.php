@@ -2,7 +2,9 @@
 
 use App\Actions\Channels\OpenDirectMessage;
 use App\Actions\Teams\CreateTeam;
+use App\Enums\NavDestination;
 use App\Enums\TeamRole;
+use App\Models\Attachment;
 use App\Models\Channel;
 use App\Models\Message;
 use App\Models\Team;
@@ -37,21 +39,31 @@ function searchMember(Team $team, Channel $channel, ?string $name = null): User
 }
 
 /**
- * Hit the search endpoint for a team as the given user.
+ * Open the Search destination on the team's #general as the given user.
+ *
+ * Search is a dock panel, so its props ride on an ordinary workspace route with
+ * `?nav=search` pinned; #general stands in for "whatever channel the viewer had
+ * open", which is where a real search always runs from.
  */
 function performSearch(User $user, Team $team, string $query): TestResponse
 {
-    return test()->actingAs($user)->get(route('search', ['team' => $team->slug, 'q' => $query]));
+    return performSearchWith($user, $team, ['q' => $query]);
 }
 
 /**
- * Hit the search endpoint with an arbitrary set of query parameters (facets).
+ * Open the Search destination with an arbitrary set of query parameters (facets).
  *
  * @param  array<string, string>  $params
  */
 function performSearchWith(User $user, Team $team, array $params): TestResponse
 {
-    return test()->actingAs($user)->get(route('search', ['team' => $team->slug, ...$params]));
+    return test()->actingAs($user)->get(route('channels.show', [
+        'team' => $team->slug,
+        'channel' => Channel::GENERAL_SLUG,
+        ...$params,
+        // Last, so a facet a caller passes can never steer the destination.
+        'nav' => NavDestination::Search->value,
+    ]));
 }
 
 /**
@@ -81,14 +93,13 @@ test('a member searches messages in their channels', function (): void {
     performSearch($member, $team, 'quokka')
         ->assertOk()
         ->assertInertia(fn (Assert $page): Assert => $page
-            ->component('channels/Search')
-            ->where('query', 'quokka')
-            ->has('results', 1)
-            ->where('results.0.message.body', 'the quokka danced at dawn')
-            ->where('results.0.message.user.name', 'Ada Lovelace')
-            ->where('results.0.channelName', $general->name)
-            ->where('results.0.channelSlug', $general->slug)
-            ->where('results.0.isDirectMessage', false)
+            ->component('channels/Show')
+            ->has('searchResults', 1)
+            ->where('searchResults.0.message.body', 'the quokka danced at dawn')
+            ->where('searchResults.0.message.user.name', 'Ada Lovelace')
+            ->where('searchResults.0.channelName', $general->name)
+            ->where('searchResults.0.channelSlug', $general->slug)
+            ->where('searchResults.0.isDirectMessage', false)
         );
 });
 
@@ -99,7 +110,7 @@ test('a result carries a highlighted snippet of the match', function (): void {
 
     performSearch($member, $team, 'quokka')
         ->assertInertia(fn (Assert $page): Assert => $page
-            ->where('results.0.snippet', 'the <mark>quokka</mark> danced at dawn')
+            ->where('searchResults.0.snippet', 'the <mark>quokka</mark> danced at dawn')
         );
 });
 
@@ -112,7 +123,7 @@ test('a snippet unwraps mention tokens to plain names', function (): void {
 
     performSearch($member, $team, 'quokka')
         ->assertInertia(fn (Assert $page): Assert => $page
-            ->where('results.0.snippet', 'ping @Ada Lovelace about <mark>quokka</mark>')
+            ->where('searchResults.0.snippet', 'ping @Ada Lovelace about <mark>quokka</mark>')
         );
 });
 
@@ -125,8 +136,8 @@ test('the author facet limits results to messages from that user', function (): 
 
     performSearchWith($owner, $team, ['q' => 'zephyr', 'from' => $ada->id])
         ->assertInertia(fn (Assert $page): Assert => $page
-            ->has('results', 1)
-            ->where('results.0.message.user.name', 'Ada')
+            ->has('searchResults', 1)
+            ->where('searchResults.0.message.user.name', 'Ada')
         );
 });
 
@@ -138,8 +149,8 @@ test('the channel facet limits results to that channel', function (): void {
 
     performSearchWith($owner, $team, ['q' => 'zephyr', 'in' => $other->id])
         ->assertInertia(fn (Assert $page): Assert => $page
-            ->has('results', 1)
-            ->where('results.0.channelSlug', $other->slug)
+            ->has('searchResults', 1)
+            ->where('searchResults.0.channelSlug', $other->slug)
         );
 });
 
@@ -151,14 +162,78 @@ test('the date facets limit results to the created-at range', function (): void 
 
     performSearchWith($member, $team, ['q' => 'zephyr', 'after' => now()->subDays(2)->toDateString()])
         ->assertInertia(fn (Assert $page): Assert => $page
-            ->has('results', 1)
-            ->where('results.0.message.body', 'zephyr new')
+            ->has('searchResults', 1)
+            ->where('searchResults.0.message.body', 'zephyr new')
         );
 
     performSearchWith($member, $team, ['q' => 'zephyr', 'before' => now()->subDays(5)->toDateString()])
         ->assertInertia(fn (Assert $page): Assert => $page
-            ->has('results', 1)
-            ->where('results.0.message.body', 'zephyr old')
+            ->has('searchResults', 1)
+            ->where('searchResults.0.message.body', 'zephyr old')
+        );
+});
+
+test('the file facet limits results to messages carrying an attachment', function (): void {
+    [$owner, $team, $general] = searchTeamWithGeneral();
+    $member = searchMember($team, $general);
+    $withFile = Message::factory()->for($general)->for($owner)->create(['body' => 'zephyr with the deck']);
+    Message::factory()->for($general)->for($owner)->create(['body' => 'zephyr without anything']);
+    Attachment::factory()->for($owner)->attachedTo($withFile)->create();
+
+    performSearchWith($member, $team, ['q' => 'zephyr', 'has' => 'file'])
+        ->assertInertia(fn (Assert $page): Assert => $page
+            ->has('searchResults', 1)
+            ->where('searchResults.0.message.body', 'zephyr with the deck')
+        );
+});
+
+test('a message whose only attachment was deleted drops out of the file facet', function (): void {
+    [$owner, $team, $general] = searchTeamWithGeneral();
+    $member = searchMember($team, $general);
+    $message = Message::factory()->for($general)->for($owner)->create(['body' => 'zephyr with the deck']);
+    $attachment = Attachment::factory()->for($owner)->attachedTo($message)->create();
+    $attachment->delete();
+
+    // The chip promises the message still carries a file, and a soft-deleted one
+    // is no longer rendered on it — so it must not answer the filter either.
+    performSearchWith($member, $team, ['q' => 'zephyr', 'has' => 'file'])
+        ->assertInertia(fn (Assert $page): Assert => $page->has('searchResults', 0));
+});
+
+test('the file facet never widens the channel ACL', function (): void {
+    [$owner, $team, $general] = searchTeamWithGeneral();
+    $member = searchMember($team, $general);
+    $private = Channel::factory()->for($team)->private()->create(['created_by' => $owner->id]);
+    $secret = Message::factory()->for($private)->for($owner)->create(['body' => 'secret zephyr deck']);
+    Attachment::factory()->for($owner)->attachedTo($secret)->create();
+
+    performSearchWith($member, $team, ['q' => 'zephyr', 'has' => 'file'])
+        ->assertInertia(fn (Assert $page): Assert => $page->has('searchResults', 0));
+});
+
+test('an unknown file facet value is dropped rather than filtering', function (): void {
+    [$owner, $team, $general] = searchTeamWithGeneral();
+    $member = searchMember($team, $general);
+    Message::factory()->for($general)->for($owner)->create(['body' => 'zephyr without anything']);
+
+    // Only the one value the chip writes is honoured; a hand-edited `has=audio`
+    // is dropped rather than silently filtering by something nobody asked for.
+    performSearchWith($member, $team, ['q' => 'zephyr', 'has' => 'audio'])
+        ->assertOk()
+        ->assertInertia(fn (Assert $page): Assert => $page
+            ->has('searchResults', 1)
+            ->where('searchCriteria.has', null)
+        );
+});
+
+test('the file facet is echoed back in the criteria the matches answer', function (): void {
+    [$owner, $team, $general] = searchTeamWithGeneral();
+    $member = searchMember($team, $general);
+    Message::factory()->for($general)->for($owner)->create(['body' => 'zephyr note']);
+
+    performSearchWith($member, $team, ['q' => 'zephyr', 'has' => 'file'])
+        ->assertInertia(fn (Assert $page): Assert => $page
+            ->where('searchCriteria.has', 'file')
         );
 });
 
@@ -170,9 +245,9 @@ test('results are ordered newest first regardless of engine relevance order', fu
 
     performSearch($member, $team, 'zephyr')
         ->assertInertia(fn (Assert $page): Assert => $page
-            ->has('results', 2)
-            ->where('results.0.message.body', 'zephyr two')
-            ->where('results.1.message.body', 'zephyr one')
+            ->has('searchResults', 2)
+            ->where('searchResults.0.message.body', 'zephyr two')
+            ->where('searchResults.1.message.body', 'zephyr one')
         );
 });
 
@@ -185,27 +260,96 @@ test('facets never widen the channel ACL', function (): void {
     // Even naming the owner as author and the private channel as the channel
     // facet, the Eloquent ACL re-assertion keeps the private message hidden.
     performSearchWith($member, $team, ['q' => 'zephyr', 'from' => $owner->id, 'in' => $private->id])
-        ->assertInertia(fn (Assert $page): Assert => $page->has('results', 0));
+        ->assertInertia(fn (Assert $page): Assert => $page->has('searchResults', 0));
 });
 
-test('the date facets must be valid dates', function (): void {
+test('an unparseable date facet is dropped rather than rejecting the shell', function (): void {
+    [$owner, $team, $general] = searchTeamWithGeneral();
+    $member = searchMember($team, $general);
+    Message::factory()->for($general)->for($owner)->create(['body' => 'zephyr note']);
+
+    // The panel's criteria are resolved in the shared props of whatever workspace
+    // route the dock sits on, so a hand-edited facet cannot be allowed to 422 the
+    // whole workspace: it is dropped, and the search runs unbounded.
+    performSearchWith($member, $team, ['q' => 'zephyr', 'after' => 'not-a-date'])
+        ->assertOk()
+        ->assertInertia(fn (Assert $page): Assert => $page->has('searchResults', 1));
+});
+
+test('a relative date expression is not accepted as a facet bound', function (): void {
+    [$owner, $team, $general] = searchTeamWithGeneral();
+    $member = searchMember($team, $general);
+    Message::factory()->for($general)->for($owner)->create(['body' => 'zephyr note']);
+
+    // Only the calendar-day format the facets write is parsed, so "yesterday"
+    // never becomes an upper bound that would hide today's match.
+    performSearchWith($member, $team, ['q' => 'zephyr', 'before' => 'yesterday'])
+        ->assertOk()
+        ->assertInertia(fn (Assert $page): Assert => $page->has('searchResults', 1));
+});
+
+test('a facet supplied as an array is ignored rather than blowing up the shell', function (): void {
+    [$owner, $team, $general] = searchTeamWithGeneral();
+    $member = searchMember($team, $general);
+    Message::factory()->for($general)->for($owner)->create(['body' => 'zephyr note']);
+
+    test()->actingAs($member)
+        ->get(route('channels.show', [
+            'team' => $team->slug,
+            'channel' => $general->slug,
+            'nav' => NavDestination::Search->value,
+            'q' => 'zephyr',
+        ]).'&from[]=nobody')
+        ->assertOk()
+        ->assertInertia(fn (Assert $page): Assert => $page->has('searchResults', 1));
+});
+
+test('the panel props are absent until the destination is pinned', function (): void {
     [, $team, $general] = searchTeamWithGeneral();
     $member = searchMember($team, $general);
 
-    performSearchWith($member, $team, ['q' => 'zephyr', 'after' => 'not-a-date'])
-        ->assertSessionHasErrors('after');
+    // A search runs a full-text query, so it must ride on `?nav=search` rather
+    // than on every workspace navigation.
+    test()->actingAs($member)
+        ->get(route('channels.show', ['team' => $team->slug, 'channel' => $general->slug]))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page): Assert => $page
+            ->missing('searchResults')
+        );
 });
 
-test('the search page shares the workspace sidebar props', function (): void {
+test('the legacy search url redirects onto the destination carrying its facets', function (): void {
+    [$owner, $team, $general] = searchTeamWithGeneral();
+    $member = searchMember($team, $general);
+
+    // #391's shared links have to keep working: the old page is a redirect that
+    // hands its query and facets to the panel.
+    test()->actingAs($member)
+        ->get(route('search', [
+            'team' => $team->slug,
+            'q' => 'zephyr',
+            'from' => $owner->id,
+            'has' => 'file',
+            'nav' => 'threads',
+        ]))
+        ->assertRedirectContains('q=zephyr')
+        ->assertRedirectContains('from='.$owner->id)
+        ->assertRedirectContains('has=file')
+        // The destination is pinned last, so a crafted `nav` on the legacy link
+        // cannot steer the redirect at another panel.
+        ->assertRedirectContains('nav=search');
+});
+
+test('the search destination shares the workspace sidebar props', function (): void {
     [, $team, $general] = searchTeamWithGeneral();
     $member = searchMember($team, $general, 'Ada Lovelace');
 
-    // The sidebar feeds off the same shared props as a channel page; the search
-    // route lives outside the channels.* name prefix, so it must be covered too.
+    // The facet pickers read the channels and members off the same shared props
+    // the conversation list feeds on.
     performSearch($member, $team, '')
         ->assertOk()
         ->assertInertia(fn (Assert $page): Assert => $page
-            ->component('channels/Search')
+            ->component('channels/Show')
             ->has('channels', 1)
             ->where('channels.0.slug', 'general')
             ->has('teamMembers', 2)
@@ -220,7 +364,7 @@ test('search does not leak messages from channels the user is not a member of', 
 
     performSearch($member, $team, 'zephyr')
         ->assertOk()
-        ->assertInertia(fn (Assert $page): Assert => $page->has('results', 0));
+        ->assertInertia(fn (Assert $page): Assert => $page->has('searchResults', 0));
 });
 
 test('search does not leak messages from other teams the member also belongs to', function (): void {
@@ -236,7 +380,7 @@ test('search does not leak messages from other teams the member also belongs to'
     Message::factory()->for($otherGeneral)->for($otherOwner)->create(['body' => 'crossteam zephyr note']);
 
     performSearch($member, $team, 'zephyr')
-        ->assertInertia(fn (Assert $page): Assert => $page->has('results', 0));
+        ->assertInertia(fn (Assert $page): Assert => $page->has('searchResults', 0));
 });
 
 test('soft-deleted messages are excluded from search results', function (): void {
@@ -246,7 +390,7 @@ test('soft-deleted messages are excluded from search results', function (): void
     $message->delete();
 
     performSearch($member, $team, 'zephyr')
-        ->assertInertia(fn (Assert $page): Assert => $page->has('results', 0));
+        ->assertInertia(fn (Assert $page): Assert => $page->has('searchResults', 0));
 });
 
 test('editing a message changes what search matches', function (): void {
@@ -257,12 +401,12 @@ test('editing a message changes what search matches', function (): void {
     $message->update(['body' => 'reworded qibble wording']);
 
     performSearch($member, $team, 'zephyr')
-        ->assertInertia(fn (Assert $page): Assert => $page->has('results', 0));
+        ->assertInertia(fn (Assert $page): Assert => $page->has('searchResults', 0));
     performSearch($member, $team, 'qibble')
-        ->assertInertia(fn (Assert $page): Assert => $page->has('results', 1));
+        ->assertInertia(fn (Assert $page): Assert => $page->has('searchResults', 1));
 });
 
-test('an empty query renders the page without touching the search engine', function (): void {
+test('an empty query renders the panel without touching the search engine', function (): void {
     [$owner, $team, $general] = searchTeamWithGeneral();
     $member = searchMember($team, $general);
     Message::factory()->for($general)->for($owner)->create(['body' => 'zephyr']);
@@ -270,9 +414,8 @@ test('an empty query renders the page without touching the search engine', funct
     performSearch($member, $team, '')
         ->assertOk()
         ->assertInertia(fn (Assert $page): Assert => $page
-            ->component('channels/Search')
-            ->where('query', '')
-            ->has('results', 0)
+            ->component('channels/Show')
+            ->has('searchResults', 0)
         );
 });
 
@@ -286,7 +429,7 @@ test('a team member who belongs to no channel gets no results', function (): voi
     Message::factory()->for($general)->for($owner)->create(['body' => 'zephyr']);
 
     performSearch($loner, $team, 'zephyr')
-        ->assertInertia(fn (Assert $page): Assert => $page->has('results', 0));
+        ->assertInertia(fn (Assert $page): Assert => $page->has('searchResults', 0));
 });
 
 test('a non-member of the team cannot search it', function (): void {
@@ -296,12 +439,18 @@ test('a non-member of the team cannot search it', function (): void {
     performSearch($outsider, $team, 'zephyr')->assertForbidden();
 });
 
-test('the search query cannot exceed 255 characters', function (): void {
-    [, $team, $general] = searchTeamWithGeneral();
+test('a query longer than the engine accepts runs no search at all', function (): void {
+    [$owner, $team, $general] = searchTeamWithGeneral();
     $member = searchMember($team, $general);
+    Message::factory()->for($general)->for($owner)->create(['body' => str_repeat('a', 300)]);
 
+    // Dropped, not truncated: half a query is a different search, and the panel
+    // shows its empty state rather than results for something nobody asked for.
     performSearch($member, $team, str_repeat('a', 256))
-        ->assertSessionHasErrors('q');
+        ->assertOk()
+        ->assertInertia(fn (Assert $page): Assert => $page
+            ->has('searchResults', 0)
+        );
 });
 
 test('a jump windows the messages around the target with newer context below', function (): void {
@@ -385,6 +534,31 @@ test('the suggest endpoint caps results at the preview limit', function (): void
         ->assertJsonCount(5, 'results');
 });
 
+test('the suggest endpoint honours the file facet', function (): void {
+    [$owner, $team, $general] = searchTeamWithGeneral();
+    $member = searchMember($team, $general);
+    $withFile = Message::factory()->for($general)->for($owner)->create(['body' => 'zephyr with the deck']);
+    Message::factory()->for($general)->for($owner)->create(['body' => 'zephyr without anything']);
+    Attachment::factory()->for($owner)->attachedTo($withFile)->create();
+
+    // The palette parses `has:file` into the same params the panel writes, so the
+    // preview it shows has to be filtered the same way the full result set is.
+    test()->actingAs($member)
+        ->getJson(route('search.suggest', ['team' => $team->slug, 'q' => 'zephyr', 'has' => 'file']))
+        ->assertOk()
+        ->assertJsonCount(1, 'results')
+        ->assertJsonPath('results.0.message.body', 'zephyr with the deck');
+});
+
+test('the suggest endpoint rejects a file facet it does not offer', function (): void {
+    [, $team, $general] = searchTeamWithGeneral();
+    $member = searchMember($team, $general);
+
+    test()->actingAs($member)
+        ->getJson(route('search.suggest', ['team' => $team->slug, 'q' => 'zephyr', 'has' => 'audio']))
+        ->assertJsonValidationErrorFor('has');
+});
+
 test('the suggest endpoint is ACL-filtered to the user channels', function (): void {
     [$owner, $team, $general] = searchTeamWithGeneral();
     $member = searchMember($team, $general);
@@ -431,11 +605,11 @@ test('a search whose results include a direct message renders the counterpart na
     performSearch($owner, $team, 'quokka')
         ->assertOk()
         ->assertInertia(fn (Assert $page): Assert => $page
-            ->component('channels/Search')
-            ->has('results', 1)
-            ->where('results.0.channelName', 'Grace Hopper')
-            ->where('results.0.channelSlug', $dm->slug)
-            ->where('results.0.isDirectMessage', true)
+            ->component('channels/Show')
+            ->has('searchResults', 1)
+            ->where('searchResults.0.channelName', 'Grace Hopper')
+            ->where('searchResults.0.channelSlug', $dm->slug)
+            ->where('searchResults.0.isDirectMessage', true)
         );
 });
 
@@ -451,9 +625,9 @@ test('a group direct message result joins the other participants as its name', f
     performSearch($owner, $team, 'quokka')
         ->assertOk()
         ->assertInertia(fn (Assert $page): Assert => $page
-            ->has('results', 1)
-            ->where('results.0.channelName', 'Ada Lovelace, Grace Hopper')
-            ->where('results.0.isDirectMessage', true)
+            ->has('searchResults', 1)
+            ->where('searchResults.0.channelName', 'Ada Lovelace, Grace Hopper')
+            ->where('searchResults.0.isDirectMessage', true)
         );
 });
 
@@ -465,9 +639,9 @@ test('a self direct message result shows the viewer their own name', function ()
     performSearch($owner, $team, 'quokka')
         ->assertOk()
         ->assertInertia(fn (Assert $page): Assert => $page
-            ->has('results', 1)
-            ->where('results.0.channelName', $owner->name)
-            ->where('results.0.isDirectMessage', true)
+            ->has('searchResults', 1)
+            ->where('searchResults.0.channelName', $owner->name)
+            ->where('searchResults.0.isDirectMessage', true)
         );
 });
 

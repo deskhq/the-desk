@@ -8,10 +8,17 @@
 #   COMPOSE_FILE=docker-compose.prod.yml:docker-compose.build.yml
 #   docker compose up -d --build
 #
-# It restores a local `build:` for the four app-role services (they share one
-# image) and retags it to a local tag so the build never masquerades as the
-# registry image. Everything else (Postgres, Meilisearch, Redis, ports, volumes)
-# comes from docker-compose.prod.yml unchanged.
+# It restores a local `build:` for every app-role service (they share one image)
+# and retags it to a local tag so the build never masquerades as the registry
+# image. Everything else (Postgres, Meilisearch, Redis, ports, volumes) comes
+# from docker-compose.prod.yml unchanged.
+#
+# Every one of them, without exception: a service left out keeps the production
+# `image:` and is pulled from GHCR instead of built, which quietly runs registry
+# code beside your own build — and fails outright with `manifest unknown` on any
+# commit GHCR has no tag for, the very case this overlay exists for. That went
+# unnoticed for `queue-broadcasts` (#1040), so tests/Unit/BuildOverlayCoverageTest.php
+# now derives the list from docker-compose.prod.yml and fails if one is missing.
 
 x-build: &build
   build:
@@ -24,6 +31,8 @@ services:
   reverb:
     <<: *build
   queue:
+    <<: *build
+  queue-broadcasts:
     <<: *build
   scheduler:
     <<: *build

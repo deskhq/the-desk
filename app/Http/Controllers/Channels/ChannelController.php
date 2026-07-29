@@ -37,10 +37,16 @@ class ChannelController extends Controller
 {
     /**
      * Redirect a bare team URL to the team's #general channel.
+     *
+     * The query string rides along so state pinned on the shell route — the
+     * dock's `?nav=` destination, a shared search's filters — survives the hop
+     * to the channel that actually renders it. The route parameters are spread
+     * last, so a crafted `?team=`/`?channel=` cannot redirect the hop elsewhere.
      */
-    public function index(Team $team): RedirectResponse
+    public function index(Request $request, Team $team): RedirectResponse
     {
         return to_route('channels.show', [
+            ...$request->query(),
             'team' => $team->slug,
             'channel' => Channel::GENERAL_SLUG,
         ]);
@@ -63,7 +69,7 @@ class ChannelController extends Controller
             'channel_name' => $channel->name,
         ]);
 
-        Inertia::flash('toast', ['type' => 'success', 'message' => __('Channel created.')]);
+        Inertia::flash('toast', ['type' => 'success', 'message' => __('Channel created')]);
 
         return to_route('channels.show', ['team' => $team->slug, 'channel' => $channel->slug]);
     }
@@ -242,7 +248,7 @@ class ChannelController extends Controller
 
         $joinChannel->handle($channel, $request->user());
 
-        Inertia::flash('toast', ['type' => 'success', 'message' => __('Joined #:channel.', ['channel' => $channel->name])]);
+        Inertia::flash('toast', ['type' => 'success', 'message' => __('Joined #:channel', ['channel' => $channel->name])]);
 
         return to_route('channels.show', ['team' => $team->slug, 'channel' => $channel->slug]);
     }
@@ -341,7 +347,7 @@ class ChannelController extends Controller
             'channel_name' => $channel->name,
         ]);
 
-        Inertia::flash('toast', ['type' => 'success', 'message' => __('Archived #:channel.', ['channel' => $channel->name])]);
+        Inertia::flash('toast', ['type' => 'success', 'message' => __('Archived #:channel', ['channel' => $channel->name])]);
 
         return to_route('channels.index', ['team' => $team->slug]);
     }

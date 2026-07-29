@@ -12,18 +12,6 @@ test('the public marketing page has no serious accessibility violations in eithe
         ->wait(0.9)
         ->assertNoAccessibilityIssues();
 
-    // Re-audit against the dark palette. Persist 'dark' to localStorage — the
-    // source of truth `useAppearance` reads — before applying the `.dark` class,
-    // otherwise the appearance controller re-resolves 'system' → light and reverts
-    // the toggle mid-audit. The settle lets that recompute finish.
-    $page->script(<<<'JS'
-    () => {
-        localStorage.setItem('appearance', 'dark');
-        document.documentElement.classList.add('dark');
-        document.documentElement.style.colorScheme = 'dark';
-    }
-    JS);
-
-    $page->wait(0.5)
+    switchToDarkTheme($page)
         ->assertNoAccessibilityIssues();
 });

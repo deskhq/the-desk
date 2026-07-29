@@ -122,6 +122,7 @@ export default defineConfig({
 						{ label: 'Reverse proxy & TLS', slug: 'self-hosting/reverse-proxy' },
 						{ label: 'Deploying on Dokploy', slug: 'self-hosting/dokploy' },
 						{ label: 'First user & workspace', slug: 'self-hosting/first-user' },
+						{ label: 'Branding', slug: 'self-hosting/branding' },
 						{ label: 'Running a public demo', slug: 'self-hosting/demo' },
 						{ label: 'Upgrading', slug: 'self-hosting/upgrading' },
 						{ label: 'Troubleshooting', slug: 'self-hosting/troubleshooting' },

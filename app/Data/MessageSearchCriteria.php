@@ -11,7 +11,8 @@ use Spatie\LaravelData\Data;
 
 /**
  * The resolved, validated inputs of a single message search: the residual text
- * query plus the single-valued author, channel, and date-range facets.
+ * query plus the single-valued author, channel, date-range, and attachment
+ * facets.
  *
  * A plain value object (not a spatie {@see Data}) because it
  * never crosses the HTTP boundary — the controller builds it from the validated
@@ -29,5 +30,6 @@ final readonly class MessageSearchCriteria
         public ?CarbonInterface $after = null,
         public ?CarbonInterface $before = null,
         public SearchScope $scope = SearchScope::Team,
+        public bool $hasAttachments = false,
     ) {}
 }

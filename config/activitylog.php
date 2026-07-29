@@ -15,9 +15,19 @@ return [
 
     /*
      * When the clean command is executed, all recording activities older than
-     * the number of days specified here will be deleted.
+     * the number of days specified here will be deleted. A daily scheduled sweep
+     * runs that command, so the workspace audit log is disposed of on a schedule
+     * rather than growing without bound.
+     *
+     * One year is the default because assessment periods are annual, and because
+     * it matches the account-activity window (SECURITY_EVENT_RETENTION_DAYS), so
+     * one control family answers "how long do you keep it" with one number.
+     *
+     * Set 0 (or lower) to keep entries forever — an explicit "no window", for a
+     * deployment that enforces retention at the database or backup layer instead.
+     * The sweep is skipped entirely in that case.
      */
-    'clean_after_days' => 365,
+    'clean_after_days' => (int) env('AUDIT_LOG_RETENTION_DAYS', 365),
 
     /*
      * If no log name is passed to the activity() helper

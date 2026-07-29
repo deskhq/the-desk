@@ -143,6 +143,11 @@ for script in gen-secrets upgrade backup restore env-sync; do
     fetch "docker/${script}.sh" "docker/${script}.sh"
     chmod +x "docker/${script}.sh"
 done
+# The whitelabeling directory the compose file bind-mounts. Created here rather
+# than left to the first `up -d`, because a directory the daemon creates is owned
+# by root and the operator then cannot drop a logo into it without sudo. Empty is
+# the normal state: every brand asset falls back to the one shipped in the image.
+mkdir -p branding/icons
 echo "  downloaded docker-compose.prod.yml, .env.prod.example, and docker/*.sh"
 echo
 

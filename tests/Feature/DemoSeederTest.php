@@ -20,6 +20,7 @@ use App\Models\SsoIdentity;
 use App\Models\Team;
 use App\Models\User;
 use Database\Seeders\DemoSeeder;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
 
@@ -188,6 +189,65 @@ test('it omits the edge-state and compliance surfaces meant for developers', fun
         ->and(SsoIdentity::count())->toBe(0)
         ->and(DataExport::count())->toBe(0);
 });
+
+/**
+ * The dock orders direct messages by recent activity, so conversations that all
+ * end at the same instant leave the tiebreak to the database and the list comes
+ * out in a different order run to run. Harmless in the demo itself, fatal to a
+ * reproducible product shot — it was the one thing that moved between two
+ * otherwise byte-identical captures (#1013).
+ */
+test('each direct message conversation ends at its own instant, so the dock order is stable', function (): void {
+    $endings = Channel::where('type', ChannelType::Direct)->get()
+        ->map(fn (Channel $channel): ?string => $channel->messages()->max('created_at'))
+        ->filter()
+        ->values();
+
+    expect($endings)->toHaveCount(4)
+        ->and($endings->unique())->toHaveCount(4);
+});
+
+/**
+ * The shell capture (`bin/capture-shell`) photographs this workspace, so every
+ * timestamp it renders has to be reproducible. The seeder back-dates its whole
+ * narrative from `Carbon::now()`, which moves on every run — `--at` pins that
+ * origin so two capture runs produce the same pixels. See issue #1013.
+ */
+test('--at anchors the seeded narrative to the given instant instead of the wall clock', function (): void {
+    artisan('demo:seed', ['--at' => '2026-06-10T14:30:00Z'])->assertSuccessful();
+
+    // #design-review's script starts exactly one day before the origin, so its
+    // opening message dates the fixture without depending on any other channel.
+    $opening = Channel::where('slug', 'design-review')->firstOrFail()
+        ->messages()->orderBy('created_at')->firstOrFail();
+
+    expect($opening->created_at->toIso8601String())->toBe('2026-06-09T14:30:00+00:00');
+});
+
+test('--at releases the clock so it cannot leak into whatever runs next', function (): void {
+    artisan('demo:seed', ['--at' => '2026-06-10T14:30:00Z'])->assertSuccessful();
+
+    expect(Carbon::hasTestNow())->toBeFalse();
+});
+
+/**
+ * Every one of these parses as *something* — which is the danger. A relative
+ * value re-anchors to the wall clock, so nothing is pinned; a bare date resolves
+ * against the machine's timezone, so the same command seeds differently on
+ * different hosts. Both would leave a capture that looks pinned and is not.
+ */
+test('--at rejects anything that is not an absolute instant, rather than seeding from a silent fallback', function (string $at): void {
+    artisan('demo:seed', ['--at' => $at])
+        ->expectsOutputToContain('not a valid instant')
+        ->assertFailed();
+})->with([
+    'prose' => 'launch day',
+    'relative' => 'tomorrow',
+    'relative offset' => '-2 days',
+    'date without a time' => '2026-06-10',
+    'time without a zone' => '2026-06-10T14:30:00',
+    'well-formed but impossible' => '2026-13-45T14:30:00Z',
+]);
 
 test('re-running the command rebuilds a single pristine workspace', function (): void {
     // A deterministic seeder must reproduce the same shape on every run, so

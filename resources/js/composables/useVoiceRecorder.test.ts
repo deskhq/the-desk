@@ -4,9 +4,16 @@ import type { EffectScope } from 'vue';
 
 const { toastError } = vi.hoisted(() => ({ toastError: vi.fn() }));
 
-vi.mock('vue-sonner', () => ({
-    toast: { error: toastError, success: vi.fn() },
-}));
+vi.mock('@/composables/useToast', () => {
+    const toast = {
+        error: toastError,
+        success: vi.fn(),
+        warning: vi.fn(),
+        progress: vi.fn(),
+    };
+
+    return { useToast: () => toast };
+});
 
 import { useVoiceRecorder } from '@/composables/useVoiceRecorder';
 import type {
@@ -235,8 +242,7 @@ describe('useVoiceRecorder', () => {
         expect(toastError).toHaveBeenCalledWith(
             'Microphone unavailable',
             expect.objectContaining({
-                description:
-                    'Allow microphone access in your browser to record a voice message.',
+                detail: 'Allow microphone access in your browser to record a voice message.',
             }),
         );
         scope.stop();

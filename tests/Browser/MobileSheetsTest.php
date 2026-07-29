@@ -3,7 +3,7 @@
 declare(strict_types=1);
 
 use App\Enums\AppLocale;
-use Pest\Browser\Api\AwaitableWebpage;
+use App\Models\ScheduledMessage;
 
 /**
  * Dialogs below the `md` breakpoint (#772).
@@ -60,24 +60,6 @@ function openSurfaceIsACentredDialog(): string
             && box.width < window.innerWidth;
     })()
     JS;
-}
-
-/**
- * Open the create-channel dialog from the dock. It is the plainest of the form
- * dialogs — a header, three fields and a pair of actions — so it stands in for
- * the whole set that shares the primitive.
- */
-function openCreateChannelDialog(AwaitableWebpage $page, int $width, int $height, string $url): AwaitableWebpage
-{
-    $page = $page->resize($width, $height)->navigate($url);
-
-    // Below the breakpoint the dock is a Sheet, so its rows only exist once it
-    // is opened; from `md` up the rail is always mounted.
-    if ($width < 768) {
-        $page = $page->click('@sidebar-toggle');
-    }
-
-    return $page->click('@create-channel-trigger')->assertPresent('@create-channel-submit');
 }
 
 test('a dialog is a bottom sheet on a phone and a centred dialog from md up', function (int $width, int $height, bool $expectSheet): void {
@@ -361,13 +343,16 @@ test('dragging the grab handle down throws the sheet away', function (): void {
 test('a detail sheet stands at 85% of the screen whatever it holds', function (): void {
     ['owner' => $alice, 'team' => $team, 'channel' => $channel] = browserTeamWithChannel();
 
-    // Reminders is a list that shortens as it is worked through; pinning it to
-    // the epic's 85% keeps it from resizing under the thumb between taps.
+    ScheduledMessage::factory()->for($channel)->for($alice, 'user')->create();
+
+    // Scheduled messages are a list that shortens as it is worked through;
+    // pinning it to the epic's 85% keeps it from resizing under the thumb
+    // between taps. It stands in for the reminders list, which left the dialog
+    // set entirely for the Reminders destination's panel (#940).
     signInThroughBrowser($alice)
         ->resize(390, 844)
         ->navigate(browserChannelUrl($team, $channel))
-        ->click('@sidebar-toggle')
-        ->click('@reminders-trigger')
+        ->click('@scheduled-trigger')
         ->assertScript(openSurfaceIsASheet(), true)
         ->assertScript(<<<'JS'
         (() => {

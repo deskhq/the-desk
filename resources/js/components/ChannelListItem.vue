@@ -2,7 +2,6 @@
 import { Link, router } from '@inertiajs/vue3';
 import { GripVertical, MoreVertical, Pencil, Star } from '@lucide/vue';
 import { computed, ref } from 'vue';
-import { toast } from 'vue-sonner';
 import { show } from '@/actions/App/Http/Controllers/Channels/ChannelController';
 import { update as updateChannelStar } from '@/actions/App/Http/Controllers/Channels/ChannelStarController';
 import { Button } from '@/components/ui/button';
@@ -20,6 +19,7 @@ import {
     TooltipContent,
     TooltipTrigger,
 } from '@/components/ui/tooltip';
+import { useToast } from '@/composables/useToast';
 import { useTranslations } from '@/composables/useTranslations';
 import { notificationIndicator } from '@/lib/notificationIndicator';
 import type { Channel, ChannelSection } from '@/types/channels';
@@ -48,6 +48,7 @@ const emit = defineEmits<{
 const menuOpen = ref(false);
 
 const { t } = useTranslations();
+const toast = useToast();
 
 // The mute / notification-level cue for this row, matching the conversation
 // masthead; null (and so no icon) for an unmuted channel at the default level.
@@ -71,9 +72,7 @@ function toggleStar(): void {
             preserveState: true,
             only: ['channels'],
             onError: () => {
-                toast.error(
-                    t('Failed to update the channel. Please try again.'),
-                );
+                toast.error(t('Failed to update the channel'));
             },
         },
     );

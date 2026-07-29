@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Auth\DemoLoginController;
 use App\Http\Controllers\Auth\Sso\OidcController;
+use App\Http\Controllers\BrandingAssetController;
 use App\Http\Controllers\Channels\AttachmentController;
 use App\Http\Controllers\Channels\ChannelController;
 use App\Http\Controllers\Channels\ChannelDraftController;
@@ -27,14 +28,17 @@ use App\Http\Controllers\Channels\ThreadsController;
 use App\Http\Controllers\ImageProxyController;
 use App\Http\Controllers\LocaleCatalogController;
 use App\Http\Controllers\OnboardingController;
+use App\Http\Controllers\PostRegistrationPromptController;
 use App\Http\Controllers\PresenceConnectionController;
 use App\Http\Controllers\SidebarSectionController;
 use App\Http\Controllers\Teams\TeamInvitationController;
 use App\Http\Controllers\Webhooks\IncomingWebhookController;
+use App\Http\Controllers\WebManifestController;
 use App\Http\Middleware\EnsureGiphyEnabled;
 use App\Http\Middleware\EnsureIntegrationsEnabled;
 use App\Http\Middleware\EnsurePollsEnabled;
 use App\Http\Middleware\EnsureTeamMembership;
+use App\Support\Branding\BrandingAssets;
 use Illuminate\Support\Facades\Route;
 
 Route::inertia('/', 'Welcome')->name('home');
@@ -66,6 +70,28 @@ Route::get('locales/{locale}.json', [LocaleCatalogController::class, 'show'])
     ->where('locale', '[a-z]{2}')
     ->name('locales.show');
 
+// Brand assets, served by the app rather than as static files under public/.
+// That is what makes them overridable at all: a file in public/ is served by
+// the web server before the framework sees the request, so an operator could
+// never replace one without rebuilding the image. The `{asset}` constraint is
+// an exact alternation of the known names, so nothing else routes here and no
+// request can walk out of the branding directory.
+Route::get('{asset}', [BrandingAssetController::class, 'show'])
+    ->where('asset', collect(BrandingAssets::ASSETS)
+        ->map(fn (string $asset): string => preg_quote($asset))
+        ->implode('|'))
+    ->name('branding.asset');
+
+// The logo mark has no shipped file (its default is an inline SVG component),
+// and the operator may supply it as either a vector or a raster, so it sits
+// behind one extension-free URL instead of joining the set above.
+Route::get('branding/logo', [BrandingAssetController::class, 'logo'])->name('branding.logo');
+
+// The web app manifest is rendered per request from APP_NAME and the branded
+// icon URLs, so an operator who renames the instance in .env gets an installed
+// app under that name with no rebuild.
+Route::get('manifest.webmanifest', WebManifestController::class)->name('manifest');
+
 Route::middleware(['auth', 'verified', EnsureTeamMembership::class])->group(function (): void {
     Route::get('t/{team}', [ChannelController::class, 'index'])->name('channels.index');
     Route::post('t/{team}/channels', [ChannelController::class, 'store'])->name('channels.store');
@@ -80,6 +106,7 @@ Route::middleware(['auth', 'verified', EnsureTeamMembership::class])->group(func
     Route::get('t/{team}/search', [SearchController::class, 'index'])->name('search');
     Route::get('t/{team}/search/suggest', [SearchController::class, 'suggest'])->name('search.suggest');
     Route::get('t/{team}/threads', [ThreadsController::class, 'index'])->name('channels.threads.index');
+    Route::post('t/{team}/threads/read-all', [ThreadsController::class, 'markAllRead'])->name('channels.threads.readAll');
     Route::get('t/{team}/c/{channel}', [ChannelController::class, 'show'])
         ->scopeBindings()
         ->name('channels.show');
@@ -234,6 +261,11 @@ Route::middleware(['auth'])->group(function (): void {
         ->name('presence.release');
 
     Route::patch('onboarding', [OnboardingController::class, 'update'])->name('onboarding.update');
+
+    // Answering the one-time post-registration security prompt (enrolled, or
+    // "Not now"). Clears the queued session key so a refresh never re-asks.
+    Route::delete('post-registration-prompt', [PostRegistrationPromptController::class, 'destroy'])
+        ->name('post-registration-prompt.destroy');
 
     Route::get('invitations/{invitation}/accept', [TeamInvitationController::class, 'accept'])->name('invitations.accept');
     Route::delete('invitations/{invitation}', [TeamInvitationController::class, 'decline'])->name('invitations.decline');

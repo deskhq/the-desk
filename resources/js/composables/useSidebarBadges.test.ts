@@ -106,7 +106,17 @@ describe('useSidebarBadges cross-device read sync', () => {
 
         expect(reload).toHaveBeenCalledTimes(1);
         expect(reload).toHaveBeenCalledWith(
-            expect.objectContaining({ only: ['channels', 'hasUnreadThreads'] }),
+            expect.objectContaining({
+                // `unreadThreadCount` and `teams` ride along so the Threads
+                // panel's tally and the cross-workspace dots refresh on the same
+                // debounced reload the channel badges already use.
+                only: [
+                    'channels',
+                    'hasUnreadThreads',
+                    'unreadThreadCount',
+                    'teams',
+                ],
+            }),
         );
     });
 

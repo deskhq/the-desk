@@ -4,7 +4,16 @@ import type { App, Component } from 'vue';
 import { createApp, defineComponent, h, nextTick } from 'vue';
 import GifPickerPanel from './GifPickerPanel.vue';
 
-vi.mock('vue-sonner', () => ({ toast: { error: vi.fn(), success: vi.fn() } }));
+vi.mock('@/composables/useToast', () => {
+    const toast = {
+        error: vi.fn(),
+        success: vi.fn(),
+        warning: vi.fn(),
+        progress: vi.fn(),
+    };
+
+    return { useToast: () => toast };
+});
 
 vi.mock('@/components/ui/button', async () => {
     const { defineComponent, h } = await import('vue');

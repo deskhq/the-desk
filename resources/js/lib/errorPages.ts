@@ -1,10 +1,12 @@
 /**
- * "The Desk" branded error pages — the per-status content set.
+ * The branded error pages — the per-status content set.
  *
  * Each covered HTTP status maps to a heading, a supporting message, and the set
  * of call-to-action affordances the page offers. Copy is stored as English
  * source strings (the i18n keys), so `Error.vue` translates them through `$t`
- * and a missing catalog entry still reads as English.
+ * and a missing catalog entry still reads as English. Nothing here names the
+ * product: a whitelabeled instance is called whatever its operator called it,
+ * so copy that has to name it carries the `:app` token instead.
  */
 
 /**
@@ -75,7 +77,7 @@ const CONTENT: Record<number, ErrorContent> = {
     503: {
         heading: 'We’re tidying the desk',
         message:
-            'The Desk is briefly down for maintenance. We’ll be back within the hour — no messages will be lost.',
+            ':app is briefly down for maintenance. We’ll be back within the hour — no messages will be lost.',
         actions: [],
     },
 };

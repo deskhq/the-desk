@@ -42,6 +42,12 @@ return RectorConfig::configure()
     // Opt out of rules that are noisy or conflict with our conventions. Revisit
     // and trim this list as the codebase adopts more of Rector's suggestions.
     ->withSkip([
+        // Shadows of pest-plugin-browser classes (#786, #944). They are copies
+        // of the vendor source with one documented change each, so that a plugin
+        // bump can be diffed against them; refactoring them structurally would
+        // make that diff unreadable for no benefit.
+        __DIR__.'/tests/Browser/Support/Execution.php',
+        __DIR__.'/tests/Browser/Support/LaravelHttpServer.php',
         // Keep explicit constructor bodies readable; do not inline defaults.
         InlineConstructorDefaultToPropertyRector::class,
         // `app()` and `resolve()` are equivalent; don't churn the codebase over

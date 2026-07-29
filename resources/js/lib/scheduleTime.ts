@@ -182,7 +182,7 @@ export function schedulePresets(
  * The whole-day gap between two instants as their zone shows them, so a preview
  * can decide how much date context to spell out.
  */
-function zonedDayDiff(from: Date, to: Date, timeZone: string): number {
+export function zonedDayDiff(from: Date, to: Date, timeZone: string): number {
     const fromDay = zonedWallTime(timeZone, from);
     const toDay = zonedWallTime(timeZone, to);
 

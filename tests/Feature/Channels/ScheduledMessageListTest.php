@@ -45,6 +45,21 @@ test('the channel page lists the viewer own pending scheduled messages, soonest 
         );
 });
 
+test('each row carries the client uuid the composer minted, so the client can point at the row it just created', function (): void {
+    [$owner, $team, $general] = scheduledListTeamWithGeneral();
+
+    $scheduled = ScheduledMessage::factory()->for($general)->for($owner)->create([
+        'client_uuid' => '019fa561-9fc6-73d7-9166-05358afb47c9',
+    ]);
+
+    $this->actingAs($owner)
+        ->get(route('channels.show', ['team' => $team->slug, 'channel' => $general->slug]))
+        ->assertInertia(fn (Assert $page): Assert => $page
+            ->where('scheduledMessages.0.id', $scheduled->id)
+            ->where('scheduledMessages.0.clientUuid', '019fa561-9fc6-73d7-9166-05358afb47c9')
+        );
+});
+
 test('the list excludes other members scheduled messages', function (): void {
     [$owner, $team, $general] = scheduledListTeamWithGeneral();
 

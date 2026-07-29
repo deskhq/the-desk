@@ -37,6 +37,9 @@ x-app: &app
   volumes:
     - ./.env:/app/.env:ro
     - storage-app:/app/storage/app
+    # Operator brand overrides, mirroring docker-compose.prod.yml. Empty by
+    # default, in which case every asset falls back to the shipped one.
+    - ./branding:/app/storage/branding:ro
   depends_on: *infra-depends-on
 
 # `default` keeps the proxied services on the stack network, so they still

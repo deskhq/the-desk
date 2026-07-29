@@ -29,3 +29,22 @@ test('channel visibility exposes a human label', function (): void {
     expect(ChannelVisibility::Public->label())->toBe('Public')
         ->and(ChannelVisibility::Private->label())->toBe('Private');
 });
+
+test('a channel cannot be saved with a blank slug', function (?string $slug): void {
+    $channel = Channel::factory()->create(['name' => '日本語', 'slug' => $slug]);
+
+    expect(trim($channel->fresh()->slug))->not->toBe('');
+})->with([
+    'empty' => [''],
+    'whitespace' => ['   '],
+    'null' => [null],
+]);
+
+test('a channel whose slug is blanked later has it regenerated on save', function (): void {
+    $channel = Channel::factory()->create(['name' => 'Marketing', 'slug' => 'marketing']);
+
+    $channel->slug = '';
+    $channel->save();
+
+    expect($channel->fresh()->slug)->toBe('marketing');
+});

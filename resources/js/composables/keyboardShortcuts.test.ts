@@ -201,6 +201,28 @@ describe('dispatchKeydown', () => {
         expect(event.preventDefault).not.toHaveBeenCalled();
     });
 
+    it('fires the notification-rail shortcut on F6', () => {
+        const event = keydown({ key: 'F6' });
+        const run = vi.fn();
+
+        expect(dispatchKeydown(event, SHORTCUTS, run)).toBe(true);
+        expect(run).toHaveBeenCalledWith('focus-notifications');
+        expect(event.preventDefault).toHaveBeenCalledOnce();
+    });
+
+    it('still reaches the notification rail while typing in a field', () => {
+        // A failed send raises its toast while the composer still has focus, so
+        // a shortcut suppressed there could never reach the action it offers.
+        const event = keydown({
+            key: 'F6',
+            target: { tagName: 'TEXTAREA' } as unknown as EventTarget,
+        });
+        const run = vi.fn();
+
+        expect(dispatchKeydown(event, SHORTCUTS, run)).toBe(true);
+        expect(run).toHaveBeenCalledWith('focus-notifications');
+    });
+
     it('still fires command-key shortcuts while typing in a field', () => {
         const event = keydown({
             key: 'k',
@@ -250,7 +272,17 @@ describe('shortcutsByCategory', () => {
             'quick-switcher',
             'previous-channel',
             'next-channel',
+            'focus-notifications',
         ]);
+    });
+
+    it('lists the notification rail in the help modal, keyed on F6', () => {
+        const shortcut = SHORTCUTS.find(
+            (candidate) => candidate.id === 'focus-notifications',
+        );
+
+        expect(shortcut?.keys).toEqual(['F6']);
+        expect(shortcut?.displayOnly).toBeUndefined();
     });
 
     it('lists the composer-local edit shortcut for discoverability', () => {

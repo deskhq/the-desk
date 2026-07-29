@@ -1,7 +1,7 @@
 import { usePage } from '@inertiajs/vue3';
 import { computed, onMounted, ref } from 'vue';
 import type { ComputedRef, Ref } from 'vue';
-import { toast } from 'vue-sonner';
+import { useToast } from '@/composables/useToast';
 import { useTranslations } from '@/composables/useTranslations';
 import {
     currentSubscription,
@@ -40,6 +40,7 @@ export interface WebPush {
 export function useWebPush(): WebPush {
     const page = usePage();
     const { t } = useTranslations();
+    const toast = useToast();
 
     const supported = ref(false);
     const subscribed = ref(false);
@@ -93,7 +94,7 @@ export function useWebPush(): WebPush {
             // half-completed opt-in doesn't read as on.
             subscribed.value = (await currentSubscription()) !== null;
             toast.error(
-                t('Could not update push notifications on this device.'),
+                t('Could not update push notifications on this device'),
             );
         } finally {
             busy.value = false;

@@ -8,12 +8,12 @@ import {
     ref,
     watch,
 } from 'vue';
-import { toast } from 'vue-sonner';
 import {
     search as searchRoute,
     store as storeRoute,
 } from '@/actions/App/Http/Controllers/Channels/GiphyController';
 import { Button } from '@/components/ui/button';
+import { useToast } from '@/composables/useToast';
 import { useTranslations } from '@/composables/useTranslations';
 import { attachGiphyGif, fetchGiphyPage } from '@/lib/giphy';
 import type { AttachmentData } from '@/types/attachments';
@@ -50,6 +50,7 @@ const emit = defineEmits<{
 }>();
 
 const { t } = useTranslations();
+const toast = useToast();
 
 const query = ref(props.initialQuery);
 const results = ref<App.Data.GiphyGifData[]>([]);
@@ -192,7 +193,7 @@ async function pick(gif: App.Data.GiphyGifData): Promise<void> {
 
         emit('select', attachment);
     } catch {
-        toast.error(t('That GIF could not be added. Try another one.'));
+        toast.error(t('That GIF could not be added'));
     } finally {
         attaching.value = false;
     }

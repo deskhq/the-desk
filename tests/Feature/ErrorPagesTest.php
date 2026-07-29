@@ -77,6 +77,15 @@ test('the 500 fallback renders a self-contained branded Blade page', function ()
         ->not->toContain('<script');
 });
 
+test('the 503 fallback names the instance rather than ours', function (): void {
+    config(['app.debug' => false, 'app.name' => 'Acme Chat']);
+
+    $this->get(abortingRoute(503))
+        ->assertStatus(503)
+        ->assertSee('Acme Chat is briefly down for maintenance', false)
+        ->assertDontSee('The Desk is briefly down', false);
+});
+
 test('the 503 fallback renders the branded maintenance Blade page', function (): void {
     config(['app.debug' => false]);
 

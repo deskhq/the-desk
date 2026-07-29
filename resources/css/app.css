@@ -75,6 +75,36 @@
     --color-brass-fill: var(--brass-fill);
     --color-brass-fill-foreground: var(--brass-fill-foreground);
 
+    /* The ink slab — the floating transient surface shared by toasts and
+       reminder nudges. Its own surface and text come from --primary /
+       --primary-foreground, which already flip ink-to-paper across themes; only
+       the colours that sit *on* the slab need tokens of their own. */
+    --color-slab-error: var(--slab-error);
+    --color-slab-muted-foreground: var(--slab-muted-foreground);
+    --color-slab-accent: var(--slab-accent);
+    --color-slab-glyph-success: var(--slab-glyph-success);
+    --color-slab-glyph-error: var(--slab-glyph-error);
+    --color-slab-glyph-warning: var(--slab-glyph-warning);
+
+    /* The slab's elevation. It carries no border at all, so this shadow is the
+       only thing separating it from the surface it interrupts — it has to be a
+       registered shadow token rather than an arbitrary `shadow-[…]`, which
+       silently resolves `var(--shadow-ink)` to transparent. */
+    --shadow-slab: 0 20px 48px var(--shadow-ink);
+
+    /* The toast's drain hairline, counting its dismiss timer down. Held wherever
+       it is while the pointer or focus is anywhere in the stack. */
+    --animate-toast-drain: toast-drain linear forwards;
+
+    @keyframes toast-drain {
+        from {
+            transform: scaleX(1);
+        }
+        to {
+            transform: scaleX(0);
+        }
+    }
+
     /* Demo-mode banner — a slim brass-tinted strip pinned above the workspace. */
     --color-demo-banner: var(--demo-banner);
     --color-demo-banner-border: var(--demo-banner-border);
@@ -180,8 +210,24 @@
        the height it really occupies (#841). Keep it matching the desktop strip's
        own `md:h-10`. */
     --demo-banner-height: 2.5rem;
+    /* The ink slab (#978) — toasts and reminder nudges. The slab is always the
+       inverse of the surface it interrupts, which --primary / --primary-foreground
+       already deliver; these are the colours that sit *on* it. In light the slab
+       is ink, so they are the paper-side values.
+
+       Never reuse --card or --popover here: an ink toast over --card #1e1b15 in
+       dark loses the slab entirely (a shadow cannot separate two greys three
+       points apart), and a hairline border to rescue it puts us back at the pale
+       card this redesign replaces. */
+    --slab-error: #231a17;
+    --slab-muted-foreground: #a49b85;
+    --slab-accent: #c9a35c;
+    --slab-glyph-success: #86c8a1;
+    --slab-glyph-error: #e5917b;
+    --slab-glyph-warning: #d9b978;
     /* Cast by the auth screens' one ink control, so the pill lifts off the paper
-       column rather than sitting flat on it (#860). */
+       column rather than sitting flat on it (#860). Also the slab's elevation:
+       the slab has no border, so the shadow is the only thing separating it. */
     --shadow-ink: rgba(29, 26, 21, 0.45);
     --chart-1: #c9a35c;
     --chart-2: #7d6023;
@@ -261,6 +307,16 @@
     --demo-badge-foreground: #1d1a15;
     --demo-chip: #26231c;
     --demo-chip-foreground: #c9a35c;
+    /* The slab flips to paper here, so every colour on it flips to its ink-side
+       value. Gold darkens to #7d6023 so the action still clears contrast on
+       paper, and the error tint warms the paper a step rather than shouting in
+       red — the glyph and the copy carry the tone (#978). */
+    --slab-error: #f7efe9;
+    --slab-muted-foreground: #6b6355;
+    --slab-accent: #7d6023;
+    --slab-glyph-success: #3d7a56;
+    --slab-glyph-error: #a13c2f;
+    --slab-glyph-warning: #7d6023;
     /* Deepened: an ink shadow reads as nothing against an already-dark surface. */
     --shadow-ink: rgba(0, 0, 0, 0.55);
     --chart-1: #d4b06a;
@@ -286,5 +342,49 @@
     }
     body {
         @apply bg-background text-foreground;
+    }
+}
+
+/*
+  Toast motion (#978). sonner's own transitions are a 400ms translateY(100%)
+  rise; the slab enters from 12px with no scale and no bounce, and leaves by
+  sinking 6px. Selectors carry the `[data-sonner-toaster]` ancestor purely for
+  specificity — these have to beat sonner's own stylesheet whichever order the
+  bundler emits the two in.
+
+  The stack closes the gap *after* an exit rather than during it, which sonner
+  already does: a removed toast keeps its slot until its exit finishes.
+*/
+[data-sonner-toaster] [data-sonner-toast]:not([data-mounted='true']) {
+    --y: translateY(12px);
+}
+
+[data-sonner-toaster] [data-sonner-toast] {
+    transition:
+        transform 180ms cubic-bezier(0.32, 0.72, 0, 1),
+        opacity 180ms cubic-bezier(0.32, 0.72, 0, 1),
+        height 180ms cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+[data-sonner-toaster]
+    [data-sonner-toast][data-removed='true'][data-swipe-out='false'] {
+    --y: translateY(6px);
+    opacity: 0;
+    transition:
+        transform 140ms cubic-bezier(0.32, 0.72, 0, 1),
+        opacity 140ms cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+/*
+  Opacity only, no translation. sonner's own reduced-motion rule kills every
+  transition outright, which leaves the slab appearing instantly; pinning --y
+  removes the movement and hands the fade back.
+*/
+@media (prefers-reduced-motion: reduce) {
+    [data-sonner-toaster] [data-sonner-toast],
+    [data-sonner-toaster]
+        [data-sonner-toast][data-removed='true'][data-swipe-out='false'] {
+        --y: translateY(0) !important;
+        transition: opacity 180ms linear !important;
     }
 }

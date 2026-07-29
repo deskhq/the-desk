@@ -159,10 +159,42 @@ test('the subscription payload is validated', function (array $payload, string $
     // The server posts to this endpoint itself, so a plaintext one is both a
     // push payload sent in the clear and a destination an operator never chose.
     'a plaintext endpoint' => [fn (): array => pushSubscriptionPayload(['endpoint' => 'http://push.example.test/device']), 'endpoint'],
+    // Nothing about a push endpoint is fetched by the browser: the instance
+    // posts to it from inside its own network, so a private or reserved host
+    // turns the subscription into a request forger pointed at whatever the app
+    // container can reach.
+    'a loopback endpoint' => [fn (): array => pushSubscriptionPayload(['endpoint' => 'https://127.0.0.1:9200/_search']), 'endpoint'],
+    'a private-range endpoint' => [fn (): array => pushSubscriptionPayload(['endpoint' => 'https://10.0.0.5/push']), 'endpoint'],
+    'a cloud-metadata endpoint' => [fn (): array => pushSubscriptionPayload(['endpoint' => 'https://169.254.169.254/latest/meta-data/']), 'endpoint'],
+    'a localhost endpoint' => [fn (): array => pushSubscriptionPayload(['endpoint' => 'https://localhost/push']), 'endpoint'],
+    'an internal-suffix endpoint' => [fn (): array => pushSubscriptionPayload(['endpoint' => 'https://internal-admin.internal/push']), 'endpoint'],
     'a missing public key' => [fn (): array => pushSubscriptionPayload(['keys' => ['auth' => 'auth-only']]), 'keys.p256dh'],
     'a missing auth token' => [fn (): array => pushSubscriptionPayload(['keys' => ['p256dh' => 'key-only']]), 'keys.auth'],
     'an unknown content encoding' => [fn (): array => pushSubscriptionPayload(['contentEncoding' => 'rot13']), 'contentEncoding'],
 ]);
+
+test('a stored endpoint that is not public is skipped at delivery time', function (): void {
+    $user = User::factory()->create();
+
+    // Straight to the model, the way a row stored before the endpoint was
+    // validated looks — or one whose hostname has since been repointed at a
+    // private address.
+    $user->updatePushSubscription('https://127.0.0.1:9200/_search', 'private-key', 'private-auth');
+    $user->updatePushSubscription('https://fcm.googleapis.com/fcm/send/device-one', 'public-key', 'public-auth');
+
+    expect($user->routeNotificationForWebPush()->pluck('endpoint')->all())
+        ->toBe(['https://fcm.googleapis.com/fcm/send/device-one']);
+});
+
+test('an instance that deliberately allows private endpoints still delivers to them', function (): void {
+    config(['integrations.webhooks.block_private_urls' => false]);
+
+    $user = User::factory()->create();
+
+    $user->updatePushSubscription('https://push.internal/device-one', 'public-key', 'public-auth');
+
+    expect($user->routeNotificationForWebPush())->toHaveCount(1);
+});
 
 test('the revoke payload requires an endpoint', function (): void {
     $this->actingAs(User::factory()->create())

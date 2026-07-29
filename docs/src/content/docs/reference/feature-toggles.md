@@ -109,6 +109,24 @@ confirmed with their password). At the next sign-in they can authenticate with a
 passkey instead of a password. Registration is **per-user and opt-in** — turning
 the flag on offers the option but never forces anyone to enrol.
 
+### The sign-up prompt
+
+With the flag on, a user who has just **created an account** is offered a passkey
+once, in a dismissible dialog on their first landing in the workspace. The
+ceremony runs inline: they confirm on their device and the passkey is saved
+without ever leaving the page. The name field is prefilled with the device they
+signed up on ("Chrome on macOS") and stays editable, because a passkey cannot be
+renamed afterwards.
+
+Either answer closes the offer for good — "Not now" and a successful enrolment
+both settle it, so a refresh never re-asks. The first-run tour waits until the
+prompt is out of the way, and the prompt is skipped entirely on a browser with no
+WebAuthn support.
+
+Only **new registrations** are prompted. Turning the flag on for an existing
+instance deliberately does **not** nudge everyone already signed up; those users
+enrol from **Settings → Security** whenever they choose.
+
 The toggle takes effect immediately with no data migration: the underlying routes
 are always registered, so flipping the flag only changes whether the option is
 offered.
@@ -485,6 +503,33 @@ is absent from autocomplete, the builder never appears, and the create, vote, an
 close endpoints return **404**. Existing poll messages render their last-known
 tally read-only. See
 [Environment variables → Feature toggles](/reference/environment-variables/#feature-toggles).
+
+## "Powered by The Desk" attribution
+
+| Variable               | Default | Effect                                       |
+| ---------------------- | ------- | -------------------------------------------- |
+| `BRANDING_ATTRIBUTION` | `true`  | Shows the attribution line in the footer.    |
+
+A small **Powered by The Desk** attribution, linking to the project. It is **on**
+by default. The attribution appears on the welcome page, in the user menu, and
+at the foot of the mobile settings index.
+
+Set `BRANDING_ATTRIBUTION=false` and it disappears from all three. Nothing else
+changes.
+
+:::note
+This is a request, not a requirement. The Desk is MIT-licensed with no trademark
+clause, so nothing obliges you to display this **attribution** — which is exactly
+why there is a documented switch rather than a line you would have to patch out.
+If it costs you nothing, leaving it on is how people find the project.
+
+Turning it off changes nothing about the licence itself: MIT still requires the
+copyright notice and licence text to travel with any copy or substantial portion
+of the software you redistribute.
+:::
+
+Replacing the name, mark and icons is a separate, larger job: see
+[Branding](/self-hosting/branding/).
 
 ## Demo mode
 

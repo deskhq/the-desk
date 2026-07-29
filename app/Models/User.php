@@ -16,6 +16,7 @@ use App\Enums\TimeFormat;
 use App\Enums\UserType;
 use App\Observers\UserObserver;
 use App\Support\Gravatar;
+use App\Support\Http\OutboundUrlGuard;
 use App\Support\Images\ImageProxy;
 use App\Support\PresenceRegistry;
 use Carbon\CarbonInterface;
@@ -166,6 +167,27 @@ class User extends Authenticatable implements HasLocalePreference, MustVerifyEma
         }
 
         return $this->status_expires_at === null || $this->status_expires_at->isFuture();
+    }
+
+    /**
+     * The subscribed devices a push may actually be delivered to.
+     *
+     * The store request already refuses a non-public endpoint at the door, so
+     * this re-check is the delivery-time half — the same belt-and-braces the
+     * webhook delivery job applies to a subscription's URL before it connects.
+     * It catches the rows the door never saw: subscriptions stored before the
+     * endpoint was validated, and hostnames repointed at a private address
+     * after the fact. The check is {@see OutboundUrlGuard::isPublic()}, which
+     * does no DNS lookup, because the push package owns the connection and
+     * leaves us nothing to pin a resolved IP to.
+     *
+     * @return Collection<int, PushSubscription>
+     */
+    public function routeNotificationForWebPush(): Collection
+    {
+        return $this->pushSubscriptions
+            ->filter(static fn (PushSubscription $subscription): bool => OutboundUrlGuard::isPublic($subscription->endpoint))
+            ->values();
     }
 
     /**

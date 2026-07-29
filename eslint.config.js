@@ -8,6 +8,7 @@ import noArbitraryTailwindSpacing from './eslint-rules/no-arbitrary-tailwind-spa
 import noDestructiveFillAsText from './eslint-rules/no-destructive-fill-as-text.js';
 import noRawButton from './eslint-rules/no-raw-button.js';
 import noSmallMobileInputText from './eslint-rules/no-small-mobile-input-text.js';
+import noStandaloneInputError from './eslint-rules/no-standalone-input-error.js';
 
 const controlStatements = [
     'if',
@@ -39,6 +40,7 @@ export default defineConfigWithVueTs(
                     'no-destructive-fill-as-text': noDestructiveFillAsText,
                     'no-raw-button': noRawButton,
                     'no-small-mobile-input-text': noSmallMobileInputText,
+                    'no-standalone-input-error': noStandaloneInputError,
                 },
             },
         },
@@ -94,6 +96,49 @@ export default defineConfigWithVueTs(
             // occurrence was migrated to `text-base md:<size>`, so the gate
             // stays clean and a new sub-16px field cannot land silently.
             'local/no-small-mobile-input-text': 'error',
+            // A field's error belongs to `<FormField>` or, where the field
+            // cannot take that shape, to `<FieldError>`: both reserve its space
+            // and draw it out of flow, so an error cannot shift the form
+            // (#883). A bare `<InputError>` joins the flow instead, which left
+            // the same field behaving differently depending on the page it was
+            // on (#894). `error` because every occurrence was converted, so a
+            // new fork cannot land silently.
+            'local/no-standalone-input-error': 'error',
+            // Cap how large a single file may grow, so the shell's biggest
+            // components can only shrink. Several grew past a thousand lines
+            // with nothing to stop them — `MainLayout.vue` reached 1643 raw
+            // lines before anyone called it (#956) — and `max-lines` counts
+            // the whole `.vue` file, template included, not just the
+            // `<script>` block. `error` rather than `warn` because a warning
+            // leaves `lint:check` green and a new 900-line file lands anyway.
+            // Blank lines and comments are skipped: the conventions here ask
+            // for JSDoc on declarations and for *why* comments, and charging
+            // those against the budget would punish exactly the behaviour the
+            // conventions require. Today's offenders are grandfathered by
+            // explicit path further down (#957).
+            'max-lines': [
+                'error',
+                { max: 400, skipBlankLines: true, skipComments: true },
+            ],
+            // Every toast in the app goes through `useToast()`, which is where
+            // the duration policy, the merge key and the action slot live. A
+            // call site reaching for `vue-sonner` directly would bypass all
+            // three, which is how the app ended up with no place to put them
+            // (#978). Exempted just below for `useToast` itself — the one
+            // module allowed to see the package (`components/ui/` is not
+            // linted at all, so `sonner/Sonner.vue` needs no entry).
+            'no-restricted-imports': [
+                'error',
+                {
+                    paths: [
+                        {
+                            name: 'vue-sonner',
+                            message:
+                                'Raise toasts through useToast() from @/composables/useToast instead.',
+                        },
+                    ],
+                },
+            ],
             // XSS trust boundary. Every run of HTML the client renders as markup
             // must go through `<SafeHtml>`, which sanitizes it with DOMPurify
             // against a named allowlist; a raw `v-html` anywhere else would
@@ -101,6 +146,15 @@ export default defineConfigWithVueTs(
             // `SafeHtml.vue` itself just below — the one place the directive is
             // allowed to appear.
             'vue/no-v-html': 'error',
+        },
+    },
+    {
+        // `useToast` is the app's toast boundary: it wraps `vue-sonner` so no
+        // other module has to, which is precisely what the restriction above
+        // exists to guarantee everywhere else.
+        files: ['resources/js/composables/useToast.ts'],
+        rules: {
+            'no-restricted-imports': 'off',
         },
     },
     {
@@ -185,6 +239,26 @@ export default defineConfigWithVueTs(
         },
     },
     {
+        // Every file that already breached the `max-lines` cap when it was
+        // introduced (#957), listed by explicit path: a glob would hand new
+        // files the same free pass, which is the one thing the rule exists to
+        // prevent. The counts come from running the rule itself, not `wc -l`
+        // — six files over 400 raw lines fall under it once blanks and
+        // comments are skipped, and are deliberately absent here rather than
+        // being granted another 60 lines of room.
+        //
+        // This is a burn-down list, not a settlement: each entry is a file
+        // waiting to be split (#956 takes the first, `MainLayout.vue`).
+        // `eslint-rules/max-lines-policy.test.ts` fails as soon as an entry
+        // stops breaching the threshold, so the list can only shrink.
+        files: [
+            'resources/js/layouts/MainLayout.vue',
+        ],
+        rules: {
+            'max-lines': 'off',
+        },
+    },
+    {
         ignores: [
             '.claude',
             'vendor',
@@ -197,6 +271,13 @@ export default defineConfigWithVueTs(
             'vitest.config.ts',
             'resources/js/actions/**',
             'resources/js/components/ui/*',
+            // Ambient types transformed out of the PHP `Data` classes and
+            // enums. Like the Wayfinder output above and below it, it is
+            // git-ignored build output nobody hand-writes, and it is absent
+            // in CI's lint job (which never runs `typescript:transform`) — so
+            // linting it can only ever fail locally, on a file whose shape is
+            // not ours to change.
+            'resources/js/generated/**',
             'resources/js/routes/**',
             'resources/js/wayfinder/**',
         ],

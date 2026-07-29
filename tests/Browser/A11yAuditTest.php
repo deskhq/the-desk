@@ -36,19 +36,7 @@ test('the authenticated channel page has no serious accessibility violations in 
         ->assertPresent('#mention-listbox')
         ->assertNoAccessibilityIssues();
 
-    // Re-audit against the dark palette. Persist 'dark' to localStorage — the
-    // source of truth `useAppearance` reads — before applying the `.dark` class,
-    // otherwise the appearance controller re-resolves 'system' → light and
-    // reverts the toggle mid-audit. The settle lets that recompute finish.
-    $page->script(<<<'JS'
-    () => {
-        localStorage.setItem('appearance', 'dark');
-        document.documentElement.classList.add('dark');
-        document.documentElement.style.colorScheme = 'dark';
-    }
-    JS);
-
-    $page->wait(0.5)
+    switchToDarkTheme($page)
         ->assertNoAccessibilityIssues();
 });
 
@@ -60,7 +48,7 @@ test('an open dropdown menu has no serious accessibility violations', function (
     // with it, or the skip link, sidebar and composer stay keyboard-reachable
     // from inside an ARIA-hidden region (`aria-hidden-focus`, #730).
     signInThroughBrowser($alice)
-        ->click('@sidebar-menu-button')
+        ->click('@rail-destination-you')
         ->assertPresent('@settings-menu-item')
         // Let the menu's entrance transition settle before axe reads the DOM.
         ->wait(0.5)
@@ -121,17 +109,7 @@ test('the unread jump-to-unread pill has no serious accessibility violations in 
         ->assertPresent('[data-test="jump-to-unread"]')
         ->assertNoAccessibilityIssues();
 
-    // Re-audit the pill against the dark palette (see the sibling test for why the
-    // localStorage write must precede the `.dark` class).
-    $page->script(<<<'JS'
-    () => {
-        localStorage.setItem('appearance', 'dark');
-        document.documentElement.classList.add('dark');
-        document.documentElement.style.colorScheme = 'dark';
-    }
-    JS);
-
-    $page->wait(0.5)
+    switchToDarkTheme($page)
         ->assertPresent('[data-test="jump-to-unread"]')
         ->assertNoAccessibilityIssues();
 });

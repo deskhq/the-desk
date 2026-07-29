@@ -1,6 +1,6 @@
 import { computed, onScopeDispose, ref } from 'vue';
 import type { ComputedRef, Ref } from 'vue';
-import { toast } from 'vue-sonner';
+import { useToast } from '@/composables/useToast';
 import { useTranslations } from '@/composables/useTranslations';
 import {
     VOICE_MAX_DURATION_SECONDS,
@@ -133,6 +133,7 @@ function defaultCreateLevelMeter(stream: MediaStream): VoiceLevelMeter | null {
  */
 export function useVoiceRecorder(options: VoiceRecorderOptions): VoiceRecorder {
     const { t } = useTranslations();
+    const toast = useToast();
     const requestStream = options.requestStream ?? defaultRequestStream;
     const createRecording = options.createRecording ?? defaultCreateRecording;
     const createLevelMeter =
@@ -234,7 +235,7 @@ export function useVoiceRecorder(options: VoiceRecorderOptions): VoiceRecorder {
             // Denied permission, no input device, or a hardware failure — all
             // read the same to the user, and nothing is staged either way.
             toast.error(t('Microphone unavailable'), {
-                description: t(
+                detail: t(
                     'Allow microphone access in your browser to record a voice message.',
                 ),
             });
@@ -264,7 +265,7 @@ export function useVoiceRecorder(options: VoiceRecorderOptions): VoiceRecorder {
             chunks = [];
             teardown();
             toast.error(t('Microphone unavailable'), {
-                description: t(
+                detail: t(
                     'Allow microphone access in your browser to record a voice message.',
                 ),
             });

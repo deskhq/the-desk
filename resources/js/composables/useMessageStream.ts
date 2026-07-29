@@ -303,5 +303,6 @@ export function optimisticMessage(params: {
         threadParticipants: [],
         threadFollowed: false,
         threadUnread: false,
+        threadUnreadReplyCount: 0,
     };
 }

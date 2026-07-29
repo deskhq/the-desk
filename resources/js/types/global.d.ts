@@ -1,7 +1,13 @@
 import type { ReverbRuntimeConfig } from '@/lib/echo';
 import type { Auth } from '@/types/auth';
 import type { Channel, ChannelSection } from '@/types/channels';
-import type { MessageReminder } from '@/types/messages';
+import type {
+    MessageReminder,
+    MessageSearchCriteria,
+    MessageSearchResult,
+    SearchWorkspaceChannel,
+    ThreadInboxPage,
+} from '@/types/messages';
 import type { PersonRef } from '@/types/people';
 import type { SidebarPositionOption } from '@/types/sidebar';
 import type {
@@ -27,6 +33,12 @@ declare module '@inertiajs/core' {
     export interface InertiaConfig {
         sharedPageProps: {
             name: string;
+            /**
+             * Instance branding. `logo` is the URL of the operator's own mark, or
+             * null on an instance that still ships ours (the inline SVG mark);
+             * `attribution` is the removable "Powered by The Desk" line.
+             */
+            branding: { logo: string | null; attribution: boolean };
             reverb: ReverbRuntimeConfig;
             webPush: { enabled: boolean; publicKey: string | null };
             auth: Auth;
@@ -34,6 +46,17 @@ declare module '@inertiajs/core' {
             emailVerificationEnabled: boolean;
             demoMode: boolean;
             sso: { oidcEnabled: boolean; passwordLoginEnabled: boolean };
+            /**
+             * The device this request came from, for a surface that has to name
+             * it. Joined for display through the `:browser on :platform` key.
+             */
+            currentDevice: { browser: string; platform: string };
+            /**
+             * The one-time account-security prompt owed to an account created in
+             * this session, or null. Dies with the session, so a returning user
+             * is never prompted.
+             */
+            postRegistrationPrompt: App.Enums.PostRegistrationPrompt | null;
             attachments: { maxSizeMb: number; maxPerMessage: number };
             gifPickerEnabled: boolean;
             pollsEnabled: boolean;
@@ -43,6 +66,7 @@ declare module '@inertiajs/core' {
             currentTeam: Team | null;
             teams: Team[];
             canInviteToCurrentTeam: boolean;
+            canUpdateCurrentTeam: boolean;
             canViewCurrentTeamAudit: boolean;
             canViewCurrentTeamSecurityLog: boolean;
             canManageCurrentTeamIntegrations: boolean;
@@ -57,6 +81,22 @@ declare module '@inertiajs/core' {
             slashCommands?: App.Data.SlashCommandData[];
             collapsedChannelSections?: string[];
             hasUnreadThreads?: boolean;
+            /**
+             * The Threads panel's own props, present only while the dock has that
+             * destination pinned (`?nav=threads`) — absent everywhere else, which is
+             * what keeps the inbox query off every workspace navigation.
+             */
+            threads?: ThreadInboxPage;
+            unreadThreadCount?: number;
+            /**
+             * The Search panel's props, on the same terms (`?nav=search`). The
+             * panel's state is the URL rather than `searchCriteria` — it reads what
+             * to search from there and uses the echo only to tell whether the
+             * matches it holds still answer it.
+             */
+            searchCriteria?: MessageSearchCriteria;
+            searchResults?: MessageSearchResult[];
+            searchWorkspaceChannels?: SearchWorkspaceChannel[];
             pendingInvitations?: DashboardInvitation[];
             reminders?: MessageReminder[];
             firedReminders?: MessageReminder[];

@@ -190,7 +190,7 @@ test('pending team invitations can be resent by owners', function (): void {
         ->post(route('teams.invitations.resend', [$team, $invitation]));
 
     $response->assertRedirect(route('teams.edit', $team));
-    $response->assertInertiaFlash('toast', ['type' => 'success', 'message' => 'Invitation resent.']);
+    $response->assertInertiaFlash('toast', ['type' => 'success', 'message' => 'Invitation resent']);
 
     expect($invitation->fresh()->expires_at->diffInDays(now(), true))->toBeGreaterThan(2);
 
@@ -338,7 +338,7 @@ test('resending an invitation is rate limited per invitation', function (): void
         ->post(route('teams.invitations.resend', [$team, $invitation]));
 
     $response->assertRedirect(route('teams.edit', $team));
-    $response->assertInertiaFlash('toast', ['type' => 'error', 'message' => 'Please wait a moment before resending this invitation.']);
+    $response->assertInertiaFlash('toast', ['type' => 'error', 'message' => 'Please wait a moment before resending this invitation']);
 
     Notification::assertSentOnDemandTimes(TeamInvitationNotification::class, 1);
 });
@@ -362,7 +362,7 @@ test('team invitations can be accepted', function (): void {
         ->get(route('invitations.accept', $invitation));
 
     $response->assertRedirect(route('channels.index', ['team' => $team->slug]));
-    $response->assertInertiaFlash('toast', ['type' => 'success', 'message' => 'Invitation accepted.']);
+    $response->assertInertiaFlash('toast', ['type' => 'success', 'message' => 'Invitation accepted']);
 
     expect($invitedUser->fresh()->belongsToTeam($team))->toBeTrue();
     expect($invitation->fresh()->accepted_at)->not->toBeNull();

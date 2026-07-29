@@ -60,6 +60,43 @@ below the PHP coverage gate. It needs no database and runs in seconds.
 
 Auto-fix with `./vendor/bin/sail npm run lint` and `./vendor/bin/sail npm run format`.
 
+### The product shots: refreshing them when the shell changes
+
+The landing page, the README and the docs all advertise the app with real
+screenshots of the shell, committed under `resources/js/images/shell/`. They are
+not taken by hand. `bin/capture-shell` seeds a throwaway copy of the demo
+workspace, serves the app, and photographs it in light and dark at a desktop and
+a phone viewport. The `shell-capture` workflow re-runs the same capture on every
+change that could move the shell and fails when the committed shots no longer
+match, so a redesign cannot merge while the marketing still shows the old one.
+
+**When that gate goes red on your PR**, the shell moved. If that was the point,
+refresh the shots and commit them:
+
+```bash
+./vendor/bin/sail npx playwright install chromium   # once, if you have not already
+./vendor/bin/sail composer capture:shell            # rewrite the captures
+./vendor/bin/sail npm run build                     # the landing page imports them through Vite
+./vendor/bin/sail composer capture:check            # confirm the gate is happy
+```
+
+If it was not the point, you have found an unintended visual regression — which
+is what the gate is for.
+
+One wrinkle worth knowing: the committed bytes are produced on your machine and
+verified on CI's, and font rasterisation is free to differ in the last bit
+between the two, so the check allows a fraction of a percent of pixels to move
+(nowhere near enough to hide a moved pane). If CI still disagrees with a capture
+that is clean locally, download the **shell-capture** artifact from the failing
+run — it holds the shots exactly as the runner rendered them, and those are the
+bytes to commit.
+
+The capture is deliberately hermetic: it builds its own `capture` database
+rather than touching yours, pins the clock so relative timestamps do not move
+between runs, and turns Gravatar off so nothing on a render path reaches the
+network. Keep it that way — every one of those is load-bearing for a
+reproducible shot.
+
 ### CI runners
 
 Where those gates run is a repository setting, not a code change. No workflow

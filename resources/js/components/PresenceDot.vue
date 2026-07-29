@@ -17,6 +17,7 @@ const BADGE_GEOMETRY = {
     '36': { dot: 'size-2.5 ring-2', awayBorder: 'border-2' },
     '42': { dot: 'size-2.75 ring-2', awayBorder: 'border-2' },
     '48': { dot: 'size-3 ring-[2.5px]', awayBorder: 'border-2' },
+    '56': { dot: 'size-3.5 ring-[3px]', awayBorder: 'border-2' },
 } as const;
 
 const props = withDefaults(

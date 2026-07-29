@@ -42,11 +42,21 @@ The stack **refuses to start** without these (no defaults):
 | Variable   | Default        | Notes                                             |
 | ---------- | -------------- | ------------------------------------------------- |
 | `APP_URL`  | —              | Public URL of your instance. **Set this.**        |
-| `APP_NAME` | `The Desk`     | Shown in the UI and emails. Served at runtime.    |
+| `APP_NAME` | `The Desk`     | Shown in the UI, in emails, and as the installed app's name. Read at runtime, so renaming the instance needs no rebuild. See [Branding](/self-hosting/branding/). |
 | `APP_PORT` | `8000`         | Host port the web app is published on (bound to `APP_BIND`). |
 | `APP_BIND` | `127.0.0.1`    | Address the published app/reverb ports bind to. `0.0.0.0` exposes the raw HTTP origin off-box. |
 | `APP_VERSION` | — **(required)** | The release to run. The compose file pins the image to `ghcr.io/deskhq/the-desk:$APP_VERSION`, so upgrading is an `APP_VERSION` bump plus `docker compose pull && docker compose up -d` — no git checkout. It has no default: `up -d` fails fast with a clear message if it is unset. |
 | `APP_IMAGE`| *(uses `APP_VERSION`)* | Full image override. Set it to run a tag on another registry (a fork, an air-gapped mirror) or a floating tag like `edge`. When set it wins completely and `APP_VERSION` is ignored. |
+
+## Branding
+
+| Variable                | Default                 | Notes                                              |
+| ----------------------- | ----------------------- | -------------------------------------------------- |
+| `BRANDING_ATTRIBUTION`  | `true`                  | Renders the "Powered by The Desk" line in the footer. Set `false` to remove it. |
+| `BRANDING_PATH`         | `/app/storage/branding` | Where the app looks for replacement brand assets. The compose file bind-mounts `./branding` onto it, so you only change this if you mount them elsewhere. |
+
+Full guide, including the filenames and sizes each asset expects:
+[Branding](/self-hosting/branding/).
 
 ## Database
 
@@ -195,6 +205,31 @@ You only need to set `SESSION_SECURE_COOKIE` explicitly if the scheme in
 when TLS is terminated at a hostname other than the one `APP_URL` names. Setting
 it to `true` on a deployment served over plain HTTP means the browser will never
 return the cookie and nobody can stay signed in.
+
+## Data retention
+
+How long the app keeps the records it writes about people. Enforced by the
+[scheduler](/self-hosting/configuration/), so these windows only apply on a
+deployment where the `scheduler` container is running.
+
+| Variable                        | Default | Notes                                                                                              |
+| ------------------------------- | ------- | -------------------------------------------------------------------------------------------------- |
+| `SECURITY_EVENT_RETENTION_DAYS` | `365`   | Days a per-user security event (sign-in, credential change, session revocation, data-export activity) is kept before a daily sweep deletes it. One year covers an annual assessment period. Set `0` to keep events forever. |
+| `AUDIT_LOG_RETENTION_DAYS`      | `365`   | Days a workspace audit-log entry (rename, role change, member removal, ownership transfer, channel lifecycle, message deletion, invitation lifecycle) is kept before a daily sweep deletes it. Matches the window above so both logs answer the retention question with the same number. Set `0` to keep entries forever. |
+
+Two more windows are set elsewhere, and are listed here so the whole picture is in
+one place:
+
+- **Data-export archives and audit-evidence exports** are downloadable for a
+  fixed **7 days** — not configurable — after which a daily sweep deletes both
+  the file and its record.
+- **Uploaded-but-never-sent attachments** are swept after
+  `ATTACHMENT_PENDING_TTL_HOURS` (see [Attachments](#attachments)).
+
+Setting either retention variable to `0` turns its sweep off and keeps that log
+forever, which makes disposal your responsibility. See
+[Security & compliance](/reference/security-and-compliance/) for what that means
+for an assessment.
 
 ## Single sign-on (OpenID Connect)
 

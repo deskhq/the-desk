@@ -12,8 +12,11 @@ use App\Data\UserData;
 use App\Data\UserGroupData;
 use App\Enums\MessageReminderStatus;
 use App\Enums\MessageType;
+use App\Enums\NavDestination;
+use App\Enums\PostRegistrationPrompt;
 use App\Enums\SidebarPosition;
 use App\Enums\TeamRole;
+use App\Enums\ThreadInboxFilter;
 use App\Models\Channel;
 use App\Models\Message;
 use App\Models\MessageReminder;
@@ -21,10 +24,15 @@ use App\Models\Team;
 use App\Models\TeamInvitation;
 use App\Models\User;
 use App\SlashCommands\SlashCommandRegistry;
+use App\Support\Branding\BrandingAssets;
 use App\Support\FrequentEmoji;
+use App\Support\MessageSearchPanel;
 use App\Support\ReverbConfig;
+use App\Support\ThreadInbox;
+use App\Support\ThreadInboxPage;
 use App\Support\TranslationCatalog;
 use App\Support\UpdateChecker;
+use App\Support\UserAgentParser;
 use App\Support\WebPushConfig;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
@@ -32,6 +40,7 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
 use Inertia\Middleware;
+use Inertia\ProvidesScrollMetadata;
 use Laravel\Fortify\Features;
 
 class HandleInertiaRequests extends Middleware
@@ -44,6 +53,8 @@ class HandleInertiaRequests extends Middleware
      * @var string
      */
     protected $rootView = 'app';
+
+    public function __construct(private readonly BrandingAssets $brandingAssets) {}
 
     /**
      * Determines the current asset version.
@@ -71,6 +82,15 @@ class HandleInertiaRequests extends Middleware
         return [
             ...parent::share($request),
             'name' => config('app.name'),
+            // Instance branding. `logo` is the operator's mark, or null when the
+            // instance still ships ours — the shipped mark is an inline SVG whose
+            // lower planes ride on `currentColor`, which an uploaded file cannot
+            // do, so the client only swaps in an <img> once there is something to
+            // swap in. `attribution` drives the removable "Powered by" line.
+            'branding' => [
+                'logo' => $this->brandingAssets->logoPath() === null ? null : route('branding.logo'),
+                'attribution' => (bool) config('branding.attribution'),
+            ],
             // Browser-facing Reverb connection details, resolved at runtime so a
             // single built image works for any operator without baking VITE_*
             // values into the bundle. Read by app.ts to configure Echo at boot.
@@ -125,6 +145,19 @@ class HandleInertiaRequests extends Middleware
                 'oidcEnabled' => (bool) config('sso.oidc.enabled'),
                 'passwordLoginEnabled' => ! config('sso.enforced'),
             ],
+            // A readable name for the device this request came from, so a surface
+            // that has to name it (the post-registration passkey prompt prefills
+            // its name field with it) does not re-derive the parse client-side.
+            // Joined into one line by the frontend through the `:browser on
+            // :platform` key the session list already uses, so it follows a live
+            // locale switch rather than freezing at render time.
+            'currentDevice' => UserAgentParser::parse($request->userAgent()),
+            // The one-time account-security prompt owed to an account created in
+            // this session, or null. Read from the session rather than the user so
+            // it dies with the session — a returning user is no longer "just
+            // registered" — and re-gated per request, so switching the feature off
+            // withdraws the prompt instead of offering something that would 404.
+            'postRegistrationPrompt' => $this->postRegistrationPrompt($request),
             // The per-file and per-message attachment caps, so the composer can
             // reject an oversized or over-count drop client-side for instant
             // feedback. The upload and send endpoints re-enforce them as the
@@ -170,6 +203,13 @@ class HandleInertiaRequests extends Middleware
             // along with every workspace request.
             'canInviteToCurrentTeam' => fn () => $user?->currentTeam
                 ? $user->toTeamPermissions($user->currentTeam)->canCreateInvitation
+                : false,
+            // The workspace sheet offers "Workspace settings" only to someone who
+            // can actually change the workspace. The page-scoped permission set
+            // is not in reach from the shell, so the one flag the sheet needs
+            // rides along like its siblings below.
+            'canUpdateCurrentTeam' => fn (): bool => $user?->currentTeam
+                ? $user->toTeamPermissions($user->currentTeam)->canUpdateTeam
                 : false,
             // The settings sidebar surfaces a team-admin "evidence" group (Audit
             // log, Security log, Exports) gated by the same permissions as the
@@ -218,6 +258,11 @@ class HandleInertiaRequests extends Middleware
             'slashCommands' => fn (): array => $this->slashCommandsForWorkspace($request),
             'collapsedChannelSections' => fn () => $user->collapsed_channel_sections ?? [],
             'hasUnreadThreads' => fn (): bool => $this->hasUnreadThreads($request, $user),
+            // The Threads panel's inbox and its "Unread" tally, present only while
+            // the dock actually has that destination pinned.
+            ...$this->threadsPanelProps($request, $user),
+            // The Search panel's echoed criteria and matches, on the same terms.
+            ...$this->searchPanelProps($request, $user),
             'pendingInvitations' => Inertia::optional(fn (): array => $user ? $this->pendingInvitationsFor($user) : []),
             // The viewer's still-pending reminders in this team, soonest first,
             // feeding the "Reminders" list and its sidebar count.
@@ -229,18 +274,42 @@ class HandleInertiaRequests extends Middleware
     }
 
     /**
+     * The post-registration prompt queued for this session, or null when there is
+     * none or it is no longer on offer.
+     */
+    protected function postRegistrationPrompt(Request $request): ?string
+    {
+        // Shared props are also computed for an error page, which Inertia renders
+        // from the exception handler — outside the session middleware, on a
+        // request that has none.
+        if (! $request->hasSession()) {
+            return null;
+        }
+
+        $queued = $request->session()->get(PostRegistrationPrompt::SESSION_KEY);
+
+        if (! is_string($queued)) {
+            return null;
+        }
+
+        $prompt = PostRegistrationPrompt::tryFrom($queued);
+
+        return $prompt?->isAvailable() ? $prompt->value : null;
+    }
+
+    /**
      * Whether the current request targets an in-workspace page that renders the
      * shared sidebar.
      *
-     * Every such route binds a `{team}`, but not all live under the `channels.`
-     * name prefix — the message search page is named `search`/`search.suggest`,
-     * so it is matched explicitly. This is the single source of truth for the
-     * sidebar-feeding shared props below; broaden it here to add a new workspace
-     * surface rather than duplicating the pattern per prop.
+     * Every such route binds a `{team}` and lives under the `channels.` name
+     * prefix — search used to be the exception, until it became a dock panel on
+     * these very routes and its old URL a redirect. This is the single source of
+     * truth for the sidebar-feeding shared props below; broaden it here to add a
+     * new workspace surface rather than duplicating the pattern per prop.
      */
     protected function isWorkspaceRoute(Request $request): bool
     {
-        return $request->routeIs('channels.*', 'search', 'search.suggest');
+        return $request->routeIs('channels.*');
     }
 
     /**
@@ -481,27 +550,105 @@ class HandleInertiaRequests extends Middleware
 
     /**
      * Whether the user has any unread followed thread in the team, driving the
-     * sidebar's "Threads" unread dot.
+     * rail's and the tab bar's "Threads" unread dot.
      *
-     * Scoped to the user's channels in the team (the same ACL as the inbox), and
-     * muted per channel, so it agrees with the dots the inbox and channel views
-     * show. Returns false off the channel workspace, where the sidebar is absent.
+     * Scoped to the user's channels in the team (the same ACL as the panel), and
+     * muted per channel, so it agrees with the dots the panel and channel views
+     * show. Returns false off the channel workspace, where the dock is absent.
      */
     protected function hasUnreadThreads(Request $request, ?User $user): bool
+    {
+        $inbox = $this->threadInbox($request, $user);
+
+        return $inbox instanceof ThreadInbox && $inbox->hasUnread();
+    }
+
+    /**
+     * The Threads destination's props: one page of the inbox and how many followed
+     * threads are unread.
+     *
+     * Keyed on the destination being pinned (`?nav=threads`) rather than deferred,
+     * exactly as `?thread=` decides whether the thread panel's payload rides along.
+     * A deferred prop would be worse than it sounds: the client requests every
+     * deferred group straight after each visit, so the inbox — a cursor-paginated
+     * query with a 30-card payload — would run on every workspace navigation
+     * instead of only while the panel is open.
+     *
+     * @return array<string, mixed>
+     */
+    protected function threadsPanelProps(Request $request, ?User $user): array
+    {
+        $inbox = $this->threadInbox($request, $user);
+
+        if (! $inbox instanceof ThreadInbox || $request->query(NavDestination::QUERY_PARAM) !== NavDestination::Threads->value) {
+            return [];
+        }
+
+        $filter = ThreadInboxFilter::fromQuery($request->query('filter'));
+
+        return [
+            // The page carries its own scroll metadata, read off the models before
+            // they became cards — see {@see ThreadInboxPage} for why the paginator
+            // cannot be handed over directly.
+            'threads' => Inertia::scroll(
+                fn (): ThreadInboxPage => $inbox->page($filter),
+                metadata: fn (ThreadInboxPage $page): ProvidesScrollMetadata => $page->metadata(),
+            ),
+            'unreadThreadCount' => $inbox->unreadCount(...),
+        ];
+    }
+
+    /**
+     * The Search destination's props: the matches the URL's criteria select, the
+     * criteria they were selected by, and the cross-workspace channel union the
+     * channel facet offers in "All workspaces" mode.
+     *
+     * The panel's state is the URL, not the echoed criteria — it reads what to
+     * search from there ({@see resources/js/lib/searchPanel.ts}) and uses the echo
+     * only to tell whether the matches it holds still answer it.
+     *
+     * Keyed on `?nav=search` for the same reason the Threads inbox above is: a
+     * search runs a full-text query, and a deferred prop would run it on every
+     * workspace navigation instead of only while the panel is open. Both stay
+     * closures so a partial reload of the matches alone does not also rebuild the
+     * channel union.
+     *
+     * @return array<string, mixed>
+     */
+    protected function searchPanelProps(Request $request, ?User $user): array
     {
         $team = $request->route('team');
 
         if (! $user || ! $team instanceof Team || ! $this->isWorkspaceRoute($request)) {
-            return false;
+            return [];
         }
 
-        return Message::query()
-            ->whereIn('channel_id', $user->visibleChannelIds($team))
-            ->whereNull('thread_root_id')
-            ->where('reply_count', '>', 0)
-            ->followedBy($user)
-            ->whereThreadUnreadFor($user)
-            ->exists();
+        if ($request->query(NavDestination::QUERY_PARAM) !== NavDestination::Search->value) {
+            return [];
+        }
+
+        $panel = MessageSearchPanel::fromRequest($request, $user, $team);
+
+        return [
+            'searchCriteria' => $panel->criteria(),
+            'searchResults' => $panel->results(...),
+            'searchWorkspaceChannels' => $panel->workspaceChannels(...),
+        ];
+    }
+
+    /**
+     * The viewer's Threads read model for the team in the URL, or null off the
+     * channel workspace / for a guest, where there is no inbox to speak of.
+     */
+    protected function threadInbox(Request $request, ?User $user): ?ThreadInbox
+    {
+        $team = $request->route('team');
+
+        if (! $user || ! $team instanceof Team || ! $this->isWorkspaceRoute($request)) {
+            return null;
+        }
+
+        return new ThreadInbox($user, $team);
     }
 
     /**

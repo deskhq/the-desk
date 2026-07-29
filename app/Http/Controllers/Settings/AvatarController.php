@@ -32,7 +32,7 @@ class AvatarController extends Controller
 
         event(new UserProfileUpdated($user));
 
-        Inertia::flash('toast', ['type' => 'success', 'message' => __('Photo updated everywhere.')]);
+        Inertia::flash('toast', ['type' => 'success', 'message' => __('Photo updated everywhere')]);
 
         return back();
     }
@@ -52,7 +52,7 @@ class AvatarController extends Controller
 
         event(new UserProfileUpdated($user));
 
-        Inertia::flash('toast', ['type' => 'success', 'message' => __('Photo removed.')]);
+        Inertia::flash('toast', ['type' => 'success', 'message' => __('Photo removed')]);
 
         return back();
     }
