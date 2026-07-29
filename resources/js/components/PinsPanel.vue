@@ -125,36 +125,53 @@ onBeforeUnmount(() => document.removeEventListener('keydown', onKeydown));
                 <div
                     v-for="message in props.pins"
                     :key="message.id"
-                    class="group/pin relative"
+                    data-test="pins-panel-entry"
+                    class="group/pin grid grid-cols-[minmax(0,1fr)_auto] items-start rounded-[10px] hover:bg-muted"
                 >
                     <Button
                         variant="unstyled"
                         size="none"
                         type="button"
                         data-test="pins-panel-row"
-                        class="flex w-full flex-col gap-1.5 rounded-[10px] px-2.5 pt-2.5 pb-3 text-left hover:bg-muted"
+                        class="flex min-w-0 flex-col gap-1.5 rounded-[10px] px-2.5 pt-2.5 pb-3 text-left"
                         @click="emit('jump', message.id)"
                     >
-                        <!-- Attribution: who pinned it and when. -->
+                        <!-- Attribution: who pinned it and when. Only the name
+                             may give, so a long one ellipsises instead of
+                             wrapping the separator and timestamp under it. -->
                         <span
                             class="flex items-center gap-1.5 text-[11px] text-muted-foreground"
                         >
-                            <Pin class="size-2.5 text-brass" />
-                            {{
-                                $t('Pinned by :name', {
-                                    name: pinnedByName(message),
-                                })
-                            }}
-                            <span aria-hidden="true">&middot;</span>
-                            <span v-if="message.pin">{{
-                                formatDateTime(
-                                    message.pin.pinnedAt,
-                                    props.viewerTimezone ?? undefined,
-                                )
-                            }}</span>
+                            <Pin class="size-2.5 shrink-0 text-brass" />
                             <span
-                                class="ml-auto font-semibold text-foreground opacity-0 transition-opacity group-hover/pin:opacity-100"
-                                :class="props.canPin ? 'mr-24' : ''"
+                                data-test="pins-panel-attribution"
+                                class="truncate"
+                                >{{
+                                    $t('Pinned by :name', {
+                                        name: pinnedByName(message),
+                                    })
+                                }}</span
+                            >
+                            <span class="shrink-0" aria-hidden="true"
+                                >&middot;</span
+                            >
+                            <span
+                                v-if="message.pin"
+                                data-test="pins-panel-pinned-at"
+                                class="shrink-0 whitespace-nowrap"
+                                >{{
+                                    formatDateTime(
+                                        message.pin.pinnedAt,
+                                        props.viewerTimezone ?? undefined,
+                                    )
+                                }}</span
+                            >
+                            <!-- A hover hint for the whole-row click, so it is
+                                 dropped below `md`, where nothing can hover it
+                                 and the line has no width to spare. -->
+                            <span
+                                data-test="pins-panel-jump"
+                                class="ml-auto shrink-0 pl-1.5 font-semibold whitespace-nowrap text-foreground opacity-0 transition-opacity group-focus-within/pin:opacity-100 group-hover/pin:opacity-100 max-md:hidden"
                                 >{{ $t('Jump') }} &rarr;</span
                             >
                         </span>
@@ -180,11 +197,13 @@ onBeforeUnmount(() => document.removeEventListener('keydown', onKeydown));
                             <span class="flex min-w-0 flex-col gap-0.5">
                                 <span class="flex items-baseline gap-1.5">
                                     <span
-                                        class="text-[13px] font-semibold text-foreground"
+                                        data-test="pins-panel-author"
+                                        class="truncate text-[13px] font-semibold text-foreground"
                                         >{{ message.user.name }}</span
                                     >
                                     <span
-                                        class="text-[11px] text-muted-foreground"
+                                        data-test="pins-panel-sent-at"
+                                        class="shrink-0 text-[11px] whitespace-nowrap text-muted-foreground"
                                         >{{
                                             formatDateTime(
                                                 message.createdAt,
@@ -204,15 +223,21 @@ onBeforeUnmount(() => document.removeEventListener('keydown', onKeydown));
                         </span>
                     </Button>
 
-                    <!-- Unpin: a floating pill revealed on row hover. Any member
-                         may unpin (shared toggle); hidden read-only otherwise. -->
+                    <!-- Unpin: the row's second grid track, so the control's own
+                         width is the reserve and no translated label can overrun
+                         it. Transparent and inert at rest, brought back by hover
+                         or by focus landing anywhere in the row, and drawn
+                         outright wherever `:hover` cannot fire — a coarse pointer,
+                         or the narrow layout the panel takes below `md`. Any
+                         member may unpin (shared toggle); hidden read-only
+                         otherwise. -->
                     <Button
                         v-if="props.canPin"
                         variant="unstyled"
                         size="none"
                         type="button"
                         data-test="pins-panel-unpin"
-                        class="absolute -top-1 right-3 hidden items-center gap-1.5 rounded-lg border border-border bg-popover px-2.5 py-1 text-[11.5px] font-semibold text-muted-foreground shadow-md group-hover/pin:inline-flex hover:text-foreground"
+                        class="pointer-events-none mt-2 mr-2.5 inline-flex items-center gap-1.5 rounded-lg border border-border bg-popover px-2.5 py-1 text-[11.5px] font-semibold text-muted-foreground opacity-0 shadow-sm transition-opacity group-focus-within/pin:pointer-events-auto group-focus-within/pin:opacity-100 group-hover/pin:pointer-events-auto group-hover/pin:opacity-100 hover:text-foreground max-md:pointer-events-auto max-md:opacity-100 pointer-coarse:pointer-events-auto pointer-coarse:opacity-100"
                         @click="emit('unpin', message)"
                     >
                         <X class="size-3" />
