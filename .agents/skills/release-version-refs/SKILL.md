@@ -100,4 +100,4 @@ grep -rlE 'x-release-please' --include='*.md' --include='*.yml' --include='*.env
 ## See also
 
 - `open-pr` — the other release-hygiene skill; the PR **title** is the Conventional Commit release-please reads on a squash merge.
-- `CLAUDE.md` → "Commits & PR titles" and "Self-Hosting Documentation" — never hand-edit `CHANGELOG.md` / `VERSION` / `.release-please-manifest.json`; keep operator docs in sync in the same PR.
+- `CLAUDE.md` → "Commits & PR titles" and "Operator-facing changes ship with their docs" (mechanics in `.claude/rules/docs-site.md`) — never hand-edit `CHANGELOG.md` / `VERSION` / `.release-please-manifest.json`; keep operator docs in sync in the same PR.

@@ -87,12 +87,12 @@ If the issue has no design, build to the acceptance criteria and follow the repo
 
 Invoke the **`tdd`** skill and drive the work red → green → refactor at pre-agreed seams (prefer the highest existing seam; the fewer new seams, the better).
 
-Follow every rule in `CLAUDE.md` as you go — they are not optional:
+Follow every rule in `CLAUDE.md` and in the path-scoped rules under `.claude/rules/` as you go — they are not optional:
 
 - **i18n:** no hardcoded user-facing copy. Frontend through `$t` / `useTranslations`; backend through `__()`. Add every new key's French translation to `lang/fr.json`.
 - **Laravel the Laravel way:** `php artisan make:*` for new files, constructor property promotion, explicit return types and type hints, `Data` classes for DTOs, named routes.
 - **Frontend:** Vue + Inertia v3 conventions; prefer generated `App.Data.*` / `App.Enums.*` types over hand-rolled ones; regenerate them with `./vendor/bin/sail artisan typescript:transform` after touching a `Data` class or enum; use Wayfinder route functions, not hardcoded URLs.
-- **Comments:** don't emit narrating inline `//` comments in JS/TS that merely restate the code — the names and the code carry the *what*. When a comment documents a *declaration* (prop, emit, type member, function, exported symbol), write it as a JSDoc/TSDoc `/** … */` block above that declaration, not a loose `//`. Reserve bare `//` for a non-obvious *why*, intent, edge case, or ordering constraint *inside* a body. (Same rule as the PHP "prefer PHPDoc over inline comments" convention — see `CLAUDE.md` → *Code Comments (JS/TS)*.)
+- **Comments:** don't emit narrating inline `//` comments in JS/TS that merely restate the code — the names and the code carry the *what*. When a comment documents a *declaration* (prop, emit, type member, function, exported symbol), write it as a JSDoc/TSDoc `/** … */` block above that declaration, not a loose `//`. Reserve bare `//` for a non-obvious *why*, intent, edge case, or ordering constraint *inside* a body. (Same rule as the PHP "prefer PHPDoc over inline comments" convention — see `.claude/rules/frontend.md` → *Code Comments (JS/TS)*.)
 - **Run all Node/npm tooling through Sail** (`./vendor/bin/sail npm run …`), never bare `npm`.
 - **Browsers always run headless.** The Pest browser suite is headless by default, so leave it that way: no `--headed`, no `pest()->browser()->headed()`, and no `->debug()` left on a `visit()` (that one also calls `Only::enable()`, quietly shrinking the run to that single test). Interactive tooling gets the same treatment (`@playwright/mcp --headless`, `chromium.launch({ headless: true })`) — screenshot the page instead of watching it. See `CLAUDE.md` → *Browser Testing*.
 - **Docs:** if the change is operator-facing (a new `.env`/config setting, feature toggle, install/upgrade/stack change), update `docs/` in the same change.

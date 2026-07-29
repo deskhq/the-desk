@@ -146,16 +146,23 @@ test('CI runs the browser suite through the same capped runner', function (): vo
         ->and($commands)->not->toContain('pest tests/Browser');
 });
 
+/*
+ * The suite's internals are documented in the testing rule rather than in
+ * CLAUDE.md, which only carries what has to hold before any file is read (#1067).
+ * A rule scoped to `tests/**` is where an agent about to touch this suite reads
+ * them, so that is the file these two guards follow.
+ */
 test('the documentation no longer claims the browser suite cannot be sharded', function (): void {
     $root = dirname(__DIR__, 2);
 
-    expect((string) file_get_contents($root.'/CLAUDE.md'))->not->toContain('cannot be sharded')
+    expect((string) file_get_contents($root.'/.claude/rules/testing.md'))->not->toContain('cannot be sharded')
+        ->and((string) file_get_contents($root.'/CLAUDE.md'))->not->toContain('cannot be sharded')
         ->and((string) file_get_contents($root.'/README.md'))->not->toContain('cannot be sharded');
 });
 
 test('the documented browser gate spells out the capped parallel run', function (): void {
     $root = dirname(__DIR__, 2);
 
-    expect((string) file_get_contents($root.'/CLAUDE.md'))->toContain('bin/browser-tests')
+    expect((string) file_get_contents($root.'/.claude/rules/testing.md'))->toContain('bin/browser-tests')
         ->and((string) file_get_contents($root.'/README.md'))->toContain('bin/browser-tests');
 });
