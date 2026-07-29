@@ -80,7 +80,11 @@ export function useComposerSend(options: {
      * scheduled one), flagging the wipe so it doesn't re-persist as a draft.
      */
     function clearAfterHandoff(): void {
-        options.suppressNextDraftChange(true);
+        // Suppress the draft echo from the wipe only when there is text to
+        // clear; an attachment-only send leaves the body empty throughout, and
+        // clearing an already-empty field fires no watcher — which would leave
+        // the guard armed to swallow the next genuine keystroke instead.
+        options.suppressNextDraftChange(body.value !== '');
         body.value = '';
         sendToChannel.value = false;
         options.mentions.closeMenu();
@@ -162,19 +166,24 @@ export function useComposerSend(options: {
         // send disposes the snapshot instead. `detach` empties the tray but keeps the
         // rows' previews alive until the outcome lands.
         const stagedBody = body.value;
+        // The clear-down resets the thread composer's "also send to channel"
+        // tick too, so it belongs in the snapshot: without it a rejected reply
+        // comes back thread-only and the retry quietly drops the choice.
+        const stagedSendToChannel = sendToChannel.value;
         const attachmentIds = uploads.attachmentIds.value;
         const snapshot = uploads.detach();
 
         options.onSend(
             trimmed,
             options.mentions.collectMentions(trimmed),
-            sendToChannel.value,
+            stagedSendToChannel,
             attachmentIds,
             {
                 onAccepted: () => snapshot.dispose(),
                 onRejected: () => {
                     snapshot.restore();
                     body.value = stagedBody;
+                    sendToChannel.value = stagedSendToChannel;
                 },
             },
         );

@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-use Symfony\Component\Yaml\Yaml;
+use Tests\Support\ProductionCompose;
 
 /**
  * `app`, `queue`, `queue-broadcasts`, `reverb`, and `scheduler` all mount the
@@ -12,33 +12,26 @@ use Symfony\Component\Yaml\Yaml;
  * file exists`. Making the workers wait for `app` means exactly one container
  * triggers the copy-up. See issue #609.
  */
-$compose = fn (): array => Yaml::parseFile(dirname(__DIR__, 2).'/docker-compose.prod.yml');
+test('every app-role service mounts the shared storage-app volume', function (string $service): void {
+    expect(ProductionCompose::services()[$service]['volumes'])
+        ->toContain('storage-app:/app/storage/app');
+})->with(fn (): array => ProductionCompose::appRoleServices());
 
-$sharedVolumeWorkers = ['queue', 'queue-broadcasts', 'reverb', 'scheduler'];
-
-test('every app-role service mounts the shared storage-app volume', function () use ($compose, $sharedVolumeWorkers): void {
-    $services = $compose()['services'];
-
-    foreach (['app', ...$sharedVolumeWorkers] as $service) {
-        expect($services[$service]['volumes'])->toContain('storage-app:/app/storage/app');
-    }
-});
-
-test('the shared storage-app volume is initialised by app alone', function (string $service) use ($compose): void {
-    $dependsOn = $compose()['services'][$service]['depends_on'];
+test('the shared storage-app volume is initialised by app alone', function (string $service): void {
+    $dependsOn = ProductionCompose::services()[$service]['depends_on'];
 
     expect($dependsOn)->toHaveKey('app')
         ->and($dependsOn['app']['condition'])->toBe('service_started');
-})->with($sharedVolumeWorkers);
+})->with(fn (): array => ProductionCompose::appRoleWorkers());
 
-test('waiting on app does not drop the infrastructure dependencies', function (string $service) use ($compose): void {
-    $dependsOn = $compose()['services'][$service]['depends_on'];
+test('waiting on app does not drop the infrastructure dependencies', function (string $service): void {
+    $dependsOn = ProductionCompose::services()[$service]['depends_on'];
 
     foreach (['pgsql', 'redis', 'meilisearch'] as $dependency) {
         expect($dependsOn[$dependency]['condition'])->toBe('service_healthy');
     }
-})->with([...$sharedVolumeWorkers, 'app']);
+})->with(fn (): array => ProductionCompose::appRoleServices());
 
-test('app does not depend on itself', function () use ($compose): void {
-    expect($compose()['services']['app']['depends_on'])->not->toHaveKey('app');
+test('app does not depend on itself', function (): void {
+    expect(ProductionCompose::services()['app']['depends_on'])->not->toHaveKey('app');
 });

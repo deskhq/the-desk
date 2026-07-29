@@ -116,6 +116,19 @@ function type(textarea: HTMLTextAreaElement, value: string): Promise<void> {
     return nextTick();
 }
 
+/** Set the field's value with the caret parked mid-body, then fire `input`. */
+function typeAt(
+    textarea: HTMLTextAreaElement,
+    value: string,
+    caret: number,
+): Promise<void> {
+    textarea.value = value;
+    textarea.setSelectionRange(caret, caret);
+    textarea.dispatchEvent(new Event('input', { bubbles: true }));
+
+    return nextTick();
+}
+
 function press(textarea: HTMLTextAreaElement, key: string): Promise<void> {
     textarea.dispatchEvent(
         new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true }),
@@ -173,6 +186,26 @@ describe('MessageComposer slash-command autocomplete', () => {
         await press(textarea, 'Enter');
 
         expect(textarea.value).toBe('/shrug ');
+    });
+
+    it('keeps the text after the caret when completing a command', async () => {
+        const { textarea } = mountComposer();
+
+        // The menu matches on the body up to the caret, so it opens on `/sh`
+        // even with the rest of a half-written message trailing behind it.
+        await typeAt(textarea, '/sh a draft', 3);
+        await press(textarea, 'Enter');
+
+        expect(textarea.value).toBe('/shrug a draft');
+    });
+
+    it('separates the completed command from a tail that runs into it', async () => {
+        const { textarea } = mountComposer();
+
+        await typeAt(textarea, '/shdraft', 3);
+        await press(textarea, 'Enter');
+
+        expect(textarea.value).toBe('/shrug draft');
     });
 
     it('navigates with the arrow keys and closes on Escape', async () => {

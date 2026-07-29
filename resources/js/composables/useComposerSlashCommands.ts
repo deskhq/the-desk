@@ -221,10 +221,18 @@ export function useComposerSlashCommands(options: {
             return;
         }
 
-        body.value = `/${command.name} `;
+        // The menu matched on the body up to the caret, so only that prefix is
+        // the typed command — whatever trails it is the rest of a half-written
+        // message and has to survive the completion. The trailing space is the
+        // separator, so a tail that already opens with one keeps a single space
+        // rather than gaining a second.
+        const tail = body.value.slice(caretPosition());
+        const completed = `/${command.name} `;
+
+        body.value = completed + (tail.startsWith(' ') ? tail.slice(1) : tail);
         slashMenuOpen.value = false;
 
-        focusRange(body.value.length);
+        focusRange(completed.length);
     }
 
     function selectSlashActive(): void {

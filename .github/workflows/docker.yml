@@ -516,6 +516,27 @@ jobs:
           echo "APP_VERSION=$(sed -e 's/#.*//' VERSION | tr -d '[:space:]')" >> .env
           grep '^COMPOSE_FILE=' .env
 
+      # A service the overlay misses keeps the production `image:` and is pulled
+      # from GHCR instead of built. That is invisible most of the time — the pull
+      # succeeds whenever GHCR already holds the tag in APP_VERSION — and only
+      # fails on a commit no tag exists for, which is every release-please merge
+      # and every fork or private patch (#1040). Assert the merged config resolves
+      # nothing from the registry, so the next drift fails here rather than on
+      # whichever day GHCR happens to be missing the tag.
+      - name: Assert nothing resolves to the published image
+        run: |
+          set -euo pipefail
+
+          docker compose config --images | sort -u | tee images.txt
+
+          # Any GHCR reference at all: the app image is the only thing this stack
+          # ever pulls from there, and matching the registry rather than the
+          # repository path keeps the check working across a repo rename.
+          if grep -q 'ghcr\.io/' images.txt; then
+            echo "::error::The build overlay leaves a service on the published image, so \`up -d --build\` pulls it instead of building from source. Add it to docker-compose.build.yml."
+            exit 1
+          fi
+
       - name: Start the stack from source
         run: |
           docker compose up -d --build

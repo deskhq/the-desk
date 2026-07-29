@@ -279,4 +279,35 @@ describe('MessageComposer attachment tray', () => {
         await settle();
         expect(send.hasAttribute('disabled')).toBe(false);
     });
+
+    it('keeps saving drafts after an attachment-only send', async () => {
+        const drafts: string[] = [];
+        const { container } = mountComposer({
+            onDraftChange: (body: string) => drafts.push(body),
+        });
+
+        // An attachment-only send leaves the body empty throughout, so the
+        // clear-on-send assigns `''` to an already-empty field and fires no
+        // watcher — the draft guard must not be armed for a change that will
+        // never come, or it swallows the next genuine keystroke instead.
+        await stage(container, textFile());
+        uploads[0].resolve({ id: 'att-1' });
+        await settle();
+
+        container
+            .querySelector<HTMLButtonElement>(
+                '[data-test="message-composer-send"]',
+            )!
+            .click();
+        await nextTick();
+
+        const textarea = container.querySelector<HTMLTextAreaElement>(
+            '[data-test="message-composer-input"]',
+        )!;
+        textarea.value = 'a';
+        textarea.dispatchEvent(new Event('input', { bubbles: true }));
+        await nextTick();
+
+        expect(drafts).toEqual(['a']);
+    });
 });

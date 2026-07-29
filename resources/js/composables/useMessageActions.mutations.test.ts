@@ -157,5 +157,59 @@ describe('useMessageActions', () => {
             expect(h.mainStream.pendingUuids.value).toHaveLength(0);
             expect(toastError).toHaveBeenCalledOnce();
         });
+
+        it("restores the root's follow and unread state on error", () => {
+            const root = message({
+                id: 'root-1',
+                threadFollowed: false,
+                threadUnread: true,
+            });
+            const h = harness({
+                serverMain: [root],
+                activeThreadRootId: 'root-1',
+            });
+
+            h.actions.sendThreadReply('a reply', []);
+
+            const patched = h.mainStream.displayMessages.value.find(
+                (m) => m.id === 'root-1',
+            );
+            expect(patched?.threadFollowed).toBe(true);
+            expect(patched?.threadUnread).toBe(false);
+
+            optionsOf(post).onError?.();
+
+            const restored = h.mainStream.displayMessages.value.find(
+                (m) => m.id === 'root-1',
+            );
+            expect(restored?.threadFollowed).toBe(false);
+            expect(restored?.threadUnread).toBe(true);
+        });
+
+        it("leaves the root's other state alone when a reply fails", () => {
+            const root = message({
+                id: 'root-1',
+                threadFollowed: false,
+                threadUnread: true,
+                threadReplyCount: 2,
+            });
+            const h = harness({
+                serverMain: [root],
+                activeThreadRootId: 'root-1',
+            });
+
+            h.actions.sendThreadReply('a reply', []);
+            // Another member's reply lands while ours is still in flight.
+            h.mainStream.patchThreadState('root-1', { threadReplyCount: 3 });
+
+            optionsOf(post).onError?.();
+
+            const restored = h.mainStream.displayMessages.value.find(
+                (m) => m.id === 'root-1',
+            );
+            expect(restored?.threadFollowed).toBe(false);
+            expect(restored?.threadUnread).toBe(true);
+            expect(restored?.threadReplyCount).toBe(3);
+        });
     });
 });

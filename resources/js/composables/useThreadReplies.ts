@@ -62,6 +62,21 @@ export function useThreadReplies(options: ThreadRepliesOptions): ThreadReplies {
 
         options.threadStream.addPending(optimistic);
 
+        // Snapshot only the two fields the optimistic patch below touches, so a
+        // failed send puts them back without reverting anything that landed on
+        // the root while the post was in flight (another member's reply bumping
+        // the count, say). The root is absent when the main timeline hasn't
+        // rendered it, in which case there is nothing to patch or restore.
+        const root = options.mainStream.displayMessages.value.find(
+            (m) => m.id === rootId,
+        );
+        const previousRootThreadState = root
+            ? {
+                  threadFollowed: root.threadFollowed,
+                  threadUnread: root.threadUnread,
+              }
+            : null;
+
         // Replying makes the viewer a follower of the thread and means they've
         // seen it, so keep the root's affordance in the main timeline dot-free.
         options.mainStream.patchThreadState(rootId, {
@@ -89,6 +104,13 @@ export function useThreadReplies(options: ThreadRepliesOptions): ThreadReplies {
 
                     if (sendToChannel) {
                         options.mainStream.removePending(clientUuid);
+                    }
+
+                    if (previousRootThreadState) {
+                        options.mainStream.patchThreadState(
+                            rootId,
+                            previousRootThreadState,
+                        );
                     }
 
                     toast.error(t('Your reply failed to send'));
