@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Support;
 
+use RuntimeException;
 use Symfony\Component\Yaml\Yaml;
 
 /**
@@ -64,10 +65,22 @@ final class ProductionCompose
      */
     public static function appRoleServices(): array
     {
-        return array_values(array_keys(array_filter(
+        $services = array_values(array_keys(array_filter(
             self::services(),
-            static fn (array $service): bool => str_contains(self::imageOf($service), self::APP_IMAGE),
+            static fn (array $service): bool => self::runsAppImage(self::imageOf($service)),
         )));
+
+        // Fail closed. Every guard over the stack drives its cases off this set,
+        // so a production `image:` the match no longer recognises would pass all
+        // of them vacuously — the one failure the derivation cannot report by
+        // returning a value.
+        throw_unless(
+            in_array('app', $services, true) && count($services) > 1,
+            RuntimeException::class,
+            'No app-role services derived from docker-compose.prod.yml — does it still run ['.self::APP_IMAGE.']?',
+        );
+
+        return $services;
     }
 
     /**
@@ -92,6 +105,17 @@ final class ProductionCompose
     public static function imageOf(array $service): string
     {
         return is_string($service['image'] ?? null) ? $service['image'] : '';
+    }
+
+    /**
+     * Whether an image reference runs the shared application image.
+     *
+     * Matched up to the tag or digest separator, so a sibling repository whose
+     * name merely starts with it is not swept in as an app-role service.
+     */
+    private static function runsAppImage(string $image): bool
+    {
+        return preg_match('#'.preg_quote(self::APP_IMAGE, '#').'[:@]#', $image) === 1;
     }
 
     /**

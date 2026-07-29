@@ -29,10 +29,11 @@ $overlaid = function (): array {
 };
 
 test('the app-role services are derived from the stack rather than assumed', function (): void {
-    // Every guard below drives its cases off this set, so a production `image:`
-    // the derivation stops recognising would empty them all rather than fail.
-    expect(ProductionCompose::appRoleServices())->toContain('app')
-        ->and(ProductionCompose::appRoleServices())->toContain('queue-broadcasts');
+    // ProductionCompose fails closed if the derivation resolves nothing, which
+    // would otherwise pass every guard below vacuously. What it cannot know is
+    // that the workers belong in the set too — the whole defect here was one of
+    // them being treated as if it did not (#1040).
+    expect(ProductionCompose::appRoleServices())->toContain('queue-broadcasts');
 });
 
 test('the build overlay restores a local build for every service on the shared app image', function (string $service): void {
