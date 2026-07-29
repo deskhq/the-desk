@@ -69,7 +69,9 @@ describe('a reply quote', () => {
     it('badges an overridden name even when the bot flag never arrived', async () => {
         const html = await quote({ authorOverride: OVERRIDE });
 
+        // The override replaces the name rather than sitting beside it.
         expect(html).toContain('Ada Lovelace');
+        expect(html).not.toContain('Deploy Bot');
         expect(html).toContain('data-test="author-bot-badge"');
     });
 
@@ -77,6 +79,7 @@ describe('a reply quote', () => {
         const html = await quote({ authorOverride: OVERRIDE, isDeleted: true });
 
         expect(html).not.toContain('Ada Lovelace');
+        expect(html).not.toContain('Deploy Bot');
     });
 });
 
@@ -92,6 +95,7 @@ describe('a forward attribution', () => {
         const html = await forward({ authorOverride: OVERRIDE });
 
         expect(html).toContain('Ada Lovelace');
+        expect(html).not.toContain('Deploy Bot');
         expect(html).toContain('data-test="author-bot-badge"');
     });
 });

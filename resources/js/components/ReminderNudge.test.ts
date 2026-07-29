@@ -73,7 +73,9 @@ describe('ReminderNudge author identity', () => {
             authorOverride: { name: 'Release Train', avatar: null },
         });
 
+        // The override replaces the bot's own name rather than sitting beside it.
         expect(html).toContain('Release Train');
+        expect(html).not.toContain('Deploy Bot');
         expect(html).toContain('data-test="author-bot-badge"');
     });
 
@@ -86,5 +88,6 @@ describe('ReminderNudge author identity', () => {
         });
 
         expect(html).not.toContain('Release Train');
+        expect(html).not.toContain('Deploy Bot');
     });
 });

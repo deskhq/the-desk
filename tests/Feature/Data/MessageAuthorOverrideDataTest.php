@@ -76,6 +76,15 @@ it('carries an icon-only override with a null name', function (): void {
         ->and($data->authorOverride?->avatar)->toStartWith('/images/proxy');
 });
 
+it('carries a name-only override with no icon of its own', function (): void {
+    [$message] = overriddenMessage(['author_override_avatar_url' => null]);
+
+    $data = MessageData::fromMessage($message);
+
+    expect($data->authorOverride?->name)->toBe('Release Train')
+        ->and($data->authorOverride?->avatar)->toBeNull();
+});
+
 it('drops an unproxyable override icon rather than leaking it to the client', function (): void {
     [$message] = overriddenMessage(['author_override_avatar_url' => 'not-a-url']);
 

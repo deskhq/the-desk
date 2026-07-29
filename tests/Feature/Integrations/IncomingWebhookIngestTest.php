@@ -282,6 +282,8 @@ it('422s a malformed identity override rather than posting under the wrong name'
     'an over-long icon url' => [['icon_url' => 'https://cdn.example.test/'.str_repeat('a', 2048)]],
     'a non-http icon url' => [['icon_url' => 'ftp://cdn.example.test/train.png']],
     'a javascript icon url' => [['icon_url' => 'javascript:alert(1)']],
+    'a bare scheme with no host' => [['icon_url' => 'https://']],
+    'a host-less icon url' => [['icon_url' => 'https:///train.png']],
     'a non-string icon url' => [['icon_url' => ['nested']]],
 ]);
 

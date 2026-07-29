@@ -63,11 +63,13 @@ class IncomingWebhookController extends Controller
         // malformed fails instead of silently posting under a different name than
         // the one asked for — for a feature whose whole point is identity, that is
         // the worse failure. Plain `http` is allowed: ImageProxy accepts it and a
-        // self-hoster's asset host may not offer TLS.
+        // self-hoster's asset host may not offer TLS. The `url` rule rather than a
+        // scheme prefix, so a bare `https://` — which would be signed into a proxy
+        // URL that can only ever fail to fetch — is rejected at the door.
         $validated = Validator::make(['body' => $body, ...$override], [
             'body' => ['required', 'string', 'max:8000'],
             'username' => ['nullable', 'string', 'max:255'],
-            'icon_url' => ['nullable', 'string', 'max:2048', 'regex:#^https?://#i'],
+            'icon_url' => ['nullable', 'string', 'max:2048', 'url:http,https'],
         ])->validate();
 
         $bot = $webhook->bot;
