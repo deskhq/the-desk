@@ -156,10 +156,15 @@ class TeamController extends Controller
 
         $attributes = $request->validated();
 
-        $before = $team->only(array_keys($attributes));
+        // Read under the same lock as the write, so a concurrent update cannot
+        // slip between the two and leave the audit entry naming a value that was
+        // never actually replaced.
+        $before = [];
 
-        $team = DB::transaction(function () use ($attributes, $team) {
+        $team = DB::transaction(function () use ($attributes, $team, &$before) {
             $team = Team::whereKey($team->id)->lockForUpdate()->firstOrFail();
+
+            $before = $team->only(array_keys($attributes));
 
             $team->update($attributes);
 

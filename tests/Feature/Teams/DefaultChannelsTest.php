@@ -99,11 +99,15 @@ test('joining a default channel posts no notice into it', function (): void {
 
 test('a team admin marks a public channel as a default and takes it back', function (): void {
     $owner = User::factory()->create();
+    $admin = User::factory()->create();
     $team = app(CreateTeam::class)->handle($owner, 'Acme');
-    $channel = Channel::factory()->for($team)->create(['slug' => 'announcements']);
-    $channel->channelMembers()->create(['user_id' => $owner->id]);
+    $team->memberships()->create(['user_id' => $admin->id, 'role' => TeamRole::Admin]);
 
-    $this->actingAs($owner)
+    // An Admin, not the Owner, and not a member of the channel: deciding where
+    // newcomers land is workspace administration, not channel membership.
+    $channel = Channel::factory()->for($team)->create(['slug' => 'announcements']);
+
+    $this->actingAs($admin)
         ->patch(route('channels.update', ['team' => $team->slug, 'channel' => $channel->slug]), [
             'is_default' => true,
         ])
@@ -111,7 +115,7 @@ test('a team admin marks a public channel as a default and takes it back', funct
 
     expect($channel->fresh()->is_default)->toBeTrue();
 
-    $this->actingAs($owner)
+    $this->actingAs($admin)
         ->patch(route('channels.update', ['team' => $team->slug, 'channel' => $channel->slug]), [
             'is_default' => false,
         ])
@@ -247,4 +251,39 @@ test('a plain member is sent no list of default channels to manage', function ()
         ->assertInertia(fn (Assert $page): Assert => $page
             ->where('defaultChannels', [])
             ->etc());
+});
+
+test('an archived channel cannot be made a default', function (): void {
+    $owner = User::factory()->create();
+    $team = app(CreateTeam::class)->handle($owner, 'Acme');
+    $channel = Channel::factory()->for($team)->create(['slug' => 'retired', 'archived_at' => now()]);
+
+    $this->actingAs($owner)
+        ->patch(route('channels.update', ['team' => $team->slug, 'channel' => $channel->slug]), [
+            'is_default' => true,
+        ])
+        ->assertForbidden();
+
+    expect($channel->fresh()->is_default)->toBeFalse();
+});
+
+test('flipping the default flag alongside a detail edit still needs channel membership', function (): void {
+    $owner = User::factory()->create();
+    $admin = User::factory()->create();
+    $team = app(CreateTeam::class)->handle($owner, 'Acme');
+    $team->memberships()->create(['user_id' => $admin->id, 'role' => TeamRole::Admin]);
+
+    $channel = Channel::factory()->for($team)->create(['slug' => 'announcements']);
+
+    // The default flag alone is workspace administration; a topic is the
+    // channel's own business, so editing it from outside is still refused.
+    $this->actingAs($admin)
+        ->patch(route('channels.update', ['team' => $team->slug, 'channel' => $channel->slug]), [
+            'is_default' => true,
+            'topic' => 'Launches',
+        ])
+        ->assertForbidden();
+
+    expect($channel->fresh()->is_default)->toBeFalse()
+        ->and($channel->fresh()->topic)->toBeNull();
 });

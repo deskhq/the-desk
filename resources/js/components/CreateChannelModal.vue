@@ -22,13 +22,14 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
-import { translate } from '@/lib/i18n';
+import { useTranslations } from '@/composables/useTranslations';
 
 const props = defineProps<{
     teamSlug: string;
 }>();
 
 const page = usePage();
+const { t } = useTranslations();
 
 /**
  * The visibilities this workspace's channel-creation policy leaves open to the
@@ -39,8 +40,8 @@ const page = usePage();
 const visibilities = computed(() =>
     (
         [
-            { value: 'public', label: translate('Public') },
-            { value: 'private', label: translate('Private') },
+            { value: 'public', label: t('Public') },
+            { value: 'private', label: t('Private') },
         ] as const
     ).filter((option) =>
         (page.props.creatableChannelVisibilities ?? []).includes(option.value),
@@ -79,7 +80,7 @@ function handleOpenChange(value: boolean) {
                 v-bind="store.form(props.teamSlug)"
                 class="space-y-6"
                 v-slot="{ errors, processing }"
-                @success="open = false"
+                @success="handleOpenChange(false)"
             >
                 <DialogHeader>
                     <DialogTitle>{{ $t('Create a channel') }}</DialogTitle>

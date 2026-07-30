@@ -42,12 +42,21 @@ vi.mock('@/components/ui/select', () => ({
             modelValue: { type: String, default: '' },
             name: { type: String, default: '' },
         },
+        emits: ['update:modelValue'],
         setup:
-            (props, { slots }) =>
+            (props, { slots, emit }) =>
             () =>
                 h(
                     'select',
-                    { name: props.name, value: props.modelValue },
+                    {
+                        name: props.name,
+                        value: props.modelValue,
+                        onChange: (event: Event) =>
+                            emit(
+                                'update:modelValue',
+                                (event.target as HTMLSelectElement).value,
+                            ),
+                    },
                     slots.default?.(),
                 ),
     }),
@@ -133,6 +142,29 @@ describe('the create-channel modal', () => {
                 '[data-test="create-channel-visibility"]',
             )?.value,
         ).toBe('private');
+    });
+
+    it('forgets a half-finished choice when the modal is closed and reopened', async () => {
+        const host = mount(['public', 'private']);
+        await open(host);
+
+        const control = document.querySelector<HTMLSelectElement>(
+            '[data-test="create-channel-visibility"]',
+        ) as HTMLSelectElement;
+        control.value = 'private';
+        control.dispatchEvent(new Event('change'));
+        await nextTick();
+
+        // Close through the same path the dialog itself uses, then reopen.
+        host.querySelector<HTMLElement>('[data-test="trigger"]')?.click();
+        await nextTick();
+        await open(host);
+
+        expect(
+            document.querySelector<HTMLSelectElement>(
+                '[data-test="create-channel-visibility"]',
+            )?.value,
+        ).toBe('public');
     });
 
     it('withdraws the affordance entirely when neither is open', () => {
