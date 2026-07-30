@@ -5,6 +5,7 @@ use App\Actions\Teams\CreateTeam;
 use App\Enums\AuditAction;
 use App\Enums\ChannelVisibility;
 use App\Enums\TeamRole;
+use App\Events\AuditableActionOccurred;
 use App\Exceptions\AuditLogImmutableException;
 use App\Models\AuditActivity;
 use App\Models\Channel;
@@ -47,6 +48,29 @@ function auditEntry(Team $team, AuditAction $action): AuditActivity
         ->where('event', $action->value)
         ->sole();
 }
+
+test('dispatching an auditable action records it against the team', function (): void {
+    [$owner, $team] = auditTeam();
+    $channel = Channel::factory()->for($team)->create();
+
+    event(new AuditableActionOccurred($team, $owner, AuditAction::ChannelArchived, $channel, [
+        'channel_name' => $channel->name,
+    ]));
+
+    $entry = auditEntry($team, AuditAction::ChannelArchived);
+
+    expect($entry->causer_id)->toBe($owner->id);
+    expect($entry->subject_id)->toBe($channel->id);
+    expect($entry->properties['channel_name'])->toBe($channel->name);
+});
+
+test('an auditable action with no human causer is recorded without an actor', function (): void {
+    [, $team] = auditTeam();
+
+    event(new AuditableActionOccurred($team, null, AuditAction::WebhookSubscriptionAutoDisabled));
+
+    expect(auditEntry($team, AuditAction::WebhookSubscriptionAutoDisabled)->causer_id)->toBeNull();
+});
 
 test('renaming a team records an audit entry with old and new names', function (): void {
     [$owner, $team] = auditTeam();

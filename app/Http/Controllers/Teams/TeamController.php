@@ -3,11 +3,11 @@
 namespace App\Http\Controllers\Teams;
 
 use App\Actions\Teams\CreateTeam;
+use App\Actions\Teams\DeleteTeam;
 use App\Data\UserStatusData;
 use App\Enums\AuditAction;
 use App\Enums\ChannelCreationPolicy;
 use App\Enums\ChannelVisibility;
-use App\Enums\SecurityEventType;
 use App\Enums\TeamPermission;
 use App\Enums\TeamRole;
 use App\Http\Controllers\Controller;
@@ -19,7 +19,6 @@ use App\Models\Team;
 use App\Models\TeamInvitation;
 use App\Models\User;
 use App\Support\AuditRecorder;
-use App\Support\SecurityEventRecorder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -251,22 +250,12 @@ class TeamController extends Controller
     /**
      * Delete the specified team.
      */
-    public function destroy(DeleteTeamRequest $request, Team $team, SecurityEventRecorder $securityEvents): RedirectResponse
+    public function destroy(DeleteTeamRequest $request, Team $team, DeleteTeam $deleteTeam): RedirectResponse
     {
         $user = $request->user();
         $fallbackTeam = $user->isCurrentTeam($team) ? $user->fallbackTeam($team) : null;
 
-        DB::transaction(function () use ($user, $team): void {
-            User::where('current_team_id', $team->id)
-                ->where('id', '!=', $user->id)
-                ->each(fn (User $affectedUser): bool => $affectedUser->switchTeam($affectedUser->personalTeam()));
-
-            $team->invitations()->delete();
-            $team->memberships()->delete();
-            $team->delete();
-        });
-
-        $securityEvents->record($user, SecurityEventType::TeamDeleted);
+        $deleteTeam->handle($team, $user);
 
         if ($fallbackTeam) {
             $user->switchTeam($fallbackTeam);

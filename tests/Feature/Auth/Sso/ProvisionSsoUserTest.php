@@ -32,6 +32,24 @@ test('a new directory user is just-in-time provisioned into the sole team as a m
         ->user_id->toBe($user->id);
 });
 
+test('a directory user can be provisioned from a queued job', function (): void {
+    Team::factory()->create();
+
+    // A queued directory sync has no live request behind it. Nothing on this
+    // path may reach for one, which is what lets the sync run off-request at
+    // all (ADR-0005).
+    dispatch(function (): void {
+        app(ProvisionSsoUser::class)->handle('oidc', 'sub-123', 'jordan@example.com', 'Jordan Rivers');
+    });
+
+    $user = User::query()->where('email', 'jordan@example.com')->sole();
+
+    expect(SecurityEvent::query()
+        ->where('user_id', $user->id)
+        ->where('type', SecurityEventType::AccountProvisioned)
+        ->exists())->toBeTrue();
+});
+
 test('a just-in-time provisioned user records an account provisioned security event', function (): void {
     Team::factory()->create();
 
