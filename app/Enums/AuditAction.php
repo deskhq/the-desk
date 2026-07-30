@@ -15,6 +15,8 @@ enum AuditAction: string
     case OwnershipTransferred = 'ownership_transferred';
     case ChannelCreated = 'channel_created';
     case ChannelArchived = 'channel_archived';
+    case ChannelDeleted = 'channel_deleted';
+    case ChannelRestored = 'channel_restored';
     case ChannelMemberAdded = 'channel_member_added';
     case ChannelMemberRemoved = 'channel_member_removed';
     case MessageDeleted = 'message_deleted';
@@ -51,6 +53,8 @@ enum AuditAction: string
             self::OwnershipTransferred => __('Ownership transferred'),
             self::ChannelCreated => __('Channel created'),
             self::ChannelArchived => __('Channel archived'),
+            self::ChannelDeleted => __('Channel deleted'),
+            self::ChannelRestored => __('Channel restored'),
             self::ChannelMemberAdded => __('Channel member added'),
             self::ChannelMemberRemoved => __('Channel member removed'),
             self::MessageDeleted => __('Message deleted'),
@@ -93,6 +97,8 @@ enum AuditAction: string
             self::OwnershipTransferred => sprintf(__('Transferred ownership to %s'), $this->text($context, 'new_owner_name')),
             self::ChannelCreated => sprintf(__('Created #%s'), $this->text($context, 'channel_name')),
             self::ChannelArchived => sprintf(__('Archived #%s'), $this->text($context, 'channel_name')),
+            self::ChannelDeleted => sprintf(__('Deleted #%s, to be purged on %s'), $this->text($context, 'channel_name'), $this->text($context, 'purge_at')),
+            self::ChannelRestored => sprintf(__('Restored #%s'), $this->text($context, 'channel_name')),
             self::ChannelMemberAdded => sprintf(__('Added %s to #%s'), $this->text($context, 'member_name'), $this->text($context, 'channel_name')),
             self::ChannelMemberRemoved => sprintf(__('Removed %s from #%s'), $this->text($context, 'member_name'), $this->text($context, 'channel_name')),
             self::MessageDeleted => sprintf(__('Deleted a message from %s in #%s'), $this->text($context, 'author_name'), $this->text($context, 'channel_name')),

@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Actions\Channels\DispatchDueMessageReminders;
 use App\Actions\Channels\DispatchDueScheduledMessages;
 use App\Actions\Channels\PurgeExpiredAttachments;
+use App\Actions\Channels\PurgeExpiredChannels;
 use App\Actions\Images\PurgeCachedProxyImages;
 use App\Actions\Integrations\PruneWebhookDeliveries;
 use App\Actions\Teams\PurgeExpiredAuditExports;
@@ -65,6 +66,12 @@ Schedule::call(fn (PurgeExpiredAttachments $purge): int => $purge->handle())
     ->hourly()
     ->withoutOverlapping()
     ->description('Purge pending attachments never claimed by a message');
+
+Schedule::call(fn (PurgeExpiredChannels $purge): int => $purge->handle())
+    ->name('purge-expired-deleted-channels')
+    ->daily()
+    ->withoutOverlapping()
+    ->description('Purge deleted channels past their restore window');
 
 Schedule::call(fn (PurgeExpiredAuditExports $purge): int => $purge->handle())
     ->name('purge-expired-audit-exports')

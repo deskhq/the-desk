@@ -42,6 +42,8 @@ const props = defineProps<{
     messages: MessagePage;
     members: Mention[];
     canArchive: boolean;
+    /** Whether the viewer may delete it (a team Admin+, not #general or a DM). */
+    canDelete: boolean;
     canManagePreferences: boolean;
     /**
      * Whether the viewer may reword the channel's topic and description (any
@@ -392,6 +394,7 @@ const { timezone } = useTimezone();
                 :title="mastheadTitle"
                 :can-manage-preferences="props.canManagePreferences"
                 :can-archive="props.canArchive"
+                :can-delete="props.canDelete"
                 :can-leave="props.canLeave"
                 :can-add-people="canAddPeople"
                 :can-pin="props.canReact"
@@ -403,6 +406,7 @@ const { timezone } = useTimezone();
                 :viewer-timezone="timezone"
                 @open-details="dialogs?.openDetails()"
                 @archive="dialogs?.confirmArchive()"
+                @delete="dialogs?.confirmDelete()"
                 @leave="dialogs?.confirmLeave()"
                 @add-people="dialogs?.openAddPeople()"
                 @jump="jumpToMessage"

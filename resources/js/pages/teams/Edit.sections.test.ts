@@ -59,6 +59,7 @@ vi.mock('@lucide/vue', () => ({
     Plug: { render: () => h('svg') },
     ScrollText: { render: () => h('svg') },
     Send: { render: () => h('svg') },
+    Trash2: { render: () => h('svg') },
     ShieldCheck: { render: () => h('svg') },
     SmilePlus: { render: () => h('svg') },
     UserPlus: { render: () => h('svg') },
@@ -171,6 +172,7 @@ vi.mock('@/components/DeleteTeamModal.vue', () => ({
     default: modalStub('DeleteTeamModal'),
 }));
 
+import { teamPermissions } from './Edit.doubles';
 import Edit from './Edit.vue';
 
 function team(overrides: Partial<Team> = {}): Team {
@@ -187,35 +189,15 @@ function team(overrides: Partial<Team> = {}): Team {
     };
 }
 
-function permissions(
-    overrides: Partial<TeamPermissions> = {},
-): TeamPermissions {
-    return {
-        canUpdateTeam: true,
-        canDeleteTeam: true,
-        canAddMember: true,
-        canUpdateMember: true,
-        canRemoveMember: true,
-        canCreateInvitation: true,
-        canCancelInvitation: true,
-        canTransferOwnership: true,
-        canViewAudit: true,
-        canViewSecurityLog: true,
-        canViewAnalytics: true,
-        canManageIntegrations: true,
-        canManageUserGroups: true,
-        ...overrides,
-    };
-}
-
 /** A plain member: none of the admin destinations are open to them. */
 function memberPermissions(): TeamPermissions {
-    return permissions({
+    return teamPermissions({
         canUpdateTeam: false,
         canDeleteTeam: false,
         canViewAudit: false,
         canViewSecurityLog: false,
         canViewAnalytics: false,
+        canViewDeletedChannels: false,
         canManageIntegrations: false,
         canManageUserGroups: false,
     });
@@ -235,7 +217,7 @@ function mount(props: Record<string, unknown> = {}) {
                 team: team(),
                 members: [],
                 invitations: [],
-                permissions: permissions(),
+                permissions: teamPermissions(),
                 availableRoles,
                 ...props,
             }),
@@ -369,7 +351,7 @@ describe('the admin destinations', () => {
 
     it('withholds each card behind its own permission', () => {
         const host = mount({
-            permissions: permissions({
+            permissions: teamPermissions({
                 canManageUserGroups: false,
                 canViewAnalytics: false,
                 canViewAudit: false,
@@ -386,7 +368,7 @@ describe('the admin destinations', () => {
 
     it('keeps the exports card while either log is readable', () => {
         const host = mount({
-            permissions: permissions({ canViewAudit: false }),
+            permissions: teamPermissions({ canViewAudit: false }),
         });
 
         expect(find(host, 'view-audit-log-link')).toBeNull();
@@ -403,7 +385,7 @@ describe('the admin destinations', () => {
 
     it('hides integrations from someone who may not manage them', () => {
         const host = mount({
-            permissions: permissions({ canManageIntegrations: false }),
+            permissions: teamPermissions({ canManageIntegrations: false }),
         });
 
         expect(find(host, 'manage-integrations-link')).toBeNull();

@@ -90,6 +90,7 @@ export type TeamPermissions = {
     canViewAudit: boolean;
     canViewSecurityLog: boolean;
     canViewAnalytics: boolean;
+    canViewDeletedChannels: boolean;
     canManageIntegrations: boolean;
     canManageUserGroups: boolean;
 };

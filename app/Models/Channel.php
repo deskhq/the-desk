@@ -15,6 +15,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasManyThrough;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Carbon;
 
 /**
@@ -29,6 +30,7 @@ use Illuminate\Support\Carbon;
  * @property string|null $description
  * @property string|null $created_by
  * @property Carbon|null $archived_at
+ * @property Carbon|null $deleted_at
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  * @property-read int|null $unread_count
@@ -44,8 +46,17 @@ use Illuminate\Support\Carbon;
 #[Fillable(['team_id', 'name', 'slug', 'visibility', 'type', 'dm_key', 'topic', 'description', 'created_by', 'archived_at'])]
 class Channel extends Model
 {
-    /** @use HasFactory<ChannelFactory> */
-    use HasFactory, HasUuids;
+    /**
+     * Soft deletes are the grace window an admin's "Delete channel" opens: the
+     * stamp hides the channel from every read path at once — the relation-backed
+     * sidebar, browse, the {@see User::visibleChannelIds()} ACL search and the
+     * thread inbox share, and route-model binding, which all inherit the trait's
+     * global scope — while the scheduled purge does the irreversible work only
+     * once the window has closed.
+     *
+     * @use HasFactory<ChannelFactory>
+     */
+    use HasFactory, HasUuids, SoftDeletes;
 
     /**
      * The reserved slug of the auto-created, undeletable channel.

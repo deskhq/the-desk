@@ -17,6 +17,7 @@ use App\Enums\PostRegistrationPrompt;
 use App\Enums\SidebarPosition;
 use App\Enums\TeamRole;
 use App\Enums\ThreadInboxFilter;
+use App\Jobs\PurgeDeletedChannel;
 use App\Models\Channel;
 use App\Models\Message;
 use App\Models\MessageReminder;
@@ -229,6 +230,11 @@ class HandleInertiaRequests extends Middleware
                 ? $user->toTeamPermissions($user->currentTeam)->canManageIntegrations
                 : false,
             'integrationsEnabled' => (bool) config('integrations.enabled'),
+            // How long a deleted channel stays restorable. A fixed instance-wide
+            // constant, and the delete dialog is raised from the channel shell
+            // rather than from a page of its own, so it rides along here instead
+            // of being threaded through the channel view as a page prop.
+            'channelRestoreWindowDays' => PurgeDeletedChannel::GRACE_WINDOW_DAYS,
             'invitableRoles' => TeamRole::assignable(),
             'channels' => fn (): array => $this->channelsForSidebar($request, $user),
             // The current team's members feed the DM entry points (the sidebar

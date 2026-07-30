@@ -57,6 +57,33 @@ test('a team admin can delete a regular channel they did not create', function (
     expect($admin->can('delete', $channel))->toBeTrue();
 });
 
+test('an admin can restore a deleted channel but has nothing to restore on a live one', function (): void {
+    $owner = User::factory()->create();
+    $admin = User::factory()->create();
+    $team = app(CreateTeam::class)->handle($owner, 'Acme');
+    $team->memberships()->create(['user_id' => $admin->id, 'role' => TeamRole::Admin]);
+
+    $channel = Channel::factory()->for($team)->create();
+
+    expect($admin->can('restore', $channel))->toBeFalse();
+
+    $channel->delete();
+
+    expect($admin->can('restore', $channel))->toBeTrue();
+});
+
+test('a plain member cannot restore a deleted channel', function (): void {
+    $owner = User::factory()->create();
+    $member = User::factory()->create();
+    $team = app(CreateTeam::class)->handle($owner, 'Acme');
+    $team->memberships()->create(['user_id' => $member->id, 'role' => TeamRole::Member]);
+
+    $channel = Channel::factory()->for($team)->create();
+    $channel->delete();
+
+    expect($member->can('restore', $channel))->toBeFalse();
+});
+
 test('a user who is not a team member cannot archive a channel', function (): void {
     $owner = User::factory()->create();
     $outsider = User::factory()->create();

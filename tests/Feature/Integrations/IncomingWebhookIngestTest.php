@@ -160,6 +160,14 @@ it('403s when the bound channel has been archived', function (): void {
         ->assertStatus(403);
 });
 
+it('403s when the bound channel has been deleted', function (): void {
+    [$webhook, $token] = makeWebhook();
+    $webhook->channel->delete();
+
+    $this->postJson("/webhooks/incoming/{$token}", ['body' => 'into the void'])
+        ->assertStatus(403);
+});
+
 it('403s when the bot is no longer a member of the channel', function (): void {
     [$webhook, $token] = makeWebhook();
     $webhook->channel->channelMembers()->where('user_id', $webhook->bot_id)->delete();

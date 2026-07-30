@@ -30,6 +30,8 @@ const props = defineProps<{
     title: string;
     canManagePreferences: boolean;
     canArchive: boolean;
+    /** Whether the viewer may delete the channel (team Admin+, not #general). */
+    canDelete: boolean;
     canLeave: boolean;
     canAddPeople: boolean;
     /** Whether the viewer may pin and unpin, as the panel's rows offer. */
@@ -49,6 +51,7 @@ const emit = defineEmits<{
     /** The channel-details modal was asked for from the masthead menu. */
     openDetails: [];
     archive: [];
+    delete: [];
     leave: [];
     addPeople: [];
     /** A pinned message was picked: bring it into view in the timeline. */
@@ -107,6 +110,7 @@ defineExpose({
             :title="props.title"
             :can-manage-preferences="props.canManagePreferences"
             :can-archive="props.canArchive"
+            :can-delete="props.canDelete"
             :can-leave="props.canLeave"
             :can-add-people="props.canAddPeople"
             :notification-levels="props.notificationLevels"
@@ -122,6 +126,7 @@ defineExpose({
             @notification-level-change="onNotificationLevelChange"
             @mute-change="onMuteChange"
             @archive="emit('archive')"
+            @delete="emit('delete')"
             @leave="emit('leave')"
             @add-people="emit('addPeople')"
             @open-pins="openPinsPanel"
