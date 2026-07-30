@@ -323,7 +323,15 @@ attach_worktree() {
 # Every query tolerates an absent or unreachable daemon: they back diagnostics
 # (`list`) as well as the teardown, and a listing is not worth failing over.
 project_volumes() {
-    docker volume ls --quiet --filter "label=com.docker.compose.project=$1" 2>/dev/null || true
+    project_volumes_strict "$1" 2>/dev/null || true
+}
+
+# The same query WITHOUT that tolerance, for verifying a teardown: a daemon that
+# has stopped answering is not the same answer as "nothing left", and reading it
+# as one would report a clean teardown over volumes still on the disk — the exact
+# confusion this change exists to remove.
+project_volumes_strict() {
+    docker volume ls --quiet --filter "label=com.docker.compose.project=$1"
 }
 
 project_containers() {
@@ -402,7 +410,15 @@ teardown_project() {
         docker volume rm "$resource" >/dev/null 2>&1 || true
     done <<< "$(project_volumes "$project")"
 
-    leftover="$(project_volumes "$project")"
+    local query_status=0
+    leftover="$(project_volumes_strict "$project" 2>&1)" || query_status=$?
+    if [ "$query_status" -ne 0 ]; then
+        log "error: could not ask Docker what project ${project} still holds:"
+        printf '%s\n' "$leftover" | sed 's/^/    /' >&2
+
+        return 1
+    fi
+
     [ -n "$leftover" ] || return 0
 
     log "error: these volumes for project ${project} are still on the Docker disk:"

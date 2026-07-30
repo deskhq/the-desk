@@ -100,13 +100,20 @@ final class DockerDiskGuard
     }
 
     /**
-     * The configured floor in bytes, from the environment when it names one.
+     * The configured floor in bytes, from the environment when it names a usable
+     * one.
+     *
+     * A value too large to express in bytes falls back to the default rather
+     * than being converted: the multiplication would overflow to a float, and
+     * this method is declared `int` under strict types, so returning one would
+     * abort every test in `setUp()`.
      */
     private static function floorBytes(): int
     {
         $megabytes = getenv(self::FLOOR_VARIABLE);
+        $largest = intdiv(PHP_INT_MAX, 1024 * 1024);
 
-        if (! is_string($megabytes) || ! ctype_digit($megabytes)) {
+        if (! is_string($megabytes) || ! ctype_digit($megabytes) || (int) $megabytes > $largest) {
             return self::DEFAULT_FLOOR_BYTES;
         }
 

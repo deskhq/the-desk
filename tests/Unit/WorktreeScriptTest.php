@@ -278,9 +278,10 @@ function inventoryLines(array $inventory): string
  * inventory the way the real commands would, which is what lets a test assert on
  * what SURVIVED a teardown rather than on which commands it happened to run.
  *
- * The two failure shapes issue #1095 turned on are configurable: $stuck names
- * volumes `docker volume rm` refuses, and $composeDownFails makes
- * `docker compose down` exit non-zero with a message of its own.
+ * The failure shapes issue #1095 turned on are configurable: $stuck names volumes
+ * `docker volume rm` refuses, $composeDownFails makes `docker compose down` exit
+ * non-zero with a message of its own, and $volumeQueryFails stands in for a
+ * daemon that has stopped answering at all.
  *
  * @param  array<string, list<string>>  $volumes  project => volume names on disk
  * @param  array<string, list<string>>  $containers  project => container ids on disk
@@ -292,12 +293,14 @@ function dockerStub(
     array $containers = [],
     array $stuck = [],
     bool $composeDownFails = false,
+    bool $volumeQueryFails = false,
 ): string {
     file_put_contents($path.'/docker-volumes', inventoryLines($volumes));
     file_put_contents($path.'/docker-containers', inventoryLines($containers));
 
     $stuckList = implode(' ', $stuck);
     $downFails = $composeDownFails ? '1' : '';
+    $queryFails = $volumeQueryFails ? '1' : '';
 
     return <<<BASH
         __VOLUMES__='{$path}/docker-volumes'
@@ -305,6 +308,7 @@ function dockerStub(
         __DOCKER_LOG__='{$path}/docker-calls.log'
         __STUCK__='{$stuckList}'
         __DOWN_FAILS__='{$downFails}'
+        __QUERY_FAILS__='{$queryFails}'
 
         __drop_lines() {
             grep -v "\$2" "\$1" > "\$1.tmp" || true
@@ -323,6 +327,10 @@ function dockerStub(
                     __drop_lines "\$__CONTAINERS__" "^\$3 "
                     ;;
                 'volume ls --quiet --filter label=com.docker.compose.project='*)
+                    if [ -n "\$__QUERY_FAILS__" ]; then
+                        printf 'Cannot connect to the Docker daemon at unix:///var/run/docker.sock\n' >&2
+                        return 1
+                    fi
                     awk -v p="\${5##*=}" '\$1 == p { print \$2 }' "\$__VOLUMES__"
                     ;;
                 'ps --all --quiet --filter label=com.docker.compose.project='*)
@@ -885,6 +893,22 @@ test('remove names the volumes it could not reclaim and fails rather than report
 
     expect($process->getExitCode())->not->toBe(0)
         ->and($process->getErrorOutput())->toContain('desk-377_sail-pgsql')
+        ->and($process->getErrorOutput())->toContain('reap');
+});
+
+// A daemon that has stopped answering says nothing about the disk, and reading
+// that silence as "nothing left" would report exactly the clean teardown this
+// change exists to stop reporting.
+test('remove treats an unanswerable Docker as a failed teardown, not an empty one', function (): void {
+    $path = tempGitDir('worktree-remove-unanswerable');
+    $stubs = "require_tooling() { :; }\n"
+        .registryJqStub($path.'/wt', 'desk-377')."\n"
+        .dockerStub($path, volumes: ['desk-377' => ['desk-377_sail-pgsql']], volumeQueryFails: true);
+
+    $process = runWorktreeLib($path, $stubs."\nmain remove 377");
+
+    expect($process->getExitCode())->not->toBe(0)
+        ->and($process->getErrorOutput())->toContain('Cannot connect to the Docker daemon')
         ->and($process->getErrorOutput())->toContain('reap');
 });
 

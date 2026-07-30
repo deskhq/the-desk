@@ -12,8 +12,15 @@ use Tests\Support\DockerDiskGuard;
  * first instinct is to go looking for a bug in the code under test (issue
  * #1095). These tests pin the preflight that names the real cause instead.
  */
-afterEach(function (): void {
-    putenv(DockerDiskGuard::FLOOR_VARIABLE);
+// Captured before any test overrides it and restored after each one, rather
+// than unset: the variable is a developer's to set, and wiping it would leak out
+// of this file into the rest of the worker's run.
+$originalFloor = getenv(DockerDiskGuard::FLOOR_VARIABLE);
+
+afterEach(function () use ($originalFloor): void {
+    putenv($originalFloor === false
+        ? DockerDiskGuard::FLOOR_VARIABLE
+        : DockerDiskGuard::FLOOR_VARIABLE.'='.$originalFloor);
 });
 
 /**
@@ -75,6 +82,21 @@ it('takes its floor from the environment, in MiB', function (): void {
 
     expect(DockerDiskGuard::lowDiskWarning(sys_get_temp_dir()))->toBeNull();
 });
+
+it('falls back to its default floor for a value it cannot use', function (string $floor): void {
+    putenv(DockerDiskGuard::FLOOR_VARIABLE.'='.$floor);
+
+    // The default is a gigabyte, and the temp disk this runs on has more; a
+    // value that was honoured instead would warn.
+    expect(DockerDiskGuard::lowDiskWarning(sys_get_temp_dir()))->toBeNull();
+})->with([
+    'not a number' => 'plenty',
+    'negative' => '-1',
+    'fractional' => '1.5',
+    // Larger than PHP_INT_MAX bytes: multiplying it out would overflow to a
+    // float and, under strict types, throw on the way back.
+    'beyond what bytes can express' => '99999999999999999999',
+]);
 
 // A path it cannot stat says nothing about the disk, and a guard that cannot
 // measure has nothing to warn about.
