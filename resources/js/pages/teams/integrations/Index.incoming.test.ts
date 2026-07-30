@@ -27,6 +27,7 @@ type RecordedPost = {
 
 const inertia = vi.hoisted(() => ({
     pageProps: { auth: { user: { id: 'me', timezone: 'UTC' } } },
+    url: '/settings/teams/acme/integrations',
     forms: [] as RecordedForm[],
     posts: [] as RecordedPost[],
 }));
@@ -54,7 +55,7 @@ vi.mock('@inertiajs/vue3', async () => {
                     ),
         }),
         router: { patch: () => {} },
-        usePage: () => ({ props: inertia.pageProps }),
+        usePage: () => ({ props: inertia.pageProps, url: inertia.url }),
         useForm: (initial: Record<string, unknown>) => {
             const fields = Object.keys(initial);
             const form = reactive({
@@ -245,6 +246,7 @@ async function openDialog(host: HTMLElement): Promise<HTMLElement> {
 beforeEach(() => {
     inertia.forms = [];
     inertia.posts = [];
+    inertia.url = '/settings/teams/acme/integrations';
 });
 
 afterEach(() => {
@@ -273,6 +275,27 @@ describe('the incoming webhooks rack', () => {
         );
         expect(text(host, 'incoming-row-w1')).toContain('Active');
         expect(host.querySelector('[data-test="incoming-empty"]')).toBeNull();
+    });
+
+    it('singles out the hook a message sent the admin here to revoke', () => {
+        inertia.url = '/settings/teams/acme/integrations?webhook=w2';
+
+        const host = mount({
+            incomingWebhooks: [webhook(), webhook({ id: 'w2' })],
+        });
+
+        expect(find(host, 'incoming-row-w2')?.dataset.highlighted).toBe('true');
+        expect(
+            find(host, 'incoming-row-w1')?.dataset.highlighted,
+        ).toBeUndefined();
+    });
+
+    it('singles out nothing when the page was opened on its own', () => {
+        const host = mount({ incomingWebhooks: [webhook()] });
+
+        expect(
+            find(host, 'incoming-row-w1')?.dataset.highlighted,
+        ).toBeUndefined();
     });
 
     it('hands each row its own revoke control, scoped to the team', () => {

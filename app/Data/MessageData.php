@@ -33,6 +33,13 @@ class MessageData extends Data
          * ordinary message. See {@see AuthorOverrideData}.
          */
         public ?AuthorOverrideData $authorOverride,
+        /**
+         * Which incoming webhook produced this message, for the viewers who
+         * could revoke it. Null on every ordinary message, and null for a viewer
+         * who cannot manage the team's integrations. See
+         * {@see IncomingWebhookSourceData}.
+         */
+        public ?IncomingWebhookSourceData $incomingWebhook,
         public string $createdAt,
         public ?string $editedAt,
         public bool $isDeleted,
@@ -93,8 +100,16 @@ class MessageData extends Data
      * selection, which its hidden roster can't convey). It is passed only on the
      * viewer-scoped timeline load; a broadcast omits it, so the payload stays
      * viewer-free and the client preserves the vote state it already holds.
+     *
+     * `$withWebhookSource` names the incoming webhook behind a message. It is a
+     * flag rather than something derived from `$viewerId` because the answer is
+     * per-viewer-per-team, not per-message: the caller resolves the
+     * `manageIntegrations` gate once for the whole page instead of once per row.
+     * Left false — as every broadcast, search, and post path leaves it — the
+     * field stays null and the admin-authored webhook name never reaches a client
+     * that has not been checked for it.
      */
-    public static function fromMessage(Message $message, ?string $viewerId = null): self
+    public static function fromMessage(Message $message, ?string $viewerId = null, bool $withWebhookSource = false): self
     {
         $isDeleted = $message->trashed();
 
@@ -111,6 +126,10 @@ class MessageData extends Data
             // it keeps rendering as it always did rather than reverting to the
             // bot's own name the moment the body is withdrawn.
             authorOverride: AuthorOverrideData::forMessage($message),
+            // Provenance, not content: a tombstone keeps naming the credential
+            // that produced it, since withdrawing the body is the very moment an
+            // admin wants to know which webhook to revoke.
+            incomingWebhook: $withWebhookSource ? IncomingWebhookSourceData::forMessage($message) : null,
             createdAt: $message->created_at->toIso8601String(),
             editedAt: $message->edited_at?->toIso8601String(),
             isDeleted: $isDeleted,

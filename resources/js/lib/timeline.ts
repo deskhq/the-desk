@@ -23,6 +23,12 @@ export type TimelineGroup = {
      * defines the run: one bot posting as two logical sources gets two groups.
      */
     authorOverride: AuthorOverride | null;
+    /**
+     * The incoming webhook behind the run, for the viewers the server told. Also
+     * part of what defines the run: the header's hover card names this credential
+     * on behalf of every row beneath it, so a run may never span two of them.
+     */
+    incomingWebhook: App.Data.IncomingWebhookSourceData | null;
     leadCreatedAt: string;
     messages: Message[];
 };
@@ -134,12 +140,15 @@ export function buildTimelineItems(
             });
         }
 
-        // Same account *and* same displayed identity: a webhook posting as two
-        // logical sources must not collapse them under one name and avatar.
+        // Same account, same displayed identity *and* same credential: a webhook
+        // posting as two logical sources must not collapse them under one name
+        // and avatar, and two webhooks must not collapse under one provenance.
         const sameAuthor =
             currentGroup?.author.id === message.user.id &&
             authorOverrideKey(currentGroup?.authorOverride) ===
-                authorOverrideKey(message.authorOverride);
+                authorOverrideKey(message.authorOverride) &&
+            (currentGroup?.incomingWebhook?.id ?? null) ===
+                (message.incomingWebhook?.id ?? null);
         const withinWindow =
             lastCreatedAt !== null &&
             new Date(message.createdAt).getTime() -
@@ -158,6 +167,7 @@ export function buildTimelineItems(
                 key: `group-${message.id}`,
                 author: message.user,
                 authorOverride: message.authorOverride ?? null,
+                incomingWebhook: message.incomingWebhook ?? null,
                 leadCreatedAt: message.createdAt,
                 messages: [message],
             };

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Link } from '@inertiajs/vue3';
-import { AtSign, MessageSquare, Moon, UserRound } from '@lucide/vue';
+import { AtSign, MessageSquare, Moon, UserRound, Webhook } from '@lucide/vue';
 import { computed, ref } from 'vue';
 import PresenceDot from '@/components/PresenceDot.vue';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -18,6 +18,7 @@ import { fetchUserProfile } from '@/composables/useUserProfileCard';
 import { formatLocalTime, formatTimeOfDay } from '@/lib/datetime';
 import { presenceLabelKey } from '@/lib/presence';
 import type { RenderedPresence } from '@/lib/presence';
+import { index as integrationsIndex } from '@/routes/teams/integrations';
 import { show } from '@/routes/teams/members';
 import type { UserProfile } from '@/types';
 
@@ -32,6 +33,12 @@ const props = defineProps<{
      * row, where the displayed name already is the account.
      */
     viaName?: string | null;
+    /**
+     * The incoming webhook that produced the row, when the viewer is one of the
+     * people who could revoke it. The server sends it to nobody else, so its mere
+     * presence is the permission — this component adds no check of its own.
+     */
+    webhook?: App.Data.IncomingWebhookSourceData | null;
     /**
      * How the member reads on the team presence roster. Absent on the surfaces
      * that open a card without a roster to hand, which then show no dot at all.
@@ -92,6 +99,16 @@ const statusClearsAt = computed(() =>
     profile.value?.status?.expiresAt
         ? formatTimeOfDay(profile.value.status.expiresAt)
         : null,
+);
+
+/**
+ * The integrations page with the offending hook named, so an admin who arrives
+ * from a suspicious message lands on the row they came to revoke.
+ */
+const webhookHref = computed(() =>
+    integrationsIndex(props.teamSlug, {
+        query: { webhook: props.webhook?.id },
+    }),
 );
 
 function onMention(): void {
@@ -243,6 +260,46 @@ function onMessage(): void {
                         class="shrink-0 font-serif text-[10.5px] text-muted-foreground italic"
                         >{{ $t('until :time', { time: statusClearsAt }) }}</span
                     >
+                </div>
+
+                <!-- Which credential produced the row, for the admins who could
+                     revoke it. Everyone else is never sent one, so nothing here
+                     needs to hide it. -->
+                <div
+                    v-if="webhook"
+                    data-test="hover-card-webhook"
+                    class="flex items-center gap-2.5 rounded-[10px] border border-border bg-muted px-3 py-2"
+                >
+                    <Webhook
+                        class="size-3.5 shrink-0 text-muted-foreground"
+                        aria-hidden="true"
+                    />
+                    <span
+                        class="min-w-0 flex-1 truncate text-xs text-foreground"
+                    >
+                        {{
+                            $t('Posted by the :name webhook', {
+                                name: webhook.name,
+                            })
+                        }}
+                    </span>
+                    <!-- "Review" alone is what a link list would announce, so
+                         the accessible name spells the hook out. Carried as
+                         visually-hidden text rather than an `aria-label`: both
+                         strings stay whole for translation, where a split label
+                         would fix English word order. -->
+                    <Link
+                        :href="webhookHref"
+                        data-test="hover-card-webhook-link"
+                        class="shrink-0 text-xs font-semibold text-brass-fill-foreground underline-offset-2 hover:underline"
+                    >
+                        <span aria-hidden="true">{{ $t('Review') }}</span>
+                        <span class="sr-only">{{
+                            $t('Review the :name webhook', {
+                                name: webhook.name,
+                            })
+                        }}</span>
+                    </Link>
                 </div>
 
                 <div class="space-y-2">

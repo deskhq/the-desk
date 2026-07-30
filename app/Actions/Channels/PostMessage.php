@@ -64,16 +64,22 @@ class PostMessage
      * they override only what is *displayed* — `$author` still authors the row, so
      * every surface keeps its non-human marking.
      *
+     * `$incomingWebhookId` names the credential a webhook ingest used, so an admin
+     * looking at a suspicious row can revoke exactly that webhook rather than every
+     * URL its bot holds. Null on every other path — the author alone identifies a
+     * human send, and the REST API's own credential is a separate question.
+     *
      * @param  list<string>  $attachmentIds
      * @param  (Closure(Message): void)|null  $afterCreate
      */
-    public function handle(Channel $channel, User $author, string $body, string $clientUuid, ?string $replyToId = null, ?string $forwardedFromId = null, ?string $threadRootId = null, bool $sentToChannel = false, bool $clearDraft = true, array $attachmentIds = [], MessageType $type = MessageType::Standard, ?Closure $afterCreate = null, ?string $authorOverrideName = null, ?string $authorOverrideAvatarUrl = null): Message
+    public function handle(Channel $channel, User $author, string $body, string $clientUuid, ?string $replyToId = null, ?string $forwardedFromId = null, ?string $threadRootId = null, bool $sentToChannel = false, bool $clearDraft = true, array $attachmentIds = [], MessageType $type = MessageType::Standard, ?Closure $afterCreate = null, ?string $authorOverrideName = null, ?string $authorOverrideAvatarUrl = null, ?string $incomingWebhookId = null): Message
     {
-        $message = DB::transaction(function () use ($channel, $author, $body, $clientUuid, $replyToId, $forwardedFromId, $threadRootId, $sentToChannel, $attachmentIds, $type, $afterCreate, $authorOverrideName, $authorOverrideAvatarUrl): Message {
+        $message = DB::transaction(function () use ($channel, $author, $body, $clientUuid, $replyToId, $forwardedFromId, $threadRootId, $sentToChannel, $attachmentIds, $type, $afterCreate, $authorOverrideName, $authorOverrideAvatarUrl, $incomingWebhookId): Message {
             $message = $channel->messages()->firstOrCreate(
                 ['client_uuid' => $clientUuid],
                 [
                     'user_id' => $author->id,
+                    'incoming_webhook_id' => $incomingWebhookId,
                     'body' => $body,
                     'author_override_name' => $authorOverrideName,
                     'author_override_avatar_url' => $authorOverrideAvatarUrl,

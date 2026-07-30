@@ -25,6 +25,7 @@ use Laravel\Scout\Searchable;
  * @property string $id
  * @property string $channel_id
  * @property string $user_id
+ * @property string|null $incoming_webhook_id
  * @property string $client_uuid
  * @property string|null $reply_to_id
  * @property string|null $forwarded_from_id
@@ -42,6 +43,7 @@ use Laravel\Scout\Searchable;
  * @property Carbon|null $updated_at
  * @property-read Channel $channel
  * @property-read User $user
+ * @property-read IncomingWebhook|null $incomingWebhook
  * @property-read Message|null $replyTo
  * @property-read Message|null $forwardedFrom
  * @property-read Collection<int, Message> $threadReplies
@@ -52,7 +54,7 @@ use Laravel\Scout\Searchable;
  * @property-read MessagePin|null $pin
  * @property-read Collection<int, Attachment> $attachments
  */
-#[Fillable(['channel_id', 'user_id', 'client_uuid', 'reply_to_id', 'forwarded_from_id', 'thread_root_id', 'sent_to_channel', 'body', 'author_override_name', 'author_override_avatar_url', 'type', 'edited_at'])]
+#[Fillable(['channel_id', 'user_id', 'incoming_webhook_id', 'client_uuid', 'reply_to_id', 'forwarded_from_id', 'thread_root_id', 'sent_to_channel', 'body', 'author_override_name', 'author_override_avatar_url', 'type', 'edited_at'])]
 class Message extends Model
 {
     /** @use HasFactory<MessageFactory> */
@@ -87,6 +89,10 @@ class Message extends Model
      */
     private const array MESSAGE_DATA_RELATIONS = [
         'user',
+        // Read only for a viewer who can manage the team's integrations, but
+        // loaded for everyone: a conditional eager-load here would be a lazy
+        // load — or an N+1 — the day a caller forgets the condition.
+        'incomingWebhook',
         'mentionedUsers',
         'linkPreviews',
         'reactions.user',
@@ -123,6 +129,20 @@ class Message extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    /**
+     * Get the incoming webhook that produced this message, if any.
+     *
+     * Null on every path but webhook ingest, and null on a webhook message that
+     * predates the column. Null too once the webhook row is deleted outright —
+     * the message survives its credential, which is the point.
+     *
+     * @return BelongsTo<IncomingWebhook, $this>
+     */
+    public function incomingWebhook(): BelongsTo
+    {
+        return $this->belongsTo(IncomingWebhook::class);
     }
 
     /**

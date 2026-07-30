@@ -349,6 +349,7 @@ function confirmDelete(): void {
                     <MessageAvatarGutter
                         :author="item.author"
                         :author-override="item.authorOverride"
+                        :incoming-webhook="item.incomingWebhook"
                         :team-slug="props.teamSlug"
                         :presence="presenceOf(item.author.id)"
                         :is-dnd="dndOf(item.author.id)"
@@ -368,6 +369,7 @@ function confirmDelete(): void {
                         <MessageAuthorLine
                             :author="item.author"
                             :author-override="item.authorOverride"
+                            :incoming-webhook="item.incomingWebhook"
                             :team-slug="props.teamSlug"
                             :presence="presenceOf(item.author.id)"
                             :is-dnd="dndOf(item.author.id)"

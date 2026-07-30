@@ -87,6 +87,23 @@ of the channel. Remove the bot from the channel — via **Remove** under the bot
 API token follows, so there is no parallel way to post. Revoking the webhook (or
 deleting the bot) stops it permanently.
 
+## Tracing a message back to its webhook
+
+A bot holds one webhook per channel it posts into, so knowing which bot posted a
+message is not enough to revoke the right URL. Every message posted through an
+incoming webhook therefore records which webhook produced it.
+
+Workspace owners and admins see that on the message itself: hover the author, and
+the card names the webhook and offers **Review**, which opens **Integrations**
+with that hook singled out, ready to revoke. Members never see it, since a
+webhook's name is yours to write and often names internal systems.
+
+Two limits worth knowing. Messages posted before you upgraded to this version
+carry no attribution: nothing was recorded at the time, and it cannot be
+reconstructed after the fact. And revoking a webhook leaves its past messages
+exactly as they are, still naming the credential that produced them, so the trail
+survives the revocation.
+
 ## Signing (optional)
 
 When you create the webhook you can also mint an **HMAC signing secret**, shown

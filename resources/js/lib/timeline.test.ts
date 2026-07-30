@@ -110,6 +110,51 @@ describe('buildTimelineItems', () => {
         ).toBeNull();
     });
 
+    it('splits a run when the same bot posts through two different webhooks', () => {
+        const first = message('m1', 'bot', 'Deploy Bot', DAY_1_NOON);
+        const second = message(
+            'm2',
+            'bot',
+            'Deploy Bot',
+            minutesLater(DAY_1_NOON, 1),
+        );
+        first.incomingWebhook = { id: 'hook-a', name: 'CI alerts' };
+        second.incomingWebhook = { id: 'hook-b', name: 'Pager bridge' };
+
+        const groups = buildTimelineItems([first, second], null).filter(
+            (item) => item.type === 'group',
+        );
+
+        // The group header is what names the credential, so a run may never span
+        // two of them — an admin would otherwise revoke on the strength of a name
+        // that speaks for only some of the rows beneath it.
+        expect(groups).toHaveLength(2);
+        expect(
+            groups[0].type === 'group' && groups[0].incomingWebhook?.name,
+        ).toBe('CI alerts');
+        expect(
+            groups[1].type === 'group' && groups[1].incomingWebhook?.name,
+        ).toBe('Pager bridge');
+    });
+
+    it('keeps one group when the same webhook posts twice', () => {
+        const first = message('m1', 'bot', 'Deploy Bot', DAY_1_NOON);
+        const second = message(
+            'm2',
+            'bot',
+            'Deploy Bot',
+            minutesLater(DAY_1_NOON, 1),
+        );
+        first.incomingWebhook = { id: 'hook-a', name: 'CI alerts' };
+        second.incomingWebhook = { id: 'hook-a', name: 'CI alerts' };
+
+        const groups = buildTimelineItems([first, second], null).filter(
+            (item) => item.type === 'group',
+        );
+
+        expect(groups).toHaveLength(1);
+    });
+
     it('starts a new group when the author changes', () => {
         const items = buildTimelineItems(
             [

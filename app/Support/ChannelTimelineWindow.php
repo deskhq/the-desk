@@ -10,6 +10,7 @@ use App\Models\Message;
 use App\Models\User;
 use Illuminate\Contracts\Pagination\CursorPaginator;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Facades\Gate;
 
 /**
  * Resolves where a channel's initial message window opens and assembles the
@@ -59,6 +60,8 @@ class ChannelTimelineWindow
     private bool $threadRootResolved = false;
 
     private ?Message $resolvedThreadRoot = null;
+
+    private ?bool $viewerManagesIntegrations = null;
 
     public function __construct(
         private readonly Channel $channel,
@@ -120,7 +123,7 @@ class ChannelTimelineWindow
             ->when($ceilingId, fn (Builder $query) => $query->where('id', '<=', $ceilingId))
             ->orderByDesc('id')
             ->cursorPaginate(self::MESSAGE_PAGE_SIZE)
-            ->through(fn (Message $message): MessageData => MessageData::fromMessage($message, $this->viewer->id));
+            ->through(fn (Message $message): MessageData => MessageData::fromMessage($message, $this->viewer->id, $this->viewerManagesIntegrations()));
     }
 
     /**
@@ -140,7 +143,7 @@ class ChannelTimelineWindow
             return null;
         }
 
-        return ['root' => MessageData::fromMessage($root, $this->viewer->id)];
+        return ['root' => MessageData::fromMessage($root, $this->viewer->id, $this->viewerManagesIntegrations())];
     }
 
     /**
@@ -165,7 +168,21 @@ class ChannelTimelineWindow
         return $query
             ->orderByDesc('id')
             ->cursorPaginate(self::THREAD_PAGE_SIZE, ['*'], 'thread_cursor')
-            ->through(fn (Message $message): MessageData => MessageData::fromMessage($message, $this->viewer->id));
+            ->through(fn (Message $message): MessageData => MessageData::fromMessage($message, $this->viewer->id, $this->viewerManagesIntegrations()));
+    }
+
+    /**
+     * Whether this viewer may be told which incoming webhook produced a message.
+     *
+     * The webhook's name is admin-authored and often operational, so it is
+     * resolved once per page for the `manageIntegrations` holders who could
+     * revoke it, rather than per message. Memoised: every row on the timeline,
+     * the thread root and its replies all ask.
+     */
+    private function viewerManagesIntegrations(): bool
+    {
+        return $this->viewerManagesIntegrations ??= Gate::forUser($this->viewer)
+            ->allows('manageIntegrations', $this->channel->team);
     }
 
     /**
