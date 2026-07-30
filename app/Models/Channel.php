@@ -7,6 +7,7 @@ use App\Enums\ChannelVisibility;
 use App\Support\NameSlug;
 use Database\Factories\ChannelFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -24,6 +25,7 @@ use Illuminate\Support\Carbon;
  * @property string|null $name
  * @property string $slug
  * @property ChannelVisibility $visibility
+ * @property bool $is_default
  * @property ChannelType $type
  * @property string|null $dm_key
  * @property string|null $topic
@@ -43,7 +45,7 @@ use Illuminate\Support\Carbon;
  * @property-read Collection<int, User> $members
  * @property-read Collection<int, Message> $messages
  */
-#[Fillable(['team_id', 'name', 'slug', 'visibility', 'type', 'dm_key', 'topic', 'description', 'created_by', 'archived_at'])]
+#[Fillable(['team_id', 'name', 'slug', 'visibility', 'is_default', 'type', 'dm_key', 'topic', 'description', 'created_by', 'archived_at'])]
 class Channel extends Model
 {
     /**
@@ -86,6 +88,33 @@ class Channel extends Model
                 $channel->slug = NameSlug::distinct((string) $channel->name, self::FALLBACK_SLUG);
             }
         });
+    }
+
+    /**
+     * Query the channels every new member of the given workspace is joined to.
+     *
+     * The protected #general is a default in code rather than by flag, so it is
+     * matched by slug alongside whatever admins have marked. Archived and
+     * deleted channels are excluded — the trait's global scope drops the latter
+     * — so a default that has since been retired quietly stops applying instead
+     * of dropping newcomers into a read-only room.
+     *
+     * Keyed on the workspace's id rather than the model, because the one caller
+     * is the membership observer: a membership can be written for a workspace
+     * the soft-delete scope would hide, and its arrival still has to place the
+     * member in #general the way it always has.
+     *
+     * @return Builder<Channel>
+     */
+    public static function defaultsForTeam(string $teamId): Builder
+    {
+        return self::query()
+            ->where('team_id', $teamId)
+            ->where('visibility', ChannelVisibility::Public->value)
+            ->whereNull('archived_at')
+            ->where(fn (Builder $query): Builder => $query
+                ->where('is_default', true)
+                ->orWhere('slug', self::GENERAL_SLUG));
     }
 
     /**
@@ -297,6 +326,7 @@ class Channel extends Model
     {
         return [
             'visibility' => ChannelVisibility::class,
+            'is_default' => 'boolean',
             'type' => ChannelType::class,
             'archived_at' => 'datetime',
         ];

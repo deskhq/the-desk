@@ -5,12 +5,15 @@ namespace App\Http\Controllers\Teams;
 use App\Actions\Teams\CreateTeam;
 use App\Data\UserStatusData;
 use App\Enums\AuditAction;
+use App\Enums\ChannelCreationPolicy;
+use App\Enums\ChannelVisibility;
 use App\Enums\SecurityEventType;
 use App\Enums\TeamPermission;
 use App\Enums\TeamRole;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Teams\DeleteTeamRequest;
 use App\Http\Requests\Teams\SaveTeamRequest;
+use App\Models\Channel;
 use App\Models\Membership;
 use App\Models\Team;
 use App\Models\TeamInvitation;
@@ -19,6 +22,7 @@ use App\Support\AuditRecorder;
 use App\Support\SecurityEventRecorder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
@@ -64,6 +68,7 @@ class TeamController extends Controller
 
         $user = $request->user();
         $canViewRoster = Gate::allows('inviteMember', $team);
+        $canAdminister = Gate::allows('update', $team);
 
         return Inertia::render('teams/Edit', [
             'team' => [
@@ -101,37 +106,108 @@ class TeamController extends Controller
                 : collect(),
             'permissions' => $user->toTeamPermissions($team),
             'availableRoles' => TeamRole::assignable(),
+            'channelCreation' => [
+                'public' => $team->public_channel_creation_policy->value,
+                'private' => $team->private_channel_creation_policy->value,
+                'options' => ChannelCreationPolicy::options(),
+            ],
+            'defaultChannels' => $canAdminister
+                ? $this->defaultChannelCandidates($team)
+                : collect(),
         ]);
     }
 
     /**
+     * List the channels an admin may mark as workspace defaults.
+     *
+     * Only a live public channel can be one — a private channel cannot be joined
+     * unasked and an archived one is read-only — so the rest are simply absent
+     * rather than shown disabled. The protected #general leads the list and is
+     * flagged so the UI can render it as the permanent default it is.
+     *
+     * @return Collection<int, array{slug: string, name: string, isDefault: bool, isGeneral: bool}>
+     */
+    private function defaultChannelCandidates(Team $team): Collection
+    {
+        return $team->channels()
+            ->where('visibility', ChannelVisibility::Public->value)
+            ->whereNull('archived_at')
+            ->orderByRaw('case when slug = ? then 0 else 1 end', [Channel::GENERAL_SLUG])
+            ->orderByRaw('lower(name)')
+            ->get()
+            ->map(fn (Channel $channel): array => [
+                'slug' => $channel->slug,
+                'name' => (string) $channel->name,
+                'isDefault' => $channel->is_default,
+                'isGeneral' => $channel->isGeneral(),
+            ]);
+    }
+
+    /**
      * Update the specified team.
+     *
+     * The admin page edits the workspace through several small forms, so this is
+     * a partial update: only the submitted attributes are applied, and each one
+     * is audited only when it actually changes.
      */
     public function update(SaveTeamRequest $request, Team $team, AuditRecorder $recorder): RedirectResponse
     {
         Gate::authorize('update', $team);
 
-        $oldName = $team->name;
-        $newName = $request->validated('name');
+        $attributes = $request->validated();
 
-        $team = DB::transaction(function () use ($newName, $team) {
+        // Read under the same lock as the write, so a concurrent update cannot
+        // slip between the two and leave the audit entry naming a value that was
+        // never actually replaced.
+        $before = [];
+
+        $team = DB::transaction(function () use ($attributes, $team, &$before) {
             $team = Team::whereKey($team->id)->lockForUpdate()->firstOrFail();
 
-            $team->update(['name' => $newName]);
+            $before = $team->only(array_keys($attributes));
+
+            $team->update($attributes);
 
             return $team;
         });
 
-        if ($newName !== $oldName) {
-            $recorder->record($team, $request->user(), AuditAction::TeamRenamed, $team, [
-                'old_name' => $oldName,
-                'new_name' => $newName,
-            ]);
-        }
+        $this->recordTeamChanges($recorder, $team, $request->user(), $before);
 
         Inertia::flash('toast', ['type' => 'success', 'message' => __('Team updated')]);
 
         return to_route('teams.edit', ['team' => $team->slug]);
+    }
+
+    /**
+     * Write an audit entry for each workspace attribute the update moved.
+     *
+     * @param  array<string, mixed>  $before  The submitted attributes as they stood beforehand.
+     */
+    private function recordTeamChanges(AuditRecorder $recorder, Team $team, User $actor, array $before): void
+    {
+        if (array_key_exists('name', $before) && $before['name'] !== $team->name) {
+            $recorder->record($team, $actor, AuditAction::TeamRenamed, $team, [
+                'old_name' => $before['name'],
+                'new_name' => $team->name,
+            ]);
+        }
+
+        foreach (ChannelVisibility::cases() as $visibility) {
+            $column = $visibility->value.'_channel_creation_policy';
+            $old = $before[$column] ?? null;
+            if (! $old instanceof ChannelCreationPolicy) {
+                continue;
+            }
+            if ($old === $team->creationPolicyFor($visibility)) {
+                continue;
+            }
+
+            $recorder->record($team, $actor, AuditAction::ChannelCreationPolicyChanged, $team, [
+                'visibility' => $visibility->label(),
+                'old_policy' => $old->label(),
+                'new_policy' => $team->creationPolicyFor($visibility)->label(),
+            ]);
+        }
     }
 
     /**

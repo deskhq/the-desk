@@ -1465,5 +1465,18 @@
   "Channel restored": "Canal restauré",
   "Deleted #%s, to be purged on %s": "#%s supprimé, purge prévue le %s",
   "Restored #%s": "#%s restauré",
-  "posts to a deleted channel as :bot": "publie dans un canal supprimé en tant que :bot"
+  "posts to a deleted channel as :bot": "publie dans un canal supprimé en tant que :bot",
+  "Channel creation": "Création de canaux",
+  "Who can open a new channel in this workspace": "Qui peut ouvrir un nouveau canal dans cet espace de travail",
+  "Public channels": "Canaux publics",
+  "Private channels": "Canaux privés",
+  "Everyone": "Tout le monde",
+  "Every member of the workspace can create one.": "Tous les membres de l'espace de travail peuvent en créer un.",
+  "Only admins and the workspace owner can create one.": "Seuls les administrateurs et le propriétaire de l'espace de travail peuvent en créer un.",
+  "Default channels": "Canaux par défaut",
+  "New members join these on arrival. Adding one does not move the people already here.": "Les nouveaux membres les rejoignent à leur arrivée. En ajouter un ne déplace pas les personnes déjà présentes.",
+  "Always": "Toujours",
+  "Make :channel a default channel": "Faire de :channel un canal par défaut",
+  "Channel-creation policy changed": "Règle de création de canaux modifiée",
+  "Changed the %s channel-creation policy from “%s” to “%s”": "A modifié la règle de création des canaux %s de « %s » à « %s »"
 }

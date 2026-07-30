@@ -6,7 +6,9 @@ import DeleteTeamModal from '@/components/DeleteTeamModal.vue';
 import InviteMemberModal from '@/components/InviteMemberModal.vue';
 import RemoveMemberModal from '@/components/RemoveMemberModal.vue';
 import AdminLinks from '@/components/teams/AdminLinks.vue';
+import ChannelCreationForm from '@/components/teams/ChannelCreationForm.vue';
 import DangerZone from '@/components/teams/DangerZone.vue';
+import DefaultChannelsForm from '@/components/teams/DefaultChannelsForm.vue';
 import MemberRoster from '@/components/teams/MemberRoster.vue';
 import PendingInvitations from '@/components/teams/PendingInvitations.vue';
 import SettingsHeader from '@/components/teams/SettingsHeader.vue';
@@ -18,6 +20,8 @@ import { edit, index } from '@/routes/teams';
 import { resend as resendInvitationRoute } from '@/routes/teams/invitations';
 import { update as updateMember } from '@/routes/teams/members';
 import type {
+    ChannelCreationSettings,
+    DefaultChannelCandidate,
     RoleOption,
     Team,
     TeamInvitation,
@@ -31,6 +35,10 @@ type Props = {
     invitations: TeamInvitation[];
     permissions: TeamPermissions;
     availableRoles: RoleOption[];
+    /** The workspace's channel-creation policies and the options for each. */
+    channelCreation: ChannelCreationSettings;
+    /** The public channels an admin may default; empty for everyone else. */
+    defaultChannels: DefaultChannelCandidate[];
 };
 
 const props = defineProps<Props>();
@@ -106,6 +114,18 @@ const confirmTransferOwnership = (member: TeamMember) => {
         <SettingsHeader :team="team" />
 
         <TeamNameForm v-if="permissions.canUpdateTeam" :team="team" />
+
+        <ChannelCreationForm
+            v-if="permissions.canUpdateTeam"
+            :team="team"
+            :settings="channelCreation"
+        />
+
+        <DefaultChannelsForm
+            v-if="permissions.canUpdateTeam"
+            :team="team"
+            :channels="defaultChannels"
+        />
 
         <MemberRoster
             :members="members"

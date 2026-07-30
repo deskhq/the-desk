@@ -10,6 +10,7 @@ use App\Data\SlashCommandData;
 use App\Data\UpdateStatusData;
 use App\Data\UserData;
 use App\Data\UserGroupData;
+use App\Enums\ChannelVisibility;
 use App\Enums\MessageReminderStatus;
 use App\Enums\MessageType;
 use App\Enums\NavDestination;
@@ -205,6 +206,13 @@ class HandleInertiaRequests extends Middleware
             'canInviteToCurrentTeam' => fn () => $user?->currentTeam
                 ? $user->toTeamPermissions($user->currentTeam)->canCreateInvitation
                 : false,
+            // Which kinds of channel the viewer may open here, per the
+            // workspace's channel-creation policy. The create modal is raised
+            // from the sidebar and the New menu rather than from a page of its
+            // own, so this rides along instead of being threaded through them;
+            // an empty list withdraws the affordance entirely, matching the 403
+            // the create endpoint would answer with.
+            'creatableChannelVisibilities' => fn (): array => $this->creatableChannelVisibilities($user),
             // The workspace sheet offers "Workspace settings" only to someone who
             // can actually change the workspace. The page-scoped permission set
             // is not in reach from the shell, so the one flag the sheet needs
@@ -316,6 +324,31 @@ class HandleInertiaRequests extends Middleware
     protected function isWorkspaceRoute(Request $request): bool
     {
         return $request->routeIs('channels.*');
+    }
+
+    /**
+     * The channel visibilities the user may create in their current workspace.
+     *
+     * Asked of the policy rather than derived from the role here, so the shell's
+     * affordance and the create endpoint answer the same question the same way.
+     *
+     * @return array<int, string>
+     */
+    protected function creatableChannelVisibilities(?User $user): array
+    {
+        $team = $user?->currentTeam;
+
+        if (! $team instanceof Team) {
+            return [];
+        }
+
+        return array_values(array_map(
+            fn (ChannelVisibility $visibility): string => $visibility->value,
+            array_filter(
+                ChannelVisibility::cases(),
+                fn (ChannelVisibility $visibility): bool => $user->can('create', [Channel::class, $team, $visibility]),
+            ),
+        ));
     }
 
     /**

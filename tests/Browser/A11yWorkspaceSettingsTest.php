@@ -65,8 +65,22 @@ test('the demo-locked controls stay focusable, named, and axe-clean', function (
         // makes the same assertion below meaningful.
         ->assertDontSee('Disabled in the demo');
 
+    // Focus the roster's controls only once they are already in view. Focusing
+    // an off-screen control scrolls it into view first, and the scroll that
+    // follows dismisses the tooltip the focus just opened — so the assertions
+    // below would be reading a page with no tooltip on it at all. The roster
+    // sits below the fold as soon as the page grows a section or two, which is
+    // what turned this into a failure rather than a latent assumption.
     $page->assertScript(<<<'JS'
-    (() => {
+    (async () => {
+        document
+            .querySelector('[data-test="member-remove-button"]')
+            .scrollIntoView({ block: 'center' });
+
+        for (let frame = 0; frame < 3; frame++) {
+            await new Promise((resolve) => requestAnimationFrame(resolve));
+        }
+
         const named = {
             'member-transfer-ownership-button': 'Transfer ownership',
             'member-remove-button': 'Remove member',

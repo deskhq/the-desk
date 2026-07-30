@@ -1,6 +1,8 @@
 <?php
 
 use App\Actions\Teams\CreateTeam;
+use App\Enums\ChannelCreationPolicy;
+use App\Enums\ChannelVisibility;
 use App\Enums\TeamRole;
 use App\Models\Channel;
 use App\Models\User;
@@ -235,3 +237,62 @@ test('the pivot-preference abilities are granted only to channel members', funct
         ->and($teamMember->can($ability, $channel))->toBeFalse()
         ->and($outsider->can($ability, $channel))->toBeFalse();
 })->with(['updatePreference', 'updateStar', 'place', 'saveDraft']);
+
+test('any team member may create either kind of channel while both policies stay open', function (): void {
+    $owner = User::factory()->create();
+    $member = User::factory()->create();
+    $team = app(CreateTeam::class)->handle($owner, 'Acme');
+    $team->memberships()->create(['user_id' => $member->id, 'role' => TeamRole::Member]);
+
+    expect($member->can('create', [Channel::class, $team, ChannelVisibility::Public]))->toBeTrue()
+        ->and($member->can('create', [Channel::class, $team, ChannelVisibility::Private]))->toBeTrue();
+});
+
+test('reserving public channels for admins leaves private channels open to members', function (): void {
+    $owner = User::factory()->create();
+    $member = User::factory()->create();
+    $team = app(CreateTeam::class)->handle($owner, 'Acme');
+    $team->memberships()->create(['user_id' => $member->id, 'role' => TeamRole::Member]);
+    $team->update(['public_channel_creation_policy' => ChannelCreationPolicy::Admins]);
+
+    expect($member->can('create', [Channel::class, $team, ChannelVisibility::Public]))->toBeFalse()
+        ->and($member->can('create', [Channel::class, $team, ChannelVisibility::Private]))->toBeTrue()
+        ->and($owner->can('create', [Channel::class, $team, ChannelVisibility::Public]))->toBeTrue();
+});
+
+test('reserving private channels for admins leaves public channels open to members', function (): void {
+    $owner = User::factory()->create();
+    $member = User::factory()->create();
+    $team = app(CreateTeam::class)->handle($owner, 'Acme');
+    $team->memberships()->create(['user_id' => $member->id, 'role' => TeamRole::Member]);
+    $team->update(['private_channel_creation_policy' => ChannelCreationPolicy::Admins]);
+
+    expect($member->can('create', [Channel::class, $team, ChannelVisibility::Private]))->toBeFalse()
+        ->and($member->can('create', [Channel::class, $team, ChannelVisibility::Public]))->toBeTrue()
+        ->and($owner->can('create', [Channel::class, $team, ChannelVisibility::Private]))->toBeTrue();
+});
+
+test('an outsider can never create a channel however open the policies are', function (): void {
+    $owner = User::factory()->create();
+    $outsider = User::factory()->create();
+    $team = app(CreateTeam::class)->handle($owner, 'Acme');
+
+    expect($outsider->can('create', [Channel::class, $team, ChannelVisibility::Public]))->toBeFalse()
+        ->and($outsider->can('create', [Channel::class, $team]))->toBeFalse();
+});
+
+test('asking without a visibility answers whether either kind of channel is creatable', function (): void {
+    $owner = User::factory()->create();
+    $member = User::factory()->create();
+    $team = app(CreateTeam::class)->handle($owner, 'Acme');
+    $team->memberships()->create(['user_id' => $member->id, 'role' => TeamRole::Member]);
+
+    expect($member->can('create', [Channel::class, $team]))->toBeTrue();
+
+    $team->update(['public_channel_creation_policy' => ChannelCreationPolicy::Admins]);
+    expect($member->can('create', [Channel::class, $team]))->toBeTrue();
+
+    $team->update(['private_channel_creation_policy' => ChannelCreationPolicy::Admins]);
+    expect($member->can('create', [Channel::class, $team]))->toBeFalse()
+        ->and($owner->can('create', [Channel::class, $team]))->toBeTrue();
+});

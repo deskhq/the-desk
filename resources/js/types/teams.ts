@@ -100,6 +100,39 @@ export type RoleOption = {
     label: string;
 };
 
+/** Who a workspace lets open a new channel. Backed by the PHP enum. */
+export type ChannelCreationPolicy = App.Enums.ChannelCreationPolicy;
+
+/** One selectable policy in the channel-creation settings form. */
+export type ChannelCreationPolicyOption = {
+    value: ChannelCreationPolicy;
+    label: string;
+    /** One line on who the policy lets through, shown under the label. */
+    description: string;
+};
+
+/**
+ * The workspace's channel-creation settings as the admin page receives them:
+ * the standing policy per visibility, plus the options both selects offer.
+ */
+export type ChannelCreationSettings = {
+    public: ChannelCreationPolicy;
+    private: ChannelCreationPolicy;
+    options: ChannelCreationPolicyOption[];
+};
+
+/**
+ * A public channel an admin may mark as a workspace default — one every new
+ * member is joined to on arrival. Empty for anyone who may not manage them.
+ */
+export type DefaultChannelCandidate = {
+    slug: string;
+    name: string;
+    isDefault: boolean;
+    /** #general is a default in code, so its switch is on and immovable. */
+    isGeneral: boolean;
+};
+
 /**
  * A recorded admin/moderation action shown in a workspace's audit log. Mirrors
  * the `App\Data\AuditEventData` DTO. `actorName` is null when the acting user no
