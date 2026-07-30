@@ -172,10 +172,10 @@ function confirmRevoke(): void {
                     </span>
                     <span
                         v-else
-                        class="inline-flex items-center gap-1.5 text-xs font-semibold text-success-text"
+                        class="inline-flex items-center gap-1.5 text-xs font-semibold text-status-success"
                     >
                         <span
-                            class="size-1.5 rounded-full bg-success-text"
+                            class="size-1.5 rounded-full bg-status-success"
                             aria-hidden="true"
                         />
                         {{ $t('Active') }}
@@ -281,7 +281,7 @@ function confirmRevoke(): void {
                                         class="size-2 shrink-0 rounded-full"
                                         :class="
                                             delivery.succeeded
-                                                ? 'bg-success-text'
+                                                ? 'bg-status-success'
                                                 : 'bg-destructive'
                                         "
                                         aria-hidden="true"
@@ -294,7 +294,7 @@ function confirmRevoke(): void {
                                 class="py-2 pr-2 font-mono text-xs"
                                 :class="
                                     delivery.succeeded
-                                        ? 'text-success-text'
+                                        ? 'text-status-success'
                                         : 'text-destructive-text'
                                 "
                             >
