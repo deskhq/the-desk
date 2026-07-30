@@ -144,8 +144,37 @@ jobs:
         with:
           composer-options: '--optimize-autoloader'
 
+      # `install --with-deps` split in two so the log keeps timing the halves
+      # apart, because only one of them is cacheable: `install-deps` shells out to
+      # apt for nine font packages (`ubuntu-latest` already carries Chromium's
+      # shared libraries) and leaves runner state no cache can restore, while the
+      # ~300 MB browser bundle below is just files. Measured at ~14s and ~10s of a
+      # ~24s step over eight runs (#1078). Both browser-driving workflows carry
+      # this block verbatim — see tests/Unit/PlaywrightBrowserCacheTest.php.
+      - name: Resolve Playwright Version
+        id: playwright
+        run: |
+          echo "version=$(node -p "require('playwright/package.json').version")" >> "$GITHUB_OUTPUT"
+
+      # Keyed on the version npm resolved rather than on `package.json`, whose
+      # `^1.61.1` would hold a patch bump — and the new Chromium revision it pins
+      # — on the entry cut for the version before it.
+      - name: Cache Playwright Browser
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ steps.playwright.outputs.version }}
+
+      # The fonts matter here beyond "Chromium starts": the committed captures are
+      # rendered with them, so dropping them would move pixels in the diff below.
+      - name: Install Playwright System Dependencies
+        run: npx playwright install-deps chromium
+
+      # Unconditional on purpose: `install` re-verifies what the cache restored
+      # and fetches whatever is missing, so a cold or half-written entry costs the
+      # download it always cost rather than a job with no browser.
       - name: Install Playwright Browser
-        run: npx playwright install --with-deps chromium
+        run: npx playwright install chromium
 
       - name: Copy Environment File
         run: cp .env.example .env
