@@ -262,14 +262,64 @@ export function stubObservers(): void {
 }
 
 /**
- * Let Vue render, then let any `<Transition>` finish leaving: a pill leaves the
- * DOM only once its leave hook resolves, which jsdom drives off
- * `requestAnimationFrame` rather than a real animation.
+ * Let Vue render, then let any pending timer and promise drain.
+ *
+ * Do not lean on this to wait out a `<Transition>` — reach for
+ * {@link afterLeave} instead, which waits on the DOM rather than on the clock.
  */
 export async function settle(): Promise<void> {
     await nextTick();
     await new Promise((resolve) => setTimeout(resolve, 60));
     await nextTick();
+}
+
+/**
+ * Stretch every animation frame well past any fixed wait a suite could take,
+ * standing in for the machine a full `npm run test:js` run leaves behind.
+ *
+ * Vue's `<Transition>` needs two frames before it even starts leaving, so a
+ * suite that waits out a fade on the clock rather than on the DOM goes red here
+ * every time instead of once in a hundred loaded CI runs (#1072).
+ */
+export function starveAnimationFrames(): void {
+    vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback) =>
+        setTimeout(() => callback(0), 50),
+    );
+}
+
+/** How long {@link afterLeave} polls before it reports what it can see. */
+const LEAVE_TIMEOUT_MS = 2000;
+
+/**
+ * Poll `selector` inside `host` until it has left the DOM, then report what is
+ * there: `null` once a `<Transition>` has finished leaving.
+ *
+ * Vue holds a leaving node in the DOM until its leave hook resolves, and drives
+ * that hook off `requestAnimationFrame`, whose jsdom ticks stretch under
+ * full-suite load. A fixed wait therefore races the fade and reads a node that
+ * is still mid-transition (#1072). Gives up after {@link LEAVE_TIMEOUT_MS} and
+ * returns the node it can still see, so a node that never leaves fails the
+ * caller's assertion instead of hanging the suite.
+ *
+ * Real timers only: under `vi.useFakeTimers()` the poll would never advance.
+ */
+export async function afterLeave(
+    host: HTMLElement,
+    selector: string,
+): Promise<Element | null> {
+    const deadline = Date.now() + LEAVE_TIMEOUT_MS;
+
+    for (;;) {
+        await nextTick();
+
+        const found = host.querySelector(selector);
+
+        if (found === null || Date.now() >= deadline) {
+            return found;
+        }
+
+        await new Promise((resolve) => setTimeout(resolve, 10));
+    }
 }
 
 export function click(host: HTMLElement, selector: string): void {
