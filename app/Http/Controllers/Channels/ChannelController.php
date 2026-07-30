@@ -60,7 +60,7 @@ class ChannelController extends Controller
     /**
      * Store a newly created channel and redirect to it.
      */
-    public function store(CreateChannelRequest $request, Team $team, CreateChannel $createChannel, AuditRecorder $recorder): RedirectResponse
+    public function store(CreateChannelRequest $request, Team $team, CreateChannel $createChannel): RedirectResponse
     {
         $channel = $createChannel->handle(
             team: $team,
@@ -69,10 +69,6 @@ class ChannelController extends Controller
             creator: $request->user(),
             topic: $request->validated('topic'),
         );
-
-        $recorder->record($team, $request->user(), AuditAction::ChannelCreated, $channel, [
-            'channel_name' => $channel->name,
-        ]);
 
         Inertia::flash('toast', ['type' => 'success', 'message' => __('Channel created')]);
 
@@ -367,17 +363,11 @@ class ChannelController extends Controller
      * sidebar, so we send the user back to #general rather than to a channel
      * that no longer appears in their list.
      */
-    public function archive(Request $request, Team $team, Channel $channel, ArchiveChannel $archiveChannel, AuditRecorder $recorder): RedirectResponse
+    public function archive(Request $request, Team $team, Channel $channel, ArchiveChannel $archiveChannel): RedirectResponse
     {
-        // The policy rejects archiving #general or an already-archived channel,
-        // so reaching here always represents a fresh archive worth recording.
         Gate::authorize('archive', $channel);
 
-        $archiveChannel->handle($channel);
-
-        $recorder->record($team, $request->user(), AuditAction::ChannelArchived, $channel, [
-            'channel_name' => $channel->name,
-        ]);
+        $archiveChannel->handle($channel, $request->user());
 
         Inertia::flash('toast', ['type' => 'success', 'message' => __('Archived #:channel', ['channel' => $channel->name])]);
 
