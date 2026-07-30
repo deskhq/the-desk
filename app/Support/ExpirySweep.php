@@ -97,19 +97,19 @@ class ExpirySweep
      * would tell a teammate sitting on an idle page.
      *
      * @param  Builder<User>  $users  every user, or a narrower set the caller has already scoped
-     * @param  string  $column  the instant compared against now, and swapped on
-     * @param  array<int, string>|null  $nulled  the columns cleared together; just `$column` when null
+     * @param  string  $column  the instant compared against now, swapped on, and always cleared
+     * @param  array<int, string>  $alsoCleared  the columns nulled alongside it, if any
      * @return int the number of users cleared
      */
-    public static function clearLapsedProfileInstant(Builder $users, string $column, ?array $nulled = null): int
+    public static function clearLapsedProfileInstant(Builder $users, string $column, array $alsoCleared = []): int
     {
         return self::sweep(
             $users->whereNotNull($column)->where($column, '<=', now()),
-            function (User $user) use ($column, $nulled): bool {
+            function (User $user) use ($column, $alsoCleared): bool {
                 $cleared = User::query()
                     ->whereKey($user->getKey())
                     ->where($column, $user->getAttribute($column))
-                    ->update(array_fill_keys($nulled ?? [$column], null));
+                    ->update(array_fill_keys([$column, ...$alsoCleared], null));
 
                 if ($cleared === 0) {
                     return false;

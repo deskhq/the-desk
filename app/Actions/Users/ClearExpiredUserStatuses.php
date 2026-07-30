@@ -30,7 +30,7 @@ class ClearExpiredUserStatuses
         return ExpirySweep::clearLapsedProfileInstant(
             User::query()->whereNotNull('status_emoji'),
             'status_expires_at',
-            ['status_emoji', 'status_text', 'status_expires_at'],
+            ['status_emoji', 'status_text'],
         );
     }
 }
