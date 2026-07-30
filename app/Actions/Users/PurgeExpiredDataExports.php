@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Actions\Users;
 
-use App\Jobs\ExportUserData;
+use App\Support\ExportLifecycle;
 use App\Models\DataExport;
 use Illuminate\Support\Facades\Storage;
 
@@ -28,7 +28,7 @@ class PurgeExpiredDataExports
      */
     public function handle(): int
     {
-        $disk = Storage::disk(ExportUserData::DISK);
+        $disk = Storage::disk(ExportLifecycle::DISK);
 
         $purged = 0;
 

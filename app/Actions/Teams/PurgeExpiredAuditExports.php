@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Actions\Teams;
 
-use App\Jobs\GenerateAuditExport;
+use App\Support\ExportLifecycle;
 use App\Models\AuditExport;
 use Illuminate\Support\Facades\Storage;
 
@@ -23,7 +23,7 @@ class PurgeExpiredAuditExports
      */
     public function handle(): int
     {
-        $disk = Storage::disk(GenerateAuditExport::DISK);
+        $disk = Storage::disk(ExportLifecycle::DISK);
 
         $purged = 0;
 

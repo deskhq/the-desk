@@ -12,6 +12,7 @@ use App\Http\Requests\Teams\RequestAuditExportRequest;
 use App\Jobs\GenerateAuditExport;
 use App\Models\AuditExport;
 use App\Models\Team;
+use App\Support\ExportLifecycle;
 use App\Support\AuditRecorder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -134,7 +135,7 @@ class AuditExportController extends Controller
 
         $filename = $auditExport->log_type->value.'-export.'.$auditExport->format->extension();
 
-        return Storage::disk(GenerateAuditExport::DISK)->download($auditExport->path, $filename);
+        return Storage::disk(ExportLifecycle::DISK)->download($auditExport->path, $filename);
     }
 
     /**
