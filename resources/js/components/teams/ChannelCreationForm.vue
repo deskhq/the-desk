@@ -61,7 +61,11 @@ const privateHint = computed(() => describe(privatePolicy.value));
             class="space-y-4"
             v-slot="{ errors, processing }"
         >
-            <div class="grid max-w-2xl gap-4 sm:grid-cols-2">
+            <!-- `items-start` keeps each field only as tall as its own content.
+                 Stretched to a shared row height, the field with the shorter
+                 hint would hand the slack to its label row and sit its select a
+                 few pixels below its neighbour's. -->
+            <div class="grid max-w-2xl items-start gap-4 sm:grid-cols-2">
                 <FormField
                     id="public-channel-creation-policy"
                     :label="$t('Public channels')"
