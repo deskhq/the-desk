@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 use App\Models\Channel;
 use App\Models\Message;
-use Illuminate\Support\Sleep;
 
 // A forward lands in a channel the sender is not looking at, and deliberately
 // does not take them there. The confirmation toast can still offer Undo because
@@ -40,10 +39,22 @@ test('a forward can be undone from its toast without leaving the channel', funct
     $page->click('[data-test=toast-action]');
 
     // The copy goes, in the channel it landed in.
+    //
+    // Waited on through the page rather than with a sleep, and that is the whole
+    // point of the loop: the application is served from an Amp server inside this
+    // very process, whose event loop only runs while the PHP side awaits. A
+    // blocking sleep here does not merely fail to help — it is what stops the
+    // DELETE the click issued from ever being read off the socket, so the poll
+    // spends its whole budget preventing the thing it is waiting for. The test
+    // passed anyway on an unloaded machine, where the request completes inside
+    // the tail of `click()`'s own await, and failed on CI where it does not
+    // (#1077). `$page->wait()` yields to that loop instead, and
+    // `tests/Unit/BrowserSuiteEventLoopTest.php` keeps a sleep from coming back
+    // here or anywhere else in the suite.
     $deleted = false;
 
     for ($attempt = 0; $attempt < 50 && ! $deleted; $attempt++) {
-        Sleep::usleep(100_000);
+        $page->wait(0.1);
         $deleted = Message::withTrashed()->find($forwarded->id)?->trashed() ?? false;
     }
 
