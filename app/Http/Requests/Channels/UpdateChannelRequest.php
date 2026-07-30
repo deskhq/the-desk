@@ -22,9 +22,10 @@ class UpdateChannelRequest extends FormRequest
      * Determine if the user is authorized to make this request.
      *
      * Editing the topic and description is open to any channel member; renaming
-     * is not. The rename gate only engages when the submitted name actually
-     * differs from the current one, so a form that always posts every field
-     * doesn't lock out a member who changed only the topic.
+     * and marking the channel a workspace default are not. Each of those gates
+     * only engages when the submitted value actually differs from the current
+     * one, so a form that always posts every field doesn't lock out a member who
+     * changed only the topic.
      */
     public function authorize(): bool
     {
@@ -33,11 +34,14 @@ class UpdateChannelRequest extends FormRequest
         if (! Gate::allows('update', $channel)) {
             return false;
         }
-        if (! $this->isRenaming()) {
+        if ($this->isRenaming() && ! Gate::allows('rename', $channel)) {
+            return false;
+        }
+        if (! $this->isChangingDefault()) {
             return true;
         }
 
-        return Gate::allows('rename', $channel);
+        return Gate::allows('setDefault', $channel);
     }
 
     /**
@@ -65,6 +69,7 @@ class UpdateChannelRequest extends FormRequest
             'name' => ['sometimes', 'required', 'string', 'max:255'],
             'topic' => ['sometimes', 'nullable', 'string', 'max:255'],
             'description' => ['sometimes', 'nullable', 'string', 'max:'.self::MAX_DESCRIPTION_LENGTH],
+            'is_default' => ['sometimes', 'boolean'],
         ];
     }
 
@@ -128,5 +133,17 @@ class UpdateChannelRequest extends FormRequest
     private function isRenaming(): bool
     {
         return $this->has('name') && $this->submittedName() !== $this->channel()->name;
+    }
+
+    /**
+     * Whether this request asks to flip the channel's workspace-default flag.
+     *
+     * Read before validation, so the submitted value is coerced the way the
+     * `boolean` rule would rather than compared raw — "1" and true are the same
+     * answer, and neither is a change if the flag already stands.
+     */
+    private function isChangingDefault(): bool
+    {
+        return $this->has('is_default') && $this->boolean('is_default') !== $this->channel()->is_default;
     }
 }

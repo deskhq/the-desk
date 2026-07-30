@@ -29,7 +29,7 @@ class UpdateChannel
      * about; a description edit is silent. Either way {@see ChannelUpdated} tells
      * open clients their copy of the details is stale.
      *
-     * @param  array{name?: string, topic?: string|null, description?: string|null}  $attributes
+     * @param  array{name?: string, topic?: string|null, description?: string|null, is_default?: bool}  $attributes
      */
     public function handle(Channel $channel, User $actor, array $attributes): Channel
     {
