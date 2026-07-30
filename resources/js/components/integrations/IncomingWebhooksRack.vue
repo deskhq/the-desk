@@ -10,6 +10,11 @@ defineProps<{
     team: string;
     webhooks: IncomingWebhook[];
     /**
+     * The hook to single out, named by an admin arriving from a message that
+     * this webhook posted. Null on an ordinary visit.
+     */
+    highlightedId?: string | null;
+    /**
      * Whether a hook can be minted at all. A hook posts as a bot, so the
      * workspace needs one before the button does anything.
      */
@@ -58,11 +63,23 @@ defineEmits<{
             {{ $t('No incoming webhooks yet.') }}
         </p>
         <ul v-else class="flex flex-col divide-y divide-border" role="list">
+            <!-- A highlighted row is outlined rather than filled: a brass fill
+                 under it drops its muted sub-line to 4.45:1 in the dark theme,
+                 where a border singles the row out without changing the
+                 background any text sits on. -->
             <li
                 v-for="hook in webhooks"
                 :key="hook.id"
                 class="flex items-center gap-3 py-3"
+                :class="
+                    hook.id === highlightedId
+                        ? 'rounded-lg border border-brass px-3'
+                        : ''
+                "
                 :data-test="`incoming-row-${hook.id}`"
+                :data-highlighted="
+                    hook.id === highlightedId ? 'true' : undefined
+                "
             >
                 <div
                     class="flex size-8 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground"
@@ -91,10 +108,10 @@ defineEmits<{
                     </span>
                 </div>
                 <span
-                    class="inline-flex shrink-0 items-center gap-1.5 text-xs font-semibold text-green-600 dark:text-green-500"
+                    class="inline-flex shrink-0 items-center gap-1.5 text-xs font-semibold text-status-success"
                 >
                     <span
-                        class="size-1.5 rounded-full bg-green-600 dark:bg-green-500"
+                        class="size-1.5 rounded-full bg-status-success"
                         aria-hidden="true"
                     />
                     {{ $t('Active') }}

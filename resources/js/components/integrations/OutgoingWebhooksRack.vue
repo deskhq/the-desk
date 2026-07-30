@@ -88,10 +88,10 @@ function hostOf(url: string): string {
                 </div>
                 <span
                     v-if="sub.status === 'active'"
-                    class="inline-flex shrink-0 items-center gap-1.5 text-xs font-semibold text-green-600 dark:text-green-500"
+                    class="inline-flex shrink-0 items-center gap-1.5 text-xs font-semibold text-status-success"
                 >
                     <span
-                        class="size-1.5 rounded-full bg-green-600 dark:bg-green-500"
+                        class="size-1.5 rounded-full bg-status-success"
                         aria-hidden="true"
                     />
                     {{ $t('Active') }}

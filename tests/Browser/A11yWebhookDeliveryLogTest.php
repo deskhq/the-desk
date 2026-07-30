@@ -16,10 +16,9 @@ use App\Models\WebhookSubscription;
  * label has to keep the visible word "Replay" in it (WCAG 2.5.3, label in name),
  * which is what the script assertion below pins.
  *
- * Only failed attempts are seeded, and the subscription is disabled, to keep the
- * page clear of the pre-existing sub-AA `text-green-600` success colour (#1064)
- * — that is the only thing standing between this page and a clean audit. Seed a
- * successful delivery here again once #1064 lands.
+ * The log mixes both outcomes on purpose: a delivery that succeeded once and the
+ * two failed attempts that eventually disabled the subscription, so the audit
+ * covers the success colour beside the destructive one (#1064).
  */
 test('the webhook delivery log passes the axe audit in either theme', function (): void {
     ['owner' => $alice, 'team' => $team] = browserTeamWithChannel();
@@ -32,8 +31,11 @@ test('the webhook delivery log passes the axe audit in either theme', function (
         'consecutive_failures' => 5,
     ]);
 
+    // Only the failed attempt kept an envelope, so the replay button stays a
+    // single-row control: the earlier success predates envelope retention.
     $replayable = WebhookDelivery::factory()->for($subscription, 'subscription')->failed()->create();
     WebhookDelivery::factory()->for($subscription, 'subscription')->failed()->withoutEnvelope()->create();
+    WebhookDelivery::factory()->for($subscription, 'subscription')->withoutEnvelope()->create();
 
     $page = signInThroughBrowser($alice)
         ->navigate("/settings/teams/{$team->slug}/integrations/webhooks/{$subscription->id}")
@@ -42,7 +44,7 @@ test('the webhook delivery log passes the axe audit in either theme', function (
         ->assertPresent("[data-test=\"replay-delivery-{$replayable->id}\"]")
         ->assertNoAccessibilityIssues();
 
-    // Exactly one of the two logged attempts kept an envelope, so exactly one
+    // Exactly one of the three logged attempts kept an envelope, so exactly one
     // offers the button — and its accessible name contains its visible text.
     $page->assertScript(<<<'JS'
     (() => {

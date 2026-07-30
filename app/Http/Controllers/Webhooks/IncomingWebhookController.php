@@ -90,6 +90,7 @@ class IncomingWebhookController extends Controller
             clientUuid: (string) Str::uuid(),
             authorOverrideName: $this->nullableString($validated, 'username'),
             authorOverrideAvatarUrl: $this->nullableString($validated, 'icon_url'),
+            incomingWebhookId: $webhook->id,
         );
 
         return response()->json(['ok' => true], 202);
