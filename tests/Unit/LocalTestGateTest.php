@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Symfony\Component\Yaml\Yaml;
 use Tests\TestCase;
 
 /**
@@ -19,8 +20,47 @@ function composerScript(string $name): string
     return implode(' ', (array) $scripts[$name]);
 }
 
+/**
+ * The `ci` job's step that runs the PHP suite.
+ */
+function phpSuiteCiCommand(): string
+{
+    /** @var array{jobs: array{ci: array{steps: list<array{run?: string}>}}} $workflow */
+    $workflow = Yaml::parseFile(dirname(__DIR__, 2).'/.github/workflows/tests.yml');
+
+    $steps = array_filter(
+        array_column($workflow['jobs']['ci']['steps'], 'run'),
+        static fn (string $run): bool => str_contains($run, 'artisan test'),
+    );
+
+    return implode("\n", $steps);
+}
+
 test('the local gate runs the suite in parallel', function (): void {
     expect(composerScript('test'))->toContain('artisan test --parallel');
+});
+
+/*
+ * A run that has already gone red still cost the full wall clock, which hurts
+ * most in the loop it happens most in: TDD writes the failing test first, then
+ * waits out several hundred passing ones to be told the one it wanted to fail
+ * did (#1075).
+ *
+ * `--stop-on-defect` rather than pest's own `--bail`, which is only sugar for it
+ * (`Pest\Plugins\Bail` rewrites `--bail` into `--stop-on-failure
+ * --stop-on-error`): Collision validates the options it forwards against
+ * paratest's own input definition before it ever spawns pest, so `--bail` dies
+ * here on `The "--bail" option does not exist` while `--stop-on-defect` — a real
+ * paratest option — goes through. `bin/browser-tests` spells it the same way so
+ * the two suites read alike.
+ */
+test('the local gate stops at the first defect', function (): void {
+    expect(composerScript('test'))->toContain('--stop-on-defect');
+});
+
+test('CI stops the php suite at the first defect too', function (): void {
+    expect(phpSuiteCiCommand())->toContain('--parallel')
+        ->and(phpSuiteCiCommand())->toContain('--stop-on-defect');
 });
 
 test('the local gate still enforces the coverage floor', function (): void {
@@ -32,6 +72,19 @@ test('the coverage gate never drags the browser suite in with it', function (): 
     expect(composerScript('test'))->not->toContain('tests/Browser')
         ->and(composerScript('test'))->not->toContain('test:browser')
         ->and(composerScript('test'))->not->toContain('bin/browser-tests');
+});
+
+/*
+ * The PHP gate has no env override to match the browser runner's
+ * BROWSER_TEST_BAIL: `composer test` is a fixed string, and the full sweep is
+ * simply the same command with the flag left off. That only helps someone who
+ * knows it, so it is written down rather than implied.
+ */
+test('the escape hatch out of the php suite fail-fast is documented', function (): void {
+    $documented = (string) file_get_contents(dirname(__DIR__, 2).'/.claude/rules/testing.md');
+
+    expect($documented)->toContain('--stop-on-defect')
+        ->and($documented)->toContain('artisan test --parallel --coverage --min=100');
 });
 
 test('the documented local gate spells out the parallel run', function (): void {
