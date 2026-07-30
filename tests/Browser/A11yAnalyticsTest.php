@@ -23,6 +23,10 @@ test('the analytics dashboard passes the axe audit in either theme', function ()
         ->navigate("/settings/teams/{$team->slug}/analytics")
         ->assertSee('Storage')
         ->assertPresent('[data-test="analytics-storage"]')
+        // The bar is a styled <div>: only the progressbar role, its name, and its
+        // value carry the reading to a screen reader.
+        ->assertPresent('[role="progressbar"][aria-label="Storage used"][aria-valuenow="25"][aria-valuetext="1 MB of 4 MB"]')
+        ->assertPresent('[data-test="analytics-storage-percent"].text-muted-foreground')
         ->assertNoAccessibilityIssues();
 
     switchToDarkTheme($page)
@@ -44,6 +48,10 @@ test('a workspace over its storage quota still passes the axe audit', function (
         ->navigate("/settings/teams/{$team->slug}/analytics")
         ->assertSee('200% used')
         ->assertSee('1 MB over the limit')
+        // The overshoot is clamped for the bar, which cannot draw past full.
+        ->assertPresent('[role="progressbar"][aria-valuenow="100"]')
+        ->assertPresent('[data-test="analytics-storage-percent"].text-destructive-text')
+        ->assertPresent('[data-test="analytics-storage-remaining"].text-destructive-text')
         ->assertNoAccessibilityIssues();
 
     switchToDarkTheme($page)

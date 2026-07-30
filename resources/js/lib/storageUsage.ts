@@ -1,5 +1,6 @@
 import { formatFileSize } from '@/lib/attachments';
 import { translate } from '@/lib/i18n';
+import { formatNumber } from '@/lib/numbers';
 import type { TeamStorage } from '@/types/teams';
 
 /** The share of the quota at which the read-out starts warning. */
@@ -34,7 +35,9 @@ export function storageReadout(storage: TeamStorage): StorageReadout {
         barPercent: Math.min(100, Math.max(0, percent)),
         toneClass: toneClass(percent),
         barColor: barColor(percent),
-        percentText: translate(':percent% used', { percent }),
+        percentText: translate(':percent% used', {
+            percent: formatNumber(percent),
+        }),
         sizeText: translate(':used of :quota', {
             used: formatFileSize(usedBytes),
             quota: formatFileSize(quotaBytes),
