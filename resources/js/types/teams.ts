@@ -219,6 +219,18 @@ export type WorkspaceAnalytics = {
     topContributors: Contributor[];
 };
 
+/**
+ * A workspace's upload footprint against its configured storage quota. Mirrors
+ * the `TeamStorageData` DTO, and is only sent while a quota is configured — so
+ * `quotaBytes` is always positive and `percent` may exceed 100 when an operator
+ * lowers the quota below the space already in use.
+ */
+export type TeamStorage = {
+    usedBytes: number;
+    quotaBytes: number;
+    percent: number;
+};
+
 /** One option in the analytics range toggle (7d / 30d / 90d). */
 export type AnalyticsRangeOption = {
     value: string;
