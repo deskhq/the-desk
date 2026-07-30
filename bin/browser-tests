@@ -38,6 +38,10 @@
 #                            the cores visible here (useful to measure another
 #                            setting, or on a host whose reported core count
 #                            does not reflect the cycles it can actually give).
+#   BROWSER_TEST_BAIL        0 to run the whole suite instead of stopping at the
+#                            first defect, for the runs that want every failure
+#                            at once: a broad refactor, a flaky sweep, a triage
+#                            run. Defaults to 1.
 
 set -euo pipefail
 
@@ -265,10 +269,41 @@ resolve_processes() {
     printf '%s\n' "$override"
 }
 
+# The fail-fast flag, or nothing when BROWSER_TEST_BAIL turns it off.
+#
+# `--stop-on-defect` rather than pest's own `--bail`, which is only sugar for it
+# (`Pest\Plugins\Bail` rewrites `--bail` into `--stop-on-failure
+# --stop-on-error` before `Plugins\Parallel` hands the arguments to paratest).
+# Both work here, but only `--stop-on-defect` also survives `php artisan test
+# --parallel` — Collision validates the options it forwards against paratest's
+# own input definition before it ever spawns pest, and dies on `The "--bail"
+# option does not exist`. The PHP gate therefore has to spell it this way, and
+# one spelling across both suites beats pest's nicer one on the suite that
+# happens to accept it.
+resolve_bail() {
+    local override=${BROWSER_TEST_BAIL:-1}
+
+    case "$override" in
+        1) printf '%s\n' '--stop-on-defect' ;;
+        0) ;;
+        *)
+            printf 'BROWSER_TEST_BAIL must be 0 or 1, got "%s"\n' "$override" >&2
+            exit 1
+            ;;
+    esac
+}
+
 # Fills the PEST_COMMAND array with the invocation to run, so main and the
 # tests that pin it read the same command rather than two copies of it.
 build_pest_command() {
-    PEST_COMMAND=(vendor/bin/pest tests/Browser --parallel "--processes=$(resolve_processes)" "$@")
+    local bail
+    bail=$(resolve_bail)
+
+    PEST_COMMAND=(vendor/bin/pest tests/Browser --parallel "--processes=$(resolve_processes)")
+
+    [ -z "$bail" ] || PEST_COMMAND+=("$bail")
+
+    PEST_COMMAND+=("$@")
 }
 
 # The invocation in printable form, one argument per line.

@@ -25,7 +25,7 @@ function runBrowserRunnerLib(string $snippet): Process
     $script = dirname(__DIR__, 2).'/bin/browser-tests';
 
     $process = new Process(['bash', '-c', sprintf(
-        'BROWSER_TESTS_LIB=1 . %s; unset BROWSER_TEST_PROCESSES; %s',
+        'BROWSER_TESTS_LIB=1 . %s; unset BROWSER_TEST_PROCESSES BROWSER_TEST_BAIL; %s',
         escapeshellarg($script),
         $snippet,
     )]);
@@ -112,6 +112,38 @@ test('a nonsensical worker count override fails loudly instead of reaching pest'
         ->and($process->getOutput())->not->toContain('--processes');
 })->with(['0', '-1', 'as many as it takes']);
 
+/*
+ * `--stop-on-defect` rather than pest's own `--bail`, which is sugar for it
+ * (`Pest\Plugins\Bail` rewrites `--bail` into `--stop-on-failure
+ * --stop-on-error`). Both reach paratest from this entry point, but only
+ * `--stop-on-defect` also survives `php artisan test --parallel` — Collision
+ * validates the options it forwards against paratest's own input definition
+ * before it ever spawns pest, and dies on `The "--bail" option does not exist`.
+ * One spelling across both suites is worth more than pest's nicer one on the
+ * suite that happens to accept it.
+ */
+test('the runner stops the browser suite at the first defect', function (): void {
+    expect(browserRunnerCommand())->toContain('--stop-on-defect');
+});
+
+/*
+ * A bailed run answers "is it green?" and nothing else. A broad refactor, a
+ * flaky sweep or a triage run wants every failure at once, so the fail-fast is
+ * opt-out rather than baked in.
+ */
+test('a full sweep can be asked for without bailing', function (): void {
+    expect(browserRunnerCommand(environment: ['BROWSER_TEST_BAIL' => '0']))
+        ->not->toContain('--stop-on-defect');
+});
+
+test('a nonsensical bail override fails loudly instead of reaching pest', function (string $override): void {
+    $process = runBrowserRunnerLib('BROWSER_TEST_BAIL='.escapeshellarg($override).' pest_command');
+
+    expect($process->getExitCode())->not->toBe(0)
+        ->and($process->getErrorOutput())->toContain('BROWSER_TEST_BAIL')
+        ->and($process->getOutput())->not->toContain('--stop-on-defect');
+})->with(['2', 'false', 'no thanks']);
+
 test('the runner forwards extra arguments to pest', function (): void {
     expect(browserRunnerCommand('--ci'))->toContain('--ci')
         ->and(browserRunnerCommand('--ci'))->toContain('tests/Browser');
@@ -166,3 +198,12 @@ test('the documented browser gate spells out the capped parallel run', function 
     expect((string) file_get_contents($root.'/.claude/rules/testing.md'))->toContain('bin/browser-tests')
         ->and((string) file_get_contents($root.'/README.md'))->toContain('bin/browser-tests');
 });
+
+/*
+ * A fail-fast nobody knows how to turn off is a fail-fast people work around by
+ * commenting it out. The opt-out is only useful if it is written down where the
+ * cap next to it already is.
+ */
+test('the escape hatch out of the browser suite fail-fast is documented', function (string $document): void {
+    expect((string) file_get_contents(dirname(__DIR__, 2).'/'.$document))->toContain('BROWSER_TEST_BAIL');
+})->with(['.claude/rules/testing.md', 'README.md', 'bin/browser-tests']);

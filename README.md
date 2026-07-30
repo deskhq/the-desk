@@ -137,6 +137,17 @@ browsers, PHP servers and Playwright then compete for the same cores, which
 makes the suite both slower and flakier. Pin a different count with
 `BROWSER_TEST_PROCESSES=N` to measure another setting.
 
+Both suites stop at the first defect, so a run whose verdict is already decided
+no longer costs the full wall clock. Under paratest that stops scheduling new
+work rather than killing what is in flight, so expect a handful of results after
+the first `⨯` rather than a hard stop. When you want the whole picture instead
+(a broad refactor, a flaky sweep, a triage run), turn it off:
+
+```bash
+BROWSER_TEST_BAIL=0 ./vendor/bin/sail composer test:browser        # browser suite
+./vendor/bin/sail artisan test --parallel --coverage --min=100     # php suite
+```
+
 The same runner reaps the processes a run leaves behind — the Playwright server
 every run used to leak, plus the paratest workers a killed run strands — both
 before it starts and once it ends, naming each one it kills. Left alone those
