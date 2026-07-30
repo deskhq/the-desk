@@ -12,21 +12,37 @@ use Symfony\Component\Yaml\Yaml;
  * branch resolution can be driven against throwaway repositories instead of
  * booting Docker.
  */
-/**
- * @param  array<string, string>  $env  extra environment for the run, merged into the inherited one
- */
-function runWorktreeLib(string $cwd, string $snippet, array $env = []): Process
+function runWorktreeLib(string $cwd, string $snippet): Process
 {
     $script = dirname(__DIR__, 2).'/bin/worktree';
 
+    // stdin is pointed at /dev/null up front so the stubs' drain (see jqStub)
+    // reaches EOF instantly on the calls that hand jq a file rather than a pipe.
+    //
+    // HOME is pinned inside the fixture rather than left to each call site:
+    // everything bin/worktree shares between runs — the registry, the global
+    // lock directory and the per-issue ones — hangs off ${HOME}/.the-desk, so
+    // pinning it here is what keeps two cases of a parallel run out of each
+    // other's state, and any case at all out of the developer's real registry.
     $process = new Process(
-        ['bash', '-c', 'WORKTREE_LIB=1 . '.escapeshellarg($script).'; '.$snippet],
+        ['bash', '-c', 'exec </dev/null; WORKTREE_LIB=1 . '.escapeshellarg($script).'; '.$snippet],
         $cwd,
-        $env,
+        ['HOME' => $cwd.'/home'],
     );
     $process->run();
 
     return $process;
+}
+
+/**
+ * Why a run failed, in the terms bin/worktree reports it: every diagnostic it
+ * has goes to stderr, and asserting on the exit code alone throws all of it
+ * away — "Failed asserting that 1 is identical to 0" is what left issue #1073
+ * undiagnosable for as long as it was.
+ */
+function worktreeFailure(Process $process): string
+{
+    return sprintf("bin/worktree exited %s; its stderr was:\n%s", $process->getExitCode(), $process->getErrorOutput());
 }
 
 function runGit(string $cwd, string ...$arguments): Process
@@ -170,6 +186,25 @@ function worktreeBootstrapFixture(): array
 }
 
 /**
+ * A `jq` that shadows the real binary, answering the filters a subcommand
+ * reaches with $answers.
+ *
+ * The drain is load-bearing, not hygiene. Real jq consumes its stdin, and a
+ * stub that returns without doing so leaves bin/worktree's
+ * `printf '%s' "$entry" | jq -r '.path'` racing its own pipe: when the function
+ * wins, printf is left writing into a reader that is already gone. PHP ignores
+ * SIGPIPE and the bash it starts inherits that disposition, so the write
+ * reports EPIPE instead of dying by signal — and `set -o pipefail` plus
+ * `set -e` then abort the script before it has logged a single line. That is
+ * the whole of issue #1073: a re-entry that exits 1 under the load of a
+ * parallel run and passes every time the file runs alone.
+ */
+function jqStub(string $answers): string
+{
+    return "jq() {\n    cat >/dev/null\n".$answers."\n}";
+}
+
+/**
  * The bootstrap dependencies this suite's container does not have, defined as
  * shell functions so they shadow the binaries bin/worktree would otherwise call:
  * `require_tooling` aborts on the missing docker, jq backs the registry, and gh
@@ -179,16 +214,18 @@ function worktreeBootstrapFixture(): array
  */
 function worktreeCreateStubs(): string
 {
-    return <<<'BASH'
-        require_tooling() { :; }
-        gh() { printf 'fix the bootstrap\n'; }
-        jq() {
+    $jq = jqStub(<<<'BASH'
             case "$*" in
                 *'// empty'*) return 0 ;;
                 *'any('*) return 1 ;;
                 *) printf '{}\n' ;;
             esac
-        }
+        BASH);
+
+    return <<<BASH
+        require_tooling() { :; }
+        gh() { printf 'fix the bootstrap\n'; }
+        {$jq}
         BASH;
 }
 
@@ -272,7 +309,7 @@ test('a base branch that exists only on the remote still forks the issue branch'
 
     $process = runWorktreeLib($clone, 'attach_worktree '.escapeshellarg($root.'/wt').' 619-slug develop');
 
-    expect($process->getExitCode())->toBe(0)
+    expect($process->getExitCode())->toBe(0, worktreeFailure($process))
         ->and(trim(runGit($root.'/wt', 'rev-parse', '--abbrev-ref', 'HEAD')->getOutput()))->toBe('619-slug')
         ->and(gitRevision($root.'/wt', 'HEAD'))->toBe(gitRevision($clone, 'origin/develop'))
         ->and(runGit($clone, 'branch', '--list', 'develop')->getOutput())->toBe('');
@@ -290,7 +327,7 @@ test('a local base branch behind its remote is fetched and forked from the remot
 
     $process = runWorktreeLib($clone, 'attach_worktree '.escapeshellarg($root.'/wt').' 619-slug develop');
 
-    expect($process->getExitCode())->toBe(0)
+    expect($process->getExitCode())->toBe(0, worktreeFailure($process))
         ->and(trim(runGit($root.'/wt', 'rev-parse', '--abbrev-ref', 'HEAD')->getOutput()))->toBe('619-slug')
         ->and(gitRevision($root.'/wt', 'HEAD'))->toBe(gitRevision($root.'/upstream', 'develop'))
         ->and(gitRevision($root.'/wt', 'HEAD'))->not->toBe(gitRevision($clone, 'develop'));
@@ -305,7 +342,7 @@ test('a base branch that exists only locally is forked from that local branch', 
 
     $process = runWorktreeLib($clone, 'attach_worktree '.escapeshellarg($root.'/wt').' 619-slug epic');
 
-    expect($process->getExitCode())->toBe(0)
+    expect($process->getExitCode())->toBe(0, worktreeFailure($process))
         ->and(trim(runGit($root.'/wt', 'rev-parse', '--abbrev-ref', 'HEAD')->getOutput()))->toBe('619-slug')
         ->and(gitRevision($root.'/wt', 'HEAD'))->toBe(gitRevision($clone, 'epic'));
 });
@@ -317,7 +354,7 @@ test('HEAD as a base forks from the local checkout, not origin/HEAD', function (
 
     $process = runWorktreeLib($clone, 'attach_worktree '.escapeshellarg($root.'/wt').' 619-slug HEAD');
 
-    expect($process->getExitCode())->toBe(0)
+    expect($process->getExitCode())->toBe(0, worktreeFailure($process))
         ->and(gitRevision($root.'/wt', 'HEAD'))->toBe(gitRevision($clone, 'master'))
         ->and(gitRevision($root.'/wt', 'HEAD'))->not->toBe(gitRevision($clone, 'origin/master'));
 });
@@ -328,7 +365,7 @@ test('an existing local branch is attached instead of being re-forked', function
 
     $process = runWorktreeLib($clone, 'attach_worktree '.escapeshellarg($root.'/wt').' 619-slug develop');
 
-    expect($process->getExitCode())->toBe(0)
+    expect($process->getExitCode())->toBe(0, worktreeFailure($process))
         ->and(trim(runGit($root.'/wt', 'rev-parse', '--abbrev-ref', 'HEAD')->getOutput()))->toBe('619-slug')
         ->and(gitRevision($root.'/wt', 'HEAD'))->toBe(gitRevision($clone, 'master'))
         ->and(gitRevision($root.'/wt', 'HEAD'))->not->toBe(gitRevision($clone, 'origin/develop'));
@@ -339,7 +376,7 @@ test('a base that names the remote-tracking ref outright is honoured', function 
 
     $process = runWorktreeLib($clone, 'attach_worktree '.escapeshellarg($root.'/wt').' 619-slug origin/develop');
 
-    expect($process->getExitCode())->toBe(0)
+    expect($process->getExitCode())->toBe(0, worktreeFailure($process))
         ->and(trim(runGit($root.'/wt', 'rev-parse', '--abbrev-ref', 'HEAD')->getOutput()))->toBe('619-slug')
         ->and(gitRevision($root.'/wt', 'HEAD'))->toBe(gitRevision($clone, 'origin/develop'));
 });
@@ -382,7 +419,7 @@ test('a fresh worktree installs the Playwright system deps as root and the chrom
 
     $process = runWorktreeLib($path, 'install_playwright_browsers '.escapeshellarg($path));
 
-    expect($process->getExitCode())->toBe(0)
+    expect($process->getExitCode())->toBe(0, worktreeFailure($process))
         ->and(sailCalls($log))->toContain('root-shell -c npx playwright install-deps chromium')
         ->and(sailCalls($log))->toContain('npx playwright install chromium');
 });
@@ -394,7 +431,7 @@ test('the Playwright dependency install parks third-party apt sources around its
     $calls = sailCalls($log);
     $install = array_search('root-shell -c npx playwright install-deps chromium', $calls, true);
 
-    expect($process->getExitCode())->toBe(0)
+    expect($process->getExitCode())->toBe(0, worktreeFailure($process))
         ->and($install)->toBeInt()
         ->and($calls[$install - 1])->toContain('/etc/apt/sources.list.d')
         ->and($calls[$install + 1])->toContain('/etc/apt/sources.list.d');
@@ -407,7 +444,7 @@ test('an unreachable apt mirror degrades the Playwright step instead of aborting
     $calls = sailCalls($log);
     $install = array_search('root-shell -c npx playwright install-deps chromium', $calls, true);
 
-    expect($process->getExitCode())->toBe(0)
+    expect($process->getExitCode())->toBe(0, worktreeFailure($process))
         ->and($process->getErrorOutput())->toContain('tests/Browser')
         ->and($calls[$install + 1])->toContain('/etc/apt/sources.list.d')
         ->and($calls)->toContain('npx playwright install chromium');
@@ -419,7 +456,7 @@ test('a worktree that already has chromium skips the Playwright install', functi
 
     $process = runWorktreeLib($path, 'install_playwright_browsers '.escapeshellarg($path));
 
-    expect($process->getExitCode())->toBe(0)
+    expect($process->getExitCode())->toBe(0, worktreeFailure($process))
         ->and(sailCalls($log))->not->toContain('root-shell -c npx playwright install-deps chromium')
         ->and(sailCalls($log))->not->toContain('npx playwright install chromium');
 });
@@ -429,7 +466,7 @@ test('a degraded system-dependency install is retried even once chromium is down
 
     $process = runWorktreeLib($path, 'install_playwright_browsers '.escapeshellarg($path));
 
-    expect($process->getExitCode())->toBe(0)
+    expect($process->getExitCode())->toBe(0, worktreeFailure($process))
         ->and(sailCalls($log))->toContain('root-shell -c npx playwright install-deps chromium')
         ->and(sailCalls($log))->not->toContain('npx playwright install chromium')
         ->and(is_file($path.'/.worktree-playwright-deps'))->toBeTrue();
@@ -440,7 +477,7 @@ test('a failed system-dependency install leaves no sentinel behind to skip the r
 
     $process = runWorktreeLib($path, 'install_playwright_browsers '.escapeshellarg($path));
 
-    expect($process->getExitCode())->toBe(0)
+    expect($process->getExitCode())->toBe(0, worktreeFailure($process))
         ->and(is_file($path.'/.worktree-playwright-deps'))->toBeFalse();
 });
 
@@ -450,7 +487,7 @@ test('a fresh worktree migrates and seeds so the demo account can sign in', func
 
     $process = runWorktreeLib($path, 'migrate_and_seed '.escapeshellarg($path));
 
-    expect($process->getExitCode())->toBe(0)
+    expect($process->getExitCode())->toBe(0, worktreeFailure($process))
         ->and(sailCalls($log))->toContain('artisan migrate:fresh --seed --force')
         ->and(is_file($path.'/.worktree-seeded'))->toBeTrue();
 });
@@ -461,7 +498,7 @@ test('an unseeded worktree is seeded onto a rebuilt schema, never onto a half-se
 
     $process = runWorktreeLib($path, 'migrate_and_seed '.escapeshellarg($path));
 
-    expect($process->getExitCode())->toBe(0)
+    expect($process->getExitCode())->toBe(0, worktreeFailure($process))
         ->and(sailCalls($log))->not->toContain('artisan migrate --force')
         ->and(sailCalls($log))->not->toContain('artisan db:seed --force');
 });
@@ -473,7 +510,7 @@ test('re-entering an already seeded worktree migrates but does not re-seed', fun
 
     $process = runWorktreeLib($path, 'migrate_and_seed '.escapeshellarg($path));
 
-    expect($process->getExitCode())->toBe(0)
+    expect($process->getExitCode())->toBe(0, worktreeFailure($process))
         ->and(sailCalls($log))->toContain('artisan migrate --force')
         ->and(sailCalls($log))->not->toContain('artisan db:seed --force')
         ->and(sailCalls($log))->not->toContain('artisan migrate:fresh --seed --force');
@@ -485,7 +522,7 @@ test('the generated override rebinds Reverb to the worktree host port and keeps 
     $process = runWorktreeLib($path, 'write_override '.escapeshellarg($path).' 579 20002');
     $override = (string) file_get_contents($path.'/compose.override.yaml');
 
-    expect($process->getExitCode())->toBe(0)
+    expect($process->getExitCode())->toBe(0, worktreeFailure($process))
         ->and($override)->toContain("'20002:8080'")
         ->and($override)->toContain('ports: !override');
 });
@@ -498,7 +535,7 @@ test('the trimmed override still brings redis up, so the bootstrap seed can reac
     $override = Yaml::parseFile($path.'/compose.override.yaml', Yaml::PARSE_CUSTOM_TAGS);
     $dependsOn = $override['services']['laravel.test']['depends_on'];
 
-    expect($process->getExitCode())->toBe(0)
+    expect($process->getExitCode())->toBe(0, worktreeFailure($process))
         ->and($dependsOn)->toBeInstanceOf(TaggedValue::class)
         ->and($dependsOn->getTag())->toBe('override')
         ->and($dependsOn->getValue())->toEqualCanonicalizing(['pgsql', 'redis']);
@@ -514,7 +551,7 @@ test('the generated env pins the container-internal Reverb port while offsetting
     );
     $env = (string) file_get_contents($path.'/.env');
 
-    expect($process->getExitCode())->toBe(0)
+    expect($process->getExitCode())->toBe(0, worktreeFailure($process))
         ->and($env)->toContain("\nREVERB_PORT=8080\n")
         ->and($env)->toContain("\nAPP_PORT=20000\n")
         ->and($env)->toContain("\nVITE_PORT=20001\n")
@@ -535,7 +572,7 @@ test('the generated env disables the SSO stack the trimmed override never starts
     );
     $env = (string) file_get_contents($path.'/.env');
 
-    expect($process->getExitCode())->toBe(0)
+    expect($process->getExitCode())->toBe(0, worktreeFailure($process))
         ->and($env)->toContain("\nLDAP_HOST=\n")
         ->and($env)->toContain("\nSSO_OIDC_ISSUER=\n")
         ->and($env)->toContain("\nSSO_OIDC_CLIENT_ID=\n")
@@ -553,7 +590,7 @@ test('the generated env routes mail and search away from the containers that sta
     );
     $env = (string) file_get_contents($path.'/.env');
 
-    expect($process->getExitCode())->toBe(0)
+    expect($process->getExitCode())->toBe(0, worktreeFailure($process))
         ->and($env)->toContain("\nMAIL_MAILER=log\n")
         ->and($env)->toContain("\nSCOUT_DRIVER=collection\n")
         ->and($env)->toContain("\nMEILISEARCH_HOST=\n")
@@ -578,10 +615,9 @@ test('a fresh bootstrap prints nothing but the worktree path on stdout', functio
     $process = runWorktreeLib(
         $clone,
         worktreeCreateStubs()."\nmain create 1043 master",
-        ['HOME' => $root.'/home'],
     );
 
-    expect($process->getExitCode())->toBe(0)
+    expect($process->getExitCode())->toBe(0, worktreeFailure($process))
         ->and($process->getOutput())->toBe($root."/the-desk-worktrees/1043-fix-the-bootstrap\n")
         ->and(is_file($root.'/the-desk-worktrees/1043-fix-the-bootstrap/.worktree-ready'))->toBeTrue();
 });
@@ -592,10 +628,9 @@ test('a fresh bootstrap still shows every step it runs, on stderr', function ():
     $process = runWorktreeLib(
         $clone,
         worktreeCreateStubs()."\nmain create 1043 master",
-        ['HOME' => $root.'/home'],
     );
 
-    expect($process->getExitCode())->toBe(0)
+    expect($process->getExitCode())->toBe(0, worktreeFailure($process))
         ->and($process->getErrorOutput())->toContain('composer install --no-interaction')
         ->and($process->getErrorOutput())->toContain('npm run build')
         ->and($process->getErrorOutput())->toContain('worktree ready');
@@ -606,39 +641,57 @@ test('re-entering a ready worktree prints nothing but its path either', function
     writeNoisySail($path);
     touch($path.'/.worktree-ready');
 
-    $stubs = <<<BASH
-        require_tooling() { :; }
-        jq() {
+    $jq = jqStub(<<<BASH
             case "\$*" in
                 *'// empty'*) printf '%s\n' '{"path":"{$path}"}' ;;
                 *) printf '%s\n' '{$path}' ;;
             esac
-        }
-        BASH;
+        BASH);
 
-    $process = runWorktreeLib($path, $stubs."\nmain create 1043", ['HOME' => $path.'/home']);
+    $stubs = "require_tooling() { :; }\n".$jq;
 
-    expect($process->getExitCode())->toBe(0)
+    $process = runWorktreeLib($path, $stubs."\nmain create 1043");
+
+    expect($process->getExitCode())->toBe(0, worktreeFailure($process))
         ->and($process->getOutput())->toBe($path."\n")
         ->and($process->getErrorOutput())->toContain('playwright install-deps chromium');
+});
+
+test('the stubbed jq drains the pipe bin/worktree writes the registry entry into', function (): void {
+    $path = tempGitDir('worktree-jq-stub');
+
+    // The race the re-entry case above lost intermittently under a parallel run
+    // (issue #1073), made deterministic: 200 KB overruns the pipe buffer, so a
+    // stub that returns without reading leaves the writer holding bytes nothing
+    // will ever consume. SIGPIPE is ignored the way PHP leaves it for the bash
+    // it starts, which is what turns the dead pipe into a non-zero exit rather
+    // than a signal — and pipefail then takes the whole run down.
+    $jq = jqStub("    printf '{}'");
+
+    $process = runWorktreeLib($path, <<<BASH
+        {$jq}
+        trap '' PIPE
+        printf '%*s' 200000 '' | jq -r '.path' >/dev/null
+        BASH);
+
+    expect($process->getExitCode())->toBe(0, worktreeFailure($process));
 });
 
 test('list keeps its machine-readable table on stdout', function (): void {
     $path = tempGitDir('worktree-list');
 
-    $stubs = <<<'BASH'
-        require_tooling() { :; }
-        jq() {
+    $jq = jqStub(<<<'BASH'
             case "$*" in
                 *length*) printf '1\n' ;;
                 *) printf '1043\t0\t20000\t20001\t20002\t20003\t1043-slug\t/wt/1043-slug\n' ;;
             esac
-        }
-        BASH;
+        BASH);
 
-    $process = runWorktreeLib($path, $stubs."\nmain list", ['HOME' => $path.'/home']);
+    $stubs = "require_tooling() { :; }\n".$jq;
 
-    expect($process->getExitCode())->toBe(0)
+    $process = runWorktreeLib($path, $stubs."\nmain list");
+
+    expect($process->getExitCode())->toBe(0, worktreeFailure($process))
         ->and($process->getOutput())->toContain('ISSUE')
         ->and($process->getOutput())->toContain('1043-slug')
         ->and($process->getOutput())->toContain('/wt/1043-slug');
