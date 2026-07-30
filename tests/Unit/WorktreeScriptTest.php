@@ -229,6 +229,149 @@ function worktreeCreateStubs(): string
         BASH;
 }
 
+/**
+ * A `jq` answering the registry filters a teardown reaches: the entry registered
+ * for the issue (nothing, when $project is null), the two fields bin/worktree
+ * then reads off it, and the projects every entry claims. The arms are ordered
+ * most specific first — `map(.project)` also contains `.project`.
+ *
+ * @param  list<string>  $registeredProjects
+ */
+function registryJqStub(?string $path, ?string $project, array $registeredProjects = []): string
+{
+    $entry = $project === null ? '' : sprintf('{"path":"%s","project":"%s"}', $path, $project);
+    $projects = implode('\n', $registeredProjects);
+
+    return jqStub(<<<BASH
+            case "\$*" in
+                *'map(.project)'*) printf '%b\n' '{$projects}' ;;
+                *'// empty'*) printf '%s\n' '{$entry}' ;;
+                *'.path'*) printf '%s\n' '{$path}' ;;
+                *'.project'*) printf '%s\n' '{$project}' ;;
+                *) printf '{}\n' ;;
+            esac
+        BASH);
+}
+
+/**
+ * Seed the docker stub's inventory: one `<project> <name>` line per resource.
+ *
+ * @param  array<string, list<string>>  $inventory
+ */
+function inventoryLines(array $inventory): string
+{
+    $lines = '';
+
+    foreach ($inventory as $project => $names) {
+        foreach ($names as $name) {
+            $lines .= $project.' '.$name."\n";
+        }
+    }
+
+    return $lines;
+}
+
+/**
+ * A `docker` that shadows the real binary against a fake inventory rather than a
+ * daemon, so a teardown can be driven without one. $volumes and $containers seed
+ * what is on disk per Compose project; the stub then reads and writes that
+ * inventory the way the real commands would, which is what lets a test assert on
+ * what SURVIVED a teardown rather than on which commands it happened to run.
+ *
+ * The two failure shapes issue #1095 turned on are configurable: $stuck names
+ * volumes `docker volume rm` refuses, and $composeDownFails makes
+ * `docker compose down` exit non-zero with a message of its own.
+ *
+ * @param  array<string, list<string>>  $volumes  project => volume names on disk
+ * @param  array<string, list<string>>  $containers  project => container ids on disk
+ * @param  list<string>  $stuck  volumes `docker volume rm` refuses to remove
+ */
+function dockerStub(
+    string $path,
+    array $volumes = [],
+    array $containers = [],
+    array $stuck = [],
+    bool $composeDownFails = false,
+): string {
+    file_put_contents($path.'/docker-volumes', inventoryLines($volumes));
+    file_put_contents($path.'/docker-containers', inventoryLines($containers));
+
+    $stuckList = implode(' ', $stuck);
+    $downFails = $composeDownFails ? '1' : '';
+
+    return <<<BASH
+        __VOLUMES__='{$path}/docker-volumes'
+        __CONTAINERS__='{$path}/docker-containers'
+        __DOCKER_LOG__='{$path}/docker-calls.log'
+        __STUCK__='{$stuckList}'
+        __DOWN_FAILS__='{$downFails}'
+
+        __drop_lines() {
+            grep -v "\$2" "\$1" > "\$1.tmp" || true
+            mv "\$1.tmp" "\$1"
+        }
+
+        docker() {
+            printf '%s\n' "\$*" >> "\$__DOCKER_LOG__"
+            case "\$*" in
+                *' down --volumes'*)
+                    if [ -n "\$__DOWN_FAILS__" ]; then
+                        printf 'error during connect: dial unix docker.raw.sock: EOF\n' >&2
+                        return 1
+                    fi
+                    __drop_lines "\$__VOLUMES__" "^\$3 "
+                    __drop_lines "\$__CONTAINERS__" "^\$3 "
+                    ;;
+                'volume ls --quiet --filter label=com.docker.compose.project='*)
+                    awk -v p="\${5##*=}" '\$1 == p { print \$2 }' "\$__VOLUMES__"
+                    ;;
+                'ps --all --quiet --filter label=com.docker.compose.project='*)
+                    awk -v p="\${5##*=}" '\$1 == p { print \$2 }' "\$__CONTAINERS__"
+                    ;;
+                'volume ls --filter label=com.docker.compose.project --format '*)
+                    awk '{ print \$1 }' "\$__VOLUMES__"
+                    ;;
+                'ps --all --filter label=com.docker.compose.project --format '*)
+                    awk '{ print \$1 }' "\$__CONTAINERS__"
+                    ;;
+                'volume rm '*)
+                    shift 2
+                    for __volume in "\$@"; do
+                        case " \$__STUCK__ " in *" \$__volume "*) continue ;; esac
+                        __drop_lines "\$__VOLUMES__" " \$__volume\\\$"
+                    done
+                    ;;
+                'rm --force --volumes '*)
+                    shift 3
+                    for __container in "\$@"; do
+                        __drop_lines "\$__CONTAINERS__" " \$__container\\\$"
+                    done
+                    ;;
+            esac
+            return 0
+        }
+        BASH;
+}
+
+/**
+ * The docker stub's recorded invocations, one per line.
+ *
+ * @return list<string>
+ */
+function dockerCalls(string $path): array
+{
+    return sailCalls($path.'/docker-calls.log');
+}
+
+/**
+ * What the docker stub's inventory still holds, as one `<project> <name>` line
+ * per resource.
+ */
+function dockerInventory(string $path, string $kind = 'volumes'): string
+{
+    return (string) file_get_contents($path.'/docker-'.$kind);
+}
+
 function gitRevision(string $cwd, string $revision): string
 {
     return trim(runGit($cwd, 'rev-parse', $revision)->getOutput());
@@ -695,6 +838,181 @@ test('list keeps its machine-readable table on stdout', function (): void {
         ->and($process->getOutput())->toContain('ISSUE')
         ->and($process->getOutput())->toContain('1043-slug')
         ->and($process->getOutput())->toContain('/wt/1043-slug');
+});
+
+test('remove reclaims every volume the project still holds', function (): void {
+    $path = tempGitDir('worktree-remove');
+    $stubs = "require_tooling() { :; }\n"
+        .registryJqStub($path.'/wt', 'desk-377')."\n"
+        .dockerStub($path, volumes: ['desk-377' => ['desk-377_sail-pgsql', 'desk-377_sail-redis']]);
+
+    $process = runWorktreeLib($path, $stubs."\nmain remove 377");
+
+    expect($process->getExitCode())->toBe(0, worktreeFailure($process))
+        ->and(dockerInventory($path))->toBe('');
+});
+
+// The teardown that shipped swallowed compose's stderr and logged "already
+// down?" on ANY non-zero exit, then deleted the registry entry that was the only
+// way back to the volumes — so the failure was indistinguishable from a clean
+// run right up until the disk filled (issue #1095).
+test('a failed compose teardown is reported with its own error, not as "already down?"', function (): void {
+    $path = tempGitDir('worktree-remove-compose-failure');
+    $stubs = "require_tooling() { :; }\n"
+        .registryJqStub($path.'/wt', 'desk-377')."\n"
+        .dockerStub($path, volumes: ['desk-377' => ['desk-377_sail-pgsql']], composeDownFails: true);
+
+    $process = runWorktreeLib($path, $stubs."\nmain remove 377");
+
+    expect($process->getExitCode())->toBe(0, worktreeFailure($process))
+        ->and($process->getErrorOutput())->toContain('dial unix docker.raw.sock')
+        ->and($process->getErrorOutput())->not->toContain('already down?')
+        ->and(dockerInventory($path))->toBe('');
+});
+
+test('remove names the volumes it could not reclaim and fails rather than reporting success', function (): void {
+    $path = tempGitDir('worktree-remove-stuck');
+    $stubs = "require_tooling() { :; }\n"
+        .registryJqStub($path.'/wt', 'desk-377')."\n"
+        .dockerStub(
+            $path,
+            volumes: ['desk-377' => ['desk-377_sail-pgsql']],
+            stuck: ['desk-377_sail-pgsql'],
+            composeDownFails: true,
+        );
+
+    $process = runWorktreeLib($path, $stubs."\nmain remove 377");
+
+    expect($process->getExitCode())->not->toBe(0)
+        ->and($process->getErrorOutput())->toContain('desk-377_sail-pgsql')
+        ->and($process->getErrorOutput())->toContain('reap');
+});
+
+// A worktree removed by hand with `git worktree remove`, or one whose registry
+// entry a failed teardown deleted, left the volumes with no supported way to
+// reclaim them at all: `remove` refused to run without an entry. The project
+// name is derivable from the issue number, so the entry is a convenience.
+test('remove falls back to the derivable project when no registry entry survives', function (): void {
+    $path = tempGitDir('worktree-remove-unregistered');
+    $stubs = "require_tooling() { :; }\n"
+        .registryJqStub(null, null)."\n"
+        .dockerStub($path, volumes: ['desk-377' => ['desk-377_sail-pgsql']]);
+
+    $process = runWorktreeLib($path, $stubs."\nmain remove 377");
+
+    expect($process->getExitCode())->toBe(0, worktreeFailure($process))
+        ->and($process->getErrorOutput())->toContain('desk-377')
+        ->and(dockerInventory($path))->toBe('');
+});
+
+// Anonymous volumes are only reachable through the container that mounts them,
+// so a container compose left behind holds disk nothing else can name.
+test('remove takes containers compose left behind with it, and their anonymous volumes', function (): void {
+    $path = tempGitDir('worktree-remove-containers');
+    $stubs = "require_tooling() { :; }\n"
+        .registryJqStub($path.'/wt', 'desk-377')."\n"
+        .dockerStub(
+            $path,
+            volumes: ['desk-377' => ['desk-377_sail-pgsql']],
+            containers: ['desk-377' => ['c0ffee']],
+            composeDownFails: true,
+        );
+
+    $process = runWorktreeLib($path, $stubs."\nmain remove 377");
+
+    expect($process->getExitCode())->toBe(0, worktreeFailure($process))
+        ->and(dockerCalls($path))->toContain('rm --force --volumes c0ffee')
+        ->and(dockerInventory($path, 'containers'))->toBe('');
+});
+
+test('reap reclaims orphaned desk projects and leaves registered ones alone', function (): void {
+    $path = tempGitDir('worktree-reap');
+    $stubs = "require_tooling() { :; }\n"
+        .registryJqStub(null, null, ['desk-529'])."\n"
+        .dockerStub($path, volumes: [
+            'desk-377' => ['desk-377_sail-pgsql'],
+            'desk-529' => ['desk-529_sail-pgsql'],
+            'the-desk' => ['the-desk_sail-pgsql'],
+        ]);
+
+    $process = runWorktreeLib($path, $stubs."\nmain reap");
+
+    expect($process->getExitCode())->toBe(0, worktreeFailure($process))
+        ->and(dockerInventory($path))->not->toContain('desk-377_sail-pgsql')
+        ->and(dockerInventory($path))->toContain('desk-529_sail-pgsql')
+        ->and(dockerInventory($path))->toContain('the-desk_sail-pgsql');
+});
+
+test('reap --dry-run names what it would reclaim without removing any of it', function (): void {
+    $path = tempGitDir('worktree-reap-dry-run');
+    $stubs = "require_tooling() { :; }\n"
+        .registryJqStub(null, null)."\n"
+        .dockerStub($path, volumes: ['desk-377' => ['desk-377_sail-pgsql']]);
+
+    $process = runWorktreeLib($path, $stubs."\nmain reap --dry-run");
+
+    expect($process->getExitCode())->toBe(0, worktreeFailure($process))
+        ->and($process->getErrorOutput())->toContain('desk-377_sail-pgsql')
+        ->and(dockerInventory($path))->toContain('desk-377_sail-pgsql');
+});
+
+// Surfaced where the operator already looks, and on stderr, so `list` keeps the
+// machine-readable table it is contracted to put on stdout.
+test('list warns about orphaned projects on stderr while its table stays on stdout', function (): void {
+    $path = tempGitDir('worktree-list-orphans');
+
+    $jq = jqStub(<<<'BASH'
+            case "$*" in
+                *'map(.project)'*) printf 'desk-529\n' ;;
+                *length*) printf '1\n' ;;
+                *) printf '1043\t0\t20000\t20001\t20002\t20003\t1043-slug\t/wt/1043-slug\n' ;;
+            esac
+        BASH);
+
+    $stubs = "require_tooling() { :; }\n".$jq."\n"
+        .dockerStub($path, volumes: [
+            'desk-377' => ['desk-377_sail-pgsql'],
+            'desk-529' => ['desk-529_sail-pgsql'],
+        ]);
+
+    $process = runWorktreeLib($path, $stubs."\nmain list");
+
+    expect($process->getExitCode())->toBe(0, worktreeFailure($process))
+        ->and($process->getOutput())->toContain('1043-slug')
+        ->and($process->getOutput())->not->toContain('desk-377')
+        ->and($process->getErrorOutput())->toContain('desk-377')
+        ->and($process->getErrorOutput())->toContain('reap')
+        ->and($process->getErrorOutput())->not->toContain('desk-529');
+});
+
+// The orphan scan is a snapshot and reap deletes data, so the registry is read
+// again under the same per-issue lock `create` holds. Here the scan sees no
+// registered project (`map(.project)` is empty) while the re-check finds the
+// entry a concurrent bootstrap wrote in between — the shape of the race.
+test('reap skips a project a concurrent bootstrap registered while it was scanning', function (): void {
+    $path = tempGitDir('worktree-reap-race');
+    $stubs = "require_tooling() { :; }\n"
+        .registryJqStub($path.'/wt', 'desk-377')."\n"
+        .dockerStub($path, volumes: ['desk-377' => ['desk-377_sail-pgsql']]);
+
+    $process = runWorktreeLib($path, $stubs."\nmain reap");
+
+    expect($process->getExitCode())->toBe(0, worktreeFailure($process))
+        ->and($process->getErrorOutput())->toContain('skipping desk-377')
+        ->and(dockerInventory($path))->toContain('desk-377_sail-pgsql');
+});
+
+// Nothing to reap is the ordinary case, and it must not read as a problem.
+test('reap says so plainly when no desk project has been orphaned', function (): void {
+    $path = tempGitDir('worktree-reap-clean');
+    $stubs = "require_tooling() { :; }\n"
+        .registryJqStub(null, null, ['desk-529'])."\n"
+        .dockerStub($path, volumes: ['desk-529' => ['desk-529_sail-pgsql']]);
+
+    $process = runWorktreeLib($path, $stubs."\nmain reap");
+
+    expect($process->getExitCode())->toBe(0, worktreeFailure($process))
+        ->and($process->getErrorOutput())->toContain('no orphaned');
 });
 
 test('the services the bootstrap starts all exist in compose.yaml', function (): void {

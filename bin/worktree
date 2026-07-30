@@ -40,9 +40,12 @@
 #                         It is fetched and forked from its remote-tracking ref
 #                         when it has one, so a stale local branch of the same
 #                         name cannot be inherited as the baseline.
-#   list                  Show active worktrees with their slots and ports.
+#   list                  Show active worktrees with their slots and ports, and
+#                         warn about orphaned desk-* Docker resources.
 #   remove <NNN>          Tear down containers + volumes, remove the git worktree,
 #                         and free the registry slot. Leaves the branch intact.
+#   reap [--dry-run]      Reclaim the Docker resources of every desk-<NNN>
+#                         project no registry entry claims.
 #
 # Config (environment overrides):
 #   WORKTREE_SLOTS        Number of concurrent slots (default 10).
@@ -175,11 +178,18 @@ acquire_issue_lock() {
     HELD_ISSUE_LOCK="$lock"
 }
 
+# Release the per-issue lock mid-flow, so one invocation can take several in turn
+# (cmd_reap holds one issue's lock at a time).
+release_issue_lock() {
+    [ -n "$HELD_ISSUE_LOCK" ] || return 0
+    rmdir "$HELD_ISSUE_LOCK" 2>/dev/null || true
+    HELD_ISSUE_LOCK=""
+}
+
 # Release both locks; safe to call unconditionally from the EXIT trap.
 release_all_locks() {
     release_lock
-    [ -n "$HELD_ISSUE_LOCK" ] && rmdir "$HELD_ISSUE_LOCK" 2>/dev/null
-    HELD_ISSUE_LOCK=""
+    release_issue_lock
     return 0
 }
 
@@ -301,6 +311,104 @@ attach_worktree() {
     local head
     head="$(git -C "$path" rev-parse --abbrev-ref HEAD 2>/dev/null || true)"
     [ "$head" = "$branch" ] || die "worktree ${path} is on '${head:-<unknown>}', expected '${branch}' — refusing to continue, commits would land on the wrong branch"
+}
+
+# --- docker accounting -------------------------------------------------------
+# Everything Compose creates carries `com.docker.compose.project`, the named
+# volumes from compose.yaml and the anonymous ones an image's VOLUME directive
+# produces alike. So one label query answers "what is still on disk for this
+# worktree?" without having to know which volumes compose.yaml happens to
+# declare — which is what makes a teardown verifiable rather than hopeful.
+#
+# Every query tolerates an absent or unreachable daemon: they back diagnostics
+# (`list`) as well as the teardown, and a listing is not worth failing over.
+project_volumes() {
+    docker volume ls --quiet --filter "label=com.docker.compose.project=$1" 2>/dev/null || true
+}
+
+project_containers() {
+    docker ps --all --quiet --filter "label=com.docker.compose.project=$1" 2>/dev/null || true
+}
+
+# Every Compose project with something still on disk, deduplicated.
+labelled_projects() {
+    {
+        docker volume ls --filter 'label=com.docker.compose.project' --format '{{.Label "com.docker.compose.project"}}' 2>/dev/null || true
+        docker ps --all --filter 'label=com.docker.compose.project' --format '{{.Label "com.docker.compose.project"}}' 2>/dev/null || true
+    } | sort -u
+}
+
+# The projects the registry currently claims.
+registry_projects() {
+    jq -r 'map(.project) | .[]' "$REGISTRY_FILE" 2>/dev/null || true
+}
+
+# Worktree projects nothing claims: named `desk-<issue>` — so the main checkout's
+# own `the-desk` and every unrelated project on the machine are out of scope —
+# with resources on disk and no registry entry. One per line.
+orphan_projects() {
+    local registered project
+    registered="$(registry_projects)"
+
+    while read -r project; do
+        [ -n "$project" ] || continue
+        case "$project" in
+            desk-[1-9]*) ;;
+            *) continue ;;
+        esac
+        case "${project#desk-}" in *[!0-9]*) continue ;; esac
+
+        if printf '%s\n' "$registered" | grep -qxF "$project"; then
+            continue
+        fi
+
+        printf '%s\n' "$project"
+    done <<< "$(labelled_projects)"
+}
+
+# Tear a Compose project down and PROVE it, rather than trusting the exit code of
+# a command whose stderr was thrown away. `down --volumes` is still asked first,
+# but its output is kept and shown when it fails, and whatever it leaves behind is
+# removed by hand: containers first, since `--volumes` there is the only way to
+# reach the anonymous volumes they mount, then the named volumes.
+#
+# Returns non-zero, naming the survivors, when volumes are still on disk
+# afterwards. The teardown this replaces logged "compose teardown reported
+# nothing to remove (already down?)" on ANY non-zero exit and carried on to
+# delete the registry entry — so a failure was indistinguishable from a clean run
+# until the disk filled, and by then nothing pointed at the volumes any more
+# (issue #1095).
+teardown_project() {
+    local project="$1" output status=0 leftover
+
+    output="$(docker compose -p "$project" -f "${MAIN_ROOT}/compose.yaml" down --volumes --remove-orphans 2>&1)" || status=$?
+    if [ "$status" -ne 0 ]; then
+        log "warning: 'docker compose -p ${project} down --volumes' exited ${status}:"
+        printf '%s\n' "$output" | sed 's/^/    /' >&2
+        log "removing the project's containers and volumes directly instead"
+    fi
+
+    # One call per resource rather than one call for all of them: a single
+    # `docker rm a b c` gives up on the whole batch when one id is unknown, and
+    # the survivors are what this function reports on.
+    local resource
+    while read -r resource; do
+        [ -n "$resource" ] || continue
+        docker rm --force --volumes "$resource" >/dev/null 2>&1 || true
+    done <<< "$(project_containers "$project")"
+
+    while read -r resource; do
+        [ -n "$resource" ] || continue
+        docker volume rm "$resource" >/dev/null 2>&1 || true
+    done <<< "$(project_volumes "$project")"
+
+    leftover="$(project_volumes "$project")"
+    [ -n "$leftover" ] || return 0
+
+    log "error: these volumes for project ${project} are still on the Docker disk:"
+    printf '%s\n' "$leftover" | sed 's/^/    /' >&2
+
+    return 1
 }
 
 # Insert or replace KEY=VALUE in an env file.
@@ -700,6 +808,7 @@ cmd_list() {
     count="$(jq 'length' "$REGISTRY_FILE")"
     if [ "$count" -eq 0 ]; then
         log "no active worktrees"
+        warn_about_orphans
         return 0
     fi
     local rows
@@ -720,6 +829,72 @@ cmd_list() {
     else
         emit "$rows"
     fi
+    warn_about_orphans
+}
+
+# Surface leaked Docker resources where whoever runs these worktrees already
+# looks. On stderr, so `list` keeps the machine-readable table it is contracted
+# to put on stdout, and silent when there is nothing to say.
+warn_about_orphans() {
+    local orphans count
+    orphans="$(orphan_projects)"
+    [ -n "$orphans" ] || return 0
+
+    count="$(printf '%s\n' "$orphans" | grep -c . || true)"
+    log "warning: ${count} orphaned Docker project(s) no worktree claims: $(printf '%s' "$orphans" | tr '\n' ' ')"
+    log "         they still hold volumes on the Docker disk — reclaim them with 'bin/worktree reap'"
+}
+
+# --- reap --------------------------------------------------------------------
+# The catch-all for volumes `remove` never got to: a worktree torn down by hand,
+# a teardown interrupted before it finished, or a registry file that was lost.
+# Scoped to `desk-<issue>` projects with no registry entry, so a live worktree —
+# and every unrelated project sharing the machine's Docker daemon — is untouched.
+cmd_reap() {
+    local dry_run=""
+    case "${1:-}" in
+        '') ;;
+        --dry-run) dry_run=1 ;;
+        *) die "unknown option for reap: ${1} (try --dry-run)" ;;
+    esac
+
+    ensure_registry
+
+    local orphans
+    orphans="$(orphan_projects)"
+    if [ -z "$orphans" ]; then
+        log "no orphaned desk-* Docker resources"
+        return 0
+    fi
+
+    local project issue failed=0
+    while read -r project; do
+        [ -n "$project" ] || continue
+
+        if [ -n "$dry_run" ]; then
+            log "would reclaim ${project}: $(project_volumes "$project" | tr '\n' ' ')"
+            continue
+        fi
+
+        # The scan above is a snapshot, and this deletes data. Take the same
+        # per-issue lock `create` holds and re-read the registry under it, so a
+        # bootstrap that started in between is never reaped out from under
+        # itself.
+        issue="${project#desk-}"
+        acquire_issue_lock "$issue"
+
+        if [ -n "$(registry_get "$issue")" ]; then
+            log "skipping ${project}: a worktree was registered for it while reaping"
+            release_issue_lock
+            continue
+        fi
+
+        log "reclaiming orphaned project ${project}"
+        teardown_project "$project" || failed=1
+        release_issue_lock
+    done <<< "$orphans"
+
+    [ "$failed" -eq 0 ] || die "some orphaned volumes are still on disk (see above)"
 }
 
 # --- remove ------------------------------------------------------------------
@@ -736,17 +911,28 @@ cmd_remove() {
     local entry
     entry="$(registry_get "$nnn")"
     release_lock
-    [ -n "$entry" ] || die "no worktree registered for #${nnn}"
 
     local path project
-    path="$(printf '%s' "$entry" | jq -r '.path')"
-    project="$(printf '%s' "$entry" | jq -r '.project')"
+    if [ -n "$entry" ]; then
+        path="$(printf '%s' "$entry" | jq -r '.path')"
+        project="$(printf '%s' "$entry" | jq -r '.project')"
+    else
+        # The registry entry is a convenience, not the source of truth: cmd_create
+        # derives the project name from the issue number and puts the worktree in
+        # a directory named after it, so both are recoverable. Refusing to run
+        # without an entry left a worktree removed by hand — or one whose entry a
+        # failed teardown had already deleted — with no supported way to reclaim
+        # its volumes at all (issue #1095).
+        project="desk-${nnn}"
+        path="$(worktree_path_for "$nnn")"
+        log "no worktree registered for #${nnn}; falling back to project ${project}${path:+ at ${path}}"
+    fi
 
     log "tearing down containers + volumes for project ${project}"
-    docker compose -p "$project" -f "${MAIN_ROOT}/compose.yaml" down --volumes --remove-orphans 2>/dev/null || \
-        log "compose teardown reported nothing to remove (already down?)"
+    local status=0
+    teardown_project "$project" || status=$?
 
-    if [ -d "$path" ]; then
+    if [ -n "$path" ] && [ -d "$path" ]; then
         log "removing git worktree ${path}"
         git -C "$MAIN_ROOT" worktree remove --force "$path" 2>/dev/null || log "git worktree remove skipped (${path} not a registered worktree?)"
     fi
@@ -755,7 +941,26 @@ cmd_remove() {
     acquire_lock
     registry_del "$nnn"
     release_lock
+
+    # The git side is finished either way, so the slot is genuinely free; what
+    # failed is the disk. Saying so — loudly, and with a way back — is the whole
+    # point: the entry is gone, and `reap` is now what reaches those volumes.
+    [ "$status" -eq 0 ] || die "freed slot for #${nnn}, but its volumes are still on the Docker disk — retry with 'bin/worktree reap'"
+
     log "freed slot for #${nnn} (branch left intact)"
+}
+
+# The worktree directory for an issue, recognised by the `<issue>-<slug>` shape
+# cmd_create gives it. Empty when there is none.
+worktree_path_for() {
+    local candidate
+    for candidate in "${WORKTREES_DIR}/${1}-"*; do
+        [ -d "$candidate" ] || continue
+        printf '%s' "$candidate"
+        return 0
+    done
+
+    return 0
 }
 
 # --- dispatch ----------------------------------------------------------------
@@ -767,6 +972,8 @@ usage: bin/worktree <command> [args]
                         Prints its absolute path:  cd "$(bin/worktree create 441)"
   list                  Show active worktrees, slots and ports.
   remove <NNN>          Tear down the worktree's containers/volumes and free its slot.
+  reap [--dry-run]      Reclaim the Docker resources of desk-<NNN> projects that
+                        no longer have a worktree registered.
 EOF
     exit 64
 }
@@ -794,8 +1001,9 @@ main() {
         create) cmd_create "$@" ;;
         list)   cmd_list "$@" ;;
         remove) cmd_remove "$@" ;;
+        reap)   cmd_reap "$@" ;;
         -h|--help|help) usage ;;
-        *) die "unknown command: ${cmd} (try create|list|remove)" ;;
+        *) die "unknown command: ${cmd} (try create|list|remove|reap)" ;;
     esac
 }
 

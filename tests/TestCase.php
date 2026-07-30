@@ -6,6 +6,7 @@ use Illuminate\Foundation\Testing\TestCase as BaseTestCase;
 use Illuminate\Support\Env;
 use Laravel\Fortify\Features;
 use Laravel\Fortify\Fortify;
+use Tests\Support\DockerDiskGuard;
 use Tests\Support\FileSchemaBootstrapLock;
 use Tests\Support\SchemaBootstrapGuard;
 
@@ -29,10 +30,17 @@ abstract class TestCase extends BaseTestCase
      * two worker databases — Postgres then kills one of them with a deadlock
      * and an unrelated test errors out (issue #812). The guard lets that first
      * attempt stay fully parallel and re-runs a deadlocked worker on its own.
+     *
+     * The disk check ahead of it is a preflight of its own: everything below
+     * this line needs a Postgres with somewhere to write, and a Docker disk with
+     * nothing left fails the suite in terms that name anything but the disk
+     * (issue #1095).
      */
     #[\Override]
     protected function setUp(): void
     {
+        DockerDiskGuard::warnWhenDiskIsLow(sys_get_temp_dir());
+
         if (! SchemaBootstrapGuard::shouldGuard()) {
             parent::setUp();
 
