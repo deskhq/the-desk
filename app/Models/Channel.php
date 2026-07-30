@@ -24,6 +24,7 @@ use Illuminate\Support\Carbon;
  * @property string|null $name
  * @property string $slug
  * @property ChannelVisibility $visibility
+ * @property bool $is_default
  * @property ChannelType $type
  * @property string|null $dm_key
  * @property string|null $topic
@@ -43,7 +44,7 @@ use Illuminate\Support\Carbon;
  * @property-read Collection<int, User> $members
  * @property-read Collection<int, Message> $messages
  */
-#[Fillable(['team_id', 'name', 'slug', 'visibility', 'type', 'dm_key', 'topic', 'description', 'created_by', 'archived_at'])]
+#[Fillable(['team_id', 'name', 'slug', 'visibility', 'is_default', 'type', 'dm_key', 'topic', 'description', 'created_by', 'archived_at'])]
 class Channel extends Model
 {
     /**
@@ -297,6 +298,7 @@ class Channel extends Model
     {
         return [
             'visibility' => ChannelVisibility::class,
+            'is_default' => 'boolean',
             'type' => ChannelType::class,
             'archived_at' => 'datetime',
         ];

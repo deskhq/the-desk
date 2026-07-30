@@ -1,6 +1,7 @@
 <?php
 
 use App\Actions\Teams\CreateTeam;
+use App\Enums\ChannelCreationPolicy;
 use App\Enums\ChannelVisibility;
 use App\Enums\TeamRole;
 use App\Models\Channel;
@@ -178,4 +179,51 @@ test('a user who is not a team member cannot create a channel', function (): voi
         ->assertForbidden();
 
     expect(Channel::where('team_id', $team->id)->where('slug', 'marketing')->exists())->toBeFalse();
+});
+
+test('a plain member is refused the visibility their workspace reserves for admins', function (string $reserved, string $stillOpen): void {
+    $owner = User::factory()->create();
+    $member = User::factory()->create();
+    $team = app(CreateTeam::class)->handle($owner, 'Acme');
+    $team->memberships()->create(['user_id' => $member->id, 'role' => TeamRole::Member]);
+    $team->update([$reserved.'_channel_creation_policy' => ChannelCreationPolicy::Admins]);
+
+    $this->actingAs($member)
+        ->post(route('channels.store', ['team' => $team->slug]), [
+            'name' => 'Reserved',
+            'visibility' => $reserved,
+        ])
+        ->assertForbidden();
+
+    expect(Channel::where('team_id', $team->id)->where('slug', 'reserved')->exists())->toBeFalse();
+
+    // The other visibility is untouched: the two policies are independent.
+    $this->actingAs($member)
+        ->post(route('channels.store', ['team' => $team->slug]), [
+            'name' => 'Open',
+            'visibility' => $stillOpen,
+        ])
+        ->assertSessionHasNoErrors();
+
+    expect(Channel::where('team_id', $team->id)->where('slug', 'open')->exists())->toBeTrue();
+})->with([
+    'public reserved' => ['public', 'private'],
+    'private reserved' => ['private', 'public'],
+]);
+
+test('an admin still creates the visibility the workspace reserves for admins', function (): void {
+    $owner = User::factory()->create();
+    $admin = User::factory()->create();
+    $team = app(CreateTeam::class)->handle($owner, 'Acme');
+    $team->memberships()->create(['user_id' => $admin->id, 'role' => TeamRole::Admin]);
+    $team->update(['public_channel_creation_policy' => ChannelCreationPolicy::Admins]);
+
+    $this->actingAs($admin)
+        ->post(route('channels.store', ['team' => $team->slug]), [
+            'name' => 'Announcements',
+            'visibility' => 'public',
+        ])
+        ->assertSessionHasNoErrors();
+
+    expect(Channel::where('team_id', $team->id)->where('slug', 'announcements')->exists())->toBeTrue();
 });

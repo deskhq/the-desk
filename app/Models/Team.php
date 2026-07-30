@@ -3,9 +3,12 @@
 namespace App\Models;
 
 use App\Concerns\GeneratesUniqueTeamSlugs;
+use App\Enums\ChannelCreationPolicy;
+use App\Enums\ChannelVisibility;
 use App\Enums\TeamRole;
 use App\Enums\UserType;
 use Database\Factories\TeamFactory;
+use Illuminate\Contracts\Database\Query\Builder;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
@@ -21,6 +24,8 @@ use Illuminate\Support\Carbon;
  * @property string $name
  * @property string $slug
  * @property bool $is_personal
+ * @property ChannelCreationPolicy $public_channel_creation_policy
+ * @property ChannelCreationPolicy $private_channel_creation_policy
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  * @property Carbon|null $deleted_at
@@ -32,11 +37,25 @@ use Illuminate\Support\Carbon;
  * @property-read Collection<int, UserGroup> $userGroups
  * @property-read Collection<int, WebhookSubscription> $webhookSubscriptions
  */
-#[Fillable(['name', 'slug', 'is_personal'])]
+#[Fillable(['name', 'slug', 'is_personal', 'public_channel_creation_policy', 'private_channel_creation_policy'])]
 class Team extends Model
 {
     /** @use HasFactory<TeamFactory> */
     use GeneratesUniqueTeamSlugs, HasFactory, HasUuids, SoftDeletes;
+
+    /**
+     * The model's default attribute values.
+     *
+     * Mirrors the columns' database defaults so a freshly created team answers
+     * {@see creationPolicyFor()} without being reloaded — `create()` leaves an
+     * attribute the database filled in absent from the in-memory model.
+     *
+     * @var array<string, string>
+     */
+    protected $attributes = [
+        'public_channel_creation_policy' => ChannelCreationPolicy::Members->value,
+        'private_channel_creation_policy' => ChannelCreationPolicy::Members->value,
+    ];
 
     /**
      * Bootstrap the model and its traits.
@@ -226,7 +245,40 @@ class Team extends Model
     {
         return [
             'is_personal' => 'boolean',
+            'public_channel_creation_policy' => ChannelCreationPolicy::class,
+            'private_channel_creation_policy' => ChannelCreationPolicy::class,
         ];
+    }
+
+    /**
+     * Get the policy governing who may create a channel of the given visibility.
+     */
+    public function creationPolicyFor(ChannelVisibility $visibility): ChannelCreationPolicy
+    {
+        return $visibility === ChannelVisibility::Private
+            ? $this->private_channel_creation_policy
+            : $this->public_channel_creation_policy;
+    }
+
+    /**
+     * Get the workspace's public channels that every new member is joined to.
+     *
+     * The protected #general is a default in code rather than by flag, so it is
+     * matched by slug alongside whatever admins have marked. Archived and
+     * deleted channels are excluded — the trait's global scope drops the latter
+     * — so a default that has since been retired quietly stops applying instead
+     * of dropping newcomers into a read-only room.
+     *
+     * @return HasMany<Channel, $this>
+     */
+    public function defaultChannels(): HasMany
+    {
+        return $this->channels()
+            ->where('visibility', ChannelVisibility::Public->value)
+            ->whereNull('archived_at')
+            ->where(fn (Builder $query): Builder => $query
+                ->where('is_default', true)
+                ->orWhere('slug', Channel::GENERAL_SLUG));
     }
 
     /**

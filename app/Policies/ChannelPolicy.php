@@ -13,11 +13,53 @@ class ChannelPolicy
     /**
      * Determine whether the user can create a channel in the team.
      *
-     * Any team member (Member+) may create a channel.
+     * The workspace holds one creation policy per visibility, so the answer
+     * depends on which kind of channel is being asked for: a workspace may
+     * curate its public directory while leaving private channels self-service.
+     * Both default to {@see ChannelCreationPolicy::Members}, which is the
+     * long-standing "any team member may create" behaviour.
+     *
+     * `$visibility` is omitted when the question is the affordance-level "is
+     * there any channel this user could create?" — the sidebar's New button has
+     * no visibility in hand yet — and is answered by either policy letting them
+     * through. Membership is required either way.
      */
-    public function create(User $user, Team $team): bool
+    public function create(User $user, Team $team, ?ChannelVisibility $visibility = null): bool
     {
-        return $user->belongsToTeam($team);
+        if (! $user->belongsToTeam($team)) {
+            return false;
+        }
+
+        $role = $user->teamRole($team);
+
+        if ($visibility !== null) {
+            return $team->creationPolicyFor($visibility)->permits($role);
+        }
+
+        return $team->creationPolicyFor(ChannelVisibility::Public)->permits($role)
+            || $team->creationPolicyFor(ChannelVisibility::Private)->permits($role);
+    }
+
+    /**
+     * Determine whether the user can mark the channel as one every new member
+     * joins on arrival.
+     *
+     * Deciding where newcomers land is a workspace-shaping call, so it sits with
+     * a team Admin+ rather than with the channel's members. Only a live public
+     * channel can be a default: a private one cannot be joined unasked, an
+     * archived one is read-only, and #general is already a default in code with
+     * no flag to toggle.
+     */
+    public function setDefault(User $user, Channel $channel): bool
+    {
+        if ($channel->visibility !== ChannelVisibility::Public) {
+            return false;
+        }
+        if ($channel->isGeneral() || $channel->isArchived()) {
+            return false;
+        }
+
+        return $this->administers($user, $channel);
     }
 
     /**

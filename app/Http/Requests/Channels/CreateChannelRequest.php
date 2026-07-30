@@ -17,10 +17,24 @@ class CreateChannelRequest extends FormRequest
 {
     /**
      * Determine if the user is authorized to make this request.
+     *
+     * The workspace's creation policy is held per visibility, so the gate is
+     * asked about the visibility being requested. The ability is named for the
+     * *Channel* being created, not the team it lands in, so the model class
+     * leads the argument list — `Gate::allows('create', $team)` would resolve
+     * {@see \App\Policies\TeamPolicy::create()} (may this user start a
+     * workspace?) instead.
+     *
+     * This runs ahead of validation, so an unrecognized visibility has not been
+     * rejected yet. It falls back to the visibility-less question rather than
+     * guessing, which lets the request reach validation and fail there with the
+     * 422 it deserves instead of a misleading 403.
      */
     public function authorize(): bool
     {
-        return Gate::allows('create', $this->team());
+        $visibility = ChannelVisibility::tryFrom((string) $this->input('visibility'));
+
+        return Gate::allows('create', [Channel::class, $this->team(), $visibility]);
     }
 
     /**
