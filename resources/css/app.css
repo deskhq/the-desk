@@ -46,6 +46,7 @@
     --color-destructive: var(--destructive);
     --color-destructive-foreground: var(--destructive-foreground);
     --color-destructive-text: var(--destructive-text);
+    --color-success-text: var(--success-text);
 
     --color-border: var(--border);
     --color-input: var(--input);
@@ -174,6 +175,15 @@
        which the fill token only just met on the page background (#678), and on
        the dimmer `bg-destructive/10` tint composited over either (#717). */
     --destructive-text: hsl(0 72% 40%);
+    /* Success as inline *text* — the "Active" pills and the delivery log's
+       success figure, the destructive tokens' counterpart. There is no --success
+       fill to derive it from, and Tailwind's `green-600` measured 3.19:1 on
+       --card at the text-xs these all use (#1064), so this is tuned straight to
+       the palette: deep enough to clear WCAG AA 4.5:1 on --background, the
+       darkest surface it lands on, and desaturated to sit with the warm greys
+       rather than shout. Doubles as the fill of the status dot each pill
+       carries, so a pill reads as one colour. */
+    --success-text: #33664b;
     --border: #e3dfd5;
     --input: #e0dbcd;
     /* Scrim behind a bottom sheet — ink at 50%, per the mobile design (#772).
@@ -281,6 +291,9 @@
        again for the `bg-destructive/10` tint, which composites *up* on a dark
        surface and left the text at 4.37:1 (#717). */
     --destructive-text: hsl(0 72% 64%);
+    /* The green-on-ink the slab already carries in the light theme, reused here:
+       the dark card is the same ink, and it measures 8.8:1 on it. */
+    --success-text: #86c8a1;
     --border: #2e2a21;
     --input: #2a271f;
     /* Deeper than the light theme's: the sheet is a light-on-dark card here, so
