@@ -396,7 +396,9 @@ class ChannelController extends Controller
      */
     public function destroy(DeleteChannelRequest $request, Team $team, Channel $channel, DeleteChannel $deleteChannel, AuditRecorder $recorder): RedirectResponse
     {
-        $deleteChannel->handle($channel);
+        // The action returns the row it actually stamped, so the audit entry
+        // below reads the deletion date the database settled on.
+        $channel = $deleteChannel->handle($channel);
 
         $recorder->record($team, $request->user(), AuditAction::ChannelDeleted, $channel, [
             'channel_name' => $channel->name,

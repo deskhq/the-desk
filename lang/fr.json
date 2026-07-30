@@ -1464,5 +1464,6 @@
   "Channel deleted": "Canal supprimé",
   "Channel restored": "Canal restauré",
   "Deleted #%s, to be purged on %s": "#%s supprimé, purge prévue le %s",
-  "Restored #%s": "#%s restauré"
+  "Restored #%s": "#%s restauré",
+  "posts to a deleted channel as :bot": "publie dans un canal supprimé en tant que :bot"
 }

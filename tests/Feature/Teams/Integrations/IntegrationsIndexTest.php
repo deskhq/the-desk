@@ -49,6 +49,24 @@ it('renders the integrations home with bots, webhooks, and form options for a ma
         );
 });
 
+it('still lists an incoming webhook whose channel has been deleted, so it can be revoked', function (): void {
+    ['team' => $team, 'owner' => $owner] = integrationsFixture();
+    $bot = User::factory()->bot($team)->create(['name' => 'Deploy Bot']);
+    $channel = Channel::factory()->for($team)->create(['name' => 'ops']);
+    IncomingWebhook::factory()->for($team)->for($bot, 'bot')->for($channel, 'channel')->create();
+
+    $channel->delete();
+
+    $this->actingAs($owner)
+        ->get(route('teams.integrations.index', $team))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page): Assert => $page
+            ->has('incomingWebhooks', 1)
+            ->where('incomingWebhooks.0.channelName', null)
+            ->etc()
+        );
+});
+
 it('allows an admin to view the integrations home', function (): void {
     ['team' => $team, 'admin' => $admin] = integrationsFixture();
 

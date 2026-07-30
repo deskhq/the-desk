@@ -15,18 +15,28 @@ class DeleteChannel
      *
      * The stamp is all that happens here: {@see PurgeDeletedChannel}
      * does the irreversible work once the window has closed, so until then the
-     * channel is fully recoverable through {@see RestoreChannel}. An already
-     * deleted channel keeps its original `deleted_at` rather than having its
-     * window extended, which makes a double submit a no-op.
+     * channel is fully recoverable through {@see RestoreChannel}.
+     *
+     * The row is re-read under a lock rather than trusted from the instance the
+     * caller resolved: two requests racing to delete the same channel would
+     * otherwise both see it live, and the second would overwrite `deleted_at`
+     * and silently extend the grace window. Under the lock the loser sees the
+     * winner's stamp and leaves it alone, so the channel keeps the deletion date
+     * it actually got — which is the date the purge is scheduled from.
      */
     public function handle(Channel $channel): Channel
     {
         return DB::transaction(function () use ($channel): Channel {
-            if (! $channel->trashed()) {
-                $channel->delete();
+            $locked = Channel::withTrashed()
+                ->whereKey($channel->getKey())
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            if (! $locked->trashed()) {
+                $locked->delete();
             }
 
-            return $channel;
+            return $locked;
         });
     }
 }

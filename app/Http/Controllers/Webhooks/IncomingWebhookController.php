@@ -76,8 +76,11 @@ class IncomingWebhookController extends Controller
         $channel = $webhook->channel;
 
         // The binding can outlive the membership that justified it (the bot was
-        // removed, or the channel was archived); refuse the post rather than
-        // authoring into a channel the bot may no longer touch.
+        // removed, or the channel was archived), and it can outlive the channel
+        // itself: a deleted channel is soft-deleted for its grace window, so the
+        // relation resolves to null rather than the row it points at. Refuse the
+        // post rather than authoring into a channel the bot may no longer touch.
+        abort_if($channel === null, 403);
         abort_unless(Gate::forUser($bot)->allows('postMessage', $channel), 403);
 
         $postMessage->handle(

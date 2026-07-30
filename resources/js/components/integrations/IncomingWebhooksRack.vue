@@ -75,11 +75,18 @@ defineEmits<{
                         hook.name
                     }}</span>
                     <span class="truncate text-xs text-muted-foreground">
+                        <!-- The bound channel can be deleted while the webhook
+                             lives on; it is listed all the same so it can be
+                             revoked, and says the target is gone. -->
                         {{
-                            $t('posts to #:channel as :bot', {
-                                channel: hook.channelName,
-                                bot: hook.botName,
-                            })
+                            hook.channelName
+                                ? $t('posts to #:channel as :bot', {
+                                      channel: hook.channelName,
+                                      bot: hook.botName,
+                                  })
+                                : $t('posts to a deleted channel as :bot', {
+                                      bot: hook.botName,
+                                  })
                         }}
                     </span>
                 </div>

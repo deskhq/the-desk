@@ -1,5 +1,6 @@
 <?php
 
+use App\Actions\Channels\DeleteChannel;
 use App\Actions\Teams\CreateTeam;
 use App\Enums\AuditAction;
 use App\Enums\TeamRole;
@@ -19,6 +20,18 @@ test('a team admin deletes a channel, which disappears immediately and lands the
 
     expect(Channel::query()->whereKey($channel->id)->exists())->toBeFalse()
         ->and(Channel::withTrashed()->whereKey($channel->id)->sole()->deleted_at)->not->toBeNull();
+});
+
+test('deleting an already-deleted channel keeps its original deletion date, so the window is never extended', function (): void {
+    $owner = User::factory()->create();
+    $team = app(CreateTeam::class)->handle($owner, 'Acme');
+    $channel = Channel::factory()->for($team)->create(['name' => 'Roadmap', 'slug' => 'roadmap']);
+
+    $deleted = app(DeleteChannel::class)->handle($channel);
+
+    $this->travel(1)->days();
+
+    expect(app(DeleteChannel::class)->handle($channel)->deleted_at->equalTo($deleted->deleted_at))->toBeTrue();
 });
 
 test('deleting a channel records it in the workspace audit log', function (): void {
