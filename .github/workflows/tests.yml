@@ -152,8 +152,17 @@ jobs:
       # into per-stage jobs proposed in #582 was measured and declined: Tests
       # dominate the job (~6 of ~7.5 min) while build/vue-tsc/PHPStan take
       # seconds each, so extra per-job setup would cost more than it saves.
+      #
+      # `--stop-on-defect` so a run whose verdict is already decided stops
+      # buying Actions minutes to confirm it (#1075). Under paratest that stops
+      # *scheduling* work rather than killing it, so the workers already
+      # mid-test finish theirs and a handful of results land after the first ⨯.
+      # Spelled this way rather than as pest's `--bail`, which Collision rejects
+      # before it spawns pest — it validates the options it forwards against
+      # paratest's own input definition, and `--bail` is pest-side sugar.
+      # Guarded by tests/Unit/LocalTestGateTest.php.
       - name: Tests
-        run: php artisan test --parallel
+        run: php artisan test --parallel --stop-on-defect
 
   # Browser (E2E) realtime suite: drives real Playwright browsers against the
   # app served in-process, with a live Reverb server so two clients exchange
@@ -269,6 +278,9 @@ jobs:
       # `--parallel` left to its own default is measurably slower *and* flakier
       # than that cap (#948). It echoes the invocation it resolved to as the
       # first line of the step, so the count in force is in the log rather than
-      # inferred from whichever runner CI_RUNNER points at.
+      # inferred from whichever runner CI_RUNNER points at. It also carries the
+      # `--stop-on-defect` this job used to run without (#1075) — inside the
+      # runner rather than appended here, so every entry point bails, not just
+      # this one.
       - name: Run Browser Tests
         run: ./bin/browser-tests --ci

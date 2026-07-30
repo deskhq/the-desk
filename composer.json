@@ -103,7 +103,7 @@
             "@lint:check",
             "@types:check",
             "@refactor:check",
-            "@php artisan test --parallel --coverage --min=100"
+            "@php artisan test --parallel --stop-on-defect --coverage --min=100"
         ],
         "test:browser": [
             "Composer\\Config::disableProcessTimeout",
