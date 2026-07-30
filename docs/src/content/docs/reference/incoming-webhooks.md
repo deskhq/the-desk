@@ -91,7 +91,32 @@ deleting the bot) stops it permanently.
 
 When you create the webhook you can also mint an **HMAC signing secret**, shown
 once alongside the URL. If you do, sign each request so The Desk can reject
-forgeries: compute `HMAC-SHA256` over the exact raw request body and send it in
-the `X-Desk-Signature` header. A webhook created without a secret accepts
-unsigned requests; one created with a secret rejects requests whose signature
-does not match.
+forgeries: compute `HMAC-SHA256` over the exact raw request body and send the hex
+digest in the **`X-Signature-256`** header. A bare digest and a `sha256=`-prefixed
+one (GitHub/Slack style) are both accepted.
+
+```bash
+BODY='{"text": "Build passed ✅"}'
+SIGNATURE=$(printf '%s' "$BODY" | openssl dgst -sha256 -hmac "$SIGNING_SECRET" | awk '{print $2}')
+
+curl -X POST $WEBHOOK_URL \
+  -H 'Content-Type: application/json' \
+  -H "X-Signature-256: sha256=$SIGNATURE" \
+  -d "$BODY"
+```
+
+Sign the **exact bytes you send**: re-serializing the JSON, or letting an HTTP
+client reformat it, changes the digest and the request is refused.
+
+A webhook created without a secret accepts unsigned requests. One created with a
+secret rejects a missing, malformed, or mismatched signature with **401** — so a
+signature sent under any other header name fails as if it were absent.
+
+:::caution[Not the header outgoing deliveries use]
+Deliveries _from_ The Desk are signed with `X-Desk-Signature`, which carries
+`t=<unix ts>,v1=<hex>` computed over `"{timestamp}.{body}"` — see
+[verifying an outgoing signature](/reference/webhooks/#verifying-the-signature).
+That is a different header with a different value format. Incoming ingest reads
+only `X-Signature-256`, and the digest there is over the body alone — bare or
+`sha256=`-prefixed, never timestamped.
+:::

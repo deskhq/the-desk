@@ -111,6 +111,10 @@ if (! hash_equals($expected, $v1)) {
 abort_if(abs(time() - $t) > 300, 400, 'Timestamp outside tolerance');
 ```
 
+This header and format are for deliveries **from** The Desk. Signing a request
+_into_ The Desk is a separate scheme: see
+[signing an incoming webhook](/reference/incoming-webhooks/#signing-optional).
+
 ## Retries and auto-disabling
 
 A delivery that does not return a `2xx` status (or times out) is retried with
