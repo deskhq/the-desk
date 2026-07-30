@@ -89,16 +89,28 @@ function blocksTheEventLoop(string $source): bool
 /**
  * Every source the browser suite runs, keyed by its repository-relative path.
  *
+ * Walked rather than globbed so that the rule reaches a directory nobody has
+ * added yet: the suite is two levels deep today, and a guard that had to be
+ * extended alongside the tree would be found to have stopped covering it only
+ * once something had already gone red on CI.
+ *
  * @return array<string, string>
  */
 function browserSuiteSources(): array
 {
     $root = dirname(__DIR__, 2);
 
-    $paths = [
-        ...(array) glob($root.'/tests/Browser/*.php'),
-        ...(array) glob($root.'/tests/Browser/Support/*.php'),
-    ];
+    $files = new RecursiveIteratorIterator(
+        new RecursiveDirectoryIterator($root.'/tests/Browser', FilesystemIterator::SKIP_DOTS),
+    );
+
+    $paths = array_values(array_map(
+        static fn (SplFileInfo $file): string => $file->getPathname(),
+        array_filter(
+            iterator_to_array($files),
+            static fn (SplFileInfo $file): bool => $file->isFile() && $file->getExtension() === 'php',
+        ),
+    ));
 
     return array_combine(
         array_map(static fn (string $path): string => substr($path, strlen($root) + 1), $paths),
