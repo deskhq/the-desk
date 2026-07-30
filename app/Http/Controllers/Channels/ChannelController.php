@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Channels;
 
 use App\Actions\Channels\ArchiveChannel;
 use App\Actions\Channels\CreateChannel;
+use App\Actions\Channels\DeleteChannel;
 use App\Actions\Channels\JoinChannel;
 use App\Actions\Channels\LeaveChannel;
 use App\Actions\Channels\MarkChannelRead;
@@ -21,7 +22,9 @@ use App\Enums\UserType;
 use App\Events\UserTyping;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Channels\CreateChannelRequest;
+use App\Http\Requests\Channels\DeleteChannelRequest;
 use App\Http\Requests\Channels\UpdateChannelRequest;
+use App\Jobs\PurgeDeletedChannel;
 use App\Models\Channel;
 use App\Models\Message;
 use App\Models\Team;
@@ -143,6 +146,9 @@ class ChannelController extends Controller
             // Narrows that to the name field, which only the creator or a team
             // Admin+ may change.
             'canRenameChannel' => Gate::allows('rename', $channel),
+            // Drives the header's delete control and its confirmation dialog;
+            // only a team Admin+ on a standard, non-#general channel.
+            'canDelete' => Gate::allows('delete', $channel),
             // Gates the "Leave channel" menu item + modal; a member of a standard
             // channel that isn't #general may leave.
             'canLeave' => Gate::allows('leave', $channel),
@@ -376,5 +382,31 @@ class ChannelController extends Controller
         Inertia::flash('toast', ['type' => 'success', 'message' => __('Archived #:channel', ['channel' => $channel->name])]);
 
         return to_route('channels.index', ['team' => $team->slug]);
+    }
+
+    /**
+     * Delete a channel and redirect to the team's #general channel.
+     *
+     * The request authorizes the Admin+ gate (which also rejects #general and
+     * direct messages) and re-checks the typed channel name, so reaching here is
+     * a deliberate, authorized destruction. The channel disappears from every
+     * surface at once, so #general — which always exists — is where the admin
+     * lands. The audit entry carries the purge date, since the entry is the only
+     * lasting record once the window closes.
+     */
+    public function destroy(DeleteChannelRequest $request, Team $team, Channel $channel, DeleteChannel $deleteChannel, AuditRecorder $recorder): RedirectResponse
+    {
+        // The action returns the row it actually stamped, so the audit entry
+        // below reads the deletion date the database settled on.
+        $channel = $deleteChannel->handle($channel);
+
+        $recorder->record($team, $request->user(), AuditAction::ChannelDeleted, $channel, [
+            'channel_name' => $channel->name,
+            'purge_at' => $channel->deleted_at->addDays(PurgeDeletedChannel::GRACE_WINDOW_DAYS)->toDateString(),
+        ]);
+
+        Inertia::flash('toast', ['type' => 'success', 'message' => __('Deleted #:channel', ['channel' => $channel->name])]);
+
+        return to_route('channels.show', ['team' => $team->slug, 'channel' => Channel::GENERAL_SLUG]);
     }
 }

@@ -19,7 +19,8 @@ class IncomingWebhookData extends Data
     public function __construct(
         public string $id,
         public string $name,
-        public string $channelName,
+        /** Null once the bound channel is deleted; the webhook itself lives on. */
+        public ?string $channelName,
         public string $botName,
         public bool $active,
         public string $createdAt,
@@ -28,13 +29,17 @@ class IncomingWebhookData extends Data
     /**
      * Build the DTO from a webhook model. Its `channel` and `bot` should be
      * eager-loaded.
+     *
+     * A webhook whose channel has been deleted keeps its row (and its live
+     * credential), so it is still listed — with no channel name — rather than
+     * disappearing from the surface an admin would revoke it from.
      */
     public static function fromModel(IncomingWebhook $webhook): self
     {
         return new self(
             id: $webhook->id,
             name: $webhook->name,
-            channelName: $webhook->channel->name,
+            channelName: $webhook->channel?->name,
             botName: $webhook->bot->name,
             active: $webhook->revoked_at === null,
             createdAt: $webhook->created_at?->toISOString() ?? '',

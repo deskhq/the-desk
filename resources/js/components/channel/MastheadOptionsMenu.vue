@@ -1,5 +1,12 @@
 <script setup lang="ts">
-import { Archive, EllipsisVertical, Info, LogOut, Star } from '@lucide/vue';
+import {
+    Archive,
+    EllipsisVertical,
+    Info,
+    LogOut,
+    Star,
+    Trash2,
+} from '@lucide/vue';
 import type { AcceptableValue } from 'reka-ui';
 import { Button } from '@/components/ui/button';
 import {
@@ -30,6 +37,12 @@ const props = defineProps<{
     canManagePreferences: boolean;
     canArchive: boolean;
     /**
+     * Whether the viewer may delete the channel — a team Admin+ on a standard
+     * channel that isn't #general. Distinct from archiving: this one ends in the
+     * channel's contents being purged.
+     */
+    canDelete: boolean;
+    /**
      * Whether this conversation has details worth opening — a standard channel
      * always does, even for a viewer who may not edit them.
      */
@@ -51,6 +64,7 @@ const emit = defineEmits<{
     notificationLevelChange: [value: AcceptableValue];
     muteChange: [value: boolean];
     archive: [];
+    delete: [];
     leave: [];
 }>();
 </script>
@@ -61,6 +75,7 @@ const emit = defineEmits<{
             props.canViewDetails ||
             props.canManagePreferences ||
             props.canArchive ||
+            props.canDelete ||
             props.canLeave
         "
     >
@@ -91,6 +106,7 @@ const emit = defineEmits<{
                     v-if="
                         props.canManagePreferences ||
                         props.canArchive ||
+                        props.canDelete ||
                         props.canLeave
                     "
                 />
@@ -163,9 +179,26 @@ const emit = defineEmits<{
                     {{ $t('Archive channel') }}
                 </DropdownMenuItem>
             </template>
+            <template v-if="props.canDelete">
+                <DropdownMenuSeparator
+                    v-if="props.canManagePreferences && !props.canArchive"
+                />
+                <DropdownMenuItem
+                    data-test="delete-channel"
+                    class="text-destructive-text focus:text-destructive-text"
+                    @select="emit('delete')"
+                >
+                    <Trash2 class="size-4" />
+                    {{ $t('Delete channel') }}
+                </DropdownMenuItem>
+            </template>
             <template v-if="props.canLeave">
                 <DropdownMenuSeparator
-                    v-if="props.canManagePreferences || props.canArchive"
+                    v-if="
+                        props.canManagePreferences ||
+                        props.canArchive ||
+                        props.canDelete
+                    "
                 />
                 <DropdownMenuItem
                     data-test="leave-channel"

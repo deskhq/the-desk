@@ -29,7 +29,7 @@ use Illuminate\Support\Carbon;
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  * @property-read Team $team
- * @property-read Channel $channel
+ * @property-read Channel|null $channel
  * @property-read User $bot
  */
 #[Fillable(['team_id', 'channel_id', 'bot_id', 'created_by', 'name', 'token_hash', 'signing_secret'])]
@@ -94,6 +94,12 @@ class IncomingWebhook extends Model
     }
 
     /**
+     * Get the channel this webhook posts into.
+     *
+     * Null once that channel is deleted: the row survives its grace window as a
+     * soft delete, so the relation resolves to nothing rather than to a channel
+     * nobody can see. The ingest endpoint refuses the post in that case.
+     *
      * @return BelongsTo<Channel, $this>
      */
     public function channel(): BelongsTo

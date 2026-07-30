@@ -190,6 +190,9 @@ trait HasTeams
             canViewAudit: ! $team->is_personal && ($role?->isAtLeast(TeamRole::Admin) ?? false),
             canViewSecurityLog: ! $team->is_personal && ($role?->isAtLeast(TeamRole::Admin) ?? false),
             canViewAnalytics: ! $team->is_personal && ($role?->isAtLeast(TeamRole::Admin) ?? false),
+            // Not withheld from a personal workspace: its owner can delete a
+            // channel there, so they need the panel that undoes it.
+            canViewDeletedChannels: $role?->isAtLeast(TeamRole::Admin) ?? false,
             canManageEmojis: ! $team->is_personal && ($role?->isAtLeast(TeamRole::Admin) ?? false),
             canManageIntegrations: ! $team->is_personal && ($role?->hasPermission(TeamPermission::ManageIntegrations) ?? false),
             canManageUserGroups: ! $team->is_personal && ($role?->hasPermission(TeamPermission::ManageUserGroups) ?? false),

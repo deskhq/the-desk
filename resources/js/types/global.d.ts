@@ -71,6 +71,8 @@ declare module '@inertiajs/core' {
             canViewCurrentTeamSecurityLog: boolean;
             canManageCurrentTeamIntegrations: boolean;
             integrationsEnabled: boolean;
+            /** How long a deleted channel stays restorable before it is purged. */
+            channelRestoreWindowDays: number;
             invitableRoles: RoleOption[];
             channels?: Channel[];
             teamMembers?: PersonRef[];

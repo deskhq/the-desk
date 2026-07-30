@@ -117,6 +117,7 @@ async function render(connectionPill: ConnectionPill): Promise<string> {
                 title: 'general',
                 canManagePreferences: false,
                 canArchive: false,
+                canDelete: false,
                 canLeave: false,
                 canAddPeople: false,
                 notificationLevels: [],

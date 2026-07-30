@@ -7,6 +7,7 @@ import {
     ScrollText,
     ShieldCheck,
     SmilePlus,
+    Trash2,
     Users,
 } from '@lucide/vue';
 import { computed } from 'vue';
@@ -14,6 +15,7 @@ import AdminLinkCard from '@/components/teams/AdminLinkCard.vue';
 import { index as analyticsIndex } from '@/routes/teams/analytics';
 import { index as auditIndex } from '@/routes/teams/audit';
 import { index as auditExportsIndex } from '@/routes/teams/audit-exports';
+import { index as deletedChannelsIndex } from '@/routes/teams/deleted-channels';
 import { index as emojisIndex } from '@/routes/teams/emojis';
 import { index as groupsIndex } from '@/routes/teams/groups';
 import { index as integrationsIndex } from '@/routes/teams/integrations';
@@ -45,6 +47,7 @@ const showIntegrationsLink = computed(
             permissions.canViewAnalytics ||
             permissions.canViewAudit ||
             permissions.canViewSecurityLog ||
+            permissions.canViewDeletedChannels ||
             permissions.canManageUserGroups ||
             showIntegrationsLink
         "
@@ -75,6 +78,15 @@ const showIntegrationsLink = computed(
                 :title="$t('Integrations')"
                 :description="$t('Bots, API tokens, and webhooks')"
                 data-test="manage-integrations-link"
+            />
+
+            <AdminLinkCard
+                v-if="permissions.canViewDeletedChannels"
+                :href="deletedChannelsIndex(team.slug)"
+                :icon="Trash2"
+                :title="$t('Recently deleted')"
+                :description="$t('Restore a deleted channel')"
+                data-test="view-deleted-channels-link"
             />
 
             <AdminLinkCard

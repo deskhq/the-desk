@@ -19,10 +19,17 @@ return new class extends Migration
      *
      * A no-op on any instance that never hit the bug — which is every fresh
      * install, since neither slug can be blank any more.
+     *
+     * Both queries drop their model's global scopes. A migration reads the
+     * schema as of its own point in history, but the models it borrows are
+     * always today's: Channel has since gained soft deletes, whose scope would
+     * filter on a `deleted_at` column that does not exist yet when a fresh
+     * install replays the migrations in order. Repairing a deleted channel's
+     * slug is right anyway — it is restorable, and would come back unreachable.
      */
     public function up(): void
     {
-        Channel::query()
+        Channel::withoutGlobalScopes()
             ->whereRaw("trim(slug) = ''")
             ->get()
             ->each(function (Channel $channel): void {
@@ -30,7 +37,7 @@ return new class extends Migration
                 $channel->save();
             });
 
-        UserGroup::query()
+        UserGroup::withoutGlobalScopes()
             ->whereRaw("trim(slug) = ''")
             ->get()
             ->each(function (UserGroup $group): void {
@@ -73,7 +80,7 @@ return new class extends Migration
      */
     private function slugTaken(Channel|UserGroup $record, string $slug): bool
     {
-        return $record->newQuery()
+        return $record->newQueryWithoutScopes()
             ->where('team_id', $record->team_id)
             ->where('slug', $slug)
             ->whereKeyNot($record->getKey())

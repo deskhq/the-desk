@@ -5,6 +5,7 @@ import { archive as archiveChannel } from '@/actions/App/Http/Controllers/Channe
 import AddDirectMessagePeopleModal from '@/components/AddDirectMessagePeopleModal.vue';
 import ArchiveChannelDialog from '@/components/channel/ArchiveChannelDialog.vue';
 import ChannelDetailsDialog from '@/components/channel/ChannelDetailsDialog.vue';
+import DeleteChannelDialog from '@/components/channel/DeleteChannelDialog.vue';
 import ForwardMessageDialog from '@/components/ForwardMessageDialog.vue';
 import LeaveChannelModal from '@/components/LeaveChannelModal.vue';
 import ScheduledMessagesDialog from '@/components/ScheduledMessagesDialog.vue';
@@ -79,6 +80,9 @@ const detailsOpen = ref(false);
 /** Drives the archive confirmation dialog opened from the channel header menu. */
 const confirmingArchive = ref(false);
 
+/** Drives the delete confirmation dialog opened from the channel header menu. */
+const confirmingDelete = ref(false);
+
 /** Drives the leave-channel confirmation modal opened from the header menu. */
 const confirmingLeave = ref(false);
 
@@ -111,6 +115,9 @@ defineExpose({
     },
     confirmArchive: (): void => {
         confirmingArchive.value = true;
+    },
+    confirmDelete: (): void => {
+        confirmingDelete.value = true;
     },
     confirmLeave: (): void => {
         confirmingLeave.value = true;
@@ -168,6 +175,13 @@ defineExpose({
             v-model:open="confirmingArchive"
             :channel-name="props.channel.name"
             @confirm="archive"
+        />
+
+        <DeleteChannelDialog
+            v-model:open="confirmingDelete"
+            :team-slug="props.team.slug"
+            :channel-name="props.channel.name"
+            :channel-slug="props.channel.slug"
         />
 
         <LeaveChannelModal

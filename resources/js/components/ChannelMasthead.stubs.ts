@@ -65,6 +65,7 @@ export function lucideDouble(): Record<string, Component> {
             'Pin',
             'Search',
             'Star',
+            'Trash2',
             'UserPlus',
         ].map((icon) => [icon, passthrough('svg')]),
     );

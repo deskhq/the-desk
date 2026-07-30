@@ -18,6 +18,8 @@ readonly class TeamPermissions
         public bool $canViewAudit,
         public bool $canViewSecurityLog,
         public bool $canViewAnalytics,
+        /** Whether the viewer may open the recently-deleted channels panel. */
+        public bool $canViewDeletedChannels,
         public bool $canManageEmojis,
         public bool $canManageIntegrations,
         public bool $canManageUserGroups,

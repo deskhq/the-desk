@@ -27,6 +27,7 @@ use App\Http\Controllers\Teams\AnalyticsController;
 use App\Http\Controllers\Teams\AuditController;
 use App\Http\Controllers\Teams\AuditExportController;
 use App\Http\Controllers\Teams\CustomEmojiController;
+use App\Http\Controllers\Teams\DeletedChannelController;
 use App\Http\Controllers\Teams\Integrations\BotChannelController;
 use App\Http\Controllers\Teams\Integrations\BotController;
 use App\Http\Controllers\Teams\Integrations\BotTokenController;
@@ -150,6 +151,16 @@ Route::middleware(['auth', 'verified'])->group(function (): void {
             ->name('teams.audit-exports.download');
 
         Route::get('settings/teams/{team}/analytics', [AnalyticsController::class, 'index'])->name('teams.analytics.index');
+
+        // A deleted channel is only soft-deleted for its grace window, so restore
+        // binds by id (its slug may already be taken again) and explicitly allows
+        // a trashed row — the very thing every other channel route excludes.
+        Route::get('settings/teams/{team}/deleted-channels', [DeletedChannelController::class, 'index'])
+            ->name('teams.deleted-channels.index');
+        Route::post('settings/teams/{team}/deleted-channels/{channel:id}/restore', [DeletedChannelController::class, 'restore'])
+            ->withTrashed()
+            ->scopeBindings()
+            ->name('teams.deleted-channels.restore');
 
         Route::get('settings/teams/{team}/emojis', [CustomEmojiController::class, 'index'])->name('teams.emojis.index');
         Route::post('settings/teams/{team}/emojis', [CustomEmojiController::class, 'store'])->name('teams.emojis.store');

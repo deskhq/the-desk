@@ -108,6 +108,7 @@ function mount(props: Record<string, unknown> = {}): {
 const allPermissions = {
     canManagePreferences: true,
     canArchive: true,
+    canDelete: true,
     canLeave: true,
 };
 
@@ -349,6 +350,18 @@ describe('the masthead options menu', () => {
         click(host, '[data-test="archive-channel"]');
 
         expect(emitted.map(([event]) => event)).toContain('archive');
+    });
+
+    it('offers deleting only to someone who may delete, separately from archiving', () => {
+        expect(
+            find(mount({ canArchive: true }).host, 'delete-channel'),
+        ).toBeNull();
+
+        const { host, emitted } = mount({ canDelete: true });
+
+        click(host, '[data-test="delete-channel"]');
+
+        expect(emitted.map(([event]) => event)).toContain('delete');
     });
 
     it('names leaving after the kind of conversation it is', () => {

@@ -264,15 +264,49 @@ class ChannelPolicy
     /**
      * Determine whether the user can delete the channel.
      *
-     * The #general channel can never be deleted; hard-delete of other channels
-     * is reserved for team Admin+ (no hard-delete UI in the MVP).
+     * Deleting is destructive in a way archiving is not — it opens the grace
+     * window that ends in the messages, files, and memberships being purged — so
+     * it is reserved for a team Admin+, never delegated to the creator the way
+     * {@see archive()} is. The #general channel can never be deleted, and a
+     * direct message is not an admin's to destroy: it is a private conversation
+     * between its participants, who close or leave it instead. A live channel may
+     * be deleted directly; archiving first is not required.
      */
     public function delete(User $user, Channel $channel): bool
     {
-        if ($channel->isGeneral()) {
+        if ($channel->isGeneral() || $channel->isDirectMessage()) {
             return false;
         }
 
+        return $this->administers($user, $channel);
+    }
+
+    /**
+     * Determine whether the user can restore the channel within its grace window.
+     *
+     * The mirror of {@see delete()}: whoever may open the window may close it
+     * again, on the same Admin+ terms, for as long as the channel is still only
+     * soft-deleted. Once the purge has run there is no row left to authorize
+     * against, so a live channel — nothing to restore — is refused here rather
+     * than silently succeeding.
+     */
+    public function restore(User $user, Channel $channel): bool
+    {
+        if (! $channel->trashed()) {
+            return false;
+        }
+
+        return $this->administers($user, $channel);
+    }
+
+    /**
+     * Shared rule for the workspace-administration abilities on a channel
+     * (delete, restore): the user is a team Admin+ of the channel's team.
+     * Channel membership is deliberately not required — an admin cleaning up a
+     * private channel they never joined still has to be able to.
+     */
+    private function administers(User $user, Channel $channel): bool
+    {
         return $user->belongsToTeam($channel->team)
             && ($user->teamRole($channel->team)?->isAtLeast(TeamRole::Admin) ?? false);
     }
