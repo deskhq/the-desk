@@ -21,12 +21,15 @@ $togglesPage = $repoRoot.'/docs/src/content/docs/reference/feature-toggles.md';
 
 /**
  * The header the ingest controller reads an incoming signature from — the source
- * of truth the docs have to mirror.
+ * of truth the docs have to mirror. It fails loudly rather than degrading to an
+ * empty needle, which every `toContain()` below would match.
  */
 $incomingHeader = function (): string {
     $header = (new ReflectionClass(IncomingWebhookController::class))->getConstant('SIGNATURE_HEADER');
 
-    return is_string($header) ? $header : '';
+    throw_if(! is_string($header) || $header === '', RuntimeException::class, 'IncomingWebhookController::SIGNATURE_HEADER no longer names a request header.');
+
+    return $header;
 };
 
 /**
@@ -40,23 +43,39 @@ $outgoingHeader = function () use ($repoRoot): string {
         $matches,
     );
 
-    return $matches['header'] ?? '';
+    throw_if(($matches['header'] ?? '') === '', RuntimeException::class, 'DeliverWebhook no longer signs a delivery under a recognisable header.');
+
+    return $matches['header'];
+};
+
+/**
+ * The page's "Signing (optional)" section, so an incidental mention elsewhere
+ * cannot stand in for the instructions an integrator actually follows.
+ */
+$signingSection = function (string $page): string {
+    preg_match('/^## Signing.*?(?=^## |\z)/ms', (string) file_get_contents($page), $matches);
+
+    return $matches[0] ?? '';
 };
 
 test('the two webhook signature headers are distinct names', function () use ($incomingHeader, $outgoingHeader): void {
-    // Guard the guards below: a missed constant or a refactored job would leave
-    // every "the page names it" assertion matching the empty string.
-    expect($incomingHeader())->not->toBe('')
-        ->and($outgoingHeader())->not->toBe('')
-        ->and($incomingHeader())->not->toBe($outgoingHeader());
+    expect($incomingHeader())->not->toBe($outgoingHeader());
 });
 
-test('the incoming-webhook page signs with the header the ingest endpoint reads', function () use ($incomingPage, $incomingHeader): void {
-    expect((string) file_get_contents($incomingPage))->toContain($incomingHeader());
+test('the signing section tells integrators to use the header the ingest endpoint reads', function () use ($incomingPage, $signingSection, $incomingHeader): void {
+    expect($signingSection($incomingPage))->toContain($incomingHeader());
 });
 
-test('the feature-toggles page names the same incoming signature header', function () use ($togglesPage, $incomingHeader): void {
-    expect((string) file_get_contents($togglesPage))->toContain($incomingHeader());
+test('the copy-paste signing sample never signs under the outgoing header', function () use ($incomingPage, $signingSection, $incomingHeader, $outgoingHeader): void {
+    preg_match_all('/^```.*?\n(?<body>.*?)^```/ms', $signingSection($incomingPage), $matches);
+
+    $samples = $matches['body'];
+
+    // The fenced sample is what gets pasted into a CI job, so it carries the
+    // whole cost of naming the wrong header.
+    expect($samples)->not->toBe([])
+        ->and(implode("\n", $samples))->toContain($incomingHeader())
+        ->and(implode("\n", $samples))->not->toContain($outgoingHeader());
 });
 
 test('the incoming-webhook page names the outgoing header only to tell them apart', function () use ($incomingPage, $outgoingHeader): void {
@@ -67,8 +86,12 @@ test('the incoming-webhook page names the outgoing header only to tell them apar
     $mentions = array_filter($paragraphs, fn (string $paragraph): bool => str_contains($paragraph, $outgoingHeader()));
     $ambiguous = array_filter($mentions, fn (string $paragraph): bool => ! str_contains($paragraph, 'outgoing'));
 
-    // Both halves matter: the page has to draw the distinction *and* never name
-    // the outgoing header as the one to sign with.
+    // Both halves matter: the page has to draw the distinction *and* never leave
+    // the outgoing header sitting there as if it were the one to send.
     expect($mentions)->not->toBe([])
         ->and(array_values($ambiguous))->toBe([]);
+});
+
+test('the feature-toggles page names the same incoming signature header', function () use ($togglesPage, $incomingHeader): void {
+    expect((string) file_get_contents($togglesPage))->toContain($incomingHeader());
 });

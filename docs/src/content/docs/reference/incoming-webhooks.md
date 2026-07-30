@@ -117,5 +117,6 @@ Deliveries _from_ The Desk are signed with `X-Desk-Signature`, which carries
 `t=<unix ts>,v1=<hex>` computed over `"{timestamp}.{body}"` — see
 [verifying an outgoing signature](/reference/webhooks/#verifying-the-signature).
 That is a different header with a different value format. Incoming ingest reads
-only `X-Signature-256`, and only the bare digest of the body.
+only `X-Signature-256`, and the digest there is over the body alone — bare or
+`sha256=`-prefixed, never timestamped.
 :::
