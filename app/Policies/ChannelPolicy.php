@@ -32,12 +32,14 @@ class ChannelPolicy
 
         $role = $user->teamRole($team);
 
-        if ($visibility !== null) {
+        if ($visibility instanceof ChannelVisibility) {
             return $team->creationPolicyFor($visibility)->permits($role);
         }
+        if ($team->creationPolicyFor(ChannelVisibility::Public)->permits($role)) {
+            return true;
+        }
 
-        return $team->creationPolicyFor(ChannelVisibility::Public)->permits($role)
-            || $team->creationPolicyFor(ChannelVisibility::Private)->permits($role);
+        return $team->creationPolicyFor(ChannelVisibility::Private)->permits($role);
     }
 
     /**

@@ -4,10 +4,12 @@ declare(strict_types=1);
 
 namespace App\Enums;
 
+use App\Models\Team;
+
 /**
  * Who, in a workspace, is allowed to open a new channel.
  *
- * Held per visibility ({@see \App\Models\Team::creationPolicyFor()}): a
+ * Held per visibility ({@see Team::creationPolicyFor()}): a
  * workspace can curate its public directory while leaving private channels
  * self-service, or the reverse.
  */
@@ -50,13 +52,9 @@ enum ChannelCreationPolicy: string
      */
     public function permits(?TeamRole $role): bool
     {
-        if ($role === null) {
-            return false;
-        }
-
         return match ($this) {
-            self::Members => true,
-            self::Admins => $role->isAtLeast(TeamRole::Admin),
+            self::Members => $role instanceof TeamRole,
+            self::Admins => $role?->isAtLeast(TeamRole::Admin) ?? false,
         };
     }
 

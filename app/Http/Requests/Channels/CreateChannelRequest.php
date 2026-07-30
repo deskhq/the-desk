@@ -5,6 +5,7 @@ namespace App\Http\Requests\Channels;
 use App\Enums\ChannelVisibility;
 use App\Models\Channel;
 use App\Models\Team;
+use App\Policies\TeamPolicy;
 use App\Support\NameSlug;
 use Closure;
 use Illuminate\Contracts\Validation\ValidationRule;
@@ -22,7 +23,7 @@ class CreateChannelRequest extends FormRequest
      * asked about the visibility being requested. The ability is named for the
      * *Channel* being created, not the team it lands in, so the model class
      * leads the argument list — `Gate::allows('create', $team)` would resolve
-     * {@see \App\Policies\TeamPolicy::create()} (may this user start a
+     * {@see TeamPolicy::create()} (may this user start a
      * workspace?) instead.
      *
      * This runs ahead of validation, so an unrecognized visibility has not been

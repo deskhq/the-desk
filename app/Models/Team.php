@@ -8,7 +8,6 @@ use App\Enums\ChannelVisibility;
 use App\Enums\TeamRole;
 use App\Enums\UserType;
 use Database\Factories\TeamFactory;
-use Illuminate\Contracts\Database\Query\Builder;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
@@ -258,27 +257,6 @@ class Team extends Model
         return $visibility === ChannelVisibility::Private
             ? $this->private_channel_creation_policy
             : $this->public_channel_creation_policy;
-    }
-
-    /**
-     * Get the workspace's public channels that every new member is joined to.
-     *
-     * The protected #general is a default in code rather than by flag, so it is
-     * matched by slug alongside whatever admins have marked. Archived and
-     * deleted channels are excluded — the trait's global scope drops the latter
-     * — so a default that has since been retired quietly stops applying instead
-     * of dropping newcomers into a read-only room.
-     *
-     * @return HasMany<Channel, $this>
-     */
-    public function defaultChannels(): HasMany
-    {
-        return $this->channels()
-            ->where('visibility', ChannelVisibility::Public->value)
-            ->whereNull('archived_at')
-            ->where(fn (Builder $query): Builder => $query
-                ->where('is_default', true)
-                ->orWhere('slug', Channel::GENERAL_SLUG));
     }
 
     /**

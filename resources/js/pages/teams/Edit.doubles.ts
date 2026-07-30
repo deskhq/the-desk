@@ -1,4 +1,8 @@
-import type { TeamPermissions } from '@/types';
+import type {
+    ChannelCreationSettings,
+    DefaultChannelCandidate,
+    TeamPermissions,
+} from '@/types';
 
 /**
  * Every workspace permission open at once, so a case can close only the one it
@@ -28,4 +32,49 @@ export function teamPermissions(
         canManageUserGroups: true,
         ...overrides,
     };
+}
+
+/**
+ * The workspace's channel-creation settings as the admin page receives them,
+ * both visibilities open unless a case says otherwise.
+ */
+export function channelCreationSettings(
+    overrides: Partial<ChannelCreationSettings> = {},
+): ChannelCreationSettings {
+    return {
+        public: 'members',
+        private: 'members',
+        options: [
+            {
+                value: 'members',
+                label: 'Everyone',
+                description: 'Every member of the workspace can create one.',
+            },
+            {
+                value: 'admins',
+                label: 'Admins only',
+                description:
+                    'Only admins and the workspace owner can create one.',
+            },
+        ],
+        ...overrides,
+    };
+}
+
+/** The default-channel candidates an admin sees: #general plus one ordinary channel. */
+export function defaultChannelCandidates(): DefaultChannelCandidate[] {
+    return [
+        {
+            slug: 'general',
+            name: 'general',
+            isDefault: false,
+            isGeneral: true,
+        },
+        {
+            slug: 'announcements',
+            name: 'Announcements',
+            isDefault: true,
+            isGeneral: false,
+        },
+    ];
 }

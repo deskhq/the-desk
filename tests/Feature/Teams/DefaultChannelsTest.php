@@ -6,6 +6,8 @@ use App\Enums\TeamRole;
 use App\Models\Channel;
 use App\Models\TeamInvitation;
 use App\Models\User;
+use Illuminate\Support\Collection;
+use Inertia\Testing\AssertableInertia as Assert;
 
 test('accepting an invitation joins the newcomer to every default channel', function (): void {
     $owner = User::factory()->create();
@@ -209,4 +211,40 @@ test('re-submitting the standing default flag is not treated as a change', funct
         ->assertSessionHasNoErrors();
 
     expect($channel->fresh()->topic)->toBe('Launches');
+});
+
+test('the workspace admin page lists the public channels an admin may default', function (): void {
+    $owner = User::factory()->create();
+    $team = app(CreateTeam::class)->handle($owner, 'Acme');
+
+    Channel::factory()->for($team)->create(['name' => 'Announcements', 'slug' => 'announcements', 'is_default' => true]);
+    Channel::factory()->for($team)->create(['name' => 'Watercooler', 'slug' => 'watercooler']);
+    Channel::factory()->for($team)->private()->create(['name' => 'Secret', 'slug' => 'secret']);
+    Channel::factory()->for($team)->create(['name' => 'Retired', 'slug' => 'retired', 'archived_at' => now()]);
+
+    $this->actingAs($owner)
+        ->get(route('teams.edit', ['team' => $team->slug]))
+        ->assertInertia(fn (Assert $page): Assert => $page
+            // #general leads, then the rest by name; private and archived
+            // channels can never be defaults, so they are absent entirely.
+            ->where('defaultChannels', fn (Collection $channels): bool => $channels->pluck('slug')->all() === [
+                Channel::GENERAL_SLUG, 'announcements', 'watercooler',
+            ])
+            ->where('defaultChannels.0.isGeneral', true)
+            ->where('defaultChannels.1.isDefault', true)
+            ->where('defaultChannels.2.isDefault', false)
+            ->etc());
+});
+
+test('a plain member is sent no list of default channels to manage', function (): void {
+    $owner = User::factory()->create();
+    $member = User::factory()->create();
+    $team = app(CreateTeam::class)->handle($owner, 'Acme');
+    $team->memberships()->create(['user_id' => $member->id, 'role' => TeamRole::Member]);
+
+    $this->actingAs($member)
+        ->get(route('teams.edit', ['team' => $team->slug]))
+        ->assertInertia(fn (Assert $page): Assert => $page
+            ->where('defaultChannels', [])
+            ->etc());
 });

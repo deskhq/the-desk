@@ -156,7 +156,11 @@ vi.mock('@/components/DeleteTeamModal.vue', () => ({
     default: modalStub('DeleteTeamModal'),
 }));
 
-import { teamPermissions } from './Edit.doubles';
+import {
+    channelCreationSettings,
+    defaultChannelCandidates,
+    teamPermissions,
+} from './Edit.doubles';
 import Edit from './Edit.vue';
 
 function team(overrides: Partial<Team> = {}): Team {
@@ -200,6 +204,8 @@ function mount(props: Record<string, unknown> = {}) {
                 invitations: [invitation()],
                 permissions: teamPermissions(),
                 availableRoles,
+                channelCreation: channelCreationSettings(),
+                defaultChannels: defaultChannelCandidates(),
                 ...props,
             }),
     });

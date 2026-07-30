@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { Form } from '@inertiajs/vue3';
-import { ref } from 'vue';
+import { Form, usePage } from '@inertiajs/vue3';
+import { computed, ref } from 'vue';
 import { store } from '@/actions/App/Http/Controllers/Channels/ChannelController';
 import FormField from '@/components/FormField.vue';
 import { Button } from '@/components/ui/button';
@@ -22,27 +22,54 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
+import { translate } from '@/lib/i18n';
 
 const props = defineProps<{
     teamSlug: string;
 }>();
 
+const page = usePage();
+
+/**
+ * The visibilities this workspace's channel-creation policy leaves open to the
+ * viewer, in the order the picker offers them. The create endpoint re-enforces
+ * the policy, so this only keeps the form from offering a choice that would come
+ * straight back as a 403.
+ */
+const visibilities = computed(() =>
+    (
+        [
+            { value: 'public', label: translate('Public') },
+            { value: 'private', label: translate('Private') },
+        ] as const
+    ).filter((option) =>
+        (page.props.creatableChannelVisibilities ?? []).includes(option.value),
+    ),
+);
+
+/** Whether there is any channel at all for the viewer to open here. */
+const canCreate = computed(() => visibilities.value.length > 0);
+
+const defaultVisibility = computed(
+    () => visibilities.value[0]?.value ?? 'public',
+);
+
 const open = ref(false);
-const visibility = ref('public');
+const visibility = ref<string>(defaultVisibility.value);
 const formKey = ref(0);
 
 function handleOpenChange(value: boolean) {
     open.value = value;
 
     if (!value) {
-        visibility.value = 'public';
+        visibility.value = defaultVisibility.value;
         formKey.value++;
     }
 }
 </script>
 
 <template>
-    <Dialog :open="open" @update:open="handleOpenChange">
+    <Dialog v-if="canCreate" :open="open" @update:open="handleOpenChange">
         <DialogTrigger as-child>
             <slot />
         </DialogTrigger>
@@ -102,12 +129,13 @@ function handleOpenChange(value: boolean) {
                                 />
                             </SelectTrigger>
                             <SelectContent>
-                                <SelectItem value="public">{{
-                                    $t('Public')
-                                }}</SelectItem>
-                                <SelectItem value="private">{{
-                                    $t('Private')
-                                }}</SelectItem>
+                                <SelectItem
+                                    v-for="option in visibilities"
+                                    :key="option.value"
+                                    :value="option.value"
+                                >
+                                    {{ option.label }}
+                                </SelectItem>
                             </SelectContent>
                         </Select>
                     </FormField>

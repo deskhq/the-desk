@@ -3,6 +3,7 @@
 use App\Actions\Teams\CreateTeam;
 use App\Enums\AuditAction;
 use App\Enums\ChannelCreationPolicy;
+use App\Enums\ChannelVisibility;
 use App\Enums\TeamRole;
 use App\Models\AuditActivity;
 use App\Models\User;
@@ -57,7 +58,7 @@ test('an unrecognized channel-creation policy is rejected', function (string $fi
         ->patch(route('teams.update', ['team' => $team->slug]), [$field => 'nobody'])
         ->assertSessionHasErrors($field);
 
-    expect($team->fresh()->creationPolicyFor(App\Enums\ChannelVisibility::Public))
+    expect($team->fresh()->creationPolicyFor(ChannelVisibility::Public))
         ->toBe(ChannelCreationPolicy::Members);
 })->with(['public_channel_creation_policy', 'private_channel_creation_policy']);
 
@@ -89,9 +90,11 @@ test('changing a channel-creation policy is recorded in the audit log', function
         ->where('event', AuditAction::ChannelCreationPolicyChanged->value)
         ->sole();
 
-    expect($entry->properties['visibility'])->toBe('public')
-        ->and($entry->properties['old_policy'])->toBe(ChannelCreationPolicy::Members->value)
-        ->and($entry->properties['new_policy'])->toBe(ChannelCreationPolicy::Admins->value);
+    expect($entry->properties['visibility'])->toBe('Public')
+        ->and($entry->properties['old_policy'])->toBe(ChannelCreationPolicy::Members->label())
+        ->and($entry->properties['new_policy'])->toBe(ChannelCreationPolicy::Admins->label())
+        ->and(AuditAction::ChannelCreationPolicyChanged->describe($entry->properties->all()))
+        ->toBe('Changed the Public channel-creation policy from “Everyone” to “Admins only”');
 });
 
 test('re-saving the standing policy records nothing', function (): void {
@@ -115,8 +118,9 @@ test('the workspace admin page carries the policies and their options', function
     $this->actingAs($owner)
         ->get(route('teams.edit', ['team' => $team->slug]))
         ->assertInertia(fn (Assert $page): Assert => $page
-            ->where('team.publicChannelCreationPolicy', ChannelCreationPolicy::Members->value)
-            ->where('team.privateChannelCreationPolicy', ChannelCreationPolicy::Admins->value)
-            ->where('channelCreationPolicies.1.value', ChannelCreationPolicy::Admins->value)
+            ->where('channelCreation.public', ChannelCreationPolicy::Members->value)
+            ->where('channelCreation.private', ChannelCreationPolicy::Admins->value)
+            ->where('channelCreation.options.1.value', ChannelCreationPolicy::Admins->value)
+            ->has('channelCreation.options.0.description')
             ->etc());
 });

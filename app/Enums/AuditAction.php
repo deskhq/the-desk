@@ -94,7 +94,7 @@ enum AuditAction: string
     {
         return match ($this) {
             self::TeamRenamed => sprintf(__('Renamed the workspace from “%s” to “%s”'), $this->text($context, 'old_name'), $this->text($context, 'new_name')),
-            self::ChannelCreationPolicyChanged => sprintf(__('Changed who can create %s channels from “%s” to “%s”'), $this->text($context, 'visibility'), $this->text($context, 'old_policy'), $this->text($context, 'new_policy')),
+            self::ChannelCreationPolicyChanged => sprintf(__('Changed the %s channel-creation policy from “%s” to “%s”'), $this->text($context, 'visibility'), $this->text($context, 'old_policy'), $this->text($context, 'new_policy')),
             self::MemberRoleChanged => sprintf(__('Changed %s’s role from %s to %s'), $this->text($context, 'member_name'), $this->text($context, 'old_role'), $this->text($context, 'new_role')),
             self::MemberRemoved => sprintf(__('Removed %s from the workspace'), $this->text($context, 'member_name')),
             self::OwnershipTransferred => sprintf(__('Transferred ownership to %s'), $this->text($context, 'new_owner_name')),

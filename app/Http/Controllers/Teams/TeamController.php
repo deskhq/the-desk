@@ -13,6 +13,7 @@ use App\Enums\TeamRole;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Teams\DeleteTeamRequest;
 use App\Http\Requests\Teams\SaveTeamRequest;
+use App\Models\Channel;
 use App\Models\Membership;
 use App\Models\Team;
 use App\Models\TeamInvitation;
@@ -21,6 +22,7 @@ use App\Support\AuditRecorder;
 use App\Support\SecurityEventRecorder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
@@ -66,6 +68,7 @@ class TeamController extends Controller
 
         $user = $request->user();
         $canViewRoster = Gate::allows('inviteMember', $team);
+        $canAdminister = Gate::allows('update', $team);
 
         return Inertia::render('teams/Edit', [
             'team' => [
@@ -74,8 +77,6 @@ class TeamController extends Controller
                 'slug' => $team->slug,
                 'isPersonal' => $team->is_personal,
                 'role' => $user->teamRole($team)?->value,
-                'publicChannelCreationPolicy' => $team->public_channel_creation_policy->value,
-                'privateChannelCreationPolicy' => $team->private_channel_creation_policy->value,
             ],
             'members' => $team->roster()->get()->map(function (User $member) use ($canViewRoster): array {
                 /** @var Membership $membership */
@@ -105,8 +106,41 @@ class TeamController extends Controller
                 : collect(),
             'permissions' => $user->toTeamPermissions($team),
             'availableRoles' => TeamRole::assignable(),
-            'channelCreationPolicies' => ChannelCreationPolicy::options(),
+            'channelCreation' => [
+                'public' => $team->public_channel_creation_policy->value,
+                'private' => $team->private_channel_creation_policy->value,
+                'options' => ChannelCreationPolicy::options(),
+            ],
+            'defaultChannels' => $canAdminister
+                ? $this->defaultChannelCandidates($team)
+                : collect(),
         ]);
+    }
+
+    /**
+     * List the channels an admin may mark as workspace defaults.
+     *
+     * Only a live public channel can be one — a private channel cannot be joined
+     * unasked and an archived one is read-only — so the rest are simply absent
+     * rather than shown disabled. The protected #general leads the list and is
+     * flagged so the UI can render it as the permanent default it is.
+     *
+     * @return Collection<int, array{slug: string, name: string, isDefault: bool, isGeneral: bool}>
+     */
+    private function defaultChannelCandidates(Team $team): Collection
+    {
+        return $team->channels()
+            ->where('visibility', ChannelVisibility::Public->value)
+            ->whereNull('archived_at')
+            ->orderByRaw('case when slug = ? then 0 else 1 end', [Channel::GENERAL_SLUG])
+            ->orderByRaw('lower(name)')
+            ->get()
+            ->map(fn (Channel $channel): array => [
+                'slug' => $channel->slug,
+                'name' => (string) $channel->name,
+                'isDefault' => $channel->is_default,
+                'isGeneral' => $channel->isGeneral(),
+            ]);
     }
 
     /**
@@ -156,15 +190,17 @@ class TeamController extends Controller
         foreach (ChannelVisibility::cases() as $visibility) {
             $column = $visibility->value.'_channel_creation_policy';
             $old = $before[$column] ?? null;
-
-            if (! $old instanceof ChannelCreationPolicy || $old === $team->creationPolicyFor($visibility)) {
+            if (! $old instanceof ChannelCreationPolicy) {
+                continue;
+            }
+            if ($old === $team->creationPolicyFor($visibility)) {
                 continue;
             }
 
             $recorder->record($team, $actor, AuditAction::ChannelCreationPolicyChanged, $team, [
-                'visibility' => $visibility->value,
-                'old_policy' => $old->value,
-                'new_policy' => $team->creationPolicyFor($visibility)->value,
+                'visibility' => $visibility->label(),
+                'old_policy' => $old->label(),
+                'new_policy' => $team->creationPolicyFor($visibility)->label(),
             ]);
         }
     }

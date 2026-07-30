@@ -31,15 +31,13 @@ class MembershipObserver
      */
     public function created(Membership $membership): void
     {
-        $team = $membership->team;
-
         $general = Channel::where('team_id', $membership->team_id)
             ->where('slug', Channel::GENERAL_SLUG)
             ->first();
 
         if ($general === null) {
             $this->createChannel->handle(
-                $team,
+                $membership->team,
                 Channel::GENERAL_SLUG,
                 ChannelVisibility::Public,
                 $membership->user,
@@ -51,7 +49,7 @@ class MembershipObserver
         // Team onboarding, not a channel join: joining the workspace's default
         // channels is structural, so it posts no "member joined" notice (which
         // would badge every default for every new workspace member).
-        foreach ($team->defaultChannels()->get() as $channel) {
+        foreach (Channel::defaultsForTeam($membership->team_id)->get() as $channel) {
             $this->joinChannel->handle($channel, $membership->user, announce: false);
         }
     }
