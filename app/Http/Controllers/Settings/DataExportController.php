@@ -8,6 +8,7 @@ use App\Enums\SecurityEventType;
 use App\Http\Controllers\Controller;
 use App\Jobs\ExportUserData;
 use App\Models\DataExport;
+use App\Support\ExportLifecycle;
 use App\Support\SecurityEventRecorder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -59,7 +60,7 @@ class DataExportController extends Controller
         abort_unless($dataExport->user_id === $request->user()->id, 403);
         abort_unless($dataExport->isReady() && ! $dataExport->isExpired(), 404);
 
-        $response = Storage::disk(ExportUserData::DISK)->download($dataExport->path, 'data-export.zip');
+        $response = Storage::disk(ExportLifecycle::DISK)->download($dataExport->path, 'data-export.zip');
 
         $securityEvents->record($request->user(), SecurityEventType::DataExportDownloaded);
 

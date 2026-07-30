@@ -2,8 +2,8 @@
 
 namespace App\Mail;
 
-use App\Jobs\GenerateAuditExport;
 use App\Models\AuditExport;
+use App\Support\ExportLifecycle;
 use Illuminate\Bus\Queueable;
 use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Content;
@@ -39,7 +39,7 @@ class AuditExportReady extends Mailable
                 'formatLabel' => $this->export->format->label(),
                 'url' => route('teams.audit-exports.download', [$this->export->team, $this->export]),
                 'expiresAt' => $this->export->expires_at,
-                'retentionDays' => GenerateAuditExport::RETENTION_DAYS,
+                'retentionDays' => ExportLifecycle::RETENTION_DAYS,
             ],
         );
     }

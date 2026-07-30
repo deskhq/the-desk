@@ -99,6 +99,22 @@ test('the job bails quietly when the export no longer exists', function (): void
     Mail::assertNothingSent();
 });
 
+test('a failed notification does not undo a ready export', function (): void {
+    Storage::fake('local');
+
+    $user = User::factory()->create();
+    $export = DataExport::factory()->for($user)->create();
+
+    Mail::shouldReceive('to')->once()->andThrow(new RuntimeException('smtp down'));
+
+    (new ExportUserData($export->id))->handle();
+
+    $export->refresh();
+
+    expect($export->status)->toBe(DataExportStatus::Ready);
+    expect($export->path)->not->toBeNull();
+});
+
 test('the failed hook marks the export failed and discards any archive metadata', function (): void {
     $export = DataExport::factory()->ready()->create();
 

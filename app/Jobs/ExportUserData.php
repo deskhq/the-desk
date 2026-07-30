@@ -9,10 +9,11 @@ use App\Models\Membership;
 use App\Models\Message;
 use App\Models\SecurityEvent;
 use App\Models\User;
+use App\Support\ExportLifecycle;
+use Illuminate\Contracts\Filesystem\Filesystem;
+use Illuminate\Contracts\Mail\Mailable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
-use Illuminate\Support\Facades\Mail;
-use Illuminate\Support\Facades\Storage;
 use Throwable;
 use ZipArchive;
 
@@ -21,14 +22,9 @@ class ExportUserData implements ShouldQueue
     use Queueable;
 
     /**
-     * The private disk the archive is written to.
+     * The directory on the private disk archives live under.
      */
-    public const string DISK = 'local';
-
-    /**
-     * How many days the built archive stays downloadable before it is purged.
-     */
-    private const int RETENTION_DAYS = 7;
+    private const string DIRECTORY = 'exports';
 
     public function __construct(private string $dataExportId) {}
 
@@ -36,38 +32,31 @@ class ExportUserData implements ShouldQueue
      * Assemble the user's personal data into a zip of JSON files on the private
      * disk, then mark the export ready and email them the download link.
      *
-     * Re-fetches by id and bails quietly when the export is gone (the account may
-     * have been deleted since the job was queued).
+     * Everything but the assembling is {@see ExportLifecycle}'s, including the
+     * bail when the export is gone (the account may have been deleted since the
+     * job was queued).
      */
     public function handle(): void
     {
-        $export = DataExport::with('user')->find($this->dataExportId);
+        $this->lifecycle()->generate(
+            write: function (DataExport $export, Filesystem $disk): array {
+                $path = self::DIRECTORY.'/'.$export->id.'.zip';
+                $disk->makeDirectory(self::DIRECTORY);
 
-        if ($export === null) {
-            return;
-        }
+                $zip = new ZipArchive;
+                $zip->open($disk->path($path), ZipArchive::CREATE | ZipArchive::OVERWRITE);
 
-        $path = 'exports/'.$export->id.'.zip';
-        $disk = Storage::disk(self::DISK);
-        $disk->makeDirectory('exports');
+                foreach ($this->archiveContents($export->user) as $filename => $contents) {
+                    $zip->addFromString($filename, (string) json_encode($contents, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+                }
 
-        $zip = new ZipArchive;
-        $zip->open($disk->path($path), ZipArchive::CREATE | ZipArchive::OVERWRITE);
+                $zip->close();
 
-        foreach ($this->archiveContents($export->user) as $filename => $contents) {
-            $zip->addFromString($filename, (string) json_encode($contents, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
-        }
-
-        $zip->close();
-
-        $export->update([
-            'status' => DataExportStatus::Ready,
-            'path' => $path,
-            'size_bytes' => $disk->size($path),
-            'expires_at' => now()->addDays(self::RETENTION_DAYS),
-        ]);
-
-        Mail::to($export->user)->send(new DataExportReady($export));
+                return ['path' => $path, 'size_bytes' => $disk->size($path)];
+            },
+            recipient: fn (DataExport $export): User => $export->user,
+            notice: fn (DataExport $export): Mailable => new DataExportReady($export),
+        );
     }
 
     /**
@@ -76,12 +65,24 @@ class ExportUserData implements ShouldQueue
      */
     public function failed(Throwable $exception): void
     {
-        DataExport::whereKey($this->dataExportId)->update([
-            'status' => DataExportStatus::Failed,
-            'path' => null,
-            'size_bytes' => null,
-            'expires_at' => null,
-        ]);
+        $this->lifecycle()->fail();
+    }
+
+    /**
+     * The shared export lifecycle this job adapts into, eager-loading the user
+     * the archive and the ready notice read.
+     *
+     * @return ExportLifecycle<DataExport>
+     */
+    private function lifecycle(): ExportLifecycle
+    {
+        return new ExportLifecycle(
+            query: DataExport::with('user'),
+            exportId: $this->dataExportId,
+            readyStatus: DataExportStatus::Ready,
+            failedStatus: DataExportStatus::Failed,
+            fileAttributes: ['path', 'size_bytes'],
+        );
     }
 
     /**
