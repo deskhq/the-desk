@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Actions\Users;
 
-use App\Support\ExportLifecycle;
 use App\Models\DataExport;
-use Illuminate\Support\Facades\Storage;
+use App\Support\ExpirySweep;
+use App\Support\ExportLifecycle;
 
 class PurgeExpiredDataExports
 {
@@ -19,33 +19,13 @@ class PurgeExpiredDataExports
      * the most sensitive object the app produces around forever. The row is
      * dropped with it: an expired export already reads as "no export ready" in
      * the Data & privacy panel, and the request and download are recorded as
-     * security events, so no evidence is lost.
-     *
-     * Pending and failed exports carry no `expires_at`, so only ready-then-expired
-     * ones are swept here; the file guard covers the row that never produced one.
+     * security events, so no evidence is lost. The sweep itself is
+     * {@see ExpirySweep}'s.
      *
      * @return int the number of exports purged
      */
     public function handle(): int
     {
-        $disk = Storage::disk(ExportLifecycle::DISK);
-
-        $purged = 0;
-
-        DataExport::query()
-            ->whereNotNull('expires_at')
-            ->where('expires_at', '<', now())
-            ->cursor()
-            ->each(function (DataExport $export) use ($disk, &$purged): void {
-                if ($export->path !== null) {
-                    $disk->delete($export->path);
-                }
-
-                $export->delete();
-
-                $purged++;
-            });
-
-        return $purged;
+        return ExpirySweep::purgeExpiredExports(DataExport::query(), ExportLifecycle::DISK);
     }
 }

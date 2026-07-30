@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Actions\Users;
 
-use App\Events\UserProfileUpdated;
 use App\Models\User;
+use App\Support\ExpirySweep;
 
 class ClearExpiredUserStatuses
 {
@@ -19,41 +19,18 @@ class ClearExpiredUserStatuses
      * page that the meeting is over. Running it every minute keeps the wall-clock
      * error under the smallest offered preset.
      *
-     * The cursor can hand back a user who has since set a *new* status, so each
-     * clear is conditional on the expiry still being the lapsed one this pass
-     * read. A status replaced in that window is left alone — and neither counted
-     * nor broadcast — rather than being wiped moments after the user set it.
+     * The walk, and the compare-and-swap that spares a status set afresh
+     * mid-pass, are {@see ExpirySweep}'s. Only the emoji and text riding along
+     * with the expiry column are this sweeper's own.
      *
      * @return int the number of statuses cleared
      */
     public function handle(): int
     {
-        $cleared = 0;
-
-        User::query()
-            ->whereNotNull('status_emoji')
-            ->whereNotNull('status_expires_at')
-            ->where('status_expires_at', '<=', now())
-            ->cursor()
-            ->each(function (User $user) use (&$cleared): void {
-                $updated = User::query()
-                    ->whereKey($user->getKey())
-                    ->where('status_expires_at', $user->status_expires_at)
-                    ->update([
-                        'status_emoji' => null,
-                        'status_text' => null,
-                        'status_expires_at' => null,
-                    ]);
-
-                if ($updated === 0) {
-                    return;
-                }
-
-                event(new UserProfileUpdated($user->refresh()));
-
-                $cleared++;
-            });
-
-        return $cleared;
+        return ExpirySweep::clearLapsedProfileInstant(
+            User::query()->whereNotNull('status_emoji'),
+            'status_expires_at',
+            ['status_emoji', 'status_text', 'status_expires_at'],
+        );
     }
 }

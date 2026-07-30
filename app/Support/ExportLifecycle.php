@@ -57,11 +57,11 @@ class ExportLifecycle
      * @param  array<int, string>  $fileAttributes  the columns describing the written file, nulled again on failure
      */
     public function __construct(
-        private Builder $query,
-        private string $exportId,
-        private BackedEnum $readyStatus,
-        private BackedEnum $failedStatus,
-        private array $fileAttributes = ['path'],
+        private readonly Builder $query,
+        private readonly string $exportId,
+        private readonly BackedEnum $readyStatus,
+        private readonly BackedEnum $failedStatus,
+        private readonly array $fileAttributes = ['path'],
     ) {}
 
     /**
@@ -113,7 +113,7 @@ class ExportLifecycle
      */
     private function announce(Model $export, ?User $recipient, Closure $notice): void
     {
-        if ($recipient === null) {
+        if (! $recipient instanceof User) {
             return;
         }
 

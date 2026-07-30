@@ -79,6 +79,18 @@ built; build them once, then reuse.
   by inline `record()` calls in controllers.
 - **`AuditRecorder` / `SecurityEventRecorder`** — deep modules hiding the
   activity-log builder. Keep them; only change *where they're called from*.
+- **`ExportLifecycle`** — the one lifecycle every asynchronous file export runs:
+  resolve-or-bail, write, mark ready, send the ready notice, and fail cleanly.
+  `GenerateAuditExport` and `ExportUserData` are adapters over it, supplying only
+  what differs. It owns the two answers the jobs used to disagree on (a throwing
+  mailer never undoes a written export; a failed export keeps no archive
+  metadata) and the `DISK` / `RETENTION_DAYS` constants. A new export type adapts
+  in; it does not re-hand-roll the steps.
+- **`ExpirySweep`** — the cursor walk every scheduled expiry sweeper runs, in the
+  two shapes that exist: purge an expired export (file before row) and clear a
+  lapsed profile instant (compare-and-swap, then broadcast). Sweepers stay one
+  Action per concern, each with its own name, description and
+  `withoutOverlapping()` in `routes/console.php`; only the walk is shared.
 - **Channel membership settings** — star, mute, notification level, draft, and
   placement are all mutations of the channel-member pivot; treat them as one
   concern, not five unrelated ones.
