@@ -2,11 +2,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { defineComponent, h, nextTick } from 'vue';
 import {
+    afterLeave,
     click,
     composerHandleDouble,
     message,
     mountShow,
     settle,
+    starveAnimationFrames,
     stubObservers,
     unmountAll,
 } from './Show.doubles';
@@ -300,6 +302,10 @@ describe('jumping to a message', () => {
 });
 
 describe('the unread jump pill', () => {
+    // The pill rides a `<Transition>`, so every assertion here has to outlast a
+    // fade that only gets slower on a loaded machine.
+    beforeEach(starveAnimationFrames);
+
     it('offers the boundary while it sits above the window and scrolls to it', async () => {
         const { host } = mount({ lastReadMessageId: 'm1' });
 
@@ -340,9 +346,10 @@ describe('the unread jump pill', () => {
 
         timeline.range = { startIndex: 0, endIndex: 10 };
         click(host, '[data-test="stub-range"]');
-        await settle();
 
-        expect(host.querySelector('[data-test="jump-to-unread"]')).toBe(null);
+        expect(await afterLeave(host, '[data-test="jump-to-unread"]')).toBe(
+            null,
+        );
     });
 
     it('dismisses the pill when the reader jumps back to the present', async () => {
@@ -352,10 +359,11 @@ describe('the unread jump pill', () => {
         await scrollUp(host);
 
         click(host, '[data-test="jump-to-latest"]');
-        await settle();
 
+        expect(await afterLeave(host, '[data-test="jump-to-unread"]')).toBe(
+            null,
+        );
         expect(timeline.scrollToLatest).toHaveBeenCalledWith('smooth');
-        expect(host.querySelector('[data-test="jump-to-unread"]')).toBe(null);
     });
 });
 
