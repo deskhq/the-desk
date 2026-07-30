@@ -31,6 +31,14 @@ return [
     'pending_ttl_hours' => (int) env('ATTACHMENT_PENDING_TTL_HOURS', 24),
 
     /*
+    | The total storage each workspace's uploads may occupy, in megabytes. Applies
+    | uniformly to every team, personal ones included, and is enforced before a
+    | file is written so an over-quota upload leaves nothing behind. `0` (the
+    | default) means unlimited — the feature is off and no usage is computed.
+    */
+    'storage_quota_mb' => (int) env('STORAGE_QUOTA_MB', 0),
+
+    /*
     | The filesystem disk attachments live on. Private by default (not the
     | `public` disk custom emoji uses) because message attachments belong to
     | private channels — a guessable, auth-free URL would leak them. Files are

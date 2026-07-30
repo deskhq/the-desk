@@ -505,6 +505,42 @@ close endpoints return **404**. Existing poll messages render their last-known
 tally read-only. See
 [Environment variables → Feature toggles](/reference/environment-variables/#feature-toggles).
 
+## Workspace storage quota
+
+| Variable           | Default | Effect                                                     |
+| ------------------ | ------- | ---------------------------------------------------------- |
+| `STORAGE_QUOTA_MB` | `0`     | Caps the upload storage each workspace may occupy, in megabytes. |
+
+Storage is **unlimited** by default: `0` (or leaving the variable unset) turns
+the feature off entirely, and nothing is measured. Set a value in megabytes to
+cap how far a workspace can grow your disk — `STORAGE_QUOTA_MB=5000` gives every
+workspace 5 GB.
+
+The cap applies **uniformly to every workspace**, personal ones included: it is
+one instance-wide value, not a per-team setting. Enforcement is a hard block
+checked **before** the file is written, so an upload that would cross the quota is
+refused with an error in the composer and leaves nothing on disk.
+
+What counts toward the quota is exactly what sits on your disk:
+
+- **Uploaded files count**, whether they are already sent or still staged in a
+  composer — a pending upload occupies disk just like a sent one.
+- **Deleted messages keep counting** until their attachments are permanently
+  removed. A deleted message's files are retained (they are recoverable), so the
+  bytes are still yours; they are released once the row is purged for good.
+- **GIFs from the [Giphy picker](#gif-picker-giphy) do not count.** They are
+  hotlinked from Giphy's CDN and store no file of yours.
+
+Admins and the workspace owner see the workspace's usage — used, quota, and
+percentage — on the workspace **Analytics** dashboard. With no quota configured
+the read-out is absent, since there is nothing to measure against.
+
+:::note
+There is no per-workspace override yet, and no notification when a workspace
+nears its limit. Raising the value takes effect immediately for everyone: it is
+read at runtime, so a restart is all that is needed.
+:::
+
 ## "Powered by The Desk" attribution
 
 | Variable               | Default | Effect                                       |

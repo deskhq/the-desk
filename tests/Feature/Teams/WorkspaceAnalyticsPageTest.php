@@ -2,6 +2,7 @@
 
 use App\Actions\Teams\CreateTeam;
 use App\Enums\TeamRole;
+use App\Models\Attachment;
 use App\Models\Channel;
 use App\Models\Message;
 use App\Models\Team;
@@ -105,4 +106,30 @@ test('an invalid range is rejected', function (): void {
     $this->actingAs($owner)
         ->get(route('teams.analytics.index', [$team, 'range' => 'forever']))
         ->assertSessionHasErrors('range');
+});
+
+test('the dashboard reports the workspace storage usage against its quota', function (): void {
+    config()->set('attachments.storage_quota_mb', 4);
+    [$owner, $team] = analyticsPageTeam();
+    $general = $team->channels()->where('slug', Channel::GENERAL_SLUG)->firstOrFail();
+    Attachment::factory()->for($general)->create(['size_bytes' => 1024 * 1024]);
+
+    $this->actingAs($owner)
+        ->get(route('teams.analytics.index', $team))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page): Assert => $page
+            ->where('storage.usedBytes', 1024 * 1024)
+            ->where('storage.quotaBytes', 4 * 1024 * 1024)
+            ->where('storage.percent', 25)
+        );
+});
+
+test('the dashboard carries no storage read-out while no quota is configured', function (): void {
+    config()->set('attachments.storage_quota_mb', 0);
+    [$owner, $team] = analyticsPageTeam();
+
+    $this->actingAs($owner)
+        ->get(route('teams.analytics.index', $team))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page): Assert => $page->where('storage', null));
 });

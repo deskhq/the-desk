@@ -325,6 +325,7 @@ Files and images members attach to messages.
 | `ATTACHMENT_DISK`              | `local` | Private disk files are stored on. Point at a configured S3 disk for bucket storage. |
 | `ATTACHMENT_IMAGE_DRIVER`      | `imagick` | Image library used to strip EXIF metadata and build thumbnails: `imagick` or `gd`. |
 | `ATTACHMENT_THUMBNAIL_MAX_PX`  | `720`   | Longest edge, in pixels, of a generated image thumbnail. Images are only scaled down. |
+| `STORAGE_QUOTA_MB`             | `0`     | Total upload storage each workspace may occupy, in megabytes. `0` means unlimited. |
 
 :::note[Image processing needs a PHP image extension]
 Uploaded images have their EXIF metadata stripped (so photo GPS never leaks) and a thumbnail
