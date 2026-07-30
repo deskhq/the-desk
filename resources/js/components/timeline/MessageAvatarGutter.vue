@@ -20,6 +20,11 @@ const props = defineProps<{
      * tile's image; the squared-off bot shape rides along regardless.
      */
     authorOverride?: AuthorOverride | null;
+    /**
+     * The incoming webhook behind the run, when the viewer is one of the people
+     * who could revoke it. Passed straight to the hover card, which names it.
+     */
+    incomingWebhook?: App.Data.IncomingWebhookSourceData | null;
     teamSlug: string;
     presence: RenderedPresence;
     isDnd: boolean;
@@ -69,6 +74,7 @@ const viaName = computed(() =>
             :user-id="author.id"
             :name="author.name"
             :via-name="viaName"
+            :webhook="incomingWebhook"
             :presence="presence"
             :is-dnd="isDnd"
             @mention="(member) => $emit('mention', member)"

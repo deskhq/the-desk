@@ -1478,5 +1478,8 @@
   "Always": "Toujours",
   "Make :channel a default channel": "Faire de :channel un canal par défaut",
   "Channel-creation policy changed": "Règle de création de canaux modifiée",
-  "Changed the %s channel-creation policy from “%s” to “%s”": "A modifié la règle de création des canaux %s de « %s » à « %s »"
+  "Changed the %s channel-creation policy from “%s” to “%s”": "A modifié la règle de création des canaux %s de « %s » à « %s »",
+  "Posted by the :name webhook": "Publié par le webhook :name",
+  "Review": "Examiner",
+  "Review the :name webhook": "Examiner le webhook :name"
 }

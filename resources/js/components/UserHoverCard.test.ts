@@ -13,10 +13,20 @@ vi.mock('@inertiajs/vue3', () => ({
     usePage: () => ({ props: {} }),
     Link: defineComponent({
         name: 'LinkStub',
+        props: { href: { type: [String, Object], default: '' } },
         setup:
-            (_, { slots }) =>
+            (props, { slots }) =>
             () =>
-                h('a', slots.default?.()),
+                h(
+                    'a',
+                    {
+                        href:
+                            typeof props.href === 'string'
+                                ? props.href
+                                : ((props.href as { url?: string })?.url ?? ''),
+                    },
+                    slots.default?.(),
+                ),
     }),
 }));
 
@@ -99,5 +109,36 @@ describe('the user hover card', () => {
         const host = mount();
 
         expect(host.querySelector('[data-test="hover-card-via"]')).toBeNull();
+    });
+
+    it('names the webhook behind the row and links straight to it', () => {
+        const host = mount({
+            webhook: { id: 'hook-1', name: 'CI alerts' },
+        });
+
+        expect(
+            host.querySelector('[data-test="hover-card-webhook"]')?.textContent,
+        ).toContain('CI alerts');
+
+        const link = host.querySelector(
+            '[data-test="hover-card-webhook-link"]',
+        );
+
+        // The link lands on the integrations page with the offending hook named,
+        // so revoking exactly that credential is the next click.
+        expect(link?.getAttribute('href')).toContain('webhook=hook-1');
+
+        // A link list would otherwise announce a bare "Review" per open card.
+        expect(link?.querySelector('.sr-only')?.textContent).toContain(
+            'Review the CI alerts webhook',
+        );
+    });
+
+    it('names no webhook when the viewer was not told of one', () => {
+        const host = mount();
+
+        expect(
+            host.querySelector('[data-test="hover-card-webhook"]'),
+        ).toBeNull();
     });
 });

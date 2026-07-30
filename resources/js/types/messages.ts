@@ -220,6 +220,13 @@ export type Message = {
      * one, which is built client-side under the sender's own identity.
      */
     authorOverride?: AuthorOverride | null;
+    /**
+     * The incoming webhook that produced this message (mirrors the `MessageData`
+     * DTO's `incomingWebhook`), for the viewers who could revoke it. Null on
+     * every ordinary message, null for a viewer who cannot manage the team's
+     * integrations, and absent on an optimistic one.
+     */
+    incomingWebhook?: App.Data.IncomingWebhookSourceData | null;
     createdAt: string;
     editedAt: string | null;
     isDeleted: boolean;

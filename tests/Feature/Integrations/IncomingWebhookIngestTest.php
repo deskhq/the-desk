@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Actions\Integrations\RevokeIncomingWebhook;
 use App\Events\MessageSent;
 use App\Models\Channel;
 use App\Models\IncomingWebhook;
@@ -324,6 +325,32 @@ it('keeps the snapshot after the webhook is revoked and its bot renamed', functi
     $message = Message::query()->where('channel_id', $webhook->channel_id)->sole();
 
     expect($message->author_override_name)->toBe('Release Train');
+});
+
+it('records which webhook produced the message', function (): void {
+    [$webhook, $token] = makeWebhook();
+
+    $this->postJson("/webhooks/incoming/{$token}", ['text' => 'Deploy finished'])
+        ->assertStatus(202);
+
+    $message = Message::query()->where('channel_id', $webhook->channel_id)->sole();
+
+    expect($message->incoming_webhook_id)->toBe($webhook->id);
+});
+
+it('keeps a webhook message after its webhook is revoked', function (): void {
+    [$webhook, $token] = makeWebhook();
+
+    $this->postJson("/webhooks/incoming/{$token}", ['text' => 'Deploy finished'])
+        ->assertStatus(202);
+
+    app(RevokeIncomingWebhook::class)->handle($webhook->bot, $webhook);
+
+    $message = Message::query()->where('channel_id', $webhook->channel_id)->sole();
+
+    // Revocation is an audit event, not a retraction: the row keeps pointing at
+    // the credential that produced it so the trail survives the revoke.
+    expect($message->incoming_webhook_id)->toBe($webhook->id);
 });
 
 it('throttles each webhook token independently, not by shared IP', function (): void {
