@@ -53,3 +53,29 @@ describe('mobile shell viewport sizing', () => {
         expect(threadPanel).not.toContain('100vh');
     });
 });
+
+/**
+ * The layout is a mount point, and the rule that keeps it one is that nothing
+ * inside it can only be exercised by mounting the whole shell.
+ *
+ * Both assertions below are about *reachability*, not size. A `router` call in
+ * here is a navigation no unit test can reach, and a dialog mounted in here is
+ * open state no unit test can drive — which is how 823 lines accumulated with a
+ * 55-line test file that only ever asserted CSS (#1093).
+ */
+describe('the shell as a mount point', () => {
+    it('makes no router call of its own', () => {
+        // Seven, once. Each moved to the module that owns the decision behind
+        // it: {@see useReminders}, {@see useShellShortcuts},
+        // {@see useShellStartup}, {@see useChannelUploadToasts}.
+        expect(mainLayout).not.toContain('router.');
+    });
+
+    it('mounts its dialogs through the one host rather than one by one', () => {
+        expect(mainLayout).toContain('<DialogHost');
+
+        // The registry owns the open state, so no dialog is driven from a ref
+        // that only exists while the shell is mounted.
+        expect(mainLayout).not.toContain('v-model:open');
+    });
+});

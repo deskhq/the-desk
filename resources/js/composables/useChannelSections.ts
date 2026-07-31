@@ -15,7 +15,7 @@ import type { ChannelSection } from '@/types/channels';
  * Creating and renaming both happen in an inline field, and the state driving
  * them lives at module scope rather than per-caller: the "+ New" menu that opens
  * the create form sits in the dock header, outside the panel that renders the
- * field. That is {@see useQuickSwitcher}'s pattern, and it matches the lifetime
+ * field. That is {@see useDialog}'s pattern, and it matches the lifetime
  * the state had before the extraction — `MainLayout` is a persistent Inertia
  * layout, so its own refs already survived every channel and team switch.
  */

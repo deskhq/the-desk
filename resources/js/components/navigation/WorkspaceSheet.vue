@@ -19,6 +19,7 @@ import {
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { useDialog } from '@/composables/useDialog';
 import { useInitials } from '@/composables/useInitials';
 import { useIsMobile } from '@/composables/useIsMobile';
 import { useTeamSwitch } from '@/composables/useTeamSwitch';
@@ -54,16 +55,16 @@ withDefaults(
     { side: 'bottom' },
 );
 
-const emit = defineEmits<{
-    /** The viewer asked to invite people; the host owns the invite modal. */
-    invite: [];
-    /** The viewer asked to review their pending invitations. */
-    join: [];
-}>();
-
 const page = usePage();
 const { t } = useTranslations();
 const { getInitials } = useInitials();
+
+/**
+ * Both rows leave the sheet for a dialog the shell mounts, so they reach the
+ * registry rather than emitting up through the four components between them.
+ */
+const inviteDialog = useDialog('invite');
+const invitationsDialog = useDialog('invitations');
 const { switchTeam } = useTeamSwitch();
 
 const currentTeam = computed<Team | null>(() => page.props.currentTeam);
@@ -103,12 +104,12 @@ function close(): void {
 
 function requestInvite(): void {
     close();
-    emit('invite');
+    inviteDialog.open();
 }
 
 function requestJoin(): void {
     close();
-    emit('join');
+    invitationsDialog.open();
 }
 
 function chooseTeam(team: Team): void {

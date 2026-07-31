@@ -16,6 +16,7 @@ import {
     DropdownMenuItem,
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { useDialog } from '@/composables/useDialog';
 import { useIsMobile } from '@/composables/useIsMobile';
 
 /**
@@ -35,13 +36,14 @@ defineProps<{
 }>();
 
 const emit = defineEmits<{
-    /** Start a direct message; the host owns the people picker. */
-    message: [];
     /** Start a section; the host owns the inline name field. */
     section: [];
 }>();
 
 const isSheetViewport = useIsMobile();
+
+/** "Message" opens the people picker the shell mounts. */
+const newMessageDialog = useDialog('newMessage');
 
 const open = ref(false);
 
@@ -51,7 +53,7 @@ watch(isSheetViewport, () => {
 
 function requestMessage(): void {
     open.value = false;
-    emit('message');
+    newMessageDialog.open();
 }
 
 /** The bottom sheet has no focus scope to outlive, so it announces at once. */

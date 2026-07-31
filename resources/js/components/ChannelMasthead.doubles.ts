@@ -61,9 +61,18 @@ export function navPanelDouble(): Record<string, unknown> {
     };
 }
 
-export function quickSwitcherDouble(): Record<string, unknown> {
+/**
+ * The dialog registry, with the switcher's `open` spied on: below the breakpoint
+ * the masthead's search glyph is the jump-to overlay's entry point.
+ */
+export function dialogDouble(): Record<string, unknown> {
     return {
-        useQuickSwitcher: () => ({ open: navigation.openQuickSwitcher }),
+        useDialog: (name: string) => ({
+            isOpen: ref(false),
+            open: name === 'switcher' ? navigation.openQuickSwitcher : vi.fn(),
+            close: vi.fn(),
+            toggle: vi.fn(),
+        }),
     };
 }
 

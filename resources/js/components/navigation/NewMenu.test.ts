@@ -2,6 +2,7 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import type { App } from 'vue';
 import { createApp, defineComponent, h } from 'vue';
+import { useDialog } from '@/composables/useDialog';
 
 /** Drives the mocked breakpoint flag, which has to stay a real ref. */
 const viewport = vi.hoisted(() => ({
@@ -102,6 +103,7 @@ beforeEach(() => {
     viewport.setMobile?.(false);
     channelModalTeamSlug.value = '';
     menu.replayClose = null;
+    useDialog('newMessage').close();
 });
 
 afterEach(() => {
@@ -114,14 +116,13 @@ function mountMenu() {
     const host = document.createElement('div');
     document.body.append(host);
 
-    const messaged = vi.fn();
     const sectioned = vi.fn();
 
     app = createApp({
         render: () =>
             h(
                 NewMenu,
-                { teamSlug: 'acme', onMessage: messaged, onSection: sectioned },
+                { teamSlug: 'acme', onSection: sectioned },
                 {
                     default: () =>
                         h('button', { 'data-test': 'new-menu-trigger' }),
@@ -131,7 +132,7 @@ function mountMenu() {
     app.config.globalProperties.$t = (key: string) => key;
     app.mount(host);
 
-    return { host, messaged, sectioned };
+    return { host, sectioned };
 }
 
 function row(host: HTMLElement, name: string): HTMLElement | null {
@@ -170,12 +171,12 @@ it('points the channel modal at the open workspace', () => {
     expect(channelModalTeamSlug.value).toBe('acme');
 });
 
-it('hands the direct message over to its host', () => {
-    const { host, messaged } = mountMenu();
+it('opens the people picker the shell mounts', () => {
+    const { host } = mountMenu();
 
     row(host, 'new-menu-message')!.click();
 
-    expect(messaged).toHaveBeenCalledTimes(1);
+    expect(useDialog('newMessage').isOpen.value).toBe(true);
 });
 
 it('hands the new section over once the menu is done with focus', () => {
@@ -208,7 +209,7 @@ it('leaves the focus restore alone when the menu closes on anything else', () =>
 it('presents the same three rows as a bottom sheet below the breakpoint', () => {
     viewport.setMobile?.(true);
 
-    const { host, messaged, sectioned } = mountMenu();
+    const { host, sectioned } = mountMenu();
 
     expect(row(host, 'new-menu-trigger')).not.toBeNull();
     expect(row(host, 'new-menu-channel')).not.toBeNull();
@@ -216,6 +217,6 @@ it('presents the same three rows as a bottom sheet below the breakpoint', () => 
     row(host, 'new-menu-message')!.click();
     row(host, 'create-section-trigger')!.click();
 
-    expect(messaged).toHaveBeenCalledTimes(1);
+    expect(useDialog('newMessage').isOpen.value).toBe(true);
     expect(sectioned).toHaveBeenCalledTimes(1);
 });

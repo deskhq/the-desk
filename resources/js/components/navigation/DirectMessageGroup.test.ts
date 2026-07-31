@@ -1,7 +1,8 @@
 // @vitest-environment jsdom
-import { afterEach, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import type { App } from 'vue';
 import { createApp, defineComponent, h, reactive } from 'vue';
+import { useDialog } from '@/composables/useDialog';
 import type { Channel } from '@/types/channels';
 
 const page = reactive<{ props: Record<string, unknown> }>({
@@ -48,6 +49,10 @@ function dm(overrides: Partial<Channel> = {}): Channel {
 
 let app: App | null = null;
 
+beforeEach(() => {
+    useDialog('newMessage').close();
+});
+
 afterEach(() => {
     app?.unmount();
     app = null;
@@ -61,7 +66,6 @@ function mountGroup(
     document.body.append(host);
 
     const toggle = vi.fn();
-    const newMessage = vi.fn();
 
     app = createApp({
         render: () =>
@@ -74,13 +78,12 @@ function mountGroup(
                     userId === 'u-2' ? 'away' : 'offline',
                 isDndFor: (userId: string) => userId === 'u-2',
                 onToggle: toggle,
-                onNewMessage: newMessage,
             }),
     });
     app.config.globalProperties.$t = (key: string) => key;
     app.mount(host);
 
-    return { host, toggle, newMessage };
+    return { host, toggle };
 }
 
 it('keeps the selectors the browser suite reaches the group by', () => {
@@ -168,10 +171,10 @@ it('asks its host to collapse the group rather than doing it itself', () => {
     expect(toggle).toHaveBeenCalledTimes(1);
 });
 
-it('asks its host to open the people picker', () => {
-    const { host, newMessage } = mountGroup();
+it('opens the people picker the shell mounts', () => {
+    const { host } = mountGroup();
 
     host.querySelector<HTMLElement>('[data-test="new-dm-trigger"]')!.click();
 
-    expect(newMessage).toHaveBeenCalledTimes(1);
+    expect(useDialog('newMessage').isOpen.value).toBe(true);
 });

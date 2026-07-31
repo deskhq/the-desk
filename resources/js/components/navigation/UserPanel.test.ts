@@ -82,17 +82,28 @@ vi.mock('@/composables/useAppearance', async () => {
     };
 });
 
-const openStatusDialog = vi.hoisted(() => vi.fn());
-
-vi.mock('@/composables/useUserStatusDialog', () => ({
-    useUserStatusDialog: () => ({ open: openStatusDialog }),
+const { openStatusDialog, openDndPauseDialog } = vi.hoisted(() => ({
+    openStatusDialog: vi.fn(),
+    openDndPauseDialog: vi.fn(),
 }));
 
-const openDndPauseDialog = vi.hoisted(() => vi.fn());
+vi.mock('@/composables/useDialog', async () => {
+    const { ref } = await import('vue');
 
-vi.mock('@/composables/useDndPauseDialog', () => ({
-    useDndPauseDialog: () => ({ open: openDndPauseDialog }),
-}));
+    const opens: Record<string, () => void> = {
+        status: openStatusDialog,
+        dnd: openDndPauseDialog,
+    };
+
+    return {
+        useDialog: (name: string) => ({
+            isOpen: ref(false),
+            open: opens[name] ?? vi.fn(),
+            close: vi.fn(),
+            toggle: vi.fn(),
+        }),
+    };
+});
 
 const replayTour = vi.hoisted(() => vi.fn());
 

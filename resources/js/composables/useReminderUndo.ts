@@ -4,6 +4,7 @@ import {
     store as storeReminder,
 } from '@/actions/App/Http/Controllers/Channels/MessageReminderController';
 import { backgroundVisit } from '@/lib/backgroundVisit';
+import { REMINDER_PROPS } from '@/lib/reminderReload';
 
 /**
  * Whatever reminder a message already had, taken before a set or a snooze
@@ -56,7 +57,7 @@ export function useReminderUndo() {
                     ...backgroundVisit,
                     preserveScroll: true,
                     preserveState: true,
-                    only: ['reminders', 'firedReminders'],
+                    only: REMINDER_PROPS,
                 },
             );
 
@@ -77,7 +78,7 @@ export function useReminderUndo() {
                 ...backgroundVisit,
                 preserveScroll: true,
                 preserveState: true,
-                only: ['reminders', 'firedReminders'],
+                only: REMINDER_PROPS,
             },
         );
     }
