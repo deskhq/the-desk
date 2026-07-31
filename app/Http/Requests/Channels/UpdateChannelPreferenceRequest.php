@@ -16,7 +16,7 @@ class UpdateChannelPreferenceRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        return Gate::allows('updatePreference', $this->channel());
+        return Gate::allows('updateMembership', $this->channel());
     }
 
     /**

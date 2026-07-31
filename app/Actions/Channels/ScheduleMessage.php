@@ -5,6 +5,7 @@ namespace App\Actions\Channels;
 use App\Models\Channel;
 use App\Models\ScheduledMessage;
 use App\Models\User;
+use App\Support\ChannelMembership;
 use Illuminate\Support\Carbon;
 
 class ScheduleMessage
@@ -28,7 +29,7 @@ class ScheduleMessage
             'send_at' => $sendAt,
         ]);
 
-        $author->channels()->updateExistingPivot($channel->id, ['draft' => null]);
+        new ChannelMembership($channel, $author)->clearDraft();
 
         return $scheduled;
     }

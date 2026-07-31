@@ -218,7 +218,7 @@ test('a non-team-member cannot manage a private channel membership', function ()
         ->and($outsider->can('removeMember', $private))->toBeFalse();
 });
 
-test('the pivot-preference abilities are granted only to channel members', function (string $ability): void {
+test('changing your own membership is granted only to channel members', function (): void {
     $channelMember = User::factory()->create();
     $team = app(CreateTeam::class)->handle($channelMember, 'Acme');
     $channel = Channel::factory()->for($team)->create();
@@ -233,10 +233,10 @@ test('the pivot-preference abilities are granted only to channel members', funct
     // false, so the predicate short-circuits before touching membership.
     $outsider = User::factory()->create();
 
-    expect($channelMember->can($ability, $channel))->toBeTrue()
-        ->and($teamMember->can($ability, $channel))->toBeFalse()
-        ->and($outsider->can($ability, $channel))->toBeFalse();
-})->with(['updatePreference', 'updateStar', 'place', 'saveDraft']);
+    expect($channelMember->can('updateMembership', $channel))->toBeTrue()
+        ->and($teamMember->can('updateMembership', $channel))->toBeFalse()
+        ->and($outsider->can('updateMembership', $channel))->toBeFalse();
+});
 
 test('any team member may create either kind of channel while both policies stay open', function (): void {
     $owner = User::factory()->create();

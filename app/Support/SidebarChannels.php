@@ -6,6 +6,7 @@ namespace App\Support;
 
 use App\Data\ChannelData;
 use App\Models\Channel;
+use App\Models\ChannelMember;
 use App\Models\Message;
 use App\Models\Team;
 use App\Models\User;
@@ -68,7 +69,14 @@ final readonly class SidebarChannels
             ->where('channels.team_id', $this->team->id)
             ->whereNull('channels.archived_at')
             ->select('channels.*')
-            ->addSelect(['channel_members.muted', 'channel_members.notification_level', 'channel_members.starred', 'channel_members.section_id', 'channel_members.position', 'channel_members.hidden_at'])
+            // Every column of the membership row, from its one declaration, so a
+            // column added there is one the sidebar can already see. The draft is
+            // the single exclusion — the flag below stands in for it, for the
+            // reason given there.
+            ->addSelect(array_map(
+                fn (string $column): string => 'channel_members.'.$column,
+                array_values(array_diff(ChannelMember::PIVOT_COLUMNS, ['draft'])),
+            ))
             // The channel's latest message time drives the "Direct messages" group
             // ordering (recent activity first) and, being null when a DM has no
             // messages yet, the listing predicate that hides an empty DM from its

@@ -314,7 +314,7 @@ class Channel extends Model
     public function members(): BelongsToMany
     {
         return $this->belongsToMany(User::class, 'channel_members')
-            ->withPivot(['last_read_message_id', 'muted', 'notification_level', 'draft'])
+            ->withPivot(ChannelMember::PIVOT_COLUMNS)
             ->withTimestamps();
     }
 

@@ -6,7 +6,9 @@ use App\Data\UserData;
 use App\Events\MessageRead;
 use App\Events\ReadStateAdvanced;
 use App\Models\Channel;
+use App\Models\ChannelMember;
 use App\Models\User;
+use App\Support\ChannelMembership;
 
 class MarkChannelRead
 {
@@ -36,9 +38,9 @@ class MarkChannelRead
             return;
         }
 
-        $member = $channel->channelMembers()->where('user_id', $user->id)->first();
+        $member = new ChannelMembership($channel, $user)->row();
 
-        if ($member === null || $member->last_read_message_id === $latestMessageId) {
+        if (! $member instanceof ChannelMember || $member->last_read_message_id === $latestMessageId) {
             return;
         }
 

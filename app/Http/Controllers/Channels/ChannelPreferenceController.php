@@ -2,12 +2,12 @@
 
 namespace App\Http\Controllers\Channels;
 
-use App\Actions\Channels\UpdateChannelPreference;
 use App\Enums\NotificationLevel;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Channels\UpdateChannelPreferenceRequest;
 use App\Models\Channel;
 use App\Models\Team;
+use App\Support\ChannelMembership;
 use Illuminate\Http\RedirectResponse;
 
 class ChannelPreferenceController extends Controller
@@ -18,11 +18,9 @@ class ChannelPreferenceController extends Controller
      * Redirects back and lets Inertia recompute the shared `channels` prop so
      * the sidebar badges and dimming reflect the change without a full reload.
      */
-    public function update(UpdateChannelPreferenceRequest $request, Team $team, Channel $channel, UpdateChannelPreference $updateChannelPreference): RedirectResponse
+    public function update(UpdateChannelPreferenceRequest $request, Team $team, Channel $channel): RedirectResponse
     {
-        $updateChannelPreference->handle(
-            channel: $channel,
-            user: $request->user(),
+        new ChannelMembership($channel, $request->user())->setNotificationPreference(
             muted: $request->boolean('muted'),
             notificationLevel: NotificationLevel::from($request->validated('notification_level')),
         );
