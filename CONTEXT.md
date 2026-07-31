@@ -75,10 +75,18 @@ built; build them once, then reuse.
   that resolves where a channel's initial message window opens (unread anchoring,
   jump context, paging). Takes explicit params; the controller keeps HTTP glue.
 - **Domain-event recording** _(ADR-0005)_ — audit and security events are recorded
-  via the event→listener seam (`RecordSecurityEvents`), next to the mutation, not
-  by inline `record()` calls in controllers.
+  via the event→listener seam, next to the mutation, never by a `record()` call in
+  a controller. The Action dispatches `AuditableActionOccurred` (carrying team,
+  actor, `AuditAction`, target and context) or `SecurityEventOccurred`;
+  `RecordAuditActivity` and `RecordSecurityEvents` append the row. "Is this
+  auditable?" is a rule of the mutation, so it lives in the Action too — a member
+  joining a channel is not an add, a member deleting their own message is not
+  moderation.
 - **`AuditRecorder` / `SecurityEventRecorder`** — deep modules hiding the
-  activity-log builder. Keep them; only change *where they're called from*.
+  activity-log builder, each with exactly one caller: its listener. Keep them; a
+  new call site is a sign the event seam was skipped. Neither depends on the live
+  `Request` — `RecordSecurityEvents` captures the device context and passes it in,
+  which is what lets a queued job record.
 - **`ExportLifecycle`** — the one lifecycle every asynchronous file export runs:
   resolve-or-bail, write, mark ready, send the ready notice, and fail cleanly.
   `GenerateAuditExport` and `ExportUserData` are adapters over it, supplying only
@@ -135,7 +143,8 @@ built; build them once, then reuse.
   `lib/`; never inline in a page.
 - New channel message payload → the **Message load-set scope**.
 - New "which channels can this user see" check → the **Visible-channels ACL**.
-- New auditable mutation → record it via the **domain-event seam**, next to the
+- New auditable mutation → give it an Action if it has none, then dispatch
+  `AuditableActionOccurred` from it — the **domain-event seam**, next to the
   mutation.
 - New channel-member preference → the **channel membership settings** concern.
 - A `.vue` file crossing ~400 lines or owning several independent lifecycles →
