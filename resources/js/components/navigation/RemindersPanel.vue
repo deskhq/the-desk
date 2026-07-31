@@ -63,9 +63,17 @@ function markDone(reminder: MessageReminder): void {
     clear(reminder);
 }
 
-/** Clear every pending reminder in this workspace at once. */
+/**
+ * Clear every pending reminder in this workspace at once. Without a workspace
+ * there is nothing to clear — and the empty slug this used to fall back to
+ * would have sent the delete at a malformed URL.
+ */
 function clearWorkspace(): void {
-    clearAll(page.props.currentTeam?.slug ?? '');
+    const teamSlug = page.props.currentTeam?.slug;
+
+    if (teamSlug) {
+        clearAll(teamSlug);
+    }
 }
 
 /**

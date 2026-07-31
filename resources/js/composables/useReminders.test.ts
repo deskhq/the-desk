@@ -130,6 +130,16 @@ describe('useReminders', () => {
             vi.useRealTimers();
         });
 
+        it('names the same span on the card as it posted', () => {
+            // Interpolated from the one constant, so changing the span cannot
+            // leave the confirmation promising a different one.
+            useReminders().snooze(reminder());
+
+            expect(confirmation().detail).toBe('For 20 minutes');
+
+            vi.useRealTimers();
+        });
+
         it('shares the set-reminder toast key, so only one Undo is ever on screen', () => {
             // A snooze and a set on the same message must not leave two Undos
             // up, only one of which still reverses anything.

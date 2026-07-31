@@ -14,7 +14,8 @@ import type { MessageReminder } from '@/types/messages';
 
 /**
  * How far a snooze pushes a fired reminder out before it comes due again. The
- * confirmation toast names the same span in words, so the two move together.
+ * confirmation toast interpolates it rather than spelling it out, so changing
+ * the span cannot leave the card promising a different one.
  */
 const SNOOZE_MINUTES = 20;
 
@@ -118,7 +119,9 @@ export function useReminders(): Reminders {
             new Date(Date.now() + SNOOZE_MINUTES * 60_000).toISOString(),
             {
                 title: t('Reminder snoozed'),
-                detail: t('For 20 minutes'),
+                detail: t('For :count minutes', {
+                    count: SNOOZE_MINUTES,
+                }),
                 failure: t('Failed to snooze the reminder'),
             },
         );
