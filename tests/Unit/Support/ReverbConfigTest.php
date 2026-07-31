@@ -49,7 +49,7 @@ test('the websocket origin honours the browser-facing overrides', function (): v
  * Regression guard for #732. The browser-facing overrides come from
  * REVERB_HOST_PUBLIC / REVERB_PORT_PUBLIC / REVERB_SCHEME_PUBLIC, and
  * ReverbConfig prefers them over the server-facing connection — so any value in
- * the host's .env (which bin/worktree copies verbatim into every worktree)
+ * the host's .env (which vendor/bin/worktree copies into every worktree)
  * shadows the config() overrides the tests above make, and the suite fails on a
  * machine-specific port. phpunit.xml pins all three empty; this asserts the pin
  * is in place, because without it the failure surfaces far from its cause.

@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "6bd49093fb1cf88d4ba1e608cda785fd",
+    "content-hash": "4d9d653b2d137acd53332784c19cf2a3",
     "packages": [
         {
             "name": "arietimmerman/laravel-scim-server",
@@ -12559,6 +12559,82 @@
                 "source": "https://github.com/DaveRandom/LibDNS/tree/v2.1.0"
             },
             "time": "2024-04-12T12:12:48+00:00"
+        },
+        {
+            "name": "deskhq/laravel-worktree",
+            "version": "v0.1.0",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/deskhq/laravel-worktree.git",
+                "reference": "08a0043d5de05c3c16d6694973e656f7d165a40a"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/deskhq/laravel-worktree/zipball/08a0043d5de05c3c16d6694973e656f7d165a40a",
+                "reference": "08a0043d5de05c3c16d6694973e656f7d165a40a",
+                "shasum": ""
+            },
+            "require": {
+                "ext-pcntl": "*",
+                "illuminate/contracts": "^11.0||^12.0||^13.0",
+                "php": "^8.4",
+                "spatie/laravel-package-tools": "^1.16",
+                "symfony/process": "^7.0||^8.0",
+                "symfony/yaml": "^7.0||^8.0"
+            },
+            "require-dev": {
+                "larastan/larastan": "^3.0",
+                "laravel/boost": "^2.4",
+                "laravel/pint": "^1.14",
+                "nunomaduro/collision": "^8.8",
+                "orchestra/testbench": "^11.0.0||^10.0.0||^9.0.0",
+                "pestphp/pest": "^4.0",
+                "pestphp/pest-plugin-arch": "^4.0",
+                "pestphp/pest-plugin-laravel": "^4.0",
+                "phpstan/extension-installer": "^1.4",
+                "phpstan/phpstan-deprecation-rules": "^2.0",
+                "phpstan/phpstan-phpunit": "^2.0",
+                "spatie/laravel-ray": "^1.35"
+            },
+            "bin": [
+                "bin/worktree"
+            ],
+            "type": "library",
+            "extra": {
+                "laravel": {
+                    "providers": [
+                        "DeskHQ\\LaravelWorktree\\LaravelWorktreeServiceProvider"
+                    ]
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "DeskHQ\\LaravelWorktree\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Emmanuel Paul",
+                    "email": "emmanuel.paul@outlook.com",
+                    "role": "Developer"
+                }
+            ],
+            "description": "Per-worktree isolation so multiple agents can work on a Laravel project concurrently",
+            "homepage": "https://github.com/deskhq/laravel-worktree",
+            "keywords": [
+                "DeskHQ",
+                "laravel",
+                "laravel-worktree"
+            ],
+            "support": {
+                "issues": "https://github.com/deskhq/laravel-worktree/issues",
+                "source": "https://github.com/deskhq/laravel-worktree/tree/v0.1.0"
+            },
+            "time": "2026-07-31T10:26:16+00:00"
         },
         {
             "name": "driftingly/rector-laravel",
