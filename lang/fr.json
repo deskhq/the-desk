@@ -1489,5 +1489,13 @@
   "This upload would exceed the workspace storage limit of :size MB. Delete some files to free up space.": "Cet envoi dépasserait la limite de stockage de :size Mo de l’espace de travail. Supprimez des fichiers pour libérer de l’espace.",
   "Posted by the :name webhook": "Publié par le webhook :name",
   "Review": "Examiner",
-  "Review the :name webhook": "Examiner le webhook :name"
+  "Review the :name webhook": "Examiner le webhook :name",
+  "Attach": "Joindre",
+  "Compose options": "Options de rédaction",
+  "Add to your message, or format it.": "Ajoutez à votre message, ou mettez-le en forme.",
+  "Photos": "Photos",
+  "Camera": "Appareil photo",
+  "Camera (coming later)": "Appareil photo (bientôt disponible)",
+  "Voice": "Vocal",
+  "Command": "Commande"
 }

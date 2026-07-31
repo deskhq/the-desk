@@ -179,6 +179,60 @@ export function schedulePresets(
 }
 
 /**
+ * The three quick picks the composer's "send later" affordances offer, in the
+ * order they are listed. Menu labels differ from the schedule dialog's
+ * ("Tomorrow morning" vs "Tomorrow 9 AM"), so they are named here rather than
+ * read off the shared preset.
+ */
+const QUICK_PRESET_LABELS = [
+    { key: 'in-an-hour', label: 'In 1 hour' },
+    { key: 'tomorrow-morning', label: 'Tomorrow morning' },
+    { key: 'next-monday', label: 'Monday morning' },
+] as const;
+
+/** One quick pick, resolved to an instant and a preview of it. */
+export type QuickSchedulePreset = {
+    key: string;
+    /** The English source string; the surface rendering it runs it through `$t`. */
+    label: string;
+    /** The chosen instant as a UTC ISO 8601 string. */
+    sendAt: string;
+    /** That instant as the viewer's zone shows it, e.g. "Wed 9:00 AM". */
+    preview: string;
+};
+
+/**
+ * The quick picks resolved against the viewer's zone and the current instant.
+ *
+ * Shared by the desktop send-later menu and the mobile attach sheet so the two
+ * surfaces offer the same three options at the same instants and cannot drift.
+ * Resolve it per open rather than once at mount, so the times stay current with
+ * the wall clock.
+ */
+export function quickSchedulePresets(
+    timeZone: string | null,
+    now: Date = new Date(),
+): QuickSchedulePreset[] {
+    const zone = timeZone ?? Intl.DateTimeFormat().resolvedOptions().timeZone;
+    const all = schedulePresets(zone, now);
+
+    return QUICK_PRESET_LABELS.flatMap(({ key, label }) => {
+        const preset = all.find((candidate) => candidate.key === key);
+
+        return preset
+            ? [
+                  {
+                      key,
+                      label,
+                      sendAt: preset.sendAt,
+                      preview: formatPresetPreview(preset.sendAt, zone, now),
+                  },
+              ]
+            : [];
+    });
+}
+
+/**
  * The whole-day gap between two instants as their zone shows them, so a preview
  * can decide how much date context to spell out.
  */

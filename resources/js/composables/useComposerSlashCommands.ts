@@ -41,12 +41,16 @@ export type ComposerSlashCommands = {
     gifPickerAvailable: ComputedRef<boolean>;
     gifCommandQuery: (text: string) => string | null;
     openGifPicker: (query: string) => void;
+    /** Open the picker from a typed `/gif`, whose text is not message body. */
+    openGifPickerFromCommand: (query: string) => void;
     closeGifPicker: () => void;
     onGifSelected: (attachment: AttachmentData) => void;
     pollComposerOpen: Ref<boolean>;
     pollComposerAvailable: ComputedRef<boolean>;
     isPollCommand: (text: string) => boolean;
     openPollComposer: () => void;
+    /** Open the builder from a typed `/poll`, whose text is not message body. */
+    openPollComposerFromCommand: () => void;
     closePollComposer: () => void;
 };
 
@@ -155,11 +159,23 @@ export function useComposerSlashCommands(options: {
         return match ? (match[1]?.trim() ?? '') : null;
     }
 
-    /** Open the GIF picker on the given search term, clearing the `/gif` text. */
+    /**
+     * Open the GIF picker on the given search term, leaving the body alone: the
+     * picker is also reachable from the mobile attach sheet, where whatever is
+     * typed is a message the user is part-way through rather than a command.
+     */
     function openGifPicker(query: string): void {
         slashMenuOpen.value = false;
         gifPickerQuery.value = query;
         gifPickerOpen.value = true;
+    }
+
+    /**
+     * The `/gif` command path: the typed text *is* the command, so it goes once
+     * the picker it asked for is up.
+     */
+    function openGifPickerFromCommand(query: string): void {
+        openGifPicker(query);
         body.value = '';
     }
 
@@ -196,10 +212,15 @@ export function useComposerSlashCommands(options: {
         return pollComposerAvailable.value && /^\/poll(?:\s+.*)?$/i.test(text);
     }
 
-    /** Open the poll builder, closing the slash menu and clearing the `/poll` text. */
+    /** Open the poll builder, leaving the body alone for the same reason. */
     function openPollComposer(): void {
         slashMenuOpen.value = false;
         pollComposerOpen.value = true;
+    }
+
+    /** The `/poll` command path: the typed command goes once the builder is up. */
+    function openPollComposerFromCommand(): void {
+        openPollComposer();
         body.value = '';
     }
 
@@ -210,13 +231,13 @@ export function useComposerSlashCommands(options: {
 
     function selectSlashCommand(command: App.Data.SlashCommandData): void {
         if (command.name === GIF_COMMAND_NAME && gifPickerAvailable.value) {
-            openGifPicker('');
+            openGifPickerFromCommand('');
 
             return;
         }
 
         if (command.name === POLL_COMMAND_NAME && pollComposerAvailable.value) {
-            openPollComposer();
+            openPollComposerFromCommand();
 
             return;
         }
@@ -277,12 +298,14 @@ export function useComposerSlashCommands(options: {
         gifPickerAvailable,
         gifCommandQuery,
         openGifPicker,
+        openGifPickerFromCommand,
         closeGifPicker,
         onGifSelected,
         pollComposerOpen,
         pollComposerAvailable,
         isPollCommand,
         openPollComposer,
+        openPollComposerFromCommand,
         closePollComposer,
     };
 }

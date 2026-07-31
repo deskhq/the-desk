@@ -1,9 +1,12 @@
 import { Bold, Code, Italic, Strikethrough } from '@lucide/vue';
 import { computed } from 'vue';
-import type { ComputedRef, FunctionalComponent } from 'vue';
+import type { ComputedRef, FunctionalComponent, Ref } from 'vue';
 import type { ComposerField } from '@/composables/useComposerField';
 import { useTranslations } from '@/composables/useTranslations';
 import { toggleInlineMark } from '@/lib/composerFormat';
+
+/** A range of the body, as `selectionStart`/`selectionEnd` name it. */
+export type SelectionRange = { start: number; end: number };
 
 /**
  * One inline-format control: its Markdown marker paired with the icon,
@@ -39,6 +42,14 @@ export type ComposerFormat = {
  */
 export function useComposerFormat(options: {
     field: ComposerField;
+    /**
+     * The range to format instead of whatever the textarea reports, set while
+     * the mobile attach sheet holds the focus. Behind a modal the field has
+     * neither the focus nor a live selection, and focusing it back would fight
+     * the sheet's focus trap — so the composer snapshots the range as the sheet
+     * opens and this advances it across consecutive marks.
+     */
+    selection?: Ref<SelectionRange | null>;
 }): ComposerFormat {
     const { body, textarea, focusRange } = options.field;
     const { t } = useTranslations();
@@ -80,20 +91,30 @@ export function useComposerFormat(options: {
      * Shared by the toolbar buttons and the keyboard shortcuts.
      */
     function applyFormat(marker: string): void {
+        const snapshot = options.selection?.value ?? null;
         const el = textarea.value;
 
-        if (!el) {
+        if (!snapshot && !el) {
             return;
         }
 
         const result = toggleInlineMark(
             body.value,
-            el.selectionStart,
-            el.selectionEnd,
+            snapshot ? snapshot.start : el!.selectionStart,
+            snapshot ? snapshot.end : el!.selectionEnd,
             marker,
         );
 
         body.value = result.value;
+
+        if (snapshot) {
+            options.selection!.value = {
+                start: result.selectionStart,
+                end: result.selectionEnd,
+            };
+
+            return;
+        }
 
         focusRange(result.selectionStart, result.selectionEnd);
     }

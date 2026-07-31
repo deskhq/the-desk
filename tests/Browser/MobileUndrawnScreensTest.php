@@ -156,15 +156,15 @@ test('the search facet pickers offer 44px touch targets on a phone', function ()
         ->assertScript(offersPhoneTouchTargets('[data-test="facet-author-option"]'), true);
 });
 
-test('the disclosed composer tools offer 44px touch targets on a phone', function (): void {
+test('the composer attach sheet offers 44px touch targets on a phone', function (): void {
     ['owner' => $alice, 'team' => $team, 'channel' => $channel] = browserTeamWithChannel();
 
     signInThroughBrowser($alice)
         ->resize(360, 740)
         ->navigate(browserChannelUrl($team, $channel))
-        ->click('[data-test="composer-tools-toggle"]')
+        ->click('[data-test="composer-attach-sheet-toggle"]')
         ->assertScript(offersPhoneTouchTargets(
-            '[data-test="composer-format-cluster"] button, [data-test="message-composer-attach"]',
+            '[data-test="composer-format-cluster"] button, [data-test="composer-attach-tile"]',
         ), true);
 });
 
