@@ -11,6 +11,7 @@ use App\Http\Requests\Api\V1\UpdateMessageRequest;
 use App\Http\Resources\Api\V1\MessageResource;
 use App\Models\Channel;
 use App\Models\Message;
+use App\Models\PersonalAccessToken;
 use App\Models\User;
 use App\Support\Integrations\ApiChannelAccess;
 use Illuminate\Http\JsonResponse;
@@ -55,6 +56,7 @@ class MessageController extends Controller
             replyToId: $request->validated('reply_to_id'),
             threadRootId: $request->validated('thread_root_id'),
             sentToChannel: $request->boolean('sent_to_channel'),
+            tokenId: $this->actingTokenId($subject),
         );
 
         $message->load(['user', 'reactions']);
@@ -105,5 +107,27 @@ class MessageController extends Controller
         $deleteMessage->handle($channel, $message, deletedBy: $subject);
 
         return response()->json(null, 204);
+    }
+
+    /**
+     * The id of the token this request authenticated with, recorded on the row it
+     * creates so an admin can revoke exactly the credential that misfired.
+     *
+     * Sanctum's key is `mixed`, and `currentAccessToken()` answers with a keyless
+     * transient token whenever the subject arrived by session rather than by
+     * token, so anything that is not a real integer key resolves to no
+     * attribution rather than to a broken foreign key.
+     */
+    private function actingTokenId(User $subject): ?int
+    {
+        $token = $subject->currentAccessToken();
+
+        if (! $token instanceof PersonalAccessToken) {
+            return null;
+        }
+
+        $key = $token->getKey();
+
+        return is_int($key) ? $key : null;
     }
 }

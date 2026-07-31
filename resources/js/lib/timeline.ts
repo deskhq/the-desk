@@ -11,6 +11,19 @@ import type { AuthorOverride, Message, MessageAuthor } from '@/types';
 export const GROUPING_WINDOW_MS = 5 * 60 * 1000;
 
 /**
+ * A stable key for one credential, so consecutive messages that merely share an
+ * author — but arrived on different credentials — never collapse under a single
+ * provenance. The kind is part of the key because the two id spaces are
+ * unrelated: a webhook's uuid and a token's integer key could otherwise collide
+ * as strings.
+ */
+function credentialKey(
+    credential?: App.Data.MessageCredentialData | null,
+): string {
+    return credential == null ? '' : `${credential.kind}:${credential.id}`;
+}
+
+/**
  * A run of consecutive messages from one author, rendered under a single avatar
  * gutter. `leadCreatedAt` is the timestamp shown under the avatar.
  */
@@ -24,11 +37,11 @@ export type TimelineGroup = {
      */
     authorOverride: AuthorOverride | null;
     /**
-     * The incoming webhook behind the run, for the viewers the server told. Also
-     * part of what defines the run: the header's hover card names this credential
-     * on behalf of every row beneath it, so a run may never span two of them.
+     * The credential behind the run, for the viewers the server told. Also part
+     * of what defines the run: the header's hover card names this credential on
+     * behalf of every row beneath it, so a run may never span two of them.
      */
-    incomingWebhook: App.Data.IncomingWebhookSourceData | null;
+    postedVia: App.Data.MessageCredentialData | null;
     leadCreatedAt: string;
     messages: Message[];
 };
@@ -142,13 +155,15 @@ export function buildTimelineItems(
 
         // Same account, same displayed identity *and* same credential: a webhook
         // posting as two logical sources must not collapse them under one name
-        // and avatar, and two webhooks must not collapse under one provenance.
+        // and avatar, and two credentials must not collapse under one provenance.
+        // The id is compared within its kind, so a webhook and a token that
+        // happen to share an id string still split the run.
         const sameAuthor =
             currentGroup?.author.id === message.user.id &&
             authorOverrideKey(currentGroup?.authorOverride) ===
                 authorOverrideKey(message.authorOverride) &&
-            (currentGroup?.incomingWebhook?.id ?? null) ===
-                (message.incomingWebhook?.id ?? null);
+            credentialKey(currentGroup?.postedVia) ===
+                credentialKey(message.postedVia);
         const withinWindow =
             lastCreatedAt !== null &&
             new Date(message.createdAt).getTime() -
@@ -167,7 +182,7 @@ export function buildTimelineItems(
                 key: `group-${message.id}`,
                 author: message.user,
                 authorOverride: message.authorOverride ?? null,
-                incomingWebhook: message.incomingWebhook ?? null,
+                postedVia: message.postedVia ?? null,
                 leadCreatedAt: message.createdAt,
                 messages: [message],
             };

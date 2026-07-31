@@ -44,6 +44,7 @@ use Laravel\Scout\Searchable;
  * @property-read Channel $channel
  * @property-read User $user
  * @property-read IncomingWebhook|null $incomingWebhook
+ * @property-read PersonalAccessToken|null $token
  * @property-read Message|null $replyTo
  * @property-read Message|null $forwardedFrom
  * @property-read Collection<int, Message> $threadReplies
@@ -54,7 +55,7 @@ use Laravel\Scout\Searchable;
  * @property-read MessagePin|null $pin
  * @property-read Collection<int, Attachment> $attachments
  */
-#[Fillable(['channel_id', 'user_id', 'incoming_webhook_id', 'client_uuid', 'reply_to_id', 'forwarded_from_id', 'thread_root_id', 'sent_to_channel', 'body', 'author_override_name', 'author_override_avatar_url', 'type', 'edited_at'])]
+#[Fillable(['channel_id', 'user_id', 'incoming_webhook_id', 'token_id', 'client_uuid', 'reply_to_id', 'forwarded_from_id', 'thread_root_id', 'sent_to_channel', 'body', 'author_override_name', 'author_override_avatar_url', 'type', 'edited_at'])]
 class Message extends Model
 {
     /** @use HasFactory<MessageFactory> */
@@ -93,6 +94,10 @@ class Message extends Model
         // loaded for everyone: a conditional eager-load here would be a lazy
         // load — or an N+1 — the day a caller forgets the condition.
         'incomingWebhook',
+        // Its REST API counterpart, loaded on the same terms — and with its
+        // `tokenable`, since naming the token is only offered for a bot's own
+        // credential (a human's personal access token stays unnamed).
+        'token.tokenable',
         'mentionedUsers',
         'linkPreviews',
         'reactions.user',
@@ -143,6 +148,20 @@ class Message extends Model
     public function incomingWebhook(): BelongsTo
     {
         return $this->belongsTo(IncomingWebhook::class);
+    }
+
+    /**
+     * Get the API token that produced this message, if any.
+     *
+     * Null on every path but a REST API v1 post. Null too once the token is
+     * revoked or deleted — the message outlives its credential by design, so the
+     * attribution thins rather than the history disappearing.
+     *
+     * @return BelongsTo<PersonalAccessToken, $this>
+     */
+    public function token(): BelongsTo
+    {
+        return $this->belongsTo(PersonalAccessToken::class);
     }
 
     /**

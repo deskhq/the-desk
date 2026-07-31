@@ -18,6 +18,22 @@ function message(
     } as unknown as Message;
 }
 
+/** The credential a webhook-posted message carries. */
+function webhookCredential(
+    id: string,
+    name: string,
+): App.Data.MessageCredentialData {
+    return { kind: 'incoming_webhook', id, name, botId: null };
+}
+
+/** The credential an API-posted message carries, naming its bot's page. */
+function tokenCredential(
+    id: string,
+    name: string,
+): App.Data.MessageCredentialData {
+    return { kind: 'api_token', id, name, botId: 'bot' };
+}
+
 /**
  * Noon timestamps keep day boundaries unambiguous regardless of the runner's
  * timezone; a calendar day never flips around midday.
@@ -118,8 +134,8 @@ describe('buildTimelineItems', () => {
             'Deploy Bot',
             minutesLater(DAY_1_NOON, 1),
         );
-        first.incomingWebhook = { id: 'hook-a', name: 'CI alerts' };
-        second.incomingWebhook = { id: 'hook-b', name: 'Pager bridge' };
+        first.postedVia = webhookCredential('hook-a', 'CI alerts');
+        second.postedVia = webhookCredential('hook-b', 'Pager bridge');
 
         const groups = buildTimelineItems([first, second], null).filter(
             (item) => item.type === 'group',
@@ -129,12 +145,57 @@ describe('buildTimelineItems', () => {
         // two of them — an admin would otherwise revoke on the strength of a name
         // that speaks for only some of the rows beneath it.
         expect(groups).toHaveLength(2);
-        expect(
-            groups[0].type === 'group' && groups[0].incomingWebhook?.name,
-        ).toBe('CI alerts');
-        expect(
-            groups[1].type === 'group' && groups[1].incomingWebhook?.name,
-        ).toBe('Pager bridge');
+        expect(groups[0].type === 'group' && groups[0].postedVia?.name).toBe(
+            'CI alerts',
+        );
+        expect(groups[1].type === 'group' && groups[1].postedVia?.name).toBe(
+            'Pager bridge',
+        );
+    });
+
+    it('splits a run when the same bot posts through two different API tokens', () => {
+        const first = message('m1', 'bot', 'Deploy Bot', DAY_1_NOON);
+        const second = message(
+            'm2',
+            'bot',
+            'Deploy Bot',
+            minutesLater(DAY_1_NOON, 1),
+        );
+        first.postedVia = tokenCredential('1', 'CI deploys');
+        second.postedVia = tokenCredential('2', 'Nightly job');
+
+        const groups = buildTimelineItems([first, second], null).filter(
+            (item) => item.type === 'group',
+        );
+
+        expect(groups).toHaveLength(2);
+        expect(groups[0].type === 'group' && groups[0].postedVia?.name).toBe(
+            'CI deploys',
+        );
+        expect(groups[1].type === 'group' && groups[1].postedVia?.name).toBe(
+            'Nightly job',
+        );
+    });
+
+    it('splits a run when two credential kinds share an id string', () => {
+        const first = message('m1', 'bot', 'Deploy Bot', DAY_1_NOON);
+        const second = message(
+            'm2',
+            'bot',
+            'Deploy Bot',
+            minutesLater(DAY_1_NOON, 1),
+        );
+        // A webhook's uuid and a token's integer key live in unrelated id
+        // spaces, so nothing stops them colliding once both are strings. The
+        // kind is what keeps them apart.
+        first.postedVia = webhookCredential('7', 'CI alerts');
+        second.postedVia = tokenCredential('7', 'CI deploys');
+
+        const groups = buildTimelineItems([first, second], null).filter(
+            (item) => item.type === 'group',
+        );
+
+        expect(groups).toHaveLength(2);
     });
 
     it('keeps one group when the same webhook posts twice', () => {
@@ -145,8 +206,8 @@ describe('buildTimelineItems', () => {
             'Deploy Bot',
             minutesLater(DAY_1_NOON, 1),
         );
-        first.incomingWebhook = { id: 'hook-a', name: 'CI alerts' };
-        second.incomingWebhook = { id: 'hook-a', name: 'CI alerts' };
+        first.postedVia = webhookCredential('hook-a', 'CI alerts');
+        second.postedVia = webhookCredential('hook-a', 'CI alerts');
 
         const groups = buildTimelineItems([first, second], null).filter(
             (item) => item.type === 'group',

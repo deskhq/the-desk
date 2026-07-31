@@ -7,6 +7,8 @@ use App\Actions\Integrations\RevokeBotToken;
 use App\Enums\AuditAction;
 use App\Enums\IntegrationScope;
 use App\Enums\TeamRole;
+use App\Models\Channel;
+use App\Models\Message;
 use App\Models\Team;
 use App\Models\User;
 use Laravel\Sanctum\PersonalAccessToken;
@@ -52,4 +54,22 @@ it('revokes a token and audits it', function (): void {
         'team_id' => $this->team->id,
         'event' => AuditAction::BotTokenRevoked->value,
     ]);
+});
+
+it('leaves the messages a revoked token posted intact', function (): void {
+    $token = app(MintBotToken::class)->handle($this->bot, $this->owner, 'CI', [IntegrationScope::MessagesWrite->value]);
+    $model = PersonalAccessToken::findOrFail($token->accessToken->getKey());
+
+    $channel = Channel::factory()->for($this->team)->create();
+    $message = Message::factory()->for($channel)->for($this->bot, 'user')->create([
+        'body' => 'Deployed v2',
+        'token_id' => $model->getKey(),
+    ]);
+
+    app(RevokeBotToken::class)->handle($this->owner, $model);
+
+    // Revocation thins the trail, it does not rewrite history: the row survives
+    // its credential and only loses the attribution the credential carried.
+    expect($message->fresh())->not->toBeNull();
+    $this->assertDatabaseHas('messages', ['id' => $message->id, 'body' => 'Deployed v2', 'token_id' => null]);
 });

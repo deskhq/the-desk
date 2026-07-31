@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { Head } from '@inertiajs/vue3';
+import { Head, usePage } from '@inertiajs/vue3';
 import { Bot, Trash2 } from '@lucide/vue';
-import { ref } from 'vue';
+import { computed, ref } from 'vue';
 import AddBotToChannelDialog from '@/components/integrations/AddBotToChannelDialog.vue';
 import BotChannelsRack from '@/components/integrations/BotChannelsRack.vue';
 import BotTokensRack from '@/components/integrations/BotTokensRack.vue';
@@ -55,6 +55,24 @@ defineOptions({
     }),
 });
 
+/**
+ * Inertia's `page.url` is a root-relative path, which `URL` cannot parse on its
+ * own. The base below only satisfies that constructor and never reaches the
+ * result.
+ */
+const URL_BASE = 'http://localhost';
+
+const page = usePage();
+
+/**
+ * The token an admin arrived here to act on, named by `?token=` on the link a
+ * message's provenance card offers. Null on an ordinary visit, which singles out
+ * nothing.
+ */
+const highlightedTokenId = computed(() =>
+    new URL(page.url, URL_BASE).searchParams.get('token'),
+);
+
 const showTokenDialog = ref(false);
 const pendingToken = ref<BotToken | null>(null);
 const showAddChannel = ref(false);
@@ -105,6 +123,7 @@ const showDeleteBot = ref(false);
 
         <BotTokensRack
             :tokens="tokens"
+            :highlighted-id="highlightedTokenId"
             @create="showTokenDialog = true"
             @revoke="(token) => (pendingToken = token)"
         />

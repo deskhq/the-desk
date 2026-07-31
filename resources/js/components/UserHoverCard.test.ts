@@ -113,15 +113,21 @@ describe('the user hover card', () => {
 
     it('names the webhook behind the row and links straight to it', () => {
         const host = mount({
-            webhook: { id: 'hook-1', name: 'CI alerts' },
+            credential: {
+                kind: 'incoming_webhook',
+                id: 'hook-1',
+                name: 'CI alerts',
+                botId: null,
+            },
         });
 
         expect(
-            host.querySelector('[data-test="hover-card-webhook"]')?.textContent,
-        ).toContain('CI alerts');
+            host.querySelector('[data-test="hover-card-credential"]')
+                ?.textContent,
+        ).toContain('Posted by the CI alerts webhook');
 
         const link = host.querySelector(
-            '[data-test="hover-card-webhook-link"]',
+            '[data-test="hover-card-credential-link"]',
         );
 
         // The link lands on the integrations page with the offending hook named,
@@ -134,11 +140,43 @@ describe('the user hover card', () => {
         );
     });
 
-    it('names no webhook when the viewer was not told of one', () => {
+    it('names the API token behind the row and links to its bot’s rack', () => {
+        const host = mount({
+            credential: {
+                kind: 'api_token',
+                id: '7',
+                name: 'CI deploys',
+                botId: 'bot-1',
+            },
+        });
+
+        const block = host.querySelector('[data-test="hover-card-credential"]');
+
+        // Whole sentences per kind, not a shared frame with the noun slotted
+        // in — a translator is never handed English word order to work around.
+        expect(block?.textContent).toContain(
+            'Posted by the CI deploys API token',
+        );
+        expect(block?.getAttribute('data-credential-kind')).toBe('api_token');
+
+        const link = host.querySelector(
+            '[data-test="hover-card-credential-link"]',
+        );
+
+        // A token is revoked from its bot's own page, not the team-level index,
+        // which is why the credential carries the bot.
+        expect(link?.getAttribute('href')).toContain('bots/bot-1');
+        expect(link?.getAttribute('href')).toContain('token=7');
+        expect(link?.querySelector('.sr-only')?.textContent).toContain(
+            'Review the CI deploys API token',
+        );
+    });
+
+    it('names no credential when the viewer was not told of one', () => {
         const host = mount();
 
         expect(
-            host.querySelector('[data-test="hover-card-webhook"]'),
+            host.querySelector('[data-test="hover-card-credential"]'),
         ).toBeNull();
     });
 });
