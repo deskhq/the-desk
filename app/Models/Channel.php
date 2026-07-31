@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Enums\ChannelType;
 use App\Enums\ChannelVisibility;
+use App\Support\DirectMessageRoster;
 use App\Support\NameSlug;
 use Database\Factories\ChannelFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
@@ -174,6 +175,10 @@ class Channel extends Model
      * DMs render viewer-relative: in a two-person DM the viewer sees the other
      * participant; in a self-DM (a single member) they see themselves, which the
      * frontend labels "You". Returns null for a standard channel.
+     *
+     * Read off the loaded roster, like {@see displayNameFor()}, so a page of DMs
+     * costs the single batched {@see DirectMessageRoster} load rather than a
+     * query per row.
      */
     public function directParticipantFor(User $viewer): ?User
     {
@@ -181,8 +186,8 @@ class Channel extends Model
             return null;
         }
 
-        return $this->members()->where('users.id', '!=', $viewer->id)->first()
-            ?? $this->members()->whereKey($viewer->id)->first();
+        return $this->members->first(fn (User $member): bool => $member->id !== $viewer->id)
+            ?? $this->members->firstWhere('id', $viewer->id);
     }
 
     /**

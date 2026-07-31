@@ -13,10 +13,10 @@ use Inertia\Testing\AssertableInertia as Assert;
 | rule, close and re-surface, activity ordering — is a claim about
 | `SidebarChannels` and is proven against it directly in
 | `tests/Integration/Support/SidebarChannelsTest.php`. What is left here is the
-| part only HTTP can show: that `channels/Show` ships the prop, and that a DM
-| row reaching the client is resolved against the *requesting* user, which
-| `ChannelData::fromChannel()` takes from `auth()->user()` rather than from a
-| viewer it was handed.
+| part only HTTP can show: that `channels/Show` ships the prop, and that the
+| viewer the request resolves is the one the row is named for — the request's
+| user reaches `ChannelData::fromChannel()` as an explicit argument (#1113), and
+| a controller that handed it the wrong one would still render a plausible page.
 |
 */
 

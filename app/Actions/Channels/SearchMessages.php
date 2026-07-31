@@ -8,6 +8,7 @@ use App\Enums\SearchScope;
 use App\Models\Message;
 use App\Models\Team;
 use App\Models\User;
+use App\Support\DirectMessageRoster;
 use App\Support\MessagePlainText;
 use App\Support\MessageSnippet;
 use Carbon\CarbonInterface;
@@ -153,7 +154,14 @@ class SearchMessages
             ->limit($limit)
             ->get();
 
-        return Message::loadMessageDataRelationsInto($messages)->load('channel.team');
+        $messages = Message::loadMessageDataRelationsInto($messages)->load('channel.team');
+
+        // A hit in a DM is labelled with the DM's viewer-relative name, which is
+        // read off the roster; batching it here keeps a page of DM hits from
+        // lazy-loading one membership per result.
+        DirectMessageRoster::loadForMessages($messages);
+
+        return $messages;
     }
 
     /**
