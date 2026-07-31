@@ -147,7 +147,9 @@ export function useAutocompleteMenu<T>(options: {
     function selectActive(): void {
         const item = suggestions.value[activeIndex.value];
 
-        if (item) {
+        // Against `undefined` rather than truthiness: a row is whatever the
+        // adapter says it is, and only an index past the end means "no row".
+        if (item !== undefined) {
             select(item);
         }
     }

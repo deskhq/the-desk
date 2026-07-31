@@ -111,6 +111,21 @@ describe('useAutocompleteMenu', () => {
         expect(menu.showMenu.value).toBe(false);
     });
 
+    it('completes with a row that is itself falsy', () => {
+        // A row is whatever the adapter says it is, so an empty string is a row
+        // like any other — and the only thing that means "no row" is no row.
+        const selected: string[] = [];
+        const menu = useAutocompleteMenu<string>({
+            name: 'mention',
+            onSelect: (row) => selected.push(row),
+        });
+
+        menu.offer(['']);
+        menu.selectActive();
+
+        expect(selected).toEqual(['']);
+    });
+
     it('has nothing to complete with when it is shut', () => {
         const { menu, selected } = menuOf([]);
 
