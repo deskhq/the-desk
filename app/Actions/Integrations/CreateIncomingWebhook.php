@@ -3,10 +3,10 @@
 namespace App\Actions\Integrations;
 
 use App\Enums\AuditAction;
+use App\Events\AuditableActionOccurred;
 use App\Models\Channel;
 use App\Models\IncomingWebhook;
 use App\Models\User;
-use App\Support\AuditRecorder;
 use App\Support\Integrations\ApiChannelAccess;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
@@ -20,8 +20,6 @@ use Illuminate\Validation\ValidationException;
  */
 class CreateIncomingWebhook
 {
-    public function __construct(private readonly AuditRecorder $recorder) {}
-
     /**
      * @param  bool  $withSigningSecret  Whether to mint an HMAC shared secret too.
      */
@@ -46,11 +44,11 @@ class CreateIncomingWebhook
             'signing_secret' => $signingSecret,
         ]);
 
-        $this->recorder->record($channel->team, $actor, AuditAction::IncomingWebhookCreated, $webhook, [
+        event(new AuditableActionOccurred($channel->team, $actor, AuditAction::IncomingWebhookCreated, $webhook, [
             'webhook_name' => $name,
             'bot_name' => $bot->name,
             'channel_name' => $channel->name,
-        ]);
+        ]));
 
         return new NewIncomingWebhook($webhook, $token, $signingSecret);
     }

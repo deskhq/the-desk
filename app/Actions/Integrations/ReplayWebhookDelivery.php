@@ -5,10 +5,10 @@ declare(strict_types=1);
 namespace App\Actions\Integrations;
 
 use App\Enums\AuditAction;
+use App\Events\AuditableActionOccurred;
 use App\Jobs\DeliverWebhook;
 use App\Models\User;
 use App\Models\WebhookDelivery;
-use App\Support\AuditRecorder;
 
 /**
  * Re-fires one past delivery attempt by hand, queueing a fresh single-shot
@@ -23,8 +23,6 @@ use App\Support\AuditRecorder;
  */
 class ReplayWebhookDelivery
 {
-    public function __construct(private readonly AuditRecorder $recorder) {}
-
     /**
      * Queue the replay and record it in the workspace audit log. The caller is
      * responsible for rejecting an attempt that {@see WebhookDelivery::isReplayable()}
@@ -39,10 +37,10 @@ class ReplayWebhookDelivery
 
         dispatch(new DeliverWebhook($subscription->id, $envelope, isReplay: true));
 
-        $this->recorder->record($subscription->team, $actor, AuditAction::WebhookDeliveryReplayed, $subscription, [
+        event(new AuditableActionOccurred($subscription->team, $actor, AuditAction::WebhookDeliveryReplayed, $subscription, [
             'subscription_name' => $subscription->name,
             'event_type' => $delivery->event_type,
             'event_id' => $delivery->event_id,
-        ]);
+        ]));
     }
 }
