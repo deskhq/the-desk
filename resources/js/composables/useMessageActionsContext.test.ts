@@ -79,7 +79,18 @@ function mount(child: Component, provided?: () => void): HTMLElement {
             },
         }),
     );
-    app.mount(host);
+
+    // Two of the tests below mount an accessor with no provider above it, which
+    // is meant to throw. Clean up here rather than in `afterEach`: the app never
+    // finished mounting, so it is the host alone that would be left behind.
+    try {
+        app.mount(host);
+    } catch (error) {
+        host.remove();
+
+        throw error;
+    }
+
     active.push({ app, host });
 
     return host;
