@@ -4,8 +4,8 @@ namespace App\Http\Controllers\Teams;
 
 use App\Actions\Teams\CreateTeam;
 use App\Actions\Teams\DeleteTeam;
+use App\Actions\Teams\UpdateTeam;
 use App\Data\UserStatusData;
-use App\Enums\AuditAction;
 use App\Enums\ChannelCreationPolicy;
 use App\Enums\ChannelVisibility;
 use App\Enums\TeamPermission;
@@ -18,11 +18,9 @@ use App\Models\Membership;
 use App\Models\Team;
 use App\Models\TeamInvitation;
 use App\Models\User;
-use App\Support\AuditRecorder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -144,69 +142,16 @@ class TeamController extends Controller
 
     /**
      * Update the specified team.
-     *
-     * The admin page edits the workspace through several small forms, so this is
-     * a partial update: only the submitted attributes are applied, and each one
-     * is audited only when it actually changes.
      */
-    public function update(SaveTeamRequest $request, Team $team, AuditRecorder $recorder): RedirectResponse
+    public function update(SaveTeamRequest $request, Team $team, UpdateTeam $updateTeam): RedirectResponse
     {
         Gate::authorize('update', $team);
 
-        $attributes = $request->validated();
-
-        // Read under the same lock as the write, so a concurrent update cannot
-        // slip between the two and leave the audit entry naming a value that was
-        // never actually replaced.
-        $before = [];
-
-        $team = DB::transaction(function () use ($attributes, $team, &$before) {
-            $team = Team::whereKey($team->id)->lockForUpdate()->firstOrFail();
-
-            $before = $team->only(array_keys($attributes));
-
-            $team->update($attributes);
-
-            return $team;
-        });
-
-        $this->recordTeamChanges($recorder, $team, $request->user(), $before);
+        $team = $updateTeam->handle($team, $request->user(), $request->validated());
 
         Inertia::flash('toast', ['type' => 'success', 'message' => __('Team updated')]);
 
         return to_route('teams.edit', ['team' => $team->slug]);
-    }
-
-    /**
-     * Write an audit entry for each workspace attribute the update moved.
-     *
-     * @param  array<string, mixed>  $before  The submitted attributes as they stood beforehand.
-     */
-    private function recordTeamChanges(AuditRecorder $recorder, Team $team, User $actor, array $before): void
-    {
-        if (array_key_exists('name', $before) && $before['name'] !== $team->name) {
-            $recorder->record($team, $actor, AuditAction::TeamRenamed, $team, [
-                'old_name' => $before['name'],
-                'new_name' => $team->name,
-            ]);
-        }
-
-        foreach (ChannelVisibility::cases() as $visibility) {
-            $column = $visibility->value.'_channel_creation_policy';
-            $old = $before[$column] ?? null;
-            if (! $old instanceof ChannelCreationPolicy) {
-                continue;
-            }
-            if ($old === $team->creationPolicyFor($visibility)) {
-                continue;
-            }
-
-            $recorder->record($team, $actor, AuditAction::ChannelCreationPolicyChanged, $team, [
-                'visibility' => $visibility->label(),
-                'old_policy' => $old->label(),
-                'new_policy' => $team->creationPolicyFor($visibility)->label(),
-            ]);
-        }
     }
 
     /**

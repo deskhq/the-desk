@@ -4,8 +4,11 @@ declare(strict_types=1);
 
 namespace App\Actions\Channels;
 
+use App\Enums\AuditAction;
+use App\Events\AuditableActionOccurred;
 use App\Jobs\PurgeDeletedChannel;
 use App\Models\Channel;
+use App\Models\User;
 use Illuminate\Support\Facades\DB;
 
 class DeleteChannel
@@ -22,11 +25,16 @@ class DeleteChannel
      * otherwise both see it live, and the second would overwrite `deleted_at`
      * and silently extend the grace window. Under the lock the loser sees the
      * winner's stamp and leaves it alone, so the channel keeps the deletion date
-     * it actually got — which is the date the purge is scheduled from.
+     * it actually got — which is the date the purge is scheduled from, and the
+     * date the audit entry names. Only the request that actually deleted the
+     * channel records one; the loser of that race records nothing.
+     *
+     * The audit entry carries the purge date because it is the only lasting
+     * record of the channel once the grace window closes.
      */
-    public function handle(Channel $channel): Channel
+    public function handle(Channel $channel, ?User $actor): Channel
     {
-        return DB::transaction(function () use ($channel): Channel {
+        return DB::transaction(function () use ($channel, $actor): Channel {
             $locked = Channel::withTrashed()
                 ->whereKey($channel->getKey())
                 ->lockForUpdate()
@@ -34,6 +42,11 @@ class DeleteChannel
 
             if (! $locked->trashed()) {
                 $locked->delete();
+
+                event(new AuditableActionOccurred($locked->team, $actor, AuditAction::ChannelDeleted, $locked, [
+                    'channel_name' => $locked->name,
+                    'purge_at' => $locked->deleted_at->addDays(PurgeDeletedChannel::GRACE_WINDOW_DAYS)->toDateString(),
+                ]));
             }
 
             return $locked;

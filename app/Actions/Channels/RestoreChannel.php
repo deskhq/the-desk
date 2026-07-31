@@ -4,7 +4,10 @@ declare(strict_types=1);
 
 namespace App\Actions\Channels;
 
+use App\Enums\AuditAction;
+use App\Events\AuditableActionOccurred;
 use App\Models\Channel;
+use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -25,9 +28,9 @@ class RestoreChannel
      *
      * @throws ValidationException when a live channel already holds the slug
      */
-    public function handle(Channel $channel): Channel
+    public function handle(Channel $channel, ?User $actor): Channel
     {
-        return DB::transaction(function () use ($channel): Channel {
+        return DB::transaction(function () use ($channel, $actor): Channel {
             $taken = Channel::query()
                 ->where('team_id', $channel->team_id)
                 ->where('slug', $channel->slug)
@@ -41,6 +44,10 @@ class RestoreChannel
             }
 
             $channel->restore();
+
+            event(new AuditableActionOccurred($channel->team, $actor, AuditAction::ChannelRestored, $channel, [
+                'channel_name' => $channel->name,
+            ]));
 
             return $channel;
         });

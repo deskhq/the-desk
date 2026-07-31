@@ -4,15 +4,20 @@ declare(strict_types=1);
 
 use App\Actions\Channels\ArchiveChannel;
 use App\Actions\Channels\CreateChannel;
+use App\Actions\Channels\DeleteChannel;
+use App\Actions\Channels\DeleteMessage;
 use App\Actions\Channels\JoinChannel;
 use App\Actions\Channels\LeaveChannel;
 use App\Actions\Channels\RemoveChannelMember;
+use App\Actions\Channels\RestoreChannel;
 use App\Enums\AuditAction;
 use App\Enums\ChannelVisibility;
 use App\Enums\WebhookEvent;
 use App\Jobs\DeliverWebhook;
+use App\Jobs\PurgeDeletedChannel;
 use App\Models\AuditActivity;
 use App\Models\Channel;
+use App\Models\Message;
 use App\Models\Team;
 use App\Models\User;
 use App\Models\WebhookSubscription;
@@ -120,6 +125,63 @@ it('does not audit the protected general channel a new workspace bootstraps', fu
         ->where('team_id', $team->id)
         ->where('event', AuditAction::ChannelCreated->value)
         ->count())->toBe(0);
+});
+
+it('records a channel deletion with the date its content is purged', function (): void {
+    $channel = app(DeleteChannel::class)->handle($this->channel, $this->admin);
+
+    $entry = AuditActivity::query()
+        ->where('team_id', $this->team->id)
+        ->where('event', AuditAction::ChannelDeleted->value)
+        ->sole();
+
+    expect($entry->causer_id)->toBe($this->admin->id);
+    expect($entry->properties['purge_at'])
+        ->toBe($channel->deleted_at->addDays(PurgeDeletedChannel::GRACE_WINDOW_DAYS)->toDateString());
+});
+
+it('does not audit deleting a channel that is already deleted', function (): void {
+    app(DeleteChannel::class)->handle($this->channel, $this->admin);
+    app(DeleteChannel::class)->handle($this->channel, $this->admin);
+
+    expect(seamEntries(AuditAction::ChannelDeleted))->toBe(1);
+});
+
+it('records a channel restore', function (): void {
+    $channel = app(DeleteChannel::class)->handle($this->channel, $this->admin);
+
+    app(RestoreChannel::class)->handle($channel, $this->admin);
+
+    $entry = AuditActivity::query()
+        ->where('team_id', $this->team->id)
+        ->where('event', AuditAction::ChannelRestored->value)
+        ->sole();
+
+    expect($entry->causer_id)->toBe($this->admin->id);
+    expect($entry->properties['channel_name'])->toBe($this->channel->name);
+});
+
+it('records a moderator deleting another members message', function (): void {
+    $message = Message::factory()->for($this->channel)->for($this->member)->create();
+
+    app(DeleteMessage::class)->handle($this->channel, $message, deletedBy: $this->admin);
+
+    $entry = AuditActivity::query()
+        ->where('team_id', $this->team->id)
+        ->where('event', AuditAction::MessageDeleted->value)
+        ->sole();
+
+    expect($entry->causer_id)->toBe($this->admin->id);
+    expect($entry->properties['author_name'])->toBe($this->member->name);
+    expect($entry->properties['channel_name'])->toBe($this->channel->name);
+});
+
+it('does not audit a member deleting their own message', function (): void {
+    $message = Message::factory()->for($this->channel)->for($this->member)->create();
+
+    app(DeleteMessage::class)->handle($this->channel, $message, deletedBy: $this->member);
+
+    expect(seamEntries(AuditAction::MessageDeleted))->toBe(0);
 });
 
 it('records a channel archive against the actor who archived it', function (): void {

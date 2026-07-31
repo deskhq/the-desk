@@ -2,21 +2,18 @@
 
 namespace App\Http\Controllers\Teams;
 
+use App\Actions\Teams\RequestAuditExport;
 use App\Data\AuditExportData;
-use App\Enums\AuditAction;
 use App\Enums\AuditExportFormat;
 use App\Enums\AuditExportLogType;
 use App\Enums\AuditExportStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Teams\RequestAuditExportRequest;
-use App\Jobs\GenerateAuditExport;
 use App\Models\AuditExport;
 use App\Models\Team;
-use App\Support\AuditRecorder;
 use App\Support\ExportLifecycle;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
@@ -67,7 +64,7 @@ class AuditExportController extends Controller
      * Only one export may be generating per team at a time; a second request is
      * rejected with a toast until the first finishes.
      */
-    public function store(RequestAuditExportRequest $request, Team $team, AuditRecorder $recorder): RedirectResponse
+    public function store(RequestAuditExportRequest $request, Team $team, RequestAuditExport $requestExport): RedirectResponse
     {
         if ($team->auditExports()->where('status', AuditExportStatus::Pending)->exists()) {
             Inertia::flash('toast', ['type' => 'error', 'message' => __('An export is already generating')]);
@@ -75,39 +72,22 @@ class AuditExportController extends Controller
             return back();
         }
 
-        $logType = AuditExportLogType::from((string) $request->validated('log_type'));
-        $format = AuditExportFormat::from((string) $request->validated('format'));
-        $rangeStart = $request->validated('range_start');
-        $rangeEnd = $request->validated('range_end');
-
-        $export = $team->auditExports()->create([
-            'requested_by' => $request->user()->id,
-            'log_type' => $logType,
-            'format' => $format,
-            'range_start' => $rangeStart,
-            'range_end' => $rangeEnd,
-            'status' => AuditExportStatus::Pending,
-        ]);
-
-        // Dispatch eagerly so a queue-push failure surfaces here rather than
-        // leaving a pending row that would block the team's next request forever
-        // (a pending export never reaches the retention purge).
         try {
-            Bus::dispatch(new GenerateAuditExport($export->id));
+            $requestExport->handle(
+                $team,
+                $request->user(),
+                AuditExportLogType::from((string) $request->validated('log_type')),
+                AuditExportFormat::from((string) $request->validated('format')),
+                $request->validated('range_start'),
+                $request->validated('range_end'),
+            );
         } catch (Throwable $exception) {
-            $export->update(['status' => AuditExportStatus::Failed]);
             report($exception);
 
             Inertia::flash('toast', ['type' => 'error', 'message' => __('Could not start the export')]);
 
             return back();
         }
-
-        $recorder->record($team, $request->user(), AuditAction::AuditExported, $export, [
-            'log' => $logType->label(),
-            'format' => $format->label(),
-            'range' => $this->rangeLabel($rangeStart, $rangeEnd),
-        ]);
 
         Inertia::flash('toast', ['type' => 'success', 'message' => __("Preparing your export. We'll email you when it's ready.")]);
 
@@ -136,25 +116,5 @@ class AuditExportController extends Controller
         $filename = $auditExport->log_type->value.'-export.'.$auditExport->format->extension();
 
         return Storage::disk(ExportLifecycle::DISK)->download($auditExport->path, $filename);
-    }
-
-    /**
-     * Build the human range label recorded on the export's audit entry.
-     */
-    private function rangeLabel(?string $rangeStart, ?string $rangeEnd): string
-    {
-        if ($rangeStart === null && $rangeEnd === null) {
-            return __('All time');
-        }
-
-        if ($rangeStart === null) {
-            return sprintf(__('Until %s'), $rangeEnd);
-        }
-
-        if ($rangeEnd === null) {
-            return sprintf(__('From %s'), $rangeStart);
-        }
-
-        return sprintf('%s – %s', $rangeStart, $rangeEnd);
     }
 }
