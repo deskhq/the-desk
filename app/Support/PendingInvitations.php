@@ -6,6 +6,7 @@ namespace App\Support;
 
 use App\Models\TeamInvitation;
 use App\Models\User;
+use Illuminate\Database\Eloquent\Builder;
 
 /**
  * The workspace invitations still open to a user: unaccepted, unexpired, and
@@ -32,7 +33,7 @@ final class PendingInvitations
             ->with(['inviter', 'team'])
             ->whereRaw('LOWER(email) = ?', [strtolower($user->email)])
             ->whereNull('accepted_at')
-            ->where(fn ($query) => $query
+            ->where(fn (Builder $query) => $query
                 ->whereNull('expires_at')
                 ->orWhere('expires_at', '>=', now()))
             ->latest()
