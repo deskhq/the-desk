@@ -39,10 +39,10 @@ use Database\Factories\ChannelMemberFactory;
  *
  * @return array{owner: User, team: Team, channel: Channel}
  */
-function teamWithChannel(string $name = 'Acme'): array
+function teamWithChannel(string $teamName = 'Acme'): array
 {
     $owner = User::factory()->create();
-    $team = app(CreateTeam::class)->handle($owner, $name);
+    $team = app(CreateTeam::class)->handle($owner, $teamName);
 
     $channel = Channel::query()
         ->where('team_id', $team->id)
@@ -95,28 +95,22 @@ function teamMemberInChannel(
  */
 function channelMembership(Channel $channel, User $user, ?Closure $state = null): ChannelMember
 {
-    $keys = ['channel_id' => $channel->id, 'user_id' => $user->id];
-
-    $factory = ChannelMember::factory();
-    $stated = $state instanceof Closure ? $state($factory) : $factory;
-
     $membership = $channel->channelMembers()->firstWhere('user_id', $user->id);
 
+    // Seeded from the row when there is one, so the states overwrite only what
+    // the test asked for and the rest of it is left standing.
+    $seed = $membership instanceof ChannelMember
+        ? $membership->getAttributes()
+        : ['channel_id' => $channel->id, 'user_id' => $user->id];
+
+    $factory = ChannelMember::factory()->state($seed);
+    $stated = $state instanceof Closure ? $state($factory) : $factory;
+
     if (! $membership instanceof ChannelMember) {
-        return $stated->create($keys);
+        return $stated->create();
     }
 
-    $defaults = ChannelMember::factory()->make($keys)->getAttributes();
-
-    $changes = array_filter(
-        $stated->make($keys)->getAttributes(),
-        fn (mixed $value, string $column): bool => ($defaults[$column] ?? null) !== $value,
-        ARRAY_FILTER_USE_BOTH,
-    );
-
-    if ($changes !== []) {
-        $membership->fill($changes)->save();
-    }
+    $membership->forceFill($stated->make()->getAttributes())->save();
 
     return $membership;
 }

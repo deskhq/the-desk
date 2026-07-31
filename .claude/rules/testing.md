@@ -9,6 +9,13 @@ paths:
 
 # Testing
 
+## Where a new test goes
+
+- **Three suites run under the gate, named for how much of the application each boots** (see [ADR-0012](../../dev-docs/adr/0012-three-test-suites.md)): `tests/Unit` is pure — a function, or a repository file such as a workflow or the Dockerfile; `tests/Integration` boots the application **and** the database and drives the module directly; `tests/Feature` adds HTTP and drives `route()`. `tests/Browser` is the fourth, deliberately *not* declared as a `<testsuite>` in `phpunit.xml`, which is what keeps it out of the coverage gate.
+- **`Integration` and `Feature` are handed exactly the same thing** — `TestCase` plus `RefreshDatabase`. What separates them is not what they are given but what they drive. A test belongs in `Feature` when the HTTP contract is its subject: routing, validation, authorization, redirects, the Inertia props a page ships. **Everything else that needs a database belongs in `Integration`** — construct the module, call it, assert on what it returned or wrote. Do not reach for a controller to exercise an Action, a `Data` class or an `app/Support` seam.
+- **Do not bulk-move the older route-less tests out of `tests/Feature`.** 115 of them predate this suite and stay where they are; a file relocates only when something is already rewriting its assertions (#1110's child 6b). Likewise, `tests/Unit`'s repo-hygiene files stay in `tests/Unit`.
+- **Use the shared arrange in `tests/Helpers.php`, don't re-declare it.** `teamWithChannel()` returns `['owner' => …, 'team' => …, 'channel' => …]` for a team and its `#general`; `teamMemberInChannel($channel, $attributes, $role, $state)` adds someone to both; `channelMembership($channel, $user, $state)` sets the pivot's state, taking a closure over `ChannelMemberFactory` (`fn ($membership) => $membership->muted()->draft('…')`) rather than an attribute array. It restates an existing membership rather than replacing it, so it works on the owner, who is auto-joined to `#general`. All three are global — `tests/Pest.php` requires the file — so **check `grep -rn "^function " tests/` before naming a new global helper**: ~520 are already declared and a redeclaration is a fatal error, not a test failure.
+
 ## Code Coverage
 
 - **100% code coverage is required — this is non-negotiable.** The test suite is gated at `--min=100` (see the `test` script in `composer.json`), so any line left uncovered fails the build.

@@ -60,6 +60,46 @@ below the PHP coverage gate. It needs no database and runs in seconds.
 
 Auto-fix with `./vendor/bin/sail npm run lint` and `./vendor/bin/sail npm run format`.
 
+### Where a new test goes
+
+There are four directories under `tests/`, three of which the coverage gate runs.
+They are named for **how much of the application each one boots**:
+
+| directory | boots | drives |
+| --- | --- | --- |
+| `tests/Unit` | nothing, usually | a pure function, or a file in the repository (a workflow, the Dockerfile, a shell script) |
+| `tests/Integration` | the application **and** the database | the module itself — construct it, call it, assert on what it returned or wrote |
+| `tests/Feature` | the same, plus HTTP | `route()`, and what the response carries |
+| `tests/Browser` | the same, plus a real browser and a live Reverb | the realtime and rendered-page paths nothing headless can reach |
+
+`Integration` and `Feature` are handed exactly the same thing — `TestCase` plus
+`RefreshDatabase`. **What separates them is not what they are given but what they
+drive.** Put a test in `Feature` when the HTTP contract is its subject: routing,
+validation, authorization, redirects, the Inertia props a page ships. Everything
+else that needs a database belongs in `Integration`. If you are unsure, ask which
+failure the test should catch — a broken route, or a broken module.
+
+`tests/Browser` is deliberately not declared as a `<testsuite>` in `phpunit.xml`,
+which is what keeps it out of the coverage gate; it runs by path through
+`bin/browser-tests` (see the README).
+
+The arrange nearly every test opens with — a team, its `#general` channel, and
+someone in both — lives in `tests/Helpers.php` and is available everywhere
+without an import:
+
+```php
+['owner' => $owner, 'team' => $team, 'channel' => $general] = teamWithChannel();
+
+$member = teamMemberInChannel($general, ['name' => 'Ada Lovelace']);
+
+channelMembership($general, $member, fn ($membership) => $membership->muted()->draft('half a thought'));
+```
+
+Reach for those rather than re-declaring the arrange locally, and take membership
+state from `ChannelMemberFactory` rather than writing the pivot's columns by hand.
+[ADR-0012](dev-docs/adr/0012-three-test-suites.md) has the reasoning, including
+why the older route-less tests in `tests/Feature` are being left where they are.
+
 ### The product shots: refreshing them when the shell changes
 
 The landing page, the README and the docs all advertise the app with real
