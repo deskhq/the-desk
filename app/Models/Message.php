@@ -6,7 +6,6 @@ use App\Data\MessageData;
 use App\Enums\MessageType;
 use App\Enums\NotificationLevel;
 use App\Support\MessagePlainText;
-use App\Support\WorkspaceUnread;
 use Database\Factories\MessageFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Builder;
@@ -314,8 +313,8 @@ class Message extends Model
      * query that has `channels` and `channel_members` joined in.
      *
      * One constant, so the scope below, the conditional aggregate in
-     * {@see WorkspaceUnread} and the timeline's filter cannot
-     * disagree about what "channel traffic" means. Its client twin is
+     * `WorkspaceUnread` and the timeline's filter cannot disagree about what
+     * "channel traffic" means. Its client twin is
      * `resources/js/lib/channelTraffic.ts`; ADR-0010 records why both exist and
      * why neither may be re-inlined.
      */
@@ -338,9 +337,9 @@ class Message extends Model
 
     /**
      * The same rule as a SQL fragment, for the one caller that needs it inside
-     * an expression rather than as a `where`: {@see WorkspaceUnread}
-     * counts channel traffic and mentions in a single grouped query, so its
-     * unread half is a conditional aggregate that no scope can express.
+     * an expression rather than as a `where`: `WorkspaceUnread` counts channel
+     * traffic and mentions in a single grouped query, so its unread half is a
+     * conditional aggregate that no scope can express.
      *
      * Reach for {@see self::scopeChannelTraffic()} everywhere else — a `where`
      * that goes through this instead is a `whereRaw` with extra steps.
