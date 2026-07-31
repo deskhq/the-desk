@@ -87,14 +87,14 @@ export function useComposerKeyboard(options: {
             return;
         }
 
-        // Format shortcuts wrap the selection. Placed after the mention menu's key
-        // handling so its arrow/Enter/Escape keep priority while it is open; the
-        // chosen keys (B/I/E, ⇧X) never collide with it or Enter-to-send.
+        // Format shortcuts wrap the selection. Placed after the autocomplete's
+        // key handling so its arrow/Enter/Escape keep priority while it is open;
+        // the chosen keys (B/I/E, ⇧X) never collide with it or Enter-to-send.
         if (options.format.tryFormatShortcut(event)) {
             return;
         }
 
-        // With the mention menu closed, Escape leaves edit mode (restoring the empty
+        // With no autocomplete open, Escape leaves edit mode (restoring the empty
         // composer) or, failing that, dismisses the active reply context.
         if (event.key === 'Escape' && editing.editingMessage.value) {
             event.preventDefault();
@@ -111,8 +111,8 @@ export function useComposerKeyboard(options: {
         }
 
         // ArrowUp on an empty composer recalls the viewer's last editable message
-        // into edit mode ("↑ to edit last message"). The gate keeps it clear of the
-        // mention menu, `⌥↑` channel nav, and an in-progress reply.
+        // into edit mode ("↑ to edit last message"). The gate keeps it clear of an
+        // open autocomplete, `⌥↑` channel nav, and an in-progress reply.
         if (
             isComposerEditTrigger({
                 key: event.key,
