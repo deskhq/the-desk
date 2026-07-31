@@ -1,10 +1,8 @@
+import { isChannelTraffic } from '@/lib/channelTraffic';
+import type { ChannelTrafficInput } from '@/lib/channelTraffic';
 import { shouldFlagThreadUnread } from '@/lib/shouldFlagThreadUnread';
 
-export type IncomingPlacementInput = {
-    /** The reply's root message id, or `null` for a top-level channel message. */
-    threadRootId: string | null;
-    /** A thread reply the author also chose to echo into the channel timeline. */
-    sentToChannel: boolean;
+export type IncomingPlacementInput = ChannelTrafficInput & {
     /** The arriving message was authored by the current viewer. */
     isOwnMessage: boolean;
     /** The root id of the thread currently open in the panel, or `null`. */
@@ -36,12 +34,13 @@ export type IncomingPlacement = {
  * open thread, both, or neither — and whether it advances or dots the thread's
  * read state.
  *
- * This is the pure decision core of `Show.vue`'s realtime routing. A top-level
- * message (or a reply explicitly sent to the channel) shows in the main timeline;
- * a reply into the *open* thread appends there and, while the tab is focused,
- * keeps that thread read; a reply into a *closed* followed thread raises its
- * unread dot instead — the last branch deferring to {@see shouldFlagThreadUnread}
- * so a live dot and a navigation-time dot agree.
+ * This is the pure decision core of `Show.vue`'s realtime routing. Whatever
+ * {@see isChannelTraffic} calls channel traffic shows in the main timeline — the
+ * same rule the server pages the timeline with, so a live append and a reload
+ * agree on what is in it; a reply into the *open* thread appends there and, while
+ * the tab is focused, keeps that thread read; a reply into a *closed* followed
+ * thread raises its unread dot instead — the last branch deferring to
+ * {@see shouldFlagThreadUnread} so a live dot and a navigation-time dot agree.
  */
 export function placeIncomingMessage(
     input: IncomingPlacementInput,
@@ -52,7 +51,7 @@ export function placeIncomingMessage(
     const isViewingThreadFocused = isActiveThread && input.isTabFocused;
 
     return {
-        appendToMain: !isReply || input.sentToChannel,
+        appendToMain: isChannelTraffic(input),
         appendToThread: isActiveThread,
         markThreadReadNow: isViewingThreadFocused,
         flagRootThreadUnread:

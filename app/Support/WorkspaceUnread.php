@@ -112,9 +112,13 @@ class WorkspaceUnread
             ->select('channels.team_id')
             // Thread-only replies live in the thread view and stay out of the
             // plain unread count, and the "mentions" level silences it entirely.
+            // The channel-traffic half is {@see Message::channelTrafficSql()}
+            // rather than a copy: both counts are aggregated in this one grouped
+            // query, so the unread half has to be a conditional aggregate, which
+            // is the one shape the scope cannot express.
             ->selectRaw(
-                'sum(case when channel_members.notification_level = ? and (messages.thread_root_id is null or messages.sent_to_channel = ?) then 1 else 0 end) as unread_count',
-                [NotificationLevel::All->value, true],
+                'sum(case when channel_members.notification_level = ? and '.Message::channelTrafficSql().' then 1 else 0 end) as unread_count',
+                [NotificationLevel::All->value],
             )
             ->selectRaw('sum(case when mentions.message_id is not null then 1 else 0 end) as mention_count')
             ->toBase();

@@ -98,9 +98,10 @@ final readonly class SidebarChannels
             ->selectRaw("case when channel_members.draft is not null and channel_members.draft != '' then 1 else 0 end as has_draft")
             // Thread-only replies stay out of the plain unread badge (they live
             // in the thread view), but a mention anywhere — including inside a
-            // thread — still badges the channel.
-            ->selectSub(WorkspaceUnread::forChannelsOf($this->viewer)
-                ->where(fn (Builder $query) => $query->whereNull('messages.thread_root_id')->orWhere('messages.sent_to_channel', true)), 'unread_count')
+            // thread — still badges the channel. That asymmetry is why the
+            // predicate is opt-in per call site: only the first of these two
+            // sub-queries asks for it.
+            ->selectSub(WorkspaceUnread::forChannelsOf($this->viewer)->channelTraffic(), 'unread_count')
             ->selectSub(
                 WorkspaceUnread::forChannelsOf($this->viewer)->whereHas('mentionedUsers', fn (Builder $query) => $query->whereKey($this->viewer->id)),
                 'mention_count'

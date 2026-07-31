@@ -302,7 +302,6 @@ class ChannelTimelineWindow
      */
     private function mainTimeline(): Builder
     {
-        return $this->channel->messages()->withTrashed()->getQuery()
-            ->where(fn (Builder $inner) => $inner->whereNull('thread_root_id')->orWhere('sent_to_channel', true));
+        return $this->channel->messages()->withTrashed()->getQuery()->channelTraffic();
     }
 }

@@ -6,6 +6,7 @@ use App\Data\MessageData;
 use App\Enums\MessageType;
 use App\Enums\NotificationLevel;
 use App\Support\MessagePlainText;
+use App\Support\WorkspaceUnread;
 use Database\Factories\MessageFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Builder;
@@ -300,6 +301,74 @@ class Message extends Model
     public function attachments(): HasMany
     {
         return $this->hasMany(Attachment::class)->oldest()->orderBy('id');
+    }
+
+    /**
+     * The rule that decides whether a message is ordinary channel traffic: a
+     * top-level message, or a thread reply its author explicitly also sent to
+     * the channel. A thread-only reply is not — it lives in the thread view, so
+     * it stays out of the main timeline and out of the plain unread badge, and
+     * only ever alerts through the mention path.
+     *
+     * Qualified against `messages` because the sidebar correlates this against a
+     * query that has `channels` and `channel_members` joined in.
+     *
+     * One constant, so the scope below, the conditional aggregate in
+     * {@see WorkspaceUnread} and the timeline's filter cannot
+     * disagree about what "channel traffic" means. Its client twin is
+     * `resources/js/lib/channelTraffic.ts`; ADR-0010 records why both exist and
+     * why neither may be re-inlined.
+     */
+    private const string CHANNEL_TRAFFIC_SQL = '(messages.thread_root_id is null or messages.sent_to_channel = true)';
+
+    /**
+     * Constrain a message query to ordinary channel traffic, per
+     * {@see self::CHANNEL_TRAFFIC_SQL}.
+     *
+     * Deliberately opt-in per call site rather than a global scope: a mention
+     * anywhere — including inside a thread — still badges its channel, so the
+     * sidebar's mention count is one of the queries that must *not* carry it.
+     *
+     * @param  Builder<Message>  $query
+     */
+    protected function scopeChannelTraffic(Builder $query): void
+    {
+        $query->whereRaw(self::CHANNEL_TRAFFIC_SQL);
+    }
+
+    /**
+     * The same rule as a SQL fragment, for the one caller that needs it inside
+     * an expression rather than as a `where`: {@see WorkspaceUnread}
+     * counts channel traffic and mentions in a single grouped query, so its
+     * unread half is a conditional aggregate that no scope can express.
+     *
+     * Reach for {@see self::scopeChannelTraffic()} everywhere else — a `where`
+     * that goes through this instead is a `whereRaw` with extra steps.
+     *
+     * Typed `literal-string` because that is what the query builder's raw
+     * methods take: it is what makes "this fragment can hold no user input" a
+     * static guarantee rather than a promise in a comment.
+     *
+     * @return literal-string
+     */
+    public static function channelTrafficSql(): string
+    {
+        return self::CHANNEL_TRAFFIC_SQL;
+    }
+
+    /**
+     * The in-memory twin of {@see self::CHANNEL_TRAFFIC_SQL}, for the paths that
+     * hold a payload rather than a query — the push listener decides from the
+     * broadcast {@see MessageData}, and re-reading the row to ask the
+     * database would be a query per message per send.
+     *
+     * Kept beside the SQL, and pinned against the same case table
+     * (`tests/Fixtures/channel-traffic-cases.json`) as both the scope and the
+     * client twin, so the three cannot drift.
+     */
+    public static function isChannelTraffic(?string $threadRootId, bool $sentToChannel): bool
+    {
+        return $threadRootId === null || $sentToChannel;
     }
 
     /**
