@@ -5,6 +5,7 @@ namespace App\Data;
 use App\Enums\NotificationLevel;
 use App\Models\Channel;
 use App\Models\User;
+use App\Support\DirectMessageRoster;
 use Illuminate\Support\Carbon;
 use Spatie\LaravelData\Data;
 use Spatie\TypeScriptTransformer\Attributes\TypeScript;
@@ -63,8 +64,16 @@ class ChannelData extends Data
      * `sectionId` is the custom section the viewer has filed the channel under
      * (null for the default "Channels" group), and `position` is its manual order
      * within whichever group it renders in.
+     *
+     * The viewer is a parameter, never read from the ambient session: this is a
+     * pure mapping, so it can be built for anyone — which is what makes it
+     * testable without signing in, and what keeps `app/Data` free of the
+     * authenticated-user helper entirely (ADR-0011 — whose guard is a grep for
+     * that helper's name, so this paragraph does not spell it). Batch a page of
+     * channels through {@see DirectMessageRoster} first and naming their direct
+     * messages then costs this no query at all.
      */
-    public static function fromChannel(Channel $channel): self
+    public static function fromChannel(Channel $channel, User $viewer): self
     {
         $muted = (bool) ($channel->getAttribute('muted') ?? false);
 
@@ -92,40 +101,23 @@ class ChannelData extends Data
         // the other participants as an avatar stack + a comma/ampersand-joined
         // name the client formats from `dmParticipants`; `name` carries a
         // full-name join as an accessible fallback. Standard channels keep their
-        // own `name`.
-        $viewer = auth()->user();
+        // own `name`. All of that is one rule with three consumers, so it is the
+        // model's to answer, not this DTO's to re-derive.
         $isDirectMessage = $channel->isDirectMessage();
-        $isGroupDirect = $channel->isGroupDirect();
-
-        $dmParticipant = $channel->isDirect() && $viewer instanceof User ? $channel->directParticipantFor($viewer) : null;
 
         // `dmParticipants` is populated for every DM (the client keys its avatar
-        // stack, participant name, and same-member-set dedup off it): a group
-        // loads its other members; a 1:1 reuses the already-resolved
-        // participant (empty for a self-DM, whose only member is the viewer).
-        $participants = null;
-        if ($isGroupDirect && $viewer instanceof User) {
-            $participants = $channel->members()
-                ->where('users.id', '!=', $viewer->id)
-                ->orderBy('name')
-                ->get()
+        // stack, participant name, and same-member-set dedup off it): the roster
+        // minus the viewer, empty for a self-DM whose only member is the viewer.
+        // Sorted the way `displayNameFor()` sorts the name it joins from the same
+        // people, so the stack and the label can never disagree on their order.
+        $participants = $isDirectMessage
+            ? $channel->members
+                ->reject(fn (User $member): bool => $member->id === $viewer->id)
+                ->sortBy('name')
                 ->map(fn (User $member): UserData => UserData::fromUser($member))
-                ->all();
-        } elseif ($dmParticipant instanceof User) {
-            // A non-null participant implies a signed-in viewer (the ternary
-            // above), so a self-DM is the participant being the viewer.
-            $participants = $dmParticipant->id === $viewer->id
-                ? []
-                : [UserData::fromUser($dmParticipant)];
-        }
-
-        if ($dmParticipant instanceof User) {
-            $name = $dmParticipant->name;
-        } elseif ($isGroupDirect) {
-            $name = collect($participants)->pluck('name')->join(', ');
-        } else {
-            $name = (string) $channel->name;
-        }
+                ->values()
+                ->all()
+            : null;
 
         // The timestamp the "Direct messages" sidebar group orders on: the
         // channel's latest message (populated by the sidebar query as
@@ -136,7 +128,7 @@ class ChannelData extends Data
 
         return new self(
             id: $channel->id,
-            name: $name,
+            name: $channel->displayNameFor($viewer),
             slug: $channel->slug,
             visibility: $channel->visibility->value,
             topic: $channel->topic,
@@ -153,8 +145,8 @@ class ChannelData extends Data
             sectionId: $sectionId,
             position: $position,
             isDirect: $isDirectMessage,
-            isGroupDirect: $isGroupDirect,
-            dmUserId: $dmParticipant?->id,
+            isGroupDirect: $channel->isGroupDirect(),
+            dmUserId: $channel->directParticipantFor($viewer)?->id,
             dmParticipants: $participants,
             lastActivityAt: $lastActivityAt,
         );

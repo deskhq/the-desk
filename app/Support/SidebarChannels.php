@@ -54,7 +54,13 @@ final readonly class SidebarChannels
                 || $this->listsDirectMessage($channel, $activeChannel?->getKey()),
         )->values();
 
-        return ChannelData::collect($channels, 'array');
+        // The listed DMs are named from their rosters, so they are loaded here
+        // as one batch — before the rows are mapped, not once per row.
+        DirectMessageRoster::load($channels);
+
+        return $channels
+            ->map(fn (Channel $channel): ChannelData => ChannelData::fromChannel($channel, $this->viewer))
+            ->all();
     }
 
     /**

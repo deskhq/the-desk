@@ -128,7 +128,7 @@ class ChannelController extends Controller
                 'name' => $team->name,
                 'slug' => $team->slug,
             ],
-            'channel' => ChannelData::fromChannel($channel),
+            'channel' => ChannelData::fromChannel($channel, $request->user()),
             // Drives the header's archive control; authoritative so the button
             // only appears for a creator or Admin+ on a non-#general channel.
             'canArchive' => Gate::allows('archive', $channel),
@@ -262,7 +262,7 @@ class ChannelController extends Controller
                 'name' => $team->name,
                 'slug' => $team->slug,
             ],
-            'joinableChannels' => ChannelData::collect($channels),
+            'joinableChannels' => $channels->map(fn (Channel $channel): ChannelData => ChannelData::fromChannel($channel, $request->user()))->all(),
         ]);
     }
 
