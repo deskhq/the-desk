@@ -68,6 +68,14 @@ describe('useAutocompleteMenu', () => {
         expect(menu.activeIndex.value).toBe(2);
     });
 
+    it('wraps a move longer than the list itself', () => {
+        const { menu } = menuOf([ADA, GRACE]);
+
+        menu.moveActive(-5);
+
+        expect(menu.activeIndex.value).toBe(1);
+    });
+
     it('has nothing to move through when it is shut', () => {
         const { menu } = menuOf([]);
 

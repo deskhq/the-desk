@@ -124,7 +124,11 @@ export function useAutocompleteMenu<T>(options: {
             return;
         }
 
-        activeIndex.value = (activeIndex.value + delta + count) % count;
+        // Reduced first, then lifted back into range: `+ count` alone only
+        // rescues a single step off the front, and `delta` is not contracted to
+        // one.
+        activeIndex.value =
+            (((activeIndex.value + delta) % count) + count) % count;
     }
 
     function setActive(index: number): void {
