@@ -34,7 +34,9 @@ page and read through a **named accessor pair**, never a raw `inject`:
 
 - `provideMessageActions(context)` / `useMessageActionsContext()` — who the viewer
   is, what the open channel lets them do, the single viewer time zone, and the
-  eleven actions. Provided once, by the page.
+  actions. Provided once, by the page. `MessageActionHandlers` holds thirteen: the
+  eleven writes above plus `reply` and `openThread`, which are navigations rather
+  than writes but rode the identical relay, so they belong to the same facade.
 - `provideMessageSubtree(scope)` / `useMessageSubtree()` — what one timeline answers
   differently: `inThread`, and the composer a mention lands in. `ChannelPane`
   provides `false` and the channel composer; `ThreadPanel` provides `true` and its

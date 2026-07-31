@@ -236,6 +236,16 @@ export function stub(host: HTMLElement, name: string): HTMLElement | null {
     return host.querySelector<HTMLElement>(`[data-stub="${name}"]`);
 }
 
+/**
+ * Press the named target, or fail naming it. A no-op on a stale selector would
+ * leave the assertion below it passing for the wrong reason.
+ */
 export function click(host: HTMLElement, selector: string): void {
-    find(host, selector)?.click();
+    const target = find(host, selector);
+
+    if (target === null) {
+        throw new Error(`No [data-test="${selector}"] to press.`);
+    }
+
+    target.click();
 }

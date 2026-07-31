@@ -4,9 +4,11 @@ import type { MessageActionContext } from '@/lib/messageActions';
 import type { Message } from '@/types';
 
 /**
- * Every write a message row can ask for, each taking the message (or its id) it
- * acts on. Declared once here and provided once by the channel page, so no
- * module between the page and the row re-declares them (ADR-0009).
+ * Every action a message row can ask for, each taking the message (or its id) it
+ * acts on: the eleven writes, plus `reply` and `openThread`, which move the
+ * reader rather than writing but rode the identical relay. Declared once here
+ * and provided once by the channel page, so no module between the page and the
+ * row re-declares them (ADR-0009).
  *
  * `edit` and `delete` are the writes themselves, not the affordances that lead
  * to them: opening the inline editor and raising the delete confirmation are
