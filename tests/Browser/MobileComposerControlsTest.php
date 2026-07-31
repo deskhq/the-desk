@@ -68,17 +68,29 @@ test('the primary disc holds its place across the first keystroke', function ():
         JS, true);
 });
 
-test('the attach sheet closes by the x it opened from', function (): void {
+test('the attach sheet raises from the disc and dismisses again', function (): void {
     ['owner' => $alice, 'team' => $team, 'channel' => $channel] = browserTeamWithChannel();
 
+    // Dismissed by Escape, not by a second tap on the disc. The sheet is a
+    // modal dialog, so for as long as it is up the page behind it is out of
+    // reach — `pointer-events: none` on the body, and `elementFromPoint` over
+    // the disc answers `html`. Nothing outside the sheet is a hit target, so
+    // Playwright cannot land a click on the disc or on the scrim, and it does
+    // not fail trying: it waits on a target that can never take the click and
+    // never stops waiting, hanging the whole suite until the job is cancelled
+    // (#1106). Escape and the handle drag below are the two dismissals this
+    // suite can drive; the disc's own toggling is covered in
+    // MessageComposer.mobileControls.test.ts, where it is a state change rather
+    // than a hit test.
     signInThroughBrowser($alice)
         ->resize(390, 844)
         ->navigate(browserChannelUrl($team, $channel))
         ->click('@composer-attach-sheet-toggle')
         ->assertVisible('@composer-attach-sheet')
         ->assertAttribute('@composer-attach-sheet-toggle', 'aria-expanded', 'true')
-        ->click('@composer-attach-sheet-toggle')
-        ->assertMissing('@composer-attach-sheet');
+        ->keys('@composer-attach-sheet', ['Escape'])
+        ->assertMissing('@composer-attach-sheet')
+        ->assertAttribute('@composer-attach-sheet-toggle', 'aria-expanded', 'false');
 });
 
 test('dragging the attach sheet down by its handle throws it away', function (): void {
