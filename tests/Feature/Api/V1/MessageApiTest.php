@@ -58,6 +58,21 @@ it('records which token posted the message', function (): void {
     ]);
 });
 
+it('records no token when the subject arrived by session rather than by token', function (): void {
+    // Sanctum answers a session-authenticated subject with a keyless transient
+    // token, which names no credential at all.
+    $this->actingAs($this->bot)
+        ->postJson("/api/v1/channels/{$this->channel->id}/messages", ['body' => 'Deployed v2'])
+        ->assertCreated();
+
+    // There is nothing to revoke, so the row records no attribution rather than
+    // a key that would point nowhere.
+    $this->assertDatabaseHas('messages', [
+        'body' => 'Deployed v2',
+        'token_id' => null,
+    ]);
+});
+
 it('is idempotent on a repeated client_uuid', function (): void {
     Sanctum::actingAs($this->bot, ['messages:write']);
 
