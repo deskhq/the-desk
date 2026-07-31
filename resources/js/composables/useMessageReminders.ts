@@ -2,6 +2,7 @@ import { router, usePage } from '@inertiajs/vue3';
 import { echo } from '@laravel/echo-vue';
 import { computed, onBeforeUnmount, onMounted } from 'vue';
 import { backgroundVisit } from '@/lib/backgroundVisit';
+import { REMINDER_PROPS } from '@/lib/reminderReload';
 
 /**
  * Slide in a reminder nudge the moment one comes due.
@@ -36,7 +37,7 @@ export function useMessageReminders(): void {
                 // {@see backgroundVisit}.
                 router.reload({
                     ...backgroundVisit,
-                    only: ['reminders', 'firedReminders'],
+                    only: REMINDER_PROPS,
                 });
             });
     });

@@ -74,9 +74,18 @@ vi.mock('@/components/ui/tooltip', () => ({
     TooltipTrigger: stub('div'),
     TooltipContent: stub('div'),
 }));
-vi.mock('@/composables/useQuickSwitcher', () => ({
-    useQuickSwitcher: () => ({ open: vi.fn() }),
-}));
+vi.mock('@/composables/useDialog', async () => {
+    const { ref } = await import('vue');
+
+    return {
+        useDialog: () => ({
+            isOpen: ref(false),
+            open: vi.fn(),
+            close: vi.fn(),
+            toggle: vi.fn(),
+        }),
+    };
+});
 
 import ChannelMasthead from './ChannelMasthead.vue';
 

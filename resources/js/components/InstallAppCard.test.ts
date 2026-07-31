@@ -190,8 +190,8 @@ it('retires for good when the ✕ is taken', async () => {
 it('opens the install sheet rather than prompting straight from the card', async () => {
     await bootInstallableSession();
 
-    const { useInstallDialog } = await import('@/composables/useInstallDialog');
-    const { isOpen } = useInstallDialog();
+    const { useDialog } = await import('@/composables/useDialog');
+    const { isOpen } = useDialog('install');
     const host = await mountCard();
 
     expect(isOpen.value).toBe(false);

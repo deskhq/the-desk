@@ -2,6 +2,7 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import type { App } from 'vue';
 import { createApp, defineComponent, h } from 'vue';
+import { useDialog } from '@/composables/useDialog';
 import type { Team } from '@/types';
 
 /** Mutable stand-in for the shared workspace props. */
@@ -131,6 +132,8 @@ beforeEach(() => {
     props.pendingInvitations = [];
     viewport.setMobile?.(false);
     switchTeam.mockClear();
+    useDialog('invite').close();
+    useDialog('invitations').close();
 });
 
 afterEach(() => {
@@ -143,19 +146,12 @@ function mountSheet() {
     const host = document.createElement('div');
     document.body.append(host);
 
-    const invited = vi.fn();
-    const joined = vi.fn();
-
     app = createApp({
         render: () =>
-            h(
-                WorkspaceSheet,
-                { onInvite: invited, onJoin: joined },
-                {
-                    default: () =>
-                        h('button', { 'data-test': 'workspace-switcher' }),
-                },
-            ),
+            h(WorkspaceSheet, null, {
+                default: () =>
+                    h('button', { 'data-test': 'workspace-switcher' }),
+            }),
     });
     app.config.globalProperties.$t = (
         key: string,
@@ -170,7 +166,7 @@ function mountSheet() {
             : key;
     app.mount(host);
 
-    return { host, invited, joined };
+    return { host };
 }
 
 function row(host: HTMLElement, name: string): HTMLElement | null {
@@ -223,12 +219,12 @@ it('anchors the members row on the roster section of the settings page', () => {
     );
 });
 
-it('hands the invite request to its host', () => {
-    const { host, invited } = mountSheet();
+it('opens the invite modal the shell mounts', () => {
+    const { host } = mountSheet();
 
     row(host, 'invite-member-trigger')!.click();
 
-    expect(invited).toHaveBeenCalledTimes(1);
+    expect(useDialog('invite').isOpen.value).toBe(true);
 });
 
 it('hides the join row until an invitation is pending', () => {
@@ -240,13 +236,13 @@ it('hides the join row until an invitation is pending', () => {
 it('carries the pending invitation count on the join row', () => {
     props.pendingInvitations = [{}, {}];
 
-    const { host, joined } = mountSheet();
+    const { host } = mountSheet();
 
     expect(row(host, 'join-workspace-count')!.textContent).toContain('2');
 
     row(host, 'join-workspace-trigger')!.click();
 
-    expect(joined).toHaveBeenCalledTimes(1);
+    expect(useDialog('invitations').isOpen.value).toBe(true);
 });
 
 it('marks the current workspace and never switches to it', () => {
@@ -322,14 +318,14 @@ it('presents the same rows as a bottom sheet below the breakpoint', () => {
     expect(row(host, 'join-workspace-trigger')).not.toBeNull();
 });
 
-it('hands the invite request over from the bottom sheet too', () => {
+it('opens the invite modal from the bottom sheet too', () => {
     viewport.setMobile?.(true);
 
-    const { host, invited } = mountSheet();
+    const { host } = mountSheet();
 
     row(host, 'invite-member-trigger')!.click();
 
-    expect(invited).toHaveBeenCalledTimes(1);
+    expect(useDialog('invite').isOpen.value).toBe(true);
 });
 
 it('switches workspace from the bottom sheet', () => {

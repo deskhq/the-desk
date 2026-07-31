@@ -9,6 +9,7 @@ import {
     SidebarGroupAction,
     SidebarGroupContent,
 } from '@/components/ui/sidebar';
+import { useDialog } from '@/composables/useDialog';
 import { dmParticipantPresence } from '@/lib/presence';
 import type { RenderedPresence } from '@/lib/presence';
 import type { Channel } from '@/types/channels';
@@ -28,11 +29,12 @@ const props = defineProps<{
 defineEmits<{
     /** The user asked to collapse or expand the group. */
     toggle: [];
-    /** The user asked to start a new direct message. */
-    newMessage: [];
 }>();
 
 const page = usePage();
+
+/** The header's "+": the people picker the shell mounts. */
+const { open: openNewMessage } = useDialog('newMessage');
 
 const currentUser = computed(() => page.props.auth.user);
 
@@ -64,7 +66,7 @@ function presenceForRow(channel: Channel): RenderedPresence {
             :title="$t('New message')"
             data-test="new-dm-trigger"
             class="top-2 size-5 rounded-md text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
-            @click="$emit('newMessage')"
+            @click="openNewMessage()"
         >
             <Plus class="size-3.25" />
             <span class="sr-only">{{ $t('New message') }}</span>

@@ -162,8 +162,11 @@ describe('the max-lines policy', () => {
         });
     });
 
-    it('grandfathers today’s offenders', () => {
-        expect(grandfathered.length).toBeGreaterThan(0);
+    it('has burnt the grandfather list down to nothing', () => {
+        // The list only ever shrank, and `MainLayout.vue` was the last entry
+        // (#1093). Re-adding a path to buy a file room is a regression, not a
+        // maintenance step: split it instead.
+        expect(grandfathered).toEqual([]);
     });
 
     it('exempts every grandfathered path by name, never by a glob that would also cover new files', () => {

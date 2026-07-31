@@ -84,7 +84,7 @@ vi.mock('@/components/navigation/DirectMessageGroup.vue', () => ({
 }));
 
 import { useChannelSections } from '@/composables/useChannelSections';
-import { useQuickSwitcher } from '@/composables/useQuickSwitcher';
+import { useDialog } from '@/composables/useDialog';
 import type { RenderedPresence } from '@/lib/presence';
 import type { Channel, ChannelSection } from '@/types/channels';
 import ChannelsPanel from './ChannelsPanel.vue';
@@ -117,7 +117,7 @@ let app: App | null = null;
 beforeEach(() => {
     patch.mockClear();
     post.mockClear();
-    useQuickSwitcher().isOpen.value = false;
+    useDialog('switcher').isOpen.value = false;
     useChannelSections().cancelSectionForm();
 });
 
@@ -177,7 +177,7 @@ it('opens the quick switcher from its pinned trigger', () => {
         '[data-test="quick-switcher-trigger"]',
     )!.click();
 
-    expect(useQuickSwitcher().isOpen.value).toBe(true);
+    expect(useDialog('switcher').isOpen.value).toBe(true);
 });
 
 it('hides the starred group until the viewer stars something', () => {

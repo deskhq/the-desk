@@ -137,6 +137,29 @@ built; build them once, then reuse.
   outputs into its own realtime/unread machinery); the module owns the duplicated
   markup, taking pin state as props and handing the scroll element back through a
   `register-container` function ref so the consumer's `useScrollPin` binds the same node.
+- **`useReminders`** — the one facade over every message-reminder write: set,
+  snooze, clear, clear-all and open. Set and snooze are the same `updateOrCreate`
+  write, so the snapshot → post → toast-with-Undo triple is written once here
+  rather than at each call site, and the inverse stays `useReminderUndo`'s.
+  A new reminder surface calls it; it does not hand-roll a `router.post` with its
+  own toast.
+- **`lib/reminderReload`** — the props a reminder mutation invalidates
+  (`reminders` + `firedReminders`) and the visit options carrying them. The two
+  move together, so a surface refreshing one without the other goes stale; the
+  set is named here and nowhere else (`reminderReload.test.ts` fails on a second
+  copy).
+- **`useDialog` + `DialogHost`** — the shell's dialog registry. Open state is one
+  module-scoped entry per dialog, and every one of them is mounted once by
+  `DialogHost`; a dialog is opened by name from wherever the gesture is, never by
+  an emit chain climbing to whoever owns the modal. A new shell dialog is an entry
+  in `SHELL_DIALOGS` plus a mount in the host — not a new composable and a new
+  mount site. `useToast` is the model both follow.
+- **The shell composables** (`useShellFocus`, `useShellShortcuts`,
+  `useShellStartup`, `useChannelUploadToasts`) — what the workspace shell *does*,
+  as opposed to what it renders. `MainLayout.vue` is a mount point: it makes no
+  `router` call and holds no dialog state of its own, and its test asserts both
+  (#1093). Behaviour that needs the shell to exist goes in one of these, not into
+  its setup block.
 - **`ConfirmDialog`** — one confirmation-dialog module the
   leave/remove/cancel/delete/transfer modals are thin call-sites of. A small
   interface (`submit: { visit } | { form }`, `#trigger`/`#description`/`#body`
@@ -158,5 +181,10 @@ built; build them once, then reuse.
 - New channel-member preference → the **channel membership settings** concern.
 - New message action (a row affordance that writes) → one method on the **message-action
   context**; never a new prop/emit pair through the timeline.
+- New reminder behaviour → **`useReminders`**; new reminder *props* → the set in
+  **`lib/reminderReload`**.
+- A new dialog the shell puts over itself → an entry in **`useDialog`**'s
+  registry plus a mount in **`DialogHost`**.
 - A `.vue` file crossing ~400 lines or owning several independent lifecycles →
-  decompose into composables before adding more.
+  decompose into composables before adding more. `max-lines` enforces this and
+  the grandfather list is empty, so there is no exemption left to join.

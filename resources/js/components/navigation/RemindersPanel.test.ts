@@ -46,10 +46,13 @@ function reminder(overrides: Partial<MessageReminder> = {}): MessageReminder {
 
 let mounted: App | null = null;
 
-function mount(reminders: MessageReminder[]): HTMLElement {
+function mount(
+    reminders: MessageReminder[],
+    currentTeam: { slug: string } | null = { slug: 'acme' },
+): HTMLElement {
     page.props = {
         reminders,
-        currentTeam: { slug: 'acme' },
+        currentTeam,
         auth: { user: { timezone: 'UTC' } },
     };
 
@@ -238,6 +241,18 @@ describe('RemindersPanel actions', () => {
 
         expect(destroy).toHaveBeenCalledTimes(1);
         expect(destroy.mock.calls[0][0]).toBe('/t/acme/reminders');
+    });
+
+    it('sends no workspace-wide clear when there is no workspace to clear', () => {
+        // The slug builds the URL the delete goes to, so falling back to an
+        // empty one would fire the mutation at a malformed path.
+        const root = mount([reminder()], null);
+
+        root.querySelector<HTMLElement>(
+            '[data-test="reminders-clear-all"]',
+        )?.click();
+
+        expect(destroy).not.toHaveBeenCalled();
     });
 
     it('counts the pending rows in the header badge', () => {

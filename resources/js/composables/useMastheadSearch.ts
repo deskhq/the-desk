@@ -1,8 +1,8 @@
 import type { Ref } from 'vue';
 import { useSidebar } from '@/components/ui/sidebar';
+import { useDialog } from '@/composables/useDialog';
 import { useIsMobile } from '@/composables/useIsMobile';
 import { useNavPanel } from '@/composables/useNavPanel';
-import { useQuickSwitcher } from '@/composables/useQuickSwitcher';
 
 export interface MastheadSearch {
     /**
@@ -29,7 +29,7 @@ export interface MastheadSearch {
  */
 export function useMastheadSearch(): MastheadSearch {
     const isMobile = useIsMobile();
-    const { open: openQuickSwitcher } = useQuickSwitcher();
+    const { open: openQuickSwitcher } = useDialog('switcher');
     const { openDestination } = useNavPanel();
     const { open: dockOpen, setOpen: setDockOpen } = useSidebar();
 

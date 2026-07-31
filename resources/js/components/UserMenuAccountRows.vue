@@ -21,8 +21,7 @@ import WorkspaceSheet from '@/components/navigation/WorkspaceSheet.vue';
 import { Button } from '@/components/ui/button';
 import { useAppearance } from '@/composables/useAppearance';
 import { useAppInstall, useInstallRowBadge } from '@/composables/useAppInstall';
-import { useInstallDialog } from '@/composables/useInstallDialog';
-import { useKeyboardShortcutsModal } from '@/composables/useKeyboardShortcutsModal';
+import { useDialog } from '@/composables/useDialog';
 import { useOnboardingTour } from '@/composables/useOnboardingTour';
 import { useSidebarPosition } from '@/composables/useSidebarPosition';
 import { useTranslations } from '@/composables/useTranslations';
@@ -55,14 +54,12 @@ const emit = defineEmits<{
     /** A row traded the menu for a dialog or a page; the popover closes behind it. */
     dismiss: [];
     /** "Invite people" was chosen in the sheet "Switch workspace" opens. */
-    invite: [];
     /** "Join a workspace" was chosen in the sheet "Switch workspace" opens. */
-    join: [];
 }>();
 
 const page = usePage();
 const { t } = useTranslations();
-const { open: openKeyboardShortcuts } = useKeyboardShortcutsModal();
+const { open: openKeyboardShortcuts } = useDialog('shortcuts');
 const { open: replayOnboardingTour } = useOnboardingTour();
 
 // The quick theme and sidebar switchers reuse the same composables (and shared
@@ -109,7 +106,7 @@ const sidebarOptions = computed(() =>
 // dismissed, so anyone who said "not now" can still find it. The NEW badge is
 // spent by the first menu that carries the row.
 const { showRow: showInstallRow } = useAppInstall();
-const { open: openInstallDialog } = useInstallDialog();
+const { open: openInstallDialog } = useDialog('install');
 const installRowIsNew = useInstallRowBadge();
 
 function openInstall(): void {
@@ -226,11 +223,7 @@ const switcherRowClass = computed(() =>
             </Link>
             <!-- One workspace sheet, three anchors — this row is the fourth, and
                  opens the very same surface rather than a switcher of its own. -->
-            <WorkspaceSheet
-                :side="isPanel ? 'bottom' : 'right'"
-                @invite="emit('invite')"
-                @join="emit('join')"
-            >
+            <WorkspaceSheet :side="isPanel ? 'bottom' : 'right'">
                 <Button
                     variant="unstyled"
                     size="none"

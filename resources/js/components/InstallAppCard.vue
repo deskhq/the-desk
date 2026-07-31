@@ -4,7 +4,7 @@ import { Download, X } from '@lucide/vue';
 import { computed } from 'vue';
 import { Button } from '@/components/ui/button';
 import { useAppInstall } from '@/composables/useAppInstall';
-import { useInstallDialog } from '@/composables/useInstallDialog';
+import { useDialog } from '@/composables/useDialog';
 import { useTranslations } from '@/composables/useTranslations';
 
 /**
@@ -16,7 +16,7 @@ import { useTranslations } from '@/composables/useTranslations';
 const page = usePage();
 const { t } = useTranslations();
 const { showCard, dismissCard, installsToHomeScreen } = useAppInstall();
-const { open: openInstallDialog } = useInstallDialog();
+const { open: openInstallDialog } = useDialog('install');
 
 const appName = computed(() => page.props.name);
 

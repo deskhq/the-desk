@@ -1,15 +1,12 @@
 <script setup lang="ts">
-import { Link, router, usePage } from '@inertiajs/vue3';
+import { Link, usePage } from '@inertiajs/vue3';
 import { Check } from '@lucide/vue';
 import { computed } from 'vue';
 import { show } from '@/actions/App/Http/Controllers/Channels/ChannelController';
-import {
-    destroy as destroyReminder,
-    destroyAll as clearReminders,
-} from '@/actions/App/Http/Controllers/Channels/MessageReminderController';
 import BotBadge from '@/components/BotBadge.vue';
 import DestinationPanel from '@/components/navigation/DestinationPanel.vue';
 import { Button } from '@/components/ui/button';
+import { useReminders } from '@/composables/useReminders';
 import { displayAuthorName, marksAuthorAsBot } from '@/lib/authorIdentity';
 import { messageBodyPreview } from '@/lib/messageBody';
 import { formatReminderDue, groupReminders } from '@/lib/reminderTime';
@@ -33,6 +30,9 @@ import type { MessageReminder } from '@/types';
  */
 const page = usePage();
 
+/** Every reminder mutation on the panel, and their shared refresh. */
+const { clear, clearAll } = useReminders();
+
 const reminders = computed<MessageReminder[]>(() => page.props.reminders ?? []);
 
 /**
@@ -47,17 +47,6 @@ const timeZone = computed(
 
 const groups = computed(() => groupReminders(reminders.value, timeZone.value));
 
-/**
- * Leave the page where it is and refresh only the reminder props, so clearing a
- * row updates the list and the nudges without disturbing the channel behind the
- * panel. Mirrors the layout's own reminder mutations.
- */
-const reloadOptions = {
-    preserveScroll: true,
-    preserveState: true,
-    only: ['reminders', 'firedReminders'],
-};
-
 /** Where a row jumps to: its channel, scrolled to the reminded message. */
 function jumpHref(reminder: MessageReminder): string {
     return show(
@@ -71,18 +60,20 @@ function jumpHref(reminder: MessageReminder): string {
  * the row has always offered — the message itself is untouched.
  */
 function markDone(reminder: MessageReminder): void {
-    router.delete(
-        destroyReminder({ team: reminder.teamSlug, reminder: reminder.id }).url,
-        reloadOptions,
-    );
+    clear(reminder);
 }
 
-/** Clear every pending reminder in this workspace at once. */
-function clearAll(): void {
-    router.delete(
-        clearReminders({ team: page.props.currentTeam?.slug ?? '' }).url,
-        reloadOptions,
-    );
+/**
+ * Clear every pending reminder in this workspace at once. Without a workspace
+ * there is nothing to clear — and the empty slug this used to fall back to
+ * would have sent the delete at a malformed URL.
+ */
+function clearWorkspace(): void {
+    const teamSlug = page.props.currentTeam?.slug;
+
+    if (teamSlug) {
+        clearAll(teamSlug);
+    }
 }
 
 /**
@@ -139,7 +130,7 @@ function isUrgent(key: ReminderGroupKey): boolean {
                     size="none"
                     data-test="reminders-clear-all"
                     class="shrink-0 text-[11.5px] font-normal text-sidebar-foreground no-underline hover:underline"
-                    @click="clearAll"
+                    @click="clearWorkspace"
                 >
                     {{ $t('Clear all') }}
                 </Button>

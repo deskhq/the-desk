@@ -32,13 +32,6 @@ import UserMenuContent from '@/components/UserMenuContent.vue';
  * at 544px on every viewport taller than that, so its rows scrolled with screen
  * to spare above and below the card (#998).
  */
-const emit = defineEmits<{
-    /** The workspace sheet asked for the invite modal, which the host owns. */
-    invite: [];
-    /** The workspace sheet asked for the pending-invitations modal. */
-    join: [];
-}>();
-
 const page = usePage();
 
 const trigger = useTemplateRef<ComponentPublicInstance>('trigger');
@@ -85,8 +78,6 @@ function restoreFocusToTrigger(event: Event): void {
                 :user="page.props.auth.user"
                 variant="popover"
                 @dismiss="close"
-                @invite="emit('invite')"
-                @join="emit('join')"
             />
         </PopoverContent>
     </Popover>
