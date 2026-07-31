@@ -8,6 +8,7 @@ use App\Enums\AuditAction;
 use App\Events\AuditableActionOccurred;
 use App\Models\Channel;
 use App\Models\User;
+use App\Support\ChannelMembership;
 use Illuminate\Support\Facades\DB;
 
 class RemoveChannelMember
@@ -22,11 +23,9 @@ class RemoveChannelMember
      */
     public function handle(Channel $channel, User $user, ?User $removedBy = null): void
     {
-        $removed = DB::transaction(fn (): int => $channel->channelMembers()
-            ->where('user_id', $user->id)
-            ->delete());
+        $removed = DB::transaction(fn (): bool => new ChannelMembership($channel, $user)->remove());
 
-        if ($removed > 0 && $removedBy instanceof User && ! $removedBy->is($user)) {
+        if ($removed && $removedBy instanceof User && ! $removedBy->is($user)) {
             event(new AuditableActionOccurred($channel->team, $removedBy, AuditAction::ChannelMemberRemoved, $channel, [
                 'channel_name' => $channel->name,
                 'member_name' => $user->name,

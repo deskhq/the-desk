@@ -110,9 +110,20 @@ built; build them once, then reuse.
   lapsed profile instant (compare-and-swap, then broadcast). Sweepers stay one
   Action per concern, each with its own name, description and
   `withoutOverlapping()` in `routes/console.php`; only the walk is shared.
-- **Channel membership settings** — star, mute, notification level, draft, and
-  placement are all mutations of the channel-member pivot; treat them as one
-  concern, not five unrelated ones.
+- **Channel membership** — `ChannelMembership` is the one module that reads and
+  writes the channel-member pivot: star, mute, notification level, draft, close
+  (hide) and sidebar placement are its columns, not five unrelated settings. It is
+  constructed from a `Channel` and a `User`, never a `Request`, and every write
+  carries the resolve-or-no-op rule — a non-member writes nothing rather than
+  joining. `updateExistingPivot` appears nowhere else, and the pivot's column set
+  is declared once, on `ChannelMember::PIVOT_COLUMNS`, which both `withPivot()`
+  calls, the `#[Fillable]` and `SidebarChannels`' select read. One policy ability,
+  `updateMembership`, gates the lot. Never re-derive the membership row with a
+  `channelMembers()->where('user_id', ...)` of your own.
+- **`ManualOrder`** — the ownership-filter-then-reindex walk behind a sidebar
+  drag, shared by channel placement and section reordering: ids the user does not
+  own are dropped, and the survivors are reindexed in a single statement rather
+  than one UPDATE per item.
 - **Message thread-state scopes** (`Message::withThreadReadState`, `followedBy`) —
   exemplary depth; correlated-subquery logic hidden behind a scope that reuses one
   SQL constant so scope and filter can't disagree. The model to aspire to.

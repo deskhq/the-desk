@@ -14,6 +14,7 @@ use App\Models\Attachment;
 use App\Models\Channel;
 use App\Models\Message;
 use App\Models\User;
+use App\Support\ChannelMembership;
 use Closure;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -123,7 +124,7 @@ class PostMessage
                 // A message sent from the main composer clears its channel draft;
                 // a thread reply leaves the channel draft alone (it isn't its text),
                 // and a delayed scheduled delivery leaves it alone too.
-                $author->channels()->updateExistingPivot($channel->id, ['draft' => null]);
+                new ChannelMembership($channel, $author)->clearDraft();
             }
         }
 

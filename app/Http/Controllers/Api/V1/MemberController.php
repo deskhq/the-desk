@@ -10,6 +10,7 @@ use App\Http\Requests\Api\V1\AddMemberRequest;
 use App\Http\Resources\Api\V1\UserResource;
 use App\Models\Channel;
 use App\Models\User;
+use App\Support\ChannelMembership;
 use App\Support\Integrations\ApiChannelAccess;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -69,7 +70,7 @@ class MemberController extends Controller
             abort_unless(Gate::forUser($subject)->allows('removeMember', $channel), 403);
         }
 
-        abort_unless($channel->channelMembers()->where('user_id', $user->id)->exists(), 404);
+        abort_unless(new ChannelMembership($channel, $user)->exists(), 404);
 
         $removeChannelMember->handle($channel, $user, removedBy: $subject);
 

@@ -2,11 +2,11 @@
 
 namespace App\Http\Controllers\Channels;
 
-use App\Actions\Channels\SetChannelPlacement;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Channels\UpdateChannelPlacementRequest;
 use App\Models\Channel;
 use App\Models\Team;
+use App\Support\ChannelMembership;
 use Illuminate\Http\RedirectResponse;
 
 class ChannelPlacementController extends Controller
@@ -18,12 +18,9 @@ class ChannelPlacementController extends Controller
      * Redirects back and lets Inertia recompute the shared `channels` prop so the
      * sidebar re-partitions without a full reload.
      */
-    public function update(UpdateChannelPlacementRequest $request, Team $team, Channel $channel, SetChannelPlacement $setChannelPlacement): RedirectResponse
+    public function update(UpdateChannelPlacementRequest $request, Team $team, Channel $channel): RedirectResponse
     {
-        $setChannelPlacement->handle(
-            user: $request->user(),
-            team: $team,
-            channel: $channel,
+        new ChannelMembership($channel, $request->user())->place(
             orderedIds: $request->orderedIds(),
             moveSection: $request->movesSection(),
             sectionId: $request->input('section_id'),

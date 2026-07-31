@@ -29,9 +29,33 @@ use Illuminate\Support\Carbon;
  * @property-read User $user
  * @property-read ChannelSection|null $section
  */
-#[Fillable(['channel_id', 'user_id', 'last_read_message_id', 'muted', 'notification_level', 'draft', 'starred', 'section_id', 'position'])]
+#[Fillable(['channel_id', 'user_id', ...ChannelMember::PIVOT_COLUMNS])]
 class ChannelMember extends Model
 {
+    /**
+     * The membership's own state: every column that is neither the row's
+     * identity (`id`, `channel_id`, `user_id`) nor its timestamps.
+     *
+     * This is the pivot's column set, and the only declaration of it. The two
+     * `withPivot()` calls that expose the row through a `BelongsToMany`
+     * ({@see User::channels()}, {@see Channel::members()}), the mass-assignment
+     * list above, and `SidebarChannels`' select all read it, so a column added
+     * here reaches every reader at once — which `hidden_at` did not, for three
+     * of the four, until it did.
+     *
+     * @var list<string>
+     */
+    public const array PIVOT_COLUMNS = [
+        'last_read_message_id',
+        'muted',
+        'notification_level',
+        'draft',
+        'starred',
+        'section_id',
+        'position',
+        'hidden_at',
+    ];
+
     /** @use HasFactory<ChannelMemberFactory> */
     use HasFactory, HasUuids;
 

@@ -112,50 +112,16 @@ class ChannelPolicy
     }
 
     /**
-     * Determine whether the user can update their own notification preferences.
+     * Determine whether the user can change their own membership of the channel
+     * — its notification preferences, its star, its draft, its sidebar placement.
      *
-     * Preferences live on the membership pivot, so only a member of the channel
-     * (within the team) has any to manage. Each member only ever touches their
-     * own row.
+     * These are not four permissions but one: they are all mutations of the
+     * membership pivot, so the question each of them asks is the same one, and
+     * the answer is that the user is a member of the channel within its team.
+     * Each member only ever touches their own row, which is enforced by
+     * {@see ChannelMembership} rather than here.
      */
-    public function updatePreference(User $user, Channel $channel): bool
-    {
-        return $this->isMember($user, $channel);
-    }
-
-    /**
-     * Determine whether the user can star (favorite) the channel for themselves.
-     *
-     * The star flag lives on the membership pivot, so only a member of the channel
-     * (within the team) has one to toggle, and each member only ever touches their
-     * own row.
-     */
-    public function updateStar(User $user, Channel $channel): bool
-    {
-        return $this->isMember($user, $channel);
-    }
-
-    /**
-     * Determine whether the user can place the channel in the sidebar (file it
-     * under a custom section or reorder it).
-     *
-     * The placement lives on the membership pivot, so only a member of the channel
-     * (within the team) has one to change, and each member only ever touches their
-     * own row.
-     */
-    public function place(User $user, Channel $channel): bool
-    {
-        return $this->isMember($user, $channel);
-    }
-
-    /**
-     * Determine whether the user can save their own composer draft for the channel.
-     *
-     * Drafts live on the membership pivot, so only a member of the channel
-     * (within the team) has one to save. Each member only ever touches their
-     * own row.
-     */
-    public function saveDraft(User $user, Channel $channel): bool
+    public function updateMembership(User $user, Channel $channel): bool
     {
         return $this->isMember($user, $channel);
     }
@@ -166,12 +132,12 @@ class ChannelPolicy
      *
      * Only direct messages are hidable — a standard channel leaves the sidebar by
      * archiving, not per-member hiding — and only a member has a pivot row to
-     * stamp. Each member only ever touches their own row. This covers group DMs
-     * too: closing hides the row without leaving, distinct from {@see leave()}.
+     * stamp, which is {@see updateMembership()}. This covers group DMs too:
+     * closing hides the row without leaving, distinct from {@see leave()}.
      */
     public function hide(User $user, Channel $channel): bool
     {
-        return $channel->isDirectMessage() && $this->isMember($user, $channel);
+        return $channel->isDirectMessage() && $this->updateMembership($user, $channel);
     }
 
     /**
@@ -253,10 +219,8 @@ class ChannelPolicy
     }
 
     /**
-     * Shared rule for the pivot-preference abilities (notification preference,
-     * star, sidebar placement, draft): the user is a plain member of the channel
-     * within its team, so they have a membership row to mutate. Each of those
-     * abilities only ever touches the caller's own row.
+     * Shared rule for the abilities a plain member of the channel holds: they
+     * belong to the channel, within its team.
      */
     private function isMember(User $user, Channel $channel): bool
     {
