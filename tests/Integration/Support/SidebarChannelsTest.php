@@ -2,13 +2,13 @@
 
 use App\Actions\Channels\CreateChannel;
 use App\Actions\Channels\DeleteChannel;
-use App\Actions\Channels\HideDirectMessage;
 use App\Actions\Channels\OpenDirectMessage;
 use App\Actions\Teams\CreateTeam;
 use App\Data\ChannelData;
 use App\Enums\ChannelVisibility;
 use App\Models\Channel;
 use App\Models\Message;
+use App\Support\ChannelMembership;
 use App\Support\SidebarChannels;
 use Database\Factories\ChannelMemberFactory;
 use Illuminate\Support\Carbon;
@@ -205,7 +205,7 @@ test('closing a direct message drops it, even the one being viewed', function ()
     $this->actingAs($owner);
     expect(sidebarSlugs(new SidebarChannels($owner, $team)->forSidebar($dm)))->toContain($dm->slug);
 
-    app(HideDirectMessage::class)->handle($dm, $owner);
+    new ChannelMembership($dm, $owner)->hide();
 
     // The close wins even over the active-channel override.
     expect(sidebarSlugs(new SidebarChannels($owner, $team)->forSidebar($dm)))->not->toContain($dm->slug);
@@ -223,7 +223,7 @@ test('closing an empty direct message the viewer opened drops it too', function 
     $this->actingAs($owner);
     expect(sidebarSlugs(new SidebarChannels($owner, $team)->forSidebar()))->toContain($dm->slug);
 
-    app(HideDirectMessage::class)->handle($dm, $owner);
+    new ChannelMembership($dm, $owner)->hide();
 
     expect(sidebarSlugs(new SidebarChannels($owner, $team)->forSidebar()))->not->toContain($dm->slug);
 });
@@ -236,7 +236,7 @@ test('a message after closing re-surfaces the direct message with an unread badg
     Message::factory()->for($dm)->for($owner, 'user')->create();
 
     $this->actingAs($owner);
-    app(HideDirectMessage::class)->handle($dm, $owner);
+    new ChannelMembership($dm, $owner)->hide();
 
     expect(sidebarSlugs(new SidebarChannels($owner, $team)->forSidebar()))->not->toContain($dm->slug);
 
@@ -257,7 +257,7 @@ test('reopening a closed direct message un-hides it', function (): void {
     Message::factory()->for($dm)->for($owner, 'user')->create();
 
     $this->actingAs($owner);
-    app(HideDirectMessage::class)->handle($dm, $owner);
+    new ChannelMembership($dm, $owner)->hide();
 
     expect(sidebarSlugs(new SidebarChannels($owner, $team)->forSidebar()))->not->toContain($dm->slug);
 
@@ -275,7 +275,7 @@ test('closing is per member and leaves the other participant\'s list alone', fun
     Message::factory()->for($dm)->for($owner, 'user')->create();
 
     $this->actingAs($owner);
-    app(HideDirectMessage::class)->handle($dm, $owner);
+    new ChannelMembership($dm, $owner)->hide();
 
     expect(sidebarSlugs(new SidebarChannels($owner, $team)->forSidebar()))->not->toContain($dm->slug);
 
