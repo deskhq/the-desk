@@ -56,6 +56,7 @@ import {
     mountComposer,
     openSheet,
     stage,
+    stageNothing,
     tile,
     tiles,
     type,
@@ -258,15 +259,16 @@ describe('the attach sheet', () => {
         expect(tiles(container)).not.toContain('command');
     });
 
-    it('ships the camera tile disabled until native capture lands', async () => {
+    it('offers the camera tile as a live control, with nothing left of its held-back state', async () => {
         const container = mountComposer();
 
         await openSheet(container);
 
         const camera = tile(container, 'camera');
 
-        expect(camera.hasAttribute('disabled')).toBe(true);
-        expect(camera.getAttribute('aria-label')).toBe('Camera (coming later)');
+        expect(camera.hasAttribute('disabled')).toBe(false);
+        expect(camera.getAttribute('aria-label')).toBe('Camera');
+        expect(camera.textContent).not.toContain('Later');
     });
 });
 
@@ -287,6 +289,56 @@ describe('the attach sheet’s tiles', () => {
         );
 
         expect(find(container, 'composer-attachment')).not.toBeNull();
+    });
+
+    it('asks the OS for the rear camera, one still photo at a time', () => {
+        const container = mountComposer();
+        const cameraInput = container.querySelector<HTMLInputElement>(
+            '[data-test="composer-camera-input"]',
+        );
+
+        expect(cameraInput?.getAttribute('accept')).toBe('image/*');
+        expect(cameraInput?.getAttribute('capture')).toBe('environment');
+        // Video would walk straight into the size cap with nothing to trim it,
+        // and a capture session hands back one file regardless.
+        expect(cameraInput?.hasAttribute('multiple')).toBe(false);
+    });
+
+    it('proxies the camera tile to that input, leaving the sheet and the draft behind', async () => {
+        const container = mountComposer();
+        const cameraInput = container.querySelector<HTMLInputElement>(
+            '[data-test="composer-camera-input"]',
+        )!;
+        const opened = vi.spyOn(cameraInput, 'click');
+
+        await type(container, 'look at this');
+        await openSheet(container);
+        tile(container, 'camera').click();
+        await nextTick();
+
+        expect(opened).toHaveBeenCalledTimes(1);
+        expect(find(container, 'composer-attach-sheet')).toBeNull();
+        expect(field(container).value).toBe('look at this');
+    });
+
+    it('stages a captured photo exactly like a picked file', async () => {
+        const container = mountComposer();
+
+        await stage(
+            container,
+            'composer-camera-input',
+            new File(['x'], 'IMG_0001.jpg', { type: 'image/jpeg' }),
+        );
+
+        expect(find(container, 'composer-attachment')).not.toBeNull();
+    });
+
+    it('stages nothing when the capture is cancelled', async () => {
+        const container = mountComposer();
+
+        await stageNothing(container, 'composer-camera-input');
+
+        expect(find(container, 'composer-attachment')).toBeNull();
     });
 
     it('opens the GIF picker and keeps the draft the user was part-way through', async () => {

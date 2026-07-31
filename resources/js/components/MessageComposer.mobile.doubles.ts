@@ -123,14 +123,33 @@ export async function stage(
     hook: string,
     file: File,
 ): Promise<void> {
+    await fireChange(container, hook, [file]);
+}
+
+/**
+ * Fire `change` on a hidden input that carries no file, which is what a browser
+ * does when the picker (or the camera) is dismissed after an earlier pick.
+ */
+export async function stageNothing(
+    container: HTMLElement,
+    hook: string,
+): Promise<void> {
+    await fireChange(container, hook, []);
+}
+
+async function fireChange(
+    container: HTMLElement,
+    hook: string,
+    files: File[],
+): Promise<void> {
     const input = container.querySelector<HTMLInputElement>(
         `[data-test="${hook}"]`,
     )!;
     Object.defineProperty(input, 'files', {
         value: {
-            0: file,
-            length: 1,
-            item: (index: number) => (index === 0 ? file : null),
+            ...files,
+            length: files.length,
+            item: (index: number) => files[index] ?? null,
         },
         configurable: true,
     });

@@ -50,6 +50,8 @@ const emit = defineEmits<{
     format: [marker: string];
     /** Open the photo-library picker, which takes images and video. */
     photos: [];
+    /** Open the device camera on a still photo. */
+    camera: [];
     /** Open the unrestricted file picker. */
     file: [];
     /** Open the Giphy picker. */
@@ -157,29 +159,22 @@ const rowClass =
                     {{ $t('Photos') }}
                 </Button>
 
-                <!-- Native capture is #890. The tile is drawn now, disabled and
-                     marked, so the grid does not reflow when it lands. -->
+                <!-- Hands off to the OS camera through a `capture` input, so
+                     the tile is worth offering only where one answers it —
+                     which is this sheet, and this sheet is below `md` only. -->
                 <Button
                     v-if="attachmentsEnabled"
                     variant="unstyled"
                     size="none"
                     type="button"
-                    disabled
                     data-test="composer-attach-tile"
                     data-tile="camera"
-                    :class="`${tileClass} relative bg-transparent inset-ring inset-ring-border`"
-                    :aria-label="$t('Camera (coming later)')"
+                    :class="tileClass"
+                    :aria-label="$t('Camera')"
+                    @click="act(() => emit('camera'))"
                 >
-                    <Camera class="size-5.5 text-muted-foreground" />
-                    <span class="text-muted-foreground">{{
-                        $t('Camera')
-                    }}</span>
-                    <span
-                        aria-hidden="true"
-                        class="absolute top-1.5 right-1.5 rounded border border-border px-1 py-px font-mono text-[8.5px] font-medium tracking-wider text-muted-foreground uppercase"
-                    >
-                        {{ $t('Later') }}
-                    </span>
+                    <Camera class="size-5.5 text-brass-fill-foreground" />
+                    {{ $t('Camera') }}
                 </Button>
 
                 <Button
