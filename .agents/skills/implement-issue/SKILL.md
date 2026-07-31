@@ -23,6 +23,13 @@ cd "$(vendor/bin/worktree create NNN)"   # prints the worktree path on stdout; c
 - **One Claude Code session per agent.** Each agent runs in its own session and its own worktree; don't drive two issues from one session (they would fight over `cd`). Use `vendor/bin/worktree list` to see active worktrees and their ports.
 - **Teardown when done** (after the PR is merged): `vendor/bin/worktree remove NNN` stops the containers, deletes their volumes, removes the git worktree, and frees the slot (the branch is left intact). Nothing is auto-destroyed, so a worktree stays browsable for follow-up review. `remove` verifies the volumes are actually gone and exits non-zero naming the survivors if they are not, so a red teardown means the Docker disk still holds them.
 - **Reclaim what teardown missed:** `vendor/bin/worktree reap` removes the Docker resources of every `wt-the-desk-*` project no registry entry claims — a worktree deleted by hand, an interrupted teardown, a lost registry. It asks before destroying anything; `--dry-run` shows what it would take, `--yes` skips the prompt, and `vendor/bin/worktree list` warns when orphans exist. Left alone these fill the Docker disk, and Postgres then fails the gate with `SQLSTATE[53100]: Disk full` rather than anything naming the disk (#1095).
+- **A bug in the tool is an issue in the tool's repository.** `vendor/bin/worktree` is now [`deskhq/laravel-worktree`](https://github.com/deskhq/laravel-worktree), a separate package with its own suite. If `create`, `list`, `remove` or `reap` misbehaves — a wrong base ref, a slot or port collision, a teardown that leaves resources behind, a diagnostic that names the wrong cause — **file it against `deskhq/laravel-worktree`, not the-desk**:
+
+  ```bash
+  gh issue create --repo deskhq/laravel-worktree --title "..." --body "..."
+  ```
+
+  An issue filed here instead is filed where nobody can fix it, and `vendor/` is not somewhere to patch: an edit there is erased by the next `composer install` and exists on one machine until then. What *does* belong in the-desk is `config/worktree.php` and `bin/worktree-playwright` — the bootstrap this application declares. Deciding which of the two you are looking at is the first thing to do: if the wrong behaviour would be wrong for *any* Laravel project, it is the package's; if it is about what the-desk installs, seeds or starts, it is ours. When it is the package's, say so in the issue you were originally working on and keep going — the worktree you have is usually still usable.
 
 ## 1. Fetch and read the issue
 
