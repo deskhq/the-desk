@@ -3,9 +3,11 @@ import { store as forwardMessageAction } from '@/actions/App/Http/Controllers/Ch
 import { destroy as destroyMessage } from '@/actions/App/Http/Controllers/Channels/MessageController';
 import type { MessageActionsOptions } from '@/composables/useMessageActions';
 import { optimisticMessage } from '@/composables/useMessageStream';
+import { useOptimisticWrite } from '@/composables/useOptimisticWrite';
 import { useToast } from '@/composables/useToast';
 import { useTranslations } from '@/composables/useTranslations';
 import { planForward } from '@/lib/forwardPlacement';
+import { CHANNEL_LIST_PROPS } from '@/lib/reloadProps';
 import { generateUuid } from '@/lib/uuid';
 import type { Message } from '@/types';
 import type { ForwardTarget } from '@/types/forward';
@@ -67,6 +69,7 @@ export function useMessageForwarding(
 ): MessageForwarding {
     const { t } = useTranslations();
     const toast = useToast();
+    const { write } = useOptimisticWrite();
 
     /**
      * Delete the forwarded copy where it landed. The destroy route redirects to
@@ -88,7 +91,7 @@ export function useMessageForwarding(
                 preserveScroll: true,
                 preserveState: true,
                 preserveUrl: true,
-                only: ['channels'],
+                only: CHANNEL_LIST_PROPS,
                 onError: () => toast.error(t('Failed to undo the forward')),
             },
         );
@@ -103,72 +106,77 @@ export function useMessageForwarding(
         const clientUuid = generateUuid();
         const plan = planForward({ target, channel });
 
-        if (plan.toCurrentChannel) {
-            options.appendPendingMain(
-                optimisticMessage({
-                    clientUuid,
-                    body: note,
-                    author: options.currentUser(),
-                    mentions: [],
-                    forwardedFrom: {
-                        id: source.id,
-                        body: source.body,
-                        authorName: source.user.name,
-                        authorIsBot: source.user.isBot,
-                        authorOverride: source.authorOverride ?? null,
-                        channelName: plan.quoteChannelName,
-                        isDeleted: source.isDeleted,
-                        mentions: source.mentions,
-                    },
-                }),
-            );
+        /**
+         * The rollback. A copy only renders here when it lands in the open
+         * channel, so a forward sent elsewhere has nothing to take back and
+         * this is a no-op for it.
+         */
+        function dropOptimisticCopy(): void {
+            if (plan.toCurrentChannel) {
+                options.mainStream.removePending(clientUuid);
+            }
         }
 
-        router.post(
-            forwardMessageAction({
+        write({
+            capture: () => dropOptimisticCopy,
+            apply: () => {
+                if (!plan.toCurrentChannel) {
+                    return;
+                }
+
+                options.appendPendingMain(
+                    optimisticMessage({
+                        clientUuid,
+                        body: note,
+                        author: options.currentUser(),
+                        mentions: [],
+                        forwardedFrom: {
+                            id: source.id,
+                            body: source.body,
+                            authorName: source.user.name,
+                            authorIsBot: source.user.isBot,
+                            authorOverride: source.authorOverride ?? null,
+                            channelName: plan.quoteChannelName,
+                            isDeleted: source.isDeleted,
+                            mentions: source.mentions,
+                        },
+                    }),
+                );
+            },
+            url: forwardMessageAction({
                 team: options.teamSlug(),
                 channel: channel.slug,
                 message: source.id,
             }).url,
-            { body: note, client_uuid: clientUuid, ...plan.destination },
-            {
-                preserveScroll: true,
-                preserveState: true,
-                only: ['channels'],
-                onSuccess: (page) => {
-                    if (plan.toCurrentChannel) {
-                        return;
-                    }
+            data: { body: note, client_uuid: clientUuid, ...plan.destination },
+            only: CHANNEL_LIST_PROPS,
+            onSuccess: (page) => {
+                if (plan.toCurrentChannel) {
+                    return;
+                }
 
-                    const copy = forwardedCopy(page);
+                const copy = forwardedCopy(page);
 
-                    toast.success(
-                        target.kind === 'channel'
-                            ? t('Message forwarded to #:channel', {
-                                  channel: target.name,
-                              })
-                            : t('Message forwarded to :name', {
-                                  name: target.name,
-                              }),
-                        copy
-                            ? {
-                                  action: {
-                                      label: t('Undo'),
-                                      run: () => undoForward(copy),
-                                  },
-                              }
-                            : {},
-                    );
-                },
-                onError: () => {
-                    if (plan.toCurrentChannel) {
-                        options.mainStream.removePending(clientUuid);
-                    }
-
-                    toast.error(t('Failed to forward the message'));
-                },
+                toast.success(
+                    target.kind === 'channel'
+                        ? t('Message forwarded to #:channel', {
+                              channel: target.name,
+                          })
+                        : t('Message forwarded to :name', {
+                              name: target.name,
+                          }),
+                    copy
+                        ? {
+                              action: {
+                                  label: t('Undo'),
+                                  run: () => undoForward(copy),
+                              },
+                          }
+                        : {},
+                );
             },
-        );
+            failure: t('Failed to forward the message'),
+        });
     }
 
     return { forwardMessage };

@@ -3,6 +3,7 @@ import { watch } from 'vue';
 import { update as saveChannelDraft } from '@/actions/App/Http/Controllers/Channels/ChannelDraftController';
 import { useDebouncedPost } from '@/composables/useDebouncedPost';
 import { backgroundVisit } from '@/lib/backgroundVisit';
+import { CHANNEL_LIST_PROPS } from '@/lib/reloadProps';
 
 /**
  * How long to coalesce composer keystrokes before persisting the draft. Long
@@ -54,7 +55,7 @@ export function useChannelDraft(options: ChannelDraftOptions): ChannelDraft {
                 ...backgroundVisit,
                 preserveScroll: true,
                 preserveState: true,
-                only: ['channels'],
+                only: CHANNEL_LIST_PROPS,
             },
         );
     }

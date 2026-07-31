@@ -4,9 +4,14 @@ import {
     vote as voteOnPollAction,
 } from '@/actions/App/Http/Controllers/Channels/PollController';
 import type { MessageActionsOptions } from '@/composables/useMessageActions';
+import {
+    snapshotStreams,
+    useOptimisticWrite,
+} from '@/composables/useOptimisticWrite';
 import { useToast } from '@/composables/useToast';
 import { useTranslations } from '@/composables/useTranslations';
 import { applyVote } from '@/lib/polls';
+import { CHANNEL_LIST_PROPS } from '@/lib/reloadProps';
 import type { Message } from '@/types';
 
 export interface MessagePolls {
@@ -25,6 +30,7 @@ export type MessagePollsOptions = Pick<
 export function useMessagePolls(options: MessagePollsOptions): MessagePolls {
     const { t } = useTranslations();
     const toast = useToast();
+    const { write } = useOptimisticWrite();
 
     /**
      * Toggle the viewer's vote for a poll option. The tally is applied
@@ -39,45 +45,39 @@ export function useMessagePolls(options: MessagePollsOptions): MessagePolls {
         }
 
         const channel = options.channel();
-        const previousMain = options.mainStream.getPatch(message.clientUuid);
-        const previousThread = options.threadStream.getPatch(
-            message.clientUuid,
-        );
-
         const next = applyVote(message.poll, optionId, options.currentUser());
-        options.mainStream.patchThreadState(message.id, { poll: next });
-        options.threadStream.patchThreadState(message.id, { poll: next });
 
-        router.post(
-            voteOnPollAction({
+        write({
+            capture: () =>
+                snapshotStreams(
+                    message.clientUuid,
+                    options.mainStream,
+                    options.threadStream,
+                ),
+            apply: () => {
+                options.mainStream.patchThreadState(message.id, { poll: next });
+                options.threadStream.patchThreadState(message.id, {
+                    poll: next,
+                });
+            },
+            url: voteOnPollAction({
                 team: options.teamSlug(),
                 channel: channel.slug,
                 poll: message.poll.id,
             }).url,
-            { option_id: optionId },
-            {
-                preserveScroll: true,
-                preserveState: true,
-                only: ['channels'],
-                onError: () => {
-                    options.mainStream.restorePatch(
-                        message.clientUuid,
-                        previousMain,
-                    );
-                    options.threadStream.restorePatch(
-                        message.clientUuid,
-                        previousThread,
-                    );
-                    toast.error(t('Failed to record your vote'));
-                },
-            },
-        );
+            data: { option_id: optionId },
+            only: CHANNEL_LIST_PROPS,
+            failure: t('Failed to record your vote'),
+        });
     }
 
     /**
      * Close a poll, freezing its tally. Non-optimistic: the frozen state reaches
      * every client — including this one — over the `PollVoteChanged` broadcast, so
-     * nothing is patched locally up front. A no-op when the message carries no poll.
+     * nothing is patched locally up front. With nothing shown ahead of the
+     * server there is nothing to roll back, which is why this one stays a plain
+     * post rather than joining {@see useOptimisticWrite}. A no-op when the
+     * message carries no poll.
      */
     function closePoll(message: Message): void {
         if (message.poll === null) {
@@ -96,7 +96,7 @@ export function useMessagePolls(options: MessagePollsOptions): MessagePolls {
             {
                 preserveScroll: true,
                 preserveState: true,
-                only: ['channels'],
+                only: CHANNEL_LIST_PROPS,
                 onError: () => {
                     toast.error(t('Failed to close the poll'));
                 },

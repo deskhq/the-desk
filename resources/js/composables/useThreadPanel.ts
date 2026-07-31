@@ -8,6 +8,11 @@ import {
 import { useDebouncedPost } from '@/composables/useDebouncedPost';
 import { useMessageStream } from '@/composables/useMessageStream';
 import { backgroundVisit } from '@/lib/backgroundVisit';
+import {
+    CHANNEL_LIST_PROPS,
+    THREAD_PROPS,
+    THREAD_RESET_PROPS,
+} from '@/lib/reloadProps';
 import type { Message, MessagePage, Thread } from '@/types';
 
 type MessageStream = ReturnType<typeof useMessageStream>;
@@ -110,7 +115,7 @@ export function useThreadPanel(options: ThreadPanelOptions): ThreadPanel {
                     ...backgroundVisit,
                     preserveScroll: true,
                     preserveState: true,
-                    only: ['channels'],
+                    only: CHANNEL_LIST_PROPS,
                 },
             );
 
@@ -159,8 +164,8 @@ export function useThreadPanel(options: ThreadPanelOptions): ThreadPanel {
             ).url,
             {},
             {
-                only: ['thread', 'threadReplies'],
-                reset: ['threadReplies'],
+                only: THREAD_PROPS,
+                reset: THREAD_RESET_PROPS,
                 preserveState: true,
                 preserveScroll: true,
                 replace: true,
@@ -186,8 +191,8 @@ export function useThreadPanel(options: ThreadPanelOptions): ThreadPanel {
             }).url,
             {},
             {
-                only: ['thread', 'threadReplies'],
-                reset: ['threadReplies'],
+                only: THREAD_PROPS,
+                reset: THREAD_RESET_PROPS,
                 preserveState: true,
                 preserveScroll: true,
                 replace: true,

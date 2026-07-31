@@ -18,7 +18,9 @@
  *   when it resolves after their visit.
  *
  * Spread it into the options of any such request:
- * `{ ...backgroundVisit, preserveScroll: true, only: ['channels'] }`.
+ * `{ ...backgroundVisit, preserveScroll: true, only: CHANNEL_LIST_PROPS }` —
+ * the prop set being one of the named ones in {@see reloadProps}, never an
+ * inline array.
  *
  * Requests the user *did* ask for stay synchronous: form submits, navigations,
  * and reloads whose whole point is to rewrite the URL (the search page's

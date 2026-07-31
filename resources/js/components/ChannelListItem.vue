@@ -22,6 +22,7 @@ import {
 import { useToast } from '@/composables/useToast';
 import { useTranslations } from '@/composables/useTranslations';
 import { notificationIndicator } from '@/lib/notificationIndicator';
+import { CHANNEL_LIST_PROPS } from '@/lib/reloadProps';
 import type { Channel, ChannelSection } from '@/types/channels';
 
 const props = defineProps<{
@@ -70,7 +71,7 @@ function toggleStar(): void {
         {
             preserveScroll: true,
             preserveState: true,
-            only: ['channels'],
+            only: CHANNEL_LIST_PROPS,
             onError: () => {
                 toast.error(t('Failed to update the channel'));
             },

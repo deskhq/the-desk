@@ -1,11 +1,14 @@
-import { router } from '@inertiajs/vue3';
 import {
     destroy as unpinMessageAction,
     store as pinMessageAction,
 } from '@/actions/App/Http/Controllers/Channels/PinController';
 import type { MessageActionsOptions } from '@/composables/useMessageActions';
-import { useToast } from '@/composables/useToast';
+import {
+    snapshotStreams,
+    useOptimisticWrite,
+} from '@/composables/useOptimisticWrite';
 import { useTranslations } from '@/composables/useTranslations';
+import { PIN_PROPS } from '@/lib/reloadProps';
 import type { Message, MessagePin } from '@/types';
 
 export interface MessagePins {
@@ -23,7 +26,7 @@ export type MessagePinsOptions = Pick<
 /** The channel's shared pin toggle, from either side. */
 export function useMessagePins(options: MessagePinsOptions): MessagePins {
     const { t } = useTranslations();
-    const toast = useToast();
+    const { write } = useOptimisticWrite();
 
     /**
      * Pin a message to its channel. The indicator is applied optimistically to
@@ -34,45 +37,32 @@ export function useMessagePins(options: MessagePinsOptions): MessagePins {
      */
     function pinMessage(message: Message): void {
         const channel = options.channel();
-        const previousMain = options.mainStream.getPatch(message.clientUuid);
-        const previousThread = options.threadStream.getPatch(
-            message.clientUuid,
-        );
-
         const optimisticPin: MessagePin = {
             pinnedBy: options.currentUser(),
             pinnedAt: new Date().toISOString(),
         };
-        options.mainStream.patchPin(message.id, optimisticPin);
-        options.threadStream.patchPin(message.id, optimisticPin);
 
-        router.post(
-            pinMessageAction({
+        write({
+            capture: () =>
+                snapshotStreams(
+                    message.clientUuid,
+                    options.mainStream,
+                    options.threadStream,
+                ),
+            apply: () => {
+                options.mainStream.patchPin(message.id, optimisticPin);
+                options.threadStream.patchPin(message.id, optimisticPin);
+            },
+            url: pinMessageAction({
                 team: options.teamSlug(),
                 channel: channel.slug,
                 message: message.id,
             }).url,
-            {},
-            {
-                preserveScroll: true,
-                preserveState: true,
-                only: ['pins', 'pinCount'],
-                onError: (errors: Record<string, string>) => {
-                    options.mainStream.restorePatch(
-                        message.clientUuid,
-                        previousMain,
-                    );
-                    options.threadStream.restorePatch(
-                        message.clientUuid,
-                        previousThread,
-                    );
-                    toast.error(
-                        errors.message ??
-                            t('Failed to pin the message. Please try again.'),
-                    );
-                },
-            },
-        );
+            only: PIN_PROPS,
+            failure: (errors) =>
+                errors.message ??
+                t('Failed to pin the message. Please try again.'),
+        });
     }
 
     /**
@@ -82,37 +72,27 @@ export function useMessagePins(options: MessagePinsOptions): MessagePins {
      */
     function unpinMessage(message: Message): void {
         const channel = options.channel();
-        const previousMain = options.mainStream.getPatch(message.clientUuid);
-        const previousThread = options.threadStream.getPatch(
-            message.clientUuid,
-        );
 
-        options.mainStream.patchPin(message.id, null);
-        options.threadStream.patchPin(message.id, null);
-
-        router.delete(
-            unpinMessageAction({
+        write({
+            capture: () =>
+                snapshotStreams(
+                    message.clientUuid,
+                    options.mainStream,
+                    options.threadStream,
+                ),
+            apply: () => {
+                options.mainStream.patchPin(message.id, null);
+                options.threadStream.patchPin(message.id, null);
+            },
+            method: 'delete',
+            url: unpinMessageAction({
                 team: options.teamSlug(),
                 channel: channel.slug,
                 message: message.id,
             }).url,
-            {
-                preserveScroll: true,
-                preserveState: true,
-                only: ['pins', 'pinCount'],
-                onError: () => {
-                    options.mainStream.restorePatch(
-                        message.clientUuid,
-                        previousMain,
-                    );
-                    options.threadStream.restorePatch(
-                        message.clientUuid,
-                        previousThread,
-                    );
-                    toast.error(t('Failed to unpin the message'));
-                },
-            },
-        );
+            only: PIN_PROPS,
+            failure: t('Failed to unpin the message'),
+        });
     }
 
     return { pinMessage, unpinMessage };

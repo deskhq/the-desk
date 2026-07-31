@@ -1,13 +1,17 @@
-import { router } from '@inertiajs/vue3';
 import {
     destroy as destroyMessage,
     update as updateMessage,
 } from '@/actions/App/Http/Controllers/Channels/MessageController';
 import { store as toggleReactionAction } from '@/actions/App/Http/Controllers/Channels/ReactionController';
 import type { MessageActionsOptions } from '@/composables/useMessageActions';
-import { useToast } from '@/composables/useToast';
+import {
+    snapshotStreams,
+    useOptimisticWrite,
+} from '@/composables/useOptimisticWrite';
+import type { Rollback } from '@/composables/useOptimisticWrite';
 import { useTranslations } from '@/composables/useTranslations';
 import { toggleReaction } from '@/lib/reactions';
+import { CHANNEL_LIST_PROPS } from '@/lib/reloadProps';
 import type { Message } from '@/types';
 
 export interface MessageEdits {
@@ -31,7 +35,7 @@ export type MessageEditsOptions = Pick<
  */
 export function useMessageEdits(options: MessageEditsOptions): MessageEdits {
     const { t } = useTranslations();
-    const toast = useToast();
+    const { write } = useOptimisticWrite();
 
     /** Patch a message into both timelines at once; ignored where it isn't shown. */
     function applyPatch(message: Message): void {
@@ -39,112 +43,83 @@ export function useMessageEdits(options: MessageEditsOptions): MessageEdits {
         options.threadStream.applyPatch(message);
     }
 
+    /** Snapshot the row wherever it is showing, so a refusal restores both. */
+    function snapshotBothStreams(message: Message): Rollback {
+        return snapshotStreams(
+            message.clientUuid,
+            options.mainStream,
+            options.threadStream,
+        );
+    }
+
     function editMessage(message: Message, body: string): void {
         const channel = options.channel();
-        const previousMain = options.mainStream.getPatch(message.clientUuid);
-        const previousThread = options.threadStream.getPatch(
-            message.clientUuid,
-        );
 
-        // Optimistically show the edit; the broadcast echo later confirms it.
-        applyPatch({ ...message, body, editedAt: new Date().toISOString() });
-
-        router.patch(
-            updateMessage({
+        write({
+            capture: () => snapshotBothStreams(message),
+            // Optimistically show the edit; the broadcast echo later confirms it.
+            apply: () =>
+                applyPatch({
+                    ...message,
+                    body,
+                    editedAt: new Date().toISOString(),
+                }),
+            method: 'patch',
+            url: updateMessage({
                 team: options.teamSlug(),
                 channel: channel.slug,
                 message: message.id,
             }).url,
-            { body },
-            {
-                preserveScroll: true,
-                onError: () => {
-                    options.mainStream.restorePatch(
-                        message.clientUuid,
-                        previousMain,
-                    );
-                    options.threadStream.restorePatch(
-                        message.clientUuid,
-                        previousThread,
-                    );
-                    toast.error(t('Your edit failed to save'));
-                },
-            },
-        );
+            data: { body },
+            // Named no props and kept none: the response replaces the whole page
+            // prop set, which is how the edited row reaches every surface reading
+            // it rather than just the two streams patched above.
+            preserveState: false,
+            failure: t('Your edit failed to save'),
+        });
     }
 
     function deleteMessage(message: Message): void {
         const channel = options.channel();
-        const previousMain = options.mainStream.getPatch(message.clientUuid);
-        const previousThread = options.threadStream.getPatch(
-            message.clientUuid,
-        );
 
-        // Optimistically show the tombstone; the broadcast echo later confirms it.
-        applyPatch({ ...message, body: '', isDeleted: true });
-
-        router.delete(
-            destroyMessage({
+        write({
+            capture: () => snapshotBothStreams(message),
+            // Optimistically show the tombstone; the broadcast echo later confirms it.
+            apply: () => applyPatch({ ...message, body: '', isDeleted: true }),
+            method: 'delete',
+            url: destroyMessage({
                 team: options.teamSlug(),
                 channel: channel.slug,
                 message: message.id,
             }).url,
-            {
-                preserveScroll: true,
-                onError: () => {
-                    options.mainStream.restorePatch(
-                        message.clientUuid,
-                        previousMain,
-                    );
-                    options.threadStream.restorePatch(
-                        message.clientUuid,
-                        previousThread,
-                    );
-                    toast.error(t('Failed to delete the message'));
-                },
-            },
-        );
+            preserveState: false,
+            failure: t('Failed to delete the message'),
+        });
     }
 
     function reactToMessage(message: Message, emoji: string): void {
         const channel = options.channel();
-        const previousMain = options.mainStream.getPatch(message.clientUuid);
-        const previousThread = options.threadStream.getPatch(
-            message.clientUuid,
-        );
-
         const next = toggleReaction(
             message.reactions,
             emoji,
             options.currentUser(),
         );
-        options.mainStream.patchReactions(message.id, next);
-        options.threadStream.patchReactions(message.id, next);
 
-        router.post(
-            toggleReactionAction({
+        write({
+            capture: () => snapshotBothStreams(message),
+            apply: () => {
+                options.mainStream.patchReactions(message.id, next);
+                options.threadStream.patchReactions(message.id, next);
+            },
+            url: toggleReactionAction({
                 team: options.teamSlug(),
                 channel: channel.slug,
                 message: message.id,
             }).url,
-            { emoji },
-            {
-                preserveScroll: true,
-                preserveState: true,
-                only: ['channels'],
-                onError: () => {
-                    options.mainStream.restorePatch(
-                        message.clientUuid,
-                        previousMain,
-                    );
-                    options.threadStream.restorePatch(
-                        message.clientUuid,
-                        previousThread,
-                    );
-                    toast.error(t('Failed to update the reaction'));
-                },
-            },
-        );
+            data: { emoji },
+            only: CHANNEL_LIST_PROPS,
+            failure: t('Failed to update the reaction'),
+        });
     }
 
     return { editMessage, deleteMessage, reactToMessage };
