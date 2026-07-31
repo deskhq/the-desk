@@ -174,6 +174,17 @@ jobs:
     if: github.event_name != 'pull_request' || !(startsWith(github.head_ref, 'release-please--') || startsWith(github.head_ref, 'chore/candidate-baseline-')) || github.event.pull_request.head.repo.full_name != github.repository
     runs-on: ${{ vars.CI_RUNNER || 'ubuntu-latest' }}
 
+    # A browser test can hang rather than fail, and nothing below this line will
+    # end it: a Playwright action waiting on a target that can never take the
+    # click waits forever, and the suite has no timeout of its own to cut it
+    # short. Without this the job inherits GitHub's six-hour default and holds a
+    # runner for the afternoon, reporting *pending* the whole way, so the only
+    # thing that ever ends it is someone noticing and cancelling by hand
+    # (#1106). Twice the ~10 minutes the suite takes on a green run, which is
+    # room for a slow runner and still names a hang while you are still looking
+    # at the PR.
+    timeout-minutes: 30
+
     services:
       postgres:
         image: postgres:17
