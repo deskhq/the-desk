@@ -38,18 +38,22 @@ test('the primary disc holds its place across the first keystroke', function ():
 
     // The whole point of morphing one element rather than swapping two: the
     // field's right edge is where it was, so nothing under the thumb moves.
-    signInThroughBrowser($alice)
+    $page = signInThroughBrowser($alice)
         ->resize(390, 844)
-        ->navigate(browserChannelUrl($team, $channel))
-        ->script(<<<'JS'
-        window.__composerBefore = (() => {
-            const field = document.querySelector('[data-test="message-composer-input"]').getBoundingClientRect();
-            const disc = document.querySelector('[data-test="message-composer-record"]').getBoundingClientRect();
+        ->navigate(browserChannelUrl($team, $channel));
 
-            return { right: Math.round(field.right), x: Math.round(disc.x), width: Math.round(disc.width) };
-        })()
-        JS)
-        ->type('@message-composer-input', 'a')
+    // `script()` hands back the evaluated results rather than the page, so it
+    // breaks the chain and has to stand on its own.
+    $page->script(<<<'JS'
+    window.__composerBefore = (() => {
+        const field = document.querySelector('[data-test="message-composer-input"]').getBoundingClientRect();
+        const disc = document.querySelector('[data-test="message-composer-record"]').getBoundingClientRect();
+
+        return { right: Math.round(field.right), x: Math.round(disc.x), width: Math.round(disc.width) };
+    })()
+    JS);
+
+    $page->type('@message-composer-input', 'a')
         ->assertPresent('@message-composer-send')
         ->assertScript(<<<'JS'
         (() => {
