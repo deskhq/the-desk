@@ -67,6 +67,7 @@ describe('reloadProps', () => {
         ['PIN_PROPS', arrayLiteralOf(/'pins',\s*'pinCount'/)],
         ['SCHEDULED_MESSAGE_PROPS', arrayLiteralOf(/'scheduledMessages'/)],
         ['THREAD_PROPS', arrayLiteralOf(/'thread',\s*'threadReplies'/)],
+        ['THREAD_RESET_PROPS', arrayLiteralOf(/'threadReplies'/)],
     ])('is the only place %s is spelled out', (_name, pattern) => {
         // Sixteen copies of `only: ['channels']` across twelve files is what
         // this replaces: a surface refreshing one prop of a pair goes stale, and

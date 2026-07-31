@@ -5,8 +5,8 @@ import { join } from 'node:path';
  * Test-only: the source walk the "spelled in exactly one place" tests share.
  *
  * Two suites enforce that rule — `reminderReload.test.ts` for the reminder pair
- * and `reloadProps.test.ts` for the four sets beside it — and a set that has to
- * be named once deserves a scanner that is written once. Nothing the app ships
+ * and `reloadProps.test.ts` for the sets beside it — and a set that has to be
+ * named once deserves a scanner that is written once. Nothing the app ships
  * imports this, so `node:fs` never reaches a bundle.
  */
 

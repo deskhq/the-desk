@@ -9,9 +9,11 @@
  * `pinCount` are two readings of one fact, and so are `thread` and
  * `threadReplies`.
  *
- * The fifth set lives next door in {@see reminderReload}, with the visit options
- * a reminder mutation carries; both are enforced the same way, by a test that
- * fails on a second copy.
+ * Six invalidation sets live here; the seventh, {@see REMINDER_PROPS}, is next
+ * door in {@see reminderReload} with the visit options a reminder mutation
+ * carries. All seven are enforced the same way, by a test that fails on a second
+ * copy. {@link THREAD_RESET_PROPS} is not one of them — it names what a thread
+ * load *resets* rather than what a write invalidates.
  *
  * Every set is typed as a mutable `string[]` because that is what Inertia's
  * `only` takes; a `readonly` tuple would force an `as string[]` cast back at
