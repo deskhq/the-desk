@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace App\Actions\Integrations;
 
 use App\Enums\AuditAction;
+use App\Events\AuditableActionOccurred;
 use App\Models\User;
 use App\Models\WebhookSubscription;
-use App\Support\AuditRecorder;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -17,8 +17,6 @@ use Illuminate\Support\Facades\DB;
  */
 class RevokeWebhookSubscription
 {
-    public function __construct(private readonly AuditRecorder $recorder) {}
-
     public function handle(User $actor, WebhookSubscription $subscription): void
     {
         $team = $subscription->team;
@@ -27,9 +25,9 @@ class RevokeWebhookSubscription
         DB::transaction(function () use ($team, $actor, $subscription, $name): void {
             $subscription->delete();
 
-            $this->recorder->record($team, $actor, AuditAction::WebhookSubscriptionRevoked, $subscription, [
+            event(new AuditableActionOccurred($team, $actor, AuditAction::WebhookSubscriptionRevoked, $subscription, [
                 'subscription_name' => $name,
-            ]);
+            ]));
         });
     }
 }

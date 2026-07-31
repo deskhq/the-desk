@@ -3,8 +3,8 @@
 namespace App\Actions\Integrations;
 
 use App\Enums\AuditAction;
+use App\Events\AuditableActionOccurred;
 use App\Models\User;
-use App\Support\AuditRecorder;
 use Laravel\Sanctum\PersonalAccessToken;
 
 /**
@@ -14,8 +14,6 @@ use Laravel\Sanctum\PersonalAccessToken;
  */
 class RevokeBotToken
 {
-    public function __construct(private readonly AuditRecorder $recorder) {}
-
     public function handle(User $actor, PersonalAccessToken $token): void
     {
         $bot = $token->tokenable;
@@ -24,9 +22,9 @@ class RevokeBotToken
         $tokenName = $token->name;
         $token->delete();
 
-        $this->recorder->record($bot->ownerTeam()->firstOrFail(), $actor, AuditAction::BotTokenRevoked, $bot, [
+        event(new AuditableActionOccurred($bot->ownerTeam()->firstOrFail(), $actor, AuditAction::BotTokenRevoked, $bot, [
             'token_name' => $tokenName,
             'bot_name' => $bot->name,
-        ]);
+        ]));
     }
 }

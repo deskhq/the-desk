@@ -15,7 +15,6 @@ use App\Data\ChannelReaderData;
 use App\Data\MessageData;
 use App\Data\ScheduledMessageData;
 use App\Data\UserData;
-use App\Enums\AuditAction;
 use App\Enums\ChannelVisibility;
 use App\Enums\NotificationLevel;
 use App\Enums\UserType;
@@ -24,11 +23,9 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Channels\CreateChannelRequest;
 use App\Http\Requests\Channels\DeleteChannelRequest;
 use App\Http\Requests\Channels\UpdateChannelRequest;
-use App\Jobs\PurgeDeletedChannel;
 use App\Models\Channel;
 use App\Models\Message;
 use App\Models\Team;
-use App\Support\AuditRecorder;
 use App\Support\ChannelTimelineWindow;
 use Illuminate\Contracts\Pagination\CursorPaginator;
 use Illuminate\Http\RedirectResponse;
@@ -60,7 +57,7 @@ class ChannelController extends Controller
     /**
      * Store a newly created channel and redirect to it.
      */
-    public function store(CreateChannelRequest $request, Team $team, CreateChannel $createChannel, AuditRecorder $recorder): RedirectResponse
+    public function store(CreateChannelRequest $request, Team $team, CreateChannel $createChannel): RedirectResponse
     {
         $channel = $createChannel->handle(
             team: $team,
@@ -69,10 +66,6 @@ class ChannelController extends Controller
             creator: $request->user(),
             topic: $request->validated('topic'),
         );
-
-        $recorder->record($team, $request->user(), AuditAction::ChannelCreated, $channel, [
-            'channel_name' => $channel->name,
-        ]);
 
         Inertia::flash('toast', ['type' => 'success', 'message' => __('Channel created')]);
 
@@ -367,17 +360,11 @@ class ChannelController extends Controller
      * sidebar, so we send the user back to #general rather than to a channel
      * that no longer appears in their list.
      */
-    public function archive(Request $request, Team $team, Channel $channel, ArchiveChannel $archiveChannel, AuditRecorder $recorder): RedirectResponse
+    public function archive(Request $request, Team $team, Channel $channel, ArchiveChannel $archiveChannel): RedirectResponse
     {
-        // The policy rejects archiving #general or an already-archived channel,
-        // so reaching here always represents a fresh archive worth recording.
         Gate::authorize('archive', $channel);
 
-        $archiveChannel->handle($channel);
-
-        $recorder->record($team, $request->user(), AuditAction::ChannelArchived, $channel, [
-            'channel_name' => $channel->name,
-        ]);
+        $archiveChannel->handle($channel, $request->user());
 
         Inertia::flash('toast', ['type' => 'success', 'message' => __('Archived #:channel', ['channel' => $channel->name])]);
 
@@ -391,19 +378,11 @@ class ChannelController extends Controller
      * direct messages) and re-checks the typed channel name, so reaching here is
      * a deliberate, authorized destruction. The channel disappears from every
      * surface at once, so #general — which always exists — is where the admin
-     * lands. The audit entry carries the purge date, since the entry is the only
-     * lasting record once the window closes.
+     * lands.
      */
-    public function destroy(DeleteChannelRequest $request, Team $team, Channel $channel, DeleteChannel $deleteChannel, AuditRecorder $recorder): RedirectResponse
+    public function destroy(DeleteChannelRequest $request, Team $team, Channel $channel, DeleteChannel $deleteChannel): RedirectResponse
     {
-        // The action returns the row it actually stamped, so the audit entry
-        // below reads the deletion date the database settled on.
-        $channel = $deleteChannel->handle($channel);
-
-        $recorder->record($team, $request->user(), AuditAction::ChannelDeleted, $channel, [
-            'channel_name' => $channel->name,
-            'purge_at' => $channel->deleted_at->addDays(PurgeDeletedChannel::GRACE_WINDOW_DAYS)->toDateString(),
-        ]);
+        $channel = $deleteChannel->handle($channel, $request->user());
 
         Inertia::flash('toast', ['type' => 'success', 'message' => __('Deleted #:channel', ['channel' => $channel->name])]);
 

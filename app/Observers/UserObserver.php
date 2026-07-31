@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace App\Observers;
 
 use App\Enums\SecurityEventType;
+use App\Events\SecurityEventOccurred;
 use App\Models\User;
-use App\Support\SecurityEventRecorder;
 
 class UserObserver
 {
@@ -27,11 +27,11 @@ class UserObserver
             return;
         }
 
-        app(SecurityEventRecorder::class)->record(
+        event(new SecurityEventOccurred(
             $user,
             $user->deactivated_at === null
                 ? SecurityEventType::AccountReactivated
                 : SecurityEventType::AccountDeactivated,
-        );
+        ));
     }
 }

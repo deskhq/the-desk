@@ -6,9 +6,9 @@ namespace App\Actions\Integrations;
 
 use App\Enums\AuditAction;
 use App\Enums\IntegrationScope;
+use App\Events\AuditableActionOccurred;
 use App\Models\Team;
 use App\Models\User;
-use App\Support\AuditRecorder;
 use Laravel\Sanctum\NewAccessToken;
 
 /**
@@ -21,8 +21,6 @@ use Laravel\Sanctum\NewAccessToken;
  */
 class MintPersonalAccessToken
 {
-    public function __construct(private readonly AuditRecorder $recorder) {}
-
     /**
      * @param  list<string>  $abilities  The granted scopes (least-privilege).
      */
@@ -32,9 +30,9 @@ class MintPersonalAccessToken
 
         $token->accessToken->forceFill(['team_id' => $team->id])->save();
 
-        $this->recorder->record($team, $user, AuditAction::PersonalAccessTokenCreated, $user, [
+        event(new AuditableActionOccurred($team, $user, AuditAction::PersonalAccessTokenCreated, $user, [
             'token_name' => $name,
-        ]);
+        ]));
 
         return $token;
     }

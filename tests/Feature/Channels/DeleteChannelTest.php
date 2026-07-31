@@ -27,11 +27,11 @@ test('deleting an already-deleted channel keeps its original deletion date, so t
     $team = app(CreateTeam::class)->handle($owner, 'Acme');
     $channel = Channel::factory()->for($team)->create(['name' => 'Roadmap', 'slug' => 'roadmap']);
 
-    $deleted = app(DeleteChannel::class)->handle($channel);
+    $deleted = app(DeleteChannel::class)->handle($channel, null);
 
     $this->travel(1)->days();
 
-    expect(app(DeleteChannel::class)->handle($channel)->deleted_at->equalTo($deleted->deleted_at))->toBeTrue();
+    expect(app(DeleteChannel::class)->handle($channel, null)->deleted_at->equalTo($deleted->deleted_at))->toBeTrue();
 });
 
 test('deleting a channel records it in the workspace audit log', function (): void {

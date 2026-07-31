@@ -102,7 +102,7 @@ class MessageController extends Controller
         abort_unless($message->channel_id === $channel->id, 404);
         abort_unless(Gate::allows('delete', $message), 403);
 
-        $deleteMessage->handle($channel, $message);
+        $deleteMessage->handle($channel, $message, deletedBy: $subject);
 
         return response()->json(null, 204);
     }

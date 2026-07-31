@@ -24,7 +24,7 @@ function recentlyDeletedFixture(): array
     $channel = Channel::factory()->for($team)->create(['name' => 'Roadmap', 'slug' => 'roadmap']);
     $channel->channelMembers()->create(['user_id' => $owner->id]);
 
-    app(DeleteChannel::class)->handle($channel);
+    app(DeleteChannel::class)->handle($channel, null);
 
     return [$owner, $team, $channel];
 }
@@ -133,7 +133,7 @@ test('a channel from another workspace is not restorable through this one', func
     $stranger = User::factory()->create();
     $otherTeam = app(CreateTeam::class)->handle($stranger, 'Globex');
     $otherChannel = Channel::factory()->for($otherTeam)->create();
-    app(DeleteChannel::class)->handle($otherChannel);
+    app(DeleteChannel::class)->handle($otherChannel, null);
 
     $this->actingAs($owner)
         ->post(route('teams.deleted-channels.restore', ['team' => $team->slug, 'channel' => $otherChannel->id]))

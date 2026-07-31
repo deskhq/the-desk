@@ -3,27 +3,33 @@
 namespace App\Support;
 
 use App\Enums\SecurityEventType;
+use App\Listeners\RecordSecurityEvents;
 use App\Models\SecurityEvent;
 use Illuminate\Contracts\Auth\Authenticatable;
-use Illuminate\Http\Request;
 
 /**
- * Persists security-relevant account events, capturing the live request's IP
- * and User-Agent. Must be resolved during a real request so the request context
- * is available — never from a queued job.
+ * Persists security-relevant account events. The device context is passed in
+ * explicitly rather than read from a live request, so this resolves anywhere —
+ * a controller, a queued directory sync, a console command. Capturing that
+ * context is {@see RecordSecurityEvents}' job, since only it knows whether an
+ * HTTP request is behind the event.
  */
 class SecurityEventRecorder
 {
-    public function __construct(private readonly Request $request) {}
-
     /**
-     * Record a security event for the given user against the current request.
+     * Record a security event for the given user against the given device.
+     *
+     * @param  string|null  $ipAddress  The originating IP, or null when the event
+     *                                  has no request behind it.
+     * @param  string|null  $userAgent  The originating User-Agent, on the same terms.
      */
-    public function record(Authenticatable $user, SecurityEventType $type): SecurityEvent
-    {
+    public function record(
+        Authenticatable $user,
+        SecurityEventType $type,
+        ?string $ipAddress,
+        ?string $userAgent,
+    ): SecurityEvent {
         $userId = $user->getAuthIdentifier();
-        $ipAddress = $this->request->ip();
-        $userAgent = $this->request->userAgent();
 
         return SecurityEvent::create([
             'user_id' => $userId,

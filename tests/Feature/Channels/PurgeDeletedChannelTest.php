@@ -45,7 +45,7 @@ function purgeableChannel(): array
 
     ScheduledMessage::factory()->for($channel)->for($owner)->create();
 
-    app(DeleteChannel::class)->handle($channel);
+    app(DeleteChannel::class)->handle($channel, null);
 
     return [$channel, $attachment];
 }

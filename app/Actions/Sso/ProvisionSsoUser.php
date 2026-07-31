@@ -5,11 +5,11 @@ namespace App\Actions\Sso;
 use App\Actions\Teams\CreateTeam;
 use App\Enums\SecurityEventType;
 use App\Enums\TeamRole;
+use App\Events\SecurityEventOccurred;
 use App\Exceptions\Sso\UnverifiedSsoEmailException;
 use App\Models\SsoIdentity;
 use App\Models\Team;
 use App\Models\User;
-use App\Support\SecurityEventRecorder;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -20,10 +20,7 @@ use Illuminate\Support\Facades\DB;
  */
 class ProvisionSsoUser
 {
-    public function __construct(
-        private readonly CreateTeam $createTeam,
-        private readonly SecurityEventRecorder $securityEvents,
-    ) {}
+    public function __construct(private readonly CreateTeam $createTeam) {}
 
     /**
      * Resolve the app user for a directory-verified identity.
@@ -123,7 +120,7 @@ class ProvisionSsoUser
 
         $this->assignToDefaultTeam($user);
 
-        $this->securityEvents->record($user, SecurityEventType::AccountProvisioned);
+        event(new SecurityEventOccurred($user, SecurityEventType::AccountProvisioned));
 
         return $user;
     }

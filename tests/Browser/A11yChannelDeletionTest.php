@@ -48,7 +48,7 @@ test('the delete-channel dialog passes the axe audit in either theme', function 
 test('the recently-deleted panel passes the axe audit in either theme', function (): void {
     ['owner' => $alice, 'team' => $team, 'channel' => $channel] = browserTeamWithDeletableChannel();
 
-    app(DeleteChannel::class)->handle($channel);
+    app(DeleteChannel::class)->handle($channel, null);
 
     $page = signInThroughBrowser($alice)
         ->navigate("/settings/teams/{$team->slug}/deleted-channels")

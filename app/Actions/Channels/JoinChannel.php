@@ -3,8 +3,10 @@
 namespace App\Actions\Channels;
 
 use App\Data\UserData;
+use App\Enums\AuditAction;
 use App\Enums\MessageType;
 use App\Enums\WebhookEvent;
+use App\Events\AuditableActionOccurred;
 use App\Events\WebhookEventOccurred;
 use App\Models\Channel;
 use App\Models\ChannelMember;
@@ -27,8 +29,15 @@ class JoinChannel
      * don't "join" it) and the team-onboarding auto-join to the protected
      * #general channel (which would otherwise post a join notice for every new
      * workspace member). Only an explicit channel join announces.
+     *
+     * `$addedBy` names the member who put someone *else* in the channel, which
+     * is what makes the membership an administrative act worth auditing — pass
+     * it from any surface that adds a member on their behalf. A plain join, and
+     * the structural joins above, leave it null and record nothing; the webhook
+     * fires either way, because a subscriber cares that membership changed, not
+     * who decided it.
      */
-    public function handle(Channel $channel, User $user, bool $announce = true): ChannelMember
+    public function handle(Channel $channel, User $user, bool $announce = true, ?User $addedBy = null): ChannelMember
     {
         $membership = DB::transaction(fn (): ChannelMember => $channel->channelMembers()->firstOrCreate([
             'user_id' => $user->id,
@@ -43,6 +52,13 @@ class JoinChannel
                 'channel_id' => $channel->id,
                 'user' => UserData::fromUser($user)->toArray(),
             ]));
+
+            if ($addedBy instanceof User && ! $addedBy->is($user)) {
+                event(new AuditableActionOccurred($channel->team, $addedBy, AuditAction::ChannelMemberAdded, $channel, [
+                    'channel_name' => $channel->name,
+                    'member_name' => $user->name,
+                ]));
+            }
         }
 
         return $membership;

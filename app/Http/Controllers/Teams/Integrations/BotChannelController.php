@@ -6,7 +6,6 @@ namespace App\Http\Controllers\Teams\Integrations;
 
 use App\Actions\Channels\JoinChannel;
 use App\Actions\Channels\RemoveChannelMember;
-use App\Enums\AuditAction;
 use App\Enums\ChannelType;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Teams\Integrations\StoreBotChannelRequest;
@@ -14,7 +13,6 @@ use App\Models\Channel;
 use App\Models\ChannelMember;
 use App\Models\Team;
 use App\Models\User;
-use App\Support\AuditRecorder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -34,19 +32,14 @@ class BotChannelController extends Controller
     /**
      * Add the bot to one of the team's channels.
      */
-    public function store(StoreBotChannelRequest $request, Team $team, User $bot, JoinChannel $joinChannel, AuditRecorder $recorder): RedirectResponse
+    public function store(StoreBotChannelRequest $request, Team $team, User $bot, JoinChannel $joinChannel): RedirectResponse
     {
         $this->ensureBotBelongsToTeam($bot, $team);
 
         /** @var Channel $channel */
         $channel = $team->channels()->whereKey($request->validated('channel_id'))->firstOrFail();
 
-        $joinChannel->handle($channel, $bot);
-
-        $recorder->record($team, $request->user(), AuditAction::ChannelMemberAdded, $channel, [
-            'channel_name' => $channel->name,
-            'member_name' => $bot->name,
-        ]);
+        $joinChannel->handle($channel, $bot, addedBy: $request->user());
 
         Inertia::flash('toast', ['type' => 'success', 'message' => __('Bot added to :channel', ['channel' => $channel->name])]);
 
@@ -56,7 +49,7 @@ class BotChannelController extends Controller
     /**
      * Remove the bot from a channel, revoking its posting there.
      */
-    public function destroy(Request $request, Team $team, User $bot, Channel $channel, RemoveChannelMember $removeChannelMember, AuditRecorder $recorder): RedirectResponse
+    public function destroy(Request $request, Team $team, User $bot, Channel $channel, RemoveChannelMember $removeChannelMember): RedirectResponse
     {
         Gate::authorize('manageIntegrations', $team);
 
@@ -64,12 +57,7 @@ class BotChannelController extends Controller
 
         abort_unless($channel->team_id === $team->id && $channel->type === ChannelType::Standard, 404);
 
-        $removeChannelMember->handle($channel, $bot);
-
-        $recorder->record($team, $request->user(), AuditAction::ChannelMemberRemoved, $channel, [
-            'channel_name' => $channel->name,
-            'member_name' => $bot->name,
-        ]);
+        $removeChannelMember->handle($channel, $bot, removedBy: $request->user());
 
         Inertia::flash('toast', ['type' => 'success', 'message' => __('Bot removed from :channel', ['channel' => $channel->name])]);
 

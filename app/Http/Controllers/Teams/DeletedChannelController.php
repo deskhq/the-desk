@@ -4,11 +4,9 @@ namespace App\Http\Controllers\Teams;
 
 use App\Actions\Channels\RestoreChannel;
 use App\Data\DeletedChannelData;
-use App\Enums\AuditAction;
 use App\Http\Controllers\Controller;
 use App\Models\Channel;
 use App\Models\Team;
-use App\Support\AuditRecorder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -44,15 +42,11 @@ class DeletedChannelController extends Controller
      * deletion did. A slug taken in the meantime aborts the restore with a
      * validation error rather than moving the channel's URL.
      */
-    public function restore(Request $request, Team $team, Channel $channel, RestoreChannel $restoreChannel, AuditRecorder $recorder): RedirectResponse
+    public function restore(Request $request, Team $team, Channel $channel, RestoreChannel $restoreChannel): RedirectResponse
     {
         Gate::authorize('restore', $channel);
 
-        $restoreChannel->handle($channel);
-
-        $recorder->record($team, $request->user(), AuditAction::ChannelRestored, $channel, [
-            'channel_name' => $channel->name,
-        ]);
+        $restoreChannel->handle($channel, $request->user());
 
         Inertia::flash('toast', ['type' => 'success', 'message' => __('Restored #:channel', ['channel' => $channel->name])]);
 

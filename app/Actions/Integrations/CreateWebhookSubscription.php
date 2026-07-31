@@ -6,10 +6,10 @@ namespace App\Actions\Integrations;
 
 use App\Enums\AuditAction;
 use App\Enums\WebhookSubscriptionStatus;
+use App\Events\AuditableActionOccurred;
 use App\Models\Team;
 use App\Models\User;
 use App\Models\WebhookSubscription;
-use App\Support\AuditRecorder;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -19,8 +19,6 @@ use Illuminate\Support\Facades\DB;
  */
 class CreateWebhookSubscription
 {
-    public function __construct(private readonly AuditRecorder $recorder) {}
-
     /**
      * @param  list<string>  $events  The subscribed event values (see App\Enums\WebhookEvent).
      * @param  list<string>|null  $channelIds  Optional channel allow-list; null means all channels.
@@ -38,9 +36,9 @@ class CreateWebhookSubscription
                 'status' => WebhookSubscriptionStatus::Active,
             ]);
 
-            $this->recorder->record($team, $actor, AuditAction::WebhookSubscriptionCreated, $subscription, [
+            event(new AuditableActionOccurred($team, $actor, AuditAction::WebhookSubscriptionCreated, $subscription, [
                 'subscription_name' => $name,
-            ]);
+            ]));
 
             return $subscription;
         });

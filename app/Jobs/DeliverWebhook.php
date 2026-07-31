@@ -6,8 +6,8 @@ namespace App\Jobs;
 
 use App\Enums\AuditAction;
 use App\Enums\WebhookSubscriptionStatus;
+use App\Events\AuditableActionOccurred;
 use App\Models\WebhookSubscription;
-use App\Support\AuditRecorder;
 use App\Support\Http\OutboundUrlGuard;
 use App\Support\Webhooks\WebhookSignature;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -83,7 +83,7 @@ class DeliverWebhook implements ShouldQueue
     /**
      * Attempt one delivery.
      */
-    public function handle(AuditRecorder $recorder, OutboundUrlGuard $guard): void
+    public function handle(OutboundUrlGuard $guard): void
     {
         if (! config('integrations.enabled')) {
             return;
@@ -100,7 +100,7 @@ class DeliverWebhook implements ShouldQueue
         }
 
         if (! OutboundUrlGuard::isPublic($subscription->url)) {
-            $this->recordFailure($subscription, $recorder, null, 'Blocked non-public webhook URL', 0);
+            $this->recordFailure($subscription, null, 'Blocked non-public webhook URL', 0);
 
             return;
         }
@@ -108,7 +108,7 @@ class DeliverWebhook implements ShouldQueue
         $pinnedIp = $guard->resolveDeliveryIp($subscription->url);
 
         if ($pinnedIp === false) {
-            $this->recordFailure($subscription, $recorder, null, 'Blocked webhook URL resolving to a non-public address', 0);
+            $this->recordFailure($subscription, null, 'Blocked webhook URL resolving to a non-public address', 0);
 
             return;
         }
@@ -129,7 +129,7 @@ class DeliverWebhook implements ShouldQueue
                 ->withBody($body, 'application/json')
                 ->post($subscription->url);
         } catch (Throwable $exception) {
-            $this->recordFailure($subscription, $recorder, null, $this->summarize($exception->getMessage()), $this->elapsedMs($startedAt));
+            $this->recordFailure($subscription, null, $this->summarize($exception->getMessage()), $this->elapsedMs($startedAt));
 
             return;
         }
@@ -140,7 +140,7 @@ class DeliverWebhook implements ShouldQueue
             return;
         }
 
-        $this->recordFailure($subscription, $recorder, $response->status(), 'HTTP '.$response->status(), $this->elapsedMs($startedAt));
+        $this->recordFailure($subscription, $response->status(), 'HTTP '.$response->status(), $this->elapsedMs($startedAt));
     }
 
     /**
@@ -177,9 +177,9 @@ class DeliverWebhook implements ShouldQueue
      * lock so a concurrent delivery can't miscount the streak. The retry throw
      * happens after the transaction commits.
      */
-    private function recordFailure(WebhookSubscription $subscription, AuditRecorder $recorder, ?int $status, string $error, int $durationMs): void
+    private function recordFailure(WebhookSubscription $subscription, ?int $status, string $error, int $durationMs): void
     {
-        $stopRetrying = DB::transaction(function () use ($subscription, $recorder, $status, $error, $durationMs): bool {
+        $stopRetrying = DB::transaction(function () use ($subscription, $status, $error, $durationMs): bool {
             $locked = $this->lockSubscription($subscription);
 
             $this->logAttempt($locked, false, $status, $error, $durationMs);
@@ -192,7 +192,7 @@ class DeliverWebhook implements ShouldQueue
             $locked->forceFill(['consecutive_failures' => $failures])->save();
 
             if ($failures >= (int) config('integrations.webhooks.disable_after')) {
-                $this->autoDisable($locked, $recorder, $failures);
+                $this->autoDisable($locked, $failures);
 
                 return true;
             }
@@ -239,17 +239,17 @@ class DeliverWebhook implements ShouldQueue
     /**
      * Flip the subscription to disabled and record the reason in the audit log.
      */
-    private function autoDisable(WebhookSubscription $subscription, AuditRecorder $recorder, int $failures): void
+    private function autoDisable(WebhookSubscription $subscription, int $failures): void
     {
         $subscription->forceFill([
             'status' => WebhookSubscriptionStatus::Disabled,
             'disabled_at' => now(),
         ])->save();
 
-        $recorder->record($subscription->team, $subscription->creator, AuditAction::WebhookSubscriptionAutoDisabled, $subscription, [
+        event(new AuditableActionOccurred($subscription->team, $subscription->creator, AuditAction::WebhookSubscriptionAutoDisabled, $subscription, [
             'subscription_name' => $subscription->name,
             'failures' => $failures,
-        ]);
+        ]));
     }
 
     /**

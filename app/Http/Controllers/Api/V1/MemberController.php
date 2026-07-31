@@ -4,14 +4,12 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Actions\Channels\JoinChannel;
 use App\Actions\Channels\RemoveChannelMember;
-use App\Enums\AuditAction;
 use App\Enums\ChannelVisibility;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\V1\AddMemberRequest;
 use App\Http\Resources\Api\V1\UserResource;
 use App\Models\Channel;
 use App\Models\User;
-use App\Support\AuditRecorder;
 use App\Support\Integrations\ApiChannelAccess;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -38,19 +36,14 @@ class MemberController extends Controller
     /**
      * Add a team member to one of the subject's private channels.
      */
-    public function store(AddMemberRequest $request, Channel $channel, JoinChannel $joinChannel, AuditRecorder $recorder): JsonResponse
+    public function store(AddMemberRequest $request, Channel $channel, JoinChannel $joinChannel): JsonResponse
     {
         $subject = $request->user();
         assert($subject instanceof User);
 
         $user = User::findOrFail((string) $request->validated('user_id'));
 
-        $joinChannel->handle($channel, $user);
-
-        $recorder->record(ApiChannelAccess::team($subject), $subject, AuditAction::ChannelMemberAdded, $channel, [
-            'channel_name' => $channel->name,
-            'member_name' => $user->name,
-        ]);
+        $joinChannel->handle($channel, $user, addedBy: $subject);
 
         return UserResource::make($user)->response()->setStatusCode(201);
     }
@@ -63,7 +56,7 @@ class MemberController extends Controller
      * the private channel, or a team Admin+ — so the token never exceeds what the
      * person could do in-app.
      */
-    public function destroy(Request $request, Channel $channel, User $user, RemoveChannelMember $removeChannelMember, AuditRecorder $recorder): JsonResponse
+    public function destroy(Request $request, Channel $channel, User $user, RemoveChannelMember $removeChannelMember): JsonResponse
     {
         $subject = $request->user();
         assert($subject instanceof User);
@@ -78,12 +71,7 @@ class MemberController extends Controller
 
         abort_unless($channel->channelMembers()->where('user_id', $user->id)->exists(), 404);
 
-        $removeChannelMember->handle($channel, $user);
-
-        $recorder->record(ApiChannelAccess::team($subject), $subject, AuditAction::ChannelMemberRemoved, $channel, [
-            'channel_name' => $channel->name,
-            'member_name' => $user->name,
-        ]);
+        $removeChannelMember->handle($channel, $user, removedBy: $subject);
 
         return response()->json(null, 204);
     }
