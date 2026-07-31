@@ -11,6 +11,7 @@ import GifPickerPanel from '@/components/GifPickerPanel.vue';
 import PollComposerPanel from '@/components/PollComposerPanel.vue';
 import ScheduleMessageDialog from '@/components/ScheduleMessageDialog.vue';
 import { useComposerAttachments } from '@/composables/useComposerAttachments';
+import { useComposerAttachSheet } from '@/composables/useComposerAttachSheet';
 import { useComposerEditMode } from '@/composables/useComposerEditMode';
 import { useComposerField } from '@/composables/useComposerField';
 import { useComposerFormat } from '@/composables/useComposerFormat';
@@ -283,6 +284,8 @@ const {
     gifPickerOpen,
     gifPickerQuery,
     onGifSelected,
+    openGifPicker,
+    openPollComposer,
     pollComposerAvailable,
     pollComposerOpen,
     refreshSlashSuggestions,
@@ -292,7 +295,35 @@ const {
     slashSuggestions,
 } = slash;
 
-const format = useComposerFormat({ field });
+/**
+ * How much of the screen the on-screen keyboard covers, so the pill can sit
+ * above it with its Send button reachable instead of behind it.
+ *
+ * The root pads itself by this on top of the device's home-indicator inset, so
+ * the pill stays clear of both: the safe-area inset is static, while the
+ * keyboard inset has to be measured live off visualViewport (the layout viewport
+ * `dvh` sizes against does not shrink when the keyboard opens).
+ *
+ * That note lives here rather than above the template's root element on purpose.
+ * Vue keeps a root-level comment in a dev build and strips it in production, so
+ * a leading comment would make this component a fragment under the dev server —
+ * and `$el`, which the page measures for the bottom-right rail's inset, would be
+ * the fragment's anchor comment instead of the root div (#1051).
+ */
+const keyboardInsetPx = useKeyboardInset();
+
+const attachSheet = useComposerAttachSheet({
+    field,
+    keyboardInsetPx,
+    refreshSlashSuggestions,
+});
+const {
+    insetPx: composerInsetPx,
+    open: attachSheetOpen,
+    startSlashCommand,
+} = attachSheet;
+
+const format = useComposerFormat({ field, selection: attachSheet.selection });
 const { applyFormat, formatActions } = format;
 
 const send = useComposerSend({
@@ -331,28 +362,22 @@ const { onKeydown } = useComposerKeyboard({
 });
 
 /**
- * Whether the compose tools are disclosed. Only consulted below the breakpoint,
- * where they fold away behind a toggle so the field keeps the pill's width; from
- * `md` up they are always in line and this is ignored.
+ * Whether the compose tools are disclosed. Only consulted from `md` up in a
+ * narrow container (the desktop thread panel), where they fold away behind a
+ * toggle so the field keeps the pill's width; below `md` they live in the
+ * attach sheet instead, and once the container widens they are always in line.
  */
 const toolsOpen = ref(false);
 
 /**
- * How much of the screen the on-screen keyboard covers, so the pill can sit
- * above it with its Send button reachable instead of behind it.
- *
- * The root pads itself by this on top of the device's home-indicator inset, so
- * the pill stays clear of both: the safe-area inset is static, while the
- * keyboard inset has to be measured live off visualViewport (the layout viewport
- * `dvh` sizes against does not shrink when the keyboard opens).
- *
- * That note lives here rather than above the template's root element on purpose.
- * Vue keeps a root-level comment in a dev build and strips it in production, so
- * a leading comment would make this component a fragment under the dev server —
- * and `$el`, which the page measures for the bottom-right rail's inset, would be
- * the fragment's anchor comment instead of the root div (#1051).
+ * Whether the composer carries anything to send. The mobile disc's mode keys
+ * off this rather than `canSubmit`, which also goes false mid-upload and would
+ * turn the disc back into a mic with a file still climbing the wire — starting
+ * a recording on the next tap.
  */
-const keyboardInsetPx = useKeyboardInset();
+const hasContent = computed(
+    () => body.value.trim() !== '' || trayItems.value.length > 0,
+);
 
 function focusFromCard(event: MouseEvent): void {
     const el = textarea.value;
@@ -381,7 +406,7 @@ defineExpose({ insertMention, focus, addFiles: attachments.addFiles });
     <div
         class="@container mx-3 mb-2 shrink-0 md:mx-5 md:mb-4"
         :style="{
-            paddingBottom: `calc(env(safe-area-inset-bottom) + ${keyboardInsetPx}px)`,
+            paddingBottom: `calc(env(safe-area-inset-bottom) + ${composerInsetPx}px)`,
         }"
     >
         <div class="relative">
@@ -464,6 +489,7 @@ defineExpose({ insertMention, focus, addFiles: attachments.addFiles });
                 <ComposerInputRow
                     v-else
                     v-model="body"
+                    v-model:attach-sheet-open="attachSheetOpen"
                     :placeholder="visiblePlaceholder"
                     :field-label="composerPlaceholder"
                     :show-mention-menu="showMenu"
@@ -479,6 +505,10 @@ defineExpose({ insertMention, focus, addFiles: attachments.addFiles });
                     :can-schedule="canSchedule"
                     :allow-schedule="Boolean(props.allowSchedule)"
                     :timezone="props.timezone ?? null"
+                    :has-content="hasContent"
+                    :gif-available="gifPickerAvailable"
+                    :poll-available="pollComposerAvailable"
+                    :has-slash-commands="(props.slashCommands ?? []).length > 0"
                     :register="registerField"
                     @input="onFieldInput"
                     @paste="onPaste"
@@ -488,6 +518,9 @@ defineExpose({ insertMention, focus, addFiles: attachments.addFiles });
                     @format="applyFormat"
                     @record="recorder.start"
                     @toggle-tools="toolsOpen = !toolsOpen"
+                    @gif="openGifPicker('')"
+                    @poll="openPollComposer"
+                    @command="startSlashCommand"
                     @send="submit"
                     @schedule-at="onScheduleConfirm"
                     @custom-time="openSchedule"

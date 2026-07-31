@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { CalendarDays, ChevronUp, Send } from '@lucide/vue';
-import { computed, ref, watch } from 'vue';
+import { ref, watch } from 'vue';
 import { Button } from '@/components/ui/button';
 import {
     DropdownMenu,
@@ -10,7 +10,8 @@ import {
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { formatPresetPreview, schedulePresets } from '@/lib/scheduleTime';
+import type { QuickSchedulePreset } from '@/lib/scheduleTime';
+import { quickSchedulePresets } from '@/lib/scheduleTime';
 
 const props = defineProps<{
     /**
@@ -39,63 +40,19 @@ const emit = defineEmits<{
 
 const menuOpen = ref(false);
 
-const effectiveZone = computed(
-    () => props.timezone ?? Intl.DateTimeFormat().resolvedOptions().timeZone,
-);
-
-/**
- * The three quick presets the mockup surfaces in the menu, keyed to the shared
- * preset math so the resolved instant matches the schedule dialog exactly. Menu
- * labels differ from the dialog's ("Tomorrow morning" vs "Tomorrow 9 AM"), so
- * they are named here rather than read off the shared preset.
- */
-const QUICK_PRESETS = [
-    { key: 'in-an-hour', label: 'In 1 hour' },
-    { key: 'tomorrow-morning', label: 'Tomorrow morning' },
-    { key: 'next-monday', label: 'Monday morning' },
-] as const;
-
-type QuickPreset = {
-    key: string;
-    label: string;
-    sendAt: string;
-    preview: string;
-};
-
 /**
  * Resolved on open so the times stay current with the wall clock each time the
  * menu is shown, rather than frozen at mount.
  */
-const quickPresets = ref<QuickPreset[]>([]);
-
-function buildPresets(): void {
-    const now = new Date();
-    const zone = effectiveZone.value;
-    const all = schedulePresets(zone, now);
-
-    quickPresets.value = QUICK_PRESETS.flatMap(({ key, label }) => {
-        const preset = all.find((candidate) => candidate.key === key);
-
-        return preset
-            ? [
-                  {
-                      key,
-                      label,
-                      sendAt: preset.sendAt,
-                      preview: formatPresetPreview(preset.sendAt, zone, now),
-                  },
-              ]
-            : [];
-    });
-}
+const quickPresets = ref<QuickSchedulePreset[]>([]);
 
 watch(menuOpen, (isOpen) => {
     if (isOpen) {
-        buildPresets();
+        quickPresets.value = quickSchedulePresets(props.timezone);
     }
 });
 
-function choosePreset(preset: QuickPreset): void {
+function choosePreset(preset: QuickSchedulePreset): void {
     emit('scheduleAt', preset.sendAt);
 }
 </script>

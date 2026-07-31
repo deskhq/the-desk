@@ -141,7 +141,7 @@ export function useComposerSend(options: {
             const gifQuery = options.slash.gifCommandQuery(trimmed);
 
             if (gifQuery !== null) {
-                options.slash.openGifPicker(gifQuery);
+                options.slash.openGifPickerFromCommand(gifQuery);
 
                 return;
             }
@@ -149,7 +149,7 @@ export function useComposerSend(options: {
             // `/poll` opens the builder rather than posting text; the composed poll
             // is then posted as a first-class poll message through its own endpoint.
             if (options.slash.isPollCommand(trimmed)) {
-                options.slash.openPollComposer();
+                options.slash.openPollComposerFromCommand();
 
                 return;
             }
