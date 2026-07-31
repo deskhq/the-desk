@@ -21,9 +21,9 @@ import {
 import UserStatusEmoji from '@/components/UserStatusEmoji.vue';
 import { useInitials } from '@/composables/useInitials';
 import { useOpenDirectMessage } from '@/composables/useOpenDirectMessage';
+import { useTranslations } from '@/composables/useTranslations';
 import { fetchUserProfile } from '@/composables/useUserProfileCard';
 import { formatLocalTime, formatTimeOfDay } from '@/lib/datetime';
-import { translate } from '@/lib/i18n';
 import { presenceLabelKey } from '@/lib/presence';
 import type { RenderedPresence } from '@/lib/presence';
 import { index as integrationsIndex } from '@/routes/teams/integrations';
@@ -68,6 +68,7 @@ const emit = defineEmits<{
 
 const { getInitials } = useInitials();
 const { openDirectMessage } = useOpenDirectMessage(() => props.teamSlug);
+const { t } = useTranslations();
 
 const profile = ref<UserProfile | null>(null);
 const loading = ref(false);
@@ -137,12 +138,12 @@ const credentialLabels = computed(() => {
 
     return props.credential?.kind === 'api_token'
         ? {
-              posted: translate('Posted by the :name API token', { name }),
-              review: translate('Review the :name API token', { name }),
+              posted: t('Posted by the :name API token', { name }),
+              review: t('Review the :name API token', { name }),
           }
         : {
-              posted: translate('Posted by the :name webhook', { name }),
-              review: translate('Review the :name webhook', { name }),
+              posted: t('Posted by the :name webhook', { name }),
+              review: t('Review the :name webhook', { name }),
           };
 });
 
