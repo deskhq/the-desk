@@ -5,8 +5,18 @@
          colors="true"
 >
     <testsuites>
+        <!--
+            Three suites, ordered by how much of the application each one boots:
+            `Unit` is pure, `Integration` reaches the database but never HTTP,
+            and `Feature` drives the HTTP contract. See ADR-0012 for why the
+            middle one exists — and note that `tests/Browser` is deliberately
+            not declared here, which is what keeps it out of the coverage gate.
+        -->
         <testsuite name="Unit">
             <directory>tests/Unit</directory>
+        </testsuite>
+        <testsuite name="Integration">
+            <directory>tests/Integration</directory>
         </testsuite>
         <testsuite name="Feature">
             <directory>tests/Feature</directory>

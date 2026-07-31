@@ -15,3 +15,7 @@ seams live in [`CONTEXT.md`](../../CONTEXT.md).
 | [0007](0007-in-process-browser-realtime-harness.md) | Browser E2E realtime tests run against the app served in-process |
 | [0008](0008-workspace-shell-read-model.md) | The shared-props middleware is glue; the workspace shell is a read-model |
 | [0009](0009-message-action-context-is-provided.md) | The message-action context is provided, not drilled |
+| [0012](0012-three-test-suites.md) | Three test suites: pure, database, HTTP contract |
+
+0010 and 0011 are reserved for two children of [#1110](https://github.com/deskhq/the-desk/issues/1110)
+that have not merged yet; the epic declares a merge order, and this one goes first.
