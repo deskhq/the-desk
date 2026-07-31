@@ -9,6 +9,11 @@ type BotToken = App.Data.BotTokenData;
 defineProps<{
     /** The bot's tokens, newest first. */
     tokens: BotToken[];
+    /**
+     * The token to single out, named by an admin arriving from a message that
+     * this token posted. Null on an ordinary visit.
+     */
+    highlightedId?: string | null;
 }>();
 
 defineEmits<{
@@ -58,11 +63,23 @@ function when(iso: string | null): string {
             {{ $t('No tokens yet.') }}
         </p>
         <ul v-else class="flex flex-col divide-y divide-border" role="list">
+            <!-- A highlighted row is outlined rather than filled, matching the
+                 incoming-webhook rack: a brass fill under it drops its muted
+                 sub-line below contrast in the dark theme, where a border
+                 singles the row out without touching what text sits on. -->
             <li
                 v-for="token in tokens"
                 :key="token.id"
                 class="flex flex-col gap-1.5 py-3"
+                :class="
+                    token.id === highlightedId
+                        ? 'rounded-lg border border-brass px-3'
+                        : ''
+                "
                 :data-test="`token-row-${token.id}`"
+                :data-highlighted="
+                    token.id === highlightedId ? 'true' : undefined
+                "
             >
                 <div class="flex items-center gap-3">
                     <span class="flex-1 truncate text-sm font-semibold">{{

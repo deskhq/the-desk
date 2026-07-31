@@ -39,20 +39,27 @@ function message(overrides: Partial<Message> = {}): Message {
 }
 
 describe('applyPatch', () => {
-    it('keeps the webhook attribution a viewer-free broadcast cannot carry', () => {
+    it('keeps the credential attribution a viewer-free broadcast cannot carry', () => {
         const server = ref<Message[]>([
-            message({ incomingWebhook: { id: 'hook-a', name: 'CI alerts' } }),
+            message({
+                postedVia: {
+                    kind: 'incoming_webhook',
+                    id: 'hook-a',
+                    name: 'CI alerts',
+                    botId: null,
+                },
+            }),
         ]);
         const stream = useMessageStream(server);
 
         // What an unfurl or an edit broadcasts: the same row, resolved without a
-        // viewer, so it names no webhook.
+        // viewer, so it names no credential.
         stream.applyPatch(message({ body: 'Deploy finished (edited)' }));
 
         expect(stream.displayMessages.value[0].body).toBe(
             'Deploy finished (edited)',
         );
-        expect(stream.displayMessages.value[0].incomingWebhook?.name).toBe(
+        expect(stream.displayMessages.value[0].postedVia?.name).toBe(
             'CI alerts',
         );
     });
@@ -63,8 +70,6 @@ describe('applyPatch', () => {
 
         stream.applyPatch(message({ body: 'edited' }));
 
-        expect(
-            stream.displayMessages.value[0].incomingWebhook ?? null,
-        ).toBeNull();
+        expect(stream.displayMessages.value[0].postedVia ?? null).toBeNull();
     });
 });

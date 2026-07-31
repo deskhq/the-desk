@@ -221,12 +221,12 @@ export type Message = {
      */
     authorOverride?: AuthorOverride | null;
     /**
-     * The incoming webhook that produced this message (mirrors the `MessageData`
-     * DTO's `incomingWebhook`), for the viewers who could revoke it. Null on
-     * every ordinary message, null for a viewer who cannot manage the team's
-     * integrations, and absent on an optimistic one.
+     * The credential — an incoming webhook or an API token — that produced this
+     * message (mirrors the `MessageData` DTO's `postedVia`), for the viewers who
+     * could revoke it. Null on every ordinary message, null for a viewer who
+     * cannot manage the team's integrations, and absent on an optimistic one.
      */
-    incomingWebhook?: App.Data.IncomingWebhookSourceData | null;
+    postedVia?: App.Data.MessageCredentialData | null;
     createdAt: string;
     editedAt: string | null;
     isDeleted: boolean;

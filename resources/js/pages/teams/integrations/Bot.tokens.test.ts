@@ -32,6 +32,7 @@ type RecordedRequest = {
 
 const inertia = vi.hoisted(() => ({
     pageProps: { auth: { user: { id: 'me', timezone: 'UTC' } } },
+    url: '/settings/teams/acme/integrations/bots/b1',
     forms: [] as RecordedForm[],
     posts: [] as RecordedRequest[],
     deletes: [] as RecordedRequest[],
@@ -43,7 +44,7 @@ vi.mock('@inertiajs/vue3', async () => {
     return {
         Head: defineComponent({ name: 'HeadStub', setup: () => () => null }),
         router: { patch: () => {} },
-        usePage: () => ({ props: inertia.pageProps }),
+        usePage: () => ({ props: inertia.pageProps, url: inertia.url }),
         useForm: (initial: Record<string, unknown>) => {
             const fields = Object.keys(initial);
             const form = reactive({
@@ -210,6 +211,7 @@ beforeEach(() => {
     inertia.forms = [];
     inertia.posts = [];
     inertia.deletes = [];
+    inertia.url = '/settings/teams/acme/integrations/bots/b1';
 });
 
 afterEach(() => {
@@ -268,6 +270,25 @@ describe('the tokens rack', () => {
         const host = mount({ tokens: [token()] });
 
         expect(find(host, 'revoke-token-tok1')).not.toBeNull();
+    });
+
+    it('singles out the token a message sent the admin here to revoke', () => {
+        inertia.url = '/settings/teams/acme/integrations/bots/b1?token=tok2';
+
+        const host = mount({ tokens: [token(), token({ id: 'tok2' })] });
+
+        expect(find(host, 'token-row-tok2')?.dataset.highlighted).toBe('true');
+        expect(
+            find(host, 'token-row-tok1')?.dataset.highlighted,
+        ).toBeUndefined();
+    });
+
+    it('singles out nothing when the page was opened on its own', () => {
+        const host = mount({ tokens: [token()] });
+
+        expect(
+            find(host, 'token-row-tok1')?.dataset.highlighted,
+        ).toBeUndefined();
     });
 });
 

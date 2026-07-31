@@ -119,17 +119,18 @@ export function useMessageStream(
         // server defaults. Preserve whatever the client has already derived for
         // this message so a root's dot isn't cleared by its own reply-count bump.
         //
-        // `incomingWebhook` is viewer-scoped the same way — only an integrations
-        // admin is ever told one — so it is preserved too. Without this, a link
-        // unfurl broadcasting an otherwise unchanged row would quietly strip the
-        // provenance an admin is in the middle of acting on.
+        // `postedVia` is viewer-scoped the same way — only an integrations admin
+        // is ever told which credential posted a row — so it is preserved too.
+        // Without this, a link unfurl broadcasting an otherwise unchanged row
+        // would quietly strip the provenance an admin is in the middle of acting
+        // on.
         const prior = currentCopy(message.clientUuid);
 
         patches.value.set(message.clientUuid, {
             ...message,
             threadFollowed: prior?.threadFollowed ?? message.threadFollowed,
             threadUnread: prior?.threadUnread ?? message.threadUnread,
-            incomingWebhook: message.incomingWebhook ?? prior?.incomingWebhook,
+            postedVia: message.postedVia ?? prior?.postedVia,
         });
     }
 

@@ -16,10 +16,10 @@ const props = defineProps<{
      */
     authorOverride?: AuthorOverride | null;
     /**
-     * The incoming webhook behind the run, when the viewer is one of the people
-     * who could revoke it. Passed straight to the hover card, which names it.
+     * The credential behind the run, when the viewer is one of the people who
+     * could revoke it. Passed straight to the hover card, which names it.
      */
-    incomingWebhook?: App.Data.IncomingWebhookSourceData | null;
+    postedVia?: App.Data.MessageCredentialData | null;
     teamSlug: string;
     presence: RenderedPresence;
     isDnd: boolean;
@@ -56,7 +56,7 @@ const viaName = computed(() =>
             :user-id="author.id"
             :name="author.name"
             :via-name="viaName"
-            :webhook="incomingWebhook"
+            :credential="postedVia"
             :presence="presence"
             :is-dnd="isDnd"
             @mention="(member) => $emit('mention', member)"
