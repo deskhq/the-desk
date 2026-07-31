@@ -7,7 +7,7 @@
 ## Context
 
 `composables/useMessageActions.ts` was already a deep module: one options object in,
-one flat facade of eleven actions out. All the friction was in getting a click to it.
+one flat facade of eleven writes out. All the friction was in getting a click to it.
 
 Eleven actions (`react`, `vote`, `closePoll`, `pin`, `unpin`, `remind`,
 `remindCustom`, `forward`, `jump`, `edit`, `delete`) were re-declared and
@@ -44,7 +44,7 @@ page and read through a **named accessor pair**, never a raw `inject`:
 - `useMessageActionGuards()` — builds `MessageActionContext` from those two scopes
   plus the one fact only a row has: `pending`, which stays a row-local prop.
 
-Intermediate modules declare none of the eleven. `ChannelPane`, `ThreadPanel`,
+Intermediate modules declare none of the thirteen. `ChannelPane`, `ThreadPanel`,
 `MessageList`, `MessageRow` and `MessageActions` read the context where they use it.
 
 **The accessors throw when no provider is above them.** That is the point of the
@@ -66,7 +66,7 @@ else, and the events are named apart from them so the distinction is legible.
   involved. The ten suites that used to thread props now provide one facade and
   assert on its spies, and together they lost about 430 lines.
 - One spelling of the viewer time zone (`viewerTimeZone`) across the whole app.
-- A twelfth action (#524's "save for later") is one method on the facade, not a new
+- A twelfth *write* (#524's "save for later") is one method on the facade, not a new
   prop and emit at five levels.
 - **The cost, stated plainly:** provide/inject is implicit. A reader of
   `MessageRow.vue` cannot see where `scope.actions.pin` comes from by looking at its
