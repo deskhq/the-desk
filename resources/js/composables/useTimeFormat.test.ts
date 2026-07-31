@@ -6,6 +6,7 @@ const page = reactive({
 });
 
 const patch = vi.fn();
+const toastError = vi.fn();
 
 vi.mock('@inertiajs/vue3', () => ({
     router: {
@@ -13,12 +14,23 @@ vi.mock('@inertiajs/vue3', () => ({
     },
     usePage: () => page,
 }));
+vi.mock('@/composables/useToast', () => {
+    const toast = {
+        error: (...args: unknown[]) => toastError(...args),
+        success: vi.fn(),
+        warning: vi.fn(),
+        progress: vi.fn(),
+    };
+
+    return { useToast: () => toast };
+});
 
 import { useTimeFormat } from '@/composables/useTimeFormat';
 import { setTimeFormat, timeFormat } from '@/lib/clock';
 
 beforeEach(() => {
     patch.mockReset();
+    toastError.mockReset();
     page.props.auth.user.time_format = 'auto';
     setTimeFormat('auto');
 });
@@ -63,5 +75,22 @@ describe('useTimeFormat', () => {
         options.onError();
 
         expect(timeFormat()).toBe('auto');
+    });
+
+    it('says the clock style failed to save, rather than silently reverting', () => {
+        // The revert is visible — every rendered time of day changes back — so
+        // without a sentence it reads as the switch simply not working.
+        useTimeFormat().updateTimeFormat('24h');
+
+        const [, , options] = patch.mock.calls[0] as [
+            string,
+            unknown,
+            { onError: () => void },
+        ];
+        options.onError();
+
+        expect(toastError).toHaveBeenCalledWith(
+            'Failed to save the clock style',
+        );
     });
 });

@@ -106,14 +106,19 @@ export function useMessageForwarding(
         const clientUuid = generateUuid();
         const plan = planForward({ target, channel });
 
+        /**
+         * The rollback. A copy only renders here when it lands in the open
+         * channel, so a forward sent elsewhere has nothing to take back and
+         * this is a no-op for it.
+         */
+        function dropOptimisticCopy(): void {
+            if (plan.toCurrentChannel) {
+                options.mainStream.removePending(clientUuid);
+            }
+        }
+
         write({
-            // The copy only renders here when it lands in the open channel; a
-            // forward sent elsewhere shows nothing to take back.
-            capture: () => () => {
-                if (plan.toCurrentChannel) {
-                    options.mainStream.removePending(clientUuid);
-                }
-            },
+            capture: () => dropOptimisticCopy,
             apply: () => {
                 if (!plan.toCurrentChannel) {
                     return;
