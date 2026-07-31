@@ -2,13 +2,13 @@
 
 use App\Actions\Channels\CreateChannel;
 use App\Actions\Channels\DeleteChannel;
-use App\Actions\Channels\HideDirectMessage;
 use App\Actions\Channels\OpenDirectMessage;
 use App\Actions\Teams\CreateTeam;
 use App\Data\ChannelData;
 use App\Enums\ChannelVisibility;
 use App\Models\Channel;
 use App\Models\Message;
+use App\Support\ChannelMembership;
 use App\Support\SidebarChannels;
 use Database\Factories\ChannelMemberFactory;
 use Illuminate\Support\Carbon;
@@ -24,10 +24,12 @@ use Illuminate\Support\Carbon;
 | `tests/Feature/Channels/*` keeps the HTTP half — that the page ships the prop
 | at all, and who is allowed to reach it.
 |
-| The viewer-relative half of a direct message row (`name`, `dmUserId`) is
-| resolved inside `ChannelData::fromChannel()` from `auth()->user()` rather than
-| from the read-model's own viewer, which is why the DM tests below sign in as
-| well as construct. #1113 makes that viewer explicit and the `actingAs` goes.
+| Every test here constructs and nothing signs in: the read-model's viewer is
+| the only viewer there is, all the way down to the viewer-relative half of a
+| direct message row (`name`, `dmUserId`), which #1113 made an explicit
+| parameter of `ChannelData::fromChannel()`. What that row *says* is proven
+| against the DTO in `tests/Integration/Data/ChannelDataTest.php`, and what a
+| render of it costs in `SidebarChannelsQueryCountTest`.
 |
 */
 
@@ -137,10 +139,8 @@ test('an empty direct message is listed for its initiator but hidden from the re
 
     $dm = app(OpenDirectMessage::class)->handle($team, $user, $mate);
 
-    $this->actingAs($user);
     expect(sidebarSlugs(new SidebarChannels($user, $team)->forSidebar()))->toContain($dm->slug);
 
-    $this->actingAs($mate);
     expect(sidebarSlugs(new SidebarChannels($mate, $team)->forSidebar()))->not->toContain($dm->slug);
 
     // The recipient's own view of it opens once there is something to read.
@@ -155,8 +155,6 @@ test('the channel being viewed is listed even while it is still empty', function
     $mate = teamMemberInChannel($general);
     $dm = app(OpenDirectMessage::class)->handle($team, $user, $mate);
 
-    $this->actingAs($mate);
-
     expect(sidebarSlugs(new SidebarChannels($mate, $team)->forSidebar($dm)))->toContain($dm->slug);
 });
 
@@ -165,8 +163,6 @@ test('a direct message row carries the other participant\'s identity', function 
 
     $other = teamMemberInChannel($general);
     $dm = app(OpenDirectMessage::class)->handle($team, $owner, $other);
-
-    $this->actingAs($owner);
 
     $row = collect(new SidebarChannels($owner, $team)->forSidebar())->firstWhere('slug', $dm->slug);
 
@@ -187,8 +183,6 @@ test('a direct message carries the latest message activity the client ranks it o
     $dm = app(OpenDirectMessage::class)->handle($team, $owner, $other);
     $message = Message::factory()->for($dm)->for($owner, 'user')->create();
 
-    $this->actingAs($owner);
-
     $row = collect(new SidebarChannels($owner, $team)->forSidebar())->firstWhere('slug', $dm->slug);
 
     expect($row->lastActivityAt)->not->toBeNull()
@@ -202,10 +196,9 @@ test('closing a direct message drops it, even the one being viewed', function ()
     $dm = app(OpenDirectMessage::class)->handle($team, $owner, $other);
     Message::factory()->for($dm)->for($other, 'user')->create(['created_at' => now()->subHour()]);
 
-    $this->actingAs($owner);
     expect(sidebarSlugs(new SidebarChannels($owner, $team)->forSidebar($dm)))->toContain($dm->slug);
 
-    app(HideDirectMessage::class)->handle($dm, $owner);
+    new ChannelMembership($dm, $owner)->hide();
 
     // The close wins even over the active-channel override.
     expect(sidebarSlugs(new SidebarChannels($owner, $team)->forSidebar($dm)))->not->toContain($dm->slug);
@@ -220,10 +213,9 @@ test('closing an empty direct message the viewer opened drops it too', function 
     // messages, so closing it exercises the "no message since" predicate branch.
     $dm = app(OpenDirectMessage::class)->handle($team, $owner, $other);
 
-    $this->actingAs($owner);
     expect(sidebarSlugs(new SidebarChannels($owner, $team)->forSidebar()))->toContain($dm->slug);
 
-    app(HideDirectMessage::class)->handle($dm, $owner);
+    new ChannelMembership($dm, $owner)->hide();
 
     expect(sidebarSlugs(new SidebarChannels($owner, $team)->forSidebar()))->not->toContain($dm->slug);
 });
@@ -235,8 +227,7 @@ test('a message after closing re-surfaces the direct message with an unread badg
     $dm = app(OpenDirectMessage::class)->handle($team, $owner, $other);
     Message::factory()->for($dm)->for($owner, 'user')->create();
 
-    $this->actingAs($owner);
-    app(HideDirectMessage::class)->handle($dm, $owner);
+    new ChannelMembership($dm, $owner)->hide();
 
     expect(sidebarSlugs(new SidebarChannels($owner, $team)->forSidebar()))->not->toContain($dm->slug);
 
@@ -256,8 +247,7 @@ test('reopening a closed direct message un-hides it', function (): void {
     $dm = app(OpenDirectMessage::class)->handle($team, $owner, $other);
     Message::factory()->for($dm)->for($owner, 'user')->create();
 
-    $this->actingAs($owner);
-    app(HideDirectMessage::class)->handle($dm, $owner);
+    new ChannelMembership($dm, $owner)->hide();
 
     expect(sidebarSlugs(new SidebarChannels($owner, $team)->forSidebar()))->not->toContain($dm->slug);
 
@@ -274,11 +264,9 @@ test('closing is per member and leaves the other participant\'s list alone', fun
     $dm = app(OpenDirectMessage::class)->handle($team, $owner, $other);
     Message::factory()->for($dm)->for($owner, 'user')->create();
 
-    $this->actingAs($owner);
-    app(HideDirectMessage::class)->handle($dm, $owner);
+    new ChannelMembership($dm, $owner)->hide();
 
     expect(sidebarSlugs(new SidebarChannels($owner, $team)->forSidebar()))->not->toContain($dm->slug);
 
-    $this->actingAs($other);
     expect(sidebarSlugs(new SidebarChannels($other, $team)->forSidebar()))->toContain($dm->slug);
 });

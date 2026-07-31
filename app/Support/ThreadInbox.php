@@ -3,13 +3,10 @@
 namespace App\Support;
 
 use App\Enums\ThreadInboxFilter;
-use App\Models\Channel;
 use App\Models\Message;
 use App\Models\Team;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\Eloquent\Collection as EloquentCollection;
-use Illuminate\Support\Collection;
 
 /**
  * The read model behind the Threads destination: every thread a viewer follows
@@ -57,7 +54,9 @@ class ThreadInbox
             ->orderByDesc('id')
             ->cursorPaginate(self::PAGE_SIZE);
 
-        $this->loadDirectMessageRosters($threads->getCollection());
+        // A card names the DM it sits in, which is resolved from the membership;
+        // batching the page's rosters keeps that off the per-card path.
+        DirectMessageRoster::loadForMessages($threads->getCollection());
 
         return new ThreadInboxPage($threads, $this->viewer);
     }
@@ -105,33 +104,5 @@ class ThreadInbox
             ->whereNull('thread_root_id')
             ->where('reply_count', '>', 0)
             ->followedBy($this->viewer);
-    }
-
-    /**
-     * Load the member rosters of the page's DM channels in one query.
-     *
-     * A DM stores no name, so naming its card means resolving the viewer's
-     * counterpart from the membership. Only DMs need it — eager-loading
-     * `channel.members` outright would drag every standard channel's full
-     * membership along for a name the channel already stores.
-     *
-     * @param  Collection<int, Message>  $threads
-     */
-    private function loadDirectMessageRosters(Collection $threads): void
-    {
-        $directChannels = $threads
-            ->map(fn (Message $message): Channel => $message->channel)
-            ->filter(fn (Channel $channel): bool => $channel->isDirectMessage())
-            ->unique('id')
-            ->values();
-
-        if ($directChannels->isEmpty()) {
-            return;
-        }
-
-        // Loading through an Eloquent collection batches the rosters into one
-        // query; the channels inside are the very instances the page's messages
-        // hold, so the rosters land where the DTO reads them.
-        new EloquentCollection($directChannels->all())->load('members');
     }
 }
