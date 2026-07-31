@@ -176,7 +176,11 @@ test('a direct message row carries the other participant\'s identity', function 
         ->and($row->dmUserId)->toBe($other->id);
 });
 
-test('a direct message orders on its latest message activity', function (): void {
+// Only the timestamp is asserted, not an order: `SidebarChannels` sorts on
+// position then name, and the "Direct messages" group is re-ranked on this value
+// client-side (`resources/js/composables/quickSwitcher.ts`). Asserting a DM order
+// here would be asserting something the read-model does not do.
+test('a direct message carries the latest message activity the client ranks it on', function (): void {
     ['owner' => $owner, 'team' => $team, 'channel' => $general] = teamWithChannel();
 
     $other = teamMemberInChannel($general);
