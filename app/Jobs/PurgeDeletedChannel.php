@@ -11,14 +11,6 @@ class PurgeDeletedChannel implements ShouldQueue
 {
     use Queueable;
 
-    /**
-     * How long a deleted channel stays restorable before it is purged.
-     *
-     * A fixed window for now. Once workspace-level retention lands this becomes
-     * the default rather than the only answer (issue #401).
-     */
-    public const int GRACE_WINDOW_DAYS = 30;
-
     public function __construct(public readonly string $channelId) {}
 
     /**
@@ -47,7 +39,7 @@ class PurgeDeletedChannel implements ShouldQueue
             return;
         }
 
-        if ($channel->deleted_at->isAfter(now()->subDays(self::GRACE_WINDOW_DAYS))) {
+        if ($channel->deleted_at->isAfter(now()->subDays(Channel::RESTORE_WINDOW_DAYS))) {
             return;
         }
 
