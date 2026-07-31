@@ -1,61 +1,52 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { App } from 'vue';
-import { createApp, defineComponent, h } from 'vue';
-import { translate } from '@/lib/i18n';
-import type { Message, Reaction } from '@/types';
+import type { Reaction } from '@/types';
 
-/** Mutable stand-in for the shared Inertia props the bar reads. */
-const props = vi.hoisted(() => ({
-    frequentEmojis: [] as string[],
-    customEmojis: {} as Record<string, string>,
-}));
+/**
+ * Covers the hover toolbar's quick-react cluster, mounted on its own against a
+ * stub facade — no timeline, no page. What is pinned here is the ranked list it
+ * renders, how a shortcut reads once the viewer has used it, and that a press
+ * reaches the provided `react` rather than an emit up a relay.
+ */
+vi.mock('@inertiajs/vue3', async () => {
+    const { inertiaPageProps } = await import('./MessageList.doubles');
 
-vi.mock('@inertiajs/vue3', () => ({
-    usePage: () => ({ props }),
-}));
+    return { usePage: () => ({ props: inertiaPageProps }) };
+});
 
 // The picker popover pulls in reka-ui portals and the emoji library; the quick
 // cluster only needs its trigger slot, so stub it down to a passthrough.
-vi.mock('@/components/EmojiPickerPopover.vue', () => ({
-    default: defineComponent({
-        name: 'EmojiPickerPopover',
-        setup:
-            (_p, { slots }) =>
-            () =>
-                h('div', slots.default?.({ open: false })),
-    }),
-}));
+vi.mock('@/components/EmojiPickerPopover.vue', async () => {
+    const { popover } = await import('./MessageList.doubles');
 
-vi.mock('@/components/ui/tooltip', () => {
-    const pass = (name: string) =>
-        defineComponent({
-            name,
-            setup:
-                (_p, { slots }) =>
-                () =>
-                    h('div', slots.default?.()),
-        });
+    return { default: popover('EmojiPickerPopover') };
+});
+
+vi.mock('@/components/MessageReminderPopover.vue', async () => {
+    const { popover } = await import('./MessageList.doubles');
+
+    return { default: popover('MessageReminderPopover') };
+});
+
+vi.mock('@/components/ui/tooltip', async () => {
+    const { passthrough } = await import('./MessageList.doubles');
 
     return {
-        Tooltip: pass('Tooltip'),
-        TooltipContent: pass('TooltipContent'),
-        TooltipProvider: pass('TooltipProvider'),
-        TooltipTrigger: pass('TooltipTrigger'),
+        Tooltip: passthrough('Tooltip'),
+        TooltipContent: passthrough('TooltipContent'),
+        TooltipProvider: passthrough('TooltipProvider'),
+        TooltipTrigger: passthrough('TooltipTrigger'),
     };
 });
 
-vi.mock('@/components/MessageReminderPopover.vue', () => ({
-    default: defineComponent({
-        name: 'MessageReminderPopover',
-        setup:
-            (_p, { slots }) =>
-            () =>
-                h('div', slots.default?.({ open: false })),
-    }),
-}));
-
 import MessageActions from './MessageActions.vue';
+import {
+    all,
+    inertiaPageProps,
+    message,
+    mountWithActions,
+    unmountAll,
+} from './MessageList.doubles';
 
 function reaction(emoji: string, reactorIds: string[]): Reaction {
     return {
@@ -65,83 +56,33 @@ function reaction(emoji: string, reactorIds: string[]): Reaction {
     };
 }
 
-function message(overrides: Partial<Message> = {}): Message {
-    return {
-        id: 'm1',
-        clientUuid: 'uuid-1',
-        body: 'hello',
-        type: 'standard',
-        user: { id: 'peer', name: 'Peer' },
-        createdAt: '2024-01-01T00:00:00.000Z',
-        editedAt: null,
-        isDeleted: false,
-        mentions: [],
-        linkPreviews: [],
-        attachments: [],
-        reactions: [],
-        pin: null,
-        poll: null,
-        replyTo: null,
-        forwardedFrom: null,
-        threadRootId: null,
-        sentToChannel: false,
-        threadReplyCount: 0,
-        threadLastReplyAt: null,
-        threadParticipants: [],
-        threadFollowed: false,
-        threadUnread: false,
-        ...overrides,
-    } as Message;
-}
-
-let app: App | null = null;
-
-function mount(componentProps: Record<string, unknown> = {}): {
-    host: HTMLElement;
-    reacted: string[];
-} {
-    const reacted: string[] = [];
-    const host = document.createElement('div');
-    document.body.appendChild(host);
-
-    app = createApp({
-        render: () =>
-            h(MessageActions, {
-                message: message(),
-                currentUserId: 'me',
-                canReact: true,
-                viewerTimezone: null,
-                onReact: (emoji: string) => reacted.push(emoji),
-                ...componentProps,
-            }),
-    });
-    app.config.globalProperties.$t = translate;
-    app.mount(host);
-
-    return { host, reacted };
+function mount(
+    props: Record<string, unknown> = {},
+    overrides: Parameters<typeof mountWithActions>[2] = {},
+) {
+    return mountWithActions(
+        MessageActions,
+        { message: message(), ...props },
+        overrides,
+    );
 }
 
 function shortcuts(host: HTMLElement): HTMLElement[] {
-    return [...host.querySelectorAll<HTMLElement>('[data-test="quick-react"]')];
+    return all(host, 'quick-react');
 }
 
 beforeEach(() => {
-    props.frequentEmojis = ['👍', '❤️', '🎉', ':shipit:', '👀'];
-    props.customEmojis = { shipit: 'https://desk.test/shipit.png' };
+    inertiaPageProps.frequentEmojis = ['👍', '❤️', '🎉', ':shipit:', '👀'];
+    inertiaPageProps.customEmojis = { shipit: 'https://desk.test/shipit.png' };
 });
 
-afterEach(() => {
-    app?.unmount();
-    app = null;
-    document.body.innerHTML = '';
-});
+afterEach(unmountAll);
 
 describe('MessageActions quick-react cluster', () => {
     it('renders one shortcut per frequently-used emoji, ahead of the picker trigger', () => {
         const { host } = mount();
-        const cells = shortcuts(host);
 
-        expect(cells.map((cell) => cell.dataset.emoji)).toEqual([
+        expect(shortcuts(host).map((cell) => cell.dataset.emoji)).toEqual([
             '👍',
             '❤️',
             '🎉',
@@ -172,7 +113,7 @@ describe('MessageActions quick-react cluster', () => {
     });
 
     it('shows only the top three shortcuts inside a thread panel', () => {
-        const { host } = mount({ inThread: true });
+        const { host } = mount({}, { subtree: { inThread: true } });
 
         expect(shortcuts(host).map((cell) => cell.dataset.emoji)).toEqual([
             '👍',
@@ -182,7 +123,7 @@ describe('MessageActions quick-react cluster', () => {
     });
 
     it('hides the cluster when the viewer may not react', () => {
-        const { host } = mount({ canReact: false });
+        const { host } = mount({}, { scope: { canReact: false } });
 
         expect(shortcuts(host)).toHaveLength(0);
     });
@@ -206,16 +147,18 @@ describe('MessageActions quick-react cluster', () => {
         expect(unpressed.getAttribute('aria-label')).toBe('React with 👍');
     });
 
-    it('emits the react toggle on click, pressed or not', () => {
-        const { host, reacted } = mount({
-            message: message({ reactions: [reaction('🎉', ['me'])] }),
-        });
+    it('reaches the provided react action on click, pressed or not', () => {
+        const target = message({ reactions: [reaction('🎉', ['me'])] });
+        const { host, actions } = mount({ message: target });
 
         shortcuts(host)[0].click();
         shortcuts(host)
             .find((cell) => cell.dataset.emoji === '🎉')!
             .click();
 
-        expect(reacted).toEqual(['👍', '🎉']);
+        expect(actions.react.mock.calls).toEqual([
+            [target, '👍'],
+            [target, '🎉'],
+        ]);
     });
 });

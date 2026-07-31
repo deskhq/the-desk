@@ -1,9 +1,15 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { App } from 'vue';
-import { createApp, defineComponent, h } from 'vue';
-import { translate } from '@/lib/i18n';
+import { defineComponent, h } from 'vue';
 import type { Message } from '@/types';
+import {
+    find,
+    inertiaPageProps,
+    message,
+    mountWithActions,
+    stub,
+    unmountAll,
+} from './MessageList.doubles';
 
 /**
  * Covers a single message row: the body and the segments it tokenizes into, the
@@ -12,46 +18,18 @@ import type { Message } from '@/types';
  * `MessageList.vue` is split, so what is pinned here is the rendered markup —
  * every selector, every guard that decides whether a piece renders at all.
  */
-const pageProps = vi.hoisted(() => ({
-    auth: { user: { timezone: 'UTC' } },
-    customEmojis: {} as Record<string, string>,
-    userGroups: [] as Array<{ id: string }>,
-}));
+vi.mock('@inertiajs/vue3', async () => {
+    const { inertiaPageProps } = await import('./MessageList.doubles');
 
-vi.mock('@inertiajs/vue3', () => ({
-    usePage: () => ({ props: pageProps }),
-}));
-
-const mobile = vi.hoisted(() => ({
-    current: null as { value: boolean } | null,
-}));
+    return { usePage: () => ({ props: inertiaPageProps }) };
+});
 
 vi.mock('@/composables/useIsMobile', async () => {
     const { ref } = await import('vue');
     const value = ref(false);
-    mobile.current = value;
 
     return { useIsMobile: () => value };
 });
-
-/** Renders a child's default slot, so a stubbed wrapper stays transparent. */
-function passthrough(name: string) {
-    return defineComponent({
-        name,
-        setup:
-            (_props, { slots }) =>
-            () =>
-                h('div', { 'data-stub': name }, slots.default?.()),
-    });
-}
-
-/** Renders an empty marker element, so a stubbed leaf is still findable. */
-function marker(name: string) {
-    return defineComponent({
-        name,
-        setup: () => () => h('div', { 'data-stub': name }),
-    });
-}
 
 vi.mock('@/components/UserHoverCard.vue', () => ({
     default: defineComponent({
@@ -63,123 +41,74 @@ vi.mock('@/components/UserHoverCard.vue', () => ({
     }),
 }));
 
-vi.mock('@/components/ui/hover-card', () => ({
-    HoverCard: passthrough('HoverCard'),
-    HoverCardTrigger: passthrough('HoverCardTrigger'),
-    HoverCardContent: passthrough('HoverCardContent'),
-}));
+vi.mock('@/components/ui/hover-card', async () => {
+    const { passthrough } = await import('./MessageList.doubles');
 
-vi.mock('@/components/MessageActions.vue', () => ({
-    default: marker('MessageActions'),
-}));
+    return {
+        HoverCard: passthrough('HoverCard'),
+        HoverCardTrigger: passthrough('HoverCardTrigger'),
+        HoverCardContent: passthrough('HoverCardContent'),
+    };
+});
 
-vi.mock('@/components/MessageActionsSheet.vue', () => ({
-    default: marker('MessageActionsSheet'),
-}));
+vi.mock('@/components/MessageActions.vue', async () => {
+    const { marker } = await import('./MessageList.doubles');
 
-vi.mock('@/components/MessageAttachments.vue', () => ({
-    default: marker('MessageAttachments'),
-}));
+    return { default: marker('MessageActions') };
+});
 
-vi.mock('@/components/MessagePoll.vue', () => ({
-    default: marker('MessagePoll'),
-}));
+vi.mock('@/components/MessageActionsSheet.vue', async () => {
+    const { marker } = await import('./MessageList.doubles');
 
-vi.mock('@/components/MessageReactions.vue', () => ({
-    default: marker('MessageReactions'),
-}));
+    return { default: marker('MessageActionsSheet') };
+});
 
-vi.mock('@/components/MessageForward.vue', () => ({
-    default: marker('MessageForward'),
-}));
+vi.mock('@/components/MessageAttachments.vue', async () => {
+    const { marker } = await import('./MessageList.doubles');
 
-vi.mock('@/components/LinkPreview.vue', () => ({
-    default: marker('LinkPreview'),
-}));
+    return { default: marker('MessageAttachments') };
+});
+
+vi.mock('@/components/MessagePoll.vue', async () => {
+    const { marker } = await import('./MessageList.doubles');
+
+    return { default: marker('MessagePoll') };
+});
+
+vi.mock('@/components/MessageReactions.vue', async () => {
+    const { marker } = await import('./MessageList.doubles');
+
+    return { default: marker('MessageReactions') };
+});
+
+vi.mock('@/components/MessageForward.vue', async () => {
+    const { marker } = await import('./MessageList.doubles');
+
+    return { default: marker('MessageForward') };
+});
+
+vi.mock('@/components/LinkPreview.vue', async () => {
+    const { marker } = await import('./MessageList.doubles');
+
+    return { default: marker('LinkPreview') };
+});
 
 import MessageList from './MessageList.vue';
 
-function message(overrides: Partial<Message> = {}): Message {
-    return {
-        id: 'm1',
-        clientUuid: 'uuid-1',
-        body: 'hello',
-        type: 'standard',
-        user: { id: 'peer', name: 'Peer' },
-        createdAt: '2024-03-04T10:30:00.000Z',
-        editedAt: null,
-        isDeleted: false,
-        mentions: [],
-        linkPreviews: [],
-        attachments: [],
-        reactions: [],
-        pin: null,
-        poll: null,
-        replyTo: null,
-        forwardedFrom: null,
-        threadRootId: null,
-        sentToChannel: false,
-        threadReplyCount: 0,
-        threadLastReplyAt: null,
-        threadParticipants: [],
-        threadFollowed: false,
-        threadUnread: false,
-        threadUnreadReplyCount: 0,
-        ...overrides,
-    } as Message;
-}
-
-let active: Array<{ app: App; host: HTMLElement }> = [];
-
-type Mounted = {
-    host: HTMLElement;
-    events: Array<[string, unknown]>;
-};
-
-function mount(props: Record<string, unknown> = {}): Mounted {
-    const events: Array<[string, unknown]> = [];
-    const host = document.createElement('div');
-    document.body.appendChild(host);
-
-    const app = createApp({
-        render: () =>
-            h(MessageList, {
-                messages: [message()],
-                teamSlug: 'acme',
-                currentUserId: 'me',
-                onJump: (id: string) => events.push(['jump', id]),
-                onOpenThread: (id: string) => events.push(['openThread', id]),
-                ...props,
-            }),
+function mount(props: Record<string, unknown> = {}) {
+    return mountWithActions(MessageList, {
+        messages: [message()],
+        teamSlug: 'acme',
+        ...props,
     });
-    app.config.globalProperties.$t = translate;
-    app.mount(host);
-    active.push({ app, host });
-
-    return { host, events };
-}
-
-function find(host: HTMLElement, selector: string): HTMLElement | null {
-    return host.querySelector<HTMLElement>(`[data-test="${selector}"]`);
-}
-
-function stub(host: HTMLElement, name: string): HTMLElement | null {
-    return host.querySelector<HTMLElement>(`[data-stub="${name}"]`);
 }
 
 beforeEach(() => {
-    pageProps.customEmojis = {};
-    pageProps.userGroups = [];
+    inertiaPageProps.customEmojis = {};
+    inertiaPageProps.userGroups = [];
 });
 
-afterEach(() => {
-    for (const { app, host } of active) {
-        app.unmount();
-        host.remove();
-    }
-
-    active = [];
-});
+afterEach(unmountAll);
 
 describe('the message body', () => {
     it('renders the body text with an anchor id for jump targets', () => {
@@ -190,9 +119,7 @@ describe('the message body', () => {
     });
 
     it('leaves the body out when the message carries only an attachment', () => {
-        const { host } = mount({
-            messages: [message({ body: '' })],
-        });
+        const { host } = mount({ messages: [message({ body: '' })] });
 
         expect(find(host, 'message-body')).toBeNull();
     });
@@ -213,7 +140,7 @@ describe('the message body', () => {
 
     it('renders a resolved group mention as an inert pill of its own hue', () => {
         const id = '22222222-2222-4222-8222-222222222222';
-        pageProps.userGroups = [{ id }];
+        inertiaPageProps.userGroups = [{ id }];
         const { host } = mount({
             messages: [message({ body: `@[design](group:${id})` })],
         });
@@ -225,7 +152,9 @@ describe('the message body', () => {
     });
 
     it('renders a custom emoji shortcode as its image', () => {
-        pageProps.customEmojis = { shipit: 'https://desk.test/shipit.png' };
+        inertiaPageProps.customEmojis = {
+            shipit: 'https://desk.test/shipit.png',
+        };
         const { host } = mount({
             messages: [message({ body: 'ship it :shipit:' })],
         });
@@ -379,7 +308,7 @@ describe('the reply quote', () => {
     });
 
     it('jumps to the replied message when pressed', () => {
-        const { host, events } = mount({ messages: [replied] });
+        const { host, actions } = mount({ messages: [replied] });
 
         const quote = find(host, 'message-quote');
 
@@ -388,7 +317,7 @@ describe('the reply quote', () => {
         );
         quote?.click();
 
-        expect(events).toEqual([['jump', 'parent']]);
+        expect(actions.jump).toHaveBeenCalledExactlyOnceWith('parent');
     });
 
     it('bleeds the quote to the full timeline width below the breakpoint', () => {

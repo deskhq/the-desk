@@ -13,3 +13,4 @@ seams live in [`CONTEXT.md`](../../CONTEXT.md).
 | [0005](0005-domain-event-recording-seam.md) | Record audit & security events via event→listener |
 | [0006](0006-realtime-lives-in-composables.md) | Realtime subscription lifecycles live in composables |
 | [0007](0007-in-process-browser-realtime-harness.md) | Browser E2E realtime tests run against the app served in-process |
+| [0009](0009-message-action-context-is-provided.md) | The message-action context is provided, not drilled |

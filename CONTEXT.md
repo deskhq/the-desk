@@ -122,6 +122,15 @@ built; build them once, then reuse.
   channel all share it). One tested reconcile/teardown lifecycle.
 - **`useDebouncedPost`** — the debounced, focus-gated, auto-teardown router POST
   used by mark-read, mark-thread-read, and draft persistence.
+- **The message-action context** _(ADR-0009)_ — every action a message row can ask
+  for (`MessageActionHandlers`: the eleven writes, plus the `reply` and `openThread`
+  navigations that rode the same relay) and the viewer's channel capabilities are
+  **provided** by the channel page and read through `useMessageActionsContext()` /
+  `useMessageSubtree()` / `useMessageActionGuards()`, never drilled and never a raw
+  `inject`. A new message action is one method on the facade, not a prop and an emit
+  at five levels; `pending` is the only per-row fact and stays a prop. The accessors
+  throw without a provider, which is what makes a row mountable against a stub
+  facade.
 - **`ScrollableMessageList`** — the shared scroll container + "jump to latest / N
   new" pill for the channel view and the thread panel. The pin decision core stays
   in `useScrollPin` (each consumer owns how appends reach it and wires the pin
@@ -147,5 +156,7 @@ built; build them once, then reuse.
   `AuditableActionOccurred` from it — the **domain-event seam**, next to the
   mutation.
 - New channel-member preference → the **channel membership settings** concern.
+- New message action (a row affordance that writes) → one method on the **message-action
+  context**; never a new prop/emit pair through the timeline.
 - A `.vue` file crossing ~400 lines or owning several independent lifecycles →
   decompose into composables before adding more.

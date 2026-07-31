@@ -11,9 +11,13 @@ import MessageEditForm from '@/components/timeline/MessageEditForm.vue';
 import MessageReplyQuote from '@/components/timeline/MessageReplyQuote.vue';
 import ThreadSummary from '@/components/timeline/ThreadSummary.vue';
 import type { UseLongPress } from '@/composables/useLongPress';
+import {
+    useMessageActionGuards,
+    useMessageActionsContext,
+    useMessageSubtree,
+} from '@/composables/useMessageActionsContext';
 import { formatTimeOfDay } from '@/lib/datetime';
 import { canReactToMessage, showsThreadSummary } from '@/lib/messageActions';
-import type { MessageActionContext } from '@/lib/messageActions';
 import { messageAccessibleName } from '@/lib/timeline';
 import type { Message } from '@/types';
 
@@ -35,11 +39,6 @@ const props = defineProps<{
     /** The group author's name, naming the row for assistive technology. */
     authorName: string;
     teamSlug: string;
-    currentUserId: string;
-    canReact?: boolean;
-    canPin?: boolean;
-    canModerate?: boolean;
-    inThread?: boolean;
     /** Whether this row leads its author group, which sets its top margin. */
     isLead: boolean;
     /** Whether the send is still in flight to the server. */
@@ -56,10 +55,6 @@ const props = defineProps<{
     activeThreadRoot: boolean;
     /** Whether the composer holds this row's text for an edit. */
     composerEditing: boolean;
-    /** The viewer's zone, rendering every timestamp on the row. */
-    viewerTimeZone: string | undefined;
-    /** The viewer's stored zone, feeding the reminder popover's presets. */
-    viewerTimezone: string | null;
     /** The gesture opening the touch actions sheet, owned by the timeline. */
     longPress: UseLongPress<Message>;
 }>();
@@ -73,22 +68,20 @@ const emit = defineEmits<{
     cancelEdit: [];
     /** Ask to delete this row, which the timeline confirms first. */
     requestDelete: [];
-    reply: [];
-    forward: [];
-    pin: [];
-    unpin: [];
-    closePoll: [];
-    remindCustom: [];
-    openThread: [messageId: string];
-    react: [emoji: string];
-    vote: [optionId: string];
-    remind: [remindAt: string];
-    jump: [messageId: string];
-    mention: [member: { id: string; name: string }];
 }>();
 
+const scope = useMessageActionsContext();
+const subtree = useMessageSubtree();
+const { contextFor } = useMessageActionGuards();
+
+/**
+ * The viewer's zone as `Intl` takes it: the context stores "none" as null, and
+ * an absent zone is what renders a timestamp in the browser's own.
+ */
+const timeZone = computed(() => scope.viewerTimeZone ?? undefined);
+
 function formatTime(iso: string): string {
-    return formatTimeOfDay(iso, props.viewerTimeZone);
+    return formatTimeOfDay(iso, timeZone.value);
 }
 
 /**
@@ -97,14 +90,7 @@ function formatTime(iso: string): string {
  * stay here because they drive non-toolbar UI — the reaction pills and the
  * thread summary — and share the same context.
  */
-const actionContext = computed<MessageActionContext>(() => ({
-    currentUserId: props.currentUserId,
-    canReact: Boolean(props.canReact),
-    canPin: Boolean(props.canPin),
-    canModerate: Boolean(props.canModerate),
-    inThread: Boolean(props.inThread),
-    pending: props.pending,
-}));
+const actionContext = computed(() => contextFor(props.pending));
 
 /**
  * The viewer may react to any live, confirmed message when they're a member of
@@ -129,7 +115,7 @@ const showThreadSummary = computed(() =>
         :id="`message-${message.id}`"
         role="listitem"
         :aria-label="
-            messageAccessibleName(authorName, message.createdAt, viewerTimeZone)
+            messageAccessibleName(authorName, message.createdAt, timeZone)
         "
         class="group/message relative -mx-2 rounded-md px-2 transition-colors duration-1000 hover:bg-muted/40 max-md:select-none max-md:[-webkit-touch-callout:none]"
         :class="[
@@ -186,7 +172,7 @@ const showThreadSummary = computed(() =>
             v-if="message.replyTo && !message.isDeleted && !editing"
             :reply-to="message.replyTo"
             :bleed-class="CARD_BLEED"
-            @jump="(id) => emit('jump', id)"
+            @jump="(id) => scope.actions.jump(id)"
         />
 
         <p
@@ -209,7 +195,7 @@ const showThreadSummary = computed(() =>
             :message="message"
             :team-slug="teamSlug"
             :pending="pending"
-            @mention="(member) => emit('mention', member)"
+            @mention="(member) => subtree.mention(member)"
         />
 
         <MessageAttachments
@@ -220,20 +206,20 @@ const showThreadSummary = computed(() =>
             :attachments="message.attachments"
             :author-name="message.user.name"
             :created-at="message.createdAt"
-            :viewer-time-zone="viewerTimeZone"
+            :viewer-time-zone="timeZone"
         />
 
         <MessagePoll
             v-if="message.poll && !message.isDeleted && !editing"
             :class="CARD_BLEED"
             :poll="message.poll"
-            :current-user-id="currentUserId"
+            :current-user-id="scope.currentUserId"
             :can-vote="canReactTo"
             :can-manage="
-                message.user.id === currentUserId || Boolean(canModerate)
+                message.user.id === scope.currentUserId || scope.canModerate
             "
-            @vote="(optionId) => emit('vote', optionId)"
-            @close="emit('closePoll')"
+            @vote="(optionId) => scope.actions.vote(message, optionId)"
+            @close="scope.actions.closePoll(message)"
         />
 
         <span
@@ -260,9 +246,9 @@ const showThreadSummary = computed(() =>
         <MessageReactions
             v-if="!message.isDeleted && !editing"
             :reactions="message.reactions"
-            :current-user-id="currentUserId"
+            :current-user-id="scope.currentUserId"
             :can-react="canReactTo"
-            @toggle="(emoji) => emit('react', emoji)"
+            @toggle="(emoji) => scope.actions.react(message, emoji)"
         />
 
         <ThreadSummary
@@ -273,29 +259,15 @@ const showThreadSummary = computed(() =>
                     ? formatTime(message.threadLastReplyAt)
                     : ''
             "
-            @open-thread="(id) => emit('openThread', id)"
+            @open-thread="(id) => scope.actions.openThread(id)"
         />
 
         <MessageActions
             v-if="!editing"
             :message="message"
-            :current-user-id="currentUserId"
-            :can-react="canReact"
-            :can-pin="canPin"
-            :can-moderate="canModerate"
-            :in-thread="inThread"
             :pending="pending"
-            :viewer-timezone="viewerTimezone"
-            @react="(emoji) => emit('react', emoji)"
-            @reply="emit('reply')"
-            @forward="emit('forward')"
-            @pin="emit('pin')"
-            @unpin="emit('unpin')"
-            @open-thread="emit('openThread', message.id)"
-            @remind="(remindAt) => emit('remind', remindAt)"
-            @remind-custom="emit('remindCustom')"
-            @edit="emit('startEdit')"
-            @delete="emit('requestDelete')"
+            @start-edit="emit('startEdit')"
+            @request-delete="emit('requestDelete')"
         />
     </div>
 </template>
