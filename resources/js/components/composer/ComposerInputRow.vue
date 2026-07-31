@@ -100,12 +100,23 @@ const fileInput = ref<HTMLInputElement | null>(null);
  */
 const photoInput = ref<HTMLInputElement | null>(null);
 
+/**
+ * A third input that asks the OS for the camera rather than for a file. Only a
+ * phone honours `capture`; everywhere else it degrades to the normal picker,
+ * which is why only the mobile sheet offers a control onto it.
+ */
+const cameraInput = ref<HTMLInputElement | null>(null);
+
 function openFilePicker(): void {
     fileInput.value?.click();
 }
 
 function openPhotoPicker(): void {
     photoInput.value?.click();
+}
+
+function openCamera(): void {
+    cameraInput.value?.click();
 }
 
 function onFilesPicked(event: Event): void {
@@ -230,6 +241,18 @@ function onFilesPicked(event: Event): void {
                 data-test="composer-photo-input"
                 @change="onFilesPicked"
             />
+            <!-- One capture hands back one still, so this input is neither
+                 `multiple` nor open to video: a clip would meet the size cap
+                 with nothing on the client able to trim it. -->
+            <input
+                ref="cameraInput"
+                type="file"
+                accept="image/*"
+                capture="environment"
+                class="hidden"
+                data-test="composer-camera-input"
+                @change="onFilesPicked"
+            />
             <template v-if="isMobile">
                 <ComposerAttachSheet
                     v-model:open="attachSheetOpen"
@@ -245,6 +268,7 @@ function onFilesPicked(event: Event): void {
                     :timezone="timezone"
                     @format="emit('format', $event)"
                     @photos="openPhotoPicker"
+                    @camera="openCamera"
                     @file="openFilePicker"
                     @gif="emit('gif')"
                     @poll="emit('poll')"
