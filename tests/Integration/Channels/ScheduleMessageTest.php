@@ -28,10 +28,15 @@ test('scheduling stores the message pending and consumes the author\'s draft', f
     $scheduled = app(ScheduleMessage::class)
         ->handle($general, $owner, 'the finished thought', $clientUuid, $sendAt);
 
-    expect($scheduled->status)->toBe(ScheduledMessageStatus::Pending)
-        ->and($scheduled->body)->toBe('the finished thought')
-        ->and($scheduled->client_uuid)->toBe($clientUuid)
-        ->and($scheduled->send_at->equalTo($sendAt))->toBeTrue()
+    // Read back rather than asserted on the returned model: what has to survive
+    // until the dispatcher runs is the row, and `send_at` in particular only
+    // round-trips through the column at whole-second precision.
+    $stored = ScheduledMessage::findOrFail($scheduled->id);
+
+    expect($stored->status)->toBe(ScheduledMessageStatus::Pending)
+        ->and($stored->body)->toBe('the finished thought')
+        ->and($stored->client_uuid)->toBe($clientUuid)
+        ->and($stored->send_at->equalTo($sendAt))->toBeTrue()
         ->and($general->channelMembers()->where('user_id', $owner->id)->value('draft'))->toBeNull();
 
     // Nothing is posted now — the per-minute dispatcher delivers it later.
@@ -53,7 +58,7 @@ test('scheduling leaves every other member\'s draft where it was', function (): 
         ->and($general->channelMembers()->where('user_id', $bystander->id)->value('draft'))->toBe('theirs');
 });
 
-test('a scheduled reply carries the message it answers through to delivery', function (): void {
+test('a scheduled reply stores the message it answers', function (): void {
     ['owner' => $owner, 'channel' => $general] = teamWithChannel();
     $replyTo = Message::factory()->for($general)->for($owner)->create();
 

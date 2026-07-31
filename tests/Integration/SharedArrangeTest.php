@@ -36,6 +36,21 @@ test('a member is put in the team and the channel, in the role and state asked f
         ->and($pivot->notification_level)->toBe(NotificationLevel::Mentions);
 });
 
+test('a membership can be asked for with no state at all', function (): void {
+    ['owner' => $owner, 'channel' => $general] = teamWithChannel();
+
+    $plain = teamMemberInChannel($general);
+
+    $general->channelMembers()->where('user_id', $owner->id)->update(['draft' => 'kept']);
+    channelMembership($general, $owner);
+
+    expect($general->channelMembers()->where('user_id', $plain->id)->firstOrFail()->notification_level)
+        ->toBe(NotificationLevel::All)
+        // Restating without a state is a no-op, not a reset — this is the shape
+        // the 116 hand-rolled `firstOrCreate` calls will convert to.
+        ->and($general->channelMembers()->where('user_id', $owner->id)->value('draft'))->toBe('kept');
+});
+
 test('stating an existing membership leaves the rest of the row standing', function (): void {
     ['owner' => $owner, 'channel' => $general] = teamWithChannel();
     $read = Message::factory()->for($general)->for($owner)->create();
