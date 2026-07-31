@@ -1,15 +1,25 @@
 <?php
 
-use App\Actions\Teams\CreateTeam;
 use App\Enums\TeamRole;
 use App\Models\Channel;
 use App\Models\Message;
-use App\Models\User;
 use Illuminate\Support\Str;
 
+/*
+|--------------------------------------------------------------------------
+| The archive endpoint (#1117)
+|--------------------------------------------------------------------------
+|
+| That an archived channel drops out of the sidebar list is a claim about
+| `SidebarChannels`, proven against it in
+| `tests/Integration/Support/SidebarChannelsTest.php`. What is left here is the
+| HTTP contract: who may archive, where they land, and what the endpoint
+| refuses.
+|
+*/
+
 test('a channel creator can archive their channel and is redirected to #general', function (): void {
-    $owner = User::factory()->create();
-    $team = app(CreateTeam::class)->handle($owner, 'Acme');
+    ['owner' => $owner, 'team' => $team] = teamWithChannel();
     $channel = Channel::factory()->for($team)->create(['created_by' => $owner->id]);
     $channel->members()->attach($owner->id);
 
@@ -21,10 +31,8 @@ test('a channel creator can archive their channel and is redirected to #general'
 });
 
 test('a team admin can archive a channel they did not create', function (): void {
-    $owner = User::factory()->create();
-    $admin = User::factory()->create();
-    $team = app(CreateTeam::class)->handle($owner, 'Acme');
-    $team->memberships()->create(['user_id' => $admin->id, 'role' => TeamRole::Admin]);
+    ['owner' => $owner, 'team' => $team, 'channel' => $general] = teamWithChannel();
+    $admin = teamMemberInChannel($general, role: TeamRole::Admin);
     $channel = Channel::factory()->for($team)->create(['created_by' => $owner->id]);
 
     $this->actingAs($admin)
@@ -35,10 +43,8 @@ test('a team admin can archive a channel they did not create', function (): void
 });
 
 test('a plain member who did not create a channel cannot archive it', function (): void {
-    $owner = User::factory()->create();
-    $member = User::factory()->create();
-    $team = app(CreateTeam::class)->handle($owner, 'Acme');
-    $team->memberships()->create(['user_id' => $member->id, 'role' => TeamRole::Member]);
+    ['owner' => $owner, 'team' => $team, 'channel' => $general] = teamWithChannel();
+    $member = teamMemberInChannel($general);
     $channel = Channel::factory()->for($team)->create(['created_by' => $owner->id]);
 
     $this->actingAs($member)
@@ -49,9 +55,7 @@ test('a plain member who did not create a channel cannot archive it', function (
 });
 
 test('the #general channel cannot be archived', function (): void {
-    $owner = User::factory()->create();
-    $team = app(CreateTeam::class)->handle($owner, 'Acme');
-    $general = $team->channels()->where('slug', Channel::GENERAL_SLUG)->firstOrFail();
+    ['owner' => $owner, 'team' => $team, 'channel' => $general] = teamWithChannel();
 
     $this->actingAs($owner)
         ->post(route('channels.archive', ['team' => $team->slug, 'channel' => $general->slug]))
@@ -61,8 +65,7 @@ test('the #general channel cannot be archived', function (): void {
 });
 
 test('an already-archived channel cannot be archived again', function (): void {
-    $owner = User::factory()->create();
-    $team = app(CreateTeam::class)->handle($owner, 'Acme');
+    ['owner' => $owner, 'team' => $team] = teamWithChannel();
     $channel = Channel::factory()->for($team)->archived()->create(['created_by' => $owner->id]);
 
     $this->actingAs($owner)
@@ -71,8 +74,7 @@ test('an already-archived channel cannot be archived again', function (): void {
 });
 
 test('archiving keeps the channel and its messages, only setting archived_at', function (): void {
-    $owner = User::factory()->create();
-    $team = app(CreateTeam::class)->handle($owner, 'Acme');
+    ['owner' => $owner, 'team' => $team] = teamWithChannel();
     $channel = Channel::factory()->for($team)->create(['created_by' => $owner->id]);
     Message::factory()->for($channel)->for($owner)->create(['body' => 'Still here after archiving.']);
 
@@ -83,25 +85,8 @@ test('archiving keeps the channel and its messages, only setting archived_at', f
         ->and($channel->fresh()->messages()->count())->toBe(1);
 });
 
-test('an archived channel is hidden from the active sidebar channel list', function (): void {
-    $owner = User::factory()->create();
-    $team = app(CreateTeam::class)->handle($owner, 'Acme');
-    $active = Channel::factory()->for($team)->create(['name' => 'Announcements', 'slug' => 'announcements', 'created_by' => $owner->id]);
-    $active->members()->attach($owner->id);
-    $archived = Channel::factory()->for($team)->archived()->create(['created_by' => $owner->id]);
-    $archived->members()->attach($owner->id);
-
-    $this->actingAs($owner)
-        ->get(route('channels.show', ['team' => $team->slug, 'channel' => Channel::GENERAL_SLUG]))
-        ->assertInertia(fn ($page) => $page
-            ->has('channels', 2)
-            ->where('channels.0.slug', 'announcements')
-            ->where('channels.1.slug', Channel::GENERAL_SLUG));
-});
-
 test('the archive control is offered to a user who may archive the channel', function (): void {
-    $owner = User::factory()->create();
-    $team = app(CreateTeam::class)->handle($owner, 'Acme');
+    ['owner' => $owner, 'team' => $team] = teamWithChannel();
     $channel = Channel::factory()->for($team)->create(['created_by' => $owner->id]);
     $channel->members()->attach($owner->id);
 
@@ -111,9 +96,7 @@ test('the archive control is offered to a user who may archive the channel', fun
 });
 
 test('the archive control is withheld from a user who may not archive the channel', function (): void {
-    $owner = User::factory()->create();
-    $team = app(CreateTeam::class)->handle($owner, 'Acme');
-    $general = $team->channels()->where('slug', Channel::GENERAL_SLUG)->firstOrFail();
+    ['owner' => $owner, 'team' => $team, 'channel' => $general] = teamWithChannel();
 
     $this->actingAs($owner)
         ->get(route('channels.show', ['team' => $team->slug, 'channel' => $general->slug]))
@@ -121,8 +104,7 @@ test('the archive control is withheld from a user who may not archive the channe
 });
 
 test('a user who cannot post to an archived channel is forbidden', function (): void {
-    $owner = User::factory()->create();
-    $team = app(CreateTeam::class)->handle($owner, 'Acme');
+    ['owner' => $owner, 'team' => $team] = teamWithChannel();
     $channel = Channel::factory()->for($team)->archived()->create(['created_by' => $owner->id]);
     $channel->members()->attach($owner->id);
 

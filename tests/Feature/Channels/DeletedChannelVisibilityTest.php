@@ -3,10 +3,8 @@
 use App\Actions\Channels\DeleteChannel;
 use App\Actions\Channels\OpenDirectMessage;
 use App\Actions\Channels\SearchMessages;
-use App\Actions\Teams\CreateTeam;
 use App\Data\MessageSearchCriteria;
 use App\Enums\ChannelVisibility;
-use App\Enums\TeamRole;
 use App\Models\Channel;
 use App\Models\Message;
 use App\Models\Team;
@@ -22,8 +20,8 @@ use Inertia\Testing\AssertableInertia as Assert;
  */
 function deletedChannelFixture(ChannelVisibility $visibility = ChannelVisibility::Public): array
 {
-    $owner = User::factory()->create();
-    $team = app(CreateTeam::class)->handle($owner, 'Acme');
+    ['owner' => $owner, 'team' => $team] = teamWithChannel();
+
     $channel = Channel::factory()->for($team)->create([
         'name' => 'Roadmap',
         'slug' => 'roadmap',
@@ -33,19 +31,6 @@ function deletedChannelFixture(ChannelVisibility $visibility = ChannelVisibility
 
     return [$owner, $team, $channel];
 }
-
-test('a deleted channel leaves the sidebar at once', function (): void {
-    [$owner, $team, $channel] = deletedChannelFixture();
-
-    app(DeleteChannel::class)->handle($channel, null);
-
-    $this->actingAs($owner)
-        ->get(route('channels.show', ['team' => $team->slug, 'channel' => Channel::GENERAL_SLUG]))
-        ->assertInertia(fn (Assert $page): Assert => $page->where(
-            'channels',
-            fn (Collection $channels): bool => $channels->doesntContain('slug', 'roadmap'),
-        ));
-});
 
 test('a deleted channel is no longer reachable by URL', function (): void {
     [$owner, $team, $channel] = deletedChannelFixture();
@@ -94,10 +79,8 @@ test('messages in a deleted channel stop matching search', function (): void {
 });
 
 test('a direct message can never be deleted, however senior the admin', function (): void {
-    $owner = User::factory()->create();
-    $other = User::factory()->create();
-    $team = app(CreateTeam::class)->handle($owner, 'Acme');
-    $team->memberships()->create(['user_id' => $other->id, 'role' => TeamRole::Member]);
+    ['owner' => $owner, 'team' => $team, 'channel' => $general] = teamWithChannel();
+    $other = teamMemberInChannel($general);
     $dm = app(OpenDirectMessage::class)->handle($team, $owner, $other);
 
     $this->actingAs($owner)
