@@ -36,7 +36,7 @@
         "symfony/dom-crawler": "^8.1"
     },
     "require-dev": {
-        "deskhq/laravel-worktree": "^0.1.0",
+        "deskhq/laravel-worktree": "^0.3.0",
         "driftingly/rector-laravel": "^2.5",
         "larastan/larastan": "^3.9",
         "laravel/boost": "^2.2",

@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "4d9d653b2d137acd53332784c19cf2a3",
+    "content-hash": "2cb86c9f783c9cfcd20a182481e99947",
     "packages": [
         {
             "name": "arietimmerman/laravel-scim-server",
@@ -12562,16 +12562,16 @@
         },
         {
             "name": "deskhq/laravel-worktree",
-            "version": "v0.1.0",
+            "version": "v0.3.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/deskhq/laravel-worktree.git",
-                "reference": "08a0043d5de05c3c16d6694973e656f7d165a40a"
+                "reference": "8e24166e11e86e0df28ab1cf8f924d192ccb8dba"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/deskhq/laravel-worktree/zipball/08a0043d5de05c3c16d6694973e656f7d165a40a",
-                "reference": "08a0043d5de05c3c16d6694973e656f7d165a40a",
+                "url": "https://api.github.com/repos/deskhq/laravel-worktree/zipball/8e24166e11e86e0df28ab1cf8f924d192ccb8dba",
+                "reference": "8e24166e11e86e0df28ab1cf8f924d192ccb8dba",
                 "shasum": ""
             },
             "require": {
@@ -12632,9 +12632,9 @@
             ],
             "support": {
                 "issues": "https://github.com/deskhq/laravel-worktree/issues",
-                "source": "https://github.com/deskhq/laravel-worktree/tree/v0.1.0"
+                "source": "https://github.com/deskhq/laravel-worktree/tree/v0.3.0"
             },
-            "time": "2026-07-31T10:26:16+00:00"
+            "time": "2026-07-31T16:05:33+00:00"
         },
         {
             "name": "driftingly/rector-laravel",
