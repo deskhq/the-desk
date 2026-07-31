@@ -11,6 +11,10 @@
  * Typed as a mutable `string[]` because that is what Inertia's `only` takes; a
  * `readonly` tuple would force an `as string[]` cast back at every call site,
  * which is exactly the noise this replaces.
+ *
+ * The other four sets that travel with a write live next door in
+ * {@see CHANNEL_LIST_PROPS} and its neighbours; this one keeps its own home
+ * because the visit options below belong with it.
  */
 export const REMINDER_PROPS: string[] = ['reminders', 'firedReminders'];
 

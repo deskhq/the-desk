@@ -8,6 +8,7 @@ import type { MessageActionsOptions } from '@/composables/useMessageActions';
 import { useToast } from '@/composables/useToast';
 import { useTranslations } from '@/composables/useTranslations';
 import { formatDateTime } from '@/lib/datetime';
+import { CHANNEL_LIST_PROPS, SCHEDULED_MESSAGE_PROPS } from '@/lib/reloadProps';
 import { generateUuid } from '@/lib/uuid';
 import type { Mention } from '@/types';
 
@@ -74,7 +75,7 @@ export function useScheduledMessages(
             {
                 preserveScroll: true,
                 preserveState: true,
-                only: ['scheduledMessages', 'channels'],
+                only: [...SCHEDULED_MESSAGE_PROPS, ...CHANNEL_LIST_PROPS],
                 onSuccess: () =>
                     toast.success(t('Message scheduled'), {
                         // The value that was just set belongs on the detail
@@ -110,7 +111,7 @@ export function useScheduledMessages(
             {
                 preserveScroll: true,
                 preserveState: true,
-                only: ['scheduledMessages'],
+                only: SCHEDULED_MESSAGE_PROPS,
                 onError: () =>
                     toast.error(t('Failed to update the scheduled message')),
             },
@@ -144,7 +145,7 @@ export function useScheduledMessages(
             {
                 preserveScroll: true,
                 preserveState: true,
-                only: ['scheduledMessages'],
+                only: SCHEDULED_MESSAGE_PROPS,
                 onSuccess: () =>
                     toast.success(t('Scheduled message cancelled')),
                 onError: () =>

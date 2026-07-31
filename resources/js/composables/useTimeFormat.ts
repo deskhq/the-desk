@@ -1,5 +1,7 @@
-import { router, usePage } from '@inertiajs/vue3';
+import { usePage } from '@inertiajs/vue3';
 import { computed } from 'vue';
+import { useOptimisticWrite } from '@/composables/useOptimisticWrite';
+import { useTranslations } from '@/composables/useTranslations';
 import { setTimeFormat } from '@/lib/clock';
 import { update } from '@/routes/time-format';
 import type { TimeFormat } from '@/types';
@@ -10,6 +12,8 @@ import type { TimeFormat } from '@/types';
  */
 export function useTimeFormat() {
     const page = usePage();
+    const { t } = useTranslations();
+    const { write } = useOptimisticWrite();
 
     const timeFormat = computed<TimeFormat>(
         () => page.props.auth.user?.time_format ?? 'auto',
@@ -25,19 +29,18 @@ export function useTimeFormat() {
      * reload reseeds it from the shared prop.
      */
     function updateTimeFormat(next: TimeFormat): void {
-        const previous = timeFormat.value;
+        write({
+            capture: () => {
+                const previous = timeFormat.value;
 
-        setTimeFormat(next);
-
-        router.patch(
-            update().url,
-            { time_format: next },
-            {
-                preserveScroll: true,
-                preserveState: true,
-                onError: () => setTimeFormat(previous),
+                return () => setTimeFormat(previous);
             },
-        );
+            apply: () => setTimeFormat(next),
+            method: 'patch',
+            url: update().url,
+            data: { time_format: next },
+            failure: t('Failed to save the clock style'),
+        });
     }
 
     return { timeFormat, updateTimeFormat };

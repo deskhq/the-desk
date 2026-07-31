@@ -154,11 +154,31 @@ built; build them once, then reuse.
   rather than at each call site, and the inverse stays `useReminderUndo`'s.
   A new reminder surface calls it; it does not hand-roll a `router.post` with its
   own toast.
+- **`useOptimisticWrite`** — the one module behind every write that shows its
+  outcome before the server has agreed: capture → apply → post →
+  restore-on-error → toast, plus the visit options an optimistic write always
+  wants (`preserveScroll`, `preserveState` — it is not a navigation) and the
+  two-stream case, where a message on screen in both the timeline and the thread
+  panel has to roll back in both (`snapshotStreams`). A call site supplies only
+  what differs: what to snapshot, what to show, where to post, which props that
+  invalidates, and what to say when it fails. The line is behavioural — a write
+  with *nothing* to roll back stays a plain `router.post`, because it would gain
+  uniformity and nothing else. `useReminders` is the reference: it is where the
+  lesson was first written down, and its snapshot feeds an *Undo* rather than a
+  rollback, which is why it stays its own shape.
+- **`lib/reloadProps`** — the prop sets a write invalidates, named once each
+  (`CHANNEL_LIST_PROPS`, `CHANNEL_SECTION_PROPS`, `COLLAPSED_SECTION_PROPS`,
+  `PIN_PROPS`, `SCHEDULED_MESSAGE_PROPS`, `THREAD_PROPS`). The pairs are the
+  sharp edge: `pins`/`pinCount` are two readings of one fact, so a surface
+  refreshing one goes stale against the other. `reloadProps.test.ts` fails on a
+  second copy of any of them, so a new `only: [...]` is an import, never an
+  array literal.
 - **`lib/reminderReload`** — the props a reminder mutation invalidates
   (`reminders` + `firedReminders`) and the visit options carrying them. The two
   move together, so a surface refreshing one without the other goes stale; the
   set is named here and nowhere else (`reminderReload.test.ts` fails on a second
-  copy).
+  copy). The seventh set, kept beside the six above because the visit options
+  belong with it.
 - **`useDialog` + `DialogHost`** — the shell's dialog registry. Open state is one
   module-scoped entry per dialog, and every one of them is mounted once by
   `DialogHost`; a dialog is opened by name from wherever the gesture is, never by
@@ -192,6 +212,11 @@ built; build them once, then reuse.
 - New channel-member preference → the **channel membership settings** concern.
 - New message action (a row affordance that writes) → one method on the **message-action
   context**; never a new prop/emit pair through the timeline.
+- A write that shows its outcome before the server answers →
+  **`useOptimisticWrite`**; never a hand-rolled snapshot / `onError` restore /
+  toast triple. A write with nothing to roll back stays a plain `router` call.
+- The props a write invalidates → a named set in **`lib/reloadProps`**; never an
+  inline `only: [...]` array.
 - New reminder behaviour → **`useReminders`**; new reminder *props* → the set in
   **`lib/reminderReload`**.
 - A new dialog the shell puts over itself → an entry in **`useDialog`**'s

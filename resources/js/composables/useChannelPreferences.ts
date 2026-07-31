@@ -1,14 +1,16 @@
-import { router } from '@inertiajs/vue3';
 import type { AcceptableValue } from 'reka-ui';
 import { computed, ref, watch } from 'vue';
 import type { ComputedRef, Ref } from 'vue';
 import { update as updateChannelPreferences } from '@/actions/App/Http/Controllers/Channels/ChannelPreferenceController';
 import { update as updateChannelStar } from '@/actions/App/Http/Controllers/Channels/ChannelStarController';
-import { useToast } from '@/composables/useToast';
+import {
+    snapshotRef,
+    useOptimisticWrite,
+} from '@/composables/useOptimisticWrite';
 import { useTranslations } from '@/composables/useTranslations';
-import { backgroundVisit } from '@/lib/backgroundVisit';
 import { notificationIndicator } from '@/lib/notificationIndicator';
 import type { NotificationIndicator } from '@/lib/notificationIndicator';
+import { CHANNEL_LIST_PROPS } from '@/lib/reloadProps';
 import type { Channel, NotificationLevel } from '@/types';
 
 /** The member's own star/mute/notification state for the open channel. */
@@ -57,7 +59,7 @@ export function useChannelPreferences(
     options: ChannelPreferencesOptions,
 ): ChannelPreferences {
     const { t } = useTranslations();
-    const toast = useToast();
+    const { write } = useOptimisticWrite();
     const notificationLevel = ref<NotificationLevel>(
         options.channel().notificationLevel,
     );
@@ -88,66 +90,63 @@ export function useChannelPreferences(
     );
 
     function toggleStar(): void {
-        const previous = starred.value;
-        starred.value = !previous;
-
-        router.patch(
-            updateChannelStar({
+        write({
+            capture: () => snapshotRef(starred),
+            apply: () => {
+                starred.value = !starred.value;
+            },
+            method: 'patch',
+            url: updateChannelStar({
                 team: options.teamSlug(),
                 channel: options.channelSlug(),
             }).url,
-            { starred: starred.value },
-            {
-                // Applied optimistically, so nothing on screen waits for it: it
-                // must not interrupt the navigation a user often fires right
-                // after starring; see {@see backgroundVisit}.
-                ...backgroundVisit,
-                preserveScroll: true,
-                preserveState: true,
-                only: ['channels'],
-                onError: () => {
-                    starred.value = previous;
-                    toast.error(t('Failed to update the channel'));
-                },
-            },
-        );
+            // Read after `apply`, because the endpoint takes the new value and
+            // the write is what decided it.
+            data: () => ({ starred: starred.value }),
+            only: CHANNEL_LIST_PROPS,
+            // Applied optimistically, so nothing on screen waits for it: it must
+            // not interrupt the navigation a user often fires right after
+            // starring; see {@see backgroundVisit}.
+            background: true,
+            failure: t('Failed to update the channel'),
+        });
     }
 
-    function savePreferences(rollback: () => void): void {
-        router.patch(
-            updateChannelPreferences({
+    /**
+     * Save the notification pair. Both preferences post together — the endpoint
+     * takes them as one payload — so a change to either snapshots only the ref
+     * it moves and the other rides along at whatever it already was.
+     */
+    function savePreferences(changed: Ref<unknown>, apply: () => void): void {
+        write({
+            capture: () => snapshotRef(changed),
+            apply,
+            method: 'patch',
+            url: updateChannelPreferences({
                 team: options.teamSlug(),
                 channel: options.channelSlug(),
             }).url,
-            { muted: muted.value, notification_level: notificationLevel.value },
-            {
-                // Optimistic like the star above, and dismissing the menu often
-                // coincides with a navigation; see {@see backgroundVisit}.
-                ...backgroundVisit,
-                preserveScroll: true,
-                preserveState: true,
-                only: ['channels'],
-                onError: () => {
-                    rollback();
-                    toast.error(t('Failed to update notification preferences'));
-                },
-            },
-        );
+            data: () => ({
+                muted: muted.value,
+                notification_level: notificationLevel.value,
+            }),
+            only: CHANNEL_LIST_PROPS,
+            // Optimistic like the star above, and dismissing the menu often
+            // coincides with a navigation; see {@see backgroundVisit}.
+            background: true,
+            failure: t('Failed to update notification preferences'),
+        });
     }
 
     function onNotificationLevelChange(value: AcceptableValue): void {
-        const previous = notificationLevel.value;
-        notificationLevel.value = value as NotificationLevel;
-        savePreferences(() => {
-            notificationLevel.value = previous;
+        savePreferences(notificationLevel, () => {
+            notificationLevel.value = value as NotificationLevel;
         });
     }
 
     function onMuteChange(value: boolean): void {
-        const previous = muted.value;
-        muted.value = value;
-        savePreferences(() => {
-            muted.value = previous;
+        savePreferences(muted, () => {
+            muted.value = value;
         });
     }
 

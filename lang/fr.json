@@ -327,6 +327,7 @@
   "Failed to open the conversation": "Échec de l’ouverture de la conversation",
   "Failed to pin the message. Please try again.": "Échec de l’épinglage du message. Veuillez réessayer.",
   "Failed to rename the section": "Échec du renommage de la section",
+  "Failed to save the clock style": "Échec de l’enregistrement du format de l’heure",
   "Failed to save the section order": "Échec de l’enregistrement de l’ordre des sections",
   "Failed to save the sidebar layout": "Échec de l’enregistrement de la disposition de la barre latérale",
   "Failed to schedule your message": "Échec de la programmation de votre message",

@@ -1,6 +1,7 @@
 import { router } from '@inertiajs/vue3';
 import { ref, watch } from 'vue';
 import type { Ref } from 'vue';
+import { PIN_PROPS } from '@/lib/reloadProps';
 
 export interface ChannelPinsOptions {
     /** The server's pin count for the open channel. */
@@ -40,7 +41,7 @@ export function useChannelPins(options: ChannelPinsOptions): ChannelPins {
      */
     function openPinsPanel(): void {
         pinsPanelOpen.value = true;
-        router.reload({ only: ['pins', 'pinCount'] });
+        router.reload({ only: PIN_PROPS });
     }
 
     /** Jump to a pinned message from the panel, closing the popover on the way. */

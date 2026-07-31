@@ -1,10 +1,14 @@
-import { router, usePage } from '@inertiajs/vue3';
+import { usePage } from '@inertiajs/vue3';
 import { ref, watch } from 'vue';
 import { update as updateSidebarSections } from '@/actions/App/Http/Controllers/SidebarSectionController';
-import { useToast } from '@/composables/useToast';
+import {
+    snapshotRef,
+    useOptimisticWrite,
+} from '@/composables/useOptimisticWrite';
 import { useTranslations } from '@/composables/useTranslations';
 import { toggleCollapsedSection } from '@/lib/channelSections';
 import type { SidebarSectionKey } from '@/lib/channelSections';
+import { COLLAPSED_SECTION_PROPS } from '@/lib/reloadProps';
 
 export interface CollapsedSections {
     /** Whether the given built-in section is currently collapsed. */
@@ -25,7 +29,7 @@ export interface CollapsedSections {
 export function useCollapsedSections(): CollapsedSections {
     const page = usePage();
     const { t } = useTranslations();
-    const toast = useToast();
+    const { write } = useOptimisticWrite();
 
     const collapsedSections = ref<string[]>([
         ...(page.props.collapsedChannelSections ?? []),
@@ -43,23 +47,19 @@ export function useCollapsedSections(): CollapsedSections {
     }
 
     function toggleSection(section: SidebarSectionKey): void {
-        const previous = collapsedSections.value;
-        const next = toggleCollapsedSection(previous, section);
-        collapsedSections.value = next;
+        const next = toggleCollapsedSection(collapsedSections.value, section);
 
-        router.patch(
-            updateSidebarSections().url,
-            { collapsed: next },
-            {
-                preserveScroll: true,
-                preserveState: true,
-                only: ['collapsedChannelSections'],
-                onError: () => {
-                    collapsedSections.value = previous;
-                    toast.error(t('Failed to save the sidebar layout'));
-                },
+        write({
+            capture: () => snapshotRef(collapsedSections),
+            apply: () => {
+                collapsedSections.value = next;
             },
-        );
+            method: 'patch',
+            url: updateSidebarSections().url,
+            data: { collapsed: next },
+            only: COLLAPSED_SECTION_PROPS,
+            failure: t('Failed to save the sidebar layout'),
+        });
     }
 
     return { isSectionCollapsed, toggleSection };

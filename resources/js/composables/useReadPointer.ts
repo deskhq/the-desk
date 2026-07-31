@@ -3,6 +3,7 @@ import { echo } from '@laravel/echo-vue';
 import { read as markChannelRead } from '@/actions/App/Http/Controllers/Channels/ChannelController';
 import { useDebouncedPost } from '@/composables/useDebouncedPost';
 import { backgroundVisit } from '@/lib/backgroundVisit';
+import { CHANNEL_LIST_PROPS } from '@/lib/reloadProps';
 
 export interface ReadPointerOptions {
     teamSlug: () => string;
@@ -40,7 +41,7 @@ export function useReadPointer(options: ReadPointerOptions): {
                     ...backgroundVisit,
                     preserveScroll: true,
                     preserveState: true,
-                    only: ['channels'],
+                    only: CHANNEL_LIST_PROPS,
                     headers: socketId ? { 'X-Socket-ID': socketId } : {},
                 },
             );
