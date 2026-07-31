@@ -74,6 +74,17 @@ built; build them once, then reuse.
 - **Channel timeline window** _(ADR-0004)_ — the read-model/query object
   that resolves where a channel's initial message window opens (unread anchoring,
   jump context, paging). Takes explicit params; the controller keeps HTTP glue.
+- **Workspace shell read-model** _(ADR-0008)_ — `WorkspaceShell` owns the
+  `(authenticated, on a workspace route, with a bound team)` precondition and every
+  read-model an in-workspace page draws its shell from (`SidebarChannels`,
+  `SidebarReminders`, `ThreadInbox`, `MessageSearchPanel`, the emoji/group
+  vocabularies). It is constructed from a `User` and a `Team`, never a `Request`, so
+  every one of those is reachable from a test without an HTTP round-trip.
+  `HandleInertiaRequests::share()` is glue: it names the 44 shared props — that list
+  *is* the Inertia contract and stays spelled out there — and computes none of them.
+  A new workspace prop is one line in `share()` plus one method on the shell; never
+  re-derive "am I on a workspace page?" per prop, and never put a query in the
+  middleware.
 - **Domain-event recording** _(ADR-0005)_ — audit and security events are recorded
   via the event→listener seam, next to the mutation, never by a `record()` call in
   a controller. The Action dispatches `AuditableActionOccurred` (carrying team,

@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Data;
 
-use App\Jobs\PurgeDeletedChannel;
 use App\Models\Channel;
 use App\Models\Team;
 use Spatie\LaravelData\Data;
@@ -33,7 +32,7 @@ class DeletedChannelData extends Data
             name: (string) $channel->name,
             slug: $channel->slug,
             deletedAt: $channel->deleted_at->toISOString(),
-            purgeAt: $channel->deleted_at->addDays(PurgeDeletedChannel::GRACE_WINDOW_DAYS)->toISOString(),
+            purgeAt: $channel->deleted_at->addDays(Channel::RESTORE_WINDOW_DAYS)->toISOString(),
             summary: ChannelContentSummaryData::forChannel($channel),
         );
     }

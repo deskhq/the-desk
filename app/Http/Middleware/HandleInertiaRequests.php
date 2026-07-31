@@ -2,47 +2,27 @@
 
 namespace App\Http\Middleware;
 
-use App\Data\ChannelData;
-use App\Data\ChannelSectionData;
-use App\Data\CustomEmojiData;
-use App\Data\MessageReminderData;
-use App\Data\SlashCommandData;
 use App\Data\UpdateStatusData;
-use App\Data\UserData;
-use App\Data\UserGroupData;
-use App\Enums\ChannelVisibility;
 use App\Enums\MessageReminderStatus;
-use App\Enums\MessageType;
 use App\Enums\NavDestination;
 use App\Enums\PostRegistrationPrompt;
 use App\Enums\SidebarPosition;
 use App\Enums\TeamRole;
 use App\Enums\ThreadInboxFilter;
-use App\Jobs\PurgeDeletedChannel;
 use App\Models\Channel;
-use App\Models\Message;
-use App\Models\MessageReminder;
-use App\Models\Team;
-use App\Models\TeamInvitation;
-use App\Models\User;
-use App\SlashCommands\SlashCommandRegistry;
 use App\Support\Branding\BrandingAssets;
 use App\Support\FrequentEmoji;
 use App\Support\MessageSearchPanel;
+use App\Support\PendingInvitations;
 use App\Support\ReverbConfig;
-use App\Support\ThreadInbox;
-use App\Support\ThreadInboxPage;
 use App\Support\TranslationCatalog;
 use App\Support\UpdateChecker;
 use App\Support\UserAgentParser;
 use App\Support\WebPushConfig;
-use Illuminate\Database\Eloquent\Builder;
+use App\Support\WorkspaceShell;
 use Illuminate\Http\Request;
-use Illuminate\Support\Carbon;
-use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
 use Inertia\Middleware;
-use Inertia\ProvidesScrollMetadata;
 use Laravel\Fortify\Features;
 
 class HandleInertiaRequests extends Middleware
@@ -72,6 +52,15 @@ class HandleInertiaRequests extends Middleware
     /**
      * Define the props that are shared by default.
      *
+     * This list *is* the Inertia contract with the frontend, so it stays spelled
+     * out here — one line per prop, naming it and saying where it comes from.
+     * What it deliberately does not do is compute any of them: instance-level
+     * props read config or a `Support` helper, and everything an in-workspace
+     * page needs comes off {@see WorkspaceShell}, which resolves the
+     * (signed in, on a workspace route, with a bound team) precondition once.
+     * A null shell means there is no workspace to describe, and each of its props
+     * falls back to the empty value the frontend already renders for "not here".
+     *
      * @see https://inertiajs.com/shared-data
      *
      * @return array<string, mixed>
@@ -80,6 +69,10 @@ class HandleInertiaRequests extends Middleware
     public function share(Request $request): array
     {
         $user = $request->user();
+        $shell = WorkspaceShell::forRequest($request);
+        $pinned = NavDestination::fromQuery($request->query(NavDestination::QUERY_PARAM));
+        $route = $request->route('channel');
+        $activeChannel = $route instanceof Channel ? $route : null;
 
         return [
             ...parent::share($request),
@@ -209,10 +202,8 @@ class HandleInertiaRequests extends Middleware
             // Which kinds of channel the viewer may open here, per the
             // workspace's channel-creation policy. The create modal is raised
             // from the sidebar and the New menu rather than from a page of its
-            // own, so this rides along instead of being threaded through them;
-            // an empty list withdraws the affordance entirely, matching the 403
-            // the create endpoint would answer with.
-            'creatableChannelVisibilities' => fn (): array => $this->creatableChannelVisibilities($user),
+            // own, so this rides along instead of being threaded through them.
+            'creatableChannelVisibilities' => fn (): array => $shell?->creatableChannelVisibilities() ?? [],
             // The workspace sheet offers "Workspace settings" only to someone who
             // can actually change the workspace. The page-scoped permission set
             // is not in reach from the shell, so the one flag the sheet needs
@@ -242,17 +233,17 @@ class HandleInertiaRequests extends Middleware
             // constant, and the delete dialog is raised from the channel shell
             // rather than from a page of its own, so it rides along here instead
             // of being threaded through the channel view as a page prop.
-            'channelRestoreWindowDays' => PurgeDeletedChannel::GRACE_WINDOW_DAYS,
+            'channelRestoreWindowDays' => Channel::RESTORE_WINDOW_DAYS,
             'invitableRoles' => TeamRole::assignable(),
-            'channels' => fn (): array => $this->channelsForSidebar($request, $user),
+            'channels' => fn (): array => $shell?->channels($activeChannel) ?? [],
             // The current team's members feed the DM entry points (the sidebar
             // people picker and the ⌘K "People" group); empty off the workspace.
-            'teamMembers' => fn (): array => $this->teamMembersForSidebar($request, $user),
-            'channelSections' => fn (): array => $this->channelSectionsForSidebar($request, $user),
+            'teamMembers' => fn (): array => $shell?->teamMembers() ?? [],
+            'channelSections' => fn (): array => $shell?->channelSections() ?? [],
             // The current team's custom emoji as a flat name->url map, so message
             // bodies and reaction pills can resolve `:name:` shortcodes to images.
             // A revoked emoji is simply absent, so its token falls back to text.
-            'customEmojis' => fn (): array => $this->customEmojisForWorkspace($request, $user),
+            'customEmojis' => fn (): array => $shell?->customEmojis() ?? [],
             // The viewer's five most-used emoji in their current workspace,
             // feeding the hover bar's quick-react cluster and the picker's
             // "Frequently used" strip. Derived from reaction history per visit
@@ -263,27 +254,27 @@ class HandleInertiaRequests extends Middleware
             // `@` menu and the anti-spoof check that decides whether a
             // `group:<id>` token renders as a pill or as plain text. A deleted
             // group is simply absent, so its token falls back to text.
-            'userGroups' => fn (): array => $this->userGroupsForWorkspace($request, $user),
+            'userGroups' => fn (): array => $shell?->userGroups() ?? [],
             // The composer's slash-command autocomplete manifest, built from the
             // registry with copy already translated under the active locale.
             // Server-authoritative: a newly registered command appears in
             // autocomplete with no frontend change. Empty off the workspace,
             // where the composer isn't rendered.
-            'slashCommands' => fn (): array => $this->slashCommandsForWorkspace($request),
+            'slashCommands' => fn (): array => $shell?->slashCommands() ?? [],
             'collapsedChannelSections' => fn () => $user->collapsed_channel_sections ?? [],
-            'hasUnreadThreads' => fn (): bool => $this->hasUnreadThreads($request, $user),
+            'hasUnreadThreads' => fn (): bool => $shell?->hasUnreadThreads() ?? false,
             // The Threads panel's inbox and its "Unread" tally, present only while
             // the dock actually has that destination pinned.
-            ...$this->threadsPanelProps($request, $user),
+            ...$shell?->threadsPanelProps($pinned, ThreadInboxFilter::fromQuery($request->query('filter'))) ?? [],
             // The Search panel's echoed criteria and matches, on the same terms.
-            ...$this->searchPanelProps($request, $user),
-            'pendingInvitations' => Inertia::optional(fn (): array => $user ? $this->pendingInvitationsFor($user) : []),
+            ...$shell?->searchPanelProps($pinned, MessageSearchPanel::criteriaFromRequest($request)) ?? [],
+            'pendingInvitations' => Inertia::optional(fn (): array => $user ? PendingInvitations::forUser($user) : []),
             // The viewer's still-pending reminders in this team, soonest first,
             // feeding the "Reminders" list and its sidebar count.
-            'reminders' => fn (): array => $this->remindersForSidebar($request, $user, MessageReminderStatus::Pending),
+            'reminders' => fn (): array => $shell?->reminders(MessageReminderStatus::Pending) ?? [],
             // Reminders that have come due and await acknowledgement, driving the
             // in-app nudges; reloaded live when a MessageReminderDue signal lands.
-            'firedReminders' => fn (): array => $this->remindersForSidebar($request, $user, MessageReminderStatus::Fired),
+            'firedReminders' => fn (): array => $shell?->reminders(MessageReminderStatus::Fired) ?? [],
         ];
     }
 
@@ -309,440 +300,5 @@ class HandleInertiaRequests extends Middleware
         $prompt = PostRegistrationPrompt::tryFrom($queued);
 
         return $prompt?->isAvailable() ? $prompt->value : null;
-    }
-
-    /**
-     * Whether the current request targets an in-workspace page that renders the
-     * shared sidebar.
-     *
-     * Every such route binds a `{team}` and lives under the `channels.` name
-     * prefix — search used to be the exception, until it became a dock panel on
-     * these very routes and its old URL a redirect. This is the single source of
-     * truth for the sidebar-feeding shared props below; broaden it here to add a
-     * new workspace surface rather than duplicating the pattern per prop.
-     */
-    protected function isWorkspaceRoute(Request $request): bool
-    {
-        return $request->routeIs('channels.*');
-    }
-
-    /**
-     * The channel visibilities the user may create in their current workspace.
-     *
-     * Asked of the policy rather than derived from the role here, so the shell's
-     * affordance and the create endpoint answer the same question the same way.
-     *
-     * @return array<int, string>
-     */
-    protected function creatableChannelVisibilities(?User $user): array
-    {
-        $team = $user?->currentTeam;
-
-        if (! $team instanceof Team) {
-            return [];
-        }
-
-        return array_values(array_map(
-            fn (ChannelVisibility $visibility): string => $visibility->value,
-            array_filter(
-                ChannelVisibility::cases(),
-                fn (ChannelVisibility $visibility): bool => $user->can('create', [Channel::class, $team, $visibility]),
-            ),
-        ));
-    }
-
-    /**
-     * The current user's channels for the workspace sidebar, scoped to the team in the URL.
-     *
-     * @return array<int, ChannelData>
-     */
-    protected function channelsForSidebar(Request $request, ?User $user): array
-    {
-        $team = $request->route('team');
-
-        if (! $user || ! $team instanceof Team || ! $this->isWorkspaceRoute($request)) {
-            return [];
-        }
-
-        $channels = $user->channels()
-            ->where('channels.team_id', $team->id)
-            ->whereNull('channels.archived_at')
-            ->select('channels.*')
-            ->addSelect(['channel_members.muted', 'channel_members.notification_level', 'channel_members.starred', 'channel_members.section_id', 'channel_members.position', 'channel_members.hidden_at'])
-            // The channel's latest message time drives the "Direct messages" group
-            // ordering (recent activity first) and, being null when a DM has no
-            // messages yet, the listing predicate that hides an empty DM from its
-            // recipient below.
-            ->selectSub(
-                Message::query()->selectRaw('max(messages.created_at)')->whereColumn('messages.channel_id', 'channels.id'),
-                'last_message_at'
-            )
-            // Only the presence of a draft drives the sidebar cue; the draft text
-            // itself is shipped solely to the open channel, so keep it out of the
-            // sidebar payload and expose a 1/0 flag instead (an integer, not a
-            // driver-specific boolean, so the DTO's cast reads it reliably).
-            ->selectRaw("case when channel_members.draft is not null and channel_members.draft != '' then 1 else 0 end as has_draft")
-            // Thread-only replies stay out of the plain unread badge (they live
-            // in the thread view), but a mention anywhere — including inside a
-            // thread — still badges the channel.
-            ->selectSub($this->unreadMessages($user)
-                ->where(fn (Builder $query) => $query->whereNull('messages.thread_root_id')->orWhere('messages.sent_to_channel', true)), 'unread_count')
-            ->selectSub($this->unreadMessages($user)->whereHas('mentionedUsers', fn ($query) => $query->whereKey($user->id)), 'mention_count')
-            // Manual order within each sidebar group first, then alphabetical as a
-            // stable tiebreak for channels the user has never reordered.
-            ->orderBy('channel_members.position')
-            ->orderBy('channels.name')
-            ->get();
-
-        // A DM is listed once it has real activity: it has at least one message,
-        // or the viewer created it (the initiator navigated straight into it), or
-        // the viewer is currently viewing it. An empty DM the recipient was never
-        // messaged in therefore stays hidden for them. A DM the viewer closed
-        // stays out until a message arrives after the close instant — that check
-        // wins even over the created/active overrides, so closing removes the row
-        // immediately. Standard channels always list. `directParticipantFor`/
-        // ordering are then applied client-side.
-        $activeChannel = $request->route('channel');
-        $activeChannelId = $activeChannel instanceof Channel ? $activeChannel->getKey() : null;
-
-        $channels = $channels->filter(function (Channel $channel) use ($user, $activeChannelId): bool {
-            if (! $channel->isDirectMessage()) {
-                return true;
-            }
-
-            if ($this->directMessageHidden($channel)) {
-                return false;
-            }
-            if ($channel->getAttribute('last_message_at') !== null) {
-                return true;
-            }
-            if ($channel->created_by === $user->id) {
-                return true;
-            }
-
-            return $channel->getKey() === $activeChannelId;
-        })->values();
-
-        return ChannelData::collect($channels, 'array');
-    }
-
-    /**
-     * Whether the viewer has closed (hidden) the direct message and no message has
-     * arrived since. A reply after the close instant re-surfaces the DM without
-     * any write on the message path, so the check compares the two timestamps.
-     */
-    protected function directMessageHidden(Channel $channel): bool
-    {
-        $hiddenAt = $channel->getAttribute('hidden_at');
-
-        if ($hiddenAt === null) {
-            return false;
-        }
-
-        $lastMessageAt = $channel->getAttribute('last_message_at');
-
-        return $lastMessageAt === null
-            || Carbon::parse($lastMessageAt)->lessThanOrEqualTo(Carbon::parse($hiddenAt));
-    }
-
-    /**
-     * The current team's members, feeding the DM entry points (the sidebar
-     * people picker and the quick-switcher "People" group). Ordered by name and
-     * including the viewer themselves (a self-DM renders as "You"). Empty off the
-     * channel workspace, where the entry points are absent.
-     *
-     * @return array<int, UserData>
-     */
-    protected function teamMembersForSidebar(Request $request, ?User $user): array
-    {
-        $team = $request->route('team');
-
-        if (! $user || ! $team instanceof Team || ! $this->isWorkspaceRoute($request)) {
-            return [];
-        }
-
-        return UserData::collect($team->members()->orderBy('name')->get(), 'array');
-    }
-
-    /**
-     * The current user's reminders in the team in the URL, filtered by status.
-     *
-     * Pending reminders feed the "Reminders" list (and its sidebar count); fired
-     * ones drive the in-app nudges. Both are scoped to messages in the current
-     * team and eager-load the message, its author, and its channel + team so each
-     * row renders a quote and a working link back. Ordered by due time. Empty off
-     * the channel workspace, where the surfaces are absent.
-     *
-     * Visibility is re-checked here with the same `view` gate the write path
-     * uses, because access can be revoked long after the reminder was set. A row
-     * whose channel is no longer viewable is redacted rather than dropped, so the
-     * owner can still clear it and regaining access restores it. The verdict is
-     * memoised per channel — several reminders often share one.
-     *
-     * @return array<int, MessageReminderData>
-     */
-    protected function remindersForSidebar(Request $request, ?User $user, MessageReminderStatus $status): array
-    {
-        $team = $request->route('team');
-
-        if (! $user || ! $team instanceof Team || ! $this->isWorkspaceRoute($request)) {
-            return [];
-        }
-
-        $reminders = MessageReminder::query()
-            ->where('user_id', $user->id)
-            ->where('status', $status)
-            ->whereHas('message.channel', fn (Builder $query) => $query->where('team_id', $team->id))
-            ->with(['message.user', 'message.channel.team'])
-            ->oldest('remind_at')
-            ->get();
-
-        /** @var array<string, bool> $viewable */
-        $viewable = [];
-
-        return $reminders->map(function (MessageReminder $reminder) use ($user, &$viewable): MessageReminderData {
-            $channel = $reminder->message->channel;
-            $viewable[$channel->id] ??= Gate::forUser($user)->allows('view', $channel);
-
-            return MessageReminderData::fromMessageReminder($reminder, $viewable[$channel->id]);
-        })->all();
-    }
-
-    /**
-     * The team-in-the-URL's custom emoji as a flat `name => url` map, feeding
-     * the shortcode rendering in message bodies, reaction pills, and the picker's
-     * "Custom" section. Empty off the channel workspace, where messages (and thus
-     * the shortcode surfaces) aren't rendered.
-     *
-     * @return array<string, string>
-     */
-    protected function customEmojisForWorkspace(Request $request, ?User $user): array
-    {
-        $team = $request->route('team');
-
-        if (! $user || ! $team instanceof Team || ! $this->isWorkspaceRoute($request)) {
-            return [];
-        }
-
-        return CustomEmojiData::mapForTeam($team);
-    }
-
-    /**
-     * The team-in-the-URL's mentionable user groups, feeding the composer's `@`
-     * menu and the group-pill resolution in message bodies. Empty off the
-     * channel workspace, where neither surface renders.
-     *
-     * @return array<int, UserGroupData>
-     */
-    protected function userGroupsForWorkspace(Request $request, ?User $user): array
-    {
-        $team = $request->route('team');
-
-        if (! $user || ! $team instanceof Team || ! $this->isWorkspaceRoute($request)) {
-            return [];
-        }
-
-        return UserGroupData::mentionableForTeam($team);
-    }
-
-    /**
-     * The composer's slash-command autocomplete manifest, or an empty list off
-     * the workspace (where no composer renders). The manifest is global and
-     * unscoped to a team — the v1 commands are unrestricted — but built per
-     * request so its copy reflects the active locale.
-     *
-     * @return array<int, SlashCommandData>
-     */
-    protected function slashCommandsForWorkspace(Request $request): array
-    {
-        if (! $this->isWorkspaceRoute($request)) {
-            return [];
-        }
-
-        return app(SlashCommandRegistry::class)->manifest();
-    }
-
-    /**
-     * The current user's custom sidebar sections for the team in the URL.
-     *
-     * Ordered by the user's manual section order, so the sidebar can render the
-     * custom groups between "Starred" and the default "Channels" list. Empty off
-     * the channel workspace, where the sidebar is absent.
-     *
-     * @return array<int, ChannelSectionData>
-     */
-    protected function channelSectionsForSidebar(Request $request, ?User $user): array
-    {
-        $team = $request->route('team');
-
-        if (! $user || ! $team instanceof Team || ! $this->isWorkspaceRoute($request)) {
-            return [];
-        }
-
-        $sections = $user->channelSections()
-            ->where('team_id', $team->id)
-            ->orderBy('position')->oldest()
-            ->get();
-
-        return ChannelSectionData::collect($sections, 'array');
-    }
-
-    /**
-     * Whether the user has any unread followed thread in the team, driving the
-     * rail's and the tab bar's "Threads" unread dot.
-     *
-     * Scoped to the user's channels in the team (the same ACL as the panel), and
-     * muted per channel, so it agrees with the dots the panel and channel views
-     * show. Returns false off the channel workspace, where the dock is absent.
-     */
-    protected function hasUnreadThreads(Request $request, ?User $user): bool
-    {
-        $inbox = $this->threadInbox($request, $user);
-
-        return $inbox instanceof ThreadInbox && $inbox->hasUnread();
-    }
-
-    /**
-     * The Threads destination's props: one page of the inbox and how many followed
-     * threads are unread.
-     *
-     * Keyed on the destination being pinned (`?nav=threads`) rather than deferred,
-     * exactly as `?thread=` decides whether the thread panel's payload rides along.
-     * A deferred prop would be worse than it sounds: the client requests every
-     * deferred group straight after each visit, so the inbox — a cursor-paginated
-     * query with a 30-card payload — would run on every workspace navigation
-     * instead of only while the panel is open.
-     *
-     * @return array<string, mixed>
-     */
-    protected function threadsPanelProps(Request $request, ?User $user): array
-    {
-        $inbox = $this->threadInbox($request, $user);
-
-        if (! $inbox instanceof ThreadInbox || $request->query(NavDestination::QUERY_PARAM) !== NavDestination::Threads->value) {
-            return [];
-        }
-
-        $filter = ThreadInboxFilter::fromQuery($request->query('filter'));
-
-        return [
-            // The page carries its own scroll metadata, read off the models before
-            // they became cards — see {@see ThreadInboxPage} for why the paginator
-            // cannot be handed over directly.
-            'threads' => Inertia::scroll(
-                fn (): ThreadInboxPage => $inbox->page($filter),
-                metadata: fn (ThreadInboxPage $page): ProvidesScrollMetadata => $page->metadata(),
-            ),
-            'unreadThreadCount' => $inbox->unreadCount(...),
-        ];
-    }
-
-    /**
-     * The Search destination's props: the matches the URL's criteria select, the
-     * criteria they were selected by, and the cross-workspace channel union the
-     * channel facet offers in "All workspaces" mode.
-     *
-     * The panel's state is the URL, not the echoed criteria — it reads what to
-     * search from there ({@see resources/js/lib/searchPanel.ts}) and uses the echo
-     * only to tell whether the matches it holds still answer it.
-     *
-     * Keyed on `?nav=search` for the same reason the Threads inbox above is: a
-     * search runs a full-text query, and a deferred prop would run it on every
-     * workspace navigation instead of only while the panel is open. Both stay
-     * closures so a partial reload of the matches alone does not also rebuild the
-     * channel union.
-     *
-     * @return array<string, mixed>
-     */
-    protected function searchPanelProps(Request $request, ?User $user): array
-    {
-        $team = $request->route('team');
-
-        if (! $user || ! $team instanceof Team || ! $this->isWorkspaceRoute($request)) {
-            return [];
-        }
-
-        if ($request->query(NavDestination::QUERY_PARAM) !== NavDestination::Search->value) {
-            return [];
-        }
-
-        $panel = MessageSearchPanel::fromRequest($request, $user, $team);
-
-        return [
-            'searchCriteria' => $panel->criteria(),
-            'searchResults' => $panel->results(...),
-            'searchWorkspaceChannels' => $panel->workspaceChannels(...),
-        ];
-    }
-
-    /**
-     * The viewer's Threads read model for the team in the URL, or null off the
-     * channel workspace / for a guest, where there is no inbox to speak of.
-     */
-    protected function threadInbox(Request $request, ?User $user): ?ThreadInbox
-    {
-        $team = $request->route('team');
-
-        if (! $user || ! $team instanceof Team || ! $this->isWorkspaceRoute($request)) {
-            return null;
-        }
-
-        return new ThreadInbox($user, $team);
-    }
-
-    /**
-     * A correlated sub-query counting a channel's messages the user has not yet read.
-     *
-     * "Unread" is every non-deleted message authored by someone else that lands
-     * after the user's `last_read_message_id` (a null pointer means the channel
-     * was never opened, so everything counts). It is correlated against the outer
-     * sidebar query's `channels` and `channel_members` rows, so a single query
-     * fills every channel's badge without an N+1.
-     *
-     * @return Builder<Message>
-     */
-    protected function unreadMessages(User $user): Builder
-    {
-        return Message::query()
-            ->selectRaw('count(*)')
-            ->whereColumn('messages.channel_id', 'channels.id')
-            ->where('messages.user_id', '!=', $user->id)
-            // System notices (member joined / left) are ambient: they never
-            // advance the unread badge or raise a mention, so they are excluded
-            // from both the unread and mention counts. Every other type counts —
-            // a poll is user-authored and badges the channel like a message.
-            ->whereNotIn('messages.type', MessageType::systemValues())
-            ->where(fn (Builder $query) => $query
-                ->whereNull('channel_members.last_read_message_id')
-                ->orWhereColumn('messages.id', '>', 'channel_members.last_read_message_id'));
-    }
-
-    /**
-     * The user's pending (unaccepted, unexpired) team invitations.
-     *
-     * @return array<int, array{code: string, inviterName: string, team: array{name: string, slug: string}}>
-     */
-    protected function pendingInvitationsFor(User $user): array
-    {
-        $email = strtolower($user->email);
-
-        return TeamInvitation::query()
-            ->with(['inviter', 'team'])
-            ->whereRaw('LOWER(email) = ?', [$email])
-            ->whereNull('accepted_at')
-            ->where(fn ($query) => $query
-                ->whereNull('expires_at')
-                ->orWhere('expires_at', '>=', now()))
-            ->latest()
-            ->get()
-            ->map(fn (TeamInvitation $invitation): array => [
-                'code' => $invitation->code,
-                'inviterName' => $invitation->inviter->name,
-                'team' => [
-                    'name' => $invitation->team->name,
-                    'slug' => $invitation->team->slug,
-                ],
-            ])
-            ->all();
     }
 }

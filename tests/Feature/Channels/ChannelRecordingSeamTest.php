@@ -14,7 +14,6 @@ use App\Enums\AuditAction;
 use App\Enums\ChannelVisibility;
 use App\Enums\WebhookEvent;
 use App\Jobs\DeliverWebhook;
-use App\Jobs\PurgeDeletedChannel;
 use App\Models\AuditActivity;
 use App\Models\Channel;
 use App\Models\Message;
@@ -137,7 +136,7 @@ it('records a channel deletion with the date its content is purged', function ()
 
     expect($entry->causer_id)->toBe($this->admin->id);
     expect($entry->properties['purge_at'])
-        ->toBe($channel->deleted_at->addDays(PurgeDeletedChannel::GRACE_WINDOW_DAYS)->toDateString());
+        ->toBe($channel->deleted_at->addDays(Channel::RESTORE_WINDOW_DAYS)->toDateString());
 });
 
 it('does not audit deleting a channel that is already deleted', function (): void {

@@ -71,6 +71,17 @@ class Channel extends Model
     public const string FALLBACK_SLUG = 'channel';
 
     /**
+     * How long a deleted channel stays restorable before it is purged.
+     *
+     * A rule of the channel, not of the job that enforces it: the delete dialog
+     * promises the window, the restore path relies on it, and the scheduled
+     * purge is only the sweeper that closes it. A fixed window for now — once
+     * workspace-level retention lands this becomes the default rather than the
+     * only answer (issue #401).
+     */
+    public const int RESTORE_WINDOW_DAYS = 30;
+
+    /**
      * Keep a usable slug on the row however the channel is written.
      *
      * The slug is the route key ({@see getRouteKeyName()}), so a blank one

@@ -28,7 +28,7 @@ class PurgeExpiredChannels
         $queued = 0;
 
         Channel::onlyTrashed()
-            ->where('deleted_at', '<=', now()->subDays(PurgeDeletedChannel::GRACE_WINDOW_DAYS))
+            ->where('deleted_at', '<=', now()->subDays(Channel::RESTORE_WINDOW_DAYS))
             ->cursor()
             ->each(function (Channel $channel) use (&$queued): void {
                 dispatch(new PurgeDeletedChannel($channel->id));

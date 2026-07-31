@@ -53,7 +53,7 @@ function purgeableChannel(): array
 test('the purge job destroys the channel, every child row, and the attachment blobs on disk', function (): void {
     [$channel, $attachment] = purgeableChannel();
 
-    $this->travel(PurgeDeletedChannel::GRACE_WINDOW_DAYS + 1)->days();
+    $this->travel(Channel::RESTORE_WINDOW_DAYS + 1)->days();
 
     (new PurgeDeletedChannel($channel->id))->handle();
 
@@ -73,7 +73,7 @@ test('the purge job reclaims the blob of an attachment that was already soft-del
     Storage::disk($orphan->disk)->put($orphan->path, 'blob');
     $orphan->delete();
 
-    $this->travel(PurgeDeletedChannel::GRACE_WINDOW_DAYS + 1)->days();
+    $this->travel(Channel::RESTORE_WINDOW_DAYS + 1)->days();
 
     (new PurgeDeletedChannel($channel->id))->handle();
 
@@ -83,7 +83,7 @@ test('the purge job reclaims the blob of an attachment that was already soft-del
 test('the purge job leaves a channel whose grace window has not closed', function (): void {
     [$channel] = purgeableChannel();
 
-    $this->travel(PurgeDeletedChannel::GRACE_WINDOW_DAYS - 1)->days();
+    $this->travel(Channel::RESTORE_WINDOW_DAYS - 1)->days();
 
     (new PurgeDeletedChannel($channel->id))->handle();
 
@@ -94,7 +94,7 @@ test('the purge job leaves a channel that has since been restored', function ():
     [$channel] = purgeableChannel();
     $channel->restore();
 
-    $this->travel(PurgeDeletedChannel::GRACE_WINDOW_DAYS + 1)->days();
+    $this->travel(Channel::RESTORE_WINDOW_DAYS + 1)->days();
 
     (new PurgeDeletedChannel($channel->id))->handle();
 
@@ -104,7 +104,7 @@ test('the purge job leaves a channel that has since been restored', function ():
 test('the purge job is safe to run again once the channel is gone', function (): void {
     [$channel] = purgeableChannel();
 
-    $this->travel(PurgeDeletedChannel::GRACE_WINDOW_DAYS + 1)->days();
+    $this->travel(Channel::RESTORE_WINDOW_DAYS + 1)->days();
 
     (new PurgeDeletedChannel($channel->id))->handle();
 
@@ -121,7 +121,7 @@ test('the scheduled sweep queues a purge only for channels past their grace wind
     // candidate and one channel still inside its window.
     DB::table('channels')
         ->where('id', $expired->id)
-        ->update(['deleted_at' => now()->subDays(PurgeDeletedChannel::GRACE_WINDOW_DAYS + 1)]);
+        ->update(['deleted_at' => now()->subDays(Channel::RESTORE_WINDOW_DAYS + 1)]);
 
     expect(app(PurgeExpiredChannels::class)->handle())->toBe(1);
 

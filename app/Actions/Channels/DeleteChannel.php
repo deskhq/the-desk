@@ -45,7 +45,7 @@ class DeleteChannel
 
                 event(new AuditableActionOccurred($locked->team, $actor, AuditAction::ChannelDeleted, $locked, [
                     'channel_name' => $locked->name,
-                    'purge_at' => $locked->deleted_at->addDays(PurgeDeletedChannel::GRACE_WINDOW_DAYS)->toDateString(),
+                    'purge_at' => $locked->deleted_at->addDays(Channel::RESTORE_WINDOW_DAYS)->toDateString(),
                 ]));
             }
 
