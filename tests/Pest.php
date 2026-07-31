@@ -58,6 +58,26 @@ pest()->extend(TestCase::class)
     ->use(RefreshDatabase::class)
     ->in('Feature');
 
+/*
+|--------------------------------------------------------------------------
+| Integration Test Case (#1111)
+|--------------------------------------------------------------------------
+|
+| The same booted application and the same migrated database as `Feature`,
+| and deliberately so: what separates the two suites is not what they are
+| given but what they drive. An `Integration` test constructs the module and
+| calls it; a `Feature` test goes through `route()`. Before this suite existed
+| the split was "needs a database" against "doesn't", which is why 115 files
+| in `tests/Feature` never name a route — they were unit-shaped tests exiled
+| there to get a database, and modules that were perfectly constructible could
+| only be reached through a rendered page. ADR-0012 has the full account.
+|
+*/
+
+pest()->extend(TestCase::class)
+    ->use(RefreshDatabase::class)
+    ->in('Integration');
+
 // The slash-command unit tests exercise command copy through the translator, so
 // they need the application booted (but no database).
 pest()->extend(TestCase::class)->in('Unit/SlashCommands');
@@ -155,6 +175,7 @@ function something(): void
     // ..
 }
 
+require_once __DIR__.'/Helpers.php';
 require_once __DIR__.'/Browser/Helpers.php';
 require_once __DIR__.'/Feature/Auth/Sso/Helpers.php';
 require_once __DIR__.'/Feature/Scim/Helpers.php';
