@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 /**
  * Per-worktree isolation, as deskhq/laravel-worktree runs it.
  *
