@@ -10,13 +10,16 @@ import SlashCommandMenu from '@/components/composer/SlashCommandMenu.vue';
 import GifPickerPanel from '@/components/GifPickerPanel.vue';
 import PollComposerPanel from '@/components/PollComposerPanel.vue';
 import ScheduleMessageDialog from '@/components/ScheduleMessageDialog.vue';
+import { useAutocompleteAria } from '@/composables/useAutocompleteMenu';
 import { useComposerAttachments } from '@/composables/useComposerAttachments';
 import { useComposerAttachSheet } from '@/composables/useComposerAttachSheet';
 import { useComposerEditMode } from '@/composables/useComposerEditMode';
 import { useComposerField } from '@/composables/useComposerField';
 import { useComposerFormat } from '@/composables/useComposerFormat';
+import { useComposerGifPicker } from '@/composables/useComposerGifPicker';
 import { useComposerKeyboard } from '@/composables/useComposerKeyboard';
 import { useComposerMentions } from '@/composables/useComposerMentions';
+import { useComposerPollBuilder } from '@/composables/useComposerPollBuilder';
 import { useComposerSend } from '@/composables/useComposerSend';
 import { useComposerSlashCommands } from '@/composables/useComposerSlashCommands';
 import { useEllipsizedText } from '@/composables/useEllipsizedText';
@@ -214,14 +217,7 @@ const mentions = useComposerMentions({
     field,
     members: () => props.members,
 });
-const {
-    activeIndex,
-    insertMention,
-    refreshSuggestions,
-    selectSuggestion,
-    showMenu,
-    suggestions,
-} = mentions;
+const { insertMention, refreshSuggestions } = mentions;
 
 /**
  * When true, the next body change is a programmatic clear-on-send (or the wipe
@@ -240,7 +236,7 @@ const editing = useComposerEditMode({
     messages: () => props.messages ?? [],
     currentUserId: () => props.currentUserId ?? '',
     pendingUuids: () => props.pendingUuids,
-    closeMenu: mentions.closeMenu,
+    closeMenu: mentions.menu.close,
     suppressNextDraftChange,
     onEditingChange: (messageId) => emit('editingChange', messageId),
     onSave: (message, edited) => emit('edit', message, edited),
@@ -266,34 +262,40 @@ watch(body, (value) => {
     emit('draftChange', value);
 });
 
+// The adapter is declared before the two pickers so they can dismiss its menu,
+// and reads them back through a getter it only calls once a command is chosen.
 const slash = useComposerSlashCommands({
     field,
     commands: () => props.slashCommands,
+    pickers: () =>
+        [gif.command.value, poll.command.value].filter((command) => !!command),
+});
+const { refreshSuggestions: refreshSlashSuggestions } = slash;
+
+const gif = useComposerGifPicker({
+    field,
     gifPickerEnabled: () => Boolean(props.gifPickerEnabled),
-    pollsEnabled: () => Boolean(props.pollsEnabled),
     attachmentsEnabled: () => attachmentsEnabled.value,
+    isEditing: () => editingMessage.value !== null,
+    closeSlashMenu: slash.menu.close,
+    stageRemote: (attachment) => uploads.addRemote(attachment),
+});
+
+const poll = useComposerPollBuilder({
+    field,
+    pollsEnabled: () => Boolean(props.pollsEnabled),
     teamSlug: () => props.teamSlug,
     channelSlug: () => props.channelSlug,
     isEditing: () => editingMessage.value !== null,
-    stageRemote: (attachment) => uploads.addRemote(attachment),
+    closeSlashMenu: slash.menu.close,
 });
-const {
-    closeGifPicker,
-    closePollComposer,
-    gifPickerAvailable,
-    gifPickerOpen,
-    gifPickerQuery,
-    onGifSelected,
-    openGifPicker,
-    openPollComposer,
-    pollComposerAvailable,
-    pollComposerOpen,
-    refreshSlashSuggestions,
-    selectSlashCommand,
-    showSlashMenu,
-    slashActiveIndex,
-    slashSuggestions,
-} = slash;
+
+// The two autocompletes are mutually exclusive — a `/…` body never matches an
+// `@query` — so the field advertises whichever of them is up.
+const { openListboxId, activeOptionId } = useAutocompleteAria([
+    mentions.menu,
+    slash.menu,
+]);
 
 /**
  * How much of the screen the on-screen keyboard covers, so the pill can sit
@@ -411,39 +413,33 @@ defineExpose({ insertMention, focus, addFiles: attachments.addFiles });
     >
         <div class="relative">
             <MentionMenu
-                v-if="showMenu"
-                :suggestions="suggestions"
-                :active-index="activeIndex"
+                v-if="mentions.menu.showMenu.value"
+                :menu="mentions.menu"
                 :has-bots="props.hasBots"
-                @select="selectSuggestion"
-                @activate="activeIndex = $event"
             />
 
             <SlashCommandMenu
-                v-if="showSlashMenu"
-                :commands="slashSuggestions"
-                :active-index="slashActiveIndex"
-                @select="selectSlashCommand"
-                @activate="slashActiveIndex = $event"
+                v-if="slash.menu.showMenu.value"
+                :menu="slash.menu"
             />
 
             <!-- The Giphy picker, opened by `/gif`. Sits in the same anchored
                  position as the autocomplete menus; picking a GIF stages it in
                  the attachment tray below. -->
             <GifPickerPanel
-                v-if="gifPickerOpen && gifPickerAvailable"
+                v-if="gif.open.value && gif.available.value"
                 :team-slug="props.teamSlug ?? ''"
                 :channel-slug="props.channelSlug ?? ''"
-                :initial-query="gifPickerQuery"
-                @select="onGifSelected"
-                @close="closeGifPicker"
+                :initial-query="gif.query.value"
+                @select="gif.onSelected"
+                @close="gif.close"
             />
 
             <PollComposerPanel
-                v-if="pollComposerOpen && pollComposerAvailable"
+                v-if="poll.open.value && poll.available.value"
                 :team-slug="props.teamSlug ?? ''"
                 :channel-slug="props.channelSlug ?? ''"
-                @close="closePollComposer"
+                @close="poll.close"
             />
 
             <ReplyPreview
@@ -492,10 +488,8 @@ defineExpose({ insertMention, focus, addFiles: attachments.addFiles });
                     v-model:attach-sheet-open="attachSheetOpen"
                     :placeholder="visiblePlaceholder"
                     :field-label="composerPlaceholder"
-                    :show-mention-menu="showMenu"
-                    :show-slash-menu="showSlashMenu"
-                    :mention-active-index="activeIndex"
-                    :slash-active-index="slashActiveIndex"
+                    :open-listbox-id="openListboxId"
+                    :active-option-id="activeOptionId"
                     :editing="editingMessage !== null"
                     :format-actions="formatActions"
                     :attachments-enabled="attachmentsEnabled"
@@ -506,8 +500,8 @@ defineExpose({ insertMention, focus, addFiles: attachments.addFiles });
                     :allow-schedule="Boolean(props.allowSchedule)"
                     :timezone="props.timezone ?? null"
                     :has-content="hasContent"
-                    :gif-available="gifPickerAvailable"
-                    :poll-available="pollComposerAvailable"
+                    :gif-available="gif.available.value"
+                    :poll-available="poll.available.value"
                     :has-slash-commands="(props.slashCommands ?? []).length > 0"
                     :register="registerField"
                     @input="onFieldInput"
@@ -518,8 +512,8 @@ defineExpose({ insertMention, focus, addFiles: attachments.addFiles });
                     @format="applyFormat"
                     @record="recorder.start"
                     @toggle-tools="toolsOpen = !toolsOpen"
-                    @gif="openGifPicker('')"
-                    @poll="openPollComposer"
+                    @gif="gif.openPicker('')"
+                    @poll="poll.openBuilder"
                     @command="startSlashCommand"
                     @send="submit"
                     @schedule-at="onScheduleConfirm"

@@ -1,3 +1,4 @@
+import type { NavigableMenu } from '@/composables/useAutocompleteMenu';
 import type { ComposerEditMode } from '@/composables/useComposerEditMode';
 import type { ComposerField } from '@/composables/useComposerField';
 import type { ComposerFormat } from '@/composables/useComposerFormat';
@@ -41,6 +42,40 @@ export function useComposerKeyboard(options: {
     const { body, caretAtStart } = options.field;
     const { mentions, slash, editing } = options;
 
+    /**
+     * The two autocompletes, in priority order. They are mutually exclusive (a
+     * `/…` body never matches an `@query`), so at most one is ever open.
+     */
+    const menus: NavigableMenu[] = [mentions.menu, slash.menu];
+
+    /**
+     * Whether the open menu, if either is, took the key. Arrows move the active
+     * row, Enter/Tab complete it and Escape dismisses it.
+     */
+    function menuTookKey(event: KeyboardEvent): boolean {
+        const menu = menus.find((candidate) => candidate.showMenu.value);
+
+        if (!menu) {
+            return false;
+        }
+
+        if (event.key === 'ArrowDown') {
+            menu.moveActive(1);
+        } else if (event.key === 'ArrowUp') {
+            menu.moveActive(-1);
+        } else if (event.key === 'Enter' || event.key === 'Tab') {
+            menu.selectActive();
+        } else if (event.key === 'Escape') {
+            menu.close();
+        } else {
+            return false;
+        }
+
+        event.preventDefault();
+
+        return true;
+    }
+
     function onKeydown(event: KeyboardEvent): void {
         // Stand down entirely until the composition ends, or a CJK user posts a
         // half-finished word every time they accept an IME candidate.
@@ -48,67 +83,8 @@ export function useComposerKeyboard(options: {
             return;
         }
 
-        if (mentions.showMenu.value) {
-            if (event.key === 'ArrowDown') {
-                event.preventDefault();
-                mentions.moveActive(1);
-
-                return;
-            }
-
-            if (event.key === 'ArrowUp') {
-                event.preventDefault();
-                mentions.moveActive(-1);
-
-                return;
-            }
-
-            if (event.key === 'Enter' || event.key === 'Tab') {
-                event.preventDefault();
-                mentions.selectActive();
-
-                return;
-            }
-
-            if (event.key === 'Escape') {
-                event.preventDefault();
-                mentions.closeMenu();
-
-                return;
-            }
-        }
-
-        // The slash-command menu mirrors the mention menu's navigation. The two are
-        // mutually exclusive (a `/…` body never matches an `@query`), so this runs
-        // only when the slash menu is the open one.
-        if (slash.showSlashMenu.value) {
-            if (event.key === 'ArrowDown') {
-                event.preventDefault();
-                slash.slashMoveActive(1);
-
-                return;
-            }
-
-            if (event.key === 'ArrowUp') {
-                event.preventDefault();
-                slash.slashMoveActive(-1);
-
-                return;
-            }
-
-            if (event.key === 'Enter' || event.key === 'Tab') {
-                event.preventDefault();
-                slash.selectSlashActive();
-
-                return;
-            }
-
-            if (event.key === 'Escape') {
-                event.preventDefault();
-                slash.closeSlashMenu();
-
-                return;
-            }
+        if (menuTookKey(event)) {
+            return;
         }
 
         // Format shortcuts wrap the selection. Placed after the mention menu's key
@@ -144,7 +120,7 @@ export function useComposerKeyboard(options: {
                 ctrlKey: event.ctrlKey,
                 metaKey: event.metaKey,
                 shiftKey: event.shiftKey,
-                menuOpen: mentions.showMenu.value || slash.showSlashMenu.value,
+                menuOpen: menus.some((menu) => menu.showMenu.value),
                 editing: editing.editingMessage.value !== null,
                 hasReplyTarget: options.replyTarget() != null,
                 isEmpty: body.value.trim() === '',
