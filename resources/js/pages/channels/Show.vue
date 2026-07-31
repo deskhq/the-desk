@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Head } from '@inertiajs/vue3';
-import { computed, nextTick, onMounted, ref, watch } from 'vue';
+import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue';
 import ArchivedNotice from '@/components/channel/ArchivedNotice.vue';
 import ChannelAnnouncers from '@/components/channel/ChannelAnnouncers.vue';
 import ChannelComposerDock from '@/components/channel/ChannelComposerDock.vue';
@@ -17,6 +17,7 @@ import { useChannelTimeline } from '@/composables/useChannelTimeline';
 import { useChannelTyping } from '@/composables/useChannelTyping';
 import { useComposerTarget } from '@/composables/useComposerTarget';
 import { useMessageActions } from '@/composables/useMessageActions';
+import { provideMessageActions } from '@/composables/useMessageActionsContext';
 import { useOfflineOutbox } from '@/composables/useOfflineOutbox';
 import { useRailBottomInset } from '@/composables/useRailInset';
 import { useReadOnFocus } from '@/composables/useReadOnFocus';
@@ -229,11 +230,6 @@ function jumpToMessage(id: string | null | undefined): void {
     }
 }
 
-/** Raise the "remind me at…" picker, from either timeline. */
-function openCustomReminder(message: Message): void {
-    dialogs.value?.openCustomReminder(message);
-}
-
 const { markRead } = useReadPointer({
     teamSlug: () => props.team.slug,
     channelSlug: () => props.channel.slug,
@@ -367,6 +363,43 @@ flushOnReconnect(actions.flushOutbox);
  * list's "sends at" labels so a scheduled time always reads in their own zone.
  */
 const { timezone } = useTimezone();
+
+/**
+ * Publish what a message row needs, once, for the whole page (ADR-0009): who
+ * the viewer is, what this channel lets them do, and every action they can ask
+ * for. Nothing between here and a row re-declares any of it — the pane, the
+ * thread panel, the timeline and the row itself read it where they use it.
+ *
+ * Some actions are writes the engine above owns; the rest raise a dialog or
+ * move the reader. Both kinds look the same from a row, which is the point.
+ */
+provideMessageActions(
+    reactive({
+        currentUserId: computed(() => currentUser.value.id),
+        canReact: computed(() => props.canReact),
+        // Pinning is a shared toggle gated on the same membership as reacting.
+        canPin: computed(() => props.canReact),
+        canModerate,
+        viewerTimeZone: timezone,
+        actions: {
+            react: actions.reactToMessage,
+            vote: actions.voteOnPoll,
+            closePoll: actions.closePoll,
+            pin: actions.pinMessage,
+            unpin: actions.unpinMessage,
+            remind: (message: Message, remindAt: string) =>
+                dialogs.value?.remindWith(message, remindAt),
+            remindCustom: (message: Message) =>
+                dialogs.value?.openCustomReminder(message),
+            forward: (message: Message) => dialogs.value?.openForward(message),
+            jump: jumpToMessage,
+            edit: actions.editMessage,
+            delete: actions.deleteMessage,
+            reply: startReply,
+            openThread,
+        },
+    }),
+);
 </script>
 
 <template>
@@ -403,7 +436,7 @@ const { timezone } = useTimezone();
                 :pin-count="props.pinCount"
                 :connection-pill="connection.pill.value"
                 :scrolled="pane?.scrolled ?? false"
-                :viewer-timezone="timezone"
+                :viewer-time-zone="timezone"
                 @open-details="dialogs?.openDetails()"
                 @archive="dialogs?.confirmArchive()"
                 @delete="dialogs?.confirmDelete()"
@@ -419,12 +452,9 @@ const { timezone } = useTimezone();
                 :channel="props.channel"
                 :messages="displayMessages"
                 :server-messages="serverMessages"
-                :current-user-id="currentUser.id"
                 :is-self-dm="isSelfDm"
                 :pending-uuids="pendingUuids"
                 :queued-uuids="queuedUuids"
-                :can-moderate="canModerate"
-                :can-react="props.canReact"
                 :can-drop-files="props.isMember && !props.channel.isArchived"
                 :presence-for="presenceFor"
                 :is-dnd-for="isDndFor"
@@ -439,19 +469,6 @@ const { timezone } = useTimezone();
                 @scroll="onScroll"
                 @files="(files) => dock?.addFiles(files)"
                 @focus-composer="dock?.focus()"
-                @edit="actions.editMessage"
-                @delete="actions.deleteMessage"
-                @reply="startReply"
-                @forward="(message) => dialogs?.openForward(message)"
-                @react="actions.reactToMessage"
-                @vote="actions.voteOnPoll"
-                @close-poll="actions.closePoll"
-                @pin="actions.pinMessage"
-                @unpin="actions.unpinMessage"
-                @remind="(message, at) => dialogs?.remindWith(message, at)"
-                @remind-custom="openCustomReminder"
-                @open-thread="openThread"
-                @jump="jumpToMessage"
                 @mention="(member) => dock?.insertMention(member)"
             >
                 <ArchivedNotice v-if="props.channel.isArchived" />
@@ -516,28 +533,13 @@ const { timezone } = useTimezone();
                 :pending-uuids="threadPendingUuids"
                 :members="mentionableMembers"
                 :has-bots="channelHasBots"
-                :current-user-id="currentUser.id"
-                :can-moderate="canModerate"
-                :can-react="props.canReact"
-                :can-pin="props.canReact"
                 :presence-for="presenceFor"
                 :is-dnd-for="isDndFor"
                 :loading="threadLoading"
                 :read-only="props.channel.isArchived"
                 @close="closeThread"
                 @send="actions.sendThreadReply"
-                @edit="actions.editMessage"
-                @delete="actions.deleteMessage"
-                @forward="(message) => dialogs?.openForward(message)"
-                @react="actions.reactToMessage"
-                @vote="actions.voteOnPoll"
-                @close-poll="actions.closePoll"
-                @pin="actions.pinMessage"
-                @unpin="actions.unpinMessage"
-                @remind="(message, at) => dialogs?.remindWith(message, at)"
-                @remind-custom="openCustomReminder"
                 @typing="typing.signalTyping"
-                @jump="jumpToMessage"
             />
         </Transition>
     </div>

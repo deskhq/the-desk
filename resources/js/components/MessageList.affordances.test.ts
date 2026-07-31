@@ -1,9 +1,14 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { App } from 'vue';
-import { createApp, defineComponent, h, ref } from 'vue';
-import { translate } from '@/lib/i18n';
-import type { ChannelReader, Message } from '@/types';
+import { defineComponent, h, ref } from 'vue';
+import type { ChannelReader } from '@/types';
+import {
+    find,
+    inertiaPageProps,
+    message,
+    mountWithActions,
+    unmountAll,
+} from './MessageList.doubles';
 
 /**
  * Covers the affordances hanging off the timeline rather than sitting in a row:
@@ -12,35 +17,18 @@ import type { ChannelReader, Message } from '@/types';
  * `MessageList.vue` is split, so what is pinned here is the rendered markup and
  * the guards deciding whether it renders at all.
  */
-const pageProps = vi.hoisted(() => ({
-    auth: { user: { timezone: 'UTC' } },
-    customEmojis: {} as Record<string, string>,
-    userGroups: [] as Array<{ id: string }>,
-}));
+vi.mock('@inertiajs/vue3', async () => {
+    const { inertiaPageProps } = await import('./MessageList.doubles');
 
-vi.mock('@inertiajs/vue3', () => ({
-    usePage: () => ({ props: pageProps }),
-}));
-
-const mobile = vi.hoisted(() => ({
-    current: null as { value: boolean } | null,
-}));
+    return { usePage: () => ({ props: inertiaPageProps }) };
+});
 
 vi.mock('@/composables/useIsMobile', async () => {
     const { ref } = await import('vue');
     const value = ref(false);
-    mobile.current = value;
 
     return { useIsMobile: () => value };
 });
-
-/** Renders an empty marker element, so a stubbed leaf is still findable. */
-function marker(name: string) {
-    return defineComponent({
-        name,
-        setup: () => () => h('div', { 'data-stub': name }),
-    });
-}
 
 vi.mock('@/components/UserHoverCard.vue', () => ({
     default: defineComponent({
@@ -52,112 +40,61 @@ vi.mock('@/components/UserHoverCard.vue', () => ({
     }),
 }));
 
-vi.mock('@/components/MessageActions.vue', () => ({
-    default: marker('MessageActions'),
-}));
+vi.mock('@/components/MessageActions.vue', async () => {
+    const { marker } = await import('./MessageList.doubles');
 
-vi.mock('@/components/MessageActionsSheet.vue', () => ({
-    default: marker('MessageActionsSheet'),
-}));
+    return { default: marker('MessageActions') };
+});
 
-vi.mock('@/components/MessageAttachments.vue', () => ({
-    default: marker('MessageAttachments'),
-}));
+vi.mock('@/components/MessageActionsSheet.vue', async () => {
+    const { marker } = await import('./MessageList.doubles');
 
-vi.mock('@/components/MessagePoll.vue', () => ({
-    default: marker('MessagePoll'),
-}));
+    return { default: marker('MessageActionsSheet') };
+});
 
-vi.mock('@/components/MessageReactions.vue', () => ({
-    default: marker('MessageReactions'),
-}));
+vi.mock('@/components/MessageAttachments.vue', async () => {
+    const { marker } = await import('./MessageList.doubles');
 
-vi.mock('@/components/MessageForward.vue', () => ({
-    default: marker('MessageForward'),
-}));
+    return { default: marker('MessageAttachments') };
+});
+
+vi.mock('@/components/MessagePoll.vue', async () => {
+    const { marker } = await import('./MessageList.doubles');
+
+    return { default: marker('MessagePoll') };
+});
+
+vi.mock('@/components/MessageReactions.vue', async () => {
+    const { marker } = await import('./MessageList.doubles');
+
+    return { default: marker('MessageReactions') };
+});
+
+vi.mock('@/components/MessageForward.vue', async () => {
+    const { marker } = await import('./MessageList.doubles');
+
+    return { default: marker('MessageForward') };
+});
 
 import MessageList from './MessageList.vue';
 
-function message(overrides: Partial<Message> = {}): Message {
-    return {
-        id: 'm1',
-        clientUuid: 'uuid-1',
-        body: 'hello',
-        type: 'standard',
-        user: { id: 'peer', name: 'Peer' },
-        createdAt: '2024-03-04T10:30:00.000Z',
-        editedAt: null,
-        isDeleted: false,
-        mentions: [],
-        linkPreviews: [],
-        attachments: [],
-        reactions: [],
-        pin: null,
-        poll: null,
-        replyTo: null,
-        forwardedFrom: null,
-        threadRootId: null,
-        sentToChannel: false,
-        threadReplyCount: 0,
-        threadLastReplyAt: null,
-        threadParticipants: [],
-        threadFollowed: false,
-        threadUnread: false,
-        threadUnreadReplyCount: 0,
-        ...overrides,
-    } as Message;
-}
-
-let active: Array<{ app: App; host: HTMLElement }> = [];
-
-type Mounted = {
-    host: HTMLElement;
-    events: Array<[string, unknown]>;
-};
-
-function mount(props: Record<string, unknown> = {}): Mounted {
-    const events: Array<[string, unknown]> = [];
-    const host = document.createElement('div');
-    document.body.appendChild(host);
-
-    const app = createApp({
-        render: () =>
-            h(MessageList, {
-                messages: [message()],
-                teamSlug: 'acme',
-                currentUserId: 'me',
-                onJump: (id: string) => events.push(['jump', id]),
-                onOpenThread: (id: string) => events.push(['openThread', id]),
-                ...props,
-            }),
-    });
-    app.config.globalProperties.$t = translate;
-    app.mount(host);
-    active.push({ app, host });
-
-    return { host, events };
-}
-
-function find(host: HTMLElement, selector: string): HTMLElement | null {
-    return host.querySelector<HTMLElement>(`[data-test="${selector}"]`);
+function mount(props: Record<string, unknown> = {}, inThread = false) {
+    return mountWithActions(
+        MessageList,
+        { messages: [message()], teamSlug: 'acme', ...props },
+        { subtree: { inThread } },
+    );
 }
 
 beforeEach(() => {
-    pageProps.customEmojis = {};
-    pageProps.userGroups = [];
+    inertiaPageProps.customEmojis = {};
+    inertiaPageProps.userGroups = [];
 });
 
-afterEach(() => {
-    for (const { app, host } of active) {
-        app.unmount();
-        host.remove();
-    }
-
-    active = [];
-});
+afterEach(unmountAll);
 
 describe('the thread summary', () => {
-    const root = (overrides: Partial<Message> = {}) =>
+    const root = (overrides: Partial<ReturnType<typeof message>> = {}) =>
         message({
             threadReplyCount: 2,
             threadParticipants: [
@@ -168,7 +105,7 @@ describe('the thread summary', () => {
         });
 
     it('opens the thread when pressed, naming the reply count', () => {
-        const { host, events } = mount({ messages: [root()] });
+        const { host, actions } = mount({ messages: [root()] });
 
         const summary = find(host, 'thread-summary');
 
@@ -178,13 +115,11 @@ describe('the thread summary', () => {
         expect(summary?.textContent).toContain('2 replies');
         summary?.click();
 
-        expect(events).toEqual([['openThread', 'm1']]);
+        expect(actions.openThread).toHaveBeenCalledExactlyOnceWith('m1');
     });
 
     it('reads in the singular for a lone reply', () => {
-        const { host } = mount({
-            messages: [root({ threadReplyCount: 1 })],
-        });
+        const { host } = mount({ messages: [root({ threadReplyCount: 1 })] });
 
         expect(find(host, 'thread-summary')?.getAttribute('aria-label')).toBe(
             'View thread, 1 reply',
@@ -228,15 +163,13 @@ describe('the thread summary', () => {
     });
 
     it('survives its root being deleted, since the thread outlives it', () => {
-        const { host } = mount({
-            messages: [root({ isDeleted: true })],
-        });
+        const { host } = mount({ messages: [root({ isDeleted: true })] });
 
         expect(find(host, 'thread-summary')).not.toBeNull();
     });
 
     it('stays out of a thread panel, where the reader is already in the thread', () => {
-        const { host } = mount({ messages: [root()], inThread: true });
+        const { host } = mount({ messages: [root()] }, true);
 
         expect(find(host, 'thread-summary')).toBeNull();
     });
@@ -258,17 +191,17 @@ describe('the "Seen by" row', () => {
     it('names a single reader', () => {
         const { host } = mount({ readers: readers('Alice') });
 
-        expect(
-            host.querySelector('[data-test="seen-by"]')?.getAttribute('title'),
-        ).toBe('Seen by Alice');
+        expect(find(host, 'seen-by')?.getAttribute('title')).toBe(
+            'Seen by Alice',
+        );
     });
 
     it('joins two readers with "and"', () => {
         const { host } = mount({ readers: readers('Alice', 'Bob') });
 
-        expect(
-            host.querySelector('[data-test="seen-by"]')?.getAttribute('title'),
-        ).toBe('Seen by Alice and Bob');
+        expect(find(host, 'seen-by')?.getAttribute('title')).toBe(
+            'Seen by Alice and Bob',
+        );
     });
 
     it('collapses the tail into a "+N" chip past three avatars', () => {
@@ -276,7 +209,7 @@ describe('the "Seen by" row', () => {
             readers: readers('Alice', 'Bob', 'Cara', 'Dan', 'Eve'),
         });
 
-        const row = host.querySelector('[data-test="seen-by"]');
+        const row = find(host, 'seen-by');
 
         expect(row?.getAttribute('title')).toBe(
             'Seen by Alice, Bob, Cara and 2 others',
@@ -290,9 +223,9 @@ describe('the "Seen by" row', () => {
             readers: readers('Alice', 'Bob', 'Cara', 'Dan'),
         });
 
-        expect(
-            host.querySelector('[data-test="seen-by"]')?.getAttribute('title'),
-        ).toBe('Seen by Alice, Bob, Cara and 1 other');
+        expect(find(host, 'seen-by')?.getAttribute('title')).toBe(
+            'Seen by Alice, Bob, Cara and 1 other',
+        );
     });
 
     it('drops the viewer’s own read position from the roster', () => {
@@ -302,19 +235,19 @@ describe('the "Seen by" row', () => {
             ],
         });
 
-        expect(host.querySelector('[data-test="seen-by"]')).toBeNull();
+        expect(find(host, 'seen-by')).toBeNull();
     });
 
     it('stays out of a thread panel', () => {
-        const { host } = mount({ inThread: true, readers: readers('Alice') });
+        const { host } = mount({ readers: readers('Alice') }, true);
 
-        expect(host.querySelector('[data-test="seen-by"]')).toBeNull();
+        expect(find(host, 'seen-by')).toBeNull();
     });
 
     it('stays out of an empty timeline', () => {
         const { host } = mount({ messages: [], readers: readers('Alice') });
 
-        expect(host.querySelector('[data-test="seen-by"]')).toBeNull();
+        expect(find(host, 'seen-by')).toBeNull();
     });
 });
 
@@ -328,28 +261,17 @@ describe('the windowed timeline', () => {
         });
 
         expect(host.querySelectorAll('[role="listitem"]')).toHaveLength(2);
-        expect(host.querySelector('[data-test="message-skeleton"]')).toBeNull();
+        expect(find(host, 'message-skeleton')).toBeNull();
     });
 
     it('exposes the jump helpers the parent drives the list with', () => {
         const exposed = ref<Record<string, unknown> | null>(null);
-        const host = document.createElement('div');
-        document.body.appendChild(host);
 
-        const app = createApp({
-            render: () =>
-                h(MessageList, {
-                    messages: [message()],
-                    teamSlug: 'acme',
-                    currentUserId: 'me',
-                    ref: (instance: unknown) => {
-                        exposed.value = instance as Record<string, unknown>;
-                    },
-                }),
+        mount({
+            ref: (instance: unknown) => {
+                exposed.value = instance as Record<string, unknown>;
+            },
         });
-        app.config.globalProperties.$t = translate;
-        app.mount(host);
-        active.push({ app, host });
 
         expect(typeof exposed.value?.scrollToIndex).toBe('function');
         expect(typeof exposed.value?.scrollToLatest).toBe('function');

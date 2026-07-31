@@ -14,6 +14,10 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useIsMobile } from '@/composables/useIsMobile';
+import {
+    provideMessageSubtree,
+    useMessageActionsContext,
+} from '@/composables/useMessageActionsContext';
 import { useRailInset } from '@/composables/useRailInset';
 import { useScrollPin } from '@/composables/useScrollPin';
 import type { RenderedPresence } from '@/lib/presence';
@@ -37,10 +41,6 @@ const props = defineProps<{
     // Whether the channel has a bot member, forwarded to the reply composer's
     // mention menu footnote.
     hasBots?: boolean;
-    currentUserId: string;
-    canModerate?: boolean;
-    canReact?: boolean;
-    canPin?: boolean;
     /** How each author reads on the team presence roster, passed straight down. */
     presenceFor?: (userId: string) => RenderedPresence;
     /** Whether each author is in do-not-disturb, threaded through to the list. */
@@ -52,19 +52,10 @@ const props = defineProps<{
 const emit = defineEmits<{
     close: [];
     send: [body: string, mentions: Mention[], sendToChannel?: boolean];
-    edit: [message: Message, body: string];
-    delete: [message: Message];
-    forward: [message: Message];
-    react: [message: Message, emoji: string];
-    vote: [message: Message, optionId: string];
-    closePoll: [message: Message];
-    pin: [message: Message];
-    unpin: [message: Message];
-    remind: [message: Message, remindAt: string];
-    remindCustom: [message: Message];
     typing: [];
-    jump: [messageId: string];
 }>();
+
+const scope = useMessageActionsContext();
 
 /** The root is the thread's only top-level message; everything else is a reply. */
 const root = computed(() =>
@@ -189,6 +180,13 @@ const threadComposer = ref<InstanceType<typeof MessageComposer> | null>(null);
 function mentionInThread(member: { id: string; name: string }): void {
     threadComposer.value?.insertMention(member);
 }
+
+/**
+ * The panel's own scope: the reader is already in the thread, so the rows drop
+ * their reply/thread affordances, and a mention lands in the reply composer
+ * beside them rather than in the channel's.
+ */
+provideMessageSubtree({ inThread: true, mention: mentionInThread });
 
 /**
  * The reply the thread composer is editing in place (via the ↑ shortcut), or
@@ -394,32 +392,11 @@ watch(
                     :messages="props.messages"
                     :team-slug="props.teamSlug"
                     :pending-uuids="props.pendingUuids"
-                    :current-user-id="props.currentUserId"
-                    :can-moderate="props.canModerate"
-                    :can-react="props.canReact"
-                    :can-pin="props.canPin"
                     :presence-for="props.presenceFor"
                     :is-dnd-for="props.isDndFor"
                     :editing-message-id="editingMessageId"
                     :reply-divider-count="isMobile ? replyCount : 0"
-                    in-thread
                     @load-older="loadOlderReplies"
-                    @edit="(message, body) => emit('edit', message, body)"
-                    @delete="(message) => emit('delete', message)"
-                    @forward="(message) => emit('forward', message)"
-                    @react="(message, emoji) => emit('react', message, emoji)"
-                    @vote="
-                        (message, optionId) => emit('vote', message, optionId)
-                    "
-                    @close-poll="(message) => emit('closePoll', message)"
-                    @pin="(message) => emit('pin', message)"
-                    @unpin="(message) => emit('unpin', message)"
-                    @remind="
-                        (message, remindAt) => emit('remind', message, remindAt)
-                    "
-                    @remind-custom="(message) => emit('remindCustom', message)"
-                    @jump="(id) => emit('jump', id)"
-                    @mention="mentionInThread"
                 />
             </InfiniteScroll>
         </ScrollableMessageList>
@@ -433,7 +410,7 @@ watch(
             :members="props.members"
             :placeholder="isMobile ? $t('Reply in thread') : $t('Reply…')"
             :messages="props.messages"
-            :current-user-id="props.currentUserId"
+            :current-user-id="scope.currentUserId"
             :pending-uuids="props.pendingUuids"
             allow-send-to-channel
             autofocus
@@ -442,7 +419,7 @@ watch(
                     emit('send', body, mentions, sendToChannel)
             "
             @typing="emit('typing')"
-            @edit="(message, body) => emit('edit', message, body)"
+            @edit="(message, body) => scope.actions.edit(message, body)"
             @editing-change="editingMessageId = $event"
         />
     </aside>

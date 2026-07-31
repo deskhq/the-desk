@@ -115,34 +115,41 @@ vi.mock('@/components/ChannelMasthead.vue', () => ({
     }),
 }));
 
+/**
+ * Stands in for the timeline, reaching the page's provided facade the way a row
+ * does — the page no longer listens for these as events (ADR-0009).
+ */
 vi.mock('@/components/MessageList.vue', async () => {
     const { message } = await import('./Show.doubles');
+    const { useMessageActionsContext } =
+        await import('@/composables/useMessageActionsContext');
 
     return {
         default: defineComponent({
             name: 'MessageListStub',
-            emits: ['forward', 'remind', 'remindCustom'],
-            setup(_props, { emit, expose }) {
+            setup(_props, { expose }) {
+                const scope = useMessageActionsContext();
+
                 expose({ scrollToIndex: vi.fn(), scrollToLatest: vi.fn() });
 
                 return () =>
                     h('div', [
                         h('button', {
                             'data-test': 'stub-forward',
-                            onClick: () => emit('forward', message()),
+                            onClick: () => scope.actions.forward(message()),
                         }),
                         h('button', {
                             'data-test': 'stub-remind',
                             onClick: () =>
-                                emit(
-                                    'remind',
+                                scope.actions.remind(
                                     message(),
                                     '2024-03-06T09:00:00.000Z',
                                 ),
                         }),
                         h('button', {
                             'data-test': 'stub-remind-custom',
-                            onClick: () => emit('remindCustom', message()),
+                            onClick: () =>
+                                scope.actions.remindCustom(message()),
                         }),
                     ]);
             },

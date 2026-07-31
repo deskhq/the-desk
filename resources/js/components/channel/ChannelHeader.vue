@@ -44,7 +44,7 @@ const props = defineProps<{
     connectionPill: ConnectionPill;
     /** Whether conversation has scrolled under the masthead, taking a shadow. */
     scrolled: boolean;
-    viewerTimezone: string | null;
+    viewerTimeZone: string | null;
 }>();
 
 const emit = defineEmits<{
@@ -137,7 +137,7 @@ defineExpose({
             :pins="props.pins"
             :pin-count="pinCount"
             :can-pin="props.canPin"
-            :viewer-timezone="props.viewerTimezone"
+            :viewer-time-zone="props.viewerTimeZone"
             @close="pinsPanelOpen = false"
             @jump="jumpToPin"
             @unpin="(message) => emit('unpin', message)"

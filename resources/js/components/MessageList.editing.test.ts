@@ -1,94 +1,65 @@
 // @vitest-environment jsdom
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { App } from 'vue';
-import { createApp, defineComponent, h, nextTick } from 'vue';
-import { translate } from '@/lib/i18n';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { defineComponent, h, nextTick } from 'vue';
 import type { Message } from '@/types';
+import {
+    click,
+    find,
+    message,
+    mountWithActions,
+    unmountAll,
+} from './MessageList.doubles';
 
 /**
  * Covers the two pieces of state the timeline owns on top of its rows: the
  * inline editor a row swaps into, and the delete confirmation standing between
- * the toolbar and the emit. Both survive a split of `MessageList.vue` unchanged,
- * so what is pinned here is when each opens, what it suppresses while open, and
- * which event it emits on the way out.
+ * the toolbar and the write. Both survive a split of `MessageList.vue`
+ * unchanged, so what is pinned here is when each opens, what it suppresses while
+ * open, and which action it reaches on the way out.
  */
-const pageProps = vi.hoisted(() => ({
-    auth: { user: { timezone: 'UTC' } },
-    customEmojis: {} as Record<string, string>,
-    userGroups: [] as unknown[],
-}));
+vi.mock('@inertiajs/vue3', async () => {
+    const { inertiaPageProps } = await import('./MessageList.doubles');
 
-vi.mock('@inertiajs/vue3', () => ({
-    usePage: () => ({ props: pageProps }),
-}));
-
-const mobile = vi.hoisted(() => ({
-    current: null as { value: boolean } | null,
-}));
+    return { usePage: () => ({ props: inertiaPageProps }) };
+});
 
 vi.mock('@/composables/useIsMobile', async () => {
     const { ref } = await import('vue');
     const value = ref(false);
-    mobile.current = value;
 
     return { useIsMobile: () => value };
 });
 
-/** Renders a child's default slot, so a stubbed wrapper stays transparent. */
-function passthrough(name: string) {
-    return defineComponent({
-        name,
-        setup:
-            (_props, { slots }) =>
-            () =>
-                h('div', { 'data-stub': name }, slots.default?.()),
-    });
-}
-
-/** Renders an empty marker element, so a stubbed leaf is still findable. */
-function marker(name: string) {
-    return defineComponent({
-        name,
-        setup: () => () => h('div', { 'data-stub': name }),
-    });
-}
-
 /**
  * Stands in for the hover toolbar with a button per event the timeline listens
- * for, so the row's response to `edit` and `delete` is driven the way the real
- * toolbar drives it.
+ * for, so the row's response to `startEdit` and `requestDelete` is driven the
+ * way the real toolbar drives it.
  */
 vi.mock('@/components/MessageActions.vue', () => ({
     default: defineComponent({
         name: 'MessageActionsStub',
-        emits: ['edit', 'delete'],
+        emits: ['startEdit', 'requestDelete'],
         setup:
             (_props, { emit }) =>
             () =>
                 h('div', [
-                    h(
-                        'button',
-                        {
-                            'data-test': 'stub-edit',
-                            onClick: () => emit('edit'),
-                        },
-                        'edit',
-                    ),
-                    h(
-                        'button',
-                        {
-                            'data-test': 'stub-delete',
-                            onClick: () => emit('delete'),
-                        },
-                        'delete',
-                    ),
+                    h('button', {
+                        'data-test': 'stub-edit',
+                        onClick: () => emit('startEdit'),
+                    }),
+                    h('button', {
+                        'data-test': 'stub-delete',
+                        onClick: () => emit('requestDelete'),
+                    }),
                 ]),
     }),
 }));
 
-vi.mock('@/components/MessageActionsSheet.vue', () => ({
-    default: marker('MessageActionsSheet'),
-}));
+vi.mock('@/components/MessageActionsSheet.vue', async () => {
+    const { marker } = await import('./MessageList.doubles');
+
+    return { default: marker('MessageActionsSheet') };
+});
 
 vi.mock('@/components/UserHoverCard.vue', () => ({
     default: defineComponent({
@@ -100,117 +71,65 @@ vi.mock('@/components/UserHoverCard.vue', () => ({
     }),
 }));
 
-vi.mock('@/components/ui/dialog', () => ({
-    Dialog: defineComponent({
-        name: 'DialogStub',
-        props: { open: { type: Boolean, default: false } },
-        setup:
-            (props, { slots }) =>
-            () =>
-                props.open
-                    ? h(
-                          'div',
-                          { 'data-test': 'delete-dialog' },
-                          slots.default?.(),
-                      )
-                    : null,
-    }),
-    DialogClose: passthrough('DialogClose'),
-    DialogContent: passthrough('DialogContent'),
-    DialogDescription: passthrough('DialogDescription'),
-    DialogFooter: passthrough('DialogFooter'),
-    DialogHeader: passthrough('DialogHeader'),
-    DialogTitle: passthrough('DialogTitle'),
-}));
+vi.mock('@/components/ui/dialog', async () => {
+    const { passthrough } = await import('./MessageList.doubles');
 
-vi.mock('@/components/MessageAttachments.vue', () => ({
-    default: marker('MessageAttachments'),
-}));
+    return {
+        Dialog: defineComponent({
+            name: 'DialogStub',
+            props: { open: { type: Boolean, default: false } },
+            setup:
+                (props, { slots }) =>
+                () =>
+                    props.open
+                        ? h(
+                              'div',
+                              { 'data-test': 'delete-dialog' },
+                              slots.default?.(),
+                          )
+                        : null,
+        }),
+        DialogClose: passthrough('DialogClose'),
+        DialogContent: passthrough('DialogContent'),
+        DialogDescription: passthrough('DialogDescription'),
+        DialogFooter: passthrough('DialogFooter'),
+        DialogHeader: passthrough('DialogHeader'),
+        DialogTitle: passthrough('DialogTitle'),
+    };
+});
 
-vi.mock('@/components/MessagePoll.vue', () => ({
-    default: marker('MessagePoll'),
-}));
+vi.mock('@/components/MessageAttachments.vue', async () => {
+    const { marker } = await import('./MessageList.doubles');
 
-vi.mock('@/components/MessageReactions.vue', () => ({
-    default: marker('MessageReactions'),
-}));
+    return { default: marker('MessageAttachments') };
+});
 
-vi.mock('@/components/MessageForward.vue', () => ({
-    default: marker('MessageForward'),
-}));
+vi.mock('@/components/MessagePoll.vue', async () => {
+    const { marker } = await import('./MessageList.doubles');
+
+    return { default: marker('MessagePoll') };
+});
+
+vi.mock('@/components/MessageReactions.vue', async () => {
+    const { marker } = await import('./MessageList.doubles');
+
+    return { default: marker('MessageReactions') };
+});
+
+vi.mock('@/components/MessageForward.vue', async () => {
+    const { marker } = await import('./MessageList.doubles');
+
+    return { default: marker('MessageForward') };
+});
 
 import MessageList from './MessageList.vue';
 
-function message(overrides: Partial<Message> = {}): Message {
-    return {
-        id: 'm1',
-        clientUuid: 'uuid-1',
-        body: 'hello',
-        type: 'standard',
-        user: { id: 'peer', name: 'Peer' },
-        createdAt: '2024-03-04T10:30:00.000Z',
-        editedAt: null,
-        isDeleted: false,
-        mentions: [],
-        linkPreviews: [],
-        attachments: [],
-        reactions: [],
-        pin: null,
-        poll: null,
-        replyTo: null,
-        forwardedFrom: null,
-        threadRootId: null,
-        sentToChannel: false,
-        threadReplyCount: 0,
-        threadLastReplyAt: null,
-        threadParticipants: [],
-        threadFollowed: false,
-        threadUnread: false,
-        threadUnreadReplyCount: 0,
-        ...overrides,
-    } as Message;
-}
-
-let active: Array<{ app: App; host: HTMLElement }> = [];
-
-type Mounted = {
-    host: HTMLElement;
-    edits: Array<[string, string]>;
-    deletes: string[];
-};
-
-function mount(props: Record<string, unknown> = {}): Mounted {
-    const edits: Array<[string, string]> = [];
-    const deletes: string[] = [];
-    const host = document.createElement('div');
-    document.body.appendChild(host);
-
-    const app = createApp({
-        render: () =>
-            h(MessageList, {
-                messages: [message()],
-                teamSlug: 'acme',
-                currentUserId: 'peer',
-                canReact: true,
-                onEdit: (target: Message, body: string) =>
-                    edits.push([target.id, body]),
-                onDelete: (target: Message) => deletes.push(target.id),
-                ...props,
-            }),
+function mount(props: Record<string, unknown> = {}) {
+    return mountWithActions(MessageList, {
+        messages: [message()],
+        teamSlug: 'acme',
+        ...props,
     });
-    app.config.globalProperties.$t = translate;
-    app.mount(host);
-    active.push({ app, host });
-
-    return { host, edits, deletes };
-}
-
-function find(host: HTMLElement, selector: string): HTMLElement | null {
-    return host.querySelector<HTMLElement>(`[data-test="${selector}"]`);
-}
-
-function click(host: HTMLElement, selector: string): void {
-    find(host, selector)?.click();
 }
 
 async function startEditing(host: HTMLElement): Promise<HTMLTextAreaElement> {
@@ -220,20 +139,26 @@ async function startEditing(host: HTMLElement): Promise<HTMLTextAreaElement> {
     return find(host, 'message-edit-input') as HTMLTextAreaElement;
 }
 
-beforeEach(() => {
-    if (mobile.current) {
-        mobile.current.value = false;
-    }
-});
+/** Type into the editor the way the editor's own `v-model` reads it. */
+async function type(field: HTMLTextAreaElement, text: string): Promise<void> {
+    field.value = text;
+    field.dispatchEvent(new Event('input'));
+    await nextTick();
+}
 
-afterEach(() => {
-    for (const { app, host } of active) {
-        app.unmount();
-        host.remove();
-    }
+async function press(field: HTMLTextAreaElement, key: string): Promise<void> {
+    field.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true }));
+    await nextTick();
+}
 
-    active = [];
-});
+async function pressButton(host: HTMLElement, label: string): Promise<void> {
+    [...host.querySelectorAll('button')]
+        .find((button) => button.textContent?.trim() === label)
+        ?.click();
+    await nextTick();
+}
+
+afterEach(unmountAll);
 
 describe('editing a message inline', () => {
     it('swaps the body for a textarea seeded with it', async () => {
@@ -272,113 +197,91 @@ describe('editing a message inline', () => {
     });
 
     it('saves the edited body on Enter and leaves the editor', async () => {
-        const { host, edits } = mount();
+        const { host, actions } = mount();
         const field = await startEditing(host);
 
-        field.value = 'hello again';
-        field.dispatchEvent(new Event('input'));
-        await nextTick();
-        field.dispatchEvent(
-            new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }),
-        );
-        await nextTick();
+        await type(field, 'hello again');
+        await press(field, 'Enter');
 
-        expect(edits).toEqual([['m1', 'hello again']]);
+        expect(actions.edit).toHaveBeenCalledExactlyOnceWith(
+            expect.objectContaining({ id: 'm1' }),
+            'hello again',
+        );
         expect(find(host, 'message-edit-input')).toBeNull();
     });
 
     it('saves from the Save button too', async () => {
-        const { host, edits } = mount();
+        const { host, actions } = mount();
         const field = await startEditing(host);
 
-        field.value = 'from the button';
-        field.dispatchEvent(new Event('input'));
-        await nextTick();
-        [...host.querySelectorAll('button')]
-            .find((button) => button.textContent?.trim() === 'Save')
-            ?.click();
-        await nextTick();
+        await type(field, 'from the button');
+        await pressButton(host, 'Save');
 
-        expect(edits).toEqual([['m1', 'from the button']]);
+        expect(actions.edit).toHaveBeenCalledExactlyOnceWith(
+            expect.anything(),
+            'from the button',
+        );
     });
 
     it('trims the draft before saving it', async () => {
-        const { host, edits } = mount();
+        const { host, actions } = mount();
         const field = await startEditing(host);
 
-        field.value = '   spaced   ';
-        field.dispatchEvent(new Event('input'));
-        await nextTick();
-        field.dispatchEvent(
-            new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }),
-        );
-        await nextTick();
+        await type(field, '   spaced   ');
+        await press(field, 'Enter');
 
-        expect(edits).toEqual([['m1', 'spaced']]);
+        expect(actions.edit).toHaveBeenCalledExactlyOnceWith(
+            expect.anything(),
+            'spaced',
+        );
     });
 
     it('treats an unchanged draft as a no-op', async () => {
-        const { host, edits } = mount();
+        const { host, actions } = mount();
         const field = await startEditing(host);
 
-        field.dispatchEvent(
-            new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }),
-        );
-        await nextTick();
+        await press(field, 'Enter');
 
-        expect(edits).toEqual([]);
+        expect(actions.edit).not.toHaveBeenCalled();
         expect(find(host, 'message-edit-input')).toBeNull();
     });
 
     it('treats an emptied draft as a no-op, since the server would reject it', async () => {
-        const { host, edits } = mount();
+        const { host, actions } = mount();
         const field = await startEditing(host);
 
-        field.value = '   ';
-        field.dispatchEvent(new Event('input'));
-        await nextTick();
-        field.dispatchEvent(
-            new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }),
-        );
-        await nextTick();
+        await type(field, '   ');
+        await press(field, 'Enter');
 
-        expect(edits).toEqual([]);
+        expect(actions.edit).not.toHaveBeenCalled();
     });
 
     it('abandons the edit on Esc', async () => {
-        const { host, edits } = mount();
+        const { host, actions } = mount();
         const field = await startEditing(host);
 
-        field.value = 'discarded';
-        field.dispatchEvent(new Event('input'));
-        await nextTick();
-        field.dispatchEvent(
-            new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }),
-        );
-        await nextTick();
+        await type(field, 'discarded');
+        await press(field, 'Escape');
 
-        expect(edits).toEqual([]);
+        expect(actions.edit).not.toHaveBeenCalled();
         expect(find(host, 'message-edit-input')).toBeNull();
         expect(find(host, 'message-body')?.textContent?.trim()).toBe('hello');
     });
 
     it('abandons the edit from the Cancel button', async () => {
-        const { host, edits } = mount();
+        const { host, actions } = mount();
         await startEditing(host);
 
-        [...host.querySelectorAll('button')]
-            .find((button) => button.textContent?.trim() === 'Cancel')
-            ?.click();
-        await nextTick();
+        await pressButton(host, 'Cancel');
 
-        expect(edits).toEqual([]);
+        expect(actions.edit).not.toHaveBeenCalled();
         expect(find(host, 'message-edit-input')).toBeNull();
     });
 });
 
 describe('deleting a message', () => {
-    it('asks before deleting, and emits only once confirmed', async () => {
-        const { host, deletes } = mount();
+    it('asks before deleting, and writes only once confirmed', async () => {
+        const { host, actions } = mount();
 
         expect(find(host, 'delete-dialog')).toBeNull();
 
@@ -389,12 +292,14 @@ describe('deleting a message', () => {
         expect(host.textContent).toContain(
             "Are you sure you want to delete this message? This can't be undone.",
         );
-        expect(deletes).toEqual([]);
+        expect(actions.delete).not.toHaveBeenCalled();
 
         click(host, 'delete-message-confirm');
         await nextTick();
 
-        expect(deletes).toEqual(['m1']);
+        expect(actions.delete).toHaveBeenCalledExactlyOnceWith(
+            expect.objectContaining({ id: 'm1' }),
+        );
         expect(find(host, 'delete-dialog')).toBeNull();
     });
 });

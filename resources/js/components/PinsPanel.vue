@@ -20,7 +20,7 @@ const props = defineProps<{
      */
     canPin: boolean;
     /** The viewer's stored zone, so pinned-at and authored-at read in their clock. */
-    viewerTimezone: string | null;
+    viewerTimeZone: string | null;
 }>();
 
 const emit = defineEmits<{
@@ -162,7 +162,7 @@ onBeforeUnmount(() => document.removeEventListener('keydown', onKeydown));
                                 >{{
                                     formatDateTime(
                                         message.pin.pinnedAt,
-                                        props.viewerTimezone ?? undefined,
+                                        props.viewerTimeZone ?? undefined,
                                     )
                                 }}</span
                             >
@@ -207,7 +207,7 @@ onBeforeUnmount(() => document.removeEventListener('keydown', onKeydown));
                                         >{{
                                             formatDateTime(
                                                 message.createdAt,
-                                                props.viewerTimezone ??
+                                                props.viewerTimeZone ??
                                                     undefined,
                                             )
                                         }}</span
