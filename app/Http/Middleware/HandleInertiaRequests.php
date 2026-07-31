@@ -71,8 +71,8 @@ class HandleInertiaRequests extends Middleware
         $user = $request->user();
         $shell = WorkspaceShell::forRequest($request);
         $pinned = NavDestination::fromQuery($request->query(NavDestination::QUERY_PARAM));
-        $route = $request->route('channel');
-        $activeChannel = $route instanceof Channel ? $route : null;
+        $boundChannel = $request->route('channel');
+        $activeChannel = $boundChannel instanceof Channel ? $boundChannel : null;
 
         return [
             ...parent::share($request),
