@@ -33,3 +33,11 @@ jobs:
         with:
           fail-on-severity: high
           comment-summary-in-pr: on-failure
+          # GHSA-mh99-v99m-4gvg (brace-expansion DoS) has no patched release below
+          # 5.0.8, so the 1.x and 2.x copies pinned by the old minimatch majors inside
+          # eslint, stylus and filelist cannot be resolved from here — an overrides
+          # entry forcing 5.x breaks them, because its CommonJS entry exports an object
+          # rather than the callable minimatch 3.x calls. All of them are dev tooling
+          # and none reaches the shipped bundle; the top-level copy is on a patched
+          # 5.x. Drop this once eslint and stylus move to minimatch 10+. See #1104.
+          allow-ghsas: GHSA-mh99-v99m-4gvg
