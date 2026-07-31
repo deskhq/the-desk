@@ -120,6 +120,17 @@ built; build them once, then reuse.
   calls, the `#[Fillable]` and `SidebarChannels`' select read. One policy ability,
   `updateMembership`, gates the lot. Never re-derive the membership row with a
   `channelMembers()->where('user_id', ...)` of your own.
+- **`DirectMessageRoster`** _(ADR-0011)_ — the one batched load of the memberships a
+  direct message has to be read through before it can be named. A DM stores no name,
+  so what it is called, whose avatars it stacks and which counterpart drives presence
+  are all viewer-relative and read off its members — an N+1 by default. The sidebar,
+  the thread inbox and search hits all load a page's rosters through this module, then
+  let `Channel::displayNameFor()` / `directParticipantFor()` read the loaded relation.
+  It belongs to none of the three, so never fold it into one of them. Its companion
+  rule: a read-model DTO takes a `User $viewer` parameter — `auth()` in `app/Data/` is
+  a defect, and `grep -rn "auth()" app/Data/` returning zero hits is what keeps it out.
+  `SidebarChannelsQueryCountTest` pins the sidebar's cost the way `MessageLoadSetScopeTest`
+  pins ADR-0002's.
 - **`ManualOrder`** — the ownership-filter-then-reindex walk behind a sidebar
   drag, shared by channel placement and section reordering: ids the user does not
   own are dropped, and the survivors are reindexed in a single statement rather

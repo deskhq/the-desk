@@ -25,6 +25,13 @@ test('a channel member belongs to a channel and a user', function (): void {
         ->and($member->user->is($user))->toBeTrue();
 });
 
+test('a standard channel has no direct participant to resolve', function (): void {
+    $viewer = User::factory()->create();
+    $channel = Channel::factory()->create();
+
+    expect($channel->directParticipantFor($viewer))->toBeNull();
+});
+
 test('channel visibility exposes a human label', function (): void {
     expect(ChannelVisibility::Public->label())->toBe('Public')
         ->and(ChannelVisibility::Private->label())->toBe('Private');
