@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+    AUTH_PROPS,
     CHANNEL_LIST_PROPS,
     CHANNEL_SECTION_PROPS,
     COLLAPSED_SECTION_PROPS,
@@ -23,6 +24,10 @@ function arrayLiteralOf(members: RegExp): RegExp {
 }
 
 describe('reloadProps', () => {
+    it('names the viewer, so an account write need not ask for the whole page', () => {
+        expect(AUTH_PROPS).toEqual(['auth']);
+    });
+
     it('names the sidebar channel read-model', () => {
         expect(CHANNEL_LIST_PROPS).toEqual(['channels']);
     });
@@ -58,6 +63,7 @@ describe('reloadProps', () => {
     });
 
     it.each([
+        ['AUTH_PROPS', arrayLiteralOf(/'auth'/)],
         ['CHANNEL_LIST_PROPS', arrayLiteralOf(/'channels'/)],
         ['CHANNEL_SECTION_PROPS', arrayLiteralOf(/'channelSections'/)],
         [

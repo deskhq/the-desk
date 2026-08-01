@@ -13,6 +13,7 @@ vi.mock('@inertiajs/vue3', () => ({
 }));
 
 import { backgroundVisit } from '@/lib/backgroundVisit';
+import { AUTH_PROPS } from '@/lib/reloadProps';
 
 /**
  * Import a fresh copy of the composable. Auto-detection is guarded by a
@@ -61,6 +62,17 @@ describe('useTimezone', () => {
         expect(patch).toHaveBeenCalledOnce();
         expect(patch.mock.calls[0][1]).toEqual({ timezone: 'Europe/Paris' });
         expect(firstOptions()).toMatchObject(backgroundVisit);
+    });
+
+    it('asks only for the viewer, so its late response cannot replace the page', async () => {
+        const { syncDetectedTimezone } = await freshUseTimezone();
+
+        syncDetectedTimezone();
+
+        // A full response replaces every prop with the route as it stood when
+        // the write left — dropping whatever the reader has opened since, with
+        // nothing to bring it back (#1099).
+        expect(firstOptions().only).toEqual(AUTH_PROPS);
     });
 
     it('does not auto-detect once a zone is already known', async () => {
