@@ -28,6 +28,7 @@ use App\Models\TeamInvitation;
 use App\Models\User;
 use App\Support\AuditRecorder;
 use App\Support\Gravatar;
+use App\Support\Images\ImageProxy;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
@@ -120,6 +121,11 @@ class WorkspaceSeeder extends Seeder
      * per user — a distinct, deterministic picture — to show the avatar surfaces
      * populated across the demo.
      *
+     * The URL is routed through the image proxy, exactly as {@see User::avatar}
+     * routes a derived Gravatar: `img-src` is `'self' data: blob:`, so a raw
+     * gravatar.com URL stored here would be refused by the app's own policy on
+     * every avatar surface (#1126).
+     *
      * @param  array{name: string, email: string}  $attributes
      * @param  Factory<User>|null  $factory
      */
@@ -127,7 +133,7 @@ class WorkspaceSeeder extends Seeder
     {
         return ($factory ?? User::factory())->createOne([
             ...$attributes,
-            'avatar_url' => Gravatar::url($attributes['email'], 'identicon'),
+            'avatar_url' => ImageProxy::url(Gravatar::url($attributes['email'], 'identicon')),
         ]);
     }
 
