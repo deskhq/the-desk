@@ -13,11 +13,13 @@ const props = defineProps<{
     /** The rendered (ellipsized) placeholder, with the full one on the label below. */
     placeholder: string;
     fieldLabel: string;
-    /** Which autocomplete, if either, the field's combobox ARIA currently points at. */
-    showMentionMenu: boolean;
-    showSlashMenu: boolean;
-    mentionActiveIndex: number;
-    slashActiveIndex: number;
+    /**
+     * The listbox of whichever autocomplete is open, and the row within it the
+     * keyboard is on. Both null when neither menu is up, which is also what
+     * collapses the field's combobox.
+     */
+    openListboxId: string | null;
+    activeOptionId: string | null;
     /** Whether the composer is correcting an existing message rather than composing. */
     editing: boolean;
     formatActions: FormatAction[];
@@ -173,21 +175,9 @@ function onFilesPicked(event: Event): void {
             data-test="message-composer-input"
             role="combobox"
             aria-autocomplete="list"
-            :aria-expanded="showMentionMenu || showSlashMenu"
-            :aria-controls="
-                showMentionMenu
-                    ? 'mention-listbox'
-                    : showSlashMenu
-                      ? 'slash-listbox'
-                      : undefined
-            "
-            :aria-activedescendant="
-                showMentionMenu
-                    ? `mention-option-${mentionActiveIndex}`
-                    : showSlashMenu
-                      ? `slash-option-${slashActiveIndex}`
-                      : undefined
-            "
+            :aria-expanded="openListboxId !== null"
+            :aria-controls="openListboxId ?? undefined"
+            :aria-activedescendant="activeOptionId ?? undefined"
             autocomplete="off"
             autocorrect="off"
             autocapitalize="sentences"
