@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { App } from 'vue';
 import { createApp, h, nextTick, ref } from 'vue';
 import { DatePicker } from '.';
@@ -11,6 +11,15 @@ import { DatePicker } from '.';
  * is all the component's own copy needs.
  */
 let app: App | null = null;
+
+/**
+ * The clock every test here runs on. Which month the calendar draws is derived
+ * from a date, so a fixture that happens to sit in the *current* month asserts
+ * nothing — it passes on a coincidence and fails at the next month boundary,
+ * which is exactly how #1135 reached `develop`. Every fixture below is
+ * deliberately in a different month from this one.
+ */
+const NOW = '2026-08-12T12:00:00.000Z';
 
 type DatePickerProps = InstanceType<typeof DatePicker>['$props'];
 
@@ -39,10 +48,29 @@ function trigger(): HTMLElement {
     return element;
 }
 
+/** Opens the popover and settles the calendar it portals into the document. */
+async function openCalendar(): Promise<void> {
+    trigger().click();
+    await nextTick();
+    await nextTick();
+}
+
+function dayCell(day: string): HTMLElement | null {
+    return document.querySelector<HTMLElement>(
+        `[data-reka-calendar-cell-trigger][data-value="${day}"]`,
+    );
+}
+
+beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date(NOW));
+});
+
 afterEach(() => {
     app?.unmount();
     app = null;
     document.body.innerHTML = '';
+    vi.useRealTimers();
 });
 
 describe('DatePicker', () => {
@@ -77,6 +105,23 @@ describe('DatePicker', () => {
         );
     });
 
+    it('opens on the selected day rather than on today', async () => {
+        mount({ modelValue: '2026-03-10', fieldLabel: 'Start date' });
+
+        await openCalendar();
+
+        expect(dayCell('2026-03-10')?.dataset.selected).toBe('true');
+        expect(dayCell(NOW.slice(0, 10))).toBeNull();
+    });
+
+    it('opens on the current month while nothing is selected', async () => {
+        mount({ modelValue: null, fieldLabel: 'Start date' });
+
+        await openCalendar();
+
+        expect(dayCell(NOW.slice(0, 10))).not.toBeNull();
+    });
+
     it('emits the picked day as an ISO string', async () => {
         const selected = ref<string | null>('2026-07-10');
 
@@ -88,13 +133,9 @@ describe('DatePicker', () => {
             },
         });
 
-        trigger().click();
-        await nextTick();
-        await nextTick();
+        await openCalendar();
 
-        const cell = document.querySelector<HTMLElement>(
-            '[data-reka-calendar-cell-trigger][data-value="2026-07-15"]',
-        );
+        const cell = dayCell('2026-07-15');
 
         expect(cell).not.toBeNull();
 
