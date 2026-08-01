@@ -70,8 +70,11 @@ test('every seeded avatar is first-party, so the app loads it under its own imag
     expect($users)->not->toBeEmpty();
 
     foreach ($users as $user) {
-        expect($user->avatar)->toStartWith('/images/proxy?')
-            ->and($user->avatar)->toBe(ImageProxy::url(Gravatar::url($user->email, 'identicon')));
+        $proxied = ImageProxy::url(Gravatar::url($user->email, 'identicon'));
+
+        expect($user->avatar_url)->toStartWith('/images/proxy?')
+            ->and($user->avatar_url)->toBe($proxied)
+            ->and($user->avatar)->toBe($proxied);
     }
 });
 
