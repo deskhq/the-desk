@@ -95,6 +95,10 @@ export function useChannelPreferences(
             apply: () => {
                 starred.value = !starred.value;
             },
+            // These refs are shared across channels and reseeded on every
+            // switch, so a rollback is only ever right for the channel the write
+            // was fired from.
+            subject: options.channelId,
             method: 'patch',
             url: updateChannelStar({
                 team: options.teamSlug(),
@@ -121,6 +125,7 @@ export function useChannelPreferences(
         write({
             capture: () => snapshotRef(changed),
             apply,
+            subject: options.channelId,
             method: 'patch',
             url: updateChannelPreferences({
                 team: options.teamSlug(),

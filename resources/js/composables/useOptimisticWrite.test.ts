@@ -356,6 +356,70 @@ describe('useOptimisticWrite', () => {
         expect(onSuccess).toHaveBeenCalledWith({ flash: { forwarded: null } });
     });
 
+    it('leaves a rollback undone when its subject is no longer the one on screen', () => {
+        const { write } = useOptimisticWrite();
+        const starred = ref(false);
+        const openChannel = ref('general');
+
+        write({
+            capture: () => snapshotRef(starred),
+            apply: () => {
+                starred.value = true;
+            },
+            subject: () => openChannel.value,
+            url: '/acme/general/star',
+            failure: 'Failed to update the channel',
+        });
+
+        // The reader moved on, and the ref now holds the new channel's state —
+        // which the outgoing channel's snapshot would overwrite.
+        openChannel.value = 'random';
+        starred.value = true;
+
+        optionsOf(post).onError({});
+
+        expect(starred.value).toBe(true);
+    });
+
+    it('stays quiet about a refusal the reader has navigated away from', () => {
+        // The copy names no channel, so a toast raised after the switch reads as
+        // the channel now on screen having failed.
+        const { write } = useOptimisticWrite();
+        const openChannel = ref('general');
+
+        write({
+            capture: () => () => undefined,
+            subject: () => openChannel.value,
+            url: '/acme/general/star',
+            failure: 'Failed to update the channel',
+        });
+
+        openChannel.value = 'random';
+        optionsOf(post).onError({});
+
+        expect(toastError).not.toHaveBeenCalled();
+    });
+
+    it('still rolls back and says so while the subject is the one on screen', () => {
+        const { write } = useOptimisticWrite();
+        const starred = ref(false);
+        const openChannel = ref('general');
+
+        write({
+            capture: () => snapshotRef(starred),
+            apply: () => {
+                starred.value = true;
+            },
+            subject: () => openChannel.value,
+            url: '/acme/general/star',
+            failure: 'Failed to update the channel',
+        });
+        optionsOf(post).onError({});
+
+        expect(starred.value).toBe(false);
+        expect(toastError).toHaveBeenCalledWith('Failed to update the channel');
+    });
+
     it('captures and restores without applying, for a mutation already made', () => {
         // vuedraggable has already written to the bound list by the time its
         // change handler fires, so that site restores by reseeding rather than
