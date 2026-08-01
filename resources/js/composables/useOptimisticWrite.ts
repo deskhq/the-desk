@@ -142,8 +142,9 @@ export function useOptimisticWrite(): OptimisticWriter {
         const rollback = spec.capture();
         spec.apply?.();
 
-        // A write the reader has navigated away from has nothing left to undo:
-        // its refs now describe someone else's channel.
+        // A refusal that arrives after its subject has left the screen has
+        // nothing left to undo: the state the rollback closed over now belongs
+        // to whatever took its place. See {@link OptimisticWrite.subject}.
         const stillRelevant = (): boolean =>
             spec.subject === undefined || Object.is(spec.subject(), subject);
 
