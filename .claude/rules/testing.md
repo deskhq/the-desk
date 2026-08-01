@@ -20,6 +20,7 @@ paths:
 
 - **100% code coverage is required — this is non-negotiable.** The test suite is gated at `--min=100` (see the `test` script in `composer.json`), so any line left uncovered fails the build.
 - **Always check coverage before pushing.** Run the full gate — which also runs Pint, PHPStan, and Rector — with `./vendor/bin/sail composer test` (this executes `lint:check`, `types:check`, `refactor:check`, and `php artisan test --parallel --coverage --min=100`). Do not push or open/update a PR until it reports `Total: 100.0 %` with a clean Rector dry-run.
+- **CI enforces the same floor** (#1133): the `ci` job loads PCOV and runs the suite with `--coverage --min=100`, so a PR that drops below 100% goes red on the PR rather than on the next person's unrelated run. The local gate is still the faster place to find out — but it is no longer the only place. Note the printed `Total: 100.0 %` is *rounded* while `--min=100` compares the unrounded figure, so a red gate can read as green right up to the `FAIL` line under it; trust the exit status, not the percentage.
 - If new code drops coverage, add or update tests until it is back at 100%. When a line reads as uncovered even though a test exercises it (e.g. the `: null` branch of a multi-line ternary is a known PCOV line-attribution quirk), collapse it onto a single line rather than leaving the gate red.
 
 ## Parallelism

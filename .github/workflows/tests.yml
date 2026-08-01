@@ -90,10 +90,16 @@ jobs:
           php-version: '8.5'
           extensions: gd, imagick
           tools: composer:v2
-          # CI does not enforce the coverage gate — that stays local via
-          # `composer test` (--min=100 with PCOV). Loading a coverage driver
-          # here would only slow the suite down (see #582).
-          coverage: none
+          # CI enforces the 100% coverage gate, so it needs a driver (#1133).
+          # PCOV, not Xdebug: it only records line hits, where Xdebug rewrites
+          # execution wholesale and roughly doubles the suite. #582 turned the
+          # driver off here on the assumption that every author runs `composer
+          # test` before merging, which #1102 and #1118 disproved in consecutive
+          # merges — a refactor that drops a method's last caller breaks no
+          # test, so the hole it opens is only found by the next person to run
+          # the gate on unrelated work. Matches the local pcov.directory (`.`),
+          # so the figure CI reports is the one `composer test` reports.
+          coverage: pcov
 
       - name: Setup Node
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v6
@@ -160,9 +166,18 @@ jobs:
       # Spelled this way rather than as pest's `--bail`, which Collision rejects
       # before it spawns pest — it validates the options it forwards against
       # paratest's own input definition, and `--bail` is pest-side sugar.
-      # Guarded by tests/Unit/LocalTestGateTest.php.
+      #
+      # `--coverage --min=100` so the floor is enforced where the cost of
+      # dropping below it is paid by whoever dropped it, rather than by the next
+      # person to run `composer test` on unrelated work (#1133). Note the two
+      # flags interact: a bailed run exits non-zero before Collision prints a
+      # figure, so a red suite reports the failing test and never a coverage
+      # number — the floor is only ever reported on an otherwise-green run,
+      # which is the only run whose figure means anything.
+      # Guarded by tests/Unit/LocalTestGateTest.php and
+      # tests/Unit/CiCoverageGateTest.php.
       - name: Tests
-        run: php artisan test --parallel --stop-on-defect
+        run: php artisan test --parallel --stop-on-defect --coverage --min=100
 
   # Browser (E2E) realtime suite: drives real Playwright browsers against the
   # app served in-process, with a live Reverb server so two clients exchange
