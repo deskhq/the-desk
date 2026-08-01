@@ -52,6 +52,26 @@ export interface OptimisticWrite {
      * bound to, so that site captures and restores but applies nothing.
      */
     apply?: () => void;
+    /**
+     * What the write is *for*, read once before the write and again before the
+     * rollback: whatever this returns identifies the thing on screen the
+     * mutation belongs to, and the rollback runs only while the two still
+     * agree.
+     *
+     * A background write can outlive the surface that fired it. Star `#general`,
+     * navigate to `#random`, and let the star be refused: the refs the rollback
+     * closed over now hold `#random`'s preferences, and restoring `#general`'s
+     * snapshot over them shows the reader a channel's state they have left
+     * (#1120). Passing `subject: options.channelId` makes that restore a no-op.
+     *
+     * Capturing the identity here rather than taking a ready-made predicate is
+     * the same call as capturing strictly before {@link apply}: a call site
+     * asked to snapshot its own subject first is a call site that can forget to.
+     *
+     * Omit it for a write whose subject cannot change identity underneath it —
+     * a message row keyed on its own uuid, a sidebar that reseeds from props.
+     */
+    subject?: () => unknown;
     /** Defaults to `post`. */
     method?: OptimisticMethod;
     url: string;
@@ -118,8 +138,14 @@ export function useOptimisticWrite(): OptimisticWriter {
     const toast = useToast();
 
     function write(spec: OptimisticWrite): void {
+        const subject = spec.subject?.();
         const rollback = spec.capture();
         spec.apply?.();
+
+        // A write the reader has navigated away from has nothing left to undo:
+        // its refs now describe someone else's channel.
+        const stillRelevant = (): boolean =>
+            spec.subject === undefined || Object.is(spec.subject(), subject);
 
         const options = {
             ...(spec.background ? backgroundVisit : {}),
@@ -128,6 +154,10 @@ export function useOptimisticWrite(): OptimisticWriter {
             ...(spec.only ? { only: spec.only } : {}),
             ...(spec.onSuccess ? { onSuccess: spec.onSuccess } : {}),
             onError: (errors: Record<string, string>): void => {
+                if (!stillRelevant()) {
+                    return;
+                }
+
                 rollback();
                 toast.error(
                     typeof spec.failure === 'function'

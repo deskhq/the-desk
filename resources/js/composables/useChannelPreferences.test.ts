@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { effectScope, ref } from 'vue';
+import { effectScope, nextTick, ref } from 'vue';
 import type { Ref } from 'vue';
 
 const { patch, toastError } = vi.hoisted(() => ({
@@ -138,6 +138,36 @@ describe('useChannelPreferences', () => {
         failPatch();
         expect(prefs.muted.value).toBe(false);
         expect(toastError).toHaveBeenCalledOnce();
+    });
+
+    it('leaves the channel switched to untouched when a write is refused late', async () => {
+        // Every preference write rides `backgroundVisit`, so it can outlive the
+        // navigation that follows it; its rollback must not land on the channel
+        // the reader moved to (#1120).
+        const channel = ref(channelState());
+        const id = ref('id-1');
+        const { prefs } = withScope(channel, id);
+
+        prefs.toggleStar();
+        prefs.onMuteChange(true);
+        prefs.onNotificationLevelChange('mentions' as NotificationLevel);
+
+        channel.value = channelState({
+            notificationLevel: 'nothing',
+            muted: true,
+            starred: true,
+        });
+        id.value = 'id-2';
+        await nextTick();
+
+        failPatch(0);
+        failPatch(1);
+        failPatch(2);
+
+        expect(prefs.starred.value).toBe(true);
+        expect(prefs.muted.value).toBe(true);
+        expect(prefs.notificationLevel.value).toBe('nothing');
+        expect(toastError).not.toHaveBeenCalled();
     });
 
     it('saves every preference in the background so none interrupts a navigation', () => {
