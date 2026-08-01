@@ -4,11 +4,14 @@ declare(strict_types=1);
 
 use App\Actions\Integrations\CreateBot;
 use App\Actions\Integrations\DeleteBot;
+use App\Actions\Integrations\MintBotToken;
 use App\Enums\AuditAction;
+use App\Enums\IntegrationScope;
 use App\Enums\TeamRole;
 use App\Enums\UserType;
 use App\Models\Channel;
 use App\Models\Message;
+use App\Models\PersonalAccessToken;
 use App\Models\Team;
 use App\Models\User;
 use App\Support\AuditRecorder;
@@ -75,4 +78,17 @@ it('deletes a bot, reassigns its messages to the tombstone, and audits it', func
         'event' => AuditAction::BotDeleted->value,
         'causer_id' => $this->owner->id,
     ]);
+});
+
+it('deletes the bot API tokens along with the bot', function (): void {
+    $bot = app(CreateBot::class)->handle($this->team, $this->owner, 'Deploy Bot');
+
+    app(MintBotToken::class)->handle($bot, $this->owner, 'CI', [IntegrationScope::ChannelsRead->value]);
+    app(MintBotToken::class)->handle($bot, $this->owner, 'Deploys', [IntegrationScope::MessagesWrite->value]);
+
+    app(DeleteBot::class)->handle($this->owner, $bot);
+
+    // `personal_access_tokens` is a polymorphic pair with no foreign key, so
+    // nothing in the schema sweeps these rows — only the observer does.
+    expect(PersonalAccessToken::where('tokenable_id', $bot->id)->count())->toBe(0);
 });
