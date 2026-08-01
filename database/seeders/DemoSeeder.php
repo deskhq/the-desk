@@ -22,6 +22,7 @@ use App\Models\ScheduledMessage;
 use App\Models\Team;
 use App\Models\User;
 use App\Support\Gravatar;
+use App\Support\Images\ImageProxy;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Hash;
@@ -209,6 +210,11 @@ class DemoSeeder extends Seeder
      * Create one demo persona with the shared demo password and a generated
      * identicon avatar (a distinct, deterministic picture per email, so every
      * avatar surface renders without an initials fallback).
+     *
+     * The URL is routed through the image proxy, exactly as {@see User::avatar}
+     * routes a derived Gravatar: `img-src` is `'self' data: blob:`, so a raw
+     * gravatar.com URL stored here would be refused by the app's own policy on
+     * every avatar surface (#1126).
      */
     private function seedPersona(string $name, string $email): User
     {
@@ -216,7 +222,7 @@ class DemoSeeder extends Seeder
             'name' => $name,
             'email' => $email,
             'password' => Hash::make(self::DEMO_PASSWORD),
-            'avatar_url' => Gravatar::url($email, 'identicon'),
+            'avatar_url' => ImageProxy::url(Gravatar::url($email, 'identicon')),
         ]);
     }
 

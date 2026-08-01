@@ -16,10 +16,18 @@ use App\Models\SsoIdentity;
 use App\Models\Team;
 use App\Models\TeamInvitation;
 use App\Models\User;
+use App\Support\Csp\TheDeskPolicy;
+use App\Support\Gravatar;
+use App\Support\Images\ImageProxy;
 use Database\Seeders\WorkspaceSeeder;
 use Ramsey\Uuid\Uuid;
 
 beforeEach(function (): void {
+    // The seeder gives every fixture user a generated `identicon` avatar, which
+    // is derived from a Gravatar URL — and the suite disables Gravatar by default
+    // so no test reaches gravatar.com. Opt back in for the seeded workspace.
+    config()->set('gravatar.enabled', true);
+
     $this->seed();
 
     $this->demo = User::where('email', WorkspaceSeeder::DEMO_EMAIL)->firstOrFail();
@@ -46,6 +54,27 @@ test('every team role is represented in the membership table', function (): void
 
     foreach (TeamRole::cases() as $role) {
         expect($roles)->toContain($role->value);
+    }
+});
+
+/**
+ * {@see TheDeskPolicy} pins `img-src` to `'self' data: blob:`, so a raw
+ * `https://www.gravatar.com/…` in `avatar_url` short-circuits `User::avatar`'s
+ * proxy branch and the browser then refuses every seeded avatar (#1126). The
+ * contract: a seeded `avatar_url` is already proxied, exactly as the model
+ * would have proxied a derived Gravatar.
+ */
+test('every seeded avatar is first-party, so the app loads it under its own image policy', function (): void {
+    $users = User::all();
+
+    expect($users)->not->toBeEmpty();
+
+    foreach ($users as $user) {
+        $proxied = ImageProxy::url(Gravatar::url($user->email, 'identicon'));
+
+        expect($user->avatar_url)->toStartWith('/images/proxy?')
+            ->and($user->avatar_url)->toBe($proxied)
+            ->and($user->avatar)->toBe($proxied);
     }
 });
 
