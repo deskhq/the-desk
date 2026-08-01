@@ -155,6 +155,19 @@ built; build them once, then reuse.
   channel all share it). One tested reconcile/teardown lifecycle.
 - **`useDebouncedPost`** — the debounced, focus-gated, auto-teardown router POST
   used by mark-read, mark-thread-read, and draft persistence.
+- **`useAutocompleteMenu` + `AutocompleteListbox`** — the composer's one
+  autocomplete engine and the one listbox that renders it. The engine owns the
+  wrap-around active row, the open/close protocol, selection, and the listbox
+  ARIA contract (`useAutocompleteAria` is what the field's combobox attributes
+  are read off, so it never learns which autocompletes exist). An adapter
+  supplies only what differs: `useComposerMentions` the `@` token grammar and
+  the roster, `useComposerSlashCommands` the `/name` grammar and the server's
+  manifest. Neither declares a `moveActive` / `showMenu` / `close` of its own,
+  and a third autocomplete is an adapter plus a row template — not a second
+  keyboard model. The commands that open a surface instead of posting text
+  (`useComposerGifPicker`, `useComposerPollBuilder`) declare a `PickerCommand`
+  each, which is how the slash adapter diverts to them without knowing either
+  exists.
 - **The message-action context** _(ADR-0009)_ — every action a message row can ask
   for (`MessageActionHandlers`: the eleven writes, plus the `reply` and `openThread`
   navigations that rode the same relay) and the viewer's channel capabilities are
