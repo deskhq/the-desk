@@ -121,6 +121,47 @@ test('unread and mention counts ride along, ignoring the viewer\'s own messages'
         ->and($channels[0]->mentionCount)->toBe(1);
 });
 
+/**
+ * The predicate is opt-in per sub-query, and this is the asymmetry that makes it
+ * so: the unread badge asks for channel traffic, the mention badge deliberately
+ * does not. Baking the rule into `WorkspaceUnread::forChannelsOf()` — the shared
+ * half both counts ride — would silently take the second half with it, and a
+ * mention nobody was badged for is the worst failure this module has.
+ */
+test('a thread-only reply raises the mention badge without touching the unread count', function (): void {
+    ['owner' => $user, 'team' => $team, 'channel' => $general] = teamWithChannel();
+
+    $mate = teamMemberInChannel($general);
+
+    $root = Message::factory()->for($general)->for($mate)->create();
+
+    // The reply lives only in the thread, and it @mentions the viewer.
+    Message::factory()->for($general)->for($mate)->create([
+        'thread_root_id' => $root->id,
+        'sent_to_channel' => false,
+    ])->mentionedUsers()->attach($user);
+
+    $channels = new SidebarChannels($user, $team)->forSidebar();
+
+    expect($channels[0]->unreadCount)->toBe(1)
+        ->and($channels[0]->mentionCount)->toBe(1);
+});
+
+test('a thread reply also sent to the channel counts towards the unread badge', function (): void {
+    ['owner' => $user, 'team' => $team, 'channel' => $general] = teamWithChannel();
+
+    $mate = teamMemberInChannel($general);
+
+    $root = Message::factory()->for($general)->for($mate)->create();
+
+    Message::factory()->for($general)->for($mate)->create([
+        'thread_root_id' => $root->id,
+        'sent_to_channel' => true,
+    ]);
+
+    expect(new SidebarChannels($user, $team)->forSidebar()[0]->unreadCount)->toBe(2);
+});
+
 test('a draft is reported as a flag without shipping its text', function (): void {
     ['owner' => $user, 'team' => $team, 'channel' => $general] = teamWithChannel();
 

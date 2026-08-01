@@ -1,0 +1,26 @@
+[
+    {
+        "name": "a top-level message is channel traffic",
+        "threadRootId": null,
+        "sentToChannel": false,
+        "isChannelTraffic": true
+    },
+    {
+        "name": "a top-level message carrying the flag is still channel traffic",
+        "threadRootId": null,
+        "sentToChannel": true,
+        "isChannelTraffic": true
+    },
+    {
+        "name": "a thread-only reply is not channel traffic",
+        "threadRootId": "root",
+        "sentToChannel": false,
+        "isChannelTraffic": false
+    },
+    {
+        "name": "a thread reply also sent to the channel is channel traffic",
+        "threadRootId": "root",
+        "sentToChannel": true,
+        "isChannelTraffic": true
+    }
+]

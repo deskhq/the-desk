@@ -138,6 +138,17 @@ built; build them once, then reuse.
 - **Message thread-state scopes** (`Message::withThreadReadState`, `followedBy`) —
   exemplary depth; correlated-subquery logic hidden behind a scope that reuses one
   SQL constant so scope and filter can't disagree. The model to aspire to.
+- **Channel-traffic predicate** _(ADR-0010)_ — "a thread-only reply is not ordinary
+  channel traffic" lives once, on `Message`: `channelTraffic()` for a query,
+  `channelTrafficSql()` for the one conditional aggregate a scope cannot express
+  (`WorkspaceUnread`'s grouped tally), and `isChannelTraffic()` for a path holding a
+  `MessageData` rather than a query (the push listener). It is the rule that decides
+  whether a badge, a chime, a push and the timeline agree about one message, and it was
+  spelled seven times before. **Opt-in per call site, deliberately** — `mention_count`
+  must *not* carry it, because a mention inside a thread still badges its channel, so
+  never fold it into `WorkspaceUnread::forChannelsOf()` or make it a global scope. Its
+  client twin is `lib/channelTraffic.ts`, and both are pinned against one shared case
+  table (`tests/Fixtures/channel-traffic-cases.json`).
 
 ### Frontend (`resources/js/`)
 
@@ -145,6 +156,14 @@ built; build them once, then reuse.
   a `*.test.ts`. New pure logic (formatting, parsing, decisions) goes here, not
   into a `.vue` setup block. Examples: `messageBody`, `reactions`, `shouldChime`,
   `unreadDivider`, `readReceipts`, `scheduleTime`.
+- **`lib/channelTraffic.ts`** _(ADR-0010)_ — the client half of the channel-traffic
+  rule above: `isChannelTraffic(message)`, called by the chime, the sidebar-badge
+  refresh and `messagePlacement`, so a live append, a badge and the server's own
+  paging cannot disagree about which messages belong to a channel. It shares its case
+  table with the server's tests, so a change made on one side of the wire turns the
+  other side's suite red. Answering "is this a reply?" or "which of these is the root?"
+  is a *different* question — read `threadRootId` for those; this helper is only for
+  the channel-traffic one.
 - **`useMessageStream`** — deep composable: a simple `appendLive`/`applyPatch`
   interface hiding a three-source merge engine. The model for composables.
 - **`useChannelRealtime`** _(ADR-0006)_ — owns the channel's Echo

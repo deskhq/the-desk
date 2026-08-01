@@ -77,6 +77,58 @@ test('the per-workspace tally sums a team\'s unread and mentions', function (): 
     ]);
 });
 
+/**
+ * The workspace tally is where the channel-traffic rule used to be spelled as
+ * raw SQL inside the conditional aggregate, and it had no test at all: the dot
+ * on the rail could have counted thread-only replies for as long as anyone cared
+ * to look, and would still have agreed with nothing. It now shares
+ * {@see Message::channelTrafficSql()} with the sidebar, and this is what says so.
+ */
+test('the per-workspace tally counts a thread reply only when it was also sent to the channel', function (): void {
+    [$viewer, $mate, $team, $general] = unreadWorkspace();
+
+    $root = Message::factory()->for($general)->for($mate)->create();
+
+    Message::factory()->for($general)->for($mate)->create([
+        'thread_root_id' => $root->id,
+        'sent_to_channel' => false,
+    ]);
+
+    // The root alone; the thread-only reply lives in the thread view.
+    expect(WorkspaceUnread::forUser($viewer))->toBe([
+        $team->id => ['unread' => 1, 'mention' => 0],
+    ]);
+
+    Message::factory()->for($general)->for($mate)->create([
+        'thread_root_id' => $root->id,
+        'sent_to_channel' => true,
+    ]);
+
+    expect(WorkspaceUnread::forUser($viewer))->toBe([
+        $team->id => ['unread' => 2, 'mention' => 0],
+    ]);
+});
+
+/**
+ * The mention half of the same aggregate deliberately does not carry the
+ * predicate — a mention anywhere, thread included, still badges — which is why
+ * the rule is opt-in per call site rather than folded into the shared query.
+ */
+test('a mention inside a thread-only reply still tallies for the workspace', function (): void {
+    [$viewer, $mate, $team, $general] = unreadWorkspace();
+
+    $root = Message::factory()->for($general)->for($mate)->create();
+
+    Message::factory()->for($general)->for($mate)->create([
+        'thread_root_id' => $root->id,
+        'sent_to_channel' => false,
+    ])->mentionedUsers()->attach($viewer);
+
+    expect(WorkspaceUnread::forUser($viewer))->toBe([
+        $team->id => ['unread' => 1, 'mention' => 1],
+    ]);
+});
+
 test('a muted channel is silent in the per-workspace tally but still counted per channel', function (): void {
     [$viewer, $mate, , $general] = unreadWorkspace();
 
