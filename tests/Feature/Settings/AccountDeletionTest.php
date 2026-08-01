@@ -1,8 +1,11 @@
 <?php
 
+use App\Actions\Integrations\MintPersonalAccessToken;
+use App\Enums\IntegrationScope;
 use App\Enums\TeamRole;
 use App\Models\Channel;
 use App\Models\Message;
+use App\Models\PersonalAccessToken;
 use App\Models\Team;
 use App\Models\User;
 
@@ -111,6 +114,21 @@ test('membership of a shared team is dropped when the account is deleted', funct
     expect($member->fresh())->toBeNull();
     expect(Team::find($team->id))->not->toBeNull();
     expect($team->fresh()->members()->whereKey($member->id)->exists())->toBeFalse();
+});
+
+test('personal access tokens are deleted with the account', function (): void {
+    $user = User::factory()->create();
+    $team = attachToSharedTeam($user, TeamRole::Member);
+
+    app(MintPersonalAccessToken::class)->handle($user, $team, 'Scripts', [IntegrationScope::ChannelsRead->value]);
+
+    $this->actingAs($user)
+        ->delete(route('profile.destroy'), ['password' => 'password'])
+        ->assertSessionHasNoErrors();
+
+    // No foreign key reaches the polymorphic `tokenable` pair, so without the
+    // observer these rows outlive the person they were minted for.
+    expect(PersonalAccessToken::where('tokenable_id', $user->id)->count())->toBe(0);
 });
 
 test('the deleted-user tombstone is a reused singleton', function (): void {
