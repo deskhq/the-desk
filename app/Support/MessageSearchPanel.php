@@ -58,16 +58,9 @@ final readonly class MessageSearchPanel
     ) {}
 
     /**
-     * Resolve the panel from the search params pinned on the current URL.
-     */
-    public static function fromRequest(Request $request, User $viewer, Team $team): self
-    {
-        return new self($viewer, $team, self::criteriaFromRequest($request));
-    }
-
-    /**
-     * The criteria alone, for a caller that already holds the viewer and team —
-     * the workspace shell resolves those once and only needs the URL read.
+     * The criteria pinned on the current URL, for a caller that already holds
+     * the viewer and team — the workspace shell resolves those once and only
+     * needs the URL read.
      *
      * The date facets are widened to whole-day bounds — `after` from the start of
      * its day, `before` to the end — so a single-day range is inclusive of every
