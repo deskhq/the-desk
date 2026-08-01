@@ -9,9 +9,9 @@
  * `pinCount` are two readings of one fact, and so are `thread` and
  * `threadReplies`.
  *
- * Six invalidation sets live here; the seventh, {@see REMINDER_PROPS}, is next
+ * Seven invalidation sets live here; the eighth, {@see REMINDER_PROPS}, is next
  * door in {@see reminderReload} with the visit options a reminder mutation
- * carries. All seven are enforced the same way, by a test that fails on a second
+ * carries. All eight are enforced the same way, by a test that fails on a second
  * copy. {@link THREAD_RESET_PROPS} is not one of them — it names what a thread
  * load *resets* rather than what a write invalidates.
  *
@@ -19,6 +19,19 @@
  * `only` takes; a `readonly` tuple would force an `as string[]` cast back at
  * every call site, which is exactly the noise this replaces.
  */
+
+/**
+ * The viewer: the account the shell reads its identity, preferences and
+ * timezone from.
+ *
+ * Named for the account writes nobody is watching, where the point is less what
+ * comes back than what does not. A background write that omits `only` is
+ * answered with the *whole* page rendered as the route stood when it left, and
+ * that reply replaces every prop rather than merging into them — so a
+ * destination the reader opened in the meantime loses props that were never in
+ * the reply to begin with (#1099).
+ */
+export const AUTH_PROPS: string[] = ['auth'];
 
 /**
  * The sidebar's channel list.

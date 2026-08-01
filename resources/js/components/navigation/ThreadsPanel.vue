@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { InfiniteScroll, Link, router, usePage } from '@inertiajs/vue3';
-import { computed, onBeforeUnmount, onMounted } from 'vue';
+import { computed, onBeforeUnmount, watch } from 'vue';
 import { show } from '@/actions/App/Http/Controllers/Channels/ChannelController';
 import { markAllRead } from '@/actions/App/Http/Controllers/Channels/ThreadsController';
 import AvatarStack from '@/components/AvatarStack.vue';
@@ -99,11 +99,27 @@ onBeforeUnmount(() => {
 // Opening the destination is a client-side visit, so the panel arrives without
 // its props and fetches them itself. A deep link (`?nav=threads`) already carries
 // them, and refetching would only throw the first page away and load it again.
-onMounted(() => {
-    if (inbox.value === undefined) {
-        load(activeFilter.value);
-    }
-});
+//
+// Watched rather than done once on mount, because the props can go missing again
+// while the panel is open: they ride on `?nav=threads`, so any reply rendered
+// from a URL pinned before the destination was opened simply does not contain
+// them — and a reply that is not partial replaces the whole prop bag rather than
+// merging into it. That left the panel on its pulsing stand-in for good, with
+// the one thing that could have refilled it already spent (#1099).
+//
+// One pull at a time: a request already in flight is about to deliver the very
+// props this is missing, and a second one would race it — the filter is read
+// from a URL the first pull has not written yet, so the loser could land the
+// pills and the cards on different filters.
+watch(
+    inbox,
+    (value) => {
+        if (value === undefined && cancelLoad === null) {
+            load(activeFilter.value);
+        }
+    },
+    { immediate: true },
+);
 
 function selectFilter(filter: ThreadInboxFilter): void {
     if (filter !== activeFilter.value) {
