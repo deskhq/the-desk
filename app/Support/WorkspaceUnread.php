@@ -22,8 +22,9 @@ use Illuminate\Database\Query\JoinClause;
  * non-system message authored by someone else that lands after the viewer's
  * `last_read_message_id`, a null pointer meaning the channel was never opened —
  * and a workspace dot that disagreed with the channel rows found inside it would
- * be worse than no dot at all. Muting and the notification level are applied in
- * SQL exactly as {@see ChannelData::fromChannel()} applies them per channel.
+ * be worse than no dot at all. Muting and the notification level are applied
+ * through {@see NotificationLevel}'s own SQL forms, the same rule
+ * {@see ChannelData::fromChannel()} applies per channel in PHP.
  */
 class WorkspaceUnread
 {
@@ -104,21 +105,22 @@ class WorkspaceUnread
             ->where(fn ($query) => $query
                 ->whereNull('channel_members.last_read_message_id')
                 ->orWhereColumn('messages.id', '>', 'channel_members.last_read_message_id'))
-            // A muted channel — or one set to "nothing" — is silent on both
-            // counts, so it is excluded outright rather than case-by-case.
-            ->where('channel_members.muted', false)
-            ->where('channel_members.notification_level', '!=', NotificationLevel::Nothing->value)
+            // A channel that alerts on neither reading is silent on both counts,
+            // so it is excluded outright rather than case-by-case. The mention
+            // reading is the wider of the two, so it is the one that bounds the
+            // whole aggregate.
+            ->whereRaw(NotificationLevel::alertsOnMentionSql('channel_members'))
             ->groupBy('channels.team_id')
             ->select('channels.team_id')
             // Thread-only replies live in the thread view and stay out of the
             // plain unread count, and the "mentions" level silences it entirely.
-            // The channel-traffic half is Message's own SQL fragment rather
-            // than a copy of it: both counts are aggregated in this one grouped
-            // query, so the unread half has to be a conditional aggregate — the
-            // one shape `Message::channelTraffic()` cannot express.
+            // Both halves are the owning module's own SQL fragment rather than a
+            // copy: both counts are aggregated in this one grouped query, so the
+            // unread half has to be a conditional aggregate — the one shape
+            // `Message::channelTraffic()` and a `where` cannot express.
             ->selectRaw(
-                'sum(case when channel_members.notification_level = ? and '.Message::channelTrafficSql().' then 1 else 0 end) as unread_count',
-                [NotificationLevel::All->value],
+                'sum(case when '.NotificationLevel::alertsOnUnreadSql('channel_members')
+                .' and '.Message::channelTrafficSql().' then 1 else 0 end) as unread_count',
             )
             ->selectRaw('sum(case when mentions.message_id is not null then 1 else 0 end) as mention_count')
             ->toBase();

@@ -149,6 +149,18 @@ built; build them once, then reuse.
   never fold it into `WorkspaceUnread::forChannelsOf()` or make it a global scope. Its
   client twin is `lib/channelTraffic.ts`, and both are pinned against one shared case
   table (`tests/Fixtures/channel-traffic-cases.json`).
+- **Alert predicate** _(ADR-0010, second application)_ — "muted x notification level =>
+  does this alert?" lives once, on `App\Enums\NotificationLevel`, with **two readings**:
+  `alertsOnUnread($muted)` for ordinary traffic (only `all`) and `alertsOnMention($muted)`
+  for a direct @mention (only `nothing` silences it). Each has a SQL twin —
+  `alertsOnUnreadSql($membership)` / `alertsOnMentionSql($membership)`, parameterised only
+  by the membership table's alias — that `WorkspaceUnread` and `Message`'s thread-unread
+  SQL read rather than re-spell. **The two readings are not interchangeable**: applying the
+  unread one to a mention is exactly the bug #1143 fixed, where a mention inside a thread
+  on a "mentions only" channel badged the channel but raised no thread dot. Ask the
+  question per *message*, not per channel, wherever the two can differ. Its client twin is
+  `lib/alerts.ts`, and both are pinned against one shared case table
+  (`tests/Fixtures/alert-cases.json`).
 
 ### Frontend (`resources/js/`)
 
@@ -164,6 +176,12 @@ built; build them once, then reuse.
   other side's suite red. Answering "is this a reply?" or "which of these is the root?"
   is a *different* question — read `threadRootId` for those; this helper is only for
   the channel-traffic one.
+- **`lib/alerts.ts`** _(ADR-0010)_ — the client half of the alert predicate above:
+  `alertsOnUnread(channel)` and `alertsOnMention(channel)`, called by the chime, the
+  mobile unread rollup and the live thread dot, so no surface re-derives "does this alert?"
+  from `muted` and a level string. It shares its case table with the server's tests. Which
+  level a membership is *at* is a different question — `lib/notificationIndicator.ts` maps
+  all three to an icon and deliberately does not go through this.
 - **`useMessageStream`** — deep composable: a simple `appendLive`/`applyPatch`
   interface hiding a three-source merge engine. The model for composables.
 - **`useChannelRealtime`** _(ADR-0006)_ — owns the channel's Echo

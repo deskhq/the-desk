@@ -1,9 +1,5 @@
-import type { NotificationLevel } from '@/types';
-
-export type ChimeChannelPreference = {
-    muted: boolean;
-    notificationLevel: NotificationLevel;
-};
+import { alertsOnMention, alertsOnUnread } from '@/lib/alerts';
+import type { AlertPreference } from '@/lib/alerts';
 
 export type ChimeDecisionInput = {
     /** Whether the user has an audible chime selected (their sound is not "off"). */
@@ -23,7 +19,7 @@ export type ChimeDecisionInput = {
      * The current user's per-channel preference, or `null` when the channel is
      * not in their sidebar (e.g. they are not a member) — which never chimes.
      */
-    channel: ChimeChannelPreference | null;
+    channel: AlertPreference | null;
     /** The browser tab currently has focus. */
     tabHasFocus: boolean;
     /** The message landed in the channel the user is actively viewing on screen. */
@@ -41,11 +37,11 @@ export type ChimeDecisionInput = {
  * Decide whether a freshly-arrived realtime message should play a chime.
  *
  * The gate mirrors the sidebar badge semantics so a chime, an unread badge and a
- * mention badge stay consistent: a direct @mention alerts unless the channel is
- * muted or set to "nothing"; ordinary traffic alerts only at the "all" level. On
- * top of that a chime is suppressed for the user's own messages, when chimes are
- * disabled, while the user is in do-not-disturb, and when the user is already
- * actively looking at the message (its channel is open and the tab has focus).
+ * mention badge stay consistent: the channel preference is read through
+ * `lib/alerts.ts`, the rule's one client home. On top of that a chime is
+ * suppressed for the user's own messages, when chimes are disabled, while the
+ * user is in do-not-disturb, and when the user is already actively looking at
+ * the message (its channel is open and the tab has focus).
  */
 export function shouldChime(input: ChimeDecisionInput): boolean {
     if (!input.chimeEnabled) {
@@ -62,18 +58,17 @@ export function shouldChime(input: ChimeDecisionInput): boolean {
 
     const { channel } = input;
 
-    if (channel === null || channel.muted) {
+    if (channel === null) {
         return false;
     }
 
     if (input.mentionsCurrentUser) {
-        // A direct @mention is silenced only by the "nothing" level.
-        if (channel.notificationLevel === 'nothing') {
+        if (!alertsOnMention(channel)) {
             return false;
         }
-    } else if (channel.notificationLevel !== 'all' || !input.isChannelMessage) {
-        // Ordinary traffic chimes only at "all", and thread-only replies never
-        // count as ordinary traffic — they live in the thread view.
+    } else if (!alertsOnUnread(channel) || !input.isChannelMessage) {
+        // Thread-only replies never count as ordinary traffic — they live in the
+        // thread view, and only ever chime through the mention path above.
         return false;
     }
 

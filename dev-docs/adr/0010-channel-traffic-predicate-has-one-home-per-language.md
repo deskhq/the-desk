@@ -1,8 +1,51 @@
 # ADR-0010: The channel-traffic predicate has one home per language
 
-- Status: Accepted
+- Status: Accepted — applied a second time, to the alert predicate (2026-08-02)
 - Date: 2026-07-31
-- Relates to: epic architecture-hardening III ([#1110](https://github.com/deskhq/the-desk/issues/1110), child: [#1114](https://github.com/deskhq/the-desk/issues/1114))
+- Relates to: epic architecture-hardening III ([#1110](https://github.com/deskhq/the-desk/issues/1110), child: [#1114](https://github.com/deskhq/the-desk/issues/1114)); epic architecture-hardening IV ([#1142](https://github.com/deskhq/the-desk/issues/1142), child: [#1143](https://github.com/deskhq/the-desk/issues/1143))
+
+> **Status note (2026-08-02).** The device below was applied a second time, to the sibling
+> rule this one keeps being confused with: **muted x notification level => does this
+> alert?** ([#1143](https://github.com/deskhq/the-desk/issues/1143)). That rule had five
+> spellings in three languages — `NotificationLevel`'s two PHP predicates, two raw-SQL
+> copies (`WorkspaceUnread`, `Message`) and a TypeScript expression against string
+> literals in `shouldChime.ts` — and unlike the channel-traffic rule, **two of them had
+> already drifted**. `Message::THREAD_CHANNEL_SILENCED_SQL` applied the *ordinary-traffic*
+> reading to a mention, so being @mentioned in a thread on a "mentions only" channel
+> badged the channel and fired the chime but raised **no thread dot and no thread inbox
+> entry** — on the one thread the viewer had been explicitly pulled into. So this
+> application shipped a user-visible fix inside the collapse, not only a tidy-up.
+>
+> Same shape, one seam further out. `NotificationLevel` now owns every reading: the two
+> PHP predicates (which took on the `muted` half, so the enum states the whole rule rather
+> than half of it) plus `alertsOnUnreadSql()` / `alertsOnMentionSql()`, literal fragments
+> parameterised only by the membership table's alias — the `Team::ROLE_HIERARCHY_SQL`
+> trade, spelled out rather than built at runtime so it stays provably injection-free.
+> `resources/js/lib/alerts.ts` is the client half, and `tests/Fixtures/alert-cases.json` is
+> the shared case table, read by `tests/Integration/Enums/AlertPredicateTest.php` and
+> `resources/js/lib/alerts.test.ts` alike. The PHP suite proves the SQL forms by running
+> them against a real `channel_members` row and walks `NotificationLevel::cases()`, so a
+> fourth level added without an answer in every reading fails there rather than shipping.
+>
+> Two things this application taught that the first did not:
+>
+> - **The gate moved from per-channel to per-reply.** The thread SQL asked "is this
+>   channel silenced?" once and then counted replies; it now asks "does *this reply* alert
+>   this viewer?" inside the shared unread-replies tail. That is what lets a mention
+>   through a level that silences its neighbours, and it deleted
+>   `THREAD_CHANNEL_SILENCED_SQL` outright — the dot and the ":count new replies" line are
+>   now one fragment rather than two that happened to agree. The count follows: on a
+>   "mentions" channel a thread reports the replies that named the viewer, not every reply.
+> - **The client had the same divergence, in a sixth place the issue had not counted.**
+>   `useChannelPreferences`'s `threadUnreadSuppressed` was `muted || level !== 'all'`, so
+>   the *live* dot would have stayed silent even with the server fixed. It now hands the
+>   mute + level pair on and `shouldFlagThreadUnread` applies the rule per reply, exactly
+>   as the server does. A rule spelled N times is worth re-counting when you go to collapse
+>   it; the count in the issue was a lower bound.
+>
+> The `mention_count` asymmetry recorded below survives untouched and was the thing to
+> protect: a mention inside a thread still badges its channel. This change makes the thread
+> dot agree with that, rather than the other way round.
 
 ## Context
 

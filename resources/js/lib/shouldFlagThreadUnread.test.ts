@@ -12,7 +12,8 @@ function input(overrides: Partial<ThreadUnreadInput> = {}): ThreadUnreadInput {
         isOwnReply: false,
         isFollowedThread: true,
         isViewingThreadFocused: false,
-        isSuppressed: false,
+        channel: { muted: false, notificationLevel: 'all' },
+        mentionsCurrentUser: false,
         ...overrides,
     };
 }
@@ -48,9 +49,58 @@ describe('shouldFlagThreadUnread', () => {
         ).toBe(true);
     });
 
-    it('does not flag when thread dots are suppressed', () => {
-        expect(shouldFlagThreadUnread(input({ isSuppressed: true }))).toBe(
-            false,
-        );
+    it('does not flag an ordinary reply on a muted channel', () => {
+        expect(
+            shouldFlagThreadUnread(
+                input({
+                    channel: { muted: true, notificationLevel: 'all' },
+                }),
+            ),
+        ).toBe(false);
+    });
+
+    it('does not flag an ordinary reply below the "all" level', () => {
+        expect(
+            shouldFlagThreadUnread(
+                input({
+                    channel: { muted: false, notificationLevel: 'mentions' },
+                }),
+            ),
+        ).toBe(false);
+    });
+
+    it('flags a reply that mentions the viewer at the "mentions" level', () => {
+        expect(
+            shouldFlagThreadUnread(
+                input({
+                    channel: { muted: false, notificationLevel: 'mentions' },
+                    mentionsCurrentUser: true,
+                }),
+            ),
+        ).toBe(true);
+    });
+
+    it('does not flag a mention on a muted channel or at "nothing"', () => {
+        expect(
+            shouldFlagThreadUnread(
+                input({
+                    channel: { muted: true, notificationLevel: 'mentions' },
+                    mentionsCurrentUser: true,
+                }),
+            ),
+        ).toBe(false);
+
+        expect(
+            shouldFlagThreadUnread(
+                input({
+                    channel: { muted: false, notificationLevel: 'nothing' },
+                    mentionsCurrentUser: true,
+                }),
+            ),
+        ).toBe(false);
+    });
+
+    it('flags when the channel preference is unknown', () => {
+        expect(shouldFlagThreadUnread(input({ channel: null }))).toBe(true);
     });
 });

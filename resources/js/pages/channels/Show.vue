@@ -247,8 +247,7 @@ useChannelRealtime({
     threadStream,
     activeThreadRootId,
     displayMessages: () => displayMessages.value,
-    isThreadUnreadSuppressed: () =>
-        header.value?.threadUnreadSuppressed ?? false,
+    alertPreference: () => header.value?.alertPreference ?? null,
     readers,
     isNearBottom,
     notifyAppended,

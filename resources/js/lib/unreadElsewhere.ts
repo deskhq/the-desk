@@ -1,3 +1,4 @@
+import { alertsOnMention } from '@/lib/alerts';
 import type { Channel } from '@/types/channels';
 
 /** Highest numeral the badge spells out; anything past it renders as `99+`. */
@@ -29,10 +30,10 @@ export type UnreadElsewhereSummary = {
  *
  * - The open conversation is excluded — the badge means "unread *elsewhere*",
  *   and its own unread is already in front of the viewer.
- * - Muted conversations and those at the `nothing` notification level are
- *   excluded outright. The sidebar dims a muted row rather than silencing it,
- *   but a single aggregate cannot be dimmed per row, so a muted room would
- *   shout exactly as loudly as a live one.
+ * - Conversations that would not alert even on a mention are excluded outright,
+ *   read through `lib/alerts.ts`. The sidebar dims a muted row rather than
+ *   silencing it, but a single aggregate cannot be dimmed per row, so a muted
+ *   room would shout exactly as loudly as a live one.
  * - Only mentions and DM unread reach the numeral. Everything else contributes
  *   the `hasUnread` flag alone, which the glyph carries as a brass rail.
  */
@@ -48,7 +49,7 @@ export function summarizeUnreadElsewhere(
             continue;
         }
 
-        if (channel.muted || channel.notificationLevel === 'nothing') {
+        if (!alertsOnMention(channel)) {
             continue;
         }
 

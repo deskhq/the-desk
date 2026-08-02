@@ -98,7 +98,10 @@ export function channelPreferencesDouble() {
         notificationLevel: ref('all'),
         muted: ref(false),
         starred: ref(false),
-        threadUnreadSuppressed: ref(false),
+        alertPreference: computed(() => ({
+            muted: false,
+            notificationLevel: 'all' as const,
+        })),
         notificationStatus: computed(() => null),
         toggleStar: vi.fn(),
         onNotificationLevelChange: vi.fn(),

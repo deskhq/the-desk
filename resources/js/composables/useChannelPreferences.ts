@@ -8,6 +8,7 @@ import {
     useOptimisticWrite,
 } from '@/composables/useOptimisticWrite';
 import { useTranslations } from '@/composables/useTranslations';
+import type { AlertPreference } from '@/lib/alerts';
 import { notificationIndicator } from '@/lib/notificationIndicator';
 import type { NotificationIndicator } from '@/lib/notificationIndicator';
 import { CHANNEL_LIST_PROPS } from '@/lib/reloadProps';
@@ -37,8 +38,8 @@ export interface ChannelPreferences {
     muted: Ref<boolean>;
     /** Whether the member has starred the channel. */
     starred: Ref<boolean>;
-    /** Whether thread-unread dots are silenced (muted or a quieted level). */
-    threadUnreadSuppressed: ComputedRef<boolean>;
+    /** The live mute + level pair the alert rule reads, for the realtime router. */
+    alertPreference: ComputedRef<AlertPreference>;
     /** A compact header cue for a non-default notification state, or null. */
     notificationStatus: ComputedRef<NotificationIndicator | null>;
     /** Star or unstar the channel, optimistically, rolled back on error. */
@@ -75,12 +76,14 @@ export function useChannelPreferences(
         starred.value = channel.starred;
     });
 
-    // Thread-unread dots are silenced under the same rule as the sidebar's unread
-    // badge: a muted channel or any level below "all". Mirrors the server's
-    // suppression so a live dot and a navigation-time dot agree.
-    const threadUnreadSuppressed = computed(
-        () => muted.value || notificationLevel.value !== 'all',
-    );
+    // The optimistic pair the alert rule reads, handed on rather than resolved
+    // here: whether an arriving reply alerts also depends on whether it mentions
+    // the viewer, which only the realtime router knows. Reading it live is what
+    // makes a mute taken this second apply to the next reply.
+    const alertPreference = computed<AlertPreference>(() => ({
+        muted: muted.value,
+        notificationLevel: notificationLevel.value,
+    }));
 
     // A compact header cue for the member's non-default notification state,
     // shared with the sidebar rows; the "all" default shows nothing to keep the
@@ -159,7 +162,7 @@ export function useChannelPreferences(
         notificationLevel,
         muted,
         starred,
-        threadUnreadSuppressed,
+        alertPreference,
         notificationStatus,
         toggleStar,
         onNotificationLevelChange,

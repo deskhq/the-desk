@@ -62,14 +62,14 @@ const emit = defineEmits<{
 /**
  * The member's own star/mute/notification-level preferences for this channel:
  * seeded from the server, reseeded on every channel switch, saved optimistically
- * and rolled back on error. `threadUnreadSuppressed` mirrors the server's dot
- * suppression and feeds the page's realtime router.
+ * and rolled back on error. `alertPreference` is the pair the alert rule reads,
+ * fed to the page's realtime router.
  */
 const {
     notificationLevel,
     muted,
     starred,
-    threadUnreadSuppressed,
+    alertPreference,
     notificationStatus,
     toggleStar,
     onNotificationLevelChange,
@@ -87,8 +87,8 @@ const { pinCount, pinsPanelOpen, openPinsPanel, jumpToPin } = useChannelPins({
 });
 
 defineExpose({
-    /** Whether the server suppresses this channel's thread-unread dot. */
-    threadUnreadSuppressed,
+    /** The mute + level pair the alert rule reads for this channel. */
+    alertPreference,
     /** Patch the badge from the MessagePinned broadcast. */
     setPinCount: (count: number): void => {
         pinCount.value = count;

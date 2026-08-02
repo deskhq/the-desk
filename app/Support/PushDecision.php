@@ -34,14 +34,14 @@ final class PushDecision
         NotificationLevel $level,
         bool $dndActive,
     ): bool {
-        if ($dndActive || $isOwnMessage || $muted) {
+        if ($dndActive || $isOwnMessage) {
             return false;
         }
 
         if ($mentionsRecipient) {
-            return $level->alertsOnMention();
+            return $level->alertsOnMention($muted);
         }
 
-        return $isChannelMessage && $level->alertsOnUnread();
+        return $isChannelMessage && $level->alertsOnUnread($muted);
     }
 }
