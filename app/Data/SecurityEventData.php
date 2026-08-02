@@ -7,6 +7,11 @@ use App\Support\UserAgentParser;
 use Spatie\LaravelData\Data;
 use Spatie\TypeScriptTransformer\Attributes\TypeScript;
 
+/**
+ * A recorded security-relevant account event, as the Security settings page
+ * renders it. `isNewDevice` flags a sign-in from an IP and browser pairing not
+ * seen on a prior sign-in, which is what the page draws attention to.
+ */
 #[TypeScript]
 class SecurityEventData extends Data
 {

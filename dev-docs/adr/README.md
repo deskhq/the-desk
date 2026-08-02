@@ -18,4 +18,5 @@ seams live in [`CONTEXT.md`](../../CONTEXT.md).
 | [0010](0010-channel-traffic-predicate-has-one-home-per-language.md) | The channel-traffic predicate has one home per language |
 | [0011](0011-read-model-dto-takes-its-viewer.md) | A read-model DTO takes its viewer, and batches its roster |
 | [0012](0012-three-test-suites.md) | Three test suites: pure, database, HTTP contract |
+| [0013](0013-generated-types-are-the-wire-contract.md) | The generated `App.Data.*` types are the wire contract |
 | [0014](0014-nested-resource-tenancy-on-the-route.md) | Nested-resource tenancy is enforced by the route |

@@ -8,6 +8,13 @@ use App\Models\User;
 use Spatie\LaravelData\Data;
 use Spatie\TypeScriptTransformer\Attributes\TypeScript;
 
+/**
+ * A recorded admin/moderation action, as a workspace's audit log renders it.
+ *
+ * `actorName` is null when the acting user no longer exists, and `description`
+ * is a ready-to-render human sentence rather than a template the client has to
+ * fill — the context an action was recorded with never leaves the server.
+ */
 #[TypeScript]
 class AuditEventData extends Data
 {
