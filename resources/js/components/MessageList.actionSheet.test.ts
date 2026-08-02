@@ -1,10 +1,13 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { App } from 'vue';
-import { createApp, defineComponent, h, nextTick, reactive } from 'vue';
+import { defineComponent, h, nextTick, reactive } from 'vue';
 import { LONG_PRESS_MS } from '@/composables/useLongPress';
-import { translate } from '@/lib/i18n';
-import type { Message } from '@/types';
+import {
+    find,
+    message,
+    mountWithActions,
+    unmountAll,
+} from './MessageList.doubles';
 
 /**
  * Covers the touch stand-in for the hover toolbar: the actions sheet a hold on a
@@ -12,19 +15,15 @@ import type { Message } from '@/types';
  * itself again. It survives a split of `MessageList.vue` unchanged, so what is
  * pinned here is when it opens and which message it resolves.
  */
-const pageProps = vi.hoisted(() => ({
-    auth: { user: { timezone: 'UTC' } },
-    customEmojis: {} as Record<string, string>,
-    userGroups: [] as unknown[],
-}));
-
-vi.mock('@inertiajs/vue3', () => ({
-    usePage: () => ({ props: pageProps }),
-}));
-
 const mobile = vi.hoisted(() => ({
     current: null as { value: boolean } | null,
 }));
+
+vi.mock('@inertiajs/vue3', async () => {
+    const { inertiaPageProps } = await import('./MessageList.doubles');
+
+    return { usePage: () => ({ props: inertiaPageProps }) };
+});
 
 vi.mock('@/composables/useIsMobile', async () => {
     const { ref } = await import('vue');
@@ -34,17 +33,11 @@ vi.mock('@/composables/useIsMobile', async () => {
     return { useIsMobile: () => value };
 });
 
-/** Renders an empty marker element, so a stubbed leaf is still findable. */
-function marker(name: string) {
-    return defineComponent({
-        name,
-        setup: () => () => h('div', { 'data-stub': name }),
-    });
-}
+vi.mock('@/components/MessageActions.vue', async () => {
+    const { marker } = await import('./MessageList.doubles');
 
-vi.mock('@/components/MessageActions.vue', () => ({
-    default: marker('MessageActions'),
-}));
+    return { default: marker('MessageActions') };
+});
 
 /** Reports the sheet's open state and the message it resolved, nothing more. */
 vi.mock('@/components/MessageActionsSheet.vue', () => ({
@@ -73,79 +66,41 @@ vi.mock('@/components/UserHoverCard.vue', () => ({
     }),
 }));
 
-vi.mock('@/components/MessageAttachments.vue', () => ({
-    default: marker('MessageAttachments'),
-}));
+vi.mock('@/components/MessageAttachments.vue', async () => {
+    const { marker } = await import('./MessageList.doubles');
 
-vi.mock('@/components/MessagePoll.vue', () => ({
-    default: marker('MessagePoll'),
-}));
+    return { default: marker('MessageAttachments') };
+});
 
-vi.mock('@/components/MessageReactions.vue', () => ({
-    default: marker('MessageReactions'),
-}));
+vi.mock('@/components/MessagePoll.vue', async () => {
+    const { marker } = await import('./MessageList.doubles');
 
-vi.mock('@/components/MessageForward.vue', () => ({
-    default: marker('MessageForward'),
-}));
+    return { default: marker('MessagePoll') };
+});
+
+vi.mock('@/components/MessageReactions.vue', async () => {
+    const { marker } = await import('./MessageList.doubles');
+
+    return { default: marker('MessageReactions') };
+});
+
+vi.mock('@/components/MessageForward.vue', async () => {
+    const { marker } = await import('./MessageList.doubles');
+
+    return { default: marker('MessageForward') };
+});
 
 import MessageList from './MessageList.vue';
 
-function message(overrides: Partial<Message> = {}): Message {
-    return {
-        id: 'm1',
-        clientUuid: 'uuid-1',
-        body: 'hello',
-        type: 'standard',
-        user: { id: 'peer', name: 'Peer' },
-        createdAt: '2024-03-04T10:30:00.000Z',
-        editedAt: null,
-        isDeleted: false,
-        mentions: [],
-        linkPreviews: [],
-        attachments: [],
-        reactions: [],
-        pin: null,
-        poll: null,
-        replyTo: null,
-        forwardedFrom: null,
-        threadRootId: null,
-        sentToChannel: false,
-        threadReplyCount: 0,
-        threadLastReplyAt: null,
-        threadParticipants: [],
-        threadFollowed: false,
-        threadUnread: false,
-        threadUnreadReplyCount: 0,
-        ...overrides,
-    } as Message;
-}
-
-let active: Array<{ app: App; host: HTMLElement }> = [];
-
-function mount(props: Record<string, unknown> = {}): HTMLElement {
-    const host = document.createElement('div');
-    document.body.appendChild(host);
-
-    const app = createApp({
-        render: () =>
-            h(MessageList, {
-                messages: [message()],
-                teamSlug: 'acme',
-                currentUserId: 'peer',
-                canReact: true,
-                ...props,
-            }),
-    });
-    app.config.globalProperties.$t = translate;
-    app.mount(host);
-    active.push({ app, host });
-
-    return host;
-}
-
-function find(host: HTMLElement, selector: string): HTMLElement | null {
-    return host.querySelector<HTMLElement>(`[data-test="${selector}"]`);
+function mount(
+    props: Record<string, unknown> = {},
+    canReact = true,
+): HTMLElement {
+    return mountWithActions(
+        MessageList,
+        { messages: [message()], teamSlug: 'acme', ...props },
+        { scope: { currentUserId: 'peer', canReact } },
+    ).host;
 }
 
 /** A pointer event shaped the way the row's long-press handlers read it. */
@@ -162,117 +117,82 @@ function pointer(type: string, target: HTMLElement): PointerEvent {
     return event as PointerEvent;
 }
 
+/** Hold the given row long enough for the sheet's gesture to fire. */
+async function hold(host: HTMLElement, selector: string): Promise<void> {
+    const row = find(host, selector) as HTMLElement;
+    row.dispatchEvent(pointer('pointerdown', row));
+    vi.advanceTimersByTime(LONG_PRESS_MS);
+    await nextTick();
+}
+
+function sheetOpen(host: HTMLElement): string | undefined {
+    return find(host, 'actions-sheet')?.getAttribute('data-open') ?? undefined;
+}
+
 beforeEach(() => {
+    vi.useFakeTimers();
+
     if (mobile.current) {
         mobile.current.value = false;
     }
 });
 
 afterEach(() => {
-    for (const { app, host } of active) {
-        app.unmount();
-        host.remove();
-    }
-
-    active = [];
+    unmountAll();
+    vi.useRealTimers();
 });
 
 describe('the touch actions sheet', () => {
-    beforeEach(() => {
-        vi.useFakeTimers();
-    });
-
-    afterEach(() => {
-        vi.useRealTimers();
-    });
-
-    async function hold(host: HTMLElement): Promise<void> {
-        const body = find(host, 'message-body') as HTMLElement;
-        body.dispatchEvent(pointer('pointerdown', body));
-        vi.advanceTimersByTime(LONG_PRESS_MS);
-        await nextTick();
-    }
-
     it('opens on a hold below the breakpoint, resolving the message live', async () => {
         mobile.current!.value = true;
         const host = mount();
-        await hold(host);
+        await hold(host, 'message-body');
 
-        const sheet = find(host, 'actions-sheet');
-
-        expect(sheet?.getAttribute('data-open')).toBe('true');
-        expect(sheet?.getAttribute('data-message')).toBe('m1');
+        expect(sheetOpen(host)).toBe('true');
+        expect(find(host, 'actions-sheet')?.getAttribute('data-message')).toBe(
+            'm1',
+        );
     });
 
     it('stays shut on a hover-capable layout, where the toolbar owns the actions', async () => {
         const host = mount();
-        await hold(host);
+        await hold(host, 'message-body');
 
-        expect(find(host, 'actions-sheet')?.getAttribute('data-open')).toBe(
-            'false',
-        );
+        expect(sheetOpen(host)).toBe('false');
     });
 
     it('stays shut on a row that offers no actions at all', async () => {
         mobile.current!.value = true;
-        const host = mount({
-            messages: [message({ isDeleted: true })],
-            canReact: false,
-        });
+        const host = mount({ messages: [message({ isDeleted: true })] }, false);
 
-        const tombstone = find(host, 'message-tombstone') as HTMLElement;
-        tombstone.dispatchEvent(pointer('pointerdown', tombstone));
-        vi.advanceTimersByTime(LONG_PRESS_MS);
-        await nextTick();
+        await hold(host, 'message-tombstone');
 
-        expect(find(host, 'actions-sheet')?.getAttribute('data-open')).toBe(
-            'false',
-        );
+        expect(sheetOpen(host)).toBe('false');
     });
 
     it('closes when the viewport crosses up over the breakpoint mid-press', async () => {
         mobile.current!.value = true;
         const host = mount();
-        await hold(host);
+        await hold(host, 'message-body');
 
         mobile.current!.value = false;
         await nextTick();
 
-        expect(find(host, 'actions-sheet')?.getAttribute('data-open')).toBe(
-            'false',
-        );
+        expect(sheetOpen(host)).toBe('false');
     });
 
     it('closes when the message it is open on is tombstoned in place', async () => {
         mobile.current!.value = true;
         const messages = reactive([message()]);
-        const host = document.createElement('div');
-        document.body.appendChild(host);
+        const host = mount({ messages });
 
-        const app = createApp({
-            render: () =>
-                h(MessageList, {
-                    messages,
-                    teamSlug: 'acme',
-                    currentUserId: 'peer',
-                    canReact: true,
-                }),
-        });
-        app.config.globalProperties.$t = translate;
-        app.mount(host);
-        active.push({ app, host });
+        await hold(host, 'message-body');
 
-        await hold(host);
-
-        expect(find(host, 'actions-sheet')?.getAttribute('data-open')).toBe(
-            'true',
-        );
+        expect(sheetOpen(host)).toBe('true');
 
         messages[0].isDeleted = true;
         await nextTick();
 
-        expect(find(host, 'actions-sheet')?.getAttribute('data-open')).toBe(
-            'false',
-        );
+        expect(sheetOpen(host)).toBe('false');
     });
 });

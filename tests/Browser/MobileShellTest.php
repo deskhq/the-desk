@@ -401,26 +401,23 @@ test('the composer pill survives a locale with longer words than the English', f
         JS, true);
 });
 
-test('every compose tool is still reachable once disclosed', function (): void {
+test('every compose tool is still reachable from the attach sheet', function (): void {
     ['owner' => $alice, 'team' => $team, 'channel' => $channel] = browserTeamWithChannel();
 
-    // Folding the tools away must not remove them: each one is still there,
-    // one tap further in.
+    // Moving the tools into the sheet must not remove them: each one is still
+    // there, one tap further in.
     signInThroughBrowser($alice)
         ->resize(390, 844)
         ->navigate(browserChannelUrl($team, $channel))
-        ->assertScript(<<<'JS'
-        (() => document.querySelector('[data-test="composer-tools"]')
-            .getBoundingClientRect().height === 0)()
-        JS, true)
-        ->click('@composer-tools-toggle')
-        ->assertVisible('@message-composer-attach')
+        ->assertMissing('@composer-attach-sheet')
+        ->click('@composer-attach-sheet-toggle')
+        ->assertVisible('@composer-attach-sheet')
         ->assertVisible('@composer-format-cluster')
-        // Disclosing them widens the pill onto a second row rather than
-        // narrowing the field.
-        // The field keeps a usable share of the pill, and — the actual tell of
-        // the collapse — stays a single line rather than growing to its 200px
-        // cap as a zero-width field's wrapped placeholder used to make it.
+        ->assertPresent('[data-test="composer-attach-tile"][data-tile="file"]')
+        ->assertPresent('[data-test="composer-attach-tile"][data-tile="photos"]')
+        // The sheet is a portalled overlay, so the composer behind it keeps its
+        // shape: the field stays a usable single line rather than growing to its
+        // 200px cap as a squeezed field's wrapped placeholder used to make it.
         ->assertScript(<<<'JS'
         (() => {
             const field = document.querySelector('[data-test="message-composer-input"]').getBoundingClientRect();

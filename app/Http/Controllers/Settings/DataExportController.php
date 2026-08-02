@@ -2,13 +2,13 @@
 
 namespace App\Http\Controllers\Settings;
 
+use App\Actions\Users\RequestDataExport;
 use App\Data\DataExportData;
-use App\Enums\DataExportStatus;
 use App\Enums\SecurityEventType;
+use App\Events\SecurityEventOccurred;
 use App\Http\Controllers\Controller;
-use App\Jobs\ExportUserData;
 use App\Models\DataExport;
-use App\Support\SecurityEventRecorder;
+use App\Support\ExportLifecycle;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -33,15 +33,9 @@ class DataExportController extends Controller
     /**
      * Queue a fresh export of the authenticated user's personal data.
      */
-    public function store(Request $request, SecurityEventRecorder $securityEvents): RedirectResponse
+    public function store(Request $request, RequestDataExport $requestDataExport): RedirectResponse
     {
-        $export = $request->user()->dataExports()->create([
-            'status' => DataExportStatus::Pending,
-        ]);
-
-        dispatch(new ExportUserData($export->id));
-
-        $securityEvents->record($request->user(), SecurityEventType::DataExportRequested);
+        $requestDataExport->handle($request->user());
 
         Inertia::flash('toast', ['type' => 'success', 'message' => __("Preparing your data export. We'll email you when it's ready.")]);
 
@@ -53,15 +47,18 @@ class DataExportController extends Controller
      *
      * Guards ownership and the download window: another user's export is
      * forbidden, and one that is still pending, failed, or expired is a 404.
+     *
+     * A download mutates nothing, so there is no Action for the security event
+     * to sit next to; handing the archive over *is* the fact being recorded.
      */
-    public function download(Request $request, DataExport $dataExport, SecurityEventRecorder $securityEvents): StreamedResponse
+    public function download(Request $request, DataExport $dataExport): StreamedResponse
     {
         abort_unless($dataExport->user_id === $request->user()->id, 403);
         abort_unless($dataExport->isReady() && ! $dataExport->isExpired(), 404);
 
-        $response = Storage::disk(ExportUserData::DISK)->download($dataExport->path, 'data-export.zip');
+        $response = Storage::disk(ExportLifecycle::DISK)->download($dataExport->path, 'data-export.zip');
 
-        $securityEvents->record($request->user(), SecurityEventType::DataExportDownloaded);
+        event(new SecurityEventOccurred($request->user(), SecurityEventType::DataExportDownloaded));
 
         return $response;
     }

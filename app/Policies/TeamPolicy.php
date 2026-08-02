@@ -136,6 +136,20 @@ class TeamPolicy
     }
 
     /**
+     * Determine whether the user can see the team's recently-deleted channels.
+     *
+     * The panel is the only way back from a deletion, so whoever may delete a
+     * channel ({@see ChannelPolicy::delete()}) must be able to open
+     * it: team Admin+. Unlike the logs above it is not withheld from a personal
+     * workspace — its owner can delete a channel there and would otherwise have
+     * nowhere to undo it.
+     */
+    public function viewDeletedChannels(User $user, Team $team): bool
+    {
+        return $user->teamRole($team)?->isAtLeast(TeamRole::Admin) ?? false;
+    }
+
+    /**
      * Determine whether the user can view the team's analytics dashboard.
      *
      * The dashboard aggregates workspace-wide activity, so it is scoped to

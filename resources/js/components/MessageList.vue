@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { usePage } from '@inertiajs/vue3';
 import { computed, ref } from 'vue';
 import MessageActionsSheet from '@/components/MessageActionsSheet.vue';
 import DayDivider from '@/components/timeline/DayDivider.vue';
@@ -13,8 +12,14 @@ import SystemNotice from '@/components/timeline/SystemNotice.vue';
 import ThreadRepliesDivider from '@/components/timeline/ThreadRepliesDivider.vue';
 import UnreadDivider from '@/components/timeline/UnreadDivider.vue';
 import { useIsMobile } from '@/composables/useIsMobile';
+import {
+    useMessageActionGuards,
+    useMessageActionsContext,
+    useMessageSubtree,
+} from '@/composables/useMessageActionsContext';
 import { useMessageActionSheet } from '@/composables/useMessageActionSheet';
 import { useTimelineWindow } from '@/composables/useTimelineWindow';
+import { displayAuthorName } from '@/lib/authorIdentity';
 import { formatTimeOfDay } from '@/lib/datetime';
 import { hasAnyMessageAction } from '@/lib/messageActions';
 import type { RenderedPresence } from '@/lib/presence';
@@ -36,23 +41,11 @@ const props = defineProps<{
      * renders a "Queued — will send on reconnect" marker until it flushes.
      */
     queuedUuids?: string[];
-    currentUserId: string;
     /**
      * Whether the timeline belongs to a direct message, so a "member left" notice
      * reads "left the conversation" rather than "left the channel".
      */
     isDirect?: boolean;
-    canModerate?: boolean;
-    /**
-     * Whether the viewer may add/remove reactions (member of a non-archived
-     * channel); existing reaction pills still render read-only when false.
-     */
-    canReact?: boolean;
-    /**
-     * Whether the viewer may pin/unpin messages (member of a non-archived
-     * channel); the "Pinned by" indicator still renders read-only when false.
-     */
-    canPin?: boolean;
     /**
      * How each author reads on the team presence roster. Absent on the surfaces
      * that render a timeline without one, where every author reads as offline.
@@ -69,11 +62,6 @@ const props = defineProps<{
      * channel open — or null when there's no unread boundary to mark.
      */
     unreadDividerId?: string | null;
-    /**
-     * Rendered inside a thread panel: hides the per-message thread affordances
-     * (you're already in the thread), so the panel only shows the conversation.
-     */
-    inThread?: boolean;
     /**
      * When set (> 0) inside a thread, a ":count replies" rule renders under the
      * root message, separating it from the replies — the mobile thread push's
@@ -113,20 +101,6 @@ const props = defineProps<{
 }>();
 
 const emit = defineEmits<{
-    edit: [message: Message, body: string];
-    delete: [message: Message];
-    reply: [message: Message];
-    forward: [message: Message];
-    react: [message: Message, emoji: string];
-    vote: [message: Message, optionId: string];
-    closePoll: [message: Message];
-    pin: [message: Message];
-    unpin: [message: Message];
-    remind: [message: Message, remindAt: string];
-    remindCustom: [message: Message];
-    openThread: [messageId: string];
-    jump: [messageId: string];
-    mention: [member: { id: string; name: string }];
     /** The reader has scrolled near the top of the loaded history: fetch older. */
     loadOlder: [];
     /**
@@ -136,17 +110,12 @@ const emit = defineEmits<{
     rangeChange: [range: { startIndex: number; endIndex: number }];
 }>();
 
-const page = usePage();
-
-/** The viewer's stored zone, feeding the reminder popover's wall-clock presets. */
-const viewerTimezone = computed<string | null>(
-    () => page.props.auth.user.timezone ?? null,
-);
+const scope = useMessageActionsContext();
+const subtree = useMessageSubtree();
+const { contextFor } = useMessageActionGuards();
 
 /** Render timestamps in the viewer's stored zone, falling back to the browser's. */
-const viewerTimeZone = computed(
-    () => page.props.auth.user.timezone ?? undefined,
-);
+const viewerTimeZone = computed(() => scope.viewerTimeZone ?? undefined);
 
 function formatTime(iso: string): string {
     return formatTimeOfDay(iso, viewerTimeZone.value);
@@ -158,7 +127,7 @@ function formatTime(iso: string): string {
  * setting it apart from the replies below.
  */
 function isThreadRoot(item: TimelineGroup): boolean {
-    return props.inThread === true && item.messages[0]?.threadRootId === null;
+    return subtree.inThread && item.messages[0]?.threadRootId === null;
 }
 
 /**
@@ -166,7 +135,7 @@ function isThreadRoot(item: TimelineGroup): boolean {
  * Empty inside a thread panel and on an empty timeline.
  */
 const seenByReaders = computed<MessageAuthor[]>(() => {
-    if (props.inThread || props.messages.length === 0) {
+    if (subtree.inThread || props.messages.length === 0) {
         return [];
     }
 
@@ -175,7 +144,7 @@ const seenByReaders = computed<MessageAuthor[]>(() => {
     return readersForMessage(
         props.readers ?? [],
         lastMessageId,
-        props.currentUserId,
+        scope.currentUserId,
     );
 });
 
@@ -253,7 +222,7 @@ function saveEdit(message: Message, draft: string): void {
 
     // An empty or unchanged draft is a no-op; the server would reject the former.
     if (body !== '' && body !== message.body) {
-        emit('edit', message, body);
+        scope.actions.edit(message, body);
     }
 
     cancelEdit();
@@ -271,14 +240,7 @@ const {
     messages: () => props.messages,
     canOpen: (message) =>
         editingId.value !== message.id &&
-        hasAnyMessageAction(message, {
-            currentUserId: props.currentUserId,
-            canReact: Boolean(props.canReact),
-            canPin: Boolean(props.canPin),
-            canModerate: Boolean(props.canModerate),
-            inThread: Boolean(props.inThread),
-            pending: isPending(message),
-        }),
+        hasAnyMessageAction(message, contextFor(isPending(message))),
 });
 
 /** The message queued for deletion; a non-null value drives the confirm dialog. */
@@ -290,7 +252,7 @@ function requestDelete(message: Message): void {
 
 function confirmDelete(): void {
     if (pendingDelete.value) {
-        emit('delete', pendingDelete.value);
+        scope.actions.delete(pendingDelete.value);
     }
 
     pendingDelete.value = null;
@@ -347,12 +309,14 @@ function confirmDelete(): void {
                 >
                     <MessageAvatarGutter
                         :author="item.author"
+                        :author-override="item.authorOverride"
+                        :posted-via="item.postedVia"
                         :team-slug="props.teamSlug"
                         :presence="presenceOf(item.author.id)"
                         :is-dnd="dndOf(item.author.id)"
                         :time="formatTime(item.leadCreatedAt)"
                         :is-mobile="isMobile"
-                        @mention="(member) => emit('mention', member)"
+                        @mention="(member) => subtree.mention(member)"
                     />
                     <div
                         data-test="message-column"
@@ -365,24 +329,26 @@ function confirmDelete(): void {
                     >
                         <MessageAuthorLine
                             :author="item.author"
+                            :author-override="item.authorOverride"
+                            :posted-via="item.postedVia"
                             :team-slug="props.teamSlug"
                             :presence="presenceOf(item.author.id)"
                             :is-dnd="dndOf(item.author.id)"
                             :time="formatTime(item.leadCreatedAt)"
-                            @mention="(member) => emit('mention', member)"
+                            @mention="(member) => subtree.mention(member)"
                         />
                         <div role="list">
                             <MessageRow
                                 v-for="(message, row) in item.messages"
                                 :key="message.id"
                                 :message="message"
-                                :author-name="item.author.name"
+                                :author-name="
+                                    displayAuthorName(
+                                        item.author.name,
+                                        item.authorOverride,
+                                    )
+                                "
                                 :team-slug="props.teamSlug"
-                                :current-user-id="props.currentUserId"
-                                :can-react="props.canReact"
-                                :can-pin="props.canPin"
-                                :can-moderate="props.canModerate"
-                                :in-thread="props.inThread"
                                 :is-lead="row === 0"
                                 :pending="isPending(message)"
                                 :queued="isQueued(message)"
@@ -397,33 +363,11 @@ function confirmDelete(): void {
                                 :composer-editing="
                                     message.id === props.editingMessageId
                                 "
-                                :viewer-time-zone="viewerTimeZone"
-                                :viewer-timezone="viewerTimezone"
                                 :long-press="longPress"
                                 @start-edit="startEdit(message)"
                                 @save-edit="(body) => saveEdit(message, body)"
                                 @cancel-edit="cancelEdit"
                                 @request-delete="requestDelete(message)"
-                                @reply="emit('reply', message)"
-                                @forward="emit('forward', message)"
-                                @pin="emit('pin', message)"
-                                @unpin="emit('unpin', message)"
-                                @close-poll="emit('closePoll', message)"
-                                @remind-custom="emit('remindCustom', message)"
-                                @open-thread="(id) => emit('openThread', id)"
-                                @react="
-                                    (emoji) => emit('react', message, emoji)
-                                "
-                                @vote="
-                                    (optionId) =>
-                                        emit('vote', message, optionId)
-                                "
-                                @remind="
-                                    (remindAt) =>
-                                        emit('remind', message, remindAt)
-                                "
-                                @jump="(id) => emit('jump', id)"
-                                @mention="(member) => emit('mention', member)"
                             />
                         </div>
                     </div>
@@ -451,32 +395,13 @@ function confirmDelete(): void {
         <MessageActionsSheet
             v-model:open="actionSheetOpen"
             :message="actionSheetMessage"
-            :current-user-id="props.currentUserId"
-            :can-react="props.canReact"
-            :can-pin="props.canPin"
-            :can-moderate="props.canModerate"
-            :in-thread="props.inThread"
             :pending="
                 actionSheetMessage ? isPending(actionSheetMessage) : false
             "
-            :viewer-time-zone="viewerTimeZone"
-            @react="
-                (emoji) =>
-                    actionSheetMessage &&
-                    emit('react', actionSheetMessage, emoji)
+            @start-edit="actionSheetMessage && startEdit(actionSheetMessage)"
+            @request-delete="
+                actionSheetMessage && requestDelete(actionSheetMessage)
             "
-            @open-thread="
-                actionSheetMessage && emit('openThread', actionSheetMessage.id)
-            "
-            @reply="actionSheetMessage && emit('reply', actionSheetMessage)"
-            @forward="actionSheetMessage && emit('forward', actionSheetMessage)"
-            @pin="actionSheetMessage && emit('pin', actionSheetMessage)"
-            @unpin="actionSheetMessage && emit('unpin', actionSheetMessage)"
-            @remind-custom="
-                actionSheetMessage && emit('remindCustom', actionSheetMessage)
-            "
-            @edit="actionSheetMessage && startEdit(actionSheetMessage)"
-            @delete="actionSheetMessage && requestDelete(actionSheetMessage)"
         />
     </div>
 </template>

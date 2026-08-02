@@ -1,8 +1,20 @@
 # ADR-0005: Record audit & security events via the event→listener seam
 
-- Status: Accepted
+- Status: Accepted — applied across every recording site (2026-07-30)
 - Date: 2026-07-10
 - Relates to: epic architecture-hardening (audit locality; supersedes divergent recorders)
+
+> **Status note (2026-07-30).** As accepted, this landed on `Actions/Integrations/*`
+> only: 23 `AuditRecorder` call sites across 11 controllers and 6
+> `SecurityEventRecorder` sites stayed where they were, and `ChannelMemberAdded`,
+> `ChannelMemberRemoved`, `ChannelCreated` and `ChannelArchived` were each recorded
+> by two or three controllers with identical bodies while the Action already
+> dispatched the webhook half. It is now applied everywhere: every auditable
+> mutation dispatches `AuditableActionOccurred` and every account event dispatches
+> `SecurityEventOccurred`, both from the Action that owns the mutation, and
+> `RecordAuditActivity` / `RecordSecurityEvents` are their only recorders.
+> `SecurityEventRecorder` no longer takes the `Request` — the listener captures the
+> device context, so recording works from a queued job.
 
 ## Context
 

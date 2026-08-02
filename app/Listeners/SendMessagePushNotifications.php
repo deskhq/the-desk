@@ -7,6 +7,7 @@ namespace App\Listeners;
 use App\Data\MentionData;
 use App\Events\MessageSent;
 use App\Models\ChannelMember;
+use App\Models\Message;
 use App\Notifications\NewMessageNotification;
 use App\Support\PushDecision;
 use App\Support\WebPushConfig;
@@ -47,10 +48,7 @@ class SendMessagePushNotifications implements ShouldQueue
             $message->mentions,
         );
 
-        // A thread-only reply is not ordinary channel traffic: it stays out of
-        // the timeline and out of the sidebar's unread badge, so it only ever
-        // alerts through the mention path.
-        $isChannelMessage = $message->threadRootId === null || $message->sentToChannel;
+        $isChannelMessage = Message::isChannelTraffic($message->threadRootId, $message->sentToChannel);
 
         foreach ($this->recipients($event) as $member) {
             $recipient = $member->user;

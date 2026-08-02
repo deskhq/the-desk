@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace App\Actions\Integrations;
 
 use App\Enums\AuditAction;
+use App\Events\AuditableActionOccurred;
 use App\Models\User;
 use App\Models\WebhookSubscription;
-use App\Support\AuditRecorder;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -18,8 +18,6 @@ use Illuminate\Support\Facades\DB;
  */
 class RotateWebhookSecret
 {
-    public function __construct(private readonly AuditRecorder $recorder) {}
-
     /**
      * @return string The new plaintext signing secret, shown to the caller once.
      */
@@ -30,9 +28,9 @@ class RotateWebhookSecret
         return DB::transaction(function () use ($actor, $subscription, $secret): string {
             $subscription->forceFill(['secret' => $secret])->save();
 
-            $this->recorder->record($subscription->team, $actor, AuditAction::WebhookSubscriptionSecretRotated, $subscription, [
+            event(new AuditableActionOccurred($subscription->team, $actor, AuditAction::WebhookSubscriptionSecretRotated, $subscription, [
                 'subscription_name' => $subscription->name,
-            ]);
+            ]));
 
             return $secret;
         });

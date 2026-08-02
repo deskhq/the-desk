@@ -43,6 +43,36 @@ it('posts a message as the bot', function (): void {
     ]);
 });
 
+it('records which token posted the message', function (): void {
+    $token = $this->bot->createToken('CI deploys', ['messages:write']);
+
+    $this->withToken($token->plainTextToken)
+        ->postJson("/api/v1/channels/{$this->channel->id}/messages", ['body' => 'Deployed v2'])
+        ->assertCreated();
+
+    // The author names the bot; only this names which of its credentials, which
+    // is what makes revocation targetable.
+    $this->assertDatabaseHas('messages', [
+        'body' => 'Deployed v2',
+        'token_id' => $token->accessToken->getKey(),
+    ]);
+});
+
+it('records no token when the subject arrived by session rather than by token', function (): void {
+    // Sanctum answers a session-authenticated subject with a keyless transient
+    // token, which names no credential at all.
+    $this->actingAs($this->bot)
+        ->postJson("/api/v1/channels/{$this->channel->id}/messages", ['body' => 'Deployed v2'])
+        ->assertCreated();
+
+    // There is nothing to revoke, so the row records no attribution rather than
+    // a key that would point nowhere.
+    $this->assertDatabaseHas('messages', [
+        'body' => 'Deployed v2',
+        'token_id' => null,
+    ]);
+});
+
 it('is idempotent on a repeated client_uuid', function (): void {
     Sanctum::actingAs($this->bot, ['messages:write']);
 

@@ -61,9 +61,18 @@ export function navPanelDouble(): Record<string, unknown> {
     };
 }
 
-export function quickSwitcherDouble(): Record<string, unknown> {
+/**
+ * The dialog registry, with the switcher's `open` spied on: below the breakpoint
+ * the masthead's search glyph is the jump-to overlay's entry point.
+ */
+export function dialogDouble(): Record<string, unknown> {
     return {
-        useQuickSwitcher: () => ({ open: navigation.openQuickSwitcher }),
+        useDialog: (name: string) => ({
+            isOpen: ref(false),
+            open: name === 'switcher' ? navigation.openQuickSwitcher : vi.fn(),
+            close: vi.fn(),
+            toggle: vi.fn(),
+        }),
     };
 }
 
@@ -85,6 +94,7 @@ export function channel(overrides: Partial<Channel> = {}): Channel {
         slug: 'general',
         visibility: 'public',
         topic: null,
+        description: null,
         isGeneral: true,
         isArchived: false,
         muted: false,
@@ -162,6 +172,7 @@ export function mountMasthead(
                 title: 'general',
                 canManagePreferences: false,
                 canArchive: false,
+                canDelete: false,
                 canLeave: false,
                 canAddPeople: false,
                 notificationLevels: [],
@@ -170,10 +181,12 @@ export function mountMasthead(
                 pinCount: 0,
                 notificationLevel: 'all',
                 notificationStatus: null,
+                onOpenDetails: record('openDetails'),
                 onToggleStar: record('toggleStar'),
                 onNotificationLevelChange: record('notificationLevelChange'),
                 onMuteChange: record('muteChange'),
                 onArchive: record('archive'),
+                onDelete: record('delete'),
                 onLeave: record('leave'),
                 onAddPeople: record('addPeople'),
                 onOpenPins: record('openPins'),

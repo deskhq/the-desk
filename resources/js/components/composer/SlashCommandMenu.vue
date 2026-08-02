@@ -1,59 +1,42 @@
 <script setup lang="ts">
+import AutocompleteListbox from '@/components/composer/AutocompleteListbox.vue';
+import type { AutocompleteMenu } from '@/composables/useAutocompleteMenu';
+
 defineProps<{
-    /** The commands to offer, already filtered against what has been typed. */
-    commands: App.Data.SlashCommandData[];
-    /** Which row the keyboard is on. */
-    activeIndex: number;
+    /** The `/` menu, offering the commands matching what has been typed. */
+    menu: AutocompleteMenu<App.Data.SlashCommandData>;
 }>();
 
-defineEmits<{
-    /** A command was chosen (clicked). */
-    select: [command: App.Data.SlashCommandData];
-    /** The pointer moved onto a row, which becomes the active one. */
-    activate: [index: number];
-}>();
+function keyOf(command: App.Data.SlashCommandData): string {
+    return command.name;
+}
 </script>
 
 <template>
-    <!-- Mirrors the mention menu's listbox ARIA and keyboard model, but
-         triggers only at composer position 0. Each row shows
-         name · argument hint · description. -->
-    <ul
-        id="slash-listbox"
-        data-test="slash-menu"
-        role="listbox"
-        :aria-label="$t('Slash commands')"
-        class="absolute bottom-full left-0 z-10 mb-2 max-h-60 w-80 overflow-y-auto rounded-lg border border-border bg-popover p-1 shadow-md"
+    <!-- The same listbox the mention menu renders, triggering only at composer
+         position 0. Each row shows name · argument hint · description, which is
+         what it is the wider of the two for. -->
+    <AutocompleteListbox
+        :menu="menu"
+        :label="$t('Slash commands')"
+        :key-of="keyOf"
+        width="wide"
     >
-        <li
-            v-for="(command, index) in commands"
-            :id="`slash-option-${index}`"
-            :key="command.name"
-            data-test="slash-option"
-            role="option"
-            tabindex="-1"
-            :aria-selected="index === activeIndex"
-            class="flex w-full cursor-pointer flex-col gap-0.5 rounded-md px-2 py-1.5 text-left text-sm text-popover-foreground"
-            :class="
-                index === activeIndex
-                    ? 'bg-accent text-accent-foreground'
-                    : 'hover:bg-accent/60'
-            "
-            @mousedown.prevent="$emit('select', command)"
-            @mouseenter="$emit('activate', index)"
-        >
-            <span class="flex items-baseline gap-1.5">
-                <span class="font-semibold">/{{ command.name }}</span>
-                <span
-                    v-if="command.argumentHint"
-                    class="text-[11px] text-muted-foreground"
-                >
-                    {{ command.argumentHint }}
+        <template #option="{ item }">
+            <div class="flex flex-col gap-0.5">
+                <span class="flex items-baseline gap-1.5">
+                    <span class="font-semibold">/{{ item.name }}</span>
+                    <span
+                        v-if="item.argumentHint"
+                        class="text-[11px] text-muted-foreground"
+                    >
+                        {{ item.argumentHint }}
+                    </span>
                 </span>
-            </span>
-            <span class="truncate text-[12px] text-muted-foreground">
-                {{ command.description }}
-            </span>
-        </li>
-    </ul>
+                <span class="truncate text-[12px] text-muted-foreground">
+                    {{ item.description }}
+                </span>
+            </div>
+        </template>
+    </AutocompleteListbox>
 </template>

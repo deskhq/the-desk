@@ -9,6 +9,7 @@ use App\Models\ChannelMember;
 use App\Models\PersonalAccessToken;
 use App\Models\Team;
 use App\Models\User;
+use App\Support\ChannelMembership;
 use Illuminate\Support\Facades\Gate;
 
 /**
@@ -57,7 +58,7 @@ class ApiChannelAccess
         }
 
         return $subject->isBot()
-            ? $channel->channelMembers()->where('user_id', $subject->id)->exists()
+            ? new ChannelMembership($channel, $subject)->exists()
             : Gate::forUser($subject)->allows('view', $channel);
     }
 

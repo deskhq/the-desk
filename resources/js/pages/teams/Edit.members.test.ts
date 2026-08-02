@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { App } from 'vue';
 import { createApp, defineComponent, h } from 'vue';
 import { translate } from '@/lib/i18n';
-import type { RoleOption, Team, TeamMember, TeamPermissions } from '@/types';
+import type { RoleOption, Team, TeamMember } from '@/types';
 
 /**
  * Covers the member roster on the workspace settings page: the row itself, the
@@ -54,6 +54,7 @@ vi.mock('@lucide/vue', () => ({
     Plug: { render: () => h('svg') },
     ScrollText: { render: () => h('svg') },
     Send: { render: () => h('svg') },
+    Trash2: { render: () => h('svg') },
     ShieldCheck: { render: () => h('svg') },
     SmilePlus: { render: () => h('svg') },
     UserPlus: { render: () => h('svg') },
@@ -68,6 +69,7 @@ vi.mock('@/routes/teams', () => ({
 }));
 
 vi.mock('@/routes/teams/analytics', () => ({ index: () => '/analytics' }));
+vi.mock('@/routes/teams/deleted-channels', () => ({ index: () => '/deleted' }));
 vi.mock('@/routes/teams/audit', () => ({ index: () => '/audit' }));
 vi.mock('@/routes/teams/audit-exports', () => ({ index: () => '/exports' }));
 vi.mock('@/routes/teams/emojis', () => ({ index: () => '/emojis' }));
@@ -158,6 +160,11 @@ vi.mock('@/components/DeleteTeamModal.vue', () => ({
     default: modalStub('DeleteTeamModal'),
 }));
 
+import {
+    channelCreationSettings,
+    defaultChannelCandidates,
+    teamPermissions,
+} from './Edit.doubles';
 import Edit from './Edit.vue';
 
 function team(overrides: Partial<Team> = {}): Team {
@@ -187,27 +194,6 @@ function member(overrides: Partial<TeamMember> = {}): TeamMember {
     };
 }
 
-function permissions(
-    overrides: Partial<TeamPermissions> = {},
-): TeamPermissions {
-    return {
-        canUpdateTeam: true,
-        canDeleteTeam: true,
-        canAddMember: true,
-        canUpdateMember: true,
-        canRemoveMember: true,
-        canCreateInvitation: true,
-        canCancelInvitation: true,
-        canTransferOwnership: true,
-        canViewAudit: true,
-        canViewSecurityLog: true,
-        canViewAnalytics: true,
-        canManageIntegrations: true,
-        canManageUserGroups: true,
-        ...overrides,
-    };
-}
-
 const availableRoles: RoleOption[] = [
     { value: 'admin', label: 'Admin' },
     { value: 'member', label: 'Member' },
@@ -225,8 +211,10 @@ function mount(props: Record<string, unknown> = {}) {
                 team: team(),
                 members: [member()],
                 invitations: [],
-                permissions: permissions(),
+                permissions: teamPermissions(),
                 availableRoles,
+                channelCreation: channelCreationSettings(),
+                defaultChannels: defaultChannelCandidates(),
                 ...props,
             }),
     });
@@ -340,7 +328,7 @@ describe('the roster', () => {
 
     it('withholds the invite button from everyone else', () => {
         const host = mount({
-            permissions: permissions({ canCreateInvitation: false }),
+            permissions: teamPermissions({ canCreateInvitation: false }),
         });
 
         expect(find(host, 'invite-member-button')).toBeNull();
@@ -405,7 +393,7 @@ describe('the role control', () => {
 
     it('renders a plain label for someone who may not change roles', () => {
         const host = mount({
-            permissions: permissions({ canUpdateMember: false }),
+            permissions: teamPermissions({ canUpdateMember: false }),
         });
 
         expect(find(host, 'member-role-trigger')).toBeNull();
@@ -438,7 +426,7 @@ describe('the owner-level affordances', () => {
 
     it('withholds each control from someone lacking the permission', () => {
         const host = mount({
-            permissions: permissions({
+            permissions: teamPermissions({
                 canTransferOwnership: false,
                 canRemoveMember: false,
             }),

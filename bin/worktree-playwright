@@ -1,0 +1,103 @@
+#!/usr/bin/env bash
+#
+# bin/worktree-playwright — install Playwright's browsers into a worktree's app
+# container, published by deskhq/laravel-worktree as a starting point.
+#
+# Invoked as one bootstrap step, from config/worktree.php:
+#
+#     ['label' => 'Installing the Playwright browsers',
+#      'host'  => 'bin/worktree-playwright {{path}}',
+#      'allow_failure' => true,
+#      'degrade' => 'Playwright is not fully installed; tests/Browser will not run here'],
+#
+# ## Why this is a script and not three steps
+#
+# Two things the step DSL deliberately cannot say, both of them here:
+#
+#   1. A restore that has to run even when the thing it brackets failed. The apt
+#      sources parked below are put back whatever the install did, and
+#      `allow_failure` means "ignore this failure", not "run this regardless".
+#   2. A decision made by reading another command's exit code — the install
+#      probe, which no `when` condition can ask.
+#
+# Exiting non-zero is how the bootstrap learns the worktree is degraded. Paired
+# with `allow_failure` and `degrade` above, the run still reaches "ready" with
+# only the browser suite unavailable, and re-entering the worktree retries this
+# step and only this step. Abandoning several minutes of Composer and npm work
+# because a third-party mirror returned a 403 is the outcome that shape exists
+# to avoid.
+
+set -uo pipefail
+
+# Host steps already run with the worktree as their working directory; the
+# argument is accepted so the step reads explicitly at the call site.
+WORKTREE="${1:-$PWD}"
+cd "$WORKTREE" || exit 1
+
+sail() { ./vendor/bin/sail "$@"; }
+
+log() { printf '%s\n' "$*" >&2; }
+
+# Playwright ships its browser binaries out of band: `npm install` fetches the
+# driver but not Chromium, so a browser test in a fresh worktree dies with
+# "Playwright is outdated". Both steps below are slow, so each is skipped when
+# its work is already done — that is what keeps re-entry cheap.
+#
+# Where "unpacked" lives depends on PLAYWRIGHT_BROWSERS_PATH (the Sail image
+# pins it to 0, meaning inside node_modules rather than a shared ~/.cache), so
+# ask Playwright itself where the build belongs rather than hardcoding a path.
+PROBE='loc=$(npx playwright install --dry-run chromium 2>/dev/null | sed -n "s/^ *Install location: *//p" | head -1); [ -n "$loc" ] && [ -d "$loc" ]'
+
+# `npx playwright install-deps` shells out to `apt-get update`, and apt fails the
+# whole run when ANY configured source is unreachable — including the
+# third-party lists the Sail image ships (nodesource, pgdg, ppa:ondrej/php),
+# which Chromium's shared libraries have nothing to do with. A 403 from one of
+# those mirrors takes out the install for reasons unrelated to it.
+#
+# Every library Chromium links against comes from the distro's own archive, so
+# the third-party lists are moved out of apt's way for the duration and moved
+# back afterwards. A list is the distro's own when it is Ubuntu's canonical
+# deb822 file or names one of Ubuntu's archives; everything else is parked.
+#
+# Parking is resumable by construction: a run interrupted between the two leaves
+# the lists in the park directory, and the next run's restore puts them back.
+PARK='mkdir -p /var/tmp/worktree-apt-sources; for f in /etc/apt/sources.list.d/*; do [ -f "$f" ] || continue; [ "${f##*/}" = ubuntu.sources ] && continue; grep -qE "(archive|security|ports)\.ubuntu\.com" "$f" && continue; echo "parking third-party apt source ${f##*/}" >&2; mv "$f" /var/tmp/worktree-apt-sources/; done'
+RESTORE='for f in /var/tmp/worktree-apt-sources/*; do [ -f "$f" ] || continue; mv "$f" /etc/apt/sources.list.d/; done; rmdir /var/tmp/worktree-apt-sources 2>/dev/null; true'
+
+degraded=0
+
+# The system libraries are gated on a sentinel of their own, separate from the
+# browser below: an apt failure that left them missing must still be retried on
+# the next bootstrap, and by then the browser probe may well be passing.
+if [ -f .worktree-playwright-deps ]; then
+    log "Playwright's system dependencies are already installed — skipping"
+else
+    log "installing Playwright's system dependencies"
+
+    # The shared libraries Chromium links against are installed with apt and
+    # need root; the browser itself installs as the sail user below, so the test
+    # run can read it.
+    status=0
+    sail root-shell -c "$PARK" || true
+    sail root-shell -c "npx playwright install-deps chromium" || status=$?
+    sail root-shell -c "$RESTORE" || true
+
+    if [ "$status" -eq 0 ]; then
+        touch .worktree-playwright-deps
+    else
+        log "warning: apt could not install Chromium's system libraries inside the container"
+        degraded=1
+    fi
+fi
+
+if sail shell -c "$PROBE" >/dev/null 2>&1; then
+    log "the Playwright chromium build is already present — skipping"
+else
+    log "installing the Playwright chromium build"
+    if ! sail npx playwright install chromium; then
+        log "warning: the Chromium build could not be downloaded"
+        degraded=1
+    fi
+fi
+
+exit "$degraded"

@@ -77,10 +77,10 @@ vi.mock('@/composables/useNavPanel', async () => {
     return navPanelDouble();
 });
 
-vi.mock('@/composables/useQuickSwitcher', async () => {
-    const { quickSwitcherDouble } = await import('./ChannelMasthead.doubles');
+vi.mock('@/composables/useDialog', async () => {
+    const { dialogDouble } = await import('./ChannelMasthead.doubles');
 
-    return quickSwitcherDouble();
+    return dialogDouble();
 });
 
 import {

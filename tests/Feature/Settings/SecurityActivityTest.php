@@ -1,6 +1,7 @@
 <?php
 
 use App\Enums\SecurityEventType;
+use App\Events\SecurityEventOccurred;
 use App\Models\SecurityEvent;
 use App\Models\User;
 use Illuminate\Auth\Events\Logout;
@@ -74,10 +75,14 @@ test('changing the password records a security event', function (): void {
         ])
         ->assertRedirect(route('security.edit'));
 
-    expect(SecurityEvent::query()
+    $event = SecurityEvent::query()
         ->where('user_id', $user->id)
         ->where('type', SecurityEventType::PasswordChanged)
-        ->exists())->toBeTrue();
+        ->sole();
+
+    // The event seam carries no request of its own, so this also pins that the
+    // listener still stamps the live request's device context onto the row.
+    expect($event->ip_address)->toBe('127.0.0.1');
 });
 
 test('resetting the password records a security event', function (): void {
@@ -110,6 +115,17 @@ test('two factor changes are recorded', function (): void {
         SecurityEventType::RecoveryCodesGenerated,
         SecurityEventType::TwoFactorDisabled,
     );
+});
+
+test('dispatching a security event records it', function (): void {
+    $user = User::factory()->create();
+
+    event(new SecurityEventOccurred($user, SecurityEventType::TeamDeleted));
+
+    expect(SecurityEvent::query()
+        ->where('user_id', $user->id)
+        ->where('type', SecurityEventType::TeamDeleted)
+        ->exists())->toBeTrue();
 });
 
 test('the security page lists recent activity newest first', function (): void {

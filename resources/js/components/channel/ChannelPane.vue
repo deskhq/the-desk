@@ -9,6 +9,10 @@ import ChannelEmptyState from '@/components/ChannelEmptyState.vue';
 import MessageList from '@/components/MessageList.vue';
 import ScrollableMessageList from '@/components/ScrollableMessageList.vue';
 import { useChannelHistory } from '@/composables/useChannelHistory';
+import {
+    provideMessageSubtree,
+    useMessageActionsContext,
+} from '@/composables/useMessageActionsContext';
 import { useMessageHighlight } from '@/composables/useMessageHighlight';
 import { usePaneFileDrop } from '@/composables/usePaneFileDrop';
 import { useStickyDayLabel } from '@/composables/useStickyDayLabel';
@@ -38,13 +42,10 @@ const props = defineProps<{
      * on a channel switch.
      */
     serverMessages: Message[];
-    currentUserId: string;
     /** Whether this is the viewer's own self-DM, so the empty state reads "You". */
     isSelfDm: boolean;
     pendingUuids: string[];
     queuedUuids: string[];
-    canModerate: boolean;
-    canReact: boolean;
     /** Whether a file drop would be staged (a member of a live channel). */
     canDropFiles: boolean;
     presenceFor: (userId: string) => RenderedPresence;
@@ -69,21 +70,23 @@ const emit = defineEmits<{
     files: [files: File[]];
     /** The empty state's "Post your first message" card was used. */
     focusComposer: [];
-    edit: [message: Message, body: string];
-    delete: [message: Message];
-    reply: [message: Message];
-    forward: [message: Message];
-    react: [message: Message, emoji: string];
-    vote: [message: Message, optionId: string];
-    closePoll: [message: Message];
-    pin: [message: Message];
-    unpin: [message: Message];
-    remind: [message: Message, remindAt: string];
-    remindCustom: [message: Message];
-    openThread: [messageId: string];
-    jump: [messageId: string];
+    /**
+     * A hover card in the main timeline offered a mention; the page drops it
+     * into the channel composer, which it owns through the pane's bottom slot.
+     */
     mention: [member: { id: string; name: string }];
 }>();
+
+/**
+ * The main timeline's own scope: not a thread, and a mention lands in the
+ * channel composer. Every row below reads this instead of being told.
+ */
+provideMessageSubtree({
+    inThread: false,
+    mention: (member) => emit('mention', member),
+});
+
+const scope = useMessageActionsContext();
 
 /**
  * The scroll element the virtualizer and the unread divider bind to. It reaches
@@ -161,7 +164,7 @@ const { unreadDividerId } = useUnreadDivider({
     scrollContainer: scrollElement,
     messages: () => props.serverMessages,
     lastReadMessageId: () => props.lastReadMessageId,
-    currentUserId: () => props.currentUserId,
+    currentUserId: () => scope.currentUserId,
 });
 
 /**
@@ -271,11 +274,7 @@ defineExpose({
                         :team-slug="props.team.slug"
                         :pending-uuids="props.pendingUuids"
                         :queued-uuids="props.queuedUuids"
-                        :current-user-id="props.currentUserId"
                         :is-direct="props.channel.isDirect"
-                        :can-moderate="props.canModerate"
-                        :can-react="props.canReact"
-                        :can-pin="props.canReact"
                         :presence-for="props.presenceFor"
                         :is-dnd-for="props.isDndFor"
                         :readers="props.readers"
@@ -283,27 +282,6 @@ defineExpose({
                         :unread-divider-id="unreadDividerId"
                         :active-thread-root-id="props.activeThreadRootId"
                         :editing-message-id="props.editingMessageId"
-                        @edit="(message, body) => emit('edit', message, body)"
-                        @delete="(message) => emit('delete', message)"
-                        @reply="(message) => emit('reply', message)"
-                        @forward="(message) => emit('forward', message)"
-                        @react="
-                            (message, emoji) => emit('react', message, emoji)
-                        "
-                        @vote="
-                            (message, optionId) =>
-                                emit('vote', message, optionId)
-                        "
-                        @close-poll="(message) => emit('closePoll', message)"
-                        @pin="(message) => emit('pin', message)"
-                        @unpin="(message) => emit('unpin', message)"
-                        @remind="(message, at) => emit('remind', message, at)"
-                        @remind-custom="
-                            (message) => emit('remindCustom', message)
-                        "
-                        @open-thread="(id) => emit('openThread', id)"
-                        @jump="(id) => emit('jump', id)"
-                        @mention="(member) => emit('mention', member)"
                         @load-older="loadOlderMessages"
                         @range-change="timelineRange = $event"
                     />

@@ -1,12 +1,13 @@
-import { router, usePage } from '@inertiajs/vue3';
+import { usePage } from '@inertiajs/vue3';
 import { computed, ref, watch } from 'vue';
 import type { ComputedRef, Ref } from 'vue';
 import { update as updateChannelPlacement } from '@/actions/App/Http/Controllers/Channels/ChannelPlacementController';
 import { reorder as reorderSections } from '@/actions/App/Http/Controllers/Channels/ChannelSectionController';
-import { useToast } from '@/composables/useToast';
+import { useOptimisticWrite } from '@/composables/useOptimisticWrite';
 import { useTranslations } from '@/composables/useTranslations';
 import { partitionChannels } from '@/lib/channelSections';
 import type { ChannelSectionGroup } from '@/lib/channelSections';
+import { CHANNEL_LIST_PROPS, CHANNEL_SECTION_PROPS } from '@/lib/reloadProps';
 import type { Channel, ChannelSection } from '@/types/channels';
 
 /**
@@ -58,7 +59,7 @@ export interface ChannelPlacement {
 export function useChannelPlacement(): ChannelPlacement {
     const page = usePage();
     const { t } = useTranslations();
-    const toast = useToast();
+    const { write } = useOptimisticWrite();
 
     const currentTeam = computed(() => page.props.currentTeam);
     const channels = computed(() => page.props.channels ?? []);
@@ -92,6 +93,10 @@ export function useChannelPlacement(): ChannelPlacement {
      * when `sectionId` is provided — file it under that section (null for the
      * default "Channels" group). Only the shared `channels` prop is reloaded so
      * the sidebar re-partitions in place.
+     *
+     * The drag itself is the optimistic mutation, and vuedraggable has already
+     * made it by the time this runs — so the write applies nothing of its own,
+     * and its rollback drops the refused drag by re-partitioning from the props.
      */
     function persistPlacement(
         channel: Channel,
@@ -106,22 +111,17 @@ export function useChannelPlacement(): ChannelPlacement {
             payload.section_id = sectionId;
         }
 
-        router.patch(
-            updateChannelPlacement({
+        write({
+            capture: () => syncSidebarGroups,
+            method: 'patch',
+            url: updateChannelPlacement({
                 team: currentTeam.value?.slug ?? '',
                 channel: channel.slug,
             }).url,
-            payload,
-            {
-                preserveScroll: true,
-                preserveState: true,
-                only: ['channels'],
-                onError: () => {
-                    syncSidebarGroups();
-                    toast.error(t('Failed to save the sidebar layout'));
-                },
-            },
-        );
+            data: payload,
+            only: CHANNEL_LIST_PROPS,
+            failure: t('Failed to save the sidebar layout'),
+        });
     }
 
     function onChannelChange(
@@ -169,19 +169,16 @@ export function useChannelPlacement(): ChannelPlacement {
     }
 
     function onSectionReorder(): void {
-        router.patch(
-            reorderSections({ team: currentTeam.value?.slug ?? '' }).url,
-            { sections: customGroups.value.map((group) => group.section.id) },
-            {
-                preserveScroll: true,
-                preserveState: true,
-                only: ['channelSections'],
-                onError: () => {
-                    syncSidebarGroups();
-                    toast.error(t('Failed to save the section order'));
-                },
+        write({
+            capture: () => syncSidebarGroups,
+            method: 'patch',
+            url: reorderSections({ team: currentTeam.value?.slug ?? '' }).url,
+            data: {
+                sections: customGroups.value.map((group) => group.section.id),
             },
-        );
+            only: CHANNEL_SECTION_PROPS,
+            failure: t('Failed to save the section order'),
+        });
     }
 
     return {

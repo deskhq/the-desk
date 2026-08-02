@@ -19,6 +19,9 @@ use App\Models\SecurityEvent;
 use App\Models\SsoIdentity;
 use App\Models\Team;
 use App\Models\User;
+use App\Support\Csp\TheDeskPolicy;
+use App\Support\Gravatar;
+use App\Support\Images\ImageProxy;
 use Database\Seeders\DemoSeeder;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Hash;
@@ -86,6 +89,27 @@ test('it seeds a supporting cast with varied roles and identicon avatars', funct
 
     foreach ($team->members as $member) {
         expect($member->avatar_url)->toContain('identicon');
+    }
+});
+
+/**
+ * {@see TheDeskPolicy} pins `img-src` to `'self' data: blob:`, so a raw
+ * `https://www.gravatar.com/…` in `avatar_url` short-circuits `User::avatar`'s
+ * proxy branch and the browser then refuses every seeded avatar (#1126). The
+ * contract: a seeded `avatar_url` is already proxied, exactly as the model
+ * would have proxied a derived Gravatar.
+ */
+test('every seeded avatar is first-party, so the demo loads it under its own image policy', function (): void {
+    $users = User::all();
+
+    expect($users)->not->toBeEmpty();
+
+    foreach ($users as $user) {
+        $proxied = ImageProxy::url(Gravatar::url($user->email, 'identicon'));
+
+        expect($user->avatar_url)->toStartWith('/images/proxy?')
+            ->and($user->avatar_url)->toBe($proxied)
+            ->and($user->avatar)->toBe($proxied);
     }
 });
 

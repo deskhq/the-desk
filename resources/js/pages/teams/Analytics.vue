@@ -5,16 +5,24 @@ import AnalyticsHeader from '@/components/analytics/AnalyticsHeader.vue';
 import AnalyticsStatTiles from '@/components/analytics/AnalyticsStatTiles.vue';
 import MemberGrowthCard from '@/components/analytics/MemberGrowthCard.vue';
 import MessagesPerDayCard from '@/components/analytics/MessagesPerDayCard.vue';
+import StorageUsageCard from '@/components/analytics/StorageUsageCard.vue';
 import TopChannelsCard from '@/components/analytics/TopChannelsCard.vue';
 import TopContributorsCard from '@/components/analytics/TopContributorsCard.vue';
 import { translate } from '@/lib/i18n';
 import { edit, index } from '@/routes/teams';
 import { index as analyticsIndex } from '@/routes/teams/analytics';
-import type { AnalyticsRangeOption, Team, WorkspaceAnalytics } from '@/types';
+import type {
+    AnalyticsRangeOption,
+    Team,
+    TeamStorage,
+    WorkspaceAnalytics,
+} from '@/types';
 
 type Props = {
     team: Team;
     analytics: WorkspaceAnalytics;
+    /** The storage read-out, absent while no workspace quota is configured. */
+    storage?: TeamStorage | null;
     range: string;
     rangeOptions: AnalyticsRangeOption[];
 };
@@ -71,6 +79,8 @@ function selectRange(value: string): void {
         />
 
         <AnalyticsStatTiles :analytics="analytics" />
+
+        <StorageUsageCard v-if="storage" :storage="storage" />
 
         <MessagesPerDayCard
             :points="analytics.messagesByDay"

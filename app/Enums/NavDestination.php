@@ -23,4 +23,16 @@ enum NavDestination: string
 
     /** The query param carrying the open destination. */
     public const string QUERY_PARAM = 'nav';
+
+    /**
+     * The destination a request pins open, or null when it pins none.
+     *
+     * Read leniently, like every other facet a shared link can carry: an
+     * unrecognised value names no destination rather than erroring, so a
+     * hand-edited URL withholds a panel's props instead of rejecting the shell.
+     */
+    public static function fromQuery(mixed $value): ?self
+    {
+        return is_string($value) ? self::tryFrom($value) : null;
+    }
 }

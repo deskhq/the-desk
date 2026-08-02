@@ -1,7 +1,7 @@
-import { readFileSync, readdirSync } from 'node:fs';
-import { join } from 'node:path';
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { backgroundVisit } from '@/lib/backgroundVisit';
+import { sourceFiles } from '@/lib/sourceScan.harness';
 
 const SOURCE_ROOT = 'resources/js';
 
@@ -24,26 +24,10 @@ const FOREGROUND_RELOADS: { file: string; call: string; reason: string }[] = [
     },
     {
         file: 'composables/useChannelPins.ts',
-        call: "router.reload({ only: ['pins', 'pinCount'] })",
+        call: 'router.reload({ only: PIN_PROPS })',
         reason: 'the user opened the pins popover and is waiting on it',
     },
 ];
-
-/** Every source file under `resources/js`, tests excluded. */
-function sourceFiles(directory = SOURCE_ROOT): string[] {
-    return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
-        const path = join(directory, entry.name);
-
-        if (entry.isDirectory()) {
-            return sourceFiles(path);
-        }
-
-        return /\.(ts|vue)$/.test(entry.name) &&
-            !entry.name.endsWith('.test.ts')
-            ? [path]
-            : [];
-    });
-}
 
 /** The full source text of each `router.reload(...)` call in `source`. */
 function reloadCalls(source: string): string[] {

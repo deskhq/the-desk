@@ -2,20 +2,19 @@
 
 namespace App\Http\Controllers\Teams;
 
-use App\Enums\AuditAction;
+use App\Actions\Teams\AcceptTeamInvitation;
+use App\Actions\Teams\CreateTeamInvitation;
+use App\Actions\Teams\ResendTeamInvitation;
+use App\Actions\Teams\RevokeTeamInvitation;
 use App\Enums\TeamRole;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Teams\CreateTeamInvitationRequest;
 use App\Http\Requests\Teams\RespondToTeamInvitationRequest;
 use App\Models\Team;
 use App\Models\TeamInvitation;
-use App\Notifications\Teams\TeamInvitation as TeamInvitationNotification;
-use App\Support\AuditRecorder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
-use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\RateLimiter;
 use Inertia\Inertia;
 
@@ -24,26 +23,16 @@ class TeamInvitationController extends Controller
     /**
      * Store a newly created invitation.
      */
-    public function store(CreateTeamInvitationRequest $request, Team $team, AuditRecorder $recorder): RedirectResponse
+    public function store(CreateTeamInvitationRequest $request, Team $team, CreateTeamInvitation $createInvitation): RedirectResponse
     {
         Gate::authorize('inviteMember', $team);
 
-        $role = TeamRole::from($request->validated('role'));
-
-        $invitation = $team->invitations()->create([
-            'email' => $request->validated('email'),
-            'role' => $role,
-            'invited_by' => $request->user()->id,
-            'expires_at' => now()->addDays(3),
-        ]);
-
-        $recorder->record($team, $request->user(), AuditAction::InvitationCreated, $invitation, [
-            'email' => $invitation->email,
-            'role' => $role->label(),
-        ]);
-
-        Notification::route('mail', $invitation->email)
-            ->notify(new TeamInvitationNotification($invitation));
+        $createInvitation->handle(
+            $team,
+            $request->user(),
+            (string) $request->validated('email'),
+            TeamRole::from($request->validated('role')),
+        );
 
         Inertia::flash('toast', ['type' => 'success', 'message' => __('Invitation sent')]);
 
@@ -53,17 +42,13 @@ class TeamInvitationController extends Controller
     /**
      * Cancel the specified invitation.
      */
-    public function destroy(Request $request, Team $team, TeamInvitation $invitation, AuditRecorder $recorder): RedirectResponse
+    public function destroy(Request $request, Team $team, TeamInvitation $invitation, RevokeTeamInvitation $revokeInvitation): RedirectResponse
     {
         abort_unless($invitation->team_id === $team->id, 404);
 
         Gate::authorize('cancelInvitation', $team);
 
-        $recorder->record($team, $request->user(), AuditAction::InvitationRevoked, $invitation, [
-            'email' => $invitation->email,
-        ]);
-
-        $invitation->delete();
+        $revokeInvitation->handle($invitation, $request->user());
 
         Inertia::flash('toast', ['type' => 'success', 'message' => __('Invitation cancelled')]);
 
@@ -72,8 +57,11 @@ class TeamInvitationController extends Controller
 
     /**
      * Resend the specified pending invitation, refreshing its expiry.
+     *
+     * The throttle is a property of this surface — a person clicking the button
+     * again — so it stays here rather than in the Action.
      */
-    public function resend(Request $request, Team $team, TeamInvitation $invitation, AuditRecorder $recorder): RedirectResponse
+    public function resend(Request $request, Team $team, TeamInvitation $invitation, ResendTeamInvitation $resendInvitation): RedirectResponse
     {
         abort_unless($invitation->team_id === $team->id, 404);
 
@@ -91,14 +79,7 @@ class TeamInvitationController extends Controller
 
         RateLimiter::hit($throttleKey, 60);
 
-        $invitation->update(['expires_at' => now()->addDays(3)]);
-
-        $recorder->record($team, $request->user(), AuditAction::InvitationResent, $invitation, [
-            'email' => $invitation->email,
-        ]);
-
-        Notification::route('mail', $invitation->email)
-            ->notify(new TeamInvitationNotification($invitation));
+        $resendInvitation->handle($invitation, $request->user());
 
         Inertia::flash('toast', ['type' => 'success', 'message' => __('Invitation resent')]);
 
@@ -108,26 +89,9 @@ class TeamInvitationController extends Controller
     /**
      * Accept the invitation.
      */
-    public function accept(RespondToTeamInvitationRequest $request, TeamInvitation $invitation, AuditRecorder $recorder): RedirectResponse
+    public function accept(RespondToTeamInvitationRequest $request, TeamInvitation $invitation, AcceptTeamInvitation $acceptInvitation): RedirectResponse
     {
-        $user = $request->user();
-
-        DB::transaction(function () use ($user, $invitation): void {
-            $team = $invitation->team;
-
-            $team->memberships()->firstOrCreate(
-                ['user_id' => $user->id],
-                ['role' => $invitation->role],
-            );
-
-            $invitation->update(['accepted_at' => now()]);
-
-            $user->switchTeam($team);
-        });
-
-        $recorder->record($invitation->team, $user, AuditAction::InvitationAccepted, $invitation, [
-            'email' => $invitation->email,
-        ]);
+        $acceptInvitation->handle($invitation, $request->user());
 
         Inertia::flash('toast', ['type' => 'success', 'message' => __('Invitation accepted')]);
 

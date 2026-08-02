@@ -13,11 +13,55 @@ class ChannelPolicy
     /**
      * Determine whether the user can create a channel in the team.
      *
-     * Any team member (Member+) may create a channel.
+     * The workspace holds one creation policy per visibility, so the answer
+     * depends on which kind of channel is being asked for: a workspace may
+     * curate its public directory while leaving private channels self-service.
+     * Both default to {@see ChannelCreationPolicy::Members}, which is the
+     * long-standing "any team member may create" behaviour.
+     *
+     * `$visibility` is omitted when the question is the affordance-level "is
+     * there any channel this user could create?" — the sidebar's New button has
+     * no visibility in hand yet — and is answered by either policy letting them
+     * through. Membership is required either way.
      */
-    public function create(User $user, Team $team): bool
+    public function create(User $user, Team $team, ?ChannelVisibility $visibility = null): bool
     {
-        return $user->belongsToTeam($team);
+        if (! $user->belongsToTeam($team)) {
+            return false;
+        }
+
+        $role = $user->teamRole($team);
+
+        if ($visibility instanceof ChannelVisibility) {
+            return $team->creationPolicyFor($visibility)->permits($role);
+        }
+        if ($team->creationPolicyFor(ChannelVisibility::Public)->permits($role)) {
+            return true;
+        }
+
+        return $team->creationPolicyFor(ChannelVisibility::Private)->permits($role);
+    }
+
+    /**
+     * Determine whether the user can mark the channel as one every new member
+     * joins on arrival.
+     *
+     * Deciding where newcomers land is a workspace-shaping call, so it sits with
+     * a team Admin+ rather than with the channel's members. Only a live public
+     * channel can be a default: a private one cannot be joined unasked, an
+     * archived one is read-only, and #general is already a default in code with
+     * no flag to toggle.
+     */
+    public function setDefault(User $user, Channel $channel): bool
+    {
+        if ($channel->visibility !== ChannelVisibility::Public) {
+            return false;
+        }
+        if ($channel->isGeneral() || $channel->isArchived()) {
+            return false;
+        }
+
+        return $this->administers($user, $channel);
     }
 
     /**
@@ -34,50 +78,50 @@ class ChannelPolicy
     }
 
     /**
-     * Determine whether the user can update their own notification preferences.
+     * Determine whether the user can edit the channel's topic and description.
      *
-     * Preferences live on the membership pivot, so only a member of the channel
-     * (within the team) has any to manage. Each member only ever touches their
-     * own row.
+     * These are collaborative, shared-context fields rather than administrative
+     * settings, so any member of the channel may change them. A direct message
+     * has neither field (it is named by its participants), and an archived
+     * channel is read-only, so neither is editable.
      */
-    public function updatePreference(User $user, Channel $channel): bool
+    public function update(User $user, Channel $channel): bool
     {
+        if ($channel->isDirectMessage() || $channel->isArchived()) {
+            return false;
+        }
+
         return $this->isMember($user, $channel);
     }
 
     /**
-     * Determine whether the user can star (favorite) the channel for themselves.
+     * Determine whether the user can rename the channel.
      *
-     * The star flag lives on the membership pivot, so only a member of the channel
-     * (within the team) has one to toggle, and each member only ever touches their
-     * own row.
+     * Renaming changes what the whole team calls the channel, so it stays with
+     * the people accountable for it: the creator or a team Admin+, and only
+     * from within the channel (an Admin joins before they rename).
      */
-    public function updateStar(User $user, Channel $channel): bool
+    public function rename(User $user, Channel $channel): bool
     {
-        return $this->isMember($user, $channel);
+        if (! $this->update($user, $channel)) {
+            return false;
+        }
+
+        return $channel->created_by === $user->id
+            || ($user->teamRole($channel->team)?->isAtLeast(TeamRole::Admin) ?? false);
     }
 
     /**
-     * Determine whether the user can place the channel in the sidebar (file it
-     * under a custom section or reorder it).
+     * Determine whether the user can change their own membership of the channel
+     * — its notification preferences, its star, its draft, its sidebar placement.
      *
-     * The placement lives on the membership pivot, so only a member of the channel
-     * (within the team) has one to change, and each member only ever touches their
-     * own row.
+     * These are not four permissions but one: they are all mutations of the
+     * membership pivot, so the question each of them asks is the same one, and
+     * the answer is that the user is a member of the channel within its team.
+     * Each member only ever touches their own row, which is enforced by
+     * {@see ChannelMembership} rather than here.
      */
-    public function place(User $user, Channel $channel): bool
-    {
-        return $this->isMember($user, $channel);
-    }
-
-    /**
-     * Determine whether the user can save their own composer draft for the channel.
-     *
-     * Drafts live on the membership pivot, so only a member of the channel
-     * (within the team) has one to save. Each member only ever touches their
-     * own row.
-     */
-    public function saveDraft(User $user, Channel $channel): bool
+    public function updateMembership(User $user, Channel $channel): bool
     {
         return $this->isMember($user, $channel);
     }
@@ -88,12 +132,12 @@ class ChannelPolicy
      *
      * Only direct messages are hidable — a standard channel leaves the sidebar by
      * archiving, not per-member hiding — and only a member has a pivot row to
-     * stamp. Each member only ever touches their own row. This covers group DMs
-     * too: closing hides the row without leaving, distinct from {@see leave()}.
+     * stamp, which is {@see updateMembership()}. This covers group DMs too:
+     * closing hides the row without leaving, distinct from {@see leave()}.
      */
     public function hide(User $user, Channel $channel): bool
     {
-        return $channel->isDirectMessage() && $this->isMember($user, $channel);
+        return $channel->isDirectMessage() && $this->updateMembership($user, $channel);
     }
 
     /**
@@ -175,10 +219,8 @@ class ChannelPolicy
     }
 
     /**
-     * Shared rule for the pivot-preference abilities (notification preference,
-     * star, sidebar placement, draft): the user is a plain member of the channel
-     * within its team, so they have a membership row to mutate. Each of those
-     * abilities only ever touches the caller's own row.
+     * Shared rule for the abilities a plain member of the channel holds: they
+     * belong to the channel, within its team.
      */
     private function isMember(User $user, Channel $channel): bool
     {
@@ -230,15 +272,49 @@ class ChannelPolicy
     /**
      * Determine whether the user can delete the channel.
      *
-     * The #general channel can never be deleted; hard-delete of other channels
-     * is reserved for team Admin+ (no hard-delete UI in the MVP).
+     * Deleting is destructive in a way archiving is not — it opens the grace
+     * window that ends in the messages, files, and memberships being purged — so
+     * it is reserved for a team Admin+, never delegated to the creator the way
+     * {@see archive()} is. The #general channel can never be deleted, and a
+     * direct message is not an admin's to destroy: it is a private conversation
+     * between its participants, who close or leave it instead. A live channel may
+     * be deleted directly; archiving first is not required.
      */
     public function delete(User $user, Channel $channel): bool
     {
-        if ($channel->isGeneral()) {
+        if ($channel->isGeneral() || $channel->isDirectMessage()) {
             return false;
         }
 
+        return $this->administers($user, $channel);
+    }
+
+    /**
+     * Determine whether the user can restore the channel within its grace window.
+     *
+     * The mirror of {@see delete()}: whoever may open the window may close it
+     * again, on the same Admin+ terms, for as long as the channel is still only
+     * soft-deleted. Once the purge has run there is no row left to authorize
+     * against, so a live channel — nothing to restore — is refused here rather
+     * than silently succeeding.
+     */
+    public function restore(User $user, Channel $channel): bool
+    {
+        if (! $channel->trashed()) {
+            return false;
+        }
+
+        return $this->administers($user, $channel);
+    }
+
+    /**
+     * Shared rule for the workspace-administration abilities on a channel
+     * (delete, restore): the user is a team Admin+ of the channel's team.
+     * Channel membership is deliberately not required — an admin cleaning up a
+     * private channel they never joined still has to be able to.
+     */
+    private function administers(User $user, Channel $channel): bool
+    {
         return $user->belongsToTeam($channel->team)
             && ($user->teamRole($channel->team)?->isAtLeast(TeamRole::Admin) ?? false);
     }

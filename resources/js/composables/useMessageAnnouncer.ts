@@ -1,5 +1,6 @@
 import { ref, watch } from 'vue';
 import type { Ref } from 'vue';
+import { displayAuthorName } from '@/lib/authorIdentity';
 import { translate } from '@/lib/i18n';
 import type { Message } from '@/types';
 
@@ -64,7 +65,13 @@ export function useMessageAnnouncer(options: {
             if (newest) {
                 announcement.value = translate(
                     'New message from :author: :message',
-                    { author: newest.user.name, message: newest.body },
+                    {
+                        author: displayAuthorName(
+                            newest.user.name,
+                            newest.authorOverride,
+                        ),
+                        message: newest.body,
+                    },
                 );
             }
         },

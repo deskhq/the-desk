@@ -1,6 +1,8 @@
 <?php
 
 use App\Actions\Teams\CreateTeam;
+use App\Enums\ChannelCreationPolicy;
+use App\Enums\ChannelVisibility;
 use App\Enums\TeamRole;
 use App\Models\Channel;
 use App\Models\User;
@@ -55,6 +57,33 @@ test('a team admin can delete a regular channel they did not create', function (
     $channel = Channel::factory()->for($team)->create(['created_by' => $owner->id]);
 
     expect($admin->can('delete', $channel))->toBeTrue();
+});
+
+test('an admin can restore a deleted channel but has nothing to restore on a live one', function (): void {
+    $owner = User::factory()->create();
+    $admin = User::factory()->create();
+    $team = app(CreateTeam::class)->handle($owner, 'Acme');
+    $team->memberships()->create(['user_id' => $admin->id, 'role' => TeamRole::Admin]);
+
+    $channel = Channel::factory()->for($team)->create();
+
+    expect($admin->can('restore', $channel))->toBeFalse();
+
+    $channel->delete();
+
+    expect($admin->can('restore', $channel))->toBeTrue();
+});
+
+test('a plain member cannot restore a deleted channel', function (): void {
+    $owner = User::factory()->create();
+    $member = User::factory()->create();
+    $team = app(CreateTeam::class)->handle($owner, 'Acme');
+    $team->memberships()->create(['user_id' => $member->id, 'role' => TeamRole::Member]);
+
+    $channel = Channel::factory()->for($team)->create();
+    $channel->delete();
+
+    expect($member->can('restore', $channel))->toBeFalse();
 });
 
 test('a user who is not a team member cannot archive a channel', function (): void {
@@ -189,7 +218,7 @@ test('a non-team-member cannot manage a private channel membership', function ()
         ->and($outsider->can('removeMember', $private))->toBeFalse();
 });
 
-test('the pivot-preference abilities are granted only to channel members', function (string $ability): void {
+test('changing your own membership is granted only to channel members', function (): void {
     $channelMember = User::factory()->create();
     $team = app(CreateTeam::class)->handle($channelMember, 'Acme');
     $channel = Channel::factory()->for($team)->create();
@@ -204,7 +233,66 @@ test('the pivot-preference abilities are granted only to channel members', funct
     // false, so the predicate short-circuits before touching membership.
     $outsider = User::factory()->create();
 
-    expect($channelMember->can($ability, $channel))->toBeTrue()
-        ->and($teamMember->can($ability, $channel))->toBeFalse()
-        ->and($outsider->can($ability, $channel))->toBeFalse();
-})->with(['updatePreference', 'updateStar', 'place', 'saveDraft']);
+    expect($channelMember->can('updateMembership', $channel))->toBeTrue()
+        ->and($teamMember->can('updateMembership', $channel))->toBeFalse()
+        ->and($outsider->can('updateMembership', $channel))->toBeFalse();
+});
+
+test('any team member may create either kind of channel while both policies stay open', function (): void {
+    $owner = User::factory()->create();
+    $member = User::factory()->create();
+    $team = app(CreateTeam::class)->handle($owner, 'Acme');
+    $team->memberships()->create(['user_id' => $member->id, 'role' => TeamRole::Member]);
+
+    expect($member->can('create', [Channel::class, $team, ChannelVisibility::Public]))->toBeTrue()
+        ->and($member->can('create', [Channel::class, $team, ChannelVisibility::Private]))->toBeTrue();
+});
+
+test('reserving public channels for admins leaves private channels open to members', function (): void {
+    $owner = User::factory()->create();
+    $member = User::factory()->create();
+    $team = app(CreateTeam::class)->handle($owner, 'Acme');
+    $team->memberships()->create(['user_id' => $member->id, 'role' => TeamRole::Member]);
+    $team->update(['public_channel_creation_policy' => ChannelCreationPolicy::Admins]);
+
+    expect($member->can('create', [Channel::class, $team, ChannelVisibility::Public]))->toBeFalse()
+        ->and($member->can('create', [Channel::class, $team, ChannelVisibility::Private]))->toBeTrue()
+        ->and($owner->can('create', [Channel::class, $team, ChannelVisibility::Public]))->toBeTrue();
+});
+
+test('reserving private channels for admins leaves public channels open to members', function (): void {
+    $owner = User::factory()->create();
+    $member = User::factory()->create();
+    $team = app(CreateTeam::class)->handle($owner, 'Acme');
+    $team->memberships()->create(['user_id' => $member->id, 'role' => TeamRole::Member]);
+    $team->update(['private_channel_creation_policy' => ChannelCreationPolicy::Admins]);
+
+    expect($member->can('create', [Channel::class, $team, ChannelVisibility::Private]))->toBeFalse()
+        ->and($member->can('create', [Channel::class, $team, ChannelVisibility::Public]))->toBeTrue()
+        ->and($owner->can('create', [Channel::class, $team, ChannelVisibility::Private]))->toBeTrue();
+});
+
+test('an outsider can never create a channel however open the policies are', function (): void {
+    $owner = User::factory()->create();
+    $outsider = User::factory()->create();
+    $team = app(CreateTeam::class)->handle($owner, 'Acme');
+
+    expect($outsider->can('create', [Channel::class, $team, ChannelVisibility::Public]))->toBeFalse()
+        ->and($outsider->can('create', [Channel::class, $team]))->toBeFalse();
+});
+
+test('asking without a visibility answers whether either kind of channel is creatable', function (): void {
+    $owner = User::factory()->create();
+    $member = User::factory()->create();
+    $team = app(CreateTeam::class)->handle($owner, 'Acme');
+    $team->memberships()->create(['user_id' => $member->id, 'role' => TeamRole::Member]);
+
+    expect($member->can('create', [Channel::class, $team]))->toBeTrue();
+
+    $team->update(['public_channel_creation_policy' => ChannelCreationPolicy::Admins]);
+    expect($member->can('create', [Channel::class, $team]))->toBeTrue();
+
+    $team->update(['private_channel_creation_policy' => ChannelCreationPolicy::Admins]);
+    expect($member->can('create', [Channel::class, $team]))->toBeFalse()
+        ->and($owner->can('create', [Channel::class, $team]))->toBeTrue();
+});

@@ -5,9 +5,8 @@ import { computed, ref } from 'vue';
 import PresenceDot from '@/components/PresenceDot.vue';
 import { Button } from '@/components/ui/button';
 import UserStatusEmoji from '@/components/UserStatusEmoji.vue';
-import { useDndPauseDialog } from '@/composables/useDndPauseDialog';
+import { useDialog } from '@/composables/useDialog';
 import { useUserMenu } from '@/composables/useUserMenu';
-import { useUserStatusDialog } from '@/composables/useUserStatusDialog';
 import { dndPauseLabel } from '@/lib/dndPause';
 import type { DndPauseKey } from '@/lib/dndPause';
 import {
@@ -40,8 +39,8 @@ const emit = defineEmits<{
     dismiss: [];
 }>();
 
-const { open: openStatusDialog } = useUserStatusDialog();
-const { open: openDndPauseDialog } = useDndPauseDialog();
+const { open: openStatusDialog } = useDialog('status');
+const { open: openDndPauseDialog } = useDialog('dnd');
 
 const {
     ownStatus,

@@ -6,9 +6,9 @@ namespace App\Actions\Integrations;
 
 use App\Enums\AuditAction;
 use App\Enums\UserType;
+use App\Events\AuditableActionOccurred;
 use App\Models\Team;
 use App\Models\User;
-use App\Support\AuditRecorder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
@@ -22,8 +22,6 @@ use Illuminate\Support\Str;
  */
 class CreateBot
 {
-    public function __construct(private readonly AuditRecorder $recorder) {}
-
     public function handle(Team $team, User $actor, string $name): User
     {
         return DB::transaction(function () use ($team, $actor, $name): User {
@@ -38,9 +36,9 @@ class CreateBot
                 'created_by' => $actor->id,
             ])->save();
 
-            $this->recorder->record($team, $actor, AuditAction::BotCreated, $bot, [
+            event(new AuditableActionOccurred($team, $actor, AuditAction::BotCreated, $bot, [
                 'bot_name' => $name,
-            ]);
+            ]));
 
             return $bot;
         });

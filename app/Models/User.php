@@ -488,7 +488,7 @@ class User extends Authenticatable implements HasLocalePreference, MustVerifyEma
     public function channels(): BelongsToMany
     {
         return $this->belongsToMany(Channel::class, 'channel_members')
-            ->withPivot(['last_read_message_id', 'muted', 'notification_level', 'draft', 'starred', 'section_id', 'position'])
+            ->withPivot(ChannelMember::PIVOT_COLUMNS)
             ->withTimestamps();
     }
 

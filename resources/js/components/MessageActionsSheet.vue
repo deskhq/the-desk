@@ -23,6 +23,10 @@ import {
 import { useCustomEmojis } from '@/composables/useCustomEmojis';
 import { useFrequentEmojis } from '@/composables/useFrequentEmojis';
 import { useInitials } from '@/composables/useInitials';
+import {
+    useMessageActionGuards,
+    useMessageActionsContext,
+} from '@/composables/useMessageActionsContext';
 import { useToast } from '@/composables/useToast';
 import { useTranslations } from '@/composables/useTranslations';
 import { formatTimeOfDay } from '@/lib/datetime';
@@ -37,7 +41,6 @@ import {
     canReplyToMessage,
     canStartThreadFromMessage,
 } from '@/lib/messageActions';
-import type { MessageActionContext } from '@/lib/messageActions';
 import { messageBodyCopyText, messageBodyPreview } from '@/lib/messageBody';
 import { hasReacted } from '@/lib/reactions';
 import type { Message } from '@/types';
@@ -47,32 +50,16 @@ const props = defineProps<{
     open: boolean;
     /** The long-pressed message, kept through the close animation. */
     message: Message | null;
-    currentUserId: string;
-    /** Whether the viewer may add/remove reactions (member of a live channel). */
-    canReact?: boolean;
-    /** Whether the viewer may pin/unpin messages (member of a non-archived channel). */
-    canPin?: boolean;
-    /** Whether the viewer may moderate others' messages (delete them). */
-    canModerate?: boolean;
-    /** Rendered from a thread panel: suppresses the reply/thread affordances. */
-    inThread?: boolean;
     /** Whether the pressed row is an optimistic send with no stable server id yet. */
     pending?: boolean;
-    /** The viewer's stored zone, so the lifted card's timestamp matches the row's. */
-    viewerTimeZone?: string;
 }>();
 
 const emit = defineEmits<{
     'update:open': [open: boolean];
-    react: [emoji: string];
-    openThread: [];
-    reply: [];
-    forward: [];
-    pin: [];
-    unpin: [];
-    remindCustom: [];
-    edit: [];
-    delete: [];
+    /** Swap the pressed row for its inline editor, which the timeline owns. */
+    startEdit: [];
+    /** Ask to delete the pressed row, which the timeline confirms first. */
+    requestDelete: [];
 }>();
 
 const { t } = useTranslations();
@@ -81,14 +68,10 @@ const { getInitials } = useInitials();
 const { parseToken } = useCustomEmojis();
 const { list: frequentEmojis } = useFrequentEmojis();
 
-const context = computed<MessageActionContext>(() => ({
-    currentUserId: props.currentUserId,
-    canReact: props.canReact ?? false,
-    canPin: props.canPin ?? false,
-    canModerate: props.canModerate ?? false,
-    inThread: props.inThread ?? false,
-    pending: props.pending ?? false,
-}));
+const scope = useMessageActionsContext();
+const { contextFor } = useMessageActionGuards();
+
+const context = computed(() => contextFor(props.pending ?? false));
 
 /**
  * The sheet mirrors the hover toolbar action for action, so both surfaces read
@@ -155,7 +138,7 @@ const ownReactions = computed(
     () =>
         new Set(
             (props.message?.reactions ?? [])
-                .filter((entry) => hasReacted(entry, props.currentUserId))
+                .filter((entry) => hasReacted(entry, scope.currentUserId))
                 .map((entry) => entry.emoji),
         ),
 );
@@ -177,7 +160,10 @@ const bodyPreview = computed(() =>
 const timestamp = computed(() =>
     props.message === null
         ? ''
-        : formatTimeOfDay(props.message.createdAt, props.viewerTimeZone),
+        : formatTimeOfDay(
+              props.message.createdAt,
+              scope.viewerTimeZone ?? undefined,
+          ),
 );
 
 function close(): void {
@@ -197,28 +183,16 @@ watch(
     { immediate: true },
 );
 
-type ActionEvent =
-    | 'openThread'
-    | 'reply'
-    | 'forward'
-    | 'pin'
-    | 'unpin'
-    | 'remindCustom'
-    | 'edit'
-    | 'delete';
-
 /**
- * Every action leaves the sheet behind: emit, then dismiss. Vue types `emit`
- * per event literal; widening to the union is sound because every action event
- * carries no payload.
+ * Every action leaves the sheet behind: run it against the pressed message,
+ * then dismiss. Each row is guarded by a rule that already requires a message,
+ * so the null branch is only reachable if a row outlives its own guard.
  */
-function act(event: ActionEvent): void {
-    (emit as (event: ActionEvent) => void)(event);
-    close();
-}
+function act(run: (message: Message) => void): void {
+    if (props.message !== null) {
+        run(props.message);
+    }
 
-function react(emoji: string): void {
-    emit('react', emoji);
     close();
 }
 
@@ -315,7 +289,7 @@ const rowClass =
                     :aria-pressed="ownReactions.has(emoji)"
                     :aria-label="quickLabel(emoji)"
                     class="flex size-11 items-center justify-center rounded-full bg-muted text-[19px] leading-none transition-colors hover:bg-accent aria-pressed:bg-brass-fill aria-pressed:text-brass-fill-foreground aria-pressed:inset-ring-1 aria-pressed:inset-ring-brass-border"
-                    @click="react(emoji)"
+                    @click="act((target) => scope.actions.react(target, emoji))"
                 >
                     <img
                         v-if="parseToken(emoji)"
@@ -326,7 +300,12 @@ const rowClass =
                     <span v-else aria-hidden="true">{{ emoji }}</span>
                 </Button>
 
-                <EmojiPickerPopover @select="react">
+                <EmojiPickerPopover
+                    @select="
+                        (emoji) =>
+                            act((target) => scope.actions.react(target, emoji))
+                    "
+                >
                     <Button
                         variant="unstyled"
                         size="none"
@@ -351,7 +330,9 @@ const rowClass =
                     type="button"
                     data-test="sheet-thread"
                     :class="rowClass"
-                    @click="act('openThread')"
+                    @click="
+                        act((target) => scope.actions.openThread(target.id))
+                    "
                 >
                     <MessageSquareText class="size-4 text-muted-foreground" />
                     {{ $t('Reply in thread') }}
@@ -363,7 +344,7 @@ const rowClass =
                     type="button"
                     data-test="sheet-reply"
                     :class="rowClass"
-                    @click="act('reply')"
+                    @click="act(scope.actions.reply)"
                 >
                     <CornerUpLeft class="size-4 text-muted-foreground" />
                     {{ $t('Reply to message') }}
@@ -375,7 +356,7 @@ const rowClass =
                     type="button"
                     data-test="sheet-forward"
                     :class="rowClass"
-                    @click="act('forward')"
+                    @click="act(scope.actions.forward)"
                 >
                     <Forward class="size-4 text-muted-foreground" />
                     {{ $t('Forward') }}
@@ -399,7 +380,9 @@ const rowClass =
                     type="button"
                     data-test="sheet-pin"
                     :class="rowClass"
-                    @click="act(isPinned ? 'unpin' : 'pin')"
+                    @click="
+                        act(isPinned ? scope.actions.unpin : scope.actions.pin)
+                    "
                 >
                     <Pin
                         class="size-4"
@@ -422,7 +405,7 @@ const rowClass =
                     type="button"
                     data-test="sheet-remind"
                     :class="rowClass"
-                    @click="act('remindCustom')"
+                    @click="act(scope.actions.remindCustom)"
                 >
                     <AlarmClock class="size-4 text-muted-foreground" />
                     {{ $t('Remind me…') }}
@@ -434,7 +417,7 @@ const rowClass =
                     type="button"
                     data-test="sheet-edit"
                     :class="rowClass"
-                    @click="act('edit')"
+                    @click="act(() => emit('startEdit'))"
                 >
                     <Pencil class="size-4 text-muted-foreground" />
                     {{ $t('Edit message') }}
@@ -446,7 +429,7 @@ const rowClass =
                     type="button"
                     data-test="sheet-delete"
                     class="flex h-11.5 w-full items-center gap-3 rounded-[11px] px-3.5 text-left text-[14.5px] font-medium text-destructive-text transition-colors hover:bg-destructive/10 active:bg-destructive/10"
-                    @click="act('delete')"
+                    @click="act(() => emit('requestDelete'))"
                 >
                     <Trash2 class="size-4" />
                     {{ $t('Delete message') }}

@@ -10,12 +10,16 @@ import SlashCommandMenu from '@/components/composer/SlashCommandMenu.vue';
 import GifPickerPanel from '@/components/GifPickerPanel.vue';
 import PollComposerPanel from '@/components/PollComposerPanel.vue';
 import ScheduleMessageDialog from '@/components/ScheduleMessageDialog.vue';
+import { useAutocompleteAria } from '@/composables/useAutocompleteMenu';
 import { useComposerAttachments } from '@/composables/useComposerAttachments';
+import { useComposerAttachSheet } from '@/composables/useComposerAttachSheet';
 import { useComposerEditMode } from '@/composables/useComposerEditMode';
 import { useComposerField } from '@/composables/useComposerField';
 import { useComposerFormat } from '@/composables/useComposerFormat';
+import { useComposerGifPicker } from '@/composables/useComposerGifPicker';
 import { useComposerKeyboard } from '@/composables/useComposerKeyboard';
 import { useComposerMentions } from '@/composables/useComposerMentions';
+import { useComposerPollBuilder } from '@/composables/useComposerPollBuilder';
 import { useComposerSend } from '@/composables/useComposerSend';
 import { useComposerSlashCommands } from '@/composables/useComposerSlashCommands';
 import { useEllipsizedText } from '@/composables/useEllipsizedText';
@@ -213,14 +217,7 @@ const mentions = useComposerMentions({
     field,
     members: () => props.members,
 });
-const {
-    activeIndex,
-    insertMention,
-    refreshSuggestions,
-    selectSuggestion,
-    showMenu,
-    suggestions,
-} = mentions;
+const { insertMention, refreshSuggestions } = mentions;
 
 /**
  * When true, the next body change is a programmatic clear-on-send (or the wipe
@@ -239,7 +236,7 @@ const editing = useComposerEditMode({
     messages: () => props.messages ?? [],
     currentUserId: () => props.currentUserId ?? '',
     pendingUuids: () => props.pendingUuids,
-    closeMenu: mentions.closeMenu,
+    closeMenu: mentions.menu.close,
     suppressNextDraftChange,
     onEditingChange: (messageId) => emit('editingChange', messageId),
     onSave: (message, edited) => emit('edit', message, edited),
@@ -265,34 +262,70 @@ watch(body, (value) => {
     emit('draftChange', value);
 });
 
+// The adapter is declared before the two pickers so they can dismiss its menu,
+// and reads them back through a getter it only calls once a command is chosen.
 const slash = useComposerSlashCommands({
     field,
     commands: () => props.slashCommands,
+    pickers: () =>
+        [gif.command.value, poll.command.value].filter((command) => !!command),
+});
+const { refreshSuggestions: refreshSlashSuggestions } = slash;
+
+const gif = useComposerGifPicker({
+    field,
     gifPickerEnabled: () => Boolean(props.gifPickerEnabled),
-    pollsEnabled: () => Boolean(props.pollsEnabled),
     attachmentsEnabled: () => attachmentsEnabled.value,
+    isEditing: () => editingMessage.value !== null,
+    closeSlashMenu: slash.menu.close,
+    stageRemote: (attachment) => uploads.addRemote(attachment),
+});
+
+const poll = useComposerPollBuilder({
+    field,
+    pollsEnabled: () => Boolean(props.pollsEnabled),
     teamSlug: () => props.teamSlug,
     channelSlug: () => props.channelSlug,
     isEditing: () => editingMessage.value !== null,
-    stageRemote: (attachment) => uploads.addRemote(attachment),
+    closeSlashMenu: slash.menu.close,
+});
+
+// The two autocompletes are mutually exclusive — a `/…` body never matches an
+// `@query` — so the field advertises whichever of them is up.
+const { openListboxId, activeOptionId } = useAutocompleteAria([
+    mentions.menu,
+    slash.menu,
+]);
+
+/**
+ * How much of the screen the on-screen keyboard covers, so the pill can sit
+ * above it with its Send button reachable instead of behind it.
+ *
+ * The root pads itself by this on top of the device's home-indicator inset, so
+ * the pill stays clear of both: the safe-area inset is static, while the
+ * keyboard inset has to be measured live off visualViewport (the layout viewport
+ * `dvh` sizes against does not shrink when the keyboard opens).
+ *
+ * That note lives here rather than above the template's root element on purpose.
+ * Vue keeps a root-level comment in a dev build and strips it in production, so
+ * a leading comment would make this component a fragment under the dev server —
+ * and `$el`, which the page measures for the bottom-right rail's inset, would be
+ * the fragment's anchor comment instead of the root div (#1051).
+ */
+const keyboardInsetPx = useKeyboardInset();
+
+const attachSheet = useComposerAttachSheet({
+    field,
+    keyboardInsetPx,
+    refreshSlashSuggestions,
 });
 const {
-    closeGifPicker,
-    closePollComposer,
-    gifPickerAvailable,
-    gifPickerOpen,
-    gifPickerQuery,
-    onGifSelected,
-    pollComposerAvailable,
-    pollComposerOpen,
-    refreshSlashSuggestions,
-    selectSlashCommand,
-    showSlashMenu,
-    slashActiveIndex,
-    slashSuggestions,
-} = slash;
+    insetPx: composerInsetPx,
+    open: attachSheetOpen,
+    startSlashCommand,
+} = attachSheet;
 
-const format = useComposerFormat({ field });
+const format = useComposerFormat({ field, selection: attachSheet.selection });
 const { applyFormat, formatActions } = format;
 
 const send = useComposerSend({
@@ -331,28 +364,22 @@ const { onKeydown } = useComposerKeyboard({
 });
 
 /**
- * Whether the compose tools are disclosed. Only consulted below the breakpoint,
- * where they fold away behind a toggle so the field keeps the pill's width; from
- * `md` up they are always in line and this is ignored.
+ * Whether the compose tools are disclosed. Only consulted from `md` up in a
+ * narrow container (the desktop thread panel), where they fold away behind a
+ * toggle so the field keeps the pill's width; below `md` they live in the
+ * attach sheet instead, and once the container widens they are always in line.
  */
 const toolsOpen = ref(false);
 
 /**
- * How much of the screen the on-screen keyboard covers, so the pill can sit
- * above it with its Send button reachable instead of behind it.
- *
- * The root pads itself by this on top of the device's home-indicator inset, so
- * the pill stays clear of both: the safe-area inset is static, while the
- * keyboard inset has to be measured live off visualViewport (the layout viewport
- * `dvh` sizes against does not shrink when the keyboard opens).
- *
- * That note lives here rather than above the template's root element on purpose.
- * Vue keeps a root-level comment in a dev build and strips it in production, so
- * a leading comment would make this component a fragment under the dev server —
- * and `$el`, which the page measures for the bottom-right rail's inset, would be
- * the fragment's anchor comment instead of the root div (#1051).
+ * Whether the composer carries anything to send. The mobile disc's mode keys
+ * off this rather than `canSubmit`, which also goes false mid-upload and would
+ * turn the disc back into a mic with a file still climbing the wire — starting
+ * a recording on the next tap.
  */
-const keyboardInsetPx = useKeyboardInset();
+const hasContent = computed(
+    () => body.value.trim() !== '' || trayItems.value.length > 0,
+);
 
 function focusFromCard(event: MouseEvent): void {
     const el = textarea.value;
@@ -381,44 +408,38 @@ defineExpose({ insertMention, focus, addFiles: attachments.addFiles });
     <div
         class="@container mx-3 mb-2 shrink-0 md:mx-5 md:mb-4"
         :style="{
-            paddingBottom: `calc(env(safe-area-inset-bottom) + ${keyboardInsetPx}px)`,
+            paddingBottom: `calc(env(safe-area-inset-bottom) + ${composerInsetPx}px)`,
         }"
     >
         <div class="relative">
             <MentionMenu
-                v-if="showMenu"
-                :suggestions="suggestions"
-                :active-index="activeIndex"
+                v-if="mentions.menu.showMenu.value"
+                :menu="mentions.menu"
                 :has-bots="props.hasBots"
-                @select="selectSuggestion"
-                @activate="activeIndex = $event"
             />
 
             <SlashCommandMenu
-                v-if="showSlashMenu"
-                :commands="slashSuggestions"
-                :active-index="slashActiveIndex"
-                @select="selectSlashCommand"
-                @activate="slashActiveIndex = $event"
+                v-if="slash.menu.showMenu.value"
+                :menu="slash.menu"
             />
 
             <!-- The Giphy picker, opened by `/gif`. Sits in the same anchored
                  position as the autocomplete menus; picking a GIF stages it in
                  the attachment tray below. -->
             <GifPickerPanel
-                v-if="gifPickerOpen && gifPickerAvailable"
+                v-if="gif.open.value && gif.available.value"
                 :team-slug="props.teamSlug ?? ''"
                 :channel-slug="props.channelSlug ?? ''"
-                :initial-query="gifPickerQuery"
-                @select="onGifSelected"
-                @close="closeGifPicker"
+                :initial-query="gif.query.value"
+                @select="gif.onSelected"
+                @close="gif.close"
             />
 
             <PollComposerPanel
-                v-if="pollComposerOpen && pollComposerAvailable"
+                v-if="poll.open.value && poll.available.value"
                 :team-slug="props.teamSlug ?? ''"
                 :channel-slug="props.channelSlug ?? ''"
-                @close="closePollComposer"
+                @close="poll.close"
             />
 
             <ReplyPreview
@@ -464,12 +485,11 @@ defineExpose({ insertMention, focus, addFiles: attachments.addFiles });
                 <ComposerInputRow
                     v-else
                     v-model="body"
+                    v-model:attach-sheet-open="attachSheetOpen"
                     :placeholder="visiblePlaceholder"
                     :field-label="composerPlaceholder"
-                    :show-mention-menu="showMenu"
-                    :show-slash-menu="showSlashMenu"
-                    :mention-active-index="activeIndex"
-                    :slash-active-index="slashActiveIndex"
+                    :open-listbox-id="openListboxId"
+                    :active-option-id="activeOptionId"
                     :editing="editingMessage !== null"
                     :format-actions="formatActions"
                     :attachments-enabled="attachmentsEnabled"
@@ -479,6 +499,10 @@ defineExpose({ insertMention, focus, addFiles: attachments.addFiles });
                     :can-schedule="canSchedule"
                     :allow-schedule="Boolean(props.allowSchedule)"
                     :timezone="props.timezone ?? null"
+                    :has-content="hasContent"
+                    :gif-available="gif.available.value"
+                    :poll-available="poll.available.value"
+                    :has-slash-commands="(props.slashCommands ?? []).length > 0"
                     :register="registerField"
                     @input="onFieldInput"
                     @paste="onPaste"
@@ -488,6 +512,9 @@ defineExpose({ insertMention, focus, addFiles: attachments.addFiles });
                     @format="applyFormat"
                     @record="recorder.start"
                     @toggle-tools="toolsOpen = !toolsOpen"
+                    @gif="gif.openPicker('')"
+                    @poll="poll.openBuilder"
+                    @command="startSlashCommand"
                     @send="submit"
                     @schedule-at="onScheduleConfirm"
                     @custom-time="openSchedule"

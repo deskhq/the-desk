@@ -41,6 +41,8 @@ const props = defineProps<{
     title: string;
     canManagePreferences: boolean;
     canArchive: boolean;
+    /** Whether the viewer may delete the channel (team Admin+, not #general). */
+    canDelete: boolean;
     /**
      * Whether the viewer may leave the channel — a member of a standard channel
      * that isn't #general, or of a group DM. Drives the "Leave" menu item.
@@ -76,10 +78,12 @@ const props = defineProps<{
 }>();
 
 const emit = defineEmits<{
+    openDetails: [];
     toggleStar: [];
     notificationLevelChange: [value: AcceptableValue];
     muteChange: [value: boolean];
     archive: [];
+    delete: [];
     leave: [];
     addPeople: [];
     openPins: [];
@@ -201,19 +205,23 @@ const { isMobile, openSearch } = useMastheadSearch();
 
             <MastheadOptionsMenu
                 :is-direct="props.channel.isDirect"
+                :can-view-details="!props.channel.isDirect"
                 :can-manage-preferences="props.canManagePreferences"
                 :can-archive="props.canArchive"
+                :can-delete="props.canDelete"
                 :can-leave="props.canLeave"
                 :notification-levels="props.notificationLevels"
                 :starred="props.starred"
                 :muted="props.muted"
                 :notification-level="props.notificationLevel"
+                @open-details="emit('openDetails')"
                 @toggle-star="emit('toggleStar')"
                 @notification-level-change="
                     (value) => emit('notificationLevelChange', value)
                 "
                 @mute-change="(value) => emit('muteChange', value)"
                 @archive="emit('archive')"
+                @delete="emit('delete')"
                 @leave="emit('leave')"
             />
         </div>

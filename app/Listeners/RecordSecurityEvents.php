@@ -3,11 +3,14 @@
 namespace App\Listeners;
 
 use App\Enums\SecurityEventType;
+use App\Events\SecurityEventOccurred;
 use App\Support\SecurityEventRecorder;
 use App\Support\SessionRegistry;
 use Illuminate\Auth\Events\Login;
 use Illuminate\Auth\Events\Logout;
 use Illuminate\Auth\Events\PasswordReset;
+use Illuminate\Contracts\Auth\Authenticatable;
+use Illuminate\Http\Request;
 use Laravel\Fortify\Events\RecoveryCodesGenerated;
 use Laravel\Fortify\Events\TwoFactorAuthenticationConfirmed;
 use Laravel\Fortify\Events\TwoFactorAuthenticationDisabled;
@@ -16,24 +19,38 @@ use Laravel\Passkeys\Events\PasskeyDeleted;
 use Laravel\Passkeys\Events\PasskeyRegistered;
 
 /**
- * Records framework and Fortify authentication events into the security
+ * Records framework, Fortify and application security events into the security
  * activity log. Each `handle*` method is wired to its event by Laravel's event
  * discovery. Runs synchronously (never queued) so the live request's IP and
  * User-Agent are available when the event is captured.
+ *
+ * This listener is the one place that reaches for the request: it holds the
+ * HTTP coupling so {@see SecurityEventRecorder} does not, which is what lets a
+ * queued directory sync record the same facts (ADR-0005). Off a request — a
+ * job, a console command — there is simply no device context to stamp.
  */
 class RecordSecurityEvents
 {
     public function __construct(
         private readonly SecurityEventRecorder $recorder,
         private readonly SessionRegistry $registry,
+        private readonly Request $request,
     ) {}
+
+    /**
+     * Handle an application security event raised outside the framework's own.
+     */
+    public function handleSecurityEvent(SecurityEventOccurred $event): void
+    {
+        $this->record($event->user, $event->type);
+    }
 
     /**
      * Handle a successful sign in.
      */
     public function handleLogin(Login $event): void
     {
-        $this->recorder->record($event->user, SecurityEventType::LoggedIn);
+        $this->record($event->user, SecurityEventType::LoggedIn);
     }
 
     /**
@@ -47,7 +64,7 @@ class RecordSecurityEvents
 
         $this->registry->forget((string) $event->user->getAuthIdentifier(), session()->getId());
 
-        $this->recorder->record($event->user, SecurityEventType::LoggedOut);
+        $this->record($event->user, SecurityEventType::LoggedOut);
     }
 
     /**
@@ -55,7 +72,7 @@ class RecordSecurityEvents
      */
     public function handlePasswordReset(PasswordReset $event): void
     {
-        $this->recorder->record($event->user, SecurityEventType::PasswordReset);
+        $this->record($event->user, SecurityEventType::PasswordReset);
     }
 
     /**
@@ -63,7 +80,7 @@ class RecordSecurityEvents
      */
     public function handleTwoFactorEnabled(TwoFactorAuthenticationEnabled $event): void
     {
-        $this->recorder->record($event->user, SecurityEventType::TwoFactorEnabled);
+        $this->record($event->user, SecurityEventType::TwoFactorEnabled);
     }
 
     /**
@@ -71,7 +88,7 @@ class RecordSecurityEvents
      */
     public function handleTwoFactorDisabled(TwoFactorAuthenticationDisabled $event): void
     {
-        $this->recorder->record($event->user, SecurityEventType::TwoFactorDisabled);
+        $this->record($event->user, SecurityEventType::TwoFactorDisabled);
     }
 
     /**
@@ -79,7 +96,7 @@ class RecordSecurityEvents
      */
     public function handleTwoFactorConfirmed(TwoFactorAuthenticationConfirmed $event): void
     {
-        $this->recorder->record($event->user, SecurityEventType::TwoFactorConfirmed);
+        $this->record($event->user, SecurityEventType::TwoFactorConfirmed);
     }
 
     /**
@@ -87,7 +104,7 @@ class RecordSecurityEvents
      */
     public function handleRecoveryCodesGenerated(RecoveryCodesGenerated $event): void
     {
-        $this->recorder->record($event->user, SecurityEventType::RecoveryCodesGenerated);
+        $this->record($event->user, SecurityEventType::RecoveryCodesGenerated);
     }
 
     /**
@@ -95,7 +112,7 @@ class RecordSecurityEvents
      */
     public function handlePasskeyRegistered(PasskeyRegistered $event): void
     {
-        $this->recorder->record($event->user, SecurityEventType::PasskeyRegistered);
+        $this->record($event->user, SecurityEventType::PasskeyRegistered);
     }
 
     /**
@@ -103,6 +120,14 @@ class RecordSecurityEvents
      */
     public function handlePasskeyDeleted(PasskeyDeleted $event): void
     {
-        $this->recorder->record($event->user, SecurityEventType::PasskeyRemoved);
+        $this->record($event->user, SecurityEventType::PasskeyRemoved);
+    }
+
+    /**
+     * Record the event, stamping the device context of the request behind it.
+     */
+    private function record(Authenticatable $user, SecurityEventType $type): void
+    {
+        $this->recorder->record($user, $type, $this->request->ip(), $this->request->userAgent());
     }
 }

@@ -4,9 +4,11 @@ namespace App\Models;
 
 use App\Enums\ChannelType;
 use App\Enums\ChannelVisibility;
+use App\Support\DirectMessageRoster;
 use App\Support\NameSlug;
 use Database\Factories\ChannelFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -15,6 +17,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasManyThrough;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Carbon;
 
 /**
@@ -23,11 +26,14 @@ use Illuminate\Support\Carbon;
  * @property string|null $name
  * @property string $slug
  * @property ChannelVisibility $visibility
+ * @property bool $is_default
  * @property ChannelType $type
  * @property string|null $dm_key
  * @property string|null $topic
+ * @property string|null $description
  * @property string|null $created_by
  * @property Carbon|null $archived_at
+ * @property Carbon|null $deleted_at
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  * @property-read int|null $unread_count
@@ -40,11 +46,20 @@ use Illuminate\Support\Carbon;
  * @property-read Collection<int, User> $members
  * @property-read Collection<int, Message> $messages
  */
-#[Fillable(['team_id', 'name', 'slug', 'visibility', 'type', 'dm_key', 'topic', 'created_by', 'archived_at'])]
+#[Fillable(['team_id', 'name', 'slug', 'visibility', 'is_default', 'type', 'dm_key', 'topic', 'description', 'created_by', 'archived_at'])]
 class Channel extends Model
 {
-    /** @use HasFactory<ChannelFactory> */
-    use HasFactory, HasUuids;
+    /**
+     * Soft deletes are the grace window an admin's "Delete channel" opens: the
+     * stamp hides the channel from every read path at once — the relation-backed
+     * sidebar, browse, the {@see User::visibleChannelIds()} ACL search and the
+     * thread inbox share, and route-model binding, which all inherit the trait's
+     * global scope — while the scheduled purge does the irreversible work only
+     * once the window has closed.
+     *
+     * @use HasFactory<ChannelFactory>
+     */
+    use HasFactory, HasUuids, SoftDeletes;
 
     /**
      * The reserved slug of the auto-created, undeletable channel.
@@ -55,6 +70,17 @@ class Channel extends Model
      * Slug base used when a channel name carries no sluggable characters.
      */
     public const string FALLBACK_SLUG = 'channel';
+
+    /**
+     * How long a deleted channel stays restorable before it is purged.
+     *
+     * A rule of the channel, not of the job that enforces it: the delete dialog
+     * promises the window, the restore path relies on it, and the scheduled
+     * purge is only the sweeper that closes it. A fixed window for now — once
+     * workspace-level retention lands this becomes the default rather than the
+     * only answer (issue #401).
+     */
+    public const int RESTORE_WINDOW_DAYS = 30;
 
     /**
      * Keep a usable slug on the row however the channel is written.
@@ -74,6 +100,33 @@ class Channel extends Model
                 $channel->slug = NameSlug::distinct((string) $channel->name, self::FALLBACK_SLUG);
             }
         });
+    }
+
+    /**
+     * Query the channels every new member of the given workspace is joined to.
+     *
+     * The protected #general is a default in code rather than by flag, so it is
+     * matched by slug alongside whatever admins have marked. Archived and
+     * deleted channels are excluded — the trait's global scope drops the latter
+     * — so a default that has since been retired quietly stops applying instead
+     * of dropping newcomers into a read-only room.
+     *
+     * Keyed on the workspace's id rather than the model, because the one caller
+     * is the membership observer: a membership can be written for a workspace
+     * the soft-delete scope would hide, and its arrival still has to place the
+     * member in #general the way it always has.
+     *
+     * @return Builder<Channel>
+     */
+    public static function defaultsForTeam(string $teamId): Builder
+    {
+        return self::query()
+            ->where('team_id', $teamId)
+            ->where('visibility', ChannelVisibility::Public->value)
+            ->whereNull('archived_at')
+            ->where(fn (Builder $query): Builder => $query
+                ->where('is_default', true)
+                ->orWhere('slug', self::GENERAL_SLUG));
     }
 
     /**
@@ -122,6 +175,10 @@ class Channel extends Model
      * DMs render viewer-relative: in a two-person DM the viewer sees the other
      * participant; in a self-DM (a single member) they see themselves, which the
      * frontend labels "You". Returns null for a standard channel.
+     *
+     * Read off the loaded roster, like {@see displayNameFor()}, so a page of DMs
+     * costs the single batched {@see DirectMessageRoster} load rather than a
+     * query per row.
      */
     public function directParticipantFor(User $viewer): ?User
     {
@@ -129,8 +186,8 @@ class Channel extends Model
             return null;
         }
 
-        return $this->members()->where('users.id', '!=', $viewer->id)->first()
-            ?? $this->members()->whereKey($viewer->id)->first();
+        return $this->members->first(fn (User $member): bool => $member->id !== $viewer->id)
+            ?? $this->members->firstWhere('id', $viewer->id);
     }
 
     /**
@@ -262,7 +319,7 @@ class Channel extends Model
     public function members(): BelongsToMany
     {
         return $this->belongsToMany(User::class, 'channel_members')
-            ->withPivot(['last_read_message_id', 'muted', 'notification_level', 'draft'])
+            ->withPivot(ChannelMember::PIVOT_COLUMNS)
             ->withTimestamps();
     }
 
@@ -285,6 +342,7 @@ class Channel extends Model
     {
         return [
             'visibility' => ChannelVisibility::class,
+            'is_default' => 'boolean',
             'type' => ChannelType::class,
             'archived_at' => 'datetime',
         ];

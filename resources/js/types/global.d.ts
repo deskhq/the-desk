@@ -66,11 +66,19 @@ declare module '@inertiajs/core' {
             currentTeam: Team | null;
             teams: Team[];
             canInviteToCurrentTeam: boolean;
+            /**
+             * The channel visibilities the viewer may open in their current
+             * workspace, per its channel-creation policy. Empty off a workspace
+             * and for someone the policy shuts out entirely.
+             */
+            creatableChannelVisibilities: App.Enums.ChannelVisibility[];
             canUpdateCurrentTeam: boolean;
             canViewCurrentTeamAudit: boolean;
             canViewCurrentTeamSecurityLog: boolean;
             canManageCurrentTeamIntegrations: boolean;
             integrationsEnabled: boolean;
+            /** How long a deleted channel stays restorable before it is purged. */
+            channelRestoreWindowDays: number;
             invitableRoles: RoleOption[];
             channels?: Channel[];
             teamMembers?: PersonRef[];

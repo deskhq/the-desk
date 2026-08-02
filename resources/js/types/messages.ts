@@ -1,5 +1,17 @@
 import type { AttachmentData } from '@/types/attachments';
 
+/**
+ * The display identity one message asked to be shown under — an incoming webhook
+ * posting as a logical source of its own. Mirrors the `AuthorOverrideData` DTO.
+ *
+ * It rides *beside* the truthful author, never replacing it, so a surface that
+ * does not know about it renders the real, admin-controlled identity. Both fields
+ * are independently optional: an override may name only the icon, or only the
+ * name. Render it only through the `@/lib/authorIdentity` helpers — an overridden
+ * name may only appear where its bot marker appears with it.
+ */
+export type AuthorOverride = App.Data.AuthorOverrideData;
+
 export type MessageAuthor = {
     id: string;
     name: string;
@@ -21,11 +33,19 @@ export type MessageAuthor = {
 
 /**
  * A message's kind (mirrors the `MessageType` enum). `standard` is an ordinary
- * user-authored message; `member_joined` / `member_left` are inert system
- * notices the timeline renders as centered, localized lines rather than chat
- * bubbles, and which never carry interactions or advance unread badges.
+ * user-authored message and `poll` is an interactive poll card; every other type
+ * is an inert system notice, which the timeline renders as a centered, localized
+ * line rather than a chat bubble and which never carries interactions or
+ * advances unread badges. A `topic_changed` / `channel_renamed` notice carries
+ * the new topic or name in its `body`, which the line quotes.
  */
-export type MessageType = 'standard' | 'member_joined' | 'member_left' | 'poll';
+export type MessageType =
+    | 'standard'
+    | 'member_joined'
+    | 'member_left'
+    | 'topic_changed'
+    | 'channel_renamed'
+    | 'poll';
 
 /**
  * A team member referenced by an `@mention` in a message body. Mirrors the
@@ -65,6 +85,14 @@ export type MessageReply = {
     id: string;
     body: string;
     authorName: string;
+    /**
+     * Whether the quoted author is a bot, so the quote badges it. A quote carries
+     * a bare name string, so without this an overridden name would render here
+     * with nothing marking it non-human. Absent on optimistic quotes.
+     */
+    authorIsBot?: boolean;
+    /** The display identity the quoted message asked for, if any. */
+    authorOverride?: AuthorOverride | null;
     isDeleted: boolean;
     mentions: Mention[];
 };
@@ -80,6 +108,13 @@ export type MessageForward = {
     id: string;
     body: string;
     authorName: string;
+    /**
+     * Whether the forwarded author is a bot, so the attribution badges it — the
+     * same reason `MessageReply` carries it. Absent on optimistic forwards.
+     */
+    authorIsBot?: boolean;
+    /** The display identity the forwarded message asked for, if any. */
+    authorOverride?: AuthorOverride | null;
     /**
      * Null when the source is a direct message (a DM has no name); the client
      * then renders "a direct message" instead of a "#channel" attribution.
@@ -171,12 +206,27 @@ export type Message = {
     clientUuid: string;
     body: string;
     /**
-     * The message kind. `standard` for a normal user message; a `member_joined`
-     * or `member_left` system notice renders as a centered, inert timeline line
-     * (from the `type` and author) and is guarded out of every interaction path.
+     * The message kind. `standard` for a normal user message; a system notice
+     * renders as a centered, inert timeline line (from the `type`, the author,
+     * and — for a topic or rename notice — the `body`) and is guarded out of
+     * every interaction path.
      */
     type: MessageType;
     user: MessageAuthor;
+    /**
+     * The display identity this message asked to be shown under (mirrors the
+     * `MessageData` DTO's `authorOverride`), riding beside — never replacing — the
+     * truthful `user`. Null on an ordinary message and absent on an optimistic
+     * one, which is built client-side under the sender's own identity.
+     */
+    authorOverride?: AuthorOverride | null;
+    /**
+     * The credential — an incoming webhook or an API token — that produced this
+     * message (mirrors the `MessageData` DTO's `postedVia`), for the viewers who
+     * could revoke it. Null on every ordinary message, null for a viewer who
+     * cannot manage the team's integrations, and absent on an optimistic one.
+     */
+    postedVia?: App.Data.MessageCredentialData | null;
     createdAt: string;
     editedAt: string | null;
     isDeleted: boolean;
@@ -285,6 +335,14 @@ export type MessageReminder = {
     channelSlug: string;
     channelName: string | null;
     authorName: string;
+    /**
+     * Whether the saved message's author is a bot, so the card badges it — the
+     * same reason `MessageReply` carries it. False on an inaccessible row, whose
+     * author is blanked along with everything else the viewer may no longer see.
+     */
+    authorIsBot?: boolean;
+    /** The display identity the saved message asked for, if any. */
+    authorOverride?: AuthorOverride | null;
     body: string;
     isDeleted: boolean;
     isAccessible: boolean;

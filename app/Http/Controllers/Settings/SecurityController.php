@@ -2,18 +2,17 @@
 
 namespace App\Http\Controllers\Settings;
 
+use App\Actions\Users\ChangePassword;
 use App\Data\PasskeyData;
 use App\Data\SecurityEventData;
 use App\Data\SessionData;
 use App\Data\TwoFactorStateData;
-use App\Enums\SecurityEventType;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Settings\PasswordUpdateRequest;
 use App\Http\Requests\Settings\TwoFactorAuthenticationRequest;
 use App\Models\SecurityEvent;
 use App\Support\IpGeolocator;
 use App\Support\PasskeyAvailability;
-use App\Support\SecurityEventRecorder;
 use App\Support\SessionRegistry;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Validation\Rules\Password;
@@ -132,19 +131,10 @@ class SecurityController extends Controller
 
     /**
      * Update the user's password.
-     *
-     * The in-app password change fires no framework event, so the security
-     * activity is recorded explicitly here.
      */
-    public function update(PasswordUpdateRequest $request, SecurityEventRecorder $recorder): RedirectResponse
+    public function update(PasswordUpdateRequest $request, ChangePassword $changePassword): RedirectResponse
     {
-        $user = $request->user();
-
-        $user->update([
-            'password' => $request->password,
-        ]);
-
-        $recorder->record($user, SecurityEventType::PasswordChanged);
+        $changePassword->handle($request->user(), $request->password);
 
         Inertia::flash('toast', ['type' => 'success', 'message' => __('Password updated')]);
 

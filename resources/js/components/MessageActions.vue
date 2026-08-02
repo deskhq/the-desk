@@ -21,6 +21,11 @@ import {
 } from '@/components/ui/tooltip';
 import { useCustomEmojis } from '@/composables/useCustomEmojis';
 import { useFrequentEmojis } from '@/composables/useFrequentEmojis';
+import {
+    useMessageActionGuards,
+    useMessageActionsContext,
+    useMessageSubtree,
+} from '@/composables/useMessageActionsContext';
 import { useTranslations } from '@/composables/useTranslations';
 import type { CustomEmojiEntry } from '@/lib/customEmoji';
 import {
@@ -34,48 +39,27 @@ import {
     canStartThreadFromMessage,
     hasAnyMessageAction,
 } from '@/lib/messageActions';
-import type { MessageActionContext } from '@/lib/messageActions';
 import { hasReacted } from '@/lib/reactions';
 import type { Message } from '@/types';
 
 const props = defineProps<{
     message: Message;
-    currentUserId: string;
-    /** Whether the viewer may add/remove reactions (member of a live channel). */
-    canReact?: boolean;
-    /** Whether the viewer may pin/unpin messages (member of a non-archived channel). */
-    canPin?: boolean;
-    /** Whether the viewer may moderate others' messages (delete them). */
-    canModerate?: boolean;
-    /** Rendered inside a thread panel: suppresses the reply/thread affordances. */
-    inThread?: boolean;
     /** Whether this row is an optimistic send with no stable server id yet. */
     pending?: boolean;
-    /** The viewer's stored zone, feeding the reminder popover's wall-clock presets. */
-    viewerTimezone: string | null;
 }>();
 
 const emit = defineEmits<{
-    react: [emoji: string];
-    reply: [];
-    forward: [];
-    pin: [];
-    unpin: [];
-    openThread: [];
-    remind: [remindAt: string];
-    remindCustom: [];
-    edit: [];
-    delete: [];
+    /** Swap this row for its inline editor, which the timeline owns. */
+    startEdit: [];
+    /** Ask to delete this row, which the timeline confirms first. */
+    requestDelete: [];
 }>();
 
-const context = computed<MessageActionContext>(() => ({
-    currentUserId: props.currentUserId,
-    canReact: props.canReact ?? false,
-    canPin: props.canPin ?? false,
-    canModerate: props.canModerate ?? false,
-    inThread: props.inThread ?? false,
-    pending: props.pending ?? false,
-}));
+const scope = useMessageActionsContext();
+const subtree = useMessageSubtree();
+const { contextFor } = useMessageActionGuards();
+
+const context = computed(() => contextFor(props.pending ?? false));
 
 const showReact = computed(() =>
     canReactToMessage(props.message, context.value),
@@ -113,7 +97,7 @@ const { list: frequentEmojis } = useFrequentEmojis();
  * than a list of its own.
  */
 const quickEmojis = computed(() =>
-    props.inThread ? frequentEmojis.value.slice(0, 3) : frequentEmojis.value,
+    subtree.inThread ? frequentEmojis.value.slice(0, 3) : frequentEmojis.value,
 );
 
 /** The emoji the viewer has already reacted with on this message. */
@@ -121,7 +105,7 @@ const ownReactions = computed(
     () =>
         new Set(
             props.message.reactions
-                .filter((reaction) => hasReacted(reaction, props.currentUserId))
+                .filter((reaction) => hasReacted(reaction, scope.currentUserId))
                 .map((reaction) => reaction.emoji),
         ),
 );
@@ -217,7 +201,7 @@ const deleteButtonClass =
                             :aria-pressed="ownReactions.has(emoji)"
                             :aria-label="quickLabel(emoji)"
                             :class="quickButtonClass"
-                            @click="emit('react', emoji)"
+                            @click="scope.actions.react(props.message, emoji)"
                         >
                             <img
                                 v-if="quickCustomEmoji(emoji)"
@@ -240,7 +224,9 @@ const deleteButtonClass =
 
                 <EmojiPickerPopover
                     v-slot="{ open }"
-                    @select="(emoji) => emit('react', emoji)"
+                    @select="
+                        (emoji) => scope.actions.react(props.message, emoji)
+                    "
                 >
                     <Button
                         variant="ghost"
@@ -271,7 +257,7 @@ const deleteButtonClass =
                         data-test="message-thread"
                         :aria-label="$t('Reply in thread')"
                         :class="iconButtonClass"
-                        @click="emit('openThread')"
+                        @click="scope.actions.openThread(props.message.id)"
                     >
                         <MessageSquareText />
                     </Button>
@@ -290,7 +276,7 @@ const deleteButtonClass =
                         data-test="message-reply"
                         :aria-label="$t('Reply to message')"
                         :class="iconButtonClass"
-                        @click="emit('reply')"
+                        @click="scope.actions.reply(props.message)"
                     >
                         <CornerUpLeft />
                     </Button>
@@ -315,7 +301,7 @@ const deleteButtonClass =
                         data-test="message-forward"
                         :aria-label="$t('Forward message')"
                         :class="iconButtonClass"
-                        @click="emit('forward')"
+                        @click="scope.actions.forward(props.message)"
                     >
                         <Forward />
                     </Button>
@@ -338,7 +324,11 @@ const deleteButtonClass =
                                 : $t('Pin to channel')
                         "
                         :class="iconButtonClass"
-                        @click="isPinned ? emit('unpin') : emit('pin')"
+                        @click="
+                            isPinned
+                                ? scope.actions.unpin(props.message)
+                                : scope.actions.pin(props.message)
+                        "
                     >
                         <Pin :class="isPinned ? 'fill-brass text-brass' : ''" />
                     </Button>
@@ -355,9 +345,11 @@ const deleteButtonClass =
             <MessageReminderPopover
                 v-if="showRemind"
                 v-slot="{ open }"
-                :timezone="props.viewerTimezone"
-                @set="(remindAt) => emit('remind', remindAt)"
-                @custom="emit('remindCustom')"
+                :timezone="scope.viewerTimeZone"
+                @set="
+                    (remindAt) => scope.actions.remind(props.message, remindAt)
+                "
+                @custom="scope.actions.remindCustom(props.message)"
             >
                 <Button
                     variant="ghost"
@@ -381,7 +373,7 @@ const deleteButtonClass =
                         data-test="message-edit"
                         :aria-label="$t('Edit message')"
                         :class="iconButtonClass"
-                        @click="emit('edit')"
+                        @click="emit('startEdit')"
                     >
                         <Pencil />
                     </Button>
@@ -400,7 +392,7 @@ const deleteButtonClass =
                         data-test="message-delete"
                         :aria-label="$t('Delete message')"
                         :class="deleteButtonClass"
-                        @click="emit('delete')"
+                        @click="emit('requestDelete')"
                     >
                         <Trash2 />
                     </Button>

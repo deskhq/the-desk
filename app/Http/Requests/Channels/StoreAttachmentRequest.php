@@ -3,7 +3,10 @@
 namespace App\Http\Requests\Channels;
 
 use App\Models\Channel;
+use App\Models\Team;
 use App\Rules\NotExecutableFile;
+use App\Rules\WithinStorageQuota;
+use App\Support\TeamStorage;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Gate;
@@ -27,7 +30,8 @@ class StoreAttachmentRequest extends FormRequest
      * Any type is accepted by default (arbitrary-file download is a goal), capped
      * at the configured per-file size and rejecting the executable denylist. SVG
      * is accepted but never rendered inline (the serve route forces it to
-     * download).
+     * download). The workspace storage quota is checked here too, so an upload
+     * that would cross it is refused before any blob is written.
      *
      * @return array<string, ValidationRule|array<mixed>|string>
      */
@@ -39,6 +43,7 @@ class StoreAttachmentRequest extends FormRequest
                 'file',
                 'max:'.((int) config('attachments.max_size_mb') * 1024),
                 new NotExecutableFile,
+                new WithinStorageQuota($this->team(), app(TeamStorage::class)),
             ],
         ];
     }
@@ -66,5 +71,18 @@ class StoreAttachmentRequest extends FormRequest
         abort_if(! $channel instanceof Channel, 404);
 
         return $channel;
+    }
+
+    /**
+     * Get the workspace the attachment is being uploaded to. Read off the route
+     * (the channel is scope-bound to it) so the quota check costs no extra query.
+     */
+    public function team(): Team
+    {
+        $team = $this->route('team');
+
+        abort_if(! $team instanceof Team, 404);
+
+        return $team;
     }
 }

@@ -4,26 +4,29 @@ namespace App\Http\Controllers\Channels;
 
 use App\Actions\Channels\ArchiveChannel;
 use App\Actions\Channels\CreateChannel;
+use App\Actions\Channels\DeleteChannel;
 use App\Actions\Channels\JoinChannel;
 use App\Actions\Channels\LeaveChannel;
 use App\Actions\Channels\MarkChannelRead;
 use App\Actions\Channels\MarkThreadRead;
+use App\Actions\Channels\UpdateChannel;
 use App\Data\ChannelData;
 use App\Data\ChannelReaderData;
 use App\Data\MessageData;
 use App\Data\ScheduledMessageData;
 use App\Data\UserData;
-use App\Enums\AuditAction;
 use App\Enums\ChannelVisibility;
 use App\Enums\NotificationLevel;
 use App\Enums\UserType;
 use App\Events\UserTyping;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Channels\CreateChannelRequest;
+use App\Http\Requests\Channels\DeleteChannelRequest;
+use App\Http\Requests\Channels\UpdateChannelRequest;
 use App\Models\Channel;
 use App\Models\Message;
 use App\Models\Team;
-use App\Support\AuditRecorder;
+use App\Support\ChannelMembership;
 use App\Support\ChannelTimelineWindow;
 use Illuminate\Contracts\Pagination\CursorPaginator;
 use Illuminate\Http\RedirectResponse;
@@ -55,7 +58,7 @@ class ChannelController extends Controller
     /**
      * Store a newly created channel and redirect to it.
      */
-    public function store(CreateChannelRequest $request, Team $team, CreateChannel $createChannel, AuditRecorder $recorder): RedirectResponse
+    public function store(CreateChannelRequest $request, Team $team, CreateChannel $createChannel): RedirectResponse
     {
         $channel = $createChannel->handle(
             team: $team,
@@ -65,13 +68,27 @@ class ChannelController extends Controller
             topic: $request->validated('topic'),
         );
 
-        $recorder->record($team, $request->user(), AuditAction::ChannelCreated, $channel, [
-            'channel_name' => $channel->name,
-        ]);
-
         Inertia::flash('toast', ['type' => 'success', 'message' => __('Channel created')]);
 
         return to_route('channels.show', ['team' => $team->slug, 'channel' => $channel->slug]);
+    }
+
+    /**
+     * Update the channel's own details — its name, topic, and description.
+     *
+     * The request authorizes the member-vs-creator/Admin split (any member may
+     * edit the topic and description; only a creator or team Admin+ may rename),
+     * and only validated keys are applied, so a partial edit leaves the rest
+     * alone. No audit case: these are routine collaborative edits, and a name or
+     * topic change already leaves its own system notice in the timeline.
+     */
+    public function update(UpdateChannelRequest $request, Team $team, Channel $channel, UpdateChannel $updateChannel): RedirectResponse
+    {
+        $updateChannel->handle($channel, $request->user(), $request->validated());
+
+        Inertia::flash('toast', ['type' => 'success', 'message' => __('Channel updated')]);
+
+        return back();
     }
 
     /**
@@ -84,12 +101,13 @@ class ChannelController extends Controller
         // Surface the current user's own notification preferences on the channel
         // so the header settings menu opens on the persisted state. A non-member
         // viewing a public channel has no pivot row, so the DTO defaults apply.
-        $membership = $channel->channelMembers()->where('user_id', $request->user()->id)->first();
-        $channel->setAttribute('muted', $membership->muted ?? false);
-        $channel->setAttribute('notification_level', $membership?->notification_level->value ?? NotificationLevel::All->value);
+        $membership = new ChannelMembership($channel, $request->user());
+        $member = $membership->row();
+        $channel->setAttribute('muted', $member->muted ?? false);
+        $channel->setAttribute('notification_level', $member?->notification_level->value ?? NotificationLevel::All->value);
         // Surface the member's saved draft so the composer restores it on open; a
         // non-member has no pivot row, so the composer opens empty.
-        $channel->setAttribute('draft', $membership?->draft);
+        $channel->setAttribute('draft', $member?->draft);
 
         // The timeline read-model owns where the initial window opens — jump
         // anchoring, unread-boundary anchoring, page-size arithmetic — and
@@ -100,7 +118,7 @@ class ChannelController extends Controller
             channel: $channel,
             viewer: $request->user(),
             requestedJumpId: $request->query('message'),
-            lastReadMessageId: $membership?->last_read_message_id,
+            lastReadMessageId: $member?->last_read_message_id,
             requestedThreadRootId: $request->query('thread'),
         );
 
@@ -110,13 +128,22 @@ class ChannelController extends Controller
                 'name' => $team->name,
                 'slug' => $team->slug,
             ],
-            'channel' => ChannelData::fromChannel($channel),
+            'channel' => ChannelData::fromChannel($channel, $request->user()),
             // Drives the header's archive control; authoritative so the button
             // only appears for a creator or Admin+ on a non-#general channel.
             'canArchive' => Gate::allows('archive', $channel),
             // Gates the notification settings menu; only a member of the channel
             // has preferences to manage.
-            'canManagePreferences' => Gate::allows('updatePreference', $channel),
+            'canManagePreferences' => Gate::allows('updateMembership', $channel),
+            // Gates the channel-details modal's edit mode: any member of a live
+            // standard channel may reword its topic and description.
+            'canEditChannel' => Gate::allows('update', $channel),
+            // Narrows that to the name field, which only the creator or a team
+            // Admin+ may change.
+            'canRenameChannel' => Gate::allows('rename', $channel),
+            // Drives the header's delete control and its confirmation dialog;
+            // only a team Admin+ on a standard, non-#general channel.
+            'canDelete' => Gate::allows('delete', $channel),
             // Gates the "Leave channel" menu item + modal; a member of a standard
             // channel that isn't #general may leave.
             'canLeave' => Gate::allows('leave', $channel),
@@ -126,7 +153,7 @@ class ChannelController extends Controller
             // Whether the viewer already belongs to the channel. A non-member can
             // reach a public channel by URL and read it, but the composer is
             // replaced by a "Join channel" call-to-action until they join.
-            'isMember' => $membership !== null,
+            'isMember' => $membership->exists(),
             // The channel's member count, surfaced in the join call-to-action so a
             // non-member sees how many teammates are already in the channel. Bots
             // are integration identities, not seats, so they never count here.
@@ -159,7 +186,7 @@ class ChannelController extends Controller
             // client's debounced MarkChannelRead advances it. Drives the
             // "New messages" divider so it lands at the last-read boundary on
             // open; null when the channel has never been read.
-            'lastReadMessageId' => $membership?->last_read_message_id !== null ? (string) $membership->last_read_message_id : null,
+            'lastReadMessageId' => $member?->last_read_message_id !== null ? (string) $member->last_read_message_id : null,
             // The open thread's root message, resolved from the `?thread=` query
             // param, or null for a normal visit. The client opens a thread by
             // visiting `?thread=<root>`, which also drives the paginated replies
@@ -235,7 +262,7 @@ class ChannelController extends Controller
                 'name' => $team->name,
                 'slug' => $team->slug,
             ],
-            'joinableChannels' => ChannelData::collect($channels),
+            'joinableChannels' => $channels->map(fn (Channel $channel): ChannelData => ChannelData::fromChannel($channel, $request->user()))->all(),
         ]);
     }
 
@@ -335,20 +362,32 @@ class ChannelController extends Controller
      * sidebar, so we send the user back to #general rather than to a channel
      * that no longer appears in their list.
      */
-    public function archive(Request $request, Team $team, Channel $channel, ArchiveChannel $archiveChannel, AuditRecorder $recorder): RedirectResponse
+    public function archive(Request $request, Team $team, Channel $channel, ArchiveChannel $archiveChannel): RedirectResponse
     {
-        // The policy rejects archiving #general or an already-archived channel,
-        // so reaching here always represents a fresh archive worth recording.
         Gate::authorize('archive', $channel);
 
-        $archiveChannel->handle($channel);
-
-        $recorder->record($team, $request->user(), AuditAction::ChannelArchived, $channel, [
-            'channel_name' => $channel->name,
-        ]);
+        $archiveChannel->handle($channel, $request->user());
 
         Inertia::flash('toast', ['type' => 'success', 'message' => __('Archived #:channel', ['channel' => $channel->name])]);
 
         return to_route('channels.index', ['team' => $team->slug]);
+    }
+
+    /**
+     * Delete a channel and redirect to the team's #general channel.
+     *
+     * The request authorizes the Admin+ gate (which also rejects #general and
+     * direct messages) and re-checks the typed channel name, so reaching here is
+     * a deliberate, authorized destruction. The channel disappears from every
+     * surface at once, so #general — which always exists — is where the admin
+     * lands.
+     */
+    public function destroy(DeleteChannelRequest $request, Team $team, Channel $channel, DeleteChannel $deleteChannel): RedirectResponse
+    {
+        $channel = $deleteChannel->handle($channel, $request->user());
+
+        Inertia::flash('toast', ['type' => 'success', 'message' => __('Deleted #:channel', ['channel' => $channel->name])]);
+
+        return to_route('channels.show', ['team' => $team->slug, 'channel' => Channel::GENERAL_SLUG]);
     }
 }

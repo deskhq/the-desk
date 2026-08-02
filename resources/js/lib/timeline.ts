@@ -1,13 +1,27 @@
+import { authorOverrideKey } from '@/lib/authorIdentity';
 import { formatTimeOfDay } from '@/lib/datetime';
 import { translate } from '@/lib/i18n';
 import { isSystemMessage } from '@/lib/messageActions';
-import type { Message, MessageAuthor } from '@/types';
+import type { AuthorOverride, Message, MessageAuthor } from '@/types';
 
 /**
  * Consecutive messages from the same author within this window collapse under a
  * single avatar + header line in the timeline.
  */
 export const GROUPING_WINDOW_MS = 5 * 60 * 1000;
+
+/**
+ * A stable key for one credential, so consecutive messages that merely share an
+ * author — but arrived on different credentials — never collapse under a single
+ * provenance. The kind is part of the key because the two id spaces are
+ * unrelated: a webhook's uuid and a token's integer key could otherwise collide
+ * as strings.
+ */
+function credentialKey(
+    credential?: App.Data.MessageCredentialData | null,
+): string {
+    return credential == null ? '' : `${credential.kind}:${credential.id}`;
+}
 
 /**
  * A run of consecutive messages from one author, rendered under a single avatar
@@ -17,6 +31,17 @@ export type TimelineGroup = {
     type: 'group';
     key: string;
     author: MessageAuthor;
+    /**
+     * The display identity the run's messages asked for, if any. Part of what
+     * defines the run: one bot posting as two logical sources gets two groups.
+     */
+    authorOverride: AuthorOverride | null;
+    /**
+     * The credential behind the run, for the viewers the server told. Also part
+     * of what defines the run: the header's hover card names this credential on
+     * behalf of every row beneath it, so a run may never span two of them.
+     */
+    postedVia: App.Data.MessageCredentialData | null;
     leadCreatedAt: string;
     messages: Message[];
 };
@@ -75,7 +100,8 @@ function dayKey(iso: string): string {
  * day dividers, the "new" unread boundary, and author-grouped runs.
  *
  * A new group begins whenever the day changes, the unread boundary is crossed,
- * the author changes, or the same author pauses longer than `groupingWindowMs`.
+ * the author (account or displayed identity) changes, or the same author pauses
+ * longer than `groupingWindowMs`.
  * The unread divider sits directly above the first unread message and always
  * breaks the run so the boundary is never buried mid-group.
  */
@@ -127,7 +153,17 @@ export function buildTimelineItems(
             });
         }
 
-        const sameAuthor = currentGroup?.author.id === message.user.id;
+        // Same account, same displayed identity *and* same credential: a webhook
+        // posting as two logical sources must not collapse them under one name
+        // and avatar, and two credentials must not collapse under one provenance.
+        // The id is compared within its kind, so a webhook and a token that
+        // happen to share an id string still split the run.
+        const sameAuthor =
+            currentGroup?.author.id === message.user.id &&
+            authorOverrideKey(currentGroup?.authorOverride) ===
+                authorOverrideKey(message.authorOverride) &&
+            credentialKey(currentGroup?.postedVia) ===
+                credentialKey(message.postedVia);
         const withinWindow =
             lastCreatedAt !== null &&
             new Date(message.createdAt).getTime() -
@@ -145,6 +181,8 @@ export function buildTimelineItems(
                 type: 'group',
                 key: `group-${message.id}`,
                 author: message.user,
+                authorOverride: message.authorOverride ?? null,
+                postedVia: message.postedVia ?? null,
                 leadCreatedAt: message.createdAt,
                 messages: [message],
             };

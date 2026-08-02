@@ -4,6 +4,8 @@ import { ref } from 'vue';
 import { archive as archiveChannel } from '@/actions/App/Http/Controllers/Channels/ChannelController';
 import AddDirectMessagePeopleModal from '@/components/AddDirectMessagePeopleModal.vue';
 import ArchiveChannelDialog from '@/components/channel/ArchiveChannelDialog.vue';
+import ChannelDetailsDialog from '@/components/channel/ChannelDetailsDialog.vue';
+import DeleteChannelDialog from '@/components/channel/DeleteChannelDialog.vue';
 import ForwardMessageDialog from '@/components/ForwardMessageDialog.vue';
 import LeaveChannelModal from '@/components/LeaveChannelModal.vue';
 import ScheduledMessagesDialog from '@/components/ScheduledMessagesDialog.vue';
@@ -25,6 +27,10 @@ const props = defineProps<{
     team: { slug: string };
     channel: Channel;
     currentUserId: string;
+    /** Whether the viewer may reword the channel's topic and description. */
+    canEditChannel: boolean;
+    /** Whether the viewer may also rename it. */
+    canRenameChannel: boolean;
     timezone: string | null;
     /** The viewer's own pending scheduled messages for this channel. */
     scheduledMessages: ScheduledMessage[];
@@ -68,8 +74,14 @@ const {
 /** Whether the "Scheduled messages" management dialog is open. */
 const scheduledDialogOpen = ref(false);
 
+/** Drives the channel-details modal opened from the channel header menu. */
+const detailsOpen = ref(false);
+
 /** Drives the archive confirmation dialog opened from the channel header menu. */
 const confirmingArchive = ref(false);
+
+/** Drives the delete confirmation dialog opened from the channel header menu. */
+const confirmingDelete = ref(false);
 
 /** Drives the leave-channel confirmation modal opened from the header menu. */
 const confirmingLeave = ref(false);
@@ -98,8 +110,14 @@ defineExpose({
     openScheduled: (): void => {
         scheduledDialogOpen.value = true;
     },
+    openDetails: (): void => {
+        detailsOpen.value = true;
+    },
     confirmArchive: (): void => {
         confirmingArchive.value = true;
+    },
+    confirmDelete: (): void => {
+        confirmingDelete.value = true;
     },
     confirmLeave: (): void => {
         confirmingLeave.value = true;
@@ -145,10 +163,25 @@ defineExpose({
             @confirm="confirmCustomReminder"
         />
 
+        <ChannelDetailsDialog
+            v-model:open="detailsOpen"
+            :channel="props.channel"
+            :team-slug="props.team.slug"
+            :can-edit="props.canEditChannel"
+            :can-rename="props.canRenameChannel"
+        />
+
         <ArchiveChannelDialog
             v-model:open="confirmingArchive"
             :channel-name="props.channel.name"
             @confirm="archive"
+        />
+
+        <DeleteChannelDialog
+            v-model:open="confirmingDelete"
+            :team-slug="props.team.slug"
+            :channel-name="props.channel.name"
+            :channel-slug="props.channel.slug"
         />
 
         <LeaveChannelModal

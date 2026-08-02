@@ -22,6 +22,7 @@ import { groupDmSidebarName } from '@/lib/groupDm';
 import { notificationIndicator } from '@/lib/notificationIndicator';
 import { presenceLabelKey } from '@/lib/presence';
 import type { RenderedPresence } from '@/lib/presence';
+import { CHANNEL_LIST_PROPS } from '@/lib/reloadProps';
 import type { Channel } from '@/types/channels';
 
 const props = defineProps<{
@@ -104,7 +105,7 @@ function hide(): void {
             // Leaving: let the redirect home drive a normal visit.
             preserveScroll: !leaving,
             preserveState: !leaving,
-            ...(leaving ? {} : { only: ['channels'] }),
+            ...(leaving ? {} : { only: CHANNEL_LIST_PROPS }),
             onError: () => {
                 toast.error(t('Failed to close the conversation'));
             },

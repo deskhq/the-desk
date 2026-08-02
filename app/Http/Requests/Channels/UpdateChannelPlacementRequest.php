@@ -16,7 +16,7 @@ class UpdateChannelPlacementRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        return Gate::allows('place', $this->channel());
+        return Gate::allows('updateMembership', $this->channel());
     }
 
     /**

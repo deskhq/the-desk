@@ -1,14 +1,25 @@
-import type { Message } from '@/types';
+import type { Message, MessageType } from '@/types';
 
 /**
- * Whether the message is an inert system notice (a member joined/left line)
- * rather than a user-authored message. System notices carry no interactions, so
- * every action guard below treats them as non-actionable, and the timeline
- * renders them as a centered line instead of a chat bubble. A poll is
- * user-authored and interactive, so it is not a system notice.
+ * Every message type the timeline renders as an inert system notice, mirroring
+ * `MessageType::isSystem()` on the server.
+ */
+const SYSTEM_MESSAGE_TYPES: ReadonlySet<MessageType> = new Set([
+    'member_joined',
+    'member_left',
+    'topic_changed',
+    'channel_renamed',
+]);
+
+/**
+ * Whether the message is an inert system notice (a membership or channel-edit
+ * line) rather than a user-authored message. System notices carry no
+ * interactions, so every action guard below treats them as non-actionable, and
+ * the timeline renders them as a centered line instead of a chat bubble. A poll
+ * is user-authored and interactive, so it is not a system notice.
  */
 export function isSystemMessage(message: Pick<Message, 'type'>): boolean {
-    return message.type === 'member_joined' || message.type === 'member_left';
+    return SYSTEM_MESSAGE_TYPES.has(message.type);
 }
 
 /**

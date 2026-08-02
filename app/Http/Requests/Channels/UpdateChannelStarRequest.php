@@ -14,7 +14,7 @@ class UpdateChannelStarRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        return Gate::allows('updateStar', $this->channel());
+        return Gate::allows('updateMembership', $this->channel());
     }
 
     /**

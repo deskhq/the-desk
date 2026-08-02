@@ -10,18 +10,26 @@ Every issue is implemented in its **own isolated worktree + Sail instance** (ste
 
 ## 0. Isolate: self-bootstrap into a worktree
 
-**Do all of the work below in a dedicated worktree, not the main checkout.** `bin/worktree` (committed at the repo root) allocates a free port block + Compose project for issue `NNN`, creates `../the-desk-worktrees/<NNN>-<slug>/`, generates its `.env` (offset ports, `COMPOSE_PROJECT_NAME=desk-<NNN>`, `APP_URL`) and a trimmed `compose.override.yaml` (`laravel.test` + `pgsql` + `redis` only — the gate needs Postgres, the bootstrap's demo seed needs the cache), installs its own `vendor/` + `node_modules/`, and starts those three containers.
+**Do all of the work below in a dedicated worktree, not the main checkout.** `vendor/bin/worktree` (from [`deskhq/laravel-worktree`](https://github.com/deskhq/laravel-worktree), configured in `config/worktree.php`) allocates a free port block + Compose project for issue `NNN`, creates `../the-desk-worktrees/<NNN>-<slug>/`, generates its `.env` (offset ports, `COMPOSE_PROJECT_NAME=wt-the-desk-<NNN>-<slug>`, `APP_URL`) and a `compose.worktree.yaml` that trims `laravel.test` to `pgsql` + `redis` (the gate needs Postgres, the bootstrap's demo seed needs the cache), installs its own `vendor/` + `node_modules/`, and starts those three containers plus `reverb`.
 
 ```bash
-cd "$(bin/worktree create NNN)"   # prints the worktree path on stdout; cd into it
+cd "$(vendor/bin/worktree create NNN)"   # prints the worktree path on stdout; cd into it
 ```
 
-- **Run this first, from the main checkout.** `create` prints the absolute worktree path as its only stdout line, so `cd "$(bin/worktree create NNN)"` drops you straight into the isolated worktree. Everything after this — reading the issue, TDD, the gate, CodeRabbit, the PR — happens **inside that worktree**, against its own Sail instance (`./vendor/bin/sail composer test` there runs fully isolated).
-- **Base branch.** Feature work forks from **`develop`**, not `master` — `develop` is the staging line that cuts release candidates, and `master` only receives promotions from it. Pass it explicitly: `bin/worktree create NNN develop`. If §1 reveals this is a **stacked-epic child**, fork from the foundation branch instead: `bin/worktree create NNN <foundation-branch>`; if it is a **hotfix** (see §1), fork from `master`: `bin/worktree create NNN master`. (Reading the issue with `gh` is safe from anywhere, so peek if you're unsure before creating.)
-- **Refuse to implement in the main checkout.** If you find yourself about to edit product code while `pwd` is the main checkout (`.../the-desk`, not `.../the-desk-worktrees/...`), stop and bootstrap the worktree first. The one exception is changing the isolation tooling itself (`bin/worktree`, this skill) — that bootstrapping work necessarily happens in the main checkout.
-- **Idempotent re-entry.** Re-running `bin/worktree create NNN` on an existing, ready worktree just re-prints its path (fast); if a previous bootstrap was interrupted it resumes. So a fresh session can rejoin an in-progress issue with the same one-liner.
-- **One Claude Code session per agent.** Each agent runs in its own session and its own worktree; don't drive two issues from one session (they would fight over `cd`). Use `bin/worktree list` to see active worktrees and their ports.
-- **Teardown when done** (after the PR is merged): `bin/worktree remove NNN` stops the containers, deletes their volumes, removes the git worktree, and frees the slot (the branch is left intact). Nothing is auto-destroyed, so a worktree stays browsable for follow-up review.
+- **Run this first, from the main checkout.** `create` prints the absolute worktree path as its only stdout line, so `cd "$(vendor/bin/worktree create NNN)"` drops you straight into the isolated worktree. Everything after this — reading the issue, TDD, the gate, CodeRabbit, the PR — happens **inside that worktree**, against its own Sail instance (`./vendor/bin/sail composer test` there runs fully isolated).
+- **Base branch.** Feature work forks from **`develop`**, which is now the configured default — `develop` is the staging line that cuts release candidates, and `master` only receives promotions from it, so no argument is needed for ordinary work. Pass one only to override: if §1 reveals this is a **stacked-epic child**, fork from the foundation branch (`vendor/bin/worktree create NNN <foundation-branch>`); if it is a **hotfix** (see §1), fork from `master` (`vendor/bin/worktree create NNN master`). (Reading the issue with `gh` is safe from anywhere, so peek if you're unsure before creating.)
+- **Refuse to implement in the main checkout.** If you find yourself about to edit product code while `pwd` is the main checkout (`.../the-desk`, not `.../the-desk-worktrees/...`), stop and bootstrap the worktree first. The one exception is changing the isolation tooling itself (`config/worktree.php`, `bin/worktree-playwright`, this skill) — that bootstrapping work necessarily happens in the main checkout.
+- **Idempotent re-entry.** Re-running `vendor/bin/worktree create NNN` on an existing, ready worktree just re-prints its path (fast); if a previous bootstrap was interrupted it resumes. So a fresh session can rejoin an in-progress issue with the same one-liner.
+- **One Claude Code session per agent.** Each agent runs in its own session and its own worktree; don't drive two issues from one session (they would fight over `cd`). Use `vendor/bin/worktree list` to see active worktrees and their ports.
+- **Teardown when done** (after the PR is merged): `vendor/bin/worktree remove NNN` stops the containers, deletes their volumes, removes the git worktree, and frees the slot (the branch is left intact). Nothing is auto-destroyed, so a worktree stays browsable for follow-up review. `remove` verifies the volumes are actually gone and exits non-zero naming the survivors if they are not, so a red teardown means the Docker disk still holds them.
+- **Reclaim what teardown missed:** `vendor/bin/worktree reap` removes the Docker resources of every `wt-the-desk-*` project no registry entry claims — a worktree deleted by hand, an interrupted teardown, a lost registry. It asks before destroying anything; `--dry-run` shows what it would take, `--yes` skips the prompt, and `vendor/bin/worktree list` warns when orphans exist. Left alone these fill the Docker disk, and Postgres then fails the gate with `SQLSTATE[53100]: Disk full` rather than anything naming the disk (#1095).
+- **A bug in the tool is an issue in the tool's repository.** `vendor/bin/worktree` is now [`deskhq/laravel-worktree`](https://github.com/deskhq/laravel-worktree), a separate package with its own suite. If `create`, `list`, `remove` or `reap` misbehaves — a wrong base ref, a slot or port collision, a teardown that leaves resources behind, a diagnostic that names the wrong cause — **file it against `deskhq/laravel-worktree`, not the-desk**:
+
+  ```bash
+  gh issue create --repo deskhq/laravel-worktree --title "..." --body "..."
+  ```
+
+  An issue filed here instead is filed where nobody can fix it, and `vendor/` is not somewhere to patch: an edit there is erased by the next `composer install` and exists on one machine until then. What *does* belong in the-desk is `config/worktree.php` and `bin/worktree-playwright` — the bootstrap this application declares. Deciding which of the two you are looking at is the first thing to do: if the wrong behaviour would be wrong for *any* Laravel project, it is the package's; if it is about what the-desk installs, seeds or starts, it is ours. When it is the package's, say so in the issue you were originally working on and keep going — the worktree you have is usually still usable.
 
 ## 1. Fetch and read the issue
 
@@ -39,7 +47,7 @@ Read it in full: the acceptance criteria, any **Decisions** section, linked issu
 
 This repo also runs stacked epics (e.g. SSO, attachments) where a child issue branches off a **foundation branch** and its PR targets that branch. If the issue is a child of such an epic, find the foundation branch (`git branch -a`, the epic issue, or the parent PR) and use that instead.
 
-Whichever it is, use the same base everywhere: the `base` you passed to `bin/worktree create NNN <base>` in step 0 (re-create the worktree with the right base if you got it wrong before realising), the `--base` for CodeRabbit (§5), and the PR base (§6, `gh pr create --base <base>`). Getting this wrong pollutes the diff with the parent's changes and points the PR at the wrong branch.
+Whichever it is, use the same base everywhere: the `base` you passed to `vendor/bin/worktree create NNN <base>` in step 0 (re-create the worktree with the right base if you got it wrong before realising), the `--base` for CodeRabbit (§5), and the PR base (§6, `gh pr create --base <base>`). Getting this wrong pollutes the diff with the parent's changes and points the PR at the wrong branch.
 
 **Check for existing work before starting — don't fork a second attempt.** Step 0 already put you on a fresh `NNN-<slug>` branch in the worktree (attaching that branch if it already existed). But an earlier attempt may live under a **different** branch name or an open PR:
 
@@ -48,7 +56,7 @@ git branch -a | grep -iE "NNN|<issue-slug>"        # existing local/remote branc
 gh pr list --state open --search "NNN in:title,body"   # open PR already Closes #NNN?
 ```
 
-If one exists under another name, continue it instead of starting fresh. First run `git worktree list` — a branch can only be checked out in one worktree at a time, so if that branch is already attached elsewhere, work in *that* worktree (or `bin/worktree remove` the stray one first) rather than trying to check it out here. Otherwise check it out in this worktree (`git checkout <existing>`), or `bin/worktree remove NNN` and re-create once you know the branch to attach.
+If one exists under another name, continue it instead of starting fresh. First run `git worktree list` — a branch can only be checked out in one worktree at a time, so if that branch is already attached elsewhere, work in *that* worktree (or `vendor/bin/worktree remove` the stray one first) rather than trying to check it out here. Otherwise check it out in this worktree (`git checkout <existing>`), or `vendor/bin/worktree remove NNN` and re-create once you know the branch to attach.
 
 **Claim the issue** so the work is visible and no one duplicates it:
 
@@ -79,7 +87,7 @@ Many issues here carry a **Claude Design** mockup (a `claude.ai/design/p/<projec
 3. **Match every drawn detail** — layout, spacing, states (empty/loading/error), copy, iconography, control placement, responsive behaviour. Reuse existing components and design tokens rather than hardcoding values; check sibling components for the right primitives.
 4. **Preserve every `data-test` selector** on surfaces you restyle, so existing tests keep passing.
 5. **Never fake data the mockup shows but the backend doesn't have.** If the design draws a field/badge/action with no backing DTO, model field, or route, that's out of scope for this issue — render only the data that exists (degrade gracefully) and raise the gap with the user rather than hardcoding the mockup's placeholder value. If honouring the design faithfully turns out to require a product decision, go back to §2 and grill.
-6. When you believe the UI is done, **compare it against the design side by side** (screenshot the running app via the `run`/browser tooling and diff against the frame). Only call it done when it genuinely matches.
+6. When you believe the UI is done, **compare it against the design side by side** (screenshot the running app via the `run`/browser tooling and diff against the frame). Drive that browser **headless** (see §4) and read the screenshot; never let a window pop open. Only call it done when it genuinely matches.
 
 If the issue has no design, build to the acceptance criteria and follow the repo's existing UI conventions.
 
@@ -87,13 +95,14 @@ If the issue has no design, build to the acceptance criteria and follow the repo
 
 Invoke the **`tdd`** skill and drive the work red → green → refactor at pre-agreed seams (prefer the highest existing seam; the fewer new seams, the better).
 
-Follow every rule in `CLAUDE.md` as you go — they are not optional:
+Follow every rule in `CLAUDE.md` and in the path-scoped rules under `.claude/rules/` as you go — they are not optional:
 
 - **i18n:** no hardcoded user-facing copy. Frontend through `$t` / `useTranslations`; backend through `__()`. Add every new key's French translation to `lang/fr.json`.
 - **Laravel the Laravel way:** `php artisan make:*` for new files, constructor property promotion, explicit return types and type hints, `Data` classes for DTOs, named routes.
 - **Frontend:** Vue + Inertia v3 conventions; prefer generated `App.Data.*` / `App.Enums.*` types over hand-rolled ones; regenerate them with `./vendor/bin/sail artisan typescript:transform` after touching a `Data` class or enum; use Wayfinder route functions, not hardcoded URLs.
-- **Comments:** don't emit narrating inline `//` comments in JS/TS that merely restate the code — the names and the code carry the *what*. When a comment documents a *declaration* (prop, emit, type member, function, exported symbol), write it as a JSDoc/TSDoc `/** … */` block above that declaration, not a loose `//`. Reserve bare `//` for a non-obvious *why*, intent, edge case, or ordering constraint *inside* a body. (Same rule as the PHP "prefer PHPDoc over inline comments" convention — see `CLAUDE.md` → *Code Comments (JS/TS)*.)
+- **Comments:** don't emit narrating inline `//` comments in JS/TS that merely restate the code — the names and the code carry the *what*. When a comment documents a *declaration* (prop, emit, type member, function, exported symbol), write it as a JSDoc/TSDoc `/** … */` block above that declaration, not a loose `//`. Reserve bare `//` for a non-obvious *why*, intent, edge case, or ordering constraint *inside* a body. (Same rule as the PHP "prefer PHPDoc over inline comments" convention — see `.claude/rules/frontend.md` → *Code Comments (JS/TS)*.)
 - **Run all Node/npm tooling through Sail** (`./vendor/bin/sail npm run …`), never bare `npm`.
+- **Browsers always run headless.** The Pest browser suite is headless by default, so leave it that way: no `--headed`, no `pest()->browser()->headed()`, and no `->debug()` left on a `visit()` (that one also calls `Only::enable()`, quietly shrinking the run to that single test). Interactive tooling gets the same treatment (`@playwright/mcp --headless`, `chromium.launch({ headless: true })`) — screenshot the page instead of watching it. See `CLAUDE.md` → *Browser Testing*.
 - **Docs:** if the change is operator-facing (a new `.env`/config setting, feature toggle, install/upgrade/stack change), update `docs/` in the same change.
 
 **Accessibility (for any UI work):** this repo holds a hard-won a11y bar (axe audits across the timeline, composer, dialogs, contrast). The automated gate does **not** catch a11y regressions, so before you call UI done, run the repo's axe/contrast checks and fix violations — correct roles and names (an `aria-label` needs a naming-capable role), `tabindex="-1"` on `role="option"`, sufficient contrast in both light and dark themes, keyboard reachability. Match the patterns in the existing a11y browser tests rather than inventing your own.

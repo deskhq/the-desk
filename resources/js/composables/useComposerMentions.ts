@@ -1,5 +1,5 @@
-import { computed, ref } from 'vue';
-import type { ComputedRef, Ref } from 'vue';
+import { useAutocompleteMenu } from '@/composables/useAutocompleteMenu';
+import type { AutocompleteMenu } from '@/composables/useAutocompleteMenu';
 import type { ComposerField } from '@/composables/useComposerField';
 import { useUserGroups } from '@/composables/useUserGroups';
 import type { Mention } from '@/types';
@@ -43,23 +43,18 @@ export type MentionSuggestion =
       };
 
 export type ComposerMentions = {
-    suggestions: Ref<MentionSuggestion[]>;
-    activeIndex: Ref<number>;
-    menuOpen: Ref<boolean>;
-    showMenu: ComputedRef<boolean>;
+    /** The `@` menu itself: rows, keyboard model, ARIA, selection. */
+    menu: AutocompleteMenu<MentionSuggestion>;
     refreshSuggestions: () => void;
-    moveActive: (delta: number) => void;
-    selectSuggestion: (suggestion: MentionSuggestion) => void;
-    selectActive: () => void;
-    closeMenu: () => void;
     collectMentions: (text: string) => Mention[];
     insertMention: (member: Mention) => void;
 };
 
 /**
- * The composer's `@` autocomplete: which rows the menu offers for the query at
- * the caret, how a chosen row completes into a mention token, and which people
- * a body's tokens resolve to when it is sent.
+ * The mention adapter over the composer's autocomplete engine: the `@` token
+ * grammar, the roster a query is matched against, how a chosen row completes
+ * into a mention token, and which people a body's tokens resolve to when it is
+ * sent. The menu's own behaviour is `useAutocompleteMenu`'s.
  */
 export function useComposerMentions(options: {
     field: ComposerField;
@@ -69,13 +64,10 @@ export function useComposerMentions(options: {
     const { body, caretPosition, focusRange } = options.field;
     const { search: searchGroups } = useUserGroups();
 
-    const suggestions = ref<MentionSuggestion[]>([]);
-    const activeIndex = ref(0);
-    const menuOpen = ref(false);
-
-    const showMenu = computed(
-        () => menuOpen.value && suggestions.value.length > 0,
-    );
+    const menu = useAutocompleteMenu<MentionSuggestion>({
+        name: 'mention',
+        onSelect: (suggestion) => completeMention(suggestion),
+    });
 
     /**
      * The active `@query` immediately before the caret, or null when the caret is
@@ -97,8 +89,7 @@ export function useComposerMentions(options: {
         const active = activeQuery();
 
         if (!active) {
-            menuOpen.value = false;
-            suggestions.value = [];
+            menu.offer([]);
 
             return;
         }
@@ -133,20 +124,14 @@ export function useComposerMentions(options: {
         // unreachable from the menu.
         const groupSlots = Math.min(groups.length, MAX_GROUP_SUGGESTIONS);
 
-        suggestions.value = [
+        menu.offer([
             ...people.slice(0, MAX_SUGGESTIONS - groupSlots),
             ...groups.slice(0, groupSlots),
-        ];
-        activeIndex.value = 0;
-        menuOpen.value = suggestions.value.length > 0;
+        ]);
     }
 
-    function moveActive(delta: number): void {
-        const count = suggestions.value.length;
-        activeIndex.value = (activeIndex.value + delta + count) % count;
-    }
-
-    function selectSuggestion(suggestion: MentionSuggestion): void {
+    /** Replace the `@query` at the caret with the chosen row's mention token. */
+    function completeMention(suggestion: MentionSuggestion): void {
         const caret = caretPosition();
         const active = activeQuery();
 
@@ -164,21 +149,8 @@ export function useComposerMentions(options: {
                 : `@[${suggestion.label}](${suggestion.id}) `;
 
         body.value = before + token + after;
-        menuOpen.value = false;
 
         focusRange(before.length + token.length);
-    }
-
-    function selectActive(): void {
-        const suggestion = suggestions.value[activeIndex.value];
-
-        if (suggestion) {
-            selectSuggestion(suggestion);
-        }
-    }
-
-    function closeMenu(): void {
-        menuOpen.value = false;
     }
 
     /**
@@ -222,17 +194,5 @@ export function useComposerMentions(options: {
         focusRange(before.length + token.length);
     }
 
-    return {
-        suggestions,
-        activeIndex,
-        menuOpen,
-        showMenu,
-        refreshSuggestions,
-        moveActive,
-        selectSuggestion,
-        selectActive,
-        closeMenu,
-        collectMentions,
-        insertMention,
-    };
+    return { menu, refreshSuggestions, collectMentions, insertMention };
 }

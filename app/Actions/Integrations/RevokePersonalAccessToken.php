@@ -5,10 +5,10 @@ declare(strict_types=1);
 namespace App\Actions\Integrations;
 
 use App\Enums\AuditAction;
+use App\Events\AuditableActionOccurred;
 use App\Models\PersonalAccessToken;
 use App\Models\Team;
 use App\Models\User;
-use App\Support\AuditRecorder;
 
 /**
  * Revokes a human's own personal access token and records the revocation in the
@@ -17,8 +17,6 @@ use App\Support\AuditRecorder;
  */
 class RevokePersonalAccessToken
 {
-    public function __construct(private readonly AuditRecorder $recorder) {}
-
     public function handle(User $user, PersonalAccessToken $token): void
     {
         $team = $token->team;
@@ -27,9 +25,9 @@ class RevokePersonalAccessToken
         $token->delete();
 
         if ($team instanceof Team) {
-            $this->recorder->record($team, $user, AuditAction::PersonalAccessTokenRevoked, $user, [
+            event(new AuditableActionOccurred($team, $user, AuditAction::PersonalAccessTokenRevoked, $user, [
                 'token_name' => $tokenName,
-            ]);
+            ]));
         }
     }
 }

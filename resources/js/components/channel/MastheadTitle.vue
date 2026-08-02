@@ -217,7 +217,11 @@ const hasActivityReadout = computed(
                 {{ $t('Archived') }}
             </span>
 
-            <p v-if="props.channel.topic" class="min-w-0 truncate">
+            <p
+                v-if="props.channel.topic"
+                data-test="masthead-topic"
+                class="min-w-0 truncate"
+            >
                 {{ props.channel.topic }}
             </p>
         </div>

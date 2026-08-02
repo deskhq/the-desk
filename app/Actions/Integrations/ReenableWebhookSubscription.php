@@ -6,9 +6,9 @@ namespace App\Actions\Integrations;
 
 use App\Enums\AuditAction;
 use App\Enums\WebhookSubscriptionStatus;
+use App\Events\AuditableActionOccurred;
 use App\Models\User;
 use App\Models\WebhookSubscription;
-use App\Support\AuditRecorder;
 
 /**
  * Re-enables an auto-disabled webhook subscription and records it in the audit
@@ -18,8 +18,6 @@ use App\Support\AuditRecorder;
  */
 class ReenableWebhookSubscription
 {
-    public function __construct(private readonly AuditRecorder $recorder) {}
-
     public function handle(User $actor, WebhookSubscription $subscription): void
     {
         if ($subscription->isActive()) {
@@ -32,8 +30,8 @@ class ReenableWebhookSubscription
             'disabled_at' => null,
         ])->save();
 
-        $this->recorder->record($subscription->team, $actor, AuditAction::WebhookSubscriptionReenabled, $subscription, [
+        event(new AuditableActionOccurred($subscription->team, $actor, AuditAction::WebhookSubscriptionReenabled, $subscription, [
             'subscription_name' => $subscription->name,
-        ]);
+        ]));
     }
 }

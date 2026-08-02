@@ -3,12 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { App } from 'vue';
 import { createApp, defineComponent, h } from 'vue';
 import { translate } from '@/lib/i18n';
-import type {
-    RoleOption,
-    Team,
-    TeamInvitation,
-    TeamPermissions,
-} from '@/types';
+import type { RoleOption, Team, TeamInvitation } from '@/types';
 
 /**
  * Covers the two sections at the bottom of the workspace settings page —
@@ -59,6 +54,7 @@ vi.mock('@lucide/vue', () => ({
     Plug: { render: () => h('svg') },
     ScrollText: { render: () => h('svg') },
     Send: { render: () => h('svg') },
+    Trash2: { render: () => h('svg') },
     ShieldCheck: { render: () => h('svg') },
     SmilePlus: { render: () => h('svg') },
     UserPlus: { render: () => h('svg') },
@@ -73,6 +69,7 @@ vi.mock('@/routes/teams', () => ({
 }));
 
 vi.mock('@/routes/teams/analytics', () => ({ index: () => '/analytics' }));
+vi.mock('@/routes/teams/deleted-channels', () => ({ index: () => '/deleted' }));
 vi.mock('@/routes/teams/audit', () => ({ index: () => '/audit' }));
 vi.mock('@/routes/teams/audit-exports', () => ({ index: () => '/exports' }));
 vi.mock('@/routes/teams/emojis', () => ({ index: () => '/emojis' }));
@@ -159,6 +156,11 @@ vi.mock('@/components/DeleteTeamModal.vue', () => ({
     default: modalStub('DeleteTeamModal'),
 }));
 
+import {
+    channelCreationSettings,
+    defaultChannelCandidates,
+    teamPermissions,
+} from './Edit.doubles';
 import Edit from './Edit.vue';
 
 function team(overrides: Partial<Team> = {}): Team {
@@ -186,27 +188,6 @@ function invitation(overrides: Partial<TeamInvitation> = {}): TeamInvitation {
     };
 }
 
-function permissions(
-    overrides: Partial<TeamPermissions> = {},
-): TeamPermissions {
-    return {
-        canUpdateTeam: true,
-        canDeleteTeam: true,
-        canAddMember: true,
-        canUpdateMember: true,
-        canRemoveMember: true,
-        canCreateInvitation: true,
-        canCancelInvitation: true,
-        canTransferOwnership: true,
-        canViewAudit: true,
-        canViewSecurityLog: true,
-        canViewAnalytics: true,
-        canManageIntegrations: true,
-        canManageUserGroups: true,
-        ...overrides,
-    };
-}
-
 const availableRoles: RoleOption[] = [{ value: 'member', label: 'Member' }];
 
 let app: App | null = null;
@@ -221,8 +202,10 @@ function mount(props: Record<string, unknown> = {}) {
                 team: team(),
                 members: [],
                 invitations: [invitation()],
-                permissions: permissions(),
+                permissions: teamPermissions(),
                 availableRoles,
+                channelCreation: channelCreationSettings(),
+                defaultChannels: defaultChannelCandidates(),
                 ...props,
             }),
     });
@@ -301,7 +284,7 @@ describe('pending invitations', () => {
 
     it('offers resend only to someone who may invite', () => {
         const host = mount({
-            permissions: permissions({ canCreateInvitation: false }),
+            permissions: teamPermissions({ canCreateInvitation: false }),
         });
 
         expect(find(host, 'invitation-resend-button')).toBeNull();
@@ -328,7 +311,7 @@ describe('pending invitations', () => {
 
     it('offers cancellation only to someone who may cancel', () => {
         const host = mount({
-            permissions: permissions({ canCancelInvitation: false }),
+            permissions: teamPermissions({ canCancelInvitation: false }),
         });
 
         expect(find(host, 'invitation-cancel-button')).toBeNull();
@@ -347,7 +330,7 @@ describe('the danger zone', () => {
 
     it('withholds it from someone who may not delete the team', () => {
         const host = mount({
-            permissions: permissions({ canDeleteTeam: false }),
+            permissions: teamPermissions({ canDeleteTeam: false }),
         });
 
         expect(find(host, 'delete-team-button')).toBeNull();
@@ -386,7 +369,7 @@ describe('the danger zone', () => {
 describe('the dialogs the page mounts', () => {
     it('leaves the invite dialog out for someone who may not invite', () => {
         const host = mount({
-            permissions: permissions({ canCreateInvitation: false }),
+            permissions: teamPermissions({ canCreateInvitation: false }),
         });
 
         expect(stub(host, 'InviteMemberModal')).toBeNull();

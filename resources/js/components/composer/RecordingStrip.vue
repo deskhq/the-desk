@@ -80,7 +80,7 @@ const levelBars = computed(() =>
             variant="ghost"
             size="icon"
             data-test="composer-recording-cancel"
-            class="size-8.5 shrink-0 rounded-full text-muted-foreground"
+            class="size-8.5 shrink-0 rounded-full text-muted-foreground max-md:size-11"
             :aria-label="$t('Discard recording')"
             @click="$emit('cancel')"
         >
@@ -89,7 +89,7 @@ const levelBars = computed(() =>
         <Button
             size="icon"
             data-test="composer-recording-stop"
-            class="size-8.5 shrink-0 rounded-full bg-primary text-brass hover:bg-primary/90"
+            class="size-8.5 shrink-0 rounded-full bg-primary text-brass hover:bg-primary/90 max-md:size-11"
             :aria-label="$t('Stop recording')"
             @click="$emit('stop')"
         >

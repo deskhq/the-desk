@@ -48,10 +48,6 @@ const props = defineProps<{
 
 const emit = defineEmits<{
     select: [destination: NavDestination];
-    /** The workspace sheet's "invite people" row was chosen; the host owns the modal. */
-    invite: [];
-    /** The workspace sheet's "join a workspace" row was chosen. */
-    join: [];
 }>();
 
 const { getInitials } = useInitials();
@@ -110,12 +106,7 @@ function glyphClass(destination: NavDestination): string {
             class="flex min-h-0 w-full shrink flex-col items-center gap-2 overflow-y-auto overscroll-contain py-1"
         >
             <template v-for="team in teams" :key="team.id">
-                <WorkspaceSheet
-                    v-if="team.isCurrent"
-                    side="right"
-                    @invite="emit('invite')"
-                    @join="emit('join')"
-                >
+                <WorkspaceSheet v-if="team.isCurrent" side="right">
                     <Button
                         variant="ghost"
                         size="icon"
@@ -215,7 +206,7 @@ function glyphClass(destination: NavDestination): string {
              the design keeps the conversation list live behind it, so the rail's
              own avatar is the anchor and `?nav=` stays where it was. Below `md`
              the tab bar takes the same menu full-panel instead. -->
-        <UserMenuPopover @invite="emit('invite')" @join="emit('join')">
+        <UserMenuPopover>
             <Button
                 variant="ghost"
                 size="icon"

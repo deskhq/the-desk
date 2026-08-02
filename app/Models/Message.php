@@ -25,6 +25,7 @@ use Laravel\Scout\Searchable;
  * @property string $id
  * @property string $channel_id
  * @property string $user_id
+ * @property string|null $incoming_webhook_id
  * @property string $client_uuid
  * @property string|null $reply_to_id
  * @property string|null $forwarded_from_id
@@ -33,6 +34,8 @@ use Laravel\Scout\Searchable;
  * @property int $reply_count
  * @property Carbon|null $last_reply_at
  * @property string $body
+ * @property string|null $author_override_name
+ * @property string|null $author_override_avatar_url
  * @property MessageType $type
  * @property Carbon|null $edited_at
  * @property Carbon|null $deleted_at
@@ -40,6 +43,8 @@ use Laravel\Scout\Searchable;
  * @property Carbon|null $updated_at
  * @property-read Channel $channel
  * @property-read User $user
+ * @property-read IncomingWebhook|null $incomingWebhook
+ * @property-read PersonalAccessToken|null $token
  * @property-read Message|null $replyTo
  * @property-read Message|null $forwardedFrom
  * @property-read Collection<int, Message> $threadReplies
@@ -50,7 +55,7 @@ use Laravel\Scout\Searchable;
  * @property-read MessagePin|null $pin
  * @property-read Collection<int, Attachment> $attachments
  */
-#[Fillable(['channel_id', 'user_id', 'client_uuid', 'reply_to_id', 'forwarded_from_id', 'thread_root_id', 'sent_to_channel', 'body', 'type', 'edited_at'])]
+#[Fillable(['channel_id', 'user_id', 'incoming_webhook_id', 'token_id', 'client_uuid', 'reply_to_id', 'forwarded_from_id', 'thread_root_id', 'sent_to_channel', 'body', 'author_override_name', 'author_override_avatar_url', 'type', 'edited_at'])]
 class Message extends Model
 {
     /** @use HasFactory<MessageFactory> */
@@ -85,6 +90,14 @@ class Message extends Model
      */
     private const array MESSAGE_DATA_RELATIONS = [
         'user',
+        // Read only for a viewer who can manage the team's integrations, but
+        // loaded for everyone: a conditional eager-load here would be a lazy
+        // load — or an N+1 — the day a caller forgets the condition.
+        'incomingWebhook',
+        // Its REST API counterpart, loaded on the same terms — and with its
+        // `tokenable`, since naming the token is only offered for a bot's own
+        // credential (a human's personal access token stays unnamed).
+        'token.tokenable',
         'mentionedUsers',
         'linkPreviews',
         'reactions.user',
@@ -121,6 +134,34 @@ class Message extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    /**
+     * Get the incoming webhook that produced this message, if any.
+     *
+     * Null on every path but webhook ingest, and null on a webhook message that
+     * predates the column. Null too once the webhook row is deleted outright —
+     * the message survives its credential, which is the point.
+     *
+     * @return BelongsTo<IncomingWebhook, $this>
+     */
+    public function incomingWebhook(): BelongsTo
+    {
+        return $this->belongsTo(IncomingWebhook::class);
+    }
+
+    /**
+     * Get the API token that produced this message, if any.
+     *
+     * Null on every path but a REST API v1 post. Null too once the token is
+     * revoked or deleted — the message outlives its credential by design, so the
+     * attribution thins rather than the history disappearing.
+     *
+     * @return BelongsTo<PersonalAccessToken, $this>
+     */
+    public function token(): BelongsTo
+    {
+        return $this->belongsTo(PersonalAccessToken::class);
     }
 
     /**
@@ -259,6 +300,74 @@ class Message extends Model
     public function attachments(): HasMany
     {
         return $this->hasMany(Attachment::class)->oldest()->orderBy('id');
+    }
+
+    /**
+     * The rule that decides whether a message is ordinary channel traffic: a
+     * top-level message, or a thread reply its author explicitly also sent to
+     * the channel. A thread-only reply is not — it lives in the thread view, so
+     * it stays out of the main timeline and out of the plain unread badge, and
+     * only ever alerts through the mention path.
+     *
+     * Qualified against `messages` because the sidebar correlates this against a
+     * query that has `channels` and `channel_members` joined in.
+     *
+     * One constant, so the scope below, the conditional aggregate in
+     * `WorkspaceUnread` and the timeline's filter cannot disagree about what
+     * "channel traffic" means. Its client twin is
+     * `resources/js/lib/channelTraffic.ts`; ADR-0010 records why both exist and
+     * why neither may be re-inlined.
+     */
+    private const string CHANNEL_TRAFFIC_SQL = '(messages.thread_root_id is null or messages.sent_to_channel = true)';
+
+    /**
+     * Constrain a message query to ordinary channel traffic, per
+     * {@see self::CHANNEL_TRAFFIC_SQL}.
+     *
+     * Deliberately opt-in per call site rather than a global scope: a mention
+     * anywhere — including inside a thread — still badges its channel, so the
+     * sidebar's mention count is one of the queries that must *not* carry it.
+     *
+     * @param  Builder<Message>  $query
+     */
+    protected function scopeChannelTraffic(Builder $query): void
+    {
+        $query->whereRaw(self::CHANNEL_TRAFFIC_SQL);
+    }
+
+    /**
+     * The same rule as a SQL fragment, for the one caller that needs it inside
+     * an expression rather than as a `where`: `WorkspaceUnread` counts channel
+     * traffic and mentions in a single grouped query, so its unread half is a
+     * conditional aggregate that no scope can express.
+     *
+     * Reach for {@see self::scopeChannelTraffic()} everywhere else — a `where`
+     * that goes through this instead is a `whereRaw` with extra steps.
+     *
+     * Typed `literal-string` because that is what the query builder's raw
+     * methods take: it is what makes "this fragment can hold no user input" a
+     * static guarantee rather than a promise in a comment.
+     *
+     * @return literal-string
+     */
+    public static function channelTrafficSql(): string
+    {
+        return self::CHANNEL_TRAFFIC_SQL;
+    }
+
+    /**
+     * The in-memory twin of {@see self::CHANNEL_TRAFFIC_SQL}, for the paths that
+     * hold a payload rather than a query — the push listener decides from the
+     * broadcast {@see MessageData}, and re-reading the row to ask the
+     * database would be a query per message per send.
+     *
+     * Kept beside the SQL, and pinned against the same case table
+     * (`tests/Fixtures/channel-traffic-cases.json`) as both the scope and the
+     * client twin, so the three cannot drift.
+     */
+    public static function isChannelTraffic(?string $threadRootId, bool $sentToChannel): bool
+    {
+        return $threadRootId === null || $sentToChannel;
     }
 
     /**

@@ -146,6 +146,7 @@ export function channel(overrides: Partial<Channel> = {}): Channel {
         slug: 'general',
         visibility: 'public',
         topic: null,
+        description: null,
         isGeneral: true,
         isArchived: false,
         muted: false,

@@ -1,6 +1,7 @@
 import { router, usePage } from '@inertiajs/vue3';
 import { computed } from 'vue';
 import { backgroundVisit } from '@/lib/backgroundVisit';
+import { AUTH_PROPS } from '@/lib/reloadProps';
 import { update } from '@/routes/timezone';
 
 /**
@@ -53,8 +54,10 @@ export function useTimezone() {
         if (detected) {
             // Nobody asked for this write and it lands moments after the first
             // authenticated render, when the user is most likely mid-click; see
-            // {@see backgroundVisit}.
-            persist(detected, backgroundVisit);
+            // {@see backgroundVisit}. Partial for the same reason: the reply
+            // would otherwise carry the whole page as this route stood before
+            // the click, and replace the props of whatever it opened (#1099).
+            persist(detected, { ...backgroundVisit, only: AUTH_PROPS });
         }
     }
 

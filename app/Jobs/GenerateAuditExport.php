@@ -12,13 +12,14 @@ use App\Models\AuditExport;
 use App\Models\SecurityEvent;
 use App\Models\Team;
 use App\Models\User;
+use App\Support\ExportLifecycle;
 use Carbon\CarbonInterface;
 use Illuminate\Contracts\Database\Query\Builder;
+use Illuminate\Contracts\Filesystem\Filesystem;
+use Illuminate\Contracts\Mail\Mailable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Facades\Mail;
-use Illuminate\Support\Facades\Storage;
 use Throwable;
 
 class GenerateAuditExport implements ShouldQueue
@@ -26,19 +27,9 @@ class GenerateAuditExport implements ShouldQueue
     use Queueable;
 
     /**
-     * The private disk the export file is written to.
-     */
-    public const string DISK = 'local';
-
-    /**
      * The directory on the private disk export files live under.
      */
     private const string DIRECTORY = 'audit-exports';
-
-    /**
-     * How many days the built file stays downloadable before it is purged.
-     */
-    public const int RETENTION_DAYS = 7;
 
     public function __construct(private string $auditExportId) {}
 
@@ -46,43 +37,28 @@ class GenerateAuditExport implements ShouldQueue
      * Assemble the requested log into a single CSV or JSON file on the private
      * disk, then mark the export ready and email the requester.
      *
-     * Re-fetches by id and bails quietly when the export is gone (the team or
-     * requester may have been deleted since the job was queued).
+     * Everything but the assembling is {@see ExportLifecycle}'s, including the
+     * bail when the export is gone (the team or requester may have been deleted
+     * since the job was queued).
      */
     public function handle(): void
     {
-        $export = AuditExport::with(['team', 'requester'])->find($this->auditExportId);
+        $this->lifecycle()->generate(
+            write: function (AuditExport $export, Filesystem $disk): array {
+                $path = self::DIRECTORY.'/'.$export->id.'.'.$export->format->extension();
+                $disk->makeDirectory(self::DIRECTORY);
 
-        if ($export === null) {
-            return;
-        }
+                $records = $this->records($export);
 
-        $path = self::DIRECTORY.'/'.$export->id.'.'.$export->format->extension();
-        $disk = Storage::disk(self::DISK);
-        $disk->makeDirectory(self::DIRECTORY);
+                $disk->put($path, $export->format === AuditExportFormat::Csv
+                    ? $this->toCsv($export->log_type, $records)
+                    : $this->toJson($records));
 
-        $records = $this->records($export);
-
-        $disk->put($path, $export->format === AuditExportFormat::Csv
-            ? $this->toCsv($export->log_type, $records)
-            : $this->toJson($records));
-
-        $export->update([
-            'status' => AuditExportStatus::Ready,
-            'path' => $path,
-            'expires_at' => now()->addDays(self::RETENTION_DAYS),
-        ]);
-
-        // The file is the deliverable; a failed notification must not undo the
-        // ready export or trip the job's failed() handler. Skip it entirely when
-        // the requester's account was deleted between request and generation.
-        if ($export->requester !== null) {
-            try {
-                Mail::to($export->requester)->send(new AuditExportReady($export));
-            } catch (Throwable $exception) {
-                report($exception);
-            }
-        }
+                return ['path' => $path];
+            },
+            recipient: fn (AuditExport $export): ?User => $export->requester,
+            notice: fn (AuditExport $export): Mailable => new AuditExportReady($export),
+        );
     }
 
     /**
@@ -90,7 +66,23 @@ class GenerateAuditExport implements ShouldQueue
      */
     public function failed(Throwable $exception): void
     {
-        AuditExport::whereKey($this->auditExportId)->update(['status' => AuditExportStatus::Failed]);
+        $this->lifecycle()->fail();
+    }
+
+    /**
+     * The shared export lifecycle this job adapts into, eager-loading the team
+     * and requester the file and the ready notice read.
+     *
+     * @return ExportLifecycle<AuditExport>
+     */
+    private function lifecycle(): ExportLifecycle
+    {
+        return new ExportLifecycle(
+            query: AuditExport::with(['team', 'requester']),
+            exportId: $this->auditExportId,
+            readyStatus: AuditExportStatus::Ready,
+            failedStatus: AuditExportStatus::Failed,
+        );
     }
 
     /**

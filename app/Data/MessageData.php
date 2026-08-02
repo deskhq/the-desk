@@ -27,6 +27,19 @@ class MessageData extends Data
         public string $body,
         public MessageType $type,
         public UserData $user,
+        /**
+         * The display identity this message asked to be shown under, riding
+         * beside — never replacing — the truthful `user` above. Null on an
+         * ordinary message. See {@see AuthorOverrideData}.
+         */
+        public ?AuthorOverrideData $authorOverride,
+        /**
+         * Which credential — an incoming webhook or an API token — produced this
+         * message, for the viewers who could revoke it. Null on every ordinary
+         * message, and null for a viewer who cannot manage the team's
+         * integrations. See {@see MessageCredentialData}.
+         */
+        public ?MessageCredentialData $postedVia,
         public string $createdAt,
         public ?string $editedAt,
         public bool $isDeleted,
@@ -50,6 +63,12 @@ class MessageData extends Data
 
     /**
      * Build the DTO from a Message model.
+     *
+     * `authorOverride` is the display identity the message asked for, carried
+     * beside the truthful `user` so a surface that does not know about overrides
+     * renders the real, admin-controlled identity rather than an unbadged
+     * impersonation. It survives a soft delete, since a tombstone still renders
+     * an author line.
      *
      * The message's `user` and `mentionedUsers` relations should be eager-loaded
      * to avoid N+1 queries. A soft-deleted message renders as a tombstone: its
@@ -81,8 +100,16 @@ class MessageData extends Data
      * selection, which its hidden roster can't convey). It is passed only on the
      * viewer-scoped timeline load; a broadcast omits it, so the payload stays
      * viewer-free and the client preserves the vote state it already holds.
+     *
+     * `$withCredentialSource` names the credential behind a message. It is a
+     * flag rather than something derived from `$viewerId` because the answer is
+     * per-viewer-per-team, not per-message: the caller resolves the
+     * `manageIntegrations` gate once for the whole page instead of once per row.
+     * Left false — as every broadcast, search, and post path leaves it — the
+     * field stays null and the admin-authored credential name never reaches a
+     * client that has not been checked for it.
      */
-    public static function fromMessage(Message $message, ?string $viewerId = null): self
+    public static function fromMessage(Message $message, ?string $viewerId = null, bool $withCredentialSource = false): self
     {
         $isDeleted = $message->trashed();
 
@@ -95,6 +122,14 @@ class MessageData extends Data
             body: $isDeleted ? '' : $message->body,
             type: $message->type,
             user: UserData::fromUser($message->user),
+            // Identity, not content: a tombstone still renders an author line, so
+            // it keeps rendering as it always did rather than reverting to the
+            // bot's own name the moment the body is withdrawn.
+            authorOverride: AuthorOverrideData::forMessage($message),
+            // Provenance, not content: a tombstone keeps naming the credential
+            // that produced it, since withdrawing the body is the very moment an
+            // admin wants to know which credential to revoke.
+            postedVia: $withCredentialSource ? MessageCredentialData::forMessage($message) : null,
             createdAt: $message->created_at->toIso8601String(),
             editedAt: $message->edited_at?->toIso8601String(),
             isDeleted: $isDeleted,

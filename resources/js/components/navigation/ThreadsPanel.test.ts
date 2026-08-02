@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { App } from 'vue';
-import { createApp, defineComponent, h, reactive } from 'vue';
+import { createApp, defineComponent, h, nextTick, reactive } from 'vue';
 import type { Mention, Message, ThreadInboxItem } from '@/types';
 
 const { get, post } = vi.hoisted(() => ({ get: vi.fn(), post: vi.fn() }));
@@ -181,6 +181,57 @@ describe('the inbox arriving', () => {
         mountPanel();
 
         expect(get).not.toHaveBeenCalled();
+    });
+
+    it('pulls it again when a response lands without the destination props', async () => {
+        withInbox([threadItem()]);
+
+        const host = mountPanel();
+
+        expect(get).not.toHaveBeenCalled();
+
+        // A background write's response carries the route as it stood when the
+        // write left, so an open panel's props are simply not in it — and a
+        // full response replaces the whole bag rather than merging (#1099).
+        delete page.props.threads;
+        delete page.props.unreadThreadCount;
+        await nextTick();
+
+        expect(get).toHaveBeenCalledTimes(1);
+        expect(
+            host.querySelectorAll('[data-test="threads-skeleton-card"]').length,
+        ).toBeGreaterThan(0);
+    });
+
+    it('does not stack a second pull on one still in flight', async () => {
+        // The panel only learns a pull is running from the cancel token Inertia
+        // hands it, so the double has to offer one — and only *once*, since the
+        // `mockClear` between tests drops the recorded calls but would keep an
+        // implementation set here.
+        get.mockImplementationOnce(
+            (
+                _url: string,
+                _data: unknown,
+                options: { onCancelToken?: (token: unknown) => void },
+            ) => options.onCancelToken?.({ cancel: () => {} }),
+        );
+        withInbox([threadItem()]);
+
+        mountPanel();
+
+        delete page.props.threads;
+        await nextTick();
+        expect(get).toHaveBeenCalledTimes(1);
+
+        // A second reply drops them again before the pull above has landed. It
+        // is about to deliver them, and racing it could land the pills and the
+        // cards on different filters.
+        withInbox([threadItem()]);
+        await nextTick();
+        delete page.props.threads;
+        await nextTick();
+
+        expect(get).toHaveBeenCalledTimes(1);
     });
 
     it('stands in pulsing cards until the inbox lands', () => {

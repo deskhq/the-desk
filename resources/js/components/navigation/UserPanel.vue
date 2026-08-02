@@ -12,23 +12,11 @@ import UserMenuContent from '@/components/UserMenuContent.vue';
  * 56px portrait, the name, and the "workspace · presence" line) *is* the
  * heading, and it stands in for the dock footer this destination dismantled.
  */
-const emit = defineEmits<{
-    /** The workspace sheet asked for the invite modal, which the layout owns. */
-    invite: [];
-    /** The workspace sheet asked for the pending-invitations modal. */
-    join: [];
-}>();
-
 const page = usePage();
 </script>
 
 <template>
     <div data-test="destination-panel-you" class="flex min-h-0 flex-1 flex-col">
-        <UserMenuContent
-            :user="page.props.auth.user"
-            variant="panel"
-            @invite="emit('invite')"
-            @join="emit('join')"
-        />
+        <UserMenuContent :user="page.props.auth.user" variant="panel" />
     </div>
 </template>

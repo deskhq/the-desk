@@ -6,6 +6,7 @@ import { store as storePoll } from '@/actions/App/Http/Controllers/Channels/Poll
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
+import { CHANNEL_LIST_PROPS } from '@/lib/reloadProps';
 import { generateUuid } from '@/lib/uuid';
 
 const props = defineProps<{
@@ -119,7 +120,7 @@ function submit(): void {
         {
             preserveScroll: true,
             preserveState: true,
-            only: ['channels'],
+            only: CHANNEL_LIST_PROPS,
             onSuccess: () => emit('close'),
             onFinish: () => {
                 posting.value = false;

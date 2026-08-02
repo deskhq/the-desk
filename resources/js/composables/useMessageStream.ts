@@ -118,12 +118,19 @@ export function useMessageStream(
         // viewer context, so its `threadFollowed`/`threadUnread` are always the
         // server defaults. Preserve whatever the client has already derived for
         // this message so a root's dot isn't cleared by its own reply-count bump.
+        //
+        // `postedVia` is viewer-scoped the same way — only an integrations admin
+        // is ever told which credential posted a row — so it is preserved too.
+        // Without this, a link unfurl broadcasting an otherwise unchanged row
+        // would quietly strip the provenance an admin is in the middle of acting
+        // on.
         const prior = currentCopy(message.clientUuid);
 
         patches.value.set(message.clientUuid, {
             ...message,
             threadFollowed: prior?.threadFollowed ?? message.threadFollowed,
             threadUnread: prior?.threadUnread ?? message.threadUnread,
+            postedVia: message.postedVia ?? prior?.postedVia,
         });
     }
 
@@ -291,6 +298,8 @@ export function optimisticMessage(params: {
                   id: target.id,
                   body: target.body,
                   authorName: target.user.name,
+                  authorIsBot: target.user.isBot,
+                  authorOverride: target.authorOverride ?? null,
                   isDeleted: target.isDeleted,
                   mentions: target.mentions,
               }

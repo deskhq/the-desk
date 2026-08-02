@@ -36,6 +36,49 @@ curl -X POST $WEBHOOK_URL \
 
 The message appears in the channel authored by the webhook's bot.
 
+## Posting under a different name or icon
+
+One webhook can post as several logical sources. Add `username`, `icon_url`, or
+both, and that single message is displayed under them instead of the bot's own
+name and avatar:
+
+```bash
+curl -X POST $WEBHOOK_URL \
+  -H 'Content-Type: application/json' \
+  -d '{"text": "Rolled out to production", "username": "Release Train", "icon_url": "https://cdn.example.com/train.png"}'
+```
+
+Both fields are optional and independent: send only `icon_url` to keep the bot's
+name with a different picture. The values are stored on the message as a
+snapshot, so an old message keeps rendering as it did even after the webhook is
+revoked or its bot renamed.
+
+:::caution[The BOT badge cannot be removed]
+An override changes only the **displayed** name and icon. The message is still
+authored by the webhook's bot, so it keeps the uppercase **BOT** badge and the
+squared-off avatar, and its hover card names the account that actually posted it
+("via Deploy Bot"). There is no way to make a webhook message read as a person.
+:::
+
+Rules for the two fields:
+
+| Field | Rules |
+| --- | --- |
+| `username` | Up to 255 characters. |
+| `icon_url` | Up to 2048 characters, and must start with `http://` or `https://`. |
+
+- **Blank is the same as absent.** An empty or whitespace-only value posts under
+  the bot's own identity and still returns **202**, so a templated sender that
+  emits `"username": ""` for an unset variable keeps working.
+- **A malformed value is rejected with 422** rather than silently posting under a
+  different name than the one you asked for.
+- **The icon is never fetched at post time.** It is loaded through the app's image
+  proxy when a reader views the message, so no reader's IP reaches its host. A URL
+  that 404s simply falls back to the bot glyph, so a typo in `icon_url` never
+  drops an alert.
+- **`icon_emoji` is ignored.** Only `icon_url` is read, the same way Slack Block
+  Kit (`blocks`) and legacy `attachments` are ignored.
+
 ## Membership gating
 
 Posting is **membership-gated**: the webhook only works while its bot is a member
@@ -44,11 +87,53 @@ of the channel. Remove the bot from the channel — via **Remove** under the bot
 API token follows, so there is no parallel way to post. Revoking the webhook (or
 deleting the bot) stops it permanently.
 
+## Tracing a message back to its webhook
+
+A bot holds one webhook per channel it posts into, so knowing which bot posted a
+message is not enough to revoke the right URL. Every message posted through an
+incoming webhook therefore records which webhook produced it.
+
+Workspace owners and admins see that on the message itself: hover the author, and
+the card names the webhook and offers **Review**, which opens **Integrations**
+with that hook singled out, ready to revoke. Members never see it, since a
+webhook's name is yours to write and often names internal systems.
+
+Two limits worth knowing. Messages posted before you upgraded to this version
+carry no attribution: nothing was recorded at the time, and it cannot be
+reconstructed after the fact. And revoking a webhook leaves its past messages
+exactly as they are, still naming the credential that produced them, so the trail
+survives the revocation.
+
 ## Signing (optional)
 
 When you create the webhook you can also mint an **HMAC signing secret**, shown
 once alongside the URL. If you do, sign each request so The Desk can reject
-forgeries: compute `HMAC-SHA256` over the exact raw request body and send it in
-the `X-Desk-Signature` header. A webhook created without a secret accepts
-unsigned requests; one created with a secret rejects requests whose signature
-does not match.
+forgeries: compute `HMAC-SHA256` over the exact raw request body and send the hex
+digest in the **`X-Signature-256`** header. A bare digest and a `sha256=`-prefixed
+one (GitHub/Slack style) are both accepted.
+
+```bash
+BODY='{"text": "Build passed ✅"}'
+SIGNATURE=$(printf '%s' "$BODY" | openssl dgst -sha256 -hmac "$SIGNING_SECRET" | awk '{print $2}')
+
+curl -X POST $WEBHOOK_URL \
+  -H 'Content-Type: application/json' \
+  -H "X-Signature-256: sha256=$SIGNATURE" \
+  -d "$BODY"
+```
+
+Sign the **exact bytes you send**: re-serializing the JSON, or letting an HTTP
+client reformat it, changes the digest and the request is refused.
+
+A webhook created without a secret accepts unsigned requests. One created with a
+secret rejects a missing, malformed, or mismatched signature with **401** — so a
+signature sent under any other header name fails as if it were absent.
+
+:::caution[Not the header outgoing deliveries use]
+Deliveries _from_ The Desk are signed with `X-Desk-Signature`, which carries
+`t=<unix ts>,v1=<hex>` computed over `"{timestamp}.{body}"` — see
+[verifying an outgoing signature](/reference/webhooks/#verifying-the-signature).
+That is a different header with a different value format. Incoming ingest reads
+only `X-Signature-256`, and the digest there is over the body alone — bare or
+`sha256=`-prefixed, never timestamped.
+:::

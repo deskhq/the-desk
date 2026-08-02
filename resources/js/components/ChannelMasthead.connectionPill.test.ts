@@ -37,6 +37,7 @@ vi.mock('@lucide/vue', () => ({
     Bot: stub('svg'),
     Check: stub('svg'),
     EllipsisVertical: stub('svg'),
+    Info: stub('svg'),
     LogOut: stub('svg'),
     Pin: stub('svg'),
     Search: stub('svg'),
@@ -73,9 +74,18 @@ vi.mock('@/components/ui/tooltip', () => ({
     TooltipTrigger: stub('div'),
     TooltipContent: stub('div'),
 }));
-vi.mock('@/composables/useQuickSwitcher', () => ({
-    useQuickSwitcher: () => ({ open: vi.fn() }),
-}));
+vi.mock('@/composables/useDialog', async () => {
+    const { ref } = await import('vue');
+
+    return {
+        useDialog: () => ({
+            isOpen: ref(false),
+            open: vi.fn(),
+            close: vi.fn(),
+            toggle: vi.fn(),
+        }),
+    };
+});
 
 import ChannelMasthead from './ChannelMasthead.vue';
 
@@ -86,6 +96,7 @@ function channel(): Channel {
         slug: 'general',
         visibility: 'public',
         topic: null,
+        description: null,
         isGeneral: true,
         isArchived: false,
         muted: false,
@@ -115,6 +126,7 @@ async function render(connectionPill: ConnectionPill): Promise<string> {
                 title: 'general',
                 canManagePreferences: false,
                 canArchive: false,
+                canDelete: false,
                 canLeave: false,
                 canAddPeople: false,
                 notificationLevels: [],

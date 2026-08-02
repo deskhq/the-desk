@@ -1,21 +1,26 @@
 import { router, usePage } from '@inertiajs/vue3';
-import { computed, ref } from 'vue';
+import { computed, ref, toRef } from 'vue';
 import type { Ref } from 'vue';
 import {
     destroy as destroySection,
     store as storeSection,
     update as updateSection,
 } from '@/actions/App/Http/Controllers/Channels/ChannelSectionController';
+import {
+    snapshotRef,
+    useOptimisticWrite,
+} from '@/composables/useOptimisticWrite';
 import { useToast } from '@/composables/useToast';
 import { useTranslations } from '@/composables/useTranslations';
 import type { ChannelSectionGroup } from '@/lib/channelSections';
+import { CHANNEL_LIST_PROPS, CHANNEL_SECTION_PROPS } from '@/lib/reloadProps';
 import type { ChannelSection } from '@/types/channels';
 
 /**
  * Creating and renaming both happen in an inline field, and the state driving
  * them lives at module scope rather than per-caller: the "+ New" menu that opens
  * the create form sits in the dock header, outside the panel that renders the
- * field. That is {@see useQuickSwitcher}'s pattern, and it matches the lifetime
+ * field. That is {@see useDialog}'s pattern, and it matches the lifetime
  * the state had before the extraction — `MainLayout` is a persistent Inertia
  * layout, so its own refs already survived every channel and team switch.
  */
@@ -70,6 +75,7 @@ export function useChannelSections(): ChannelSections {
     const page = usePage();
     const { t } = useTranslations();
     const toast = useToast();
+    const { write } = useOptimisticWrite();
 
     const teamSlug = computed(() => page.props.currentTeam?.slug ?? '');
 
@@ -98,7 +104,7 @@ export function useChannelSections(): ChannelSections {
             {
                 preserveScroll: true,
                 preserveState: true,
-                only: ['channelSections'],
+                only: CHANNEL_SECTION_PROPS,
                 onSuccess: () => cancelSectionForm(),
                 onError: () => {
                     toast.error(t('Failed to create the section'));
@@ -132,7 +138,7 @@ export function useChannelSections(): ChannelSections {
             {
                 preserveScroll: true,
                 preserveState: true,
-                only: ['channelSections'],
+                only: CHANNEL_SECTION_PROPS,
                 onSuccess: () => cancelRename(),
                 onError: () => {
                     toast.error(t('Failed to rename the section'));
@@ -147,7 +153,7 @@ export function useChannelSections(): ChannelSections {
             {
                 preserveScroll: true,
                 preserveState: true,
-                only: ['channels', 'channelSections'],
+                only: [...CHANNEL_LIST_PROPS, ...CHANNEL_SECTION_PROPS],
                 onError: () => {
                     toast.error(t('Failed to delete the section'));
                 },
@@ -156,23 +162,24 @@ export function useChannelSections(): ChannelSections {
     }
 
     function toggleCustomSection(group: ChannelSectionGroup): void {
-        const previous = group.section.collapsed;
-        group.section.collapsed = !previous;
+        // The flag lives on the section row rather than in a ref of its own, so
+        // the snapshot is taken through a writable ref into that property.
+        const collapsed = toRef(group.section, 'collapsed');
 
-        router.patch(
-            updateSection({ team: teamSlug.value, section: group.section.id })
-                .url,
-            { collapsed: group.section.collapsed },
-            {
-                preserveScroll: true,
-                preserveState: true,
-                only: ['channelSections'],
-                onError: () => {
-                    group.section.collapsed = previous;
-                    toast.error(t('Failed to save the sidebar layout'));
-                },
+        write({
+            capture: () => snapshotRef(collapsed),
+            apply: () => {
+                collapsed.value = !collapsed.value;
             },
-        );
+            method: 'patch',
+            url: updateSection({
+                team: teamSlug.value,
+                section: group.section.id,
+            }).url,
+            data: () => ({ collapsed: collapsed.value }),
+            only: CHANNEL_SECTION_PROPS,
+            failure: t('Failed to save the sidebar layout'),
+        });
     }
 
     return {

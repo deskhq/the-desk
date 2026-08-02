@@ -18,6 +18,14 @@ use Illuminate\Support\Str;
  * it is hashed and matched against a live webhook, and a message is authored by
  * the bound bot through the normal create + broadcast path. The whole surface is
  * gated by INTEGRATIONS_ENABLED (the route 404s when the platform is off).
+ *
+ * A request may also ask for a per-message display identity (`username` /
+ * `icon_url`, Slack's own field names), letting one webhook post as many logical
+ * sources. That is a display override only: the bot still authors the row, so the
+ * BOT badge and squared avatar ride along and cannot be removed. There is no
+ * per-webhook toggle for it — the holder of the URL can already post arbitrary
+ * text as that bot, and the indelible badge makes the impersonating version
+ * impossible.
  */
 class IncomingWebhookController extends Controller
 {
@@ -29,6 +37,12 @@ class IncomingWebhookController extends Controller
 
     public function __invoke(Request $request, string $token, PostMessage $postMessage): JsonResponse
     {
+        // The sender is a machine and rarely sets `Accept`. Without it Laravel
+        // renders a validation failure as a redirect, and a `302` reads as
+        // success to curl — the opposite of the self-diagnosing `422` this
+        // endpoint promises. It only ever speaks JSON, so say so on its behalf.
+        $request->headers->set('Accept', 'application/json');
+
         $webhook = IncomingWebhook::query()
             ->active()
             ->where('token_hash', IncomingWebhook::hashToken($token))
@@ -40,18 +54,33 @@ class IncomingWebhookController extends Controller
 
         $this->verifySignature($request, $webhook);
 
-        $body = IncomingWebhookPayload::body($request->all());
+        $payload = $request->all();
+        $body = IncomingWebhookPayload::body($payload);
+        $override = IncomingWebhookPayload::authorOverride($payload);
 
-        Validator::make(['body' => $body], [
+        // A blank override field has already read as absent, so `nullable` here
+        // is the "post under the bot's own identity" path. Anything present but
+        // malformed fails instead of silently posting under a different name than
+        // the one asked for — for a feature whose whole point is identity, that is
+        // the worse failure. Plain `http` is allowed: ImageProxy accepts it and a
+        // self-hoster's asset host may not offer TLS. The `url` rule rather than a
+        // scheme prefix, so a bare `https://` — which would be signed into a proxy
+        // URL that can only ever fail to fetch — is rejected at the door.
+        $validated = Validator::make(['body' => $body, ...$override], [
             'body' => ['required', 'string', 'max:8000'],
+            'username' => ['nullable', 'string', 'max:255'],
+            'icon_url' => ['nullable', 'string', 'max:2048', 'url:http,https'],
         ])->validate();
 
         $bot = $webhook->bot;
         $channel = $webhook->channel;
 
         // The binding can outlive the membership that justified it (the bot was
-        // removed, or the channel was archived); refuse the post rather than
-        // authoring into a channel the bot may no longer touch.
+        // removed, or the channel was archived), and it can outlive the channel
+        // itself: a deleted channel is soft-deleted for its grace window, so the
+        // relation resolves to null rather than the row it points at. Refuse the
+        // post rather than authoring into a channel the bot may no longer touch.
+        abort_if($channel === null, 403);
         abort_unless(Gate::forUser($bot)->allows('postMessage', $channel), 403);
 
         $postMessage->handle(
@@ -59,9 +88,25 @@ class IncomingWebhookController extends Controller
             author: $bot,
             body: (string) $body,
             clientUuid: (string) Str::uuid(),
+            authorOverrideName: $this->nullableString($validated, 'username'),
+            authorOverrideAvatarUrl: $this->nullableString($validated, 'icon_url'),
+            incomingWebhookId: $webhook->id,
         );
 
         return response()->json(['ok' => true], 202);
+    }
+
+    /**
+     * Read a validated, nullable string out of the validator's output — the rules
+     * above guarantee the shape, this narrows it back to a type the action takes.
+     *
+     * @param  array<string, mixed>  $validated
+     */
+    private function nullableString(array $validated, string $key): ?string
+    {
+        $value = $validated[$key] ?? null;
+
+        return is_string($value) ? $value : null;
     }
 
     /**

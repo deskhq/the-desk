@@ -59,7 +59,7 @@ function mount(componentProps: Record<string, unknown> = {}): {
                 pins: [message()],
                 pinCount: 1,
                 canPin: true,
-                viewerTimezone: 'UTC',
+                viewerTimeZone: 'UTC',
                 onClose: capture('close'),
                 onJump: capture('jump'),
                 onUnpin: capture('unpin'),

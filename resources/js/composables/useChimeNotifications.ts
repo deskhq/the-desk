@@ -1,6 +1,7 @@
 import { usePage } from '@inertiajs/vue3';
 import { computed, onBeforeUnmount, onMounted } from 'vue';
 import { useChannelFleetSubscription } from '@/composables/useChannelFleetSubscription';
+import { isChannelTraffic } from '@/lib/channelTraffic';
 import { playChime, unlockChimeAudio } from '@/lib/chimeSounds';
 import { isDndActiveNow } from '@/lib/dnd';
 import { shouldChime } from '@/lib/shouldChime';
@@ -35,8 +36,7 @@ export function useChimeNotifications(): void {
         const decision = shouldChime({
             chimeEnabled: chimeSound.value !== 'off',
             isOwnMessage: message.user.id === currentUserId.value,
-            isChannelMessage:
-                message.threadRootId === null || message.sentToChannel,
+            isChannelMessage: isChannelTraffic(message),
             mentionsCurrentUser: message.mentions.some(
                 (mention) => mention.id === currentUserId.value,
             ),

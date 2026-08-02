@@ -114,8 +114,10 @@ export default defineConfigWithVueTs(
             // Blank lines and comments are skipped: the conventions here ask
             // for JSDoc on declarations and for *why* comments, and charging
             // those against the budget would punish exactly the behaviour the
-            // conventions require. Today's offenders are grandfathered by
-            // explicit path further down (#957).
+            // conventions require. The burn-down list of grandfathered paths
+            // (#957) is empty: `MainLayout.vue`, the last of them, came under
+            // the cap when its behaviour moved out (#1093), so every file in
+            // the tree is now held to the same threshold.
             'max-lines': [
                 'error',
                 { max: 400, skipBlankLines: true, skipComments: true },
@@ -236,26 +238,6 @@ export default defineConfigWithVueTs(
         rules: {
             'local/no-arbitrary-tailwind-spacing': 'off',
             'local/no-destructive-fill-as-text': 'off',
-        },
-    },
-    {
-        // Every file that already breached the `max-lines` cap when it was
-        // introduced (#957), listed by explicit path: a glob would hand new
-        // files the same free pass, which is the one thing the rule exists to
-        // prevent. The counts come from running the rule itself, not `wc -l`
-        // — six files over 400 raw lines fall under it once blanks and
-        // comments are skipped, and are deliberately absent here rather than
-        // being granted another 60 lines of room.
-        //
-        // This is a burn-down list, not a settlement: each entry is a file
-        // waiting to be split (#956 takes the first, `MainLayout.vue`).
-        // `eslint-rules/max-lines-policy.test.ts` fails as soon as an entry
-        // stops breaching the threshold, so the list can only shrink.
-        files: [
-            'resources/js/layouts/MainLayout.vue',
-        ],
-        rules: {
-            'max-lines': 'off',
         },
     },
     {

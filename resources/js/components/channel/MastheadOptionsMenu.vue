@@ -1,5 +1,12 @@
 <script setup lang="ts">
-import { Archive, EllipsisVertical, LogOut, Star } from '@lucide/vue';
+import {
+    Archive,
+    EllipsisVertical,
+    Info,
+    LogOut,
+    Star,
+    Trash2,
+} from '@lucide/vue';
 import type { AcceptableValue } from 'reka-ui';
 import { Button } from '@/components/ui/button';
 import {
@@ -30,6 +37,17 @@ const props = defineProps<{
     canManagePreferences: boolean;
     canArchive: boolean;
     /**
+     * Whether the viewer may delete the channel — a team Admin+ on a standard
+     * channel that isn't #general. Distinct from archiving: this one ends in the
+     * channel's contents being purged.
+     */
+    canDelete: boolean;
+    /**
+     * Whether this conversation has details worth opening — a standard channel
+     * always does, even for a viewer who may not edit them.
+     */
+    canViewDetails: boolean;
+    /**
      * Whether the viewer may leave the channel — a member of a standard channel
      * that isn't #general, or of a group DM.
      */
@@ -41,17 +59,25 @@ const props = defineProps<{
 }>();
 
 const emit = defineEmits<{
+    openDetails: [];
     toggleStar: [];
     notificationLevelChange: [value: AcceptableValue];
     muteChange: [value: boolean];
     archive: [];
+    delete: [];
     leave: [];
 }>();
 </script>
 
 <template>
     <DropdownMenu
-        v-if="props.canManagePreferences || props.canArchive || props.canLeave"
+        v-if="
+            props.canViewDetails ||
+            props.canManagePreferences ||
+            props.canArchive ||
+            props.canDelete ||
+            props.canLeave
+        "
     >
         <DropdownMenuTrigger as-child>
             <Button
@@ -65,6 +91,26 @@ const emit = defineEmits<{
             </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" class="w-56">
+            <!-- The channel's topic and description, and the form that edits
+                 them. Read-only for a viewer who may not edit, which is why it
+                 is not gated on the edit permission. -->
+            <template v-if="props.canViewDetails">
+                <DropdownMenuItem
+                    data-test="channel-details"
+                    @select="emit('openDetails')"
+                >
+                    <Info class="size-4" />
+                    {{ $t('Channel details') }}
+                </DropdownMenuItem>
+                <DropdownMenuSeparator
+                    v-if="
+                        props.canManagePreferences ||
+                        props.canArchive ||
+                        props.canDelete ||
+                        props.canLeave
+                    "
+                />
+            </template>
             <template v-if="props.canManagePreferences">
                 <!-- Starring files a channel into the sidebar's "Starred"
                      group; DMs live in their own fixed group and are never
@@ -133,9 +179,26 @@ const emit = defineEmits<{
                     {{ $t('Archive channel') }}
                 </DropdownMenuItem>
             </template>
+            <template v-if="props.canDelete">
+                <DropdownMenuSeparator
+                    v-if="props.canManagePreferences && !props.canArchive"
+                />
+                <DropdownMenuItem
+                    data-test="delete-channel"
+                    class="text-destructive-text focus:text-destructive-text"
+                    @select="emit('delete')"
+                >
+                    <Trash2 class="size-4" />
+                    {{ $t('Delete channel') }}
+                </DropdownMenuItem>
+            </template>
             <template v-if="props.canLeave">
                 <DropdownMenuSeparator
-                    v-if="props.canManagePreferences || props.canArchive"
+                    v-if="
+                        props.canManagePreferences ||
+                        props.canArchive ||
+                        props.canDelete
+                    "
                 />
                 <DropdownMenuItem
                     data-test="leave-channel"

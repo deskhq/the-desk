@@ -5,19 +5,22 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Settings;
 
 use App\Enums\SecurityEventType;
+use App\Events\SecurityEventOccurred;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Settings\SessionRevokeRequest;
-use App\Support\SecurityEventRecorder;
 use App\Support\SessionRegistry;
 use Illuminate\Http\RedirectResponse;
 use Inertia\Inertia;
 
+/**
+ * Revoking a session is a mutation of the {@see SessionRegistry} rather than of
+ * a domain model, so there is no Action for the security event to sit next to;
+ * these two dispatch it themselves. Both facts also depend on the request's own
+ * session, which only a controller has.
+ */
 class SessionController extends Controller
 {
-    public function __construct(
-        private readonly SessionRegistry $registry,
-        private readonly SecurityEventRecorder $securityEvents,
-    ) {}
+    public function __construct(private readonly SessionRegistry $registry) {}
 
     /**
      * Revoke a single session, protecting the request's own session.
@@ -29,7 +32,7 @@ class SessionController extends Controller
     {
         if ($session !== $request->session()->getId()
             && $this->registry->forget($request->user()->id, $session)) {
-            $this->securityEvents->record($request->user(), SecurityEventType::SessionRevoked);
+            event(new SecurityEventOccurred($request->user(), SecurityEventType::SessionRevoked));
 
             Inertia::flash('toast', ['type' => 'success', 'message' => __('Session revoked')]);
         }
@@ -47,7 +50,7 @@ class SessionController extends Controller
         $revoked = $this->registry->forgetOthers($request->user()->id, $request->session()->getId());
 
         if ($revoked > 0) {
-            $this->securityEvents->record($request->user(), SecurityEventType::OtherSessionsRevoked);
+            event(new SecurityEventOccurred($request->user(), SecurityEventType::OtherSessionsRevoked));
 
             Inertia::flash('toast', ['type' => 'success', 'message' => __('Logged out of your other devices')]);
         }

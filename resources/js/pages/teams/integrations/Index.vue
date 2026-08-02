@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { Head } from '@inertiajs/vue3';
+import { Head, usePage } from '@inertiajs/vue3';
 import { ExternalLink } from '@lucide/vue';
-import { ref } from 'vue';
+import { computed, ref } from 'vue';
 import BotsRack from '@/components/integrations/BotsRack.vue';
 import IncomingWebhooksRack from '@/components/integrations/IncomingWebhooksRack.vue';
 import NewBotDialog from '@/components/integrations/NewBotDialog.vue';
@@ -44,6 +44,24 @@ defineOptions({
 });
 
 const DOCS_URL = 'https://docs.thedeskhq.app/reference/api/';
+
+/**
+ * Inertia's `page.url` is a root-relative path, which `URL` cannot parse on its
+ * own. The base below only satisfies that constructor and never reaches the
+ * result.
+ */
+const URL_BASE = 'http://localhost';
+
+const page = usePage();
+
+/**
+ * The hook an admin arrived here to act on, named by `?webhook=` on the link a
+ * message's provenance card offers. Null on an ordinary visit, which singles out
+ * nothing.
+ */
+const highlightedWebhookId = computed(() =>
+    new URL(page.url, URL_BASE).searchParams.get('webhook'),
+);
 
 const showBotDialog = ref(false);
 const showIncomingDialog = ref(false);
@@ -92,6 +110,7 @@ const showOutgoingDialog = ref(false);
         <IncomingWebhooksRack
             :team="team.slug"
             :webhooks="incomingWebhooks"
+            :highlighted-id="highlightedWebhookId"
             :can-create="bots.length > 0"
             @create="showIncomingDialog = true"
         />

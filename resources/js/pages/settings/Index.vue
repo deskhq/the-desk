@@ -7,11 +7,11 @@ import PresenceDot from '@/components/PresenceDot.vue';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import UserStatusEmoji from '@/components/UserStatusEmoji.vue';
+import { useDialog } from '@/composables/useDialog';
 import { useInitials } from '@/composables/useInitials';
 import { useIsMobile } from '@/composables/useIsMobile';
 import { useSettingsNavItems } from '@/composables/useSettingsNavItems';
 import { useUpdateStatus } from '@/composables/useUpdateStatus';
-import { useUserStatusDialog } from '@/composables/useUserStatusDialog';
 import { isDndActiveNow } from '@/lib/dnd';
 import { presenceLabelKey } from '@/lib/presence';
 import type { RenderedPresence } from '@/lib/presence';
@@ -25,7 +25,7 @@ defineProps<{
 
 const page = usePage();
 const { getInitials } = useInitials();
-const { open: openStatusDialog } = useUserStatusDialog();
+const { open: openStatusDialog } = useDialog('status');
 const { workspaceUrl, navItems, teamAdminNavItems } = useSettingsNavItems();
 
 // The index exists for the one-pane world below the breakpoint; from md up the

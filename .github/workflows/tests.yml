@@ -90,10 +90,16 @@ jobs:
           php-version: '8.5'
           extensions: gd, imagick
           tools: composer:v2
-          # CI does not enforce the coverage gate — that stays local via
-          # `composer test` (--min=100 with PCOV). Loading a coverage driver
-          # here would only slow the suite down (see #582).
-          coverage: none
+          # CI enforces the 100% coverage gate, so it needs a driver (#1133).
+          # PCOV, not Xdebug: it only records line hits, where Xdebug rewrites
+          # execution wholesale and roughly doubles the suite. #582 turned the
+          # driver off here on the assumption that every author runs `composer
+          # test` before merging, which #1102 and #1118 disproved in consecutive
+          # merges — a refactor that drops a method's last caller breaks no
+          # test, so the hole it opens is only found by the next person to run
+          # the gate on unrelated work. Matches the local pcov.directory (`.`),
+          # so the figure CI reports is the one `composer test` reports.
+          coverage: pcov
 
       - name: Setup Node
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v6
@@ -152,8 +158,26 @@ jobs:
       # into per-stage jobs proposed in #582 was measured and declined: Tests
       # dominate the job (~6 of ~7.5 min) while build/vue-tsc/PHPStan take
       # seconds each, so extra per-job setup would cost more than it saves.
+      #
+      # `--stop-on-defect` so a run whose verdict is already decided stops
+      # buying Actions minutes to confirm it (#1075). Under paratest that stops
+      # *scheduling* work rather than killing it, so the workers already
+      # mid-test finish theirs and a handful of results land after the first ⨯.
+      # Spelled this way rather than as pest's `--bail`, which Collision rejects
+      # before it spawns pest — it validates the options it forwards against
+      # paratest's own input definition, and `--bail` is pest-side sugar.
+      #
+      # `--coverage --min=100` so the floor is enforced where the cost of
+      # dropping below it is paid by whoever dropped it, rather than by the next
+      # person to run `composer test` on unrelated work (#1133). Note the two
+      # flags interact: a bailed run exits non-zero before Collision prints a
+      # figure, so a red suite reports the failing test and never a coverage
+      # number — the floor is only ever reported on an otherwise-green run,
+      # which is the only run whose figure means anything.
+      # Guarded by tests/Unit/LocalTestGateTest.php and
+      # tests/Unit/CiCoverageGateTest.php.
       - name: Tests
-        run: php artisan test --parallel
+        run: php artisan test --parallel --stop-on-defect --coverage --min=100
 
   # Browser (E2E) realtime suite: drives real Playwright browsers against the
   # app served in-process, with a live Reverb server so two clients exchange
@@ -164,6 +188,17 @@ jobs:
     # Skipped on automation-owned PRs for the same reason as the ci job above.
     if: github.event_name != 'pull_request' || !(startsWith(github.head_ref, 'release-please--') || startsWith(github.head_ref, 'chore/candidate-baseline-')) || github.event.pull_request.head.repo.full_name != github.repository
     runs-on: ${{ vars.CI_RUNNER || 'ubuntu-latest' }}
+
+    # A browser test can hang rather than fail, and nothing below this line will
+    # end it: a Playwright action waiting on a target that can never take the
+    # click waits forever, and the suite has no timeout of its own to cut it
+    # short. Without this the job inherits GitHub's six-hour default and holds a
+    # runner for the afternoon, reporting *pending* the whole way, so the only
+    # thing that ever ends it is someone noticing and cancelling by hand
+    # (#1106). Twice the ~10 minutes the suite takes on a green run, which is
+    # room for a slow runner and still names a hang while you are still looking
+    # at the PR.
+    timeout-minutes: 30
 
     services:
       postgres:
@@ -230,8 +265,35 @@ jobs:
         with:
           composer-options: '--optimize-autoloader'
 
+      # `install --with-deps` split in two so the log keeps timing the halves
+      # apart, because only one of them is cacheable: `install-deps` shells out to
+      # apt for nine font packages (`ubuntu-latest` already carries Chromium's
+      # shared libraries) and leaves runner state no cache can restore, while the
+      # ~300 MB browser bundle below is just files. Measured at ~14s and ~10s of a
+      # ~24s step over eight runs (#1078). Both browser-driving workflows carry
+      # this block verbatim — see tests/Unit/PlaywrightBrowserCacheTest.php.
+      - name: Resolve Playwright Version
+        id: playwright
+        run: |
+          echo "version=$(node -p "require('playwright/package.json').version")" >> "$GITHUB_OUTPUT"
+
+      # Keyed on the version npm resolved rather than on `package.json`, whose
+      # `^1.61.1` would hold a patch bump — and the new Chromium revision it pins
+      # — on the entry cut for the version before it.
+      - name: Cache Playwright Browser
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ steps.playwright.outputs.version }}
+
+      - name: Install Playwright System Dependencies
+        run: npx playwright install-deps chromium
+
+      # Unconditional on purpose: `install` re-verifies what the cache restored
+      # and fetches whatever is missing, so a cold or half-written entry costs the
+      # download it always cost rather than a job with no browser.
       - name: Install Playwright Browser
-        run: npx playwright install --with-deps chromium
+        run: npx playwright install chromium
 
       - name: Copy Environment File
         run: cp .env.example .env
@@ -269,6 +331,9 @@ jobs:
       # `--parallel` left to its own default is measurably slower *and* flakier
       # than that cap (#948). It echoes the invocation it resolved to as the
       # first line of the step, so the count in force is in the log rather than
-      # inferred from whichever runner CI_RUNNER points at.
+      # inferred from whichever runner CI_RUNNER points at. It also carries the
+      # `--stop-on-defect` this job used to run without (#1075) — inside the
+      # runner rather than appended here, so every entry point bails, not just
+      # this one.
       - name: Run Browser Tests
         run: ./bin/browser-tests --ci

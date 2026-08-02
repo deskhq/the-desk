@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace App\Observers;
 
 use App\Enums\SecurityEventType;
+use App\Events\SecurityEventOccurred;
 use App\Models\User;
-use App\Support\SecurityEventRecorder;
 
 class UserObserver
 {
@@ -27,11 +27,36 @@ class UserObserver
             return;
         }
 
-        app(SecurityEventRecorder::class)->record(
+        event(new SecurityEventOccurred(
             $user,
             $user->deactivated_at === null
                 ? SecurityEventType::AccountReactivated
                 : SecurityEventType::AccountDeactivated,
-        );
+        ));
+    }
+
+    /**
+     * Handle the User "deleting" event, dropping the account's API tokens.
+     *
+     * Sanctum's `personal_access_tokens` addresses its owner through a
+     * polymorphic pair (`tokenable_type` + `tokenable_id`) with no foreign key,
+     * so no cascade reaches these rows the way one reaches a bot's incoming
+     * webhooks or channel memberships. Left alone they outlive their owner
+     * forever, in the table every API request's token lookup scans.
+     *
+     * Sweeping here rather than in a caller covers every deletion path at once
+     * — {@see App\Actions\Integrations\DeleteBot} for a bot and
+     * {@see App\Support\AccountDeleter} for a human — and runs inside whatever
+     * transaction that caller opened, since it fires from `delete()` itself.
+     *
+     * The rows are already inert by the time they are swept: Sanctum resolves a
+     * token's `tokenable` on every request and refuses when it is gone, so this
+     * is hygiene, not a live credential being closed off. Deleting them nulls
+     * `messages.token_id` on anything the tokens posted, exactly as revoking a
+     * token by hand already does — the attribution thins, the messages stay.
+     */
+    public function deleting(User $user): void
+    {
+        $user->tokens()->delete();
     }
 }

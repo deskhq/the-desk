@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Head } from '@inertiajs/vue3';
-import { computed, nextTick, onMounted, ref, watch } from 'vue';
+import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue';
 import ArchivedNotice from '@/components/channel/ArchivedNotice.vue';
 import ChannelAnnouncers from '@/components/channel/ChannelAnnouncers.vue';
 import ChannelComposerDock from '@/components/channel/ChannelComposerDock.vue';
@@ -17,6 +17,7 @@ import { useChannelTimeline } from '@/composables/useChannelTimeline';
 import { useChannelTyping } from '@/composables/useChannelTyping';
 import { useComposerTarget } from '@/composables/useComposerTarget';
 import { useMessageActions } from '@/composables/useMessageActions';
+import { provideMessageActions } from '@/composables/useMessageActionsContext';
 import { useOfflineOutbox } from '@/composables/useOfflineOutbox';
 import { useRailBottomInset } from '@/composables/useRailInset';
 import { useReadOnFocus } from '@/composables/useReadOnFocus';
@@ -42,7 +43,16 @@ const props = defineProps<{
     messages: MessagePage;
     members: Mention[];
     canArchive: boolean;
+    /** Whether the viewer may delete it (a team Admin+, not #general or a DM). */
+    canDelete: boolean;
     canManagePreferences: boolean;
+    /**
+     * Whether the viewer may reword the channel's topic and description (any
+     * member of a live standard channel); drives the details modal's edit mode.
+     */
+    canEditChannel: boolean;
+    /** Whether the viewer may also rename it (the creator or a team Admin+). */
+    canRenameChannel: boolean;
     /**
      * Whether the viewer may leave the channel (a member of a standard channel
      * that isn't #general); drives the "Leave channel" menu item and modal.
@@ -101,6 +111,7 @@ const {
     currentUser,
     isSelfDm,
     mastheadTitle,
+    pageTitle,
     canAddPeople,
     composerPlaceholder,
     canModerate,
@@ -208,9 +219,15 @@ const {
     threadReplies: () => props.threadReplies,
 });
 
-/** Bring a message into view in the timeline and mark it for a beat. */
-function jumpToMessage(id: string): void {
-    pane.value?.jumpToMessage(id);
+/**
+ * Bring a message into view in the timeline and mark it for a beat. A nullish
+ * id is the ordinary "no jump asked for" case (a plain channel visit), so it is
+ * a no-op rather than the caller's business to guard.
+ */
+function jumpToMessage(id: string | null | undefined): void {
+    if (id) {
+        pane.value?.jumpToMessage(id);
+    }
 }
 
 const { markRead } = useReadPointer({
@@ -259,14 +276,7 @@ onMounted(() => {
 
 // A jump to another result in the same already-open channel reuses this
 // component, so the channel-id watch won't fire; react to the target changing.
-watch(
-    () => props.jumpToMessageId,
-    (id) => {
-        if (id) {
-            jumpToMessage(id);
-        }
-    },
-);
+watch(() => props.jumpToMessageId, jumpToMessage);
 
 // Inertia may reuse this page component when navigating between channels; reset
 // the message-orchestration state this page owns when the channel changes. The
@@ -353,14 +363,47 @@ flushOnReconnect(actions.flushOutbox);
  * list's "sends at" labels so a scheduled time always reads in their own zone.
  */
 const { timezone } = useTimezone();
+
+/**
+ * Publish what a message row needs, once, for the whole page (ADR-0009): who
+ * the viewer is, what this channel lets them do, and every action they can ask
+ * for. Nothing between here and a row re-declares any of it — the pane, the
+ * thread panel, the timeline and the row itself read it where they use it.
+ *
+ * Some actions are writes the engine above owns; the rest raise a dialog or
+ * move the reader. Both kinds look the same from a row, which is the point.
+ */
+provideMessageActions(
+    reactive({
+        currentUserId: computed(() => currentUser.value.id),
+        canReact: computed(() => props.canReact),
+        // Pinning is a shared toggle gated on the same membership as reacting.
+        canPin: computed(() => props.canReact),
+        canModerate,
+        viewerTimeZone: timezone,
+        actions: {
+            react: actions.reactToMessage,
+            vote: actions.voteOnPoll,
+            closePoll: actions.closePoll,
+            pin: actions.pinMessage,
+            unpin: actions.unpinMessage,
+            remind: (message: Message, remindAt: string) =>
+                dialogs.value?.remindWith(message, remindAt),
+            remindCustom: (message: Message) =>
+                dialogs.value?.openCustomReminder(message),
+            forward: (message: Message) => dialogs.value?.openForward(message),
+            jump: jumpToMessage,
+            edit: actions.editMessage,
+            delete: actions.deleteMessage,
+            reply: startReply,
+            openThread,
+        },
+    }),
+);
 </script>
 
 <template>
-    <Head
-        :title="
-            props.channel.isDirect ? mastheadTitle : `#${props.channel.name}`
-        "
-    />
+    <Head :title="pageTitle" />
 
     <ChannelAnnouncers
         ref="announcers"
@@ -384,6 +427,7 @@ const { timezone } = useTimezone();
                 :title="mastheadTitle"
                 :can-manage-preferences="props.canManagePreferences"
                 :can-archive="props.canArchive"
+                :can-delete="props.canDelete"
                 :can-leave="props.canLeave"
                 :can-add-people="canAddPeople"
                 :can-pin="props.canReact"
@@ -392,8 +436,10 @@ const { timezone } = useTimezone();
                 :pin-count="props.pinCount"
                 :connection-pill="connection.pill.value"
                 :scrolled="pane?.scrolled ?? false"
-                :viewer-timezone="timezone"
+                :viewer-time-zone="timezone"
+                @open-details="dialogs?.openDetails()"
                 @archive="dialogs?.confirmArchive()"
+                @delete="dialogs?.confirmDelete()"
                 @leave="dialogs?.confirmLeave()"
                 @add-people="dialogs?.openAddPeople()"
                 @jump="jumpToMessage"
@@ -406,12 +452,9 @@ const { timezone } = useTimezone();
                 :channel="props.channel"
                 :messages="displayMessages"
                 :server-messages="serverMessages"
-                :current-user-id="currentUser.id"
                 :is-self-dm="isSelfDm"
                 :pending-uuids="pendingUuids"
                 :queued-uuids="queuedUuids"
-                :can-moderate="canModerate"
-                :can-react="props.canReact"
                 :can-drop-files="props.isMember && !props.channel.isArchived"
                 :presence-for="presenceFor"
                 :is-dnd-for="isDndFor"
@@ -426,21 +469,6 @@ const { timezone } = useTimezone();
                 @scroll="onScroll"
                 @files="(files) => dock?.addFiles(files)"
                 @focus-composer="dock?.focus()"
-                @edit="actions.editMessage"
-                @delete="actions.deleteMessage"
-                @reply="startReply"
-                @forward="(message) => dialogs?.openForward(message)"
-                @react="actions.reactToMessage"
-                @vote="actions.voteOnPoll"
-                @close-poll="actions.closePoll"
-                @pin="actions.pinMessage"
-                @unpin="actions.unpinMessage"
-                @remind="(message, at) => dialogs?.remindWith(message, at)"
-                @remind-custom="
-                    (message) => dialogs?.openCustomReminder(message)
-                "
-                @open-thread="openThread"
-                @jump="jumpToMessage"
                 @mention="(member) => dock?.insertMention(member)"
             >
                 <ArchivedNotice v-if="props.channel.isArchived" />
@@ -505,30 +533,13 @@ const { timezone } = useTimezone();
                 :pending-uuids="threadPendingUuids"
                 :members="mentionableMembers"
                 :has-bots="channelHasBots"
-                :current-user-id="currentUser.id"
-                :can-moderate="canModerate"
-                :can-react="props.canReact"
-                :can-pin="props.canReact"
                 :presence-for="presenceFor"
                 :is-dnd-for="isDndFor"
                 :loading="threadLoading"
                 :read-only="props.channel.isArchived"
                 @close="closeThread"
                 @send="actions.sendThreadReply"
-                @edit="actions.editMessage"
-                @delete="actions.deleteMessage"
-                @forward="(message) => dialogs?.openForward(message)"
-                @react="actions.reactToMessage"
-                @vote="actions.voteOnPoll"
-                @close-poll="actions.closePoll"
-                @pin="actions.pinMessage"
-                @unpin="actions.unpinMessage"
-                @remind="(message, at) => dialogs?.remindWith(message, at)"
-                @remind-custom="
-                    (message) => dialogs?.openCustomReminder(message)
-                "
                 @typing="typing.signalTyping"
-                @jump="jumpToMessage"
             />
         </Transition>
     </div>
@@ -538,6 +549,8 @@ const { timezone } = useTimezone();
         :team="props.team"
         :channel="props.channel"
         :current-user-id="currentUser.id"
+        :can-edit-channel="props.canEditChannel"
+        :can-rename-channel="props.canRenameChannel"
         :timezone="timezone"
         :scheduled-messages="props.scheduledMessages"
         :forward-message="actions.forwardMessage"

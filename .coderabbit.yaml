@@ -52,7 +52,7 @@ reviews:
   path_instructions:
     - path: "**/*.php"
       instructions: >-
-        Follow the PHP conventions in CLAUDE.md: always use curly braces for control
+        Follow the PHP conventions in .claude/rules/laravel-boost.md: always use curly braces for control
         structures; use constructor property promotion; declare explicit return types and
         parameter type hints; prefer PHPDoc blocks over inline comments with array-shape
         types; TitleCase enum keys. This repo requires 100% test coverage (gated at --min=100),

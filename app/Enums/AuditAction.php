@@ -10,11 +10,14 @@ namespace App\Enums;
 enum AuditAction: string
 {
     case TeamRenamed = 'team_renamed';
+    case ChannelCreationPolicyChanged = 'channel_creation_policy_changed';
     case MemberRoleChanged = 'member_role_changed';
     case MemberRemoved = 'member_removed';
     case OwnershipTransferred = 'ownership_transferred';
     case ChannelCreated = 'channel_created';
     case ChannelArchived = 'channel_archived';
+    case ChannelDeleted = 'channel_deleted';
+    case ChannelRestored = 'channel_restored';
     case ChannelMemberAdded = 'channel_member_added';
     case ChannelMemberRemoved = 'channel_member_removed';
     case MessageDeleted = 'message_deleted';
@@ -37,6 +40,7 @@ enum AuditAction: string
     case WebhookSubscriptionAutoDisabled = 'webhook_subscription_auto_disabled';
     case WebhookSubscriptionReenabled = 'webhook_subscription_reenabled';
     case WebhookSubscriptionSecretRotated = 'webhook_subscription_secret_rotated';
+    case WebhookDeliveryReplayed = 'webhook_delivery_replayed';
 
     /**
      * Get the short human-readable label used in the action filter and headers.
@@ -45,11 +49,14 @@ enum AuditAction: string
     {
         return match ($this) {
             self::TeamRenamed => __('Workspace renamed'),
+            self::ChannelCreationPolicyChanged => __('Channel-creation policy changed'),
             self::MemberRoleChanged => __('Member role changed'),
             self::MemberRemoved => __('Member removed'),
             self::OwnershipTransferred => __('Ownership transferred'),
             self::ChannelCreated => __('Channel created'),
             self::ChannelArchived => __('Channel archived'),
+            self::ChannelDeleted => __('Channel deleted'),
+            self::ChannelRestored => __('Channel restored'),
             self::ChannelMemberAdded => __('Channel member added'),
             self::ChannelMemberRemoved => __('Channel member removed'),
             self::MessageDeleted => __('Message deleted'),
@@ -72,6 +79,7 @@ enum AuditAction: string
             self::WebhookSubscriptionAutoDisabled => __('Webhook subscription auto-disabled'),
             self::WebhookSubscriptionReenabled => __('Webhook subscription re-enabled'),
             self::WebhookSubscriptionSecretRotated => __('Webhook secret rotated'),
+            self::WebhookDeliveryReplayed => __('Webhook delivery replayed'),
         };
     }
 
@@ -86,11 +94,14 @@ enum AuditAction: string
     {
         return match ($this) {
             self::TeamRenamed => sprintf(__('Renamed the workspace from “%s” to “%s”'), $this->text($context, 'old_name'), $this->text($context, 'new_name')),
+            self::ChannelCreationPolicyChanged => sprintf(__('Changed the %s channel-creation policy from “%s” to “%s”'), $this->text($context, 'visibility'), $this->text($context, 'old_policy'), $this->text($context, 'new_policy')),
             self::MemberRoleChanged => sprintf(__('Changed %s’s role from %s to %s'), $this->text($context, 'member_name'), $this->text($context, 'old_role'), $this->text($context, 'new_role')),
             self::MemberRemoved => sprintf(__('Removed %s from the workspace'), $this->text($context, 'member_name')),
             self::OwnershipTransferred => sprintf(__('Transferred ownership to %s'), $this->text($context, 'new_owner_name')),
             self::ChannelCreated => sprintf(__('Created #%s'), $this->text($context, 'channel_name')),
             self::ChannelArchived => sprintf(__('Archived #%s'), $this->text($context, 'channel_name')),
+            self::ChannelDeleted => sprintf(__('Deleted #%s, to be purged on %s'), $this->text($context, 'channel_name'), $this->text($context, 'purge_at')),
+            self::ChannelRestored => sprintf(__('Restored #%s'), $this->text($context, 'channel_name')),
             self::ChannelMemberAdded => sprintf(__('Added %s to #%s'), $this->text($context, 'member_name'), $this->text($context, 'channel_name')),
             self::ChannelMemberRemoved => sprintf(__('Removed %s from #%s'), $this->text($context, 'member_name'), $this->text($context, 'channel_name')),
             self::MessageDeleted => sprintf(__('Deleted a message from %s in #%s'), $this->text($context, 'author_name'), $this->text($context, 'channel_name')),
@@ -113,6 +124,7 @@ enum AuditAction: string
             self::WebhookSubscriptionAutoDisabled => sprintf(__('Auto-disabled the “%s” webhook subscription after %s consecutive failures'), $this->text($context, 'subscription_name'), $this->text($context, 'failures')),
             self::WebhookSubscriptionReenabled => sprintf(__('Re-enabled the “%s” webhook subscription'), $this->text($context, 'subscription_name')),
             self::WebhookSubscriptionSecretRotated => sprintf(__('Rotated the signing secret for the “%s” webhook subscription'), $this->text($context, 'subscription_name')),
+            self::WebhookDeliveryReplayed => sprintf(__('Replayed a %s delivery to the “%s” webhook subscription'), $this->text($context, 'event_type'), $this->text($context, 'subscription_name')),
         };
     }
 

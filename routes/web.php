@@ -5,6 +5,7 @@ use App\Http\Controllers\Auth\Sso\OidcController;
 use App\Http\Controllers\BrandingAssetController;
 use App\Http\Controllers\Channels\AttachmentController;
 use App\Http\Controllers\Channels\ChannelController;
+use App\Http\Controllers\Channels\ChannelDeletionSummaryController;
 use App\Http\Controllers\Channels\ChannelDraftController;
 use App\Http\Controllers\Channels\ChannelMemberController;
 use App\Http\Controllers\Channels\ChannelPlacementController;
@@ -110,6 +111,17 @@ Route::middleware(['auth', 'verified', EnsureTeamMembership::class])->group(func
     Route::get('t/{team}/c/{channel}', [ChannelController::class, 'show'])
         ->scopeBindings()
         ->name('channels.show');
+    Route::patch('t/{team}/c/{channel}', [ChannelController::class, 'update'])
+        ->scopeBindings()
+        ->name('channels.update');
+    Route::delete('t/{team}/c/{channel}', [ChannelController::class, 'destroy'])
+        ->scopeBindings()
+        ->name('channels.destroy');
+    // Read on demand by the delete confirmation dialog, so the counts are not paid
+    // for on every channel render.
+    Route::get('t/{team}/c/{channel}/deletion-summary', [ChannelDeletionSummaryController::class, 'show'])
+        ->scopeBindings()
+        ->name('channels.deletion-summary');
     Route::post('t/{team}/c/{channel}/join', [ChannelController::class, 'join'])
         ->scopeBindings()
         ->name('channels.join');

@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace App\Actions\Teams;
 
+use App\Enums\AuditAction;
 use App\Enums\TeamRole;
+use App\Events\AuditableActionOccurred;
 use App\Models\Team;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
@@ -28,6 +30,10 @@ class TransferTeamOwnership
             $team->memberships()
                 ->where('user_id', $newOwner->id)
                 ->update(['role' => TeamRole::Owner]);
+
+            event(new AuditableActionOccurred($team, $currentOwner, AuditAction::OwnershipTransferred, $newOwner, [
+                'new_owner_name' => $newOwner->name,
+            ]));
         });
     }
 }

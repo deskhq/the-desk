@@ -27,7 +27,10 @@ class AccountDeleter
      *
      * Their web-push subscriptions are dropped explicitly: the owning column is
      * a polymorphic reference, so no foreign key sweeps them, and a stale row
-     * would keep this instance pushing to a device whose account is gone.
+     * would keep this instance pushing to a device whose account is gone. Their
+     * API tokens are polymorphic for the same reason and go the same way, swept
+     * by {@see App\Observers\UserObserver::deleting()} so that every deletion
+     * path is covered rather than only this one.
      */
     public function delete(User $user): void
     {

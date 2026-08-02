@@ -58,15 +58,17 @@ final readonly class MessageSearchPanel
     ) {}
 
     /**
-     * Resolve the panel from the search params pinned on the current URL.
+     * The criteria pinned on the current URL, for a caller that already holds
+     * the viewer and team — the workspace shell resolves those once and only
+     * needs the URL read.
      *
      * The date facets are widened to whole-day bounds — `after` from the start of
      * its day, `before` to the end — so a single-day range is inclusive of every
      * message posted on it.
      */
-    public static function fromRequest(Request $request, User $viewer, Team $team): self
+    public static function criteriaFromRequest(Request $request): MessageSearchCriteria
     {
-        return new self($viewer, $team, new MessageSearchCriteria(
+        return new MessageSearchCriteria(
             query: trim((string) self::param($request, 'q')),
             authorId: self::param($request, 'from'),
             channelId: self::param($request, 'in'),
@@ -74,7 +76,7 @@ final readonly class MessageSearchPanel
             before: self::day(self::param($request, 'before'))?->endOfDay(),
             scope: SearchScope::tryFrom((string) self::param($request, 'scope')) ?? SearchScope::default(),
             hasAttachments: self::param($request, 'has') === self::HAS_FILE,
-        ));
+        );
     }
 
     /**

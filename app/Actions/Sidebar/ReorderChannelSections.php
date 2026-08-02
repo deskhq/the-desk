@@ -4,6 +4,7 @@ namespace App\Actions\Sidebar;
 
 use App\Models\Team;
 use App\Models\User;
+use App\Support\ManualOrder;
 
 class ReorderChannelSections
 {
@@ -12,21 +13,17 @@ class ReorderChannelSections
      *
      * Each id is assigned its index as the new position, so the sidebar renders
      * the sections in exactly the order given. Scoped to the user's own sections
-     * in the team, so ids for other users or teams are ignored.
+     * in the team, so ids for other users or teams are ignored — the same walk a
+     * channel drag runs, see {@see ManualOrder}.
      *
      * @param  list<string>  $orderedIds
      */
     public function handle(User $user, Team $team, array $orderedIds): void
     {
-        $sections = $user->channelSections()
-            ->where('team_id', $team->id)
-            ->pluck('id')
-            ->all();
-
-        foreach ($orderedIds as $index => $id) {
-            if (in_array($id, $sections, true)) {
-                $user->channelSections()->whereKey($id)->update(['position' => $index]);
-            }
-        }
+        ManualOrder::apply(
+            $user->channelSections()->where('team_id', $team->id)->getQuery(),
+            'id',
+            $orderedIds,
+        );
     }
 }

@@ -36,6 +36,7 @@
         "symfony/dom-crawler": "^8.1"
     },
     "require-dev": {
+        "deskhq/laravel-worktree": "^0.3.0",
         "driftingly/rector-laravel": "^2.5",
         "larastan/larastan": "^3.9",
         "laravel/boost": "^2.2",
@@ -103,7 +104,7 @@
             "@lint:check",
             "@types:check",
             "@refactor:check",
-            "@php artisan test --parallel --coverage --min=100"
+            "@php artisan test --parallel --stop-on-defect --coverage --min=100"
         ],
         "test:browser": [
             "Composer\\Config::disableProcessTimeout",

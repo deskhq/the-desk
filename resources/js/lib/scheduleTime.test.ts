@@ -4,6 +4,7 @@ import {
     formatPresetPreview,
     formatScheduledFor,
     isSendAtInFuture,
+    quickSchedulePresets,
     schedulePresets,
     to12Hour,
     to24Hour,
@@ -89,6 +90,47 @@ describe('schedulePresets', () => {
         );
 
         expect(byKey['next-monday']).toBe('2026-07-27T09:00:00.000Z');
+    });
+});
+
+describe('quickSchedulePresets', () => {
+    it('offers the three quick picks in menu order, each with its resolved preview', () => {
+        expect(quickSchedulePresets('UTC', NOW)).toEqual([
+            {
+                key: 'in-an-hour',
+                label: 'In 1 hour',
+                sendAt: '2026-07-14T16:30:00.000Z',
+                preview: '4:30 PM',
+            },
+            {
+                key: 'tomorrow-morning',
+                label: 'Tomorrow morning',
+                sendAt: '2026-07-15T09:00:00.000Z',
+                preview: 'Wed 9:00 AM',
+            },
+            {
+                key: 'next-monday',
+                label: 'Monday morning',
+                sendAt: '2026-07-20T09:00:00.000Z',
+                preview: 'Jul 20, 9:00 AM',
+            },
+        ]);
+    });
+
+    it('leaves out "this evening", which the quick picks never offer', () => {
+        const morning = new Date('2026-07-14T09:00:00.000Z');
+
+        expect(
+            quickSchedulePresets('UTC', morning).map((preset) => preset.key),
+        ).not.toContain('this-evening');
+    });
+
+    it('falls back to the browser zone when the viewer has none stored', () => {
+        // Whatever the host zone is, the presets still resolve rather than
+        // producing an Invalid Date from a null zone.
+        expect(
+            quickSchedulePresets(null, NOW).map((preset) => preset.sendAt),
+        ).toHaveLength(3);
     });
 });
 

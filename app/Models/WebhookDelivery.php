@@ -25,15 +25,27 @@ use Illuminate\Support\Carbon;
  * @property int|null $duration_ms
  * @property int $attempt
  * @property string|null $error
+ * @property array<string, mixed>|null $envelope
+ * @property bool $is_replay
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  * @property-read WebhookSubscription $subscription
  */
-#[Fillable(['webhook_subscription_id', 'event_type', 'event_id', 'succeeded', 'response_status', 'duration_ms', 'attempt', 'error'])]
+#[Fillable(['webhook_subscription_id', 'event_type', 'event_id', 'succeeded', 'response_status', 'duration_ms', 'attempt', 'error', 'envelope', 'is_replay'])]
 class WebhookDelivery extends Model
 {
     /** @use HasFactory<WebhookDeliveryFactory> */
     use HasFactory, HasUuids;
+
+    /**
+     * Determine whether this attempt can be re-fired manually, which needs the
+     * envelope that was sent. Attempts logged before envelopes were retained
+     * have none, so they can only be read.
+     */
+    public function isReplayable(): bool
+    {
+        return $this->envelope !== null;
+    }
 
     /**
      * Get the subscription this delivery attempt belongs to.
@@ -58,6 +70,8 @@ class WebhookDelivery extends Model
             'response_status' => 'integer',
             'duration_ms' => 'integer',
             'attempt' => 'integer',
+            'envelope' => 'array',
+            'is_replay' => 'boolean',
         ];
     }
 }

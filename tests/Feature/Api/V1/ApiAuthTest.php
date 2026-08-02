@@ -2,9 +2,12 @@
 
 declare(strict_types=1);
 
+use App\Actions\Integrations\DeleteBot;
+use App\Enums\TeamRole;
 use App\Models\Channel;
 use App\Models\Team;
 use App\Models\User;
+use Illuminate\Support\Facades\Auth;
 use Laravel\Sanctum\Sanctum;
 
 beforeEach(function (): void {
@@ -64,4 +67,20 @@ it('authenticates a real bearer token and enforces its abilities', function (): 
     $this->withToken($token)
         ->postJson("/api/v1/channels/{$this->channel->id}/messages", ['body' => 'hi'])
         ->assertForbidden();
+});
+
+it('refuses a deleted bot token with 401', function (): void {
+    $owner = User::factory()->create();
+    $this->team->members()->attach($owner, ['role' => TeamRole::Owner->value]);
+
+    $token = $this->bot->createToken('CI', ['channels:read'])->plainTextToken;
+    $this->withToken($token)->getJson('/api/v1/channels')->assertOk();
+
+    app(DeleteBot::class)->handle($owner, $this->bot);
+
+    // Without this the RequestGuard hands back the user it resolved above and
+    // the request passes, hiding whether the credential is really gone.
+    Auth::forgetGuards();
+
+    $this->withToken($token)->getJson('/api/v1/channels')->assertUnauthorized();
 });

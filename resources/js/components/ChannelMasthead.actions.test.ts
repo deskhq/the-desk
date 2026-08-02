@@ -76,10 +76,10 @@ vi.mock('@/composables/useNavPanel', async () => {
     return navPanelDouble();
 });
 
-vi.mock('@/composables/useQuickSwitcher', async () => {
-    const { quickSwitcherDouble } = await import('./ChannelMasthead.doubles');
+vi.mock('@/composables/useDialog', async () => {
+    const { dialogDouble } = await import('./ChannelMasthead.doubles');
 
-    return quickSwitcherDouble();
+    return dialogDouble();
 });
 
 import type { Emitted } from './ChannelMasthead.doubles';
@@ -108,6 +108,7 @@ function mount(props: Record<string, unknown> = {}): {
 const allPermissions = {
     canManagePreferences: true,
     canArchive: true,
+    canDelete: true,
     canLeave: true,
 };
 
@@ -243,7 +244,29 @@ describe('the masthead controls', () => {
 
 describe('the masthead options menu', () => {
     it('stays away entirely when the viewer may do none of it', () => {
-        expect(find(mount().host, 'channel-options')).toBeNull();
+        // A DM has no details to read, so with every permission closed there is
+        // nothing left in the menu at all.
+        const { host } = mount({
+            channel: channel({
+                isDirect: true,
+                dmUserId: 'peer',
+                dmParticipants: [participant()],
+            }),
+        });
+
+        expect(find(host, 'channel-options')).toBeNull();
+    });
+
+    it('keeps the menu on a channel for its details alone', () => {
+        const { host, emitted } = mount();
+
+        const details = find(host, 'channel-details') as HTMLElement;
+
+        expect(details.textContent).toContain('Channel details');
+
+        details.click();
+
+        expect(emitted.map(([event]) => event)).toContain('openDetails');
     });
 
     it('stars and unstars a channel without closing the menu', () => {
@@ -327,6 +350,18 @@ describe('the masthead options menu', () => {
         click(host, '[data-test="archive-channel"]');
 
         expect(emitted.map(([event]) => event)).toContain('archive');
+    });
+
+    it('offers deleting only to someone who may delete, separately from archiving', () => {
+        expect(
+            find(mount({ canArchive: true }).host, 'delete-channel'),
+        ).toBeNull();
+
+        const { host, emitted } = mount({ canDelete: true });
+
+        click(host, '[data-test="delete-channel"]');
+
+        expect(emitted.map(([event]) => event)).toContain('delete');
     });
 
     it('names leaving after the kind of conversation it is', () => {

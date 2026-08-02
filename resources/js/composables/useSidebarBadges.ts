@@ -4,6 +4,7 @@ import { computed, onBeforeUnmount, onMounted } from 'vue';
 import { useChannelFleetSubscription } from '@/composables/useChannelFleetSubscription';
 import { useDebouncedPost } from '@/composables/useDebouncedPost';
 import { backgroundVisit } from '@/lib/backgroundVisit';
+import { isChannelTraffic } from '@/lib/channelTraffic';
 import { shouldRefreshSidebar } from '@/lib/shouldRefreshSidebar';
 
 /** Coalesce a burst of arrivals into a single sidebar reload. */
@@ -72,8 +73,7 @@ export function useSidebarBadges(): void {
     useChannelFleetSubscription((channelId, message) => {
         const decision = shouldRefreshSidebar({
             isOwnMessage: message.user.id === currentUserId.value,
-            isChannelMessage:
-                message.threadRootId === null || message.sentToChannel,
+            isChannelMessage: isChannelTraffic(message),
             mentionsCurrentUser: message.mentions.some(
                 (mention) => mention.id === currentUserId.value,
             ),

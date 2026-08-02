@@ -348,3 +348,53 @@ describe('the stat tiles', () => {
         ).toBeNull();
     });
 });
+
+describe('the storage read-out', () => {
+    it('stays off the page while no workspace quota is configured', () => {
+        expect(find(mount(), 'analytics-storage')).toBeNull();
+        expect(find(mount({ storage: null }), 'analytics-storage')).toBeNull();
+    });
+
+    it('reports the usage, the quota and the space left', () => {
+        const host = mount({
+            storage: {
+                usedBytes: 1024 * 1024,
+                quotaBytes: 4 * 1024 * 1024,
+                percent: 25,
+            },
+        });
+
+        expect(find(host, 'analytics-storage')?.textContent).toContain(
+            'Storage',
+        );
+        expect(find(host, 'analytics-storage-percent')?.textContent).toContain(
+            '25% used',
+        );
+        expect(find(host, 'analytics-storage-size')?.textContent).toContain(
+            '1 MB of 4 MB',
+        );
+        expect(
+            find(host, 'analytics-storage-remaining')?.textContent,
+        ).toContain('3 MB free');
+    });
+
+    it('exposes the bar as a labelled progressbar', () => {
+        const host = mount({
+            storage: {
+                usedBytes: 3 * 1024 * 1024,
+                quotaBytes: 4 * 1024 * 1024,
+                percent: 75,
+            },
+        });
+
+        const bar = find(host, 'analytics-storage')?.querySelector(
+            '[role="progressbar"]',
+        );
+
+        expect(bar?.getAttribute('aria-label')).toBe('Storage used');
+        expect(bar?.getAttribute('aria-valuenow')).toBe('75');
+        expect(bar?.getAttribute('aria-valuemin')).toBe('0');
+        expect(bar?.getAttribute('aria-valuemax')).toBe('100');
+        expect(bar?.getAttribute('aria-valuetext')).toBe('3 MB of 4 MB');
+    });
+});

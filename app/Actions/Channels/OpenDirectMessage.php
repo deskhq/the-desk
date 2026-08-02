@@ -8,6 +8,7 @@ use App\Enums\NotificationLevel;
 use App\Models\Channel;
 use App\Models\Team;
 use App\Models\User;
+use App\Support\ChannelMembership;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -105,9 +106,7 @@ class OpenDirectMessage
             ]);
         }
 
-        $channel->channelMembers()
-            ->where('user_id', $initiator->id)
-            ->update(['hidden_at' => null]);
+        new ChannelMembership($channel, $initiator)->unhide();
     }
 
     /**

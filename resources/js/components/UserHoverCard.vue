@@ -1,6 +1,13 @@
 <script setup lang="ts">
 import { Link } from '@inertiajs/vue3';
-import { AtSign, MessageSquare, Moon, UserRound } from '@lucide/vue';
+import {
+    AtSign,
+    KeyRound,
+    MessageSquare,
+    Moon,
+    UserRound,
+    Webhook,
+} from '@lucide/vue';
 import { computed, ref } from 'vue';
 import PresenceDot from '@/components/PresenceDot.vue';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -14,10 +21,13 @@ import {
 import UserStatusEmoji from '@/components/UserStatusEmoji.vue';
 import { useInitials } from '@/composables/useInitials';
 import { useOpenDirectMessage } from '@/composables/useOpenDirectMessage';
+import { useTranslations } from '@/composables/useTranslations';
 import { fetchUserProfile } from '@/composables/useUserProfileCard';
 import { formatLocalTime, formatTimeOfDay } from '@/lib/datetime';
 import { presenceLabelKey } from '@/lib/presence';
 import type { RenderedPresence } from '@/lib/presence';
+import { index as integrationsIndex } from '@/routes/teams/integrations';
+import { show as botShow } from '@/routes/teams/integrations/bots';
 import { show } from '@/routes/teams/members';
 import type { UserProfile } from '@/types';
 
@@ -25,6 +35,20 @@ const props = defineProps<{
     teamSlug: string;
     userId: string;
     name: string;
+    /**
+     * The account a row was actually posted by, when what it displayed was a
+     * per-message identity override. The card names it ("via Deploy Bot") so a
+     * suspicious reader can always reach the real account. Null on every ordinary
+     * row, where the displayed name already is the account.
+     */
+    viaName?: string | null;
+    /**
+     * The credential that produced the row — an incoming webhook or an API token
+     * — when the viewer is one of the people who could revoke it. The server
+     * sends it to nobody else, so its mere presence is the permission; this
+     * component adds no check of its own.
+     */
+    credential?: App.Data.MessageCredentialData | null;
     /**
      * How the member reads on the team presence roster. Absent on the surfaces
      * that open a card without a roster to hand, which then show no dot at all.
@@ -44,6 +68,7 @@ const emit = defineEmits<{
 
 const { getInitials } = useInitials();
 const { openDirectMessage } = useOpenDirectMessage(() => props.teamSlug);
+const { t } = useTranslations();
 
 const profile = ref<UserProfile | null>(null);
 const loading = ref(false);
@@ -86,6 +111,41 @@ const statusClearsAt = computed(() =>
         ? formatTimeOfDay(profile.value.status.expiresAt)
         : null,
 );
+
+/**
+ * The page holding the offending credential's rack, with the row itself named,
+ * so an admin who arrives from a suspicious message lands on what they came to
+ * revoke. A webhook is revoked from the team-level integrations index; a token
+ * from its bot's own page, which is why the DTO carries the bot.
+ */
+const credentialHref = computed(() =>
+    props.credential?.kind === 'api_token'
+        ? botShow([props.teamSlug, props.credential.botId ?? ''], {
+              query: { token: props.credential.id },
+          })
+        : integrationsIndex(props.teamSlug, {
+              query: { webhook: props.credential?.id },
+          }),
+);
+
+/**
+ * How the card names the credential, and how a screen reader hears its Review
+ * link. Each kind gets whole sentences rather than a shared frame with the kind
+ * slotted in, so a translator is never handed English word order to work around.
+ */
+const credentialLabels = computed(() => {
+    const name = props.credential?.name ?? '';
+
+    return props.credential?.kind === 'api_token'
+        ? {
+              posted: t('Posted by the :name API token', { name }),
+              review: t('Review the :name API token', { name }),
+          }
+        : {
+              posted: t('Posted by the :name webhook', { name }),
+              review: t('Review the :name webhook', { name }),
+          };
+});
 
 function onMention(): void {
     emit('mention', { id: props.userId, name: props.name });
@@ -148,6 +208,15 @@ function onMessage(): void {
                                 >{{ profile.pronouns }}</span
                             >
                         </div>
+                        <!-- Provenance for a row that displayed a name of its
+                             own: which account actually posted it. -->
+                        <p
+                            v-if="viaName"
+                            data-test="hover-card-via"
+                            class="truncate font-serif text-xs text-muted-foreground italic"
+                        >
+                            {{ $t('via :name', { name: viaName }) }}
+                        </p>
                         <p
                             v-if="profile?.title"
                             class="truncate text-sm text-muted-foreground"
@@ -227,6 +296,45 @@ function onMessage(): void {
                         class="shrink-0 font-serif text-[10.5px] text-muted-foreground italic"
                         >{{ $t('until :time', { time: statusClearsAt }) }}</span
                     >
+                </div>
+
+                <!-- Which credential produced the row, for the admins who could
+                     revoke it. Everyone else is never sent one, so nothing here
+                     needs to hide it. A message arrives on exactly one path, so
+                     this block never has two credentials to choose between. -->
+                <div
+                    v-if="credential"
+                    data-test="hover-card-credential"
+                    :data-credential-kind="credential.kind"
+                    class="flex items-center gap-2.5 rounded-[10px] border border-border bg-muted px-3 py-2"
+                >
+                    <component
+                        :is="
+                            credential.kind === 'api_token' ? KeyRound : Webhook
+                        "
+                        class="size-3.5 shrink-0 text-muted-foreground"
+                        aria-hidden="true"
+                    />
+                    <span
+                        class="min-w-0 flex-1 truncate text-xs text-foreground"
+                    >
+                        {{ credentialLabels.posted }}
+                    </span>
+                    <!-- "Review" alone is what a link list would announce, so
+                         the accessible name spells the credential out. Carried
+                         as visually-hidden text rather than an `aria-label`:
+                         both strings stay whole for translation, where a split
+                         label would fix English word order. -->
+                    <Link
+                        :href="credentialHref"
+                        data-test="hover-card-credential-link"
+                        class="shrink-0 text-xs font-semibold text-brass-fill-foreground underline-offset-2 hover:underline"
+                    >
+                        <span aria-hidden="true">{{ $t('Review') }}</span>
+                        <span class="sr-only">{{
+                            credentialLabels.review
+                        }}</span>
+                    </Link>
                 </div>
 
                 <div class="space-y-2">

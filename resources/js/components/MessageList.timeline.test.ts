@@ -1,9 +1,13 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { App } from 'vue';
-import { createApp, defineComponent, h } from 'vue';
-import { translate } from '@/lib/i18n';
-import type { Message } from '@/types';
+import { defineComponent, h } from 'vue';
+import {
+    all,
+    inertiaPageProps,
+    message,
+    mountWithActions,
+    unmountAll,
+} from './MessageList.doubles';
 
 /**
  * Covers the timeline's structural chrome: the day and unread dividers, system
@@ -12,19 +16,15 @@ import type { Message } from '@/types';
  * moves wholesale, so what is pinned here is the markup and the copy — every
  * `data-test` selector, every guard on whether a row renders at all.
  */
-const pageProps = vi.hoisted(() => ({
-    auth: { user: { timezone: 'UTC' } },
-    customEmojis: {} as Record<string, string>,
-    userGroups: [] as unknown[],
-}));
-
-vi.mock('@inertiajs/vue3', () => ({
-    usePage: () => ({ props: pageProps }),
-}));
-
 const mobile = vi.hoisted(() => ({
     current: null as { value: boolean } | null,
 }));
+
+vi.mock('@inertiajs/vue3', async () => {
+    const { inertiaPageProps } = await import('./MessageList.doubles');
+
+    return { usePage: () => ({ props: inertiaPageProps }) };
+});
 
 vi.mock('@/composables/useIsMobile', async () => {
     const { ref } = await import('vue');
@@ -33,11 +33,6 @@ vi.mock('@/composables/useIsMobile', async () => {
 
     return { useIsMobile: () => value };
 });
-
-/** Renders nothing, standing in for a leaf whose own tests cover it. */
-function inert(name: string) {
-    return defineComponent({ name, setup: () => () => null });
-}
 
 vi.mock('@/components/UserHoverCard.vue', () => ({
     default: defineComponent({
@@ -57,90 +52,41 @@ vi.mock('@/components/UserHoverCard.vue', () => ({
     }),
 }));
 
-vi.mock('@/components/MessageActions.vue', () => ({
-    default: inert('MessageActionsStub'),
-}));
+vi.mock('@/components/MessageActions.vue', async () => {
+    const { inert } = await import('./MessageList.doubles');
 
-vi.mock('@/components/MessageActionsSheet.vue', () => ({
-    default: inert('MessageActionsSheetStub'),
-}));
+    return { default: inert('MessageActionsStub') };
+});
+
+vi.mock('@/components/MessageActionsSheet.vue', async () => {
+    const { inert } = await import('./MessageList.doubles');
+
+    return { default: inert('MessageActionsSheetStub') };
+});
 
 import MessageList from './MessageList.vue';
 
-function message(overrides: Partial<Message> = {}): Message {
-    return {
-        id: 'm1',
-        clientUuid: 'uuid-1',
-        body: 'hello',
-        type: 'standard',
-        user: { id: 'peer', name: 'Peer' },
-        createdAt: '2024-03-04T10:30:00.000Z',
-        editedAt: null,
-        isDeleted: false,
-        mentions: [],
-        linkPreviews: [],
-        attachments: [],
-        reactions: [],
-        pin: null,
-        poll: null,
-        replyTo: null,
-        forwardedFrom: null,
-        threadRootId: null,
-        sentToChannel: false,
-        threadReplyCount: 0,
-        threadLastReplyAt: null,
-        threadParticipants: [],
-        threadFollowed: false,
-        threadUnread: false,
-        threadUnreadReplyCount: 0,
-        ...overrides,
-    } as Message;
-}
-
-let active: Array<{ app: App; host: HTMLElement }> = [];
-
-function mount(props: Record<string, unknown> = {}): HTMLElement {
-    const host = document.createElement('div');
-    document.body.appendChild(host);
-
-    const app = createApp({
-        render: () =>
-            h(MessageList, {
-                messages: [message()],
-                teamSlug: 'acme',
-                currentUserId: 'me',
-                ...props,
-            }),
-    });
-    app.config.globalProperties.$t = translate;
-    app.mount(host);
-    active.push({ app, host });
-
-    return host;
+function mount(props: Record<string, unknown> = {}, inThread = false) {
+    return mountWithActions(
+        MessageList,
+        { messages: [message()], teamSlug: 'acme', ...props },
+        { subtree: { inThread } },
+    ).host;
 }
 
 function texts(host: HTMLElement, selector: string): string[] {
-    return [...host.querySelectorAll(`[data-test="${selector}"]`)].map(
-        (node) => node.textContent?.trim() ?? '',
-    );
+    return all(host, selector).map((node) => node.textContent?.trim() ?? '');
 }
 
 beforeEach(() => {
-    pageProps.auth.user.timezone = 'UTC';
+    inertiaPageProps.auth.user.timezone = 'UTC';
 
     if (mobile.current) {
         mobile.current.value = false;
     }
 });
 
-afterEach(() => {
-    for (const { app, host } of active) {
-        app.unmount();
-        host.remove();
-    }
-
-    active = [];
-});
+afterEach(unmountAll);
 
 describe('the timeline’s dividers', () => {
     it('opens the list with a day divider carrying the crossing message’s date', () => {
@@ -257,8 +203,11 @@ describe('an author group', () => {
     });
 
     it('renders each timestamp in the viewer’s stored zone', () => {
-        pageProps.auth.user.timezone = 'Australia/Sydney';
-        const host = mount();
+        const host = mountWithActions(
+            MessageList,
+            { messages: [message()], teamSlug: 'acme' },
+            { scope: { viewerTimeZone: 'Australia/Sydney' } },
+        ).host;
 
         expect(texts(host, 'message-group-time')).toEqual(['9:30 PM']);
     });
@@ -267,8 +216,8 @@ describe('an author group', () => {
         const host = mount();
 
         expect(
-            [...host.querySelectorAll('[data-test="user-hover-card"]')].map(
-                (node) => node.getAttribute('data-user-id'),
+            all(host, 'user-hover-card').map((node) =>
+                node.getAttribute('data-user-id'),
             ),
         ).toEqual(['peer', 'peer']);
         expect(texts(host, 'message-author-name')).toEqual(['Peer']);
@@ -303,6 +252,82 @@ describe('an author group', () => {
         expect(host.querySelector('.sr-only')).toBeNull();
     });
 
+    it('shows a per-message display identity with its bot badge riding along', () => {
+        const host = mount({
+            messages: [
+                message({
+                    user: { id: 'bot', name: 'Deploy Bot', isBot: true },
+                    authorOverride: {
+                        name: 'Release Train',
+                        avatar: '/images/proxy?url=train',
+                    },
+                }),
+            ],
+        });
+
+        expect(texts(host, 'message-author-name')).toEqual(['Release Train']);
+        // The marking is indelible: the name changed, the badge did not.
+        expect(texts(host, 'author-bot-badge')).toEqual(['Bot']);
+        expect(host.querySelector('[data-test="presence-dot"]')).toBeNull();
+    });
+
+    it('shows an overridden icon on a still-squared bot avatar', () => {
+        const host = mount({
+            messages: [
+                message({
+                    user: { id: 'bot', name: 'Deploy Bot', isBot: true },
+                    authorOverride: {
+                        name: 'Release Train',
+                        avatar: '/images/proxy?url=train',
+                    },
+                }),
+            ],
+        });
+
+        const avatar = host.querySelector('[data-test="message-avatar"]');
+
+        expect(avatar?.innerHTML).toContain('/images/proxy?url=train');
+        expect(avatar?.querySelector('.rounded-lg')).not.toBeNull();
+    });
+
+    it('names a row for assistive technology by the identity it displays', () => {
+        const host = mount({
+            messages: [
+                message({
+                    user: { id: 'bot', name: 'Deploy Bot', isBot: true },
+                    authorOverride: { name: 'Release Train', avatar: null },
+                }),
+            ],
+        });
+
+        expect(
+            host.querySelector('[role="listitem"]')?.getAttribute('aria-label'),
+        ).toBe('Release Train, 10:30 AM');
+    });
+
+    it('never collapses two logical sources under one heading', () => {
+        const host = mount({
+            messages: [
+                message({
+                    id: 'a',
+                    user: { id: 'bot', name: 'Deploy Bot', isBot: true },
+                    authorOverride: { name: 'Release Train', avatar: null },
+                }),
+                message({
+                    id: 'b',
+                    createdAt: '2024-03-04T10:30:10.000Z',
+                    user: { id: 'bot', name: 'Deploy Bot', isBot: true },
+                    authorOverride: { name: 'Nightly', avatar: null },
+                }),
+            ],
+        });
+
+        expect(texts(host, 'message-author-name')).toEqual([
+            'Release Train',
+            'Nightly',
+        ]);
+    });
+
     it('names every message row for assistive technology', () => {
         const host = mount();
 
@@ -312,7 +337,7 @@ describe('an author group', () => {
     });
 
     it('marks the thread root with a brass accent inside a thread panel', () => {
-        const host = mount({ inThread: true });
+        const host = mount({}, true);
 
         expect(
             host
@@ -322,10 +347,10 @@ describe('an author group', () => {
     });
 
     it('keeps the ordinary border on a reply inside a thread panel', () => {
-        const host = mount({
-            messages: [message({ threadRootId: 'root' })],
-            inThread: true,
-        });
+        const host = mount(
+            { messages: [message({ threadRootId: 'root' })] },
+            true,
+        );
 
         expect(
             host
@@ -337,7 +362,7 @@ describe('an author group', () => {
 
 describe('the thread reply rule', () => {
     it('separates the root from its replies when a count is given', () => {
-        const host = mount({ inThread: true, replyDividerCount: 3 });
+        const host = mount({ replyDividerCount: 3 }, true);
 
         const rule = host.querySelector('[data-test="thread-replies-divider"]');
 
@@ -347,7 +372,7 @@ describe('the thread reply rule', () => {
     });
 
     it('reads in the singular for a lone reply', () => {
-        const host = mount({ inThread: true, replyDividerCount: 1 });
+        const host = mount({ replyDividerCount: 1 }, true);
 
         expect(
             host
@@ -365,7 +390,7 @@ describe('the thread reply rule', () => {
     });
 
     it('stays out of a thread with no replies yet', () => {
-        const host = mount({ inThread: true, replyDividerCount: 0 });
+        const host = mount({ replyDividerCount: 0 }, true);
 
         expect(
             host.querySelector('[data-test="thread-replies-divider"]'),

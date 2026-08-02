@@ -17,6 +17,14 @@ class MessageReminderData extends Data
         public string $channelSlug,
         public ?string $channelName,
         public string $authorName,
+        /**
+         * Whether the saved message's author is a bot, so the card can badge it.
+         * Carried because the card renders a bare name string: without this an
+         * overridden name would render here unmarked.
+         */
+        public bool $authorIsBot,
+        /** The display identity the saved message asked for, if any. */
+        public ?AuthorOverrideData $authorOverride,
         public string $body,
         public bool $isDeleted,
         public bool $isAccessible,
@@ -36,8 +44,9 @@ class MessageReminderData extends Data
      * has to be re-evaluated on every read because a viewer can lose access long
      * after the reminder was set. When it is false the row survives — clearing it
      * stays the owner's call, and regaining access restores it intact — but
-     * everything the viewer may no longer see is blanked: the body, the author,
-     * the channel name, and the channel slug the jump link is built from.
+     * everything the viewer may no longer see is blanked: the body, the author
+     * (name, bot marker and display override alike), the channel name, and the
+     * channel slug the jump link is built from.
      */
     public static function fromMessageReminder(MessageReminder $reminder, bool $isAccessible = true): self
     {
@@ -53,6 +62,8 @@ class MessageReminderData extends Data
             channelSlug: $isAccessible ? $channel->slug : '',
             channelName: $isAccessible ? $channel->name : null,
             authorName: $isAccessible ? $message->user->name : '',
+            authorIsBot: $isAccessible && $message->user->isBot(),
+            authorOverride: $isAccessible ? AuthorOverrideData::forMessage($message) : null,
             body: $isDeleted || ! $isAccessible ? '' : $message->body,
             isDeleted: $isDeleted,
             isAccessible: $isAccessible,

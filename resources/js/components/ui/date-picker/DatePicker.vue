@@ -63,6 +63,13 @@ defineOptions({
 
 const open = ref(false);
 
+/**
+ * The selected day in the calendar's own value type. It also seeds which month
+ * the popover opens on: reka derives that from `today()` alone, so without it a
+ * value in any other month opens on the current one with the selection nowhere
+ * on screen (#1135). Seeding it as the *default* placeholder rather than
+ * binding it leaves the reader free to page to another month once open.
+ */
 const selected = computed<DateValue | undefined>(() =>
     toCalendarDate(props.modelValue),
 );
@@ -103,6 +110,7 @@ function select(value: DateValue | undefined): void {
             <PopoverContent class="w-auto p-0" align="start">
                 <Calendar
                     :model-value="selected"
+                    :default-placeholder="selected"
                     :min-value="toCalendarDate(min)"
                     :max-value="toCalendarDate(max)"
                     :locale="i18n.locale"

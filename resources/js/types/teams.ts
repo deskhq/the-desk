@@ -90,6 +90,7 @@ export type TeamPermissions = {
     canViewAudit: boolean;
     canViewSecurityLog: boolean;
     canViewAnalytics: boolean;
+    canViewDeletedChannels: boolean;
     canManageIntegrations: boolean;
     canManageUserGroups: boolean;
 };
@@ -97,6 +98,39 @@ export type TeamPermissions = {
 export type RoleOption = {
     value: TeamRole;
     label: string;
+};
+
+/** Who a workspace lets open a new channel. Backed by the PHP enum. */
+export type ChannelCreationPolicy = App.Enums.ChannelCreationPolicy;
+
+/** One selectable policy in the channel-creation settings form. */
+export type ChannelCreationPolicyOption = {
+    value: ChannelCreationPolicy;
+    label: string;
+    /** One line on who the policy lets through, shown under the label. */
+    description: string;
+};
+
+/**
+ * The workspace's channel-creation settings as the admin page receives them:
+ * the standing policy per visibility, plus the options both selects offer.
+ */
+export type ChannelCreationSettings = {
+    public: ChannelCreationPolicy;
+    private: ChannelCreationPolicy;
+    options: ChannelCreationPolicyOption[];
+};
+
+/**
+ * A public channel an admin may mark as a workspace default — one every new
+ * member is joined to on arrival. Empty for anyone who may not manage them.
+ */
+export type DefaultChannelCandidate = {
+    slug: string;
+    name: string;
+    isDefault: boolean;
+    /** #general is a default in code, so its switch is on and immovable. */
+    isGeneral: boolean;
 };
 
 /**
@@ -183,6 +217,18 @@ export type WorkspaceAnalytics = {
     topChannels: ChannelActivity[];
     memberGrowth: MonthlyMemberCount[];
     topContributors: Contributor[];
+};
+
+/**
+ * A workspace's upload footprint against its configured storage quota. Mirrors
+ * the `TeamStorageData` DTO, and is only sent while a quota is configured — so
+ * `quotaBytes` is always positive and `percent` may exceed 100 when an operator
+ * lowers the quota below the space already in use.
+ */
+export type TeamStorage = {
+    usedBytes: number;
+    quotaBytes: number;
+    percent: number;
 };
 
 /** One option in the analytics range toggle (7d / 30d / 90d). */

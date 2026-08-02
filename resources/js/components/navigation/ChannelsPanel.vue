@@ -14,7 +14,7 @@ import { SidebarGroup, SidebarGroupContent } from '@/components/ui/sidebar';
 import { useChannelPlacement } from '@/composables/useChannelPlacement';
 import { useChannelSections } from '@/composables/useChannelSections';
 import { useCollapsedSections } from '@/composables/useCollapsedSections';
-import { useQuickSwitcher } from '@/composables/useQuickSwitcher';
+import { useDialog } from '@/composables/useDialog';
 import type { ChannelSectionGroup } from '@/lib/channelSections';
 import type { RenderedPresence } from '@/lib/presence';
 
@@ -25,14 +25,9 @@ defineProps<{
     isDndFor: (userId: string) => boolean;
 }>();
 
-defineEmits<{
-    /** The user asked to start a new direct message; the shell owns the picker. */
-    newMessage: [];
-}>();
-
 const page = usePage();
 
-const { isOpen: quickSwitcherOpen } = useQuickSwitcher();
+const { isOpen: quickSwitcherOpen } = useDialog('switcher');
 
 const currentTeam = computed(() => page.props.currentTeam);
 const activeChannelSlug = computed(
@@ -215,7 +210,6 @@ function sectionKey(group: ChannelSectionGroup): string {
             :presence-for="presenceFor"
             :is-dnd-for="isDndFor"
             @toggle="toggleSection('direct')"
-            @new-message="$emit('newMessage')"
         />
 
         <!-- Naming a new custom section. The row that used to stand here is now

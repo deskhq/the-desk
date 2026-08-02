@@ -14,6 +14,7 @@ use App\Models\Attachment;
 use App\Models\Channel;
 use App\Models\Message;
 use App\Models\User;
+use App\Support\ChannelMembership;
 use Closure;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -58,17 +59,34 @@ class PostMessage
      * the `loadMessageDataRelations()` + broadcast below. A `client_uuid` retry
      * finds the existing row and skips the hook, keeping the send idempotent.
      *
+     * `$authorOverrideName` and `$authorOverrideAvatarUrl` are the display identity
+     * this one message asked to be shown under (an incoming webhook posting as a
+     * logical source of its own). They are a snapshot frozen here at post time, and
+     * they override only what is *displayed* — `$author` still authors the row, so
+     * every surface keeps its non-human marking.
+     *
+     * `$incomingWebhookId` and `$tokenId` name the credential a message arrived
+     * on, so an admin looking at a suspicious row can revoke exactly that webhook
+     * or that token rather than every credential its bot holds. They are mutually
+     * exclusive by construction — a message arrives on exactly one path, and the
+     * two ingest callers each pass only their own — and both are null on a human
+     * send, where the author already identifies the sender.
+     *
      * @param  list<string>  $attachmentIds
      * @param  (Closure(Message): void)|null  $afterCreate
      */
-    public function handle(Channel $channel, User $author, string $body, string $clientUuid, ?string $replyToId = null, ?string $forwardedFromId = null, ?string $threadRootId = null, bool $sentToChannel = false, bool $clearDraft = true, array $attachmentIds = [], MessageType $type = MessageType::Standard, ?Closure $afterCreate = null): Message
+    public function handle(Channel $channel, User $author, string $body, string $clientUuid, ?string $replyToId = null, ?string $forwardedFromId = null, ?string $threadRootId = null, bool $sentToChannel = false, bool $clearDraft = true, array $attachmentIds = [], MessageType $type = MessageType::Standard, ?Closure $afterCreate = null, ?string $authorOverrideName = null, ?string $authorOverrideAvatarUrl = null, ?string $incomingWebhookId = null, ?int $tokenId = null): Message
     {
-        $message = DB::transaction(function () use ($channel, $author, $body, $clientUuid, $replyToId, $forwardedFromId, $threadRootId, $sentToChannel, $attachmentIds, $type, $afterCreate): Message {
+        $message = DB::transaction(function () use ($channel, $author, $body, $clientUuid, $replyToId, $forwardedFromId, $threadRootId, $sentToChannel, $attachmentIds, $type, $afterCreate, $authorOverrideName, $authorOverrideAvatarUrl, $incomingWebhookId, $tokenId): Message {
             $message = $channel->messages()->firstOrCreate(
                 ['client_uuid' => $clientUuid],
                 [
                     'user_id' => $author->id,
+                    'incoming_webhook_id' => $incomingWebhookId,
+                    'token_id' => $tokenId,
                     'body' => $body,
+                    'author_override_name' => $authorOverrideName,
+                    'author_override_avatar_url' => $authorOverrideAvatarUrl,
                     'type' => $type,
                     'reply_to_id' => $replyToId,
                     'forwarded_from_id' => $forwardedFromId,
@@ -106,7 +124,7 @@ class PostMessage
                 // A message sent from the main composer clears its channel draft;
                 // a thread reply leaves the channel draft alone (it isn't its text),
                 // and a delayed scheduled delivery leaves it alone too.
-                $author->channels()->updateExistingPivot($channel->id, ['draft' => null]);
+                new ChannelMembership($channel, $author)->clearDraft();
             }
         }
 

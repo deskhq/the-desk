@@ -28,10 +28,6 @@ const props = defineProps<{
 const emit = defineEmits<{
     /** A row left the menu behind; the popover host closes, the panel stays. */
     dismiss: [];
-    /** The workspace sheet asked for the invite modal, which the host owns. */
-    invite: [];
-    /** The workspace sheet asked for the pending-invitations modal. */
-    join: [];
 }>();
 
 const page = usePage();
@@ -59,8 +55,6 @@ const isPanel = computed(() => props.variant === 'panel');
             <UserMenuAccountRows
                 :variant="variant"
                 @dismiss="emit('dismiss')"
-                @invite="emit('invite')"
-                @join="emit('join')"
             />
 
             <!-- Log out: a quiet outlined pill in its own footer band; deliberate

@@ -87,8 +87,8 @@ export function useComposerSend(options: {
         options.suppressNextDraftChange(body.value !== '');
         body.value = '';
         sendToChannel.value = false;
-        options.mentions.closeMenu();
-        options.slash.closeSlashMenu();
+        options.mentions.menu.close();
+        options.slash.menu.close();
         nextTick(resize);
     }
 
@@ -105,7 +105,7 @@ export function useComposerSend(options: {
     function submitCommand(rawBody: string): void {
         const submittedBody = body.value;
         commandPending.value = true;
-        options.slash.closeSlashMenu();
+        options.slash.menu.close();
 
         options.onCommand(rawBody, {
             onSuccess: () => {
@@ -136,20 +136,13 @@ export function useComposerSend(options: {
             uploads.attachmentIds.value.length === 0 &&
             options.slash.looksLikeCommand(trimmed)
         ) {
-            // `/gif [query]` opens the picker rather than posting text; the chosen
-            // GIF is then sent as an attachment through the ordinary path.
-            const gifQuery = options.slash.gifCommandQuery(trimmed);
+            // `/gif [query]` and `/poll` open a surface rather than posting text;
+            // what each produces — an attachment, a poll message — then leaves
+            // through its own path rather than back through the composer.
+            const picker = options.slash.pickerFor(trimmed);
 
-            if (gifQuery !== null) {
-                options.slash.openGifPicker(gifQuery);
-
-                return;
-            }
-
-            // `/poll` opens the builder rather than posting text; the composed poll
-            // is then posted as a first-class poll message through its own endpoint.
-            if (options.slash.isPollCommand(trimmed)) {
-                options.slash.openPollComposer();
+            if (picker) {
+                picker.open(trimmed);
 
                 return;
             }

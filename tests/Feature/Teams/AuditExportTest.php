@@ -447,12 +447,16 @@ test('the job bails quietly when the export no longer exists', function (): void
     Mail::assertNothingSent();
 });
 
-test('the failed hook marks the export failed', function (): void {
-    $export = AuditExport::factory()->create();
+test('the failed hook marks the export failed and discards any archive metadata', function (): void {
+    $export = AuditExport::factory()->ready()->create();
 
     (new GenerateAuditExport($export->id))->failed(new RuntimeException('boom'));
 
-    expect($export->refresh()->status)->toBe(AuditExportStatus::Failed);
+    $export->refresh();
+
+    expect($export->status)->toBe(AuditExportStatus::Failed);
+    expect($export->path)->toBeNull();
+    expect($export->expires_at)->toBeNull();
 });
 
 test('an export whose requester was deleted still generates without emailing', function (): void {

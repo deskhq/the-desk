@@ -14,7 +14,7 @@ class SaveChannelDraftRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        return Gate::allows('saveDraft', $this->channel());
+        return Gate::allows('updateMembership', $this->channel());
     }
 
     /**
