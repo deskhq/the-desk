@@ -1,5 +1,54 @@
 # Changelog
 
+## [1.19.0](https://github.com/deskhq/the-desk/compare/v1.18.0...v1.19.0) (2026-08-02)
+
+
+### Features
+
+* add channel descriptions and the channel-edit endpoint ([#1070](https://github.com/deskhq/the-desk/issues/1070)) ([9e59b7f](https://github.com/deskhq/the-desk/commit/9e59b7f731d2ba82580543f93be7aeea7b943230))
+* add workspace settings for channel creation and default channels ([#1074](https://github.com/deskhq/the-desk/issues/1074)) ([39dadaa](https://github.com/deskhq/the-desk/commit/39dadaa3a7a558c73a137670c02e6bb99d8c0496))
+* cap workspace upload storage with a configurable quota ([#1088](https://github.com/deskhq/the-desk/issues/1088)) ([67a0648](https://github.com/deskhq/the-desk/commit/67a064890f3a3862c8e4037ecdd643923e77c73c))
+* delete channels with a grace window and self-service restore ([#1071](https://github.com/deskhq/the-desk/issues/1071)) ([c7b2dcc](https://github.com/deskhq/the-desk/commit/c7b2dcc31a7bfa2bf8dae9ab554f575c60bd96de))
+* give the composer a morphing send disc and an attach sheet on mobile ([#1106](https://github.com/deskhq/the-desk/issues/1106)) ([c03322a](https://github.com/deskhq/the-desk/commit/c03322aefd3f1f9b9be8d133e09beb55be7854f4))
+* manual redelivery/replay for outgoing webhooks ([#1065](https://github.com/deskhq/the-desk/issues/1065)) ([c1ff149](https://github.com/deskhq/the-desk/commit/c1ff14936ea3f9f83edc2ff1875c699c7b73cf32))
+* per-message identity override for incoming webhooks ([#1062](https://github.com/deskhq/the-desk/issues/1062)) ([e9cbba4](https://github.com/deskhq/the-desk/commit/e9cbba4de2d8252eb598aaabd094f8423dc82bbc))
+* record which API token posted a message ([#1118](https://github.com/deskhq/the-desk/issues/1118)) ([4975f78](https://github.com/deskhq/the-desk/commit/4975f7865433164fc8cbc592db2621234c954339))
+* record which incoming webhook posted a message ([#1087](https://github.com/deskhq/the-desk/issues/1087)) ([a97f319](https://github.com/deskhq/the-desk/commit/a97f3199787940dccd2dd4fa9150c9f1d39b26d8))
+* take a photo into a message from the composer's Camera tile ([#1107](https://github.com/deskhq/the-desk/issues/1107)) ([0679484](https://github.com/deskhq/the-desk/commit/0679484de2966b00a27b6002634cb9dd9f5a7299))
+
+
+### Bug Fixes
+
+* delete a user's API tokens when the account is deleted ([#1139](https://github.com/deskhq/the-desk/issues/1139)) ([bf9552d](https://github.com/deskhq/the-desk/commit/bf9552d833827b64b9db471a23140e7b3e5cabc2))
+* give success status text an AA-contrast token in both themes ([#1086](https://github.com/deskhq/the-desk/issues/1086)) ([4abfeb8](https://github.com/deskhq/the-desk/commit/4abfeb8ece3220cf24cf3ee5a343f33436b14063))
+* keep a refused write's rollback off the channel switched to ([#1140](https://github.com/deskhq/the-desk/issues/1140)) ([c8f5861](https://github.com/deskhq/the-desk/commit/c8f5861861e47fcd42013739f2b5fbda8b053874))
+* keep a written export ready when its mail fails, and a failed one pathless ([#1096](https://github.com/deskhq/the-desk/issues/1096)) ([3d9e296](https://github.com/deskhq/the-desk/commit/3d9e29691600478f4ef415c7cb39cc57eee3d438))
+* keep the threads inbox from stranding on its skeleton ([#1141](https://github.com/deskhq/the-desk/issues/1141)) ([aced994](https://github.com/deskhq/the-desk/commit/aced994b4fbdee81642455629038b3959f9536af))
+* open the date picker on the selected day's month ([#1136](https://github.com/deskhq/the-desk/issues/1136)) ([fd5f3f2](https://github.com/deskhq/the-desk/commit/fd5f3f2ff2961ca11f1d8ff08a041a5372c92399))
+* reclaim a worktree's Docker volumes when its teardown fails or never ran ([#1097](https://github.com/deskhq/the-desk/issues/1097)) ([0cd9d69](https://github.com/deskhq/the-desk/commit/0cd9d69965434e132ff285568b7c70330d374da7))
+* route seeded avatars through the image proxy so the CSP loads them ([#1137](https://github.com/deskhq/the-desk/issues/1137)) ([39d78d9](https://github.com/deskhq/the-desk/commit/39d78d9cae233992447b96fc4eca138c556588bd))
+
+
+### Code Refactoring
+
+* collapse the message-action relay behind one provided context ([#1100](https://github.com/deskhq/the-desk/issues/1100)) ([8fd4f37](https://github.com/deskhq/the-desk/commit/8fd4f3718699aff3f569ee9b6dab1d17c45be418))
+* deepen the optimistic write, 12 hand-rolled snapshot and rollback triples ([#1121](https://github.com/deskhq/the-desk/issues/1121)) ([370bf4c](https://github.com/deskhq/the-desk/commit/370bf4c6089f5edd68c1f7a9c3ade3a721237875))
+* finish the ADR-0005 domain-event recording seam ([#1098](https://github.com/deskhq/the-desk/issues/1098)) ([2aed885](https://github.com/deskhq/the-desk/commit/2aed8853c49be24d68ebc34d5fd1c5bec9cd06d0))
+* give ChannelData an explicit viewer and batch the DM roster ([#1128](https://github.com/deskhq/the-desk/issues/1128)) ([941b0b3](https://github.com/deskhq/the-desk/commit/941b0b3c07c2c27bc12350a8a9637c57e794a440))
+* give the channel-member pivot one module ([#1124](https://github.com/deskhq/the-desk/issues/1124)) ([0c3679b](https://github.com/deskhq/the-desk/commit/0c3679b5073f35483a44b2a1ee2b573ba14b37d2))
+* give the channel-traffic predicate one home per language ([#1132](https://github.com/deskhq/the-desk/issues/1132)) ([dc5ea46](https://github.com/deskhq/the-desk/commit/dc5ea466d1f2e9fc865d8af60cd904b9a6a2c835))
+* give the workspace shell an interface ([#1102](https://github.com/deskhq/the-desk/issues/1102)) ([df43ae8](https://github.com/deskhq/the-desk/commit/df43ae8144a57b7459ed58077d3601538328ef6d))
+* make MainLayout.vue a mount point and extract its behaviour ([#1101](https://github.com/deskhq/the-desk/issues/1101)) ([38ee915](https://github.com/deskhq/the-desk/commit/38ee915920b2c53641181f47a09d4eed36a8b8a4))
+* one autocomplete engine for the mention menu and slash commands ([#1131](https://github.com/deskhq/the-desk/issues/1131)) ([acd81ce](https://github.com/deskhq/the-desk/commit/acd81ce5af253b9c297ecdf8d9cfd25bbb0db2b3))
+* replace bin/worktree with deskhq/laravel-worktree v0.1.0 ([#1105](https://github.com/deskhq/the-desk/issues/1105)) ([6b2c8f4](https://github.com/deskhq/the-desk/commit/6b2c8f45f8b9c8a0b74f0b888caef7b06d1121a4))
+
+
+### Dependencies
+
+* bump the github-actions group across 2 directories with 5 updates ([#1068](https://github.com/deskhq/the-desk/issues/1068)) ([91feb5a](https://github.com/deskhq/the-desk/commit/91feb5a3d629978967cb350cf6fda70451415e5f))
+* update composer and npm dependencies ([#1103](https://github.com/deskhq/the-desk/issues/1103)) ([a272245](https://github.com/deskhq/the-desk/commit/a2722453cac40c1ed5124033aa249494358ceb49))
+* update deskhq/laravel-worktree to v0.3.0 ([#1108](https://github.com/deskhq/the-desk/issues/1108)) ([90af1d5](https://github.com/deskhq/the-desk/commit/90af1d5355c7d4d1d938d527398a4fd9899c1e66))
+
 ## [1.18.0](https://github.com/deskhq/the-desk/compare/v1.17.1...v1.18.0) (2026-07-29)
 
 
