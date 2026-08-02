@@ -182,10 +182,11 @@ built; build them once, then reuse.
   but each accessor is one delegation; never read `dnd_until`, `dnd_starts_at` or
   `presence_state` and decide for yourself. Its client twin is `lib/dnd.ts`, and both are
   pinned against one shared case table (`tests/Fixtures/availability-cases.json`) —
-  ADR-0010's device, third application. Writes to those columns are Actions in
-  `app/Actions/Users/` beside the three sweeps that clear them (`PauseNotifications`,
-  `ResumeNotifications`, `SetDndSchedule`, `SnoozeDndSchedule`, `SetUserStatus`,
-  `ClearUserStatus`, `SetPresenceOverride`); `forceFill` appears in no controller.
+  ADR-0010's device, third application. Writes to those columns are Actions —
+  `PauseNotifications`, `ResumeNotifications`, `SetDndSchedule`, `SnoozeDndSchedule`,
+  `SetUserStatus`, `ClearUserStatus`, `SetPresenceOverride` — living in
+  `app/Actions/Users/` beside the three scheduled sweeps that clear the same columns;
+  `forceFill` appears in no controller.
 
 ### Frontend (`resources/js/`)
 
