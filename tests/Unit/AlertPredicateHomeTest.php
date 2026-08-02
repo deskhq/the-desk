@@ -50,6 +50,11 @@ function alertSpellingPatterns(): array
         'PHP negation' => '/!\s*\$\w*muted\s*&&/i',
         // `shouldChime` and `useChannelPreferences`, either order.
         'TypeScript expression' => '/[\w.]*muted[\w.]*\s*(&&|\|\|)\s*!?\s*[\w.]*notificationLevel/',
+        // `shouldChime` again, which read the level in a gate of its own with
+        // the mute handled several lines earlier. Keyed to `all` and `nothing`
+        // because those are the only two literals the *rule* turns on: code
+        // asking which level a membership is at for display has to tell
+        // `mentions` apart from the other two, and is left alone by that.
         'TypeScript literal' => "/notificationLevel\s*(===|!==)\s*'(all|nothing)'\s*(&&|\|\|)/",
     ];
 }
@@ -131,6 +136,7 @@ test('each pattern leaves a legitimate single-half question alone', function (st
     // distinction the alert rule deliberately does not make.
     'a level read for display' => ["if (level === 'nothing') {"],
     'a level read for display, mentions' => ["if (level === 'mentions') {"],
+    'a level named in full for display' => ["channel.notificationLevel === 'mentions' && isExpanded"],
     // Persisting the preference is not reading the rule.
     'writing the level' => ["'notification_level' => \$notificationLevel->value,"],
     'casting the level' => ["'notification_level' => NotificationLevel::class,"],
