@@ -22,6 +22,7 @@ export function teamPermissions(
         canUpdateMember: true,
         canRemoveMember: true,
         canCreateInvitation: true,
+        canManageEmojis: true,
         canCancelInvitation: true,
         canTransferOwnership: true,
         canViewAudit: true,

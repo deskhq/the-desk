@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { readersForMessage } from '@/lib/readReceipts';
-import type { ChannelReader } from '@/types';
+import type { ChannelReader, MessageAuthor } from '@/types';
 
 /**
  * A time-ordered, uuid-shaped id for a given sequence number. Zero-padded to a
@@ -11,6 +11,19 @@ function id(seq: number): string {
     return `019f44c7-0000-7000-8000-${String(seq).padStart(12, '0')}`;
 }
 
+/** A channel member, as the read-receipt roster carries them. */
+function person(userId: string, name: string): MessageAuthor {
+    return {
+        id: userId,
+        name,
+        avatar: null,
+        isBot: false,
+        status: null,
+        presence: 'active',
+        isDnd: false,
+    };
+}
+
 /**
  * A reader row: the member and how far they have read.
  */
@@ -19,7 +32,7 @@ function reader(
     name: string,
     lastReadMessageId: string | null,
 ): ChannelReader {
-    return { user: { id: userId, name }, lastReadMessageId };
+    return { user: person(userId, name), lastReadMessageId };
 }
 
 const ME = 'me';
@@ -33,8 +46,8 @@ describe('readersForMessage', () => {
         ];
 
         expect(readersForMessage(readers, id(3), ME)).toEqual([
-            { id: 'a', name: 'Alice' },
-            { id: 'b', name: 'Bob' },
+            person('a', 'Alice'),
+            person('b', 'Bob'),
         ]);
     });
 
@@ -48,7 +61,7 @@ describe('readersForMessage', () => {
         const readers = [reader(ME, 'Me', id(9)), reader('a', 'Alice', id(9))];
 
         expect(readersForMessage(readers, id(3), ME)).toEqual([
-            { id: 'a', name: 'Alice' },
+            person('a', 'Alice'),
         ]);
     });
 

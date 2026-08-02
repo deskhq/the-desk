@@ -23,7 +23,17 @@ function message(overrides: Partial<Message> = {}): Message {
         clientUuid: 'uuid-1',
         body: 'hello',
         type: 'standard',
-        user: { id: 'peer', name: 'Peer' },
+        user: {
+            id: 'peer',
+            name: 'Peer',
+            avatar: null,
+            isBot: false,
+            status: null,
+            presence: 'active',
+            isDnd: false,
+        },
+        authorOverride: null,
+        postedVia: null,
         createdAt: '2024-01-01T00:00:00.000Z',
         editedAt: null,
         isDeleted: false,
@@ -65,14 +75,34 @@ function context(
 describe('messageActions guards', () => {
     describe('canEditMessage', () => {
         it('is true only for the viewer’s own live message', () => {
-            const own = message({ user: { id: 'me', name: 'Me' } });
+            const own = message({
+                user: {
+                    id: 'me',
+                    name: 'Me',
+                    avatar: null,
+                    isBot: false,
+                    status: null,
+                    presence: 'active',
+                    isDnd: false,
+                },
+            });
 
             expect(canEditMessage(own, context())).toBe(true);
             expect(canEditMessage(message(), context())).toBe(false);
         });
 
         it('is false for a deleted or pending message', () => {
-            const own = { user: { id: 'me', name: 'Me' } } as const;
+            const own = {
+                user: {
+                    id: 'me',
+                    name: 'Me',
+                    avatar: null,
+                    isBot: false,
+                    status: null,
+                    presence: 'active',
+                    isDnd: false,
+                },
+            } as const;
 
             expect(
                 canEditMessage(message({ ...own, isDeleted: true }), context()),
@@ -87,7 +117,17 @@ describe('messageActions guards', () => {
         it('allows the author, or a moderator on anyone’s message', () => {
             expect(
                 canDeleteMessage(
-                    message({ user: { id: 'me', name: 'Me' } }),
+                    message({
+                        user: {
+                            id: 'me',
+                            name: 'Me',
+                            avatar: null,
+                            isBot: false,
+                            status: null,
+                            presence: 'active',
+                            isDnd: false,
+                        },
+                    }),
                     context(),
                 ),
             ).toBe(true);
@@ -200,7 +240,7 @@ describe('messageActions guards', () => {
                 canPinMessage(
                     message({
                         pin: {
-                            pinnedBy: { id: 'u1', name: 'Ada' },
+                            pinnedBy: { id: 'u1', name: 'Ada', avatar: null },
                             pinnedAt: '2026-01-01T00:00:00Z',
                         },
                     }),
@@ -293,7 +333,15 @@ describe('messageActions guards', () => {
             // The recorded actor authors the notice, yet nothing acts on it.
             const notice = message({
                 type: 'member_left',
-                user: { id: 'me', name: 'Me' },
+                user: {
+                    id: 'me',
+                    name: 'Me',
+                    avatar: null,
+                    isBot: false,
+                    status: null,
+                    presence: 'active',
+                    isDnd: false,
+                },
                 threadReplyCount: 2,
             });
             const moderator = context({ canModerate: true });

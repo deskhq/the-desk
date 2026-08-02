@@ -4,6 +4,13 @@ declare(strict_types=1);
 
 namespace App\Data;
 
+use Spatie\TypeScriptTransformer\Attributes\TypeScript;
+
+/**
+ * What a viewer may do in one workspace, answered once and shipped whole to the
+ * team settings page, which reads it as `App.Data.TeamPermissions`.
+ */
+#[TypeScript]
 readonly class TeamPermissions
 {
     public function __construct(

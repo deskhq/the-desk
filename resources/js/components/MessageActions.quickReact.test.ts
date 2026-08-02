@@ -52,7 +52,7 @@ function reaction(emoji: string, reactorIds: string[]): Reaction {
     return {
         emoji,
         count: reactorIds.length,
-        reactors: reactorIds.map((id) => ({ id, name: id })),
+        reactors: reactorIds.map((id) => ({ id, name: id, avatar: null })),
     };
 }
 

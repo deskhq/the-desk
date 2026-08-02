@@ -2,7 +2,7 @@ import { useAutocompleteMenu } from '@/composables/useAutocompleteMenu';
 import type { AutocompleteMenu } from '@/composables/useAutocompleteMenu';
 import type { ComposerField } from '@/composables/useComposerField';
 import { useUserGroups } from '@/composables/useUserGroups';
-import type { Mention } from '@/types';
+import type { Mention, PersonRef, RosterMember } from '@/types';
 
 /**
  * Well-formed *person* mention token: `@[Display Name](user-id)`. The parser on
@@ -34,7 +34,7 @@ const MAX_GROUP_SUGGESTIONS = 3;
  * index, and the ARIA wiring stay single-source.
  */
 export type MentionSuggestion =
-    | { kind: 'user'; id: string; label: string; member: Mention }
+    | { kind: 'user'; id: string; label: string; member: RosterMember }
     | {
           kind: 'group';
           id: string;
@@ -47,7 +47,7 @@ export type ComposerMentions = {
     menu: AutocompleteMenu<MentionSuggestion>;
     refreshSuggestions: () => void;
     collectMentions: (text: string) => Mention[];
-    insertMention: (member: Mention) => void;
+    insertMention: (member: PersonRef) => void;
 };
 
 /**
@@ -59,7 +59,7 @@ export type ComposerMentions = {
 export function useComposerMentions(options: {
     field: ComposerField;
     /** The channel's mentionable members (bots excluded upstream). */
-    members: () => Mention[];
+    members: () => RosterMember[];
 }): ComposerMentions {
     const { body, caretPosition, focusRange } = options.field;
     const { search: searchGroups } = useUserGroups();
@@ -169,7 +169,11 @@ export function useComposerMentions(options: {
 
             if (member && !seen.has(id)) {
                 seen.add(id);
-                mentions.push({ id: member.id, name: member.name });
+                mentions.push({
+                    id: member.id,
+                    name: member.name,
+                    avatar: member.avatar,
+                });
             }
         }
 
@@ -181,7 +185,7 @@ export function useComposerMentions(options: {
      * from preceding text. Exposed so a profile hover card can drop a mention into
      * the composer from elsewhere in the page.
      */
-    function insertMention(member: Mention): void {
+    function insertMention(member: PersonRef): void {
         const caret = caretPosition();
         const before = body.value.slice(0, caret);
         const after = body.value.slice(caret);

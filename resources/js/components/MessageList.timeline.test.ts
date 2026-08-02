@@ -138,7 +138,15 @@ describe('a system notice', () => {
                 message({
                     id: 's1',
                     type: 'member_joined',
-                    user: { id: 'peer', name: 'Peer' },
+                    user: {
+                        id: 'peer',
+                        name: 'Peer',
+                        avatar: null,
+                        isBot: false,
+                        status: null,
+                        presence: 'active',
+                        isDnd: false,
+                    },
                 }),
             ],
         });
@@ -179,7 +187,15 @@ describe('an author group', () => {
                 message({
                     id: 'b',
                     createdAt: '2024-03-04T10:30:20.000Z',
-                    user: { id: 'other', name: 'Other' },
+                    user: {
+                        id: 'other',
+                        name: 'Other',
+                        avatar: null,
+                        isBot: false,
+                        status: null,
+                        presence: 'active',
+                        isDnd: false,
+                    },
                 }),
             ],
         });
@@ -243,7 +259,17 @@ describe('an author group', () => {
     it('badges a bot author instead of announcing a presence it has none of', () => {
         const host = mount({
             messages: [
-                message({ user: { id: 'bot', name: 'Botto', isBot: true } }),
+                message({
+                    user: {
+                        id: 'bot',
+                        name: 'Botto',
+                        isBot: true,
+                        avatar: null,
+                        status: null,
+                        presence: 'active',
+                        isDnd: false,
+                    },
+                }),
             ],
         });
 
@@ -256,7 +282,15 @@ describe('an author group', () => {
         const host = mount({
             messages: [
                 message({
-                    user: { id: 'bot', name: 'Deploy Bot', isBot: true },
+                    user: {
+                        id: 'bot',
+                        name: 'Deploy Bot',
+                        isBot: true,
+                        avatar: null,
+                        status: null,
+                        presence: 'active',
+                        isDnd: false,
+                    },
                     authorOverride: {
                         name: 'Release Train',
                         avatar: '/images/proxy?url=train',
@@ -275,7 +309,15 @@ describe('an author group', () => {
         const host = mount({
             messages: [
                 message({
-                    user: { id: 'bot', name: 'Deploy Bot', isBot: true },
+                    user: {
+                        id: 'bot',
+                        name: 'Deploy Bot',
+                        isBot: true,
+                        avatar: null,
+                        status: null,
+                        presence: 'active',
+                        isDnd: false,
+                    },
                     authorOverride: {
                         name: 'Release Train',
                         avatar: '/images/proxy?url=train',
@@ -294,7 +336,15 @@ describe('an author group', () => {
         const host = mount({
             messages: [
                 message({
-                    user: { id: 'bot', name: 'Deploy Bot', isBot: true },
+                    user: {
+                        id: 'bot',
+                        name: 'Deploy Bot',
+                        isBot: true,
+                        avatar: null,
+                        status: null,
+                        presence: 'active',
+                        isDnd: false,
+                    },
                     authorOverride: { name: 'Release Train', avatar: null },
                 }),
             ],
@@ -310,13 +360,29 @@ describe('an author group', () => {
             messages: [
                 message({
                     id: 'a',
-                    user: { id: 'bot', name: 'Deploy Bot', isBot: true },
+                    user: {
+                        id: 'bot',
+                        name: 'Deploy Bot',
+                        isBot: true,
+                        avatar: null,
+                        status: null,
+                        presence: 'active',
+                        isDnd: false,
+                    },
                     authorOverride: { name: 'Release Train', avatar: null },
                 }),
                 message({
                     id: 'b',
                     createdAt: '2024-03-04T10:30:10.000Z',
-                    user: { id: 'bot', name: 'Deploy Bot', isBot: true },
+                    user: {
+                        id: 'bot',
+                        name: 'Deploy Bot',
+                        isBot: true,
+                        avatar: null,
+                        status: null,
+                        presence: 'active',
+                        isDnd: false,
+                    },
                     authorOverride: { name: 'Nightly', avatar: null },
                 }),
             ],

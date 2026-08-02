@@ -38,7 +38,17 @@ function message(overrides: Partial<Message> = {}): Message {
         clientUuid: 'uuid-1',
         body: 'hello',
         type: 'standard',
-        user: { id: 'peer', name: 'Peer' },
+        user: {
+            id: 'peer',
+            name: 'Peer',
+            avatar: null,
+            isBot: false,
+            status: null,
+            presence: 'active',
+            isDnd: false,
+        },
+        authorOverride: null,
+        postedVia: null,
         createdAt: '2024-01-01T00:00:00.000Z',
         editedAt: null,
         isDeleted: false,
@@ -222,11 +232,11 @@ describe('useOptimisticWrite', () => {
                 snapshotStreams(row.clientUuid, mainStream, threadStream),
             apply: () => {
                 mainStream.patchPin(row.id, {
-                    pinnedBy: { id: 'me', name: 'Me' },
+                    pinnedBy: { id: 'me', name: 'Me', avatar: null },
                     pinnedAt: '2024-01-02T00:00:00.000Z',
                 });
                 threadStream.patchPin(row.id, {
-                    pinnedBy: { id: 'me', name: 'Me' },
+                    pinnedBy: { id: 'me', name: 'Me', avatar: null },
                     pinnedAt: '2024-01-02T00:00:00.000Z',
                 });
             },

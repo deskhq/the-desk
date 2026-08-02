@@ -30,11 +30,11 @@ import type {
 } from '@/composables/useMessageActions';
 import { useTranslations } from '@/composables/useTranslations';
 import { isInteractiveComposerTarget } from '@/lib/composerFocus';
-import type { Mention, Message } from '@/types';
+import type { Mention, Message, RosterMember } from '@/types';
 
 const props = defineProps<{
     channelName: string;
-    members: Mention[];
+    members: RosterMember[];
     // Whether this channel has any bot members. Bots are excluded from `members`
     // (they can't be mentioned), so the mention menu explains their absence with
     // a quiet footnote only when at least one is present.

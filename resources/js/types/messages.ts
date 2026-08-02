@@ -1,357 +1,124 @@
-import type { AttachmentData } from '@/types/attachments';
+/**
+ * The message vocabulary, as the server declares it.
+ *
+ * Everything here that names a server payload is an **alias** of a generated
+ * `App.Data.*` type — the DTO in `app/Data/` is the wire contract, and a
+ * hand-written copy of one is a defect (ADR-0013). The prose that explains a
+ * payload lives on its PHP DTO, so both sides of the wire read the same
+ * sentence; what stays here is what the *client* invents on top.
+ */
 
 /**
  * The display identity one message asked to be shown under — an incoming webhook
- * posting as a logical source of its own. Mirrors the `AuthorOverrideData` DTO.
+ * posting as a logical source of its own.
  *
- * It rides *beside* the truthful author, never replacing it, so a surface that
- * does not know about it renders the real, admin-controlled identity. Both fields
- * are independently optional: an override may name only the icon, or only the
- * name. Render it only through the `@/lib/authorIdentity` helpers — an overridden
- * name may only appear where its bot marker appears with it.
+ * Render it only through the `@/lib/authorIdentity` helpers: an overridden name
+ * may only appear where its bot marker appears with it.
  */
 export type AuthorOverride = App.Data.AuthorOverrideData;
 
-export type MessageAuthor = {
-    id: string;
-    name: string;
-    /**
-     * The author's avatar URL (derived from their email's Gravatar), or null
-     * when they have none — the UI falls back to their initials.
-     */
-    avatar?: string | null;
-    // Whether the author is a bot, so its message row shows the "Bot" badge and
-    // a squared-off avatar. Absent (falsy) on human and optimistic messages.
-    isBot?: boolean;
-    /**
-     * The author's live custom status, so the row can show its emoji beside
-     * their name. Null when they have none; absent on optimistic messages, which
-     * are built client-side before the server echo carries it.
-     */
-    status?: App.Data.UserStatusData | null;
-};
-
 /**
- * A message's kind (mirrors the `MessageType` enum). `standard` is an ordinary
- * user-authored message and `poll` is an interactive poll card; every other type
- * is an inert system notice, which the timeline renders as a centered, localized
- * line rather than a chat bubble and which never carries interactions or
- * advances unread badges. A `topic_changed` / `channel_renamed` notice carries
- * the new topic or name in its `body`, which the line quotes.
+ * Whoever a message renders under: its author, a channel reader, a DM
+ * counterpart. The full user payload, so a row can draw the avatar, the bot
+ * badge, the status emoji and the presence dot without a second lookup.
  */
-export type MessageType =
-    | 'standard'
-    | 'member_joined'
-    | 'member_left'
-    | 'topic_changed'
-    | 'channel_renamed'
-    | 'poll';
+export type MessageAuthor = App.Data.UserData;
 
 /**
- * A team member referenced by an `@mention` in a message body. Mirrors the
- * `MentionData` DTO and rides on every MessageData payload.
+ * A message's kind. `standard` is an ordinary user-authored message and `poll` is
+ * an interactive poll card; every other type is an inert system notice, which the
+ * timeline renders as a centered, localized line rather than a chat bubble and
+ * which never carries interactions or advances unread badges.
  */
-export type Mention = {
-    id: string;
-    name: string;
-    /**
-     * The member's avatar URL (derived from their email's Gravatar), or null
-     * when they have none — the UI falls back to their initials.
-     */
-    avatar?: string | null;
-    // Whether this member is a bot. Set on the channel roster (from UserData), so
-    // the member facepile can badge it and the composer can drop it from @mention
-    // autocomplete. Absent on mention/reactor payloads (those never include bots).
-    isBot?: boolean;
-};
+export type MessageType = App.Enums.MessageType;
 
 /**
- * A channel member's read position, powering the "Seen by" affordance. Mirrors
- * the `ChannelReaderData` DTO: the member and the id of the last message they
- * have read (null when they have never read the channel). The channel page seeds
- * these from a prop and keeps them current from the `MessageRead` broadcast.
+ * A team member referenced by an `@mention` in a message body, and the same
+ * compact shape every "who did this" list rides on — reactors, pinner, thread
+ * participants, a DM counterpart.
  */
-export type ChannelReader = {
-    user: MessageAuthor;
-    lastReadMessageId: string | null;
-};
+export type Mention = App.Data.MentionData;
 
 /**
- * A compact quote of the parent message an inline reply answers. Mirrors the
- * `MessageReplyData` DTO: flat (never nested) so a quote can't recurse, with
- * the body and mentions blanked when the parent has been deleted.
- */
-export type MessageReply = {
-    id: string;
-    body: string;
-    authorName: string;
-    /**
-     * Whether the quoted author is a bot, so the quote badges it. A quote carries
-     * a bare name string, so without this an overridden name would render here
-     * with nothing marking it non-human. Absent on optimistic quotes.
-     */
-    authorIsBot?: boolean;
-    /** The display identity the quoted message asked for, if any. */
-    authorOverride?: AuthorOverride | null;
-    isDeleted: boolean;
-    mentions: Mention[];
-};
-
-/**
- * A compact quote of a forwarded source message. Mirrors the
- * `MessageForwardData` DTO: like `MessageReply` but also names the source
- * channel so the forward can render its "Forwarded from #name" attribution.
- * Flat (never nested), with the body and mentions blanked when the source has
- * been deleted.
- */
-export type MessageForward = {
-    id: string;
-    body: string;
-    authorName: string;
-    /**
-     * Whether the forwarded author is a bot, so the attribution badges it — the
-     * same reason `MessageReply` carries it. Absent on optimistic forwards.
-     */
-    authorIsBot?: boolean;
-    /** The display identity the forwarded message asked for, if any. */
-    authorOverride?: AuthorOverride | null;
-    /**
-     * Null when the source is a direct message (a DM has no name); the client
-     * then renders "a direct message" instead of a "#channel" attribution.
-     */
-    channelName: string | null;
-    isDeleted: boolean;
-    mentions: Mention[];
-};
-
-/**
- * An unfurled link preview attached to a message. Mirrors the `LinkPreviewData`
- * DTO: `pending` while the queued job fetches Open Graph metadata (the card
- * renders as a skeleton) and `ready` once it resolves; failed previews are
- * dropped server-side so they never reach the client. The metadata fields are
- * null until the preview is ready (and stay null for any tag the page omits).
- */
-export type MessagePreview = {
-    url: string;
-    status: 'pending' | 'ready' | 'failed';
-    title: string | null;
-    description: string | null;
-    imageUrl: string | null;
-    siteName: string | null;
-};
-
-/**
- * A message's reactions for a single emoji. Mirrors the `ReactionData` DTO: the
- * emoji, its total count, and the reactor set (id + name, for the "you and 3
- * others" tooltip). The summary is viewer-free — the client derives whether it
- * reacted by checking its own id against `reactors` — so it rides the
- * `MessageReactionChanged` broadcast unchanged and every viewer merges the same
- * payload. Ordered first-reacted first, matching the server's aggregation.
- */
-export type Reaction = {
-    emoji: string;
-    count: number;
-    reactors: Mention[];
-};
-
-/**
- * A message's pin to its channel. Mirrors the `PinData` DTO: who pinned it (id +
- * name, for the "Pinned by :name" attribution) and when. Null on an unpinned
- * message and always null on a tombstone. Patched live in place from the
- * `MessagePinned` broadcast.
- */
-export type MessagePin = {
-    pinnedBy: Mention;
-    pinnedAt: string;
-};
-
-/**
- * One option of a poll. Mirrors the `PollOptionData` DTO: the label, its
- * `position` (the author's entry order), and its tally. `voters` is the roster
- * for a public poll (the client derives "did I vote this" by checking its own id
- * against it, like a reaction's reactors) and null for an anonymous poll.
- * `votedByViewer` seeds the viewer's own selection on the initial load (the only
- * signal an anonymous poll's hidden roster can't convey); it is false on the
- * viewer-free broadcast, so the client preserves its own selection across patches.
- */
-export type PollOption = {
-    id: string;
-    label: string;
-    position: number;
-    voteCount: number;
-    voters: Mention[] | null;
-    votedByViewer: boolean;
-};
-
-/**
- * A poll carried by a `poll`-type message. Mirrors the `PollData` DTO: the
- * question, the two creator toggles, `closedAt` (null while open; set freezes the
- * tally), the options, and both totals — `totalVotes` (sum across options) and
- * `voterCount` (distinct people), which diverge only for a multiple-choice poll.
- * Viewer-free, so it rides the `PollVoteChanged` broadcast unchanged.
- */
-export type Poll = {
-    id: string;
-    question: string;
-    allowMultiple: boolean;
-    isAnonymous: boolean;
-    closedAt: string | null;
-    options: PollOption[];
-    totalVotes: number;
-    voterCount: number;
-};
-
-export type Message = {
-    id: string;
-    clientUuid: string;
-    body: string;
-    /**
-     * The message kind. `standard` for a normal user message; a system notice
-     * renders as a centered, inert timeline line (from the `type`, the author,
-     * and — for a topic or rename notice — the `body`) and is guarded out of
-     * every interaction path.
-     */
-    type: MessageType;
-    user: MessageAuthor;
-    /**
-     * The display identity this message asked to be shown under (mirrors the
-     * `MessageData` DTO's `authorOverride`), riding beside — never replacing — the
-     * truthful `user`. Null on an ordinary message and absent on an optimistic
-     * one, which is built client-side under the sender's own identity.
-     */
-    authorOverride?: AuthorOverride | null;
-    /**
-     * The credential — an incoming webhook or an API token — that produced this
-     * message (mirrors the `MessageData` DTO's `postedVia`), for the viewers who
-     * could revoke it. Null on every ordinary message, null for a viewer who
-     * cannot manage the team's integrations, and absent on an optimistic one.
-     */
-    postedVia?: App.Data.MessageCredentialData | null;
-    createdAt: string;
-    editedAt: string | null;
-    isDeleted: boolean;
-    mentions: Mention[];
-    /**
-     * Aggregated emoji reactions (mirrors the `MessageData` DTO's `reactions`),
-     * one entry per distinct emoji. Empty when nobody has reacted and always
-     * empty on a tombstone. Patched live in place from `MessageReactionChanged`.
-     */
-    reactions: Reaction[];
-    /**
-     * This message's pin to its channel (mirrors the `MessageData` DTO's `pin`),
-     * or null when it isn't pinned. Drives the timeline's "Pinned by :name"
-     * indicator and the pin/unpin toolbar state. Patched live from `MessagePinned`
-     * and always null on a tombstone.
-     */
-    pin: MessagePin | null;
-    /**
-     * The poll carried by a `poll`-type message (mirrors the `MessageData` DTO's
-     * `poll`), or null for any other message. Drives the poll card's bars, vote
-     * buttons, and open/closed state. Patched live in place from `PollVoteChanged`.
-     */
-    poll: Poll | null;
-    /**
-     * Open Graph preview cards for the URLs in the body (mirrors the
-     * `MessageData` DTO's `linkPreviews`), in order of appearance. Empty when the
-     * message has no links; a `pending` entry renders as a skeleton until the
-     * queued unfurl broadcasts the resolved card in place.
-     */
-    linkPreviews: MessagePreview[];
-    /**
-     * Files attached to this message (mirrors the `MessageData` DTO's
-     * `attachments`), in `attachment_ids[]` order. Empty for a message with no
-     * attachments and always empty on a tombstone. Images render inline (single,
-     * grid, or with a "+N" overflow tile); everything else, SVG included, renders
-     * as a download card.
-     */
-    attachments: AttachmentData[];
-    replyTo: MessageReply | null;
-    /**
-     * A compact quote of the message this one forwards into the channel, or null
-     * for a normal message. Mirrors the `MessageData` DTO's `forwardedFrom`.
-     */
-    forwardedFrom: MessageForward | null;
-    /**
-     * Threading fields (mirror the `MessageData` DTO). `threadRootId` is set on a
-     * thread reply and names its root; null on a root/normal message. The
-     * `thread*` aggregates are populated on a root so the timeline can render its
-     * "N replies" affordance, and survive a soft delete. `sentToChannel` marks a
-     * reply that was also surfaced in the main timeline.
-     */
-    threadRootId: string | null;
-    sentToChannel: boolean;
-    threadReplyCount: number;
-    threadLastReplyAt: string | null;
-    threadParticipants: Mention[];
-    /**
-     * Per-viewer thread read-state (mirror the `MessageData` DTO), meaningful on
-     * a root. `threadFollowed` is the Slack-style auto-follow signal — the viewer
-     * authored the root, replied, or was mentioned in the thread — and gates
-     * whether a live reply raises the dot. `threadUnread` drives the dot on the
-     * root's "N replies" affordance and clears when the thread is read, and
-     * `threadUnreadReplyCount` is how many of those replies are new — what the
-     * Threads panel renders as ":count new replies", never derived from the total.
-     * Broadcast payloads omit viewer context, so the client preserves its own
-     * values across patches rather than taking the server's defaults.
-     */
-    threadFollowed: boolean;
-    threadUnread: boolean;
-    threadUnreadReplyCount: number;
-};
-
-/**
- * A message the viewer has scheduled for future delivery to the channel. Mirrors
- * the `ScheduledMessageData` DTO: the pending body, the UTC `sendAt` instant (the
- * client renders it in the viewer's zone), and the inline reply quote it will
- * carry once delivered. The channel page lists the viewer's own pending rows in
- * the `scheduledMessages` prop.
- */
-export type ScheduledMessage = {
-    id: string;
-    body: string;
-    sendAt: string;
-    createdAt: string;
-    replyTo: MessageReply | null;
-};
-
-/**
- * A personal "remind me about this" reminder on a message. Mirrors the
- * `MessageReminderData` DTO: the id, the reminded message (id + author + body +
- * a `isDeleted` stub flag), where it lives (team + channel slug/name for the
- * link back), and the UTC `remindAt` instant the client renders in the viewer's
- * zone. The workspace shares the viewer's pending rows in `reminders` and the
- * due-and-unacknowledged ones in `firedReminders`.
+ * A member of a channel's roster, as the channel page and the composer's
+ * `@mention` autocomplete receive them.
  *
- * `isAccessible` is false once the viewer can no longer view the channel the
- * message lives in: the server blanks the body, author, channel name and channel
- * slug, so such a row renders as a stub with no jump link — only a way to clear
- * it. Regaining access restores the row.
+ * The full user payload rather than a {@link Mention}: the facepile badges bots
+ * and the autocomplete drops them, neither of which a mention payload can answer.
+ * Kept distinct from `Mention` on purpose — the two are different server payloads,
+ * and one type spanning both is how `isBot` came to be optional on a shape that
+ * never carried it.
  */
-export type MessageReminder = {
-    id: string;
-    messageId: string;
-    remindAt: string;
-    teamSlug: string;
-    channelSlug: string;
-    channelName: string | null;
-    authorName: string;
-    /**
-     * Whether the saved message's author is a bot, so the card badges it — the
-     * same reason `MessageReply` carries it. False on an inaccessible row, whose
-     * author is blanked along with everything else the viewer may no longer see.
-     */
-    authorIsBot?: boolean;
-    /** The display identity the saved message asked for, if any. */
-    authorOverride?: AuthorOverride | null;
-    body: string;
-    isDeleted: boolean;
-    isAccessible: boolean;
-};
+export type RosterMember = App.Data.UserData;
 
 /**
- * An open thread's root message. Mirrors the `thread` prop the channel page
- * loads on demand from `?thread=`; the replies ride a separate, paginated
- * `threadReplies` scroll prop (a `MessagePage`).
+ * A channel member's read position, powering the "Seen by" affordance. The
+ * channel page seeds these from a prop and keeps them current from the
+ * `MessageRead` broadcast.
+ */
+export type ChannelReader = App.Data.ChannelReaderData;
+
+/** A compact quote of the parent message an inline reply answers. */
+export type MessageReply = App.Data.MessageReplyData;
+
+/**
+ * A compact quote of a forwarded source message — like a {@link MessageReply} but
+ * also naming the source channel, for the "Forwarded from #name" attribution.
+ */
+export type MessageForward = App.Data.MessageForwardData;
+
+/**
+ * An unfurled link preview attached to a message. A `pending` card renders as a
+ * skeleton until the queued unfurl broadcasts the resolved one in its place.
+ */
+export type MessagePreview = App.Data.LinkPreviewData;
+
+/**
+ * A message's reactions for a single emoji. Viewer-free — the client derives
+ * whether it reacted by checking its own id against `reactors` — so it rides the
+ * `MessageReactionChanged` broadcast unchanged.
+ */
+export type Reaction = App.Data.ReactionData;
+
+/**
+ * A message's pin to its channel, or the shape of one. Patched live in place from
+ * the `MessagePinned` broadcast.
+ */
+export type MessagePin = App.Data.PinData;
+
+/** One option of a poll, with its tally and (for a public poll) its roster. */
+export type PollOption = App.Data.PollOptionData;
+
+/**
+ * A poll carried by a `poll`-type message. Viewer-free, so it rides the
+ * `PollVoteChanged` broadcast unchanged.
+ */
+export type Poll = App.Data.PollData;
+
+/**
+ * A post in a channel — the payload every timeline, thread, search hit and
+ * realtime broadcast is built from.
+ */
+export type Message = App.Data.MessageData;
+
+/**
+ * A message the viewer has scheduled for future delivery to the channel. The
+ * channel page lists the viewer's own pending rows in the `scheduledMessages`
+ * prop.
+ */
+export type ScheduledMessage = App.Data.ScheduledMessageData;
+
+/**
+ * A personal "remind me about this" reminder on a message. The workspace shares
+ * the viewer's pending rows in `reminders` and the due-and-unacknowledged ones in
+ * `firedReminders`.
+ */
+export type MessageReminder = App.Data.MessageReminderData;
+
+/**
+ * An open thread's root message. Mirrors the `thread` prop the channel page loads
+ * on demand from `?thread=`; the replies ride a separate, paginated
+ * `threadReplies` scroll prop (a {@link MessagePage}).
  */
 export type Thread = {
     root: Message;
@@ -368,21 +135,10 @@ export type MessagePage = {
 };
 
 /**
- * A single message-search match. Mirrors the `MessageSearchResultData` DTO: the
- * matched message, its highlighted snippet, and the channel + owning team it
- * belongs to, for rendering the result row, its `<mark>` snippet, a cross-team
- * workspace tag, and the jump-to-message link.
+ * A single message-search match: the matched message, its highlighted snippet,
+ * and the channel + owning team it belongs to.
  */
-export type MessageSearchResult = {
-    message: Message;
-    channelName: string;
-    channelSlug: string;
-    isDirectMessage: boolean;
-    snippet: string;
-    teamId: string;
-    teamName: string;
-    teamSlug: string;
-};
+export type MessageSearchResult = App.Data.MessageSearchResultData;
 
 /**
  * The criteria a set of search matches was selected by, as the client writes them
@@ -416,27 +172,10 @@ export type SearchWorkspaceChannel = {
 };
 
 /**
- * A card in the Threads panel. Mirrors the `ThreadInboxItemData` DTO: a followed
- * thread's root message (carrying its reply counts, participants, and per-viewer
- * `threadUnread` state) plus the conversation it lives in, for rendering the card
- * and its jump-to-thread link.
- *
- * Spelled out here rather than taken from `App.Data.ThreadInboxItemData` because
- * `root` is the hand-rolled `Message` the timeline components already speak.
+ * A card in the Threads panel: a followed thread's root message plus the
+ * conversation it lives in, for rendering the card and its jump-to-thread link.
  */
-export type ThreadInboxItem = {
-    root: Message;
-    /**
-     * Viewer-relative: a channel's own name, or the counterpart's name for a DM,
-     * which stores none.
-     */
-    channelName: string;
-    channelSlug: string;
-    /** Whether the thread lives in a DM, so the card drops the `#`. */
-    isDirectMessage: boolean;
-    /** The 1:1 counterpart, whose avatar stands in for the `#` on a DM card. */
-    dmParticipant: Mention | null;
-};
+export type ThreadInboxItem = App.Data.ThreadInboxItemData;
 
 /**
  * The paginated shape delivered by `Inertia::scroll()` for the Threads inbox.

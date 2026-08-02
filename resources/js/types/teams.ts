@@ -1,4 +1,5 @@
-export type TeamRole = 'owner' | 'admin' | 'member';
+/** A member's standing in a workspace. Backed by the PHP enum. */
+export type TeamRole = App.Enums.TeamRole;
 
 export type Team = {
     id: string;
@@ -32,27 +33,10 @@ export type TeamMember = {
 };
 
 /**
- * A team member's profile as shown on their dedicated profile page. Mirrors the
- * `App\Data\UserProfileData` DTO. `role`/`roleLabel`/`memberSince` come from the
- * membership pivot; `isYou` marks the viewer's own profile.
+ * A team member's profile, as shown on their dedicated profile page and in the
+ * hover card.
  */
-export type UserProfile = {
-    id: string;
-    name: string;
-    email: string;
-    avatar: string | null;
-    pronouns: string | null;
-    title: string | null;
-    phone: string | null;
-    timezone: string | null;
-    role: TeamRole | null;
-    roleLabel: string | null;
-    memberSince: string | null;
-    isYou: boolean;
-    status: App.Data.UserStatusData | null;
-    /** Whether the member is in do-not-disturb right now; never says when it ends. */
-    isDnd: boolean;
-};
+export type UserProfile = App.Data.UserProfileData;
 
 export type TeamInvitation = {
     code: string;
@@ -78,22 +62,11 @@ export type DashboardInvitation = {
     };
 };
 
-export type TeamPermissions = {
-    canUpdateTeam: boolean;
-    canDeleteTeam: boolean;
-    canAddMember: boolean;
-    canUpdateMember: boolean;
-    canRemoveMember: boolean;
-    canCreateInvitation: boolean;
-    canCancelInvitation: boolean;
-    canTransferOwnership: boolean;
-    canViewAudit: boolean;
-    canViewSecurityLog: boolean;
-    canViewAnalytics: boolean;
-    canViewDeletedChannels: boolean;
-    canManageIntegrations: boolean;
-    canManageUserGroups: boolean;
-};
+/**
+ * What the viewer may do in a workspace, answered once server-side and shipped
+ * with the team settings page.
+ */
+export type TeamPermissions = App.Data.TeamPermissions;
 
 export type RoleOption = {
     value: TeamRole;
@@ -133,19 +106,8 @@ export type DefaultChannelCandidate = {
     isGeneral: boolean;
 };
 
-/**
- * A recorded admin/moderation action shown in a workspace's audit log. Mirrors
- * the `App\Data\AuditEventData` DTO. `actorName` is null when the acting user no
- * longer exists; `description` is a ready-to-render human sentence.
- */
-export type AuditEntry = {
-    id: string;
-    action: string;
-    label: string;
-    actorName: string | null;
-    description: string;
-    occurredAt: string;
-};
+/** A recorded admin/moderation action shown in a workspace's audit log. */
+export type AuditEntry = App.Data.AuditEventData;
 
 export type AuditActionOption = {
     value: string;
@@ -167,69 +129,26 @@ export type AuditEntriesPage = {
     nextPageUrl: string | null;
 };
 
-/**
- * A single headline metric on the analytics dashboard. Mirrors the
- * `AnalyticsStatData` DTO; each tile fills only the optional fields it renders.
- */
-export type AnalyticsStat = {
-    value: number;
-    total: number | null;
-    delta: number | null;
-    deltaPercent: number | null;
-    secondary: number | null;
-};
+/** A single headline metric on the analytics dashboard. */
+export type AnalyticsStat = App.Data.AnalyticsStatData;
 
 /** The message count for a single day in the messages-per-day series. */
-export type DailyMessageCount = {
-    date: string;
-    count: number;
-};
+export type DailyMessageCount = App.Data.DailyMessageCountData;
 
 /** A channel's message count in the most-active-channels ranking. */
-export type ChannelActivity = {
-    id: string;
-    name: string;
-    count: number;
-};
+export type ChannelActivity = App.Data.ChannelActivityData;
 
 /** The cumulative member total at the end of a month in the growth series. */
-export type MonthlyMemberCount = {
-    month: string;
-    total: number;
-};
+export type MonthlyMemberCount = App.Data.MonthlyMemberCountData;
 
 /** A member's message count in the top-contributors ranking. */
-export type Contributor = {
-    id: string;
-    name: string;
-    count: number;
-};
+export type Contributor = App.Data.ContributorData;
 
 /** The full analytics payload for a workspace over a selected window. */
-export type WorkspaceAnalytics = {
-    range: string;
-    days: number;
-    activeMembers: AnalyticsStat;
-    messagesPerDay: AnalyticsStat;
-    messagesSent: AnalyticsStat;
-    activeChannels: AnalyticsStat;
-    messagesByDay: DailyMessageCount[];
-    topChannels: ChannelActivity[];
-    memberGrowth: MonthlyMemberCount[];
-    topContributors: Contributor[];
-};
+export type WorkspaceAnalytics = App.Data.WorkspaceAnalyticsData;
 
-/**
- * A workspace's upload footprint against its configured storage quota. Mirrors
- * the `TeamStorageData` DTO, and is only sent while a quota is configured — so
- * `quotaBytes` is always positive and `percent` may exceed 100 when an operator
- * lowers the quota below the space already in use.
- */
-export type TeamStorage = {
-    usedBytes: number;
-    quotaBytes: number;
-    percent: number;
-};
+/** A workspace's upload footprint against its configured storage quota. */
+export type TeamStorage = App.Data.TeamStorageData;
 
 /** One option in the analytics range toggle (7d / 30d / 90d). */
 export type AnalyticsRangeOption = {

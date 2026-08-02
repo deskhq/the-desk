@@ -2,10 +2,10 @@ import { describe, expect, it } from 'vitest';
 import { hasReacted, reactionRoster, toggleReaction } from '@/lib/reactions';
 import type { Mention, Reaction } from '@/types';
 
-const ME: Mention = { id: 'me', name: 'Me' };
-const ALICE: Mention = { id: 'a', name: 'Alice' };
-const BOB: Mention = { id: 'b', name: 'Bob' };
-const CAROL: Mention = { id: 'c', name: 'Carol' };
+const ME: Mention = { id: 'me', name: 'Me', avatar: null };
+const ALICE: Mention = { id: 'a', name: 'Alice', avatar: null };
+const BOB: Mention = { id: 'b', name: 'Bob', avatar: null };
+const CAROL: Mention = { id: 'c', name: 'Carol', avatar: null };
 
 /**
  * A reaction entry for `emoji` reacted to by the given members, in order.

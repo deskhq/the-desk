@@ -62,7 +62,7 @@ function reaction(emoji: string, reactorIds: string[]): Reaction {
     return {
         emoji,
         count: reactorIds.length,
-        reactors: reactorIds.map((id) => ({ id, name: id })),
+        reactors: reactorIds.map((id) => ({ id, name: id, avatar: null })),
     };
 }
 
@@ -133,7 +133,17 @@ describe('MessageActionsSheet action rows', () => {
 
     it('adds edit and delete on the viewer own message', () => {
         const { host } = mount({
-            message: message({ user: { id: 'me', name: 'Me' } }),
+            message: message({
+                user: {
+                    id: 'me',
+                    name: 'Me',
+                    avatar: null,
+                    isBot: false,
+                    status: null,
+                    presence: 'active',
+                    isDnd: false,
+                },
+            }),
         });
 
         expect(rowNames(host)).toContain('edit');
@@ -173,7 +183,7 @@ describe('MessageActionsSheet action rows', () => {
     it('flips the pin row to unpin on a pinned message', () => {
         const pinned = message({
             pin: {
-                pinnedBy: { id: 'peer', name: 'Peer' },
+                pinnedBy: { id: 'peer', name: 'Peer', avatar: null },
                 pinnedAt: '2024-01-01T00:00:00.000Z',
             },
         });
@@ -201,7 +211,17 @@ describe('MessageActionsSheet action rows', () => {
 
     it('hands the timeline the edit and delete affordances it owns', () => {
         const { host, events } = mount({
-            message: message({ user: { id: 'me', name: 'Me' } }),
+            message: message({
+                user: {
+                    id: 'me',
+                    name: 'Me',
+                    avatar: null,
+                    isBot: false,
+                    status: null,
+                    presence: 'active',
+                    isDnd: false,
+                },
+            }),
         });
 
         click(host, 'sheet-edit');

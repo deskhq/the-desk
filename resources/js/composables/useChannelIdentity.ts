@@ -3,18 +3,18 @@ import { computed } from 'vue';
 import type { ComputedRef } from 'vue';
 import { useTranslations } from '@/composables/useTranslations';
 import { groupDmMastheadName } from '@/lib/groupDm';
-import type { Channel, Mention } from '@/types';
+import type { Channel, Mention, RosterMember } from '@/types';
 
 export interface ChannelIdentityOptions {
     channel: () => Channel;
     /** The channel's members, as the roster and the mention menu see them. */
-    members: () => Mention[];
+    members: () => RosterMember[];
     /** Whether the viewer belongs to the channel. */
     isMember: () => boolean;
 }
 
 export interface ChannelIdentity {
-    currentUser: ComputedRef<{ id: string; name: string }>;
+    currentUser: ComputedRef<Mention>;
     /** Whether this is the viewer's own self-DM, which reads "You". */
     isSelfDm: ComputedRef<boolean>;
     /** What the channel is called from the viewer's side of it. */
@@ -31,7 +31,7 @@ export interface ChannelIdentity {
     /** Whether the viewer may delete anyone's message here (a team Admin+). */
     canModerate: ComputedRef<boolean>;
     /** The members the composer offers for `@`. */
-    mentionableMembers: ComputedRef<Mention[]>;
+    mentionableMembers: ComputedRef<RosterMember[]>;
     /** Whether the channel has a bot member. */
     channelHasBots: ComputedRef<boolean>;
 }
@@ -51,9 +51,10 @@ export function useChannelIdentity(
     const page = usePage();
     const { t } = useTranslations();
 
-    const currentUser = computed(() => ({
+    const currentUser = computed<Mention>(() => ({
         id: String(page.props.auth.user.id),
         name: page.props.auth.user.name,
+        avatar: page.props.auth.user.avatar ?? null,
     }));
 
     const isSelfDm = computed(

@@ -148,7 +148,7 @@ describe('a message row on its own', () => {
     it('unpins a pinned message through the same toggle', () => {
         const target = message({
             pin: {
-                pinnedBy: { id: 'peer', name: 'Peer' },
+                pinnedBy: { id: 'peer', name: 'Peer', avatar: null },
                 pinnedAt: '2024-03-04T10:31:00.000Z',
             },
         });
@@ -162,7 +162,17 @@ describe('a message row on its own', () => {
 
     it('leaves the editor and the delete confirmation to the timeline', () => {
         const { host, actions, events } = mount({
-            message: message({ user: { id: 'me', name: 'Me' } }),
+            message: message({
+                user: {
+                    id: 'me',
+                    name: 'Me',
+                    avatar: null,
+                    isBot: false,
+                    status: null,
+                    presence: 'active',
+                    isDnd: false,
+                },
+            }),
         });
 
         click(host, 'message-edit');

@@ -9,7 +9,14 @@ import type {
     CommandCallbacks,
     SendCallbacks,
 } from '@/composables/useMessageActions';
-import type { Channel, Mention, Message, ScheduledMessage } from '@/types';
+import type {
+    Channel,
+    Mention,
+    Message,
+    PersonRef,
+    RosterMember,
+    ScheduledMessage,
+} from '@/types';
 
 /**
  * The bottom of the conversation: the offline queue banner, the typing line, the
@@ -20,7 +27,7 @@ const props = defineProps<{
     team: { slug: string };
     channel: Channel;
     /** The members the composer offers for `@`, the current user and bots aside. */
-    members: Mention[];
+    members: RosterMember[];
     /** Whether the channel has a bot member, noted once in the mention menu. */
     hasBots: boolean;
     /** A DM addresses the conversation by name rather than by "#channel". */
@@ -78,7 +85,7 @@ const composerElement = computed<HTMLElement | null>(
 defineExpose({
     composerElement,
     focus: (): void => composer.value?.focus(),
-    insertMention: (member: { id: string; name: string }): void =>
+    insertMention: (member: PersonRef): void =>
         composer.value?.insertMention(member),
     addFiles: (files: File[]): void => composer.value?.addFiles(files),
 });

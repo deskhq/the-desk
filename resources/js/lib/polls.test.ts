@@ -2,8 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { applyVote, hasVoted, optionShare } from '@/lib/polls';
 import type { Mention, Poll, PollOption } from '@/types';
 
-const ME: Mention = { id: 'me', name: 'Me' };
-const ALICE: Mention = { id: 'a', name: 'Alice' };
+const ME: Mention = { id: 'me', name: 'Me', avatar: null };
+const ALICE: Mention = { id: 'a', name: 'Alice', avatar: null };
 
 /** A public option with the given voters (roster present). */
 function publicOption(id: string, voters: Mention[]): PollOption {

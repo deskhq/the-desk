@@ -19,7 +19,7 @@ import {
     presenceLabelKey,
 } from '@/lib/presence';
 import type { RenderedPresence } from '@/lib/presence';
-import type { Channel, Mention } from '@/types';
+import type { Channel, RosterMember } from '@/types';
 
 /**
  * What the masthead calls the conversation it heads: its avatar treatment, its
@@ -28,7 +28,7 @@ import type { Channel, Mention } from '@/types';
 const props = defineProps<{
     channel: Channel;
     /** The team roster, which the activity readout counts. */
-    members: Mention[];
+    members: RosterMember[];
     /** How each team member reads on the presence roster. */
     presenceFor: (userId: string) => RenderedPresence;
     /** Whether each member is in do-not-disturb, driving the crescent badge. */

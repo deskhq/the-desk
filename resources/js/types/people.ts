@@ -1,6 +1,11 @@
 /**
- * A minimal reference to a team member, as shipped in the shared `teamMembers`
- * prop (mirrors `App\Data\UserData`). Feeds the DM entry points.
+ * A minimal reference to a team member, feeding the DM entry points.
+ *
+ * A deliberate client-side *narrowing* of the `UserData` the shared `teamMembers`
+ * prop carries, not a restatement of it: the DM pickers assemble refs of their own
+ * from whatever they have in hand, which is a name and an id. That is why the two
+ * presence fields are optional here while `App.Data.UserData` always answers them.
+ * A surface that wants the whole member reads `RosterMember`.
  */
 export type PersonRef = {
     id: string;

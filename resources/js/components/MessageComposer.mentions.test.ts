@@ -2,7 +2,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { App, Component } from 'vue';
 import { createApp, defineComponent, h, nextTick, ref } from 'vue';
-import type { Mention } from '@/types';
+import type { Mention, PersonRef, RosterMember } from '@/types';
 import MessageComposer from './MessageComposer.vue';
 
 /**
@@ -109,9 +109,14 @@ const GRACE = {
 };
 
 /** Ten members, so the eight-row cap and the group slots both bite. */
-const MANY_MEMBERS: Mention[] = Array.from({ length: 10 }, (_, index) => ({
+const MANY_MEMBERS: RosterMember[] = Array.from({ length: 10 }, (_, index) => ({
     id: `cccccccc-cccc-4ccc-8ccc-cccccccccc${String(index).padStart(2, '0')}`,
     name: `Person ${index}`,
+    avatar: null,
+    isBot: false,
+    status: null,
+    presence: 'active',
+    isDnd: false,
 }));
 
 type SentMessage = { body: string; mentions: Mention[] };
@@ -122,7 +127,7 @@ function mountComposer(props: Record<string, unknown> = {}) {
     const sent: SentMessage[] = [];
     const container = document.createElement('div');
     document.body.appendChild(container);
-    const composer = ref<{ insertMention: (member: Mention) => void } | null>(
+    const composer = ref<{ insertMention: (member: PersonRef) => void } | null>(
         null,
     );
 

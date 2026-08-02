@@ -130,7 +130,7 @@ export function useMessageStream(
             ...message,
             threadFollowed: prior?.threadFollowed ?? message.threadFollowed,
             threadUnread: prior?.threadUnread ?? message.threadUnread,
-            postedVia: message.postedVia ?? prior?.postedVia,
+            postedVia: message.postedVia ?? prior?.postedVia ?? null,
         });
     }
 
@@ -276,7 +276,22 @@ export function optimisticMessage(params: {
         body: params.body,
         // An optimistic send is always a normal user message.
         type: 'standard',
-        user: params.author,
+        // The client knows itself by id and name; the rest of the author payload
+        // is the server's to answer, so it takes the values that render as "no
+        // badge, no dot, no status" until the echo replaces this copy wholesale.
+        user: {
+            id: params.author.id,
+            name: params.author.name,
+            avatar: params.author.avatar,
+            isBot: false,
+            status: null,
+            presence: 'active',
+            isDnd: false,
+        },
+        // An optimistic send is never an override or a credential post: the
+        // sender is posting as themselves, from this browser.
+        authorOverride: null,
+        postedVia: null,
         createdAt: new Date().toISOString(),
         editedAt: null,
         isDeleted: false,

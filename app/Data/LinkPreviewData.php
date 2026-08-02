@@ -2,6 +2,7 @@
 
 namespace App\Data;
 
+use App\Enums\LinkPreviewStatus;
 use App\Models\MessageLinkPreview;
 use App\Support\Images\ImageProxy;
 use Spatie\LaravelData\Data;
@@ -12,7 +13,7 @@ class LinkPreviewData extends Data
 {
     public function __construct(
         public string $url,
-        public string $status,
+        public LinkPreviewStatus $status,
         public ?string $title,
         public ?string $description,
         public ?string $imageUrl,
@@ -34,7 +35,7 @@ class LinkPreviewData extends Data
     {
         return new self(
             url: $preview->url,
-            status: $preview->status->value,
+            status: $preview->status,
             title: $preview->title,
             description: $preview->description,
             imageUrl: ImageProxy::url($preview->image_url),

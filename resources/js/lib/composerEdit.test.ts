@@ -13,7 +13,17 @@ function message(overrides: Partial<Message> = {}): Message {
         clientUuid: 'uuid-1',
         body: 'hello',
         type: 'standard',
-        user: { id: 'me', name: 'Me' },
+        user: {
+            id: 'me',
+            name: 'Me',
+            avatar: null,
+            isBot: false,
+            status: null,
+            presence: 'active',
+            isDnd: false,
+        },
+        authorOverride: null,
+        postedVia: null,
         createdAt: '2024-01-01T00:00:00.000Z',
         editedAt: null,
         isDeleted: false,
@@ -123,7 +133,15 @@ describe('resolveComposerEditTarget', () => {
             message({
                 id: 'theirs',
                 clientUuid: 'theirs',
-                user: { id: 'peer', name: 'Peer' },
+                user: {
+                    id: 'peer',
+                    name: 'Peer',
+                    avatar: null,
+                    isBot: false,
+                    status: null,
+                    presence: 'active',
+                    isDnd: false,
+                },
             }),
         ];
 
@@ -156,7 +174,15 @@ describe('resolveComposerEditTarget', () => {
             message({
                 id: 'theirs',
                 clientUuid: 'theirs',
-                user: { id: 'peer', name: 'Peer' },
+                user: {
+                    id: 'peer',
+                    name: 'Peer',
+                    avatar: null,
+                    isBot: false,
+                    status: null,
+                    presence: 'active',
+                    isDnd: false,
+                },
             }),
         ];
 

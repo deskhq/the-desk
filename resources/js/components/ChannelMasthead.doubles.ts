@@ -4,7 +4,7 @@ import { createApp, h, ref } from 'vue';
 import { passthrough } from '@/components/ChannelMasthead.stubs';
 import { translate } from '@/lib/i18n';
 import type { RenderedPresence } from '@/lib/presence';
-import type { Channel, DmParticipant, Mention } from '@/types';
+import type { Channel, DmParticipant, RosterMember } from '@/types';
 
 /**
  * The harness the masthead's suites share: the app state it reads through
@@ -115,8 +115,17 @@ export function channel(overrides: Partial<Channel> = {}): Channel {
     };
 }
 
-export function member(overrides: Partial<Mention> = {}): Mention {
-    return { id: 'u1', name: 'Ada Lovelace', avatar: null, ...overrides };
+export function member(overrides: Partial<RosterMember> = {}): RosterMember {
+    return {
+        id: 'u1',
+        name: 'Ada Lovelace',
+        avatar: null,
+        isBot: false,
+        status: null,
+        presence: 'active',
+        isDnd: false,
+        ...overrides,
+    };
 }
 
 /** The other side of a DM, as the channel payload carries them. */

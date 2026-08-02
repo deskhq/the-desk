@@ -2,6 +2,7 @@
 
 namespace App\Data;
 
+use App\Enums\TeamRole;
 use App\Models\Membership;
 use App\Models\User;
 use Spatie\LaravelData\Data;
@@ -19,7 +20,7 @@ class UserProfileData extends Data
         public ?string $title,
         public ?string $phone,
         public ?string $timezone,
-        public ?string $role,
+        public ?TeamRole $role,
         public ?string $roleLabel,
         public ?string $memberSince,
         public bool $isYou,
@@ -48,7 +49,7 @@ class UserProfileData extends Data
             title: $member->title,
             phone: $member->phone,
             timezone: $member->timezone,
-            role: $membership->role->value,
+            role: $membership->role,
             roleLabel: $membership->role->label(),
             memberSince: $membership->created_at?->toIso8601String(),
             isYou: $member->is($viewer),

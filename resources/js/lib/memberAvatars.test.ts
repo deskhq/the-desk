@@ -6,7 +6,7 @@ import type { Mention } from '@/types';
  * A member row for the masthead avatar stack.
  */
 function member(id: string, name: string): Mention {
-    return { id, name };
+    return { id, name, avatar: null };
 }
 
 describe('memberAvatarStack', () => {

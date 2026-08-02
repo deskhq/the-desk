@@ -98,8 +98,8 @@ describe('the thread summary', () => {
         message({
             threadReplyCount: 2,
             threadParticipants: [
-                { id: 'u1', name: 'Ada' },
-                { id: 'u2', name: 'Bo' },
+                { id: 'u1', name: 'Ada', avatar: null },
+                { id: 'u2', name: 'Bo', avatar: null },
             ],
             ...overrides,
         });
@@ -131,11 +131,11 @@ describe('the thread summary', () => {
             messages: [
                 root({
                     threadParticipants: [
-                        { id: 'u1', name: 'Ada' },
-                        { id: 'u2', name: 'Bo' },
-                        { id: 'u3', name: 'Cy' },
-                        { id: 'u4', name: 'Di' },
-                        { id: 'u5', name: 'Ed' },
+                        { id: 'u1', name: 'Ada', avatar: null },
+                        { id: 'u2', name: 'Bo', avatar: null },
+                        { id: 'u3', name: 'Cy', avatar: null },
+                        { id: 'u4', name: 'Di', avatar: null },
+                        { id: 'u5', name: 'Ed', avatar: null },
                     ],
                 }),
             ],
@@ -184,7 +184,15 @@ describe('the thread summary', () => {
 describe('the "Seen by" row', () => {
     const readers = (...names: string[]): ChannelReader[] =>
         names.map((name) => ({
-            user: { id: name, name },
+            user: {
+                id: name,
+                name,
+                avatar: null,
+                isBot: false,
+                status: null,
+                presence: 'active',
+                isDnd: false,
+            },
             lastReadMessageId: 'm1',
         }));
 
