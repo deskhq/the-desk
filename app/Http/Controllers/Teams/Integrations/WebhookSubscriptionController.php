@@ -17,7 +17,6 @@ use App\Models\WebhookDelivery;
 use App\Models\WebhookSubscription;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -51,10 +50,6 @@ class WebhookSubscriptionController extends Controller
      */
     public function show(Request $request, Team $team, WebhookSubscription $webhookSubscription): Response
     {
-        Gate::authorize('manageIntegrations', $team);
-
-        $this->ensureSubscriptionBelongsToTeam($webhookSubscription, $team);
-
         return Inertia::render('teams/integrations/Webhook', [
             'team' => [
                 'id' => $team->id,
@@ -70,10 +65,6 @@ class WebhookSubscriptionController extends Controller
      */
     public function destroy(Request $request, Team $team, WebhookSubscription $webhookSubscription, RevokeWebhookSubscription $revoke): RedirectResponse
     {
-        Gate::authorize('manageIntegrations', $team);
-
-        $this->ensureSubscriptionBelongsToTeam($webhookSubscription, $team);
-
         $revoke->handle($request->user(), $webhookSubscription);
 
         Inertia::flash('toast', ['type' => 'success', 'message' => __('Subscription revoked')]);
@@ -86,10 +77,6 @@ class WebhookSubscriptionController extends Controller
      */
     public function reenable(Request $request, Team $team, WebhookSubscription $webhookSubscription, ReenableWebhookSubscription $reenable): RedirectResponse
     {
-        Gate::authorize('manageIntegrations', $team);
-
-        $this->ensureSubscriptionBelongsToTeam($webhookSubscription, $team);
-
         $reenable->handle($request->user(), $webhookSubscription);
 
         Inertia::flash('toast', ['type' => 'success', 'message' => __('Subscription re-enabled')]);
@@ -104,16 +91,11 @@ class WebhookSubscriptionController extends Controller
      * so it is offered on a disabled subscription too — verifying a fixed
      * endpoint is exactly what it is for.
      */
-    public function replay(Request $request, Team $team, WebhookSubscription $webhookSubscription, WebhookDelivery $webhookDelivery, ReplayWebhookDelivery $replay): RedirectResponse
+    public function replay(Request $request, Team $team, WebhookSubscription $webhookSubscription, WebhookDelivery $delivery, ReplayWebhookDelivery $replay): RedirectResponse
     {
-        Gate::authorize('manageIntegrations', $team);
+        abort_unless($delivery->isReplayable(), 422, __('This delivery was logged before payloads were retained, so it cannot be replayed.'));
 
-        $this->ensureSubscriptionBelongsToTeam($webhookSubscription, $team);
-
-        abort_unless($webhookDelivery->webhook_subscription_id === $webhookSubscription->id, 404);
-        abort_unless($webhookDelivery->isReplayable(), 422, __('This delivery was logged before payloads were retained, so it cannot be replayed.'));
-
-        $replay->handle($request->user(), $webhookDelivery);
+        $replay->handle($request->user(), $delivery);
 
         Inertia::flash('toast', ['type' => 'success', 'message' => __('Delivery queued for replay')]);
 
@@ -125,10 +107,6 @@ class WebhookSubscriptionController extends Controller
      */
     public function rotateSecret(Request $request, Team $team, WebhookSubscription $webhookSubscription, RotateWebhookSecret $rotate): RedirectResponse
     {
-        Gate::authorize('manageIntegrations', $team);
-
-        $this->ensureSubscriptionBelongsToTeam($webhookSubscription, $team);
-
         $secret = $rotate->handle($request->user(), $webhookSubscription);
 
         Inertia::flash('revealed', [
@@ -138,13 +116,5 @@ class WebhookSubscriptionController extends Controller
         ]);
 
         return back();
-    }
-
-    /**
-     * Guard that the subscription belongs to this team.
-     */
-    private function ensureSubscriptionBelongsToTeam(WebhookSubscription $subscription, Team $team): void
-    {
-        abort_unless($subscription->team_id === $team->id, 404);
     }
 }

@@ -17,7 +17,6 @@ use App\Models\Team;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -40,10 +39,6 @@ class BotController extends Controller
      */
     public function show(Request $request, Team $team, User $bot): Response
     {
-        Gate::authorize('manageIntegrations', $team);
-
-        $this->ensureBotBelongsToTeam($bot, $team);
-
         $bot->loadCount(['channels', 'tokens'])->loadMax('messages', 'created_at')->load('creator');
 
         $memberships = $this->botChannels($bot);
@@ -67,10 +62,6 @@ class BotController extends Controller
      */
     public function destroy(Request $request, Team $team, User $bot, DeleteBot $deleteBot): RedirectResponse
     {
-        Gate::authorize('manageIntegrations', $team);
-
-        $this->ensureBotBelongsToTeam($bot, $team);
-
         $deleteBot->handle($request->user(), $bot);
 
         Inertia::flash('toast', ['type' => 'success', 'message' => __('Bot deleted')]);
@@ -120,13 +111,5 @@ class BotController extends Controller
                 'visibility' => $channel->visibility->value,
             ])
             ->all();
-    }
-
-    /**
-     * Guard that the resolved user really is a bot scoped to this team.
-     */
-    private function ensureBotBelongsToTeam(User $bot, Team $team): void
-    {
-        abort_unless($bot->isBot() && $bot->owner_team_id === $team->id, 404);
     }
 }

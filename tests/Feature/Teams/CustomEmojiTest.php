@@ -128,7 +128,7 @@ test('the uploader can delete their own emoji', function (): void {
     Storage::disk(CustomEmoji::DISK)->put($emoji->path, 'x');
 
     $this->actingAs($member)
-        ->delete(route('teams.emojis.destroy', ['team' => $team, 'emoji' => $emoji]))
+        ->delete(route('teams.emojis.destroy', ['team' => $team, 'customEmoji' => $emoji]))
         ->assertRedirect();
 
     expect(CustomEmoji::find($emoji->id))->toBeNull();
@@ -142,7 +142,7 @@ test('a member cannot delete someone else’s emoji', function (): void {
     $emoji = CustomEmoji::factory()->for($team)->create(['created_by' => $owner->id]);
 
     $this->actingAs($member)
-        ->delete(route('teams.emojis.destroy', ['team' => $team, 'emoji' => $emoji]))
+        ->delete(route('teams.emojis.destroy', ['team' => $team, 'customEmoji' => $emoji]))
         ->assertForbidden();
 
     expect(CustomEmoji::find($emoji->id))->not->toBeNull();
@@ -155,7 +155,7 @@ test('an admin can revoke any emoji and it is recorded in the audit log', functi
     $emoji = CustomEmoji::factory()->for($team)->name('this-is-fine')->create(['created_by' => $author->id]);
 
     $this->actingAs($admin)
-        ->delete(route('teams.emojis.destroy', ['team' => $team, 'emoji' => $emoji]))
+        ->delete(route('teams.emojis.destroy', ['team' => $team, 'customEmoji' => $emoji]))
         ->assertRedirect();
 
     expect(CustomEmoji::find($emoji->id))->toBeNull();
@@ -171,7 +171,7 @@ test('an emoji scoped to another team 404s', function (): void {
     $emoji = CustomEmoji::factory()->for($other)->create();
 
     $this->actingAs($owner)
-        ->delete(route('teams.emojis.destroy', ['team' => $team, 'emoji' => $emoji]))
+        ->delete(route('teams.emojis.destroy', ['team' => $team, 'customEmoji' => $emoji]))
         ->assertNotFound();
 });
 

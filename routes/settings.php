@@ -134,7 +134,14 @@ Route::middleware(['auth', 'verified'])->group(function (): void {
     Route::get('settings/teams', [TeamController::class, 'index'])->name('teams.index');
     Route::post('settings/teams', [TeamController::class, 'store'])->name('teams.store');
 
-    Route::middleware(EnsureTeamMembership::class)->group(function (): void {
+    // Every nested resource below is bound through its parent's relationship
+    // rather than by id alone, so a child of another workspace 404s before any
+    // controller runs (ADR-0014). That is why each child parameter is named
+    // after the relationship that owns it — `{customEmoji}` resolves through
+    // `Team::customEmojis()`, `{delivery}` through
+    // `WebhookSubscription::deliveries()` — and why a controller here never
+    // re-asks whether the row belongs to the workspace in the URL.
+    Route::middleware(EnsureTeamMembership::class)->scopeBindings()->group(function (): void {
         Route::get('settings/teams/{team}', [TeamController::class, 'edit'])->name('teams.edit');
         Route::patch('settings/teams/{team}', [TeamController::class, 'update'])->name('teams.update');
         Route::delete('settings/teams/{team}', [TeamController::class, 'destroy'])->name('teams.destroy');
@@ -159,30 +166,29 @@ Route::middleware(['auth', 'verified'])->group(function (): void {
             ->name('teams.deleted-channels.index');
         Route::post('settings/teams/{team}/deleted-channels/{channel:id}/restore', [DeletedChannelController::class, 'restore'])
             ->withTrashed()
-            ->scopeBindings()
             ->name('teams.deleted-channels.restore');
 
         Route::get('settings/teams/{team}/emojis', [CustomEmojiController::class, 'index'])->name('teams.emojis.index');
         Route::post('settings/teams/{team}/emojis', [CustomEmojiController::class, 'store'])->name('teams.emojis.store');
-        Route::delete('settings/teams/{team}/emojis/{emoji}', [CustomEmojiController::class, 'destroy'])
+        Route::delete('settings/teams/{team}/emojis/{customEmoji}', [CustomEmojiController::class, 'destroy'])
             ->name('teams.emojis.destroy');
 
         Route::get('settings/teams/{team}/groups', [UserGroupController::class, 'index'])->name('teams.groups.index');
         Route::post('settings/teams/{team}/groups', [UserGroupController::class, 'store'])->name('teams.groups.store');
-        Route::patch('settings/teams/{team}/groups/{group}', [UserGroupController::class, 'update'])
+        Route::patch('settings/teams/{team}/groups/{userGroup}', [UserGroupController::class, 'update'])
             ->name('teams.groups.update');
-        Route::delete('settings/teams/{team}/groups/{group}', [UserGroupController::class, 'destroy'])
+        Route::delete('settings/teams/{team}/groups/{userGroup}', [UserGroupController::class, 'destroy'])
             ->name('teams.groups.destroy');
-        Route::post('settings/teams/{team}/groups/{group}/members', [UserGroupController::class, 'storeMember'])
+        Route::post('settings/teams/{team}/groups/{userGroup}/members', [UserGroupController::class, 'storeMember'])
             ->name('teams.groups.members.store');
-        Route::delete('settings/teams/{team}/groups/{group}/members/{user}', [UserGroupController::class, 'destroyMember'])
+        Route::delete('settings/teams/{team}/groups/{userGroup}/members/{member}', [UserGroupController::class, 'destroyMember'])
             ->name('teams.groups.members.destroy');
 
-        Route::get('settings/teams/{team}/members/{user}', [TeamMemberController::class, 'show'])->name('teams.members.show');
-        Route::get('settings/teams/{team}/members/{user}/card', [TeamMemberController::class, 'card'])->name('teams.members.card');
-        Route::patch('settings/teams/{team}/members/{user}', [TeamMemberController::class, 'update'])->name('teams.members.update');
-        Route::post('settings/teams/{team}/members/{user}/transfer-ownership', [TeamMemberController::class, 'transferOwnership'])->name('teams.members.transfer-ownership');
-        Route::delete('settings/teams/{team}/members/{user}', [TeamMemberController::class, 'destroy'])->name('teams.members.destroy');
+        Route::get('settings/teams/{team}/members/{member}', [TeamMemberController::class, 'show'])->name('teams.members.show');
+        Route::get('settings/teams/{team}/members/{member}/card', [TeamMemberController::class, 'card'])->name('teams.members.card');
+        Route::patch('settings/teams/{team}/members/{member}', [TeamMemberController::class, 'update'])->name('teams.members.update');
+        Route::post('settings/teams/{team}/members/{member}/transfer-ownership', [TeamMemberController::class, 'transferOwnership'])->name('teams.members.transfer-ownership');
+        Route::delete('settings/teams/{team}/members/{member}', [TeamMemberController::class, 'destroy'])->name('teams.members.destroy');
 
         Route::post('settings/teams/{team}/invitations', [TeamInvitationController::class, 'store'])->name('teams.invitations.store');
         Route::delete('settings/teams/{team}/invitations/{invitation}', [TeamInvitationController::class, 'destroy'])->name('teams.invitations.destroy');
@@ -191,8 +197,9 @@ Route::middleware(['auth', 'verified'])->group(function (): void {
         // The integrations management surface (bots, API tokens, incoming and
         // outgoing webhooks). The whole group additionally 404s when the
         // integrations platform is disabled, so the settings surface disappears
-        // in lockstep with the API.
-        Route::middleware('integrations')->group(function (): void {
+        // in lockstep with the API, and answers `manageIntegrations` once for
+        // every verb rather than once per controller method.
+        Route::middleware(['integrations', 'can:manageIntegrations,team'])->group(function (): void {
             Route::get('settings/teams/{team}/integrations', [IntegrationsController::class, 'index'])
                 ->name('teams.integrations.index');
 
@@ -231,7 +238,7 @@ Route::middleware(['auth', 'verified'])->group(function (): void {
             // Replaying re-POSTs to an operator-supplied external URL, so it is
             // throttled per actor to keep the button from being used to hammer
             // a third party.
-            Route::post('settings/teams/{team}/integrations/webhooks/{webhookSubscription}/deliveries/{webhookDelivery}/replay', [WebhookSubscriptionController::class, 'replay'])
+            Route::post('settings/teams/{team}/integrations/webhooks/{webhookSubscription}/deliveries/{delivery}/replay', [WebhookSubscriptionController::class, 'replay'])
                 ->middleware('throttle:webhook-replay')
                 ->name('teams.integrations.webhooks.deliveries.replay');
         });

@@ -289,7 +289,7 @@ test('removing someone from the workspace drops them from its groups', function 
     $group->members()->attach($ada->id);
 
     $this->actingAs($owner)
-        ->delete(route('teams.members.destroy', ['team' => $team->slug, 'user' => $ada->id]))
+        ->delete(route('teams.members.destroy', ['team' => $team->slug, 'member' => $ada->id]))
         ->assertRedirect();
 
     expect($group->members()->count())->toBe(0);

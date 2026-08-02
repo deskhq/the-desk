@@ -124,7 +124,7 @@ function replay(delivery: Delivery): void {
         webhookReplay({
             team: props.team.slug,
             webhookSubscription: subscription.value.id,
-            webhookDelivery: delivery.id,
+            delivery: delivery.id,
         }).url,
         { preserveScroll: true },
     );

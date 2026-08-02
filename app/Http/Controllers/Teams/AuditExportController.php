@@ -104,8 +104,6 @@ class AuditExportController extends Controller
      */
     public function download(Request $request, Team $team, AuditExport $auditExport): StreamedResponse
     {
-        abort_unless($auditExport->team_id === $team->id, 404);
-
         Gate::authorize(
             $auditExport->log_type === AuditExportLogType::Security ? 'viewSecurityLog' : 'viewAudit',
             $team,

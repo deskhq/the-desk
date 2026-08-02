@@ -68,7 +68,7 @@ function submitRename(): void {
         return;
     }
 
-    editForm.patch(update({ team: props.team, group: group.id }).url, {
+    editForm.patch(update({ team: props.team, userGroup: group.id }).url, {
         preserveScroll: true,
     });
 }

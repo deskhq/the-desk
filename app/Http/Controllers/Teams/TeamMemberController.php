@@ -28,17 +28,15 @@ class TeamMemberController extends Controller
      * membership middleware); a user who is not a member of that team resolves
      * to a 404 so profiles never leak across team boundaries.
      */
-    public function show(Request $request, Team $team, User $user): Response
+    public function show(Request $request, Team $team, User $member): Response
     {
-        $membership = $this->membershipOrFail($team, $user);
-
         return Inertia::render('teams/MemberProfile', [
             'team' => [
                 'id' => $team->id,
                 'name' => $team->name,
                 'slug' => $team->slug,
             ],
-            'profile' => UserProfileData::forMember($user, $membership, $request->user()),
+            'profile' => UserProfileData::forMember($member, $this->membership($member), $request->user()),
         ]);
     }
 
@@ -48,23 +46,22 @@ class TeamMemberController extends Controller
      * Same team-scoped visibility as {@see show()}; fetched lazily by the hover
      * card so names across the app can reveal richer details on demand.
      */
-    public function card(Request $request, Team $team, User $user): UserProfileData
+    public function card(Request $request, Team $team, User $member): UserProfileData
     {
-        return UserProfileData::forMember($user, $this->membershipOrFail($team, $user), $request->user());
+        return UserProfileData::forMember($member, $this->membership($member), $request->user());
     }
 
     /**
-     * Resolve the target user's membership of the team, or 404 when they are not
-     * a member so profiles never leak across team boundaries.
+     * The membership row the route already resolved the member through.
+     *
+     * `{member}` is scoped to `Team::members()`, so the pivot arrives hydrated
+     * and a non-member is a 404 before this controller runs — there is nothing
+     * left here to re-check.
      */
-    private function membershipOrFail(Team $team, User $user): Membership
+    private function membership(User $member): Membership
     {
-        /** @var Membership|null $membership */
-        $membership = $team->memberships()
-            ->where('user_id', $user->id)
-            ->first();
-
-        abort_if($membership === null, 404);
+        /** @var Membership $membership */
+        $membership = $member->getRelation('pivot');
 
         return $membership;
     }
@@ -72,11 +69,11 @@ class TeamMemberController extends Controller
     /**
      * Update the specified team member's role.
      */
-    public function update(UpdateTeamMemberRequest $request, Team $team, User $user, UpdateTeamMemberRole $updateRole): RedirectResponse
+    public function update(UpdateTeamMemberRequest $request, Team $team, User $member, UpdateTeamMemberRole $updateRole): RedirectResponse
     {
         Gate::authorize('updateMember', $team);
 
-        $updateRole->handle($team, $user, TeamRole::from($request->validated('role')), $request->user());
+        $updateRole->handle($team, $member, TeamRole::from($request->validated('role')), $request->user());
 
         Inertia::flash('toast', ['type' => 'success', 'message' => __('Member role updated')]);
 
@@ -90,15 +87,13 @@ class TeamMemberController extends Controller
      * member of the team. The outgoing owner is demoted to Admin and the new
      * owner holds the sole Owner pivot row (see {@see TransferTeamOwnership}).
      */
-    public function transferOwnership(TransferTeamOwnershipRequest $request, Team $team, User $user, TransferTeamOwnership $transferOwnership): RedirectResponse
+    public function transferOwnership(TransferTeamOwnershipRequest $request, Team $team, User $member, TransferTeamOwnership $transferOwnership): RedirectResponse
     {
         Gate::authorize('transferOwnership', $team);
 
-        abort_if($request->user()->is($user), 403, __('You cannot transfer ownership to yourself.'));
+        abort_if($request->user()->is($member), 403, __('You cannot transfer ownership to yourself.'));
 
-        abort_unless($user->belongsToTeam($team), 404);
-
-        $transferOwnership->handle($team, $request->user(), $user);
+        $transferOwnership->handle($team, $request->user(), $member);
 
         Inertia::flash('toast', ['type' => 'success', 'message' => __('Team ownership transferred')]);
 
@@ -108,13 +103,13 @@ class TeamMemberController extends Controller
     /**
      * Remove the specified team member.
      */
-    public function destroy(Request $request, Team $team, User $user, RemoveTeamMember $removeMember): RedirectResponse
+    public function destroy(Request $request, Team $team, User $member, RemoveTeamMember $removeMember): RedirectResponse
     {
         Gate::authorize('removeMember', $team);
 
-        abort_if($team->owner()?->is($user), 403, __('The team owner cannot be removed.'));
+        abort_if($team->owner()?->is($member), 403, __('The team owner cannot be removed.'));
 
-        $removeMember->handle($team, $user, $request->user());
+        $removeMember->handle($team, $member, $request->user());
 
         Inertia::flash('toast', ['type' => 'success', 'message' => __('Member removed')]);
 

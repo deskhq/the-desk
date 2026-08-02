@@ -7,7 +7,6 @@ namespace App\Http\Requests\Teams\Integrations;
 use App\Models\Team;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
-use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\Rule;
 
 /**
@@ -17,14 +16,6 @@ use Illuminate\Validation\Rule;
  */
 class StoreIncomingWebhookRequest extends FormRequest
 {
-    /**
-     * Only integration managers (Owner + Admin) may create incoming webhooks.
-     */
-    public function authorize(): bool
-    {
-        return Gate::allows('manageIntegrations', $this->team());
-    }
-
     /**
      * @return array<string, ValidationRule|array<mixed>|string>
      */

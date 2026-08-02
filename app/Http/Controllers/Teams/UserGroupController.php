@@ -60,9 +60,9 @@ class UserGroupController extends Controller
      * Existing messages keep the label baked into their token at post time, so a
      * rename never rewrites history — old bodies still read as they were sent.
      */
-    public function update(UpdateUserGroupRequest $request, Team $team, UserGroup $group): RedirectResponse
+    public function update(UpdateUserGroupRequest $request, Team $team, UserGroup $userGroup): RedirectResponse
     {
-        $group->update($request->safe()->only(['name', 'slug']));
+        $userGroup->update($request->safe()->only(['name', 'slug']));
 
         Inertia::flash('toast', ['type' => 'success', 'message' => __('Group updated')]);
 
@@ -73,13 +73,11 @@ class UserGroupController extends Controller
      * Delete a group. Its `@handle` tokens in existing messages fall back to
      * plain text, and the mention rows they already fanned out to stay put.
      */
-    public function destroy(Team $team, UserGroup $group): RedirectResponse
+    public function destroy(Team $team, UserGroup $userGroup): RedirectResponse
     {
-        abort_unless($group->team_id === $team->id, 404);
+        Gate::authorize('delete', $userGroup);
 
-        Gate::authorize('delete', $group);
-
-        $group->delete();
+        $userGroup->delete();
 
         Inertia::flash('toast', ['type' => 'success', 'message' => __('Group deleted')]);
 
@@ -89,11 +87,11 @@ class UserGroupController extends Controller
     /**
      * Add a workspace member to a group.
      */
-    public function storeMember(StoreUserGroupMemberRequest $request, Team $team, UserGroup $group): RedirectResponse
+    public function storeMember(StoreUserGroupMemberRequest $request, Team $team, UserGroup $userGroup): RedirectResponse
     {
         // `syncWithoutDetaching` keeps a repeated add idempotent rather than
         // tripping the pivot's unique constraint.
-        $group->members()->syncWithoutDetaching([$request->validated('user_id')]);
+        $userGroup->members()->syncWithoutDetaching([$request->validated('user_id')]);
 
         Inertia::flash('toast', ['type' => 'success', 'message' => __('Member added to the group')]);
 
@@ -103,13 +101,11 @@ class UserGroupController extends Controller
     /**
      * Remove a member from a group.
      */
-    public function destroyMember(Team $team, UserGroup $group, User $user): RedirectResponse
+    public function destroyMember(Team $team, UserGroup $userGroup, User $member): RedirectResponse
     {
-        abort_unless($group->team_id === $team->id, 404);
+        Gate::authorize('update', $userGroup);
 
-        Gate::authorize('update', $group);
-
-        $group->members()->detach($user->id);
+        $userGroup->members()->detach($member->id);
 
         Inertia::flash('toast', ['type' => 'success', 'message' => __('Member removed from the group')]);
 
