@@ -40,6 +40,9 @@ function alertCases(): array
 /**
  * The case table as a Pest dataset, keyed by each row's own name.
  *
+ * Two rows sharing a name would collapse into one and the second would never be
+ * exercised, which is why the table test below holds the names unique.
+ *
  * @return array<string, array{0: array{name: string, muted: bool, level: string, alertsOnUnread: bool, alertsOnMention: bool}}>
  */
 function alertCaseDataset(): array
@@ -69,6 +72,12 @@ test('the case table answers every level, muted and unmuted', function (): void 
         expect($combinations)->toContain('muted/'.$level->value)
             ->and($combinations)->toContain('unmuted/'.$level->value);
     }
+
+    // The dataset is keyed by name, so two rows sharing one would collapse and
+    // the second would be asserted on by nothing at all.
+    $names = array_column(alertCases(), 'name');
+
+    expect(array_unique($names))->toHaveCount(count($names));
 });
 
 test('the enum answers the case table', function (array $case): void {
