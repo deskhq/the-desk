@@ -37,11 +37,16 @@ $sourceRoot = dirname(__DIR__, 2);
  */
 function readableAclSpellingPatterns(): array
 {
+    // The enum is backed, so a query copy can name it either way — `->value` is
+    // how `Channel::defaultsForTeam()` spells it, and the next copy is as likely
+    // to be written from that as from this one.
+    $public = 'ChannelVisibility::Public(->value)?';
+
     return [
         // `Api/V1\ChannelController::index`, the copy that had drifted.
-        'query builder' => "/'visibility',\s*ChannelVisibility::Public[\s\S]{0,120}?orWhereHas\(\s*'channelMembers'/",
+        'query builder' => "/'visibility',\s*{$public}[\s\S]{0,120}?orWhereHas\(\s*'channelMembers'/",
         // `ChannelPolicy::view()`, the reading the other two answered to.
-        'PHP expression' => '/visibility\s*===\s*ChannelVisibility::Public\s*\|\|\s*\$?[\w>-]*members\(\)/',
+        'PHP expression' => "/visibility(->value)?\s*===\s*{$public}\s*\|\|\s*\\\$?[\w>-]*members\(\)/",
     ];
 }
 
@@ -104,6 +109,10 @@ test('each pattern still catches the copy it was written for', function (string 
 })->with([
     'query builder' => ['query builder', <<<'PHP'
                 $query->where('visibility', ChannelVisibility::Public)
+                    ->orWhereHas('channelMembers', fn (Builder $member) => $member->where('user_id', $subject->id));
+    PHP],
+    'query builder, backed-enum spelling' => ['query builder', <<<'PHP'
+                $query->where('visibility', ChannelVisibility::Public->value)
                     ->orWhereHas('channelMembers', fn (Builder $member) => $member->where('user_id', $subject->id));
     PHP],
     'PHP expression' => ['PHP expression', <<<'PHP'
