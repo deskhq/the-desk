@@ -49,7 +49,17 @@ export function message(overrides: Partial<Message> = {}): Message {
         clientUuid: 'uuid-1',
         body: 'hello',
         type: 'standard',
-        user: { id: 'peer', name: 'Peer' },
+        user: {
+            id: 'peer',
+            name: 'Peer',
+            avatar: null,
+            isBot: false,
+            status: null,
+            presence: 'active',
+            isDnd: false,
+        },
+        authorOverride: null,
+        postedVia: null,
         createdAt: '2024-01-01T00:00:00.000Z',
         editedAt: null,
         isDeleted: false,
@@ -73,7 +83,7 @@ export function message(overrides: Partial<Message> = {}): Message {
     };
 }
 
-export const me: Mention = { id: 'me', name: 'Me' };
+export const me: Mention = { id: 'me', name: 'Me', avatar: null };
 export const channel = {
     id: 'chan-1',
     slug: 'general',

@@ -7,9 +7,9 @@ import type { ConnectionPill } from '@/composables/useConnectionState';
 import type { RenderedPresence } from '@/lib/presence';
 import type {
     Channel,
-    Mention,
     Message,
     NotificationLevelOption,
+    RosterMember,
 } from '@/types';
 
 /**
@@ -23,7 +23,7 @@ import type {
 const props = defineProps<{
     team: { slug: string };
     channel: Channel;
-    members: Mention[];
+    members: RosterMember[];
     presenceFor: (userId: string) => RenderedPresence;
     isDndFor: (userId: string) => boolean;
     /** What the channel is called from this viewer's side of it. */

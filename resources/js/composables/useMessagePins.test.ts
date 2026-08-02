@@ -26,7 +26,7 @@ import { useMessagePins } from '@/composables/useMessagePins';
 import type { MessagePin } from '@/types';
 
 const EXISTING_PIN: MessagePin = {
-    pinnedBy: { id: 'peer', name: 'Peer' },
+    pinnedBy: { id: 'peer', name: 'Peer', avatar: null },
     pinnedAt: '2024-01-01T12:00:00.000Z',
 };
 

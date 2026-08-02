@@ -7,7 +7,7 @@ import { getInitials } from '@/composables/useInitials';
 import { MAX_MASTHEAD_AVATARS, memberAvatarStack } from '@/lib/memberAvatars';
 import { activeMemberCount } from '@/lib/presence';
 import type { RenderedPresence } from '@/lib/presence';
-import type { Mention } from '@/types';
+import type { RosterMember } from '@/types';
 
 /**
  * The channel roster's overlapping avatars and its one activity readout. A DM
@@ -18,7 +18,7 @@ const props = defineProps<{
      * The team roster the page already carries for the composer, reused for the
      * overlapping member facepile.
      */
-    members: Mention[];
+    members: RosterMember[];
     /** How each team member reads on the presence roster, driving every dot here. */
     presenceFor: (userId: string) => RenderedPresence;
     /** Whether each member is in do-not-disturb, driving the crescent badge. */

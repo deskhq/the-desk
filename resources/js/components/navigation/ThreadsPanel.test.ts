@@ -63,7 +63,7 @@ vi.mock('@/components/ui/avatar', () => ({
 
 import ThreadsPanel from './ThreadsPanel.vue';
 
-const author: Mention = { id: 'u-1', name: 'Carol Danvers' };
+const author: Mention = { id: 'u-1', name: 'Carol Danvers', avatar: null };
 
 function threadItem(
     overrides: Partial<Omit<ThreadInboxItem, 'root'>> = {},

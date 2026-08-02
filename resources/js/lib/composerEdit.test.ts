@@ -4,7 +4,20 @@ import {
     resolveComposerEditTarget,
 } from '@/lib/composerEdit';
 import type { ComposerEditTriggerState } from '@/lib/composerEdit';
-import type { Message } from '@/types';
+import type { Message, MessageAuthor } from '@/types';
+
+/** A message author, as `MessageData` carries them. */
+function author(id: string, name: string): MessageAuthor {
+    return {
+        id,
+        name,
+        avatar: null,
+        isBot: false,
+        status: null,
+        presence: 'active',
+        isDnd: false,
+    };
+}
 
 /** A message carrying just the fields the edit resolver reads. */
 function message(overrides: Partial<Message> = {}): Message {
@@ -13,7 +26,9 @@ function message(overrides: Partial<Message> = {}): Message {
         clientUuid: 'uuid-1',
         body: 'hello',
         type: 'standard',
-        user: { id: 'me', name: 'Me' },
+        user: author('me', 'Me'),
+        authorOverride: null,
+        postedVia: null,
         createdAt: '2024-01-01T00:00:00.000Z',
         editedAt: null,
         isDeleted: false,
@@ -123,7 +138,7 @@ describe('resolveComposerEditTarget', () => {
             message({
                 id: 'theirs',
                 clientUuid: 'theirs',
-                user: { id: 'peer', name: 'Peer' },
+                user: author('peer', 'Peer'),
             }),
         ];
 
@@ -156,7 +171,7 @@ describe('resolveComposerEditTarget', () => {
             message({
                 id: 'theirs',
                 clientUuid: 'theirs',
-                user: { id: 'peer', name: 'Peer' },
+                user: author('peer', 'Peer'),
             }),
         ];
 

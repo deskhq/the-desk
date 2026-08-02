@@ -18,9 +18,9 @@ import type { NotificationIndicator } from '@/lib/notificationIndicator';
 import type { RenderedPresence } from '@/lib/presence';
 import type {
     Channel,
-    Mention,
     NotificationLevel,
     NotificationLevelOption,
+    RosterMember,
 } from '@/types';
 
 const props = defineProps<{
@@ -29,7 +29,7 @@ const props = defineProps<{
      * The team roster the page already carries for the composer, reused for the
      * overlapping member facepile.
      */
-    members: Mention[];
+    members: RosterMember[];
     /** How each team member reads on the presence roster, driving every dot here. */
     presenceFor: (userId: string) => RenderedPresence;
     /** Whether each member is in do-not-disturb, driving the crescent badge. */

@@ -1,16 +1,5 @@
 /**
  * The authenticated user's most recent personal-data export, as shown in the
- * "Data & privacy" section of the profile settings page. Mirrors the
- * `App\Data\DataExportData` DTO. `isReady` is true only while the archive is
- * built and still inside its download window.
+ * "Data & privacy" section of the profile settings page.
  */
-export type DataExport = {
-    id: string;
-    status: string;
-    statusLabel: string;
-    isReady: boolean;
-    requestedAt: string;
-    expiresAt: string | null;
-    /** Byte size of the built archive; null until captured (older or unbuilt exports). */
-    sizeBytes: number | null;
-};
+export type DataExport = App.Data.DataExportData;

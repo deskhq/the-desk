@@ -6,6 +6,14 @@ use App\Models\DataExport;
 use Spatie\LaravelData\Data;
 use Spatie\TypeScriptTransformer\Attributes\TypeScript;
 
+/**
+ * The viewer's most recent personal-data export, as the profile settings page's
+ * "Data & privacy" section renders it.
+ *
+ * `isReady` is true only while the archive is both built and still inside its
+ * download window, so one flag answers "can I download this now"; `sizeBytes` is
+ * null until the build captures it (an older or unbuilt export has none).
+ */
 #[TypeScript]
 class DataExportData extends Data
 {

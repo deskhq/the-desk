@@ -29,10 +29,10 @@ import { useTimezone } from '@/composables/useTimezone';
 import type {
     Channel,
     ChannelReader,
-    Mention,
     Message,
     MessagePage,
     NotificationLevelOption,
+    RosterMember,
     ScheduledMessage,
     Thread,
 } from '@/types';
@@ -41,7 +41,7 @@ const props = defineProps<{
     team: { id: string; name: string; slug: string };
     channel: Channel;
     messages: MessagePage;
-    members: Mention[];
+    members: RosterMember[];
     canArchive: boolean;
     /** Whether the viewer may delete it (a team Admin+, not #general or a DM). */
     canDelete: boolean;

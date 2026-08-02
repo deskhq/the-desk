@@ -1,15 +1,6 @@
 /**
  * An active browser/device session as shown on the Security settings page.
- * Mirrors the `App\Data\SessionData` DTO. `isCurrentDevice` marks the session
- * the request is being made from, which cannot be revoked.
+ * `isCurrentDevice` marks the session the request is being made from, which
+ * cannot be revoked.
  */
-export type ActiveSession = {
-    id: string;
-    ipAddress: string | null;
-    browser: string;
-    platform: string;
-    lastActive: string;
-    isCurrentDevice: boolean;
-    /** Approximate "City, CC" derived from the IP; null when it cannot be located. */
-    location: string | null;
-};
+export type ActiveSession = App.Data.SessionData;

@@ -6,6 +6,7 @@ export * from './dataExport';
 export * from './locale';
 export * from './messages';
 export * from './navigation';
+export * from './people';
 export * from './security';
 export * from './sessions';
 export * from './sidebar';

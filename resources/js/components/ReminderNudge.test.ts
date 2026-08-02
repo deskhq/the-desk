@@ -13,6 +13,8 @@ function reminder(overrides: Partial<MessageReminder> = {}): MessageReminder {
         channelSlug: 'war-room',
         channelName: 'war-room',
         authorName: 'Jordan West',
+        authorIsBot: false,
+        authorOverride: null,
         body: 'the secret plan',
         isDeleted: false,
         isAccessible: true,

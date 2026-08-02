@@ -190,6 +190,22 @@ built; build them once, then reuse.
 
 ### Frontend (`resources/js/`)
 
+- **The generated wire contract** _(ADR-0013)_ — `App.Data.*` and `App.Enums.*`, emitted
+  from every `#[TypeScript]` DTO in `app/Data/` and every enum in `app/Enums/`, are the
+  server-to-client contract. `resources/js/types/` is the client's *vocabulary* over it,
+  and every type there is one of three things: an **alias** (`export type Message =
+  App.Data.MessageData` — the default), a **rename** where the client deliberately means
+  something else (`RosterMember = App.Data.UserData` is the channel roster; `Mention =
+  App.Data.MentionData` is the mention payload — two server payloads, two names), or a
+  **genuine client-only view model** (`MessagePage`, `ThreadInboxPage`,
+  `MessageSearchCriteria`, `PersonRef`, `StackMember`). A hand-written type that restates a
+  DTO field for field is a defect, and `tests/Unit/GeneratedTypesAreTheWireContractTest.php`
+  fails on the 32nd one — it matches on shape, not on name. Where an alias would lose a
+  fact, sharpen the **DTO** (type the property as its backed enum, add the
+  `@param array<int, XData>` annotation), never re-spell the fact on the client. Prose about
+  a payload belongs on the PHP DTO; the alias keeps one orienting sentence. `resources/js/generated/`
+  is gitignored — regenerate with `sail npm run build` or `sail artisan typescript:transform`,
+  and never run `wayfinder:generate` by hand.
 - **`lib/*.ts` pure helpers** — the canonical pattern: pure, deep, each paired with
   a `*.test.ts`. New pure logic (formatting, parsing, decisions) goes here, not
   into a `.vue` setup block. Examples: `messageBody`, `reactions`, `shouldChime`,
@@ -308,6 +324,9 @@ built; build them once, then reuse.
 ## Where new work goes (quick reference)
 
 - New pure logic (format/parse/decide) → a `lib/*.ts` with a paired test.
+- A new server payload the client has to name → a `#[TypeScript]` DTO in `app/Data/`, then
+  a one-line **alias** in `resources/js/types/`. Never hand-write the shape a second time;
+  if the alias would lose a fact, sharpen the DTO (ADR-0013).
 - New realtime behaviour → a composable with a seam + a pure decision core in
   `lib/`; never inline in a page.
 - New channel message payload → the **Message load-set scope**.

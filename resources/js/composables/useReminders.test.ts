@@ -38,6 +38,8 @@ function reminder(overrides: Partial<MessageReminder> = {}): MessageReminder {
         channelSlug: 'design',
         channelName: 'design',
         authorName: 'Ada',
+        authorIsBot: false,
+        authorOverride: null,
         body: 'ship it',
         isDeleted: false,
         isAccessible: true,

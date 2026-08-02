@@ -21,7 +21,15 @@ function message(
 ) {
     return {
         id: messageId,
-        user: { id: userId, name: `User ${userId}` },
+        user: {
+            id: userId,
+            name: `User ${userId}`,
+            avatar: null,
+            isBot: false,
+            status: null,
+            presence: 'active' as const,
+            isDnd: false,
+        },
         type,
     };
 }

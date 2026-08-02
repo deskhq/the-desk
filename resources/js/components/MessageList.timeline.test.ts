@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { defineComponent, h } from 'vue';
 import {
     all,
+    author,
     inertiaPageProps,
     message,
     mountWithActions,
@@ -138,7 +139,7 @@ describe('a system notice', () => {
                 message({
                     id: 's1',
                     type: 'member_joined',
-                    user: { id: 'peer', name: 'Peer' },
+                    user: author({ id: 'peer', name: 'Peer' }),
                 }),
             ],
         });
@@ -179,7 +180,7 @@ describe('an author group', () => {
                 message({
                     id: 'b',
                     createdAt: '2024-03-04T10:30:20.000Z',
-                    user: { id: 'other', name: 'Other' },
+                    user: author({ id: 'other', name: 'Other' }),
                 }),
             ],
         });
@@ -243,7 +244,9 @@ describe('an author group', () => {
     it('badges a bot author instead of announcing a presence it has none of', () => {
         const host = mount({
             messages: [
-                message({ user: { id: 'bot', name: 'Botto', isBot: true } }),
+                message({
+                    user: author({ id: 'bot', name: 'Botto', isBot: true }),
+                }),
             ],
         });
 
@@ -256,7 +259,11 @@ describe('an author group', () => {
         const host = mount({
             messages: [
                 message({
-                    user: { id: 'bot', name: 'Deploy Bot', isBot: true },
+                    user: author({
+                        id: 'bot',
+                        name: 'Deploy Bot',
+                        isBot: true,
+                    }),
                     authorOverride: {
                         name: 'Release Train',
                         avatar: '/images/proxy?url=train',
@@ -275,7 +282,11 @@ describe('an author group', () => {
         const host = mount({
             messages: [
                 message({
-                    user: { id: 'bot', name: 'Deploy Bot', isBot: true },
+                    user: author({
+                        id: 'bot',
+                        name: 'Deploy Bot',
+                        isBot: true,
+                    }),
                     authorOverride: {
                         name: 'Release Train',
                         avatar: '/images/proxy?url=train',
@@ -294,7 +305,11 @@ describe('an author group', () => {
         const host = mount({
             messages: [
                 message({
-                    user: { id: 'bot', name: 'Deploy Bot', isBot: true },
+                    user: author({
+                        id: 'bot',
+                        name: 'Deploy Bot',
+                        isBot: true,
+                    }),
                     authorOverride: { name: 'Release Train', avatar: null },
                 }),
             ],
@@ -310,13 +325,21 @@ describe('an author group', () => {
             messages: [
                 message({
                     id: 'a',
-                    user: { id: 'bot', name: 'Deploy Bot', isBot: true },
+                    user: author({
+                        id: 'bot',
+                        name: 'Deploy Bot',
+                        isBot: true,
+                    }),
                     authorOverride: { name: 'Release Train', avatar: null },
                 }),
                 message({
                     id: 'b',
                     createdAt: '2024-03-04T10:30:10.000Z',
-                    user: { id: 'bot', name: 'Deploy Bot', isBot: true },
+                    user: author({
+                        id: 'bot',
+                        name: 'Deploy Bot',
+                        isBot: true,
+                    }),
                     authorOverride: { name: 'Nightly', avatar: null },
                 }),
             ],

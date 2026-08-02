@@ -130,7 +130,7 @@ describe('the message body', () => {
             messages: [
                 message({
                     body: `hey @[Ada](${id})`,
-                    mentions: [{ id, name: 'Ada' }],
+                    mentions: [{ id, name: 'Ada', avatar: null }],
                 }),
             ],
         });
@@ -239,6 +239,8 @@ describe('a deleted message', () => {
                         id: 'f1',
                         body: 'x',
                         authorName: 'Peer',
+                        authorIsBot: false,
+                        authorOverride: null,
                         channelName: 'general',
                         isDeleted: false,
                         mentions: [],
@@ -260,7 +262,7 @@ describe('the markers around a row', () => {
             messages: [
                 message({
                     pin: {
-                        pinnedBy: { id: 'u2', name: 'Ada' },
+                        pinnedBy: { id: 'u2', name: 'Ada', avatar: null },
                         pinnedAt: '2024-03-04T10:31:00.000Z',
                     },
                 }),
@@ -302,6 +304,8 @@ describe('the reply quote', () => {
             id: 'parent',
             body: 'the question',
             authorName: 'Ada',
+            authorIsBot: false,
+            authorOverride: null,
             isDeleted: false,
             mentions: [],
         },

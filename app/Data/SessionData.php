@@ -8,6 +8,11 @@ use Illuminate\Support\Carbon;
 use Spatie\LaravelData\Data;
 use Spatie\TypeScriptTransformer\Attributes\TypeScript;
 
+/**
+ * An active browser/device session, as the Security settings page lists it.
+ * `isCurrentDevice` marks the one the request is being made from, which is the
+ * session that cannot be revoked from here.
+ */
 #[TypeScript]
 class SessionData extends Data
 {

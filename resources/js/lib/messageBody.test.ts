@@ -14,6 +14,7 @@ import type { Mention } from '@/types';
 const alice: Mention = {
     id: 'a1b2c3d4-e5f6-7890-1234-567890abcdef',
     name: 'Alice',
+    avatar: null,
 };
 
 const devs = { id: 'b1c2d3e4-f5a6-7890-1234-567890abcdef' };

@@ -6,6 +6,12 @@ use App\Models\ChannelMember;
 use Spatie\LaravelData\Data;
 use Spatie\TypeScriptTransformer\Attributes\TypeScript;
 
+/**
+ * A channel member's read position, powering the "Seen by" affordance: the
+ * member and the id of the last message they have read (null when they have
+ * never read the channel). The channel page seeds these from a prop and keeps
+ * them current from the `MessageRead` broadcast.
+ */
 #[TypeScript]
 class ChannelReaderData extends Data
 {

@@ -6,6 +6,11 @@ use App\Models\MessagePin;
 use Spatie\LaravelData\Data;
 use Spatie\TypeScriptTransformer\Attributes\TypeScript;
 
+/**
+ * A message's pin to its channel: who pinned it, for the "Pinned by :name"
+ * attribution, and when. Null on an unpinned message and always null on a
+ * tombstone; patched live in place from the `MessagePinned` broadcast.
+ */
 #[TypeScript]
 class PinData extends Data
 {

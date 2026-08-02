@@ -11,6 +11,7 @@ import { useTranslations } from '@/composables/useTranslations';
 import { backgroundVisit } from '@/lib/backgroundVisit';
 import { createOutbox } from '@/lib/outbox';
 import type { Outbox } from '@/lib/outbox';
+import type { Mention } from '@/types';
 
 type MessageStream = ReturnType<typeof useMessageStream>;
 
@@ -18,7 +19,7 @@ export interface OfflineOutboxOptions {
     /** Keys the persisted queue, so each channel keeps its own. */
     channelId: () => string;
     /** The sender, so a rehydrated row renders under their name. */
-    currentUser: () => { id: string; name: string };
+    currentUser: () => Mention;
     /** The channel timeline the optimistic rows are re-added to. */
     mainStream: MessageStream;
 }

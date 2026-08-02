@@ -21,7 +21,7 @@ import {
 import { useRailInset } from '@/composables/useRailInset';
 import { useScrollPin } from '@/composables/useScrollPin';
 import type { RenderedPresence } from '@/lib/presence';
-import type { Mention, Message } from '@/types';
+import type { Mention, Message, PersonRef, RosterMember } from '@/types';
 
 const props = defineProps<{
     /**
@@ -37,7 +37,7 @@ const props = defineProps<{
      */
     messages: Message[];
     pendingUuids?: string[];
-    members: Mention[];
+    members: RosterMember[];
     // Whether the channel has a bot member, forwarded to the reply composer's
     // mention menu footnote.
     hasBots?: boolean;
@@ -177,7 +177,7 @@ const {
  */
 const threadComposer = ref<InstanceType<typeof MessageComposer> | null>(null);
 
-function mentionInThread(member: { id: string; name: string }): void {
+function mentionInThread(member: PersonRef): void {
     threadComposer.value?.insertMention(member);
 }
 
