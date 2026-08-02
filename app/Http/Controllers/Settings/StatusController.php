@@ -2,7 +2,8 @@
 
 namespace App\Http\Controllers\Settings;
 
-use App\Events\UserProfileUpdated;
+use App\Actions\Users\ClearUserStatus;
+use App\Actions\Users\SetUserStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Settings\UpdateStatusRequest;
 use Illuminate\Http\RedirectResponse;
@@ -13,25 +14,17 @@ class StatusController extends Controller
 {
     /**
      * Set the current user's custom status, replacing any previous one.
-     *
-     * The three columns are always written together, so switching from a status
-     * that expired at noon to one that never clears leaves no stale expiry
-     * behind. The broadcast lets teammates' open clients pick the new emoji up
-     * without a reload.
      */
-    public function update(UpdateStatusRequest $request): RedirectResponse
+    public function update(UpdateStatusRequest $request, SetUserStatus $status): RedirectResponse
     {
         $validated = $request->validated();
 
-        $user = $request->user();
-
-        $user->forceFill([
-            'status_emoji' => $validated['emoji'],
-            'status_text' => $validated['text'] ?? null,
-            'status_expires_at' => $validated['expires_at'] ?? null,
-        ])->save();
-
-        event(new UserProfileUpdated($user));
+        $status->handle(
+            $request->user(),
+            $validated['emoji'],
+            $validated['text'] ?? null,
+            $validated['expires_at'] ?? null,
+        );
 
         Inertia::flash('toast', ['type' => 'success', 'message' => __('Status updated')]);
 
@@ -41,17 +34,9 @@ class StatusController extends Controller
     /**
      * Clear the current user's custom status.
      */
-    public function destroy(Request $request): RedirectResponse
+    public function destroy(Request $request, ClearUserStatus $status): RedirectResponse
     {
-        $user = $request->user();
-
-        $user->forceFill([
-            'status_emoji' => null,
-            'status_text' => null,
-            'status_expires_at' => null,
-        ])->save();
-
-        event(new UserProfileUpdated($user));
+        $status->handle($request->user());
 
         Inertia::flash('toast', ['type' => 'success', 'message' => __('Status cleared')]);
 

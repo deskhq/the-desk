@@ -94,6 +94,12 @@ pest()->extend(TestCase::class)->in('Unit/Support/ReverbConfigTest.php');
 // application booted (but no database).
 pest()->extend(TestCase::class)->in('Unit/Support/WebPushConfigTest.php');
 
+// The availability unit test hydrates a User's casts and reads the app timezone,
+// so it needs the application booted — but deliberately no database: taking the
+// instant as a parameter is what lets the window arithmetic be stated without a
+// saved row (#1148).
+pest()->extend(TestCase::class)->in('Unit/Support/UserAvailabilityTest.php');
+
 // The OpenAPI spec test diffs the document against the live route table, so it
 // needs the application booted (but no database).
 pest()->extend(TestCase::class)->in('Unit/OpenApiSpecTest.php');

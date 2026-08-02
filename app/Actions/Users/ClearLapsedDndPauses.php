@@ -15,7 +15,7 @@ class ClearLapsedDndPauses
      * without a reload.
      *
      * This is the eager half of expiry. Reads already treat a lapsed pause as
-     * over (see {@see User::isDndActive()}), so this sweep is what makes the
+     * over (see {@see UserAvailability::isDnd()}), so this sweep is what makes the
      * lapse *propagate*: nothing else would tell a teammate sitting on an idle
      * page that the pause ended. Running it every minute keeps the wall-clock
      * error under the smallest offered preset.

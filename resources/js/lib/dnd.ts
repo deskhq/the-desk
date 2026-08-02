@@ -5,16 +5,20 @@ import { wallTimeToInstant, zonedWallTime } from './scheduleTime';
 import type { WallTime } from './scheduleTime';
 
 /**
- * Client-side twin of `User::isDndActive()` on the server: whether the viewer
- * is in do-not-disturb at a given instant, from the full configuration their
- * own `auth.user` prop carries.
+ * Client-side twin of `App\Support\UserAvailability::isDnd()` on the server:
+ * whether the viewer is in do-not-disturb at a given instant, from the full
+ * configuration their own `auth.user` prop carries.
  *
  * The chime gate needs this answer at message-arrival time, not at page-load
  * time — a pause that lapsed two minutes ago, or a quiet-hours window that
  * opened one minute ago, must take effect without waiting for a server
- * round-trip. Keep the semantics in lockstep with the server: start inclusive,
- * end exclusive, a window whose end precedes its start wraps across midnight,
- * and a snooze still ahead of its lapse suppresses the window outright.
+ * round-trip. The two halves are independent: a manual pause is a one-off claim
+ * about right now, the window is a standing preference, and the snooze
+ * suppresses only the second of them.
+ *
+ * The semantics are not kept in lockstep with the server by instruction: both
+ * sides answer `tests/Fixtures/availability-cases.json`, so a rule changed here
+ * and not there turns the PHP suite red (and the reverse).
  */
 export function isDndActiveNow(
     dnd: App.Data.UserDndData | null | undefined,
@@ -25,33 +29,15 @@ export function isDndActiveNow(
         return false;
     }
 
-    if (dnd.until !== null && new Date(dnd.until) > at) {
-        return true;
-    }
-
-    if (!dnd.scheduleEnabled || dnd.startsAt === null || dnd.endsAt === null) {
-        return false;
-    }
-
-    if (
-        dnd.scheduleSnoozedUntil !== null &&
-        new Date(dnd.scheduleSnoozedUntil) > at
-    ) {
-        return false;
-    }
-
-    const wallClock = wallClockIn(timeZone, at);
-
-    if (dnd.startsAt <= dnd.endsAt) {
-        return wallClock >= dnd.startsAt && wallClock < dnd.endsAt;
-    }
-
-    return wallClock >= dnd.startsAt || wallClock < dnd.endsAt;
+    return (
+        isStillAhead(dnd.until, at) ||
+        runningScheduleWindow(dnd, timeZone, at) !== null
+    );
 }
 
 /**
  * The instant the currently-running quiet-hours window closes, or null when
- * the schedule is off, incomplete, or not covering this instant.
+ * the schedule is off, incomplete, snoozed, or not covering this instant.
  *
  * Feeds the paused card's "quiet hours · until 9:00 AM" line: an overnight
  * window entered before midnight closes tomorrow, its morning tail closes
@@ -62,33 +48,68 @@ export function quietHoursEndsAt(
     timeZone: string | null | undefined,
     at: Date = new Date(),
 ): Date | null {
-    if (!dnd?.scheduleEnabled || dnd.startsAt === null || dnd.endsAt === null) {
+    const window = dnd ? runningScheduleWindow(dnd, timeZone, at) : null;
+
+    if (window === null) {
+        return null;
+    }
+
+    const zone = timeZone ?? deviceZone();
+    const [hour, minute] = window.endsAt.split(':').map(Number);
+    const closing = { ...zonedWallTime(zone, at), hour, minute };
+
+    // Inside the window the end is always ahead on the wall clock; an end
+    // reading behind now means tonight's window closes tomorrow morning.
+    return wallClockIn(timeZone, at) < window.endsAt
+        ? wallTimeToInstant(closing, zone)
+        : wallTimeToInstant(nextCivilDay(closing), zone);
+}
+
+/** The `HH:MM` bounds of a quiet-hours window, in the viewer's own timezone. */
+type ScheduleWindow = { startsAt: string; endsAt: string };
+
+/**
+ * The recurring quiet-hours window covering this instant, or null when none
+ * does.
+ *
+ * The bounds are wall-clock `HH:MM` strings compared in the viewer's own
+ * timezone, so the window follows them when they travel. Start is inclusive and
+ * end exclusive, and a window whose end precedes its start wraps across midnight
+ * (22:00–07:00 covers the night, not an empty set). A snooze still ahead of its
+ * lapse suppresses the window outright.
+ *
+ * Returns the bounds rather than a boolean so the one caller that needs them —
+ * the closing instant — reads them off the same answer that decided the window
+ * is running, instead of re-testing that they are set.
+ */
+function runningScheduleWindow(
+    dnd: App.Data.UserDndData,
+    timeZone: string | null | undefined,
+    at: Date,
+): ScheduleWindow | null {
+    const { scheduleEnabled, startsAt, endsAt } = dnd;
+
+    if (!scheduleEnabled || startsAt === null || endsAt === null) {
+        return null;
+    }
+
+    if (isStillAhead(dnd.scheduleSnoozedUntil, at)) {
         return null;
     }
 
     const wallClock = wallClockIn(timeZone, at);
-    const zone = timeZone ?? deviceZone();
-    const wall = zonedWallTime(zone, at);
-    const [hour, minute] = dnd.endsAt.split(':').map(Number);
-    const closing = { ...wall, hour, minute };
 
-    if (dnd.startsAt <= dnd.endsAt) {
-        if (wallClock < dnd.startsAt || wallClock >= dnd.endsAt) {
-            return null;
-        }
+    const covered =
+        startsAt <= endsAt
+            ? wallClock >= startsAt && wallClock < endsAt
+            : wallClock >= startsAt || wallClock < endsAt;
 
-        return wallTimeToInstant(closing, zone);
-    }
+    return covered ? { startsAt, endsAt } : null;
+}
 
-    if (wallClock < dnd.endsAt) {
-        return wallTimeToInstant(closing, zone);
-    }
-
-    if (wallClock >= dnd.startsAt) {
-        return wallTimeToInstant(nextCivilDay(closing), zone);
-    }
-
-    return null;
+/** Whether a stored instant has yet to arrive, treating a lapsed one as absent. */
+function isStillAhead(instant: string | null, at: Date): boolean {
+    return instant !== null && new Date(instant) > at;
 }
 
 /**

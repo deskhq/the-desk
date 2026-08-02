@@ -4,11 +4,13 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Enums\PresenceState;
 use App\Events\UserPresenceChanged;
 use App\Http\Requests\ReleasePresenceRequest;
 use App\Http\Requests\ReportPresenceRequest;
 use App\Models\User;
 use App\Support\PresenceRegistry;
+use App\Support\UserAvailability;
 use Illuminate\Http\Response;
 
 /**
@@ -68,11 +70,13 @@ class PresenceConnectionController extends Controller
      */
     private function broadcastIfChanged(User $user, callable $apply): void
     {
-        $before = $user->effectivePresence();
+        $presence = fn (): PresenceState => UserAvailability::for($user, connections: $this->registry)->presence();
+
+        $before = $presence();
 
         $apply();
 
-        $after = $user->effectivePresence();
+        $after = $presence();
 
         if ($after !== $before) {
             event(new UserPresenceChanged($user, $after));

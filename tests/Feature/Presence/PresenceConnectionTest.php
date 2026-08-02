@@ -70,7 +70,7 @@ test('a manual away is not undone by a tab reporting activity', function (): voi
 
     $this->actingAs($user)->postJson(route('presence.report'), ['connection' => 'tab-a', 'state' => 'active']);
 
-    expect($user->fresh()->effectivePresence())->toBe(PresenceState::Away);
+    expect($user->fresh()->availability()->presence())->toBe(PresenceState::Away);
 
     Event::assertNotDispatched(UserPresenceChanged::class);
 });

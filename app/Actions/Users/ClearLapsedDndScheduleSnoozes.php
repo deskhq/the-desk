@@ -15,7 +15,7 @@ class ClearLapsedDndScheduleSnoozes
      * reload.
      *
      * This is the eager half of expiry. Reads already treat a lapsed snooze as
-     * over (see {@see User::isDndActive()}); this sweep is what makes the lapse
+     * over (see {@see UserAvailability::isDnd()}); this sweep is what makes the lapse
      * *propagate* — and keeps the column from holding a stale instant the next
      * snooze would have to overwrite blind.
      *

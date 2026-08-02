@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import {
     isDndActiveNow,
@@ -18,6 +20,63 @@ function dnd(
         ...overrides,
     };
 }
+
+/**
+ * One case per row of the shared table
+ * (`tests/Fixtures/availability-cases.json`), which
+ * `tests/Unit/Support/UserAvailabilityTest.php` reads to prove the server's
+ * `UserAvailability`. Reading the same file — rather than re-typing the rows
+ * here — is what makes the two languages provably agree: a row added or flipped
+ * on either side has to satisfy both suites. Before it existed, the only thing
+ * holding this module to the server's semantics was its own docblock asking
+ * whoever edited it to keep them in lockstep.
+ */
+type AvailabilityCase = App.Data.UserDndData & {
+    name: string;
+    timezone: string;
+    at: string;
+    isDnd: boolean;
+    scheduleClosesAt: string | null;
+};
+
+const availabilityCases = JSON.parse(
+    readFileSync(
+        fileURLToPath(
+            new URL(
+                '../../../tests/Fixtures/availability-cases.json',
+                import.meta.url,
+            ),
+        ),
+        'utf8',
+    ),
+) as AvailabilityCase[];
+
+describe('the availability case table', () => {
+    it.each(availabilityCases)('$name', (testCase) => {
+        const config = dnd(testCase);
+        const at = new Date(testCase.at);
+
+        expect(isDndActiveNow(config, testCase.timezone, at)).toBe(
+            testCase.isDnd,
+        );
+
+        const closes = quietHoursEndsAt(config, testCase.timezone, at);
+
+        expect(
+            closes === null
+                ? null
+                : // The table names instants in UTC with whole seconds, which is
+                  // how the server's side compares them too.
+                  `${closes.toISOString().slice(0, 19)}Z`,
+        ).toBe(testCase.scheduleClosesAt);
+    });
+
+    it('names each of its rows exactly once', () => {
+        const names = availabilityCases.map((testCase) => testCase.name);
+
+        expect(new Set(names).size).toBe(names.length);
+    });
+});
 
 describe('isDndActiveNow', () => {
     it('is inactive with no configuration at all', () => {
