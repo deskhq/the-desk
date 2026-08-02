@@ -107,3 +107,31 @@ test('each pattern still catches the copy it was written for', function (string 
     'TypeScript expression' => ['TypeScript expression', '() => muted.value || notificationLevel.value !== \'all\','],
     'TypeScript literal' => ['TypeScript literal', "} else if (channel.notificationLevel !== 'all' || !input.isChannelMessage) {"],
 ]);
+
+/**
+ * The other half of a trustworthy tripwire: what it must stay quiet about.
+ *
+ * The patterns cannot demand both operands in one match and still catch the
+ * copies above — `WorkspaceUnread` spelled the rule as two separate `->where()`
+ * calls on different lines, so a pattern strict enough to require the
+ * conjunction would miss the very copy it was written for. The looseness is
+ * deliberate, and this is where its cost is bounded: legitimate code that asks
+ * only *one* of the two questions has to stay out of the results, or the guard
+ * becomes noise someone silences by widening the expected list.
+ */
+test('each pattern leaves a legitimate single-half question alone', function (string $source): void {
+    foreach (alertSpellingPatterns() as $pattern) {
+        expect(preg_match($pattern, $source))->toBe(0);
+    }
+})->with([
+    // Dimming a row, or hiding one: muting on its own decides plenty.
+    'a muted filter on its own' => ["->where('channel_members.muted', false)"],
+    'muting conjoined with something else' => ['if ($muted && $channel->isArchived()) {'],
+    // `lib/notificationIndicator.ts` maps all three levels to an icon, a
+    // distinction the alert rule deliberately does not make.
+    'a level read for display' => ["if (level === 'nothing') {"],
+    'a level read for display, mentions' => ["if (level === 'mentions') {"],
+    // Persisting the preference is not reading the rule.
+    'writing the level' => ["'notification_level' => \$notificationLevel->value,"],
+    'casting the level' => ["'notification_level' => NotificationLevel::class,"],
+]);

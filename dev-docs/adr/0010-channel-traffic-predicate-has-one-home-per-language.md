@@ -4,7 +4,7 @@
 - Date: 2026-07-31
 - Relates to: epic architecture-hardening III ([#1110](https://github.com/deskhq/the-desk/issues/1110), child: [#1114](https://github.com/deskhq/the-desk/issues/1114)); epic architecture-hardening IV ([#1142](https://github.com/deskhq/the-desk/issues/1142), child: [#1143](https://github.com/deskhq/the-desk/issues/1143))
 
-> **Status note (2026-08-02).** The device below was applied a second time, to the sibling
+> **Status note (2026-08-02).** The device below was applied a second time to the sibling
 > rule this one keeps being confused with: **muted x notification level => does this
 > alert?** ([#1143](https://github.com/deskhq/the-desk/issues/1143)). That rule had five
 > spellings in three languages — `NotificationLevel`'s two PHP predicates, two raw-SQL
