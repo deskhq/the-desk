@@ -20,11 +20,15 @@ export type ReactionData = {
 };
 ```
 
-Alongside it, `resources/js/types/*.ts` hand-declared 82 types, of which **31 restated a
-PHP DTO field for field**: `Message`, `Reaction`, `Poll`, `PollOption`, `ChannelReader`,
-`MessageReply`, `MessageForward`, `ThreadInboxItem`, `ScheduledMessage`,
+Alongside it, `resources/js/types/*.ts` hand-declared 82 types, of which **31 shadowed a
+generated one** — most of them field for field: `Message`, `Reaction`, `Poll`,
+`PollOption`, `ChannelReader`, `MessageReply`, `MessageForward`, `ThreadInboxItem`,
 `MessageReminder`, `MessageSearchResult`, `Channel`, `UserProfile`, `TeamStorage`,
-`WorkspaceAnalytics` and more. Both vocabularies were live: 73 files referenced
+`WorkspaceAnalytics`, and six unions restating an enum's cases (`MessageType`,
+`NotificationLevel`, `TeamRole`, `ChimeSound`, `AppLocale`, `SidebarPosition`). Two more
+had drifted *off* their DTO while still meaning it — `ScheduledMessage` had lost
+`clientUuid`, and `Passkey` had kept a shape the server stopped sending altogether.
+Both vocabularies were live: 73 files referenced
 `App.Data.*`, 283 imported from `@/types`, and only six files carried a single
 `= App.Data.*` alias each. `types/messages.ts` was 449 lines and the #3 churn hotspot on
 the frontend.
@@ -94,9 +98,11 @@ sides of the wire read one sentence rather than two that can disagree.
   literal set — is exactly one of them. A 32nd shadow fails there rather than months later
   in whichever surface was missed. It matches on *shape*, not on name, so a copy renamed to
   look original (`AuditEntry` restating `AuditEventData`) is caught too.
-- **Two drifts closed on the way through.** The team settings page can now see
-  `canManageEmojis`, and the roster/mention split means a surface that wants `isBot` has to
-  ask for the payload that carries it.
+- **Three drifts closed on the way through.** The team settings page can now see
+  `canManageEmojis`; the roster/mention split means a surface that wants `isBot` has to ask
+  for the payload that carries it; and `types/auth.ts`'s `Passkey` — a shape with
+  `created_at_diff` fields the server has not sent since `PasskeyData` replaced it, imported
+  by nothing — is gone.
 - **Optionality got stricter, and it should have.** The transformer emits a nullable field
   as `avatar: string | null` — present in the JSON, possibly null — where the hand-written
   copies had `avatar?: string | null`. Test doubles that built half a payload now build the
