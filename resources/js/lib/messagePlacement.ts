@@ -1,3 +1,4 @@
+import type { AlertPreference } from '@/lib/alerts';
 import { isChannelTraffic } from '@/lib/channelTraffic';
 import type { ChannelTrafficInput } from '@/lib/channelTraffic';
 import { shouldFlagThreadUnread } from '@/lib/shouldFlagThreadUnread';
@@ -14,8 +15,10 @@ export type IncomingPlacementInput = ChannelTrafficInput & {
      * @mentioned); only followed threads raise a dot. See {@see shouldFlagThreadUnread}.
      */
     isFollowedThread: boolean;
-    /** Thread dots are silenced for this channel (muted or below "all"). */
-    isThreadUnreadSuppressed: boolean;
+    /** The viewer's preference for this channel, read by the thread-dot gate. */
+    channel: AlertPreference | null;
+    /** The arriving message directly @mentions the viewer. */
+    mentionsCurrentUser: boolean;
 };
 
 export type IncomingPlacement = {
@@ -62,7 +65,8 @@ export function placeIncomingMessage(
                 isOwnReply: input.isOwnMessage,
                 isFollowedThread: input.isFollowedThread,
                 isViewingThreadFocused: false,
-                isSuppressed: input.isThreadUnreadSuppressed,
+                channel: input.channel,
+                mentionsCurrentUser: input.mentionsCurrentUser,
             }),
     };
 }

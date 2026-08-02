@@ -17,7 +17,8 @@ function input(
         activeThreadRootId: null,
         isTabFocused: true,
         isFollowedThread: false,
-        isThreadUnreadSuppressed: false,
+        channel: { muted: false, notificationLevel: 'all' },
+        mentionsCurrentUser: false,
         ...overrides,
     };
 }
@@ -100,15 +101,28 @@ describe('placeIncomingMessage', () => {
         expect(placement.flagRootThreadUnread).toBe(false);
     });
 
-    it('never flags when thread unread dots are suppressed for the channel', () => {
+    it('never flags an ordinary reply the channel preference silences', () => {
         const placement = placeIncomingMessage(
             input({
                 threadRootId: 'root-1',
                 isFollowedThread: true,
-                isThreadUnreadSuppressed: true,
+                channel: { muted: false, notificationLevel: 'mentions' },
             }),
         );
 
         expect(placement.flagRootThreadUnread).toBe(false);
+    });
+
+    it('flags a reply mentioning the viewer at the "mentions" level', () => {
+        const placement = placeIncomingMessage(
+            input({
+                threadRootId: 'root-1',
+                isFollowedThread: true,
+                channel: { muted: false, notificationLevel: 'mentions' },
+                mentionsCurrentUser: true,
+            }),
+        );
+
+        expect(placement.flagRootThreadUnread).toBe(true);
     });
 });

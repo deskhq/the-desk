@@ -386,48 +386,77 @@ class Message extends Model
     ))';
 
     /**
+     * How many times {@see self::threadUnreadRepliesSql()} binds the user id, so
+     * the three call sites below say "the tail's bindings" rather than each
+     * counting the question marks by eye.
+     */
+    private const int THREAD_UNREAD_REPLIES_BINDINGS = 4;
+
+    /**
      * The correlated tail of an unread-reply lookup, from the `from` keyword on:
      * a live reply by someone else after the user's `thread_reads` pointer (a null
-     * pointer means the thread was never opened, so every reply counts). Shared by
-     * the `exists` flag and the count below, so the dot and the ":count new
-     * replies" line can never disagree. Binds the user id twice.
+     * pointer means the thread was never opened, so every reply counts) that the
+     * viewer's preference for the root's channel lets through.
+     *
+     * That last clause is the alert rule, read from its one home
+     * ({@see NotificationLevel}) rather than re-spelled here: a reply @mentioning
+     * the viewer alerts unless the channel is muted or set to "nothing", any
+     * other reply only at "all". Applying it per reply rather than per channel is
+     * what makes a mention inside a thread on a "mentions"-level channel raise
+     * the dot the channel badge and the chime already raise for it (#1143). A
+     * viewer with no membership row has no preference to be silenced by, which
+     * the outer join's null side carries.
+     *
+     * Shared by the `exists` flag and the count below, so the dot and the
+     * ":count new replies" line can never disagree. Binds the user id
+     * {@see self::THREAD_UNREAD_REPLIES_BINDINGS} times.
+     *
+     * @return literal-string
      */
-    private const string THREAD_UNREAD_REPLIES_SQL = 'from messages r
+    private function threadUnreadRepliesSql(): string
+    {
+        return 'from messages r
         left join thread_reads tr on tr.thread_root_id = messages.id and tr.user_id = ?
+        left join channel_members cm on cm.channel_id = messages.channel_id and cm.user_id = ?
         where r.thread_root_id = messages.id
           and r.deleted_at is null
           and r.user_id <> ?
-          and (tr.last_read_reply_id is null or r.id > tr.last_read_reply_id)';
+          and (tr.last_read_reply_id is null or r.id > tr.last_read_reply_id)
+          and (
+              cm.user_id is null
+              or '.NotificationLevel::alertsOnUnreadSql('cm').'
+              or ('.NotificationLevel::alertsOnMentionSql('cm').' and exists (
+                  select 1 from mentions mn where mn.message_id = r.id and mn.mentioned_user_id = ?
+              ))
+          )';
+    }
 
     /**
-     * Correlated SQL telling whether the user has muted or quieted (level below
-     * "all") the root's channel, mirroring the sidebar's unread-badge suppression
-     * so a cross-channel query gets per-channel muting for free. Binds the user
-     * id, then the "all" notification level.
+     * Correlated SQL telling whether the thread holds an unread reply that alerts
+     * the user. Binds the user id {@see self::THREAD_UNREAD_REPLIES_BINDINGS}
+     * times.
+     *
+     * @return literal-string
      */
-    private const string THREAD_CHANNEL_SILENCED_SQL = 'exists (
-        select 1 from channel_members cm
-        where cm.channel_id = messages.channel_id and cm.user_id = ?
-          and (cm.muted = true or cm.notification_level <> ?)
-    )';
-
-    /**
-     * Correlated SQL telling whether the thread holds an unread reply for a user,
-     * silenced per channel. Binds the user id three times, then the "all"
-     * notification level.
-     */
-    private const string THREAD_HAS_UNREAD_SQL = '(exists (
-        select 1 '.self::THREAD_UNREAD_REPLIES_SQL.'
-    ) and not '.self::THREAD_CHANNEL_SILENCED_SQL.')';
+    private function threadHasUnreadSql(): string
+    {
+        return '(exists (select 1 '.$this->threadUnreadRepliesSql().'))';
+    }
 
     /**
      * Correlated SQL counting the thread's replies that are new to a user — what
      * the inbox renders as ":count new replies", never derived from the total.
-     * Silenced to zero on a muted channel, exactly as the dot is. Binds the user
-     * id, the "all" notification level, then the user id twice.
+     * Because the silencing lives inside the shared tail, a channel that alerts
+     * on nothing counts to zero without a case expression, and the dot is exactly
+     * "this count is not zero". Binds the user id
+     * {@see self::THREAD_UNREAD_REPLIES_BINDINGS} times.
+     *
+     * @return literal-string
      */
-    private const string THREAD_UNREAD_REPLY_COUNT_SQL = '(case when '.self::THREAD_CHANNEL_SILENCED_SQL.'
-        then 0 else (select count(*) '.self::THREAD_UNREAD_REPLIES_SQL.') end)';
+    private function threadUnreadReplyCountSql(): string
+    {
+        return '(select count(*) '.$this->threadUnreadRepliesSql().')';
+    }
 
     /**
      * Annotate root messages with the viewer's per-thread follow and unread state
@@ -441,8 +470,19 @@ class Message extends Model
     {
         $query->addSelect('messages.*')
             ->selectRaw(self::THREAD_FOLLOWED_SQL.'::int as thread_followed', [$user->id, $user->id])
-            ->selectRaw(self::THREAD_HAS_UNREAD_SQL.'::int as thread_has_unread', [$user->id, $user->id, $user->id, NotificationLevel::All->value])
-            ->selectRaw(self::THREAD_UNREAD_REPLY_COUNT_SQL.'::int as thread_unread_reply_count', [$user->id, NotificationLevel::All->value, $user->id, $user->id]);
+            ->selectRaw($this->threadHasUnreadSql().'::int as thread_has_unread', $this->threadUnreadBindings($user))
+            ->selectRaw($this->threadUnreadReplyCountSql().'::int as thread_unread_reply_count', $this->threadUnreadBindings($user));
+    }
+
+    /**
+     * The bindings {@see self::threadUnreadRepliesSql()} takes: the viewer's id,
+     * once per correlated lookup inside it.
+     *
+     * @return array<int, string>
+     */
+    private function threadUnreadBindings(User $user): array
+    {
+        return array_fill(0, self::THREAD_UNREAD_REPLIES_BINDINGS, $user->id);
     }
 
     /**
@@ -459,14 +499,15 @@ class Message extends Model
     }
 
     /**
-     * Constrain a root query to threads that hold an unread reply for the user,
-     * with the same mute/level suppression as {@see self::THREAD_HAS_UNREAD_SQL}.
+     * Constrain a root query to threads that hold an unread reply for the user.
+     * Reuses {@see self::threadHasUnreadSql()}, so the inbox's "Unread" filter
+     * and the `thread_has_unread` column can never disagree.
      *
      * @param  Builder<Message>  $query
      */
     protected function scopeWhereThreadUnreadFor(Builder $query, User $user): void
     {
-        $query->whereRaw(self::THREAD_HAS_UNREAD_SQL, [$user->id, $user->id, $user->id, NotificationLevel::All->value]);
+        $query->whereRaw($this->threadHasUnreadSql(), $this->threadUnreadBindings($user));
     }
 
     /**

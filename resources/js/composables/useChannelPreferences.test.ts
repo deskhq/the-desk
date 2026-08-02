@@ -185,18 +185,24 @@ describe('useChannelPreferences', () => {
         }
     });
 
-    it('suppresses thread-unread dots when muted or below "all"', () => {
+    it('tracks the live mute + level pair the alert rule reads', () => {
         const channel = ref(channelState());
         const { prefs } = withScope(channel, ref('id-1'));
 
-        expect(prefs.threadUnreadSuppressed.value).toBe(false);
+        expect(prefs.alertPreference.value).toEqual({
+            muted: false,
+            notificationLevel: 'all',
+        });
 
         prefs.onMuteChange(true);
-        expect(prefs.threadUnreadSuppressed.value).toBe(true);
+        expect(prefs.alertPreference.value.muted).toBe(true);
 
         prefs.onMuteChange(false);
         prefs.onNotificationLevelChange('mentions' as NotificationLevel);
-        expect(prefs.threadUnreadSuppressed.value).toBe(true);
+        expect(prefs.alertPreference.value).toEqual({
+            muted: false,
+            notificationLevel: 'mentions',
+        });
     });
 
     it('derives a header cue only for a non-default notification state', () => {

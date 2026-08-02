@@ -7,6 +7,7 @@ import type {
     TypingUser,
     useTypingIndicator,
 } from '@/composables/useTypingIndicator';
+import type { AlertPreference } from '@/lib/alerts';
 import { backgroundVisit } from '@/lib/backgroundVisit';
 import { createChannelFleet } from '@/lib/channelFleet';
 import { placeIncomingMessage } from '@/lib/messagePlacement';
@@ -35,8 +36,8 @@ export interface ChannelRealtimeOptions {
     activeThreadRootId: Ref<string | null>;
     /** The main timeline's rendered messages, to resolve a root's follow state. */
     displayMessages: () => Message[];
-    /** Whether thread unread dots are silenced for this channel. */
-    isThreadUnreadSuppressed: () => boolean;
+    /** The viewer's mute + level pair for this channel, read by the dot gate. */
+    alertPreference: () => AlertPreference | null;
     /** The channel's read-receipt map, advanced by peers' `MessageRead`. */
     readers: Ref<Map<string, ChannelReader>>;
     /** Whether the viewer is scrolled near the bottom of the main timeline. */
@@ -99,7 +100,10 @@ export function useChannelRealtime(options: ChannelRealtimeOptions): void {
             activeThreadRootId: options.activeThreadRootId.value,
             isTabFocused: document.hasFocus(),
             isFollowedThread: root?.threadFollowed ?? false,
-            isThreadUnreadSuppressed: options.isThreadUnreadSuppressed(),
+            channel: options.alertPreference(),
+            mentionsCurrentUser: message.mentions.some(
+                (mention) => mention.id === options.currentUserId(),
+            ),
         });
 
         if (placement.appendToMain) {

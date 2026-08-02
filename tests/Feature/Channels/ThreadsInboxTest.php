@@ -221,6 +221,28 @@ test('a muted channel lists its threads without an unread dot', function (): voi
         ->and($rows[0]['root']['threadUnreadReplyCount'])->toBe(0);
 });
 
+test('a mention inside a thread dots its card on a mentions-level channel', function (): void {
+    [$owner, $team, $general] = inboxSetup();
+    $alice = inboxMember($team, $general);
+
+    $general->channelMembers()->where('user_id', $owner->id)
+        ->update(['notification_level' => NotificationLevel::Mentions]);
+
+    $root = inboxRoot($general, $owner);
+    Message::factory()->for($general)->for($alice)->inThread($root)->create()
+        ->mentionedUsers()->attach($owner->id);
+
+    // The channel badges and the chime fires for this mention, so the thread it
+    // landed in has to agree — the inbox is where the viewer goes to find it.
+    $props = inboxProps($owner, $team, ThreadInboxFilter::Unread);
+
+    expect($props['threads']['data'])->toHaveCount(1)
+        ->and($props['threads']['data'][0]['root']['threadUnread'])->toBeTrue()
+        ->and($props['threads']['data'][0]['root']['threadUnreadReplyCount'])->toBe(1)
+        ->and($props['unreadThreadCount'])->toBe(1)
+        ->and($props['hasUnreadThreads'])->toBeTrue();
+});
+
 test('opening and reading a thread clears its unread dot in the inbox', function (): void {
     [$owner, $team, $general] = inboxSetup();
     $alice = inboxMember($team, $general);

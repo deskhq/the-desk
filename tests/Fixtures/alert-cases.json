@@ -1,0 +1,44 @@
+[
+    {
+        "name": "an unmuted channel at \"all\" alerts on both readings",
+        "muted": false,
+        "level": "all",
+        "alertsOnUnread": true,
+        "alertsOnMention": true
+    },
+    {
+        "name": "an unmuted channel at \"mentions\" alerts only on a mention",
+        "muted": false,
+        "level": "mentions",
+        "alertsOnUnread": false,
+        "alertsOnMention": true
+    },
+    {
+        "name": "an unmuted channel at \"nothing\" is silent on both readings",
+        "muted": false,
+        "level": "nothing",
+        "alertsOnUnread": false,
+        "alertsOnMention": false
+    },
+    {
+        "name": "a muted channel at \"all\" is silent on both readings",
+        "muted": true,
+        "level": "all",
+        "alertsOnUnread": false,
+        "alertsOnMention": false
+    },
+    {
+        "name": "a muted channel at \"mentions\" is silent on both readings",
+        "muted": true,
+        "level": "mentions",
+        "alertsOnUnread": false,
+        "alertsOnMention": false
+    },
+    {
+        "name": "a muted channel at \"nothing\" is silent on both readings",
+        "muted": true,
+        "level": "nothing",
+        "alertsOnUnread": false,
+        "alertsOnMention": false
+    }
+]

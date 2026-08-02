@@ -230,6 +230,69 @@ test('a notification level below all suppresses the thread unread flag', functio
     expect(rootPayload($owner, $team, $general, $root)['threadUnread'])->toBeFalse();
 });
 
+test('a mention inside a thread raises its dot on a mentions-level channel', function (): void {
+    [$owner, $team, $general] = threadReadSetup();
+    $alice = threadReadMember($team, $general);
+
+    $general->channelMembers()->where('user_id', $owner->id)
+        ->update(['notification_level' => NotificationLevel::Mentions]);
+
+    $root = Message::factory()->for($general)->for($owner)->create();
+    Message::factory()->for($general)->for($alice)->inThread($root)->create()
+        ->mentionedUsers()->attach($owner->id);
+
+    // The "mentions" level silences ordinary traffic, never a mention — the one
+    // thread the viewer was explicitly pulled into is the last one to go quiet.
+    $payload = rootPayload($owner, $team, $general, $root);
+
+    expect($payload['threadUnread'])->toBeTrue()
+        ->and($payload['threadUnreadReplyCount'])->toBe(1);
+});
+
+test('the reply count on a mentions-level channel counts only the mentions', function (): void {
+    [$owner, $team, $general] = threadReadSetup();
+    $alice = threadReadMember($team, $general);
+
+    $general->channelMembers()->where('user_id', $owner->id)
+        ->update(['notification_level' => NotificationLevel::Mentions]);
+
+    $root = Message::factory()->for($general)->for($owner)->create();
+    Message::factory()->for($general)->for($alice)->inThread($root)->create()
+        ->mentionedUsers()->attach($owner->id);
+    Message::factory()->for($general)->for($alice)->inThread($root)->create();
+
+    // At this level the ordinary reply alerts nobody, so counting it would
+    // promise a dot's worth of news the channel itself refuses to badge.
+    expect(rootPayload($owner, $team, $general, $root)['threadUnreadReplyCount'])->toBe(1);
+});
+
+test('muting a channel silences a mention inside a thread', function (): void {
+    [$owner, $team, $general] = threadReadSetup();
+    $alice = threadReadMember($team, $general);
+
+    $general->channelMembers()->where('user_id', $owner->id)->update(['muted' => true]);
+
+    $root = Message::factory()->for($general)->for($owner)->create();
+    Message::factory()->for($general)->for($alice)->inThread($root)->create()
+        ->mentionedUsers()->attach($owner->id);
+
+    expect(rootPayload($owner, $team, $general, $root)['threadUnread'])->toBeFalse();
+});
+
+test('the nothing level silences a mention inside a thread', function (): void {
+    [$owner, $team, $general] = threadReadSetup();
+    $alice = threadReadMember($team, $general);
+
+    $general->channelMembers()->where('user_id', $owner->id)
+        ->update(['notification_level' => NotificationLevel::Nothing]);
+
+    $root = Message::factory()->for($general)->for($owner)->create();
+    Message::factory()->for($general)->for($alice)->inThread($root)->create()
+        ->mentionedUsers()->attach($owner->id);
+
+    expect(rootPayload($owner, $team, $general, $root)['threadUnread'])->toBeFalse();
+});
+
 test('the thread panel root carries the viewer follow and unread state', function (): void {
     [$owner, $team, $general] = threadReadSetup();
     $alice = threadReadMember($team, $general);
