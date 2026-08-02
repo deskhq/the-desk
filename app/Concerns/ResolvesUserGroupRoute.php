@@ -6,10 +6,13 @@ use App\Models\Team;
 use App\Models\UserGroup;
 
 /**
- * Resolves the `{team}` and `{group}` route bindings for the user-group
- * management requests, and enforces that the group really belongs to the team
- * in the URL. The scoping check runs before any policy so another workspace's
- * group reads as absent here rather than merely forbidden.
+ * Resolves the `{team}` and `{userGroup}` route bindings for the user-group
+ * management requests.
+ *
+ * Neither accessor re-asks whether the group belongs to the team in the URL:
+ * the route binds `{userGroup}` through `Team::userGroups()`, so a group from
+ * another workspace is already a 404 by the time a request is validated
+ * (ADR-0014).
  */
 trait ResolvesUserGroupRoute
 {
@@ -26,14 +29,13 @@ trait ResolvesUserGroupRoute
     }
 
     /**
-     * Get the group in the URL, scoped to that team.
+     * Get the group in the URL.
      */
     public function group(): UserGroup
     {
-        $group = $this->route('group');
+        $group = $this->route('userGroup');
 
         abort_if(! $group instanceof UserGroup, 404);
-        abort_unless($group->team_id === $this->team()->id, 404);
 
         return $group;
     }

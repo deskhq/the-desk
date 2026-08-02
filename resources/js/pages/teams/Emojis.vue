@@ -111,7 +111,7 @@ function confirmRemoval(): void {
     }
 
     removalForm.delete(
-        destroy({ team: props.team.slug, emoji: emoji.id }).url,
+        destroy({ team: props.team.slug, customEmoji: emoji.id }).url,
         {
             preserveScroll: true,
             onFinish: () => {

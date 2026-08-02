@@ -33,7 +33,7 @@ function confirmRemoval(): void {
         return;
     }
 
-    removalForm.delete(destroy({ team: props.team, group: group.id }).url, {
+    removalForm.delete(destroy({ team: props.team, userGroup: group.id }).url, {
         preserveScroll: true,
         // Closed only once the delete lands: a failed request leaves the
         // dialog open rather than dismissing it as though it had worked.

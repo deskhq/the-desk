@@ -292,6 +292,10 @@ built; build them once, then reuse.
   `AuditableActionOccurred` from it — the **domain-event seam**, next to the
   mutation.
 - New channel-member preference → the **channel membership settings** concern.
+- A new nested resource under `settings/teams/{team}/…` → name its route parameter after
+  the relationship that owns it (`{customEmoji}` → `Team::customEmojis()`), and let the
+  group's `->scopeBindings()` do the tenancy. A hand-rolled `belongs to this team` check
+  in a controller or a FormRequest is a defect (ADR-0014).
 - New message action (a row affordance that writes) → one method on the **message-action
   context**; never a new prop/emit pair through the timeline.
 - A write that shows its outcome before the server answers →

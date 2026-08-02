@@ -176,6 +176,20 @@ it('unblocks creating an incoming webhook for the bot-and-channel pair', functio
     expect($team->incomingWebhooks()->where('bot_id', $bot->id)->where('channel_id', $channel->id)->exists())->toBeTrue();
 });
 
+it('404s removing a bot from a direct message', function (): void {
+    // Tenancy moved to the route binding, but this surface still manages
+    // standard-channel membership only — a DM is not its business.
+    ['team' => $team, 'owner' => $owner, 'bot' => $bot] = botChannelFixture();
+    $dm = Channel::factory()->for($team)->direct()->create();
+    $dm->channelMembers()->create(['user_id' => $bot->id]);
+
+    $this->actingAs($owner)
+        ->delete(route('teams.integrations.bots.channels.destroy', ['team' => $team->slug, 'bot' => $bot->id, 'channel' => $dm->id]))
+        ->assertNotFound();
+
+    expect($dm->channelMembers()->where('user_id', $bot->id)->exists())->toBeTrue();
+});
+
 it('404s removing from a channel in another team', function (): void {
     ['team' => $team, 'owner' => $owner, 'bot' => $bot] = botChannelFixture();
     $foreignChannel = Channel::factory()->for(Team::factory()->create())->create();

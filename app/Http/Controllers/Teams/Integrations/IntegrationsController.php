@@ -13,7 +13,6 @@ use App\Http\Controllers\Controller;
 use App\Models\Channel;
 use App\Models\Team;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -25,8 +24,6 @@ class IntegrationsController extends Controller
      */
     public function index(Request $request, Team $team): Response
     {
-        Gate::authorize('manageIntegrations', $team);
-
         return Inertia::render('teams/integrations/Index', [
             'team' => [
                 'id' => $team->id,

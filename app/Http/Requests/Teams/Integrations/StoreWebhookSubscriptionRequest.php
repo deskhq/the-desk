@@ -11,7 +11,6 @@ use App\Rules\PublicWebhookUrl;
 use Closure;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
-use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
 
@@ -22,14 +21,6 @@ use Illuminate\Validation\Validator;
  */
 class StoreWebhookSubscriptionRequest extends FormRequest
 {
-    /**
-     * Only integration managers (Owner + Admin) may register subscriptions.
-     */
-    public function authorize(): bool
-    {
-        return Gate::allows('manageIntegrations', $this->team());
-    }
-
     /**
      * @return array<string, ValidationRule|array<mixed>|string>
      */

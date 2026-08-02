@@ -14,7 +14,6 @@ use App\Models\Team;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
 
 class IncomingWebhookController extends Controller
@@ -52,10 +51,6 @@ class IncomingWebhookController extends Controller
      */
     public function destroy(Request $request, Team $team, IncomingWebhook $incomingWebhook, RevokeIncomingWebhook $revoke): RedirectResponse
     {
-        Gate::authorize('manageIntegrations', $team);
-
-        abort_unless($incomingWebhook->team_id === $team->id, 404);
-
         $revoke->handle($request->user(), $incomingWebhook);
 
         Inertia::flash('toast', ['type' => 'success', 'message' => __('Incoming webhook revoked')]);

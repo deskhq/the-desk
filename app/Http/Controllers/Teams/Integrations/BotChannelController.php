@@ -15,7 +15,6 @@ use App\Models\Team;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
 
 /**
@@ -34,8 +33,6 @@ class BotChannelController extends Controller
      */
     public function store(StoreBotChannelRequest $request, Team $team, User $bot, JoinChannel $joinChannel): RedirectResponse
     {
-        $this->ensureBotBelongsToTeam($bot, $team);
-
         /** @var Channel $channel */
         $channel = $team->channels()->whereKey($request->validated('channel_id'))->firstOrFail();
 
@@ -51,24 +48,14 @@ class BotChannelController extends Controller
      */
     public function destroy(Request $request, Team $team, User $bot, Channel $channel, RemoveChannelMember $removeChannelMember): RedirectResponse
     {
-        Gate::authorize('manageIntegrations', $team);
-
-        $this->ensureBotBelongsToTeam($bot, $team);
-
-        abort_unless($channel->team_id === $team->id && $channel->type === ChannelType::Standard, 404);
+        // Tenancy is the route's job; what is left is the domain rule that this
+        // surface manages standard-channel membership only, never a DM.
+        abort_unless($channel->type === ChannelType::Standard, 404);
 
         $removeChannelMember->handle($channel, $bot, removedBy: $request->user());
 
         Inertia::flash('toast', ['type' => 'success', 'message' => __('Bot removed from :channel', ['channel' => $channel->name])]);
 
         return to_route('teams.integrations.bots.show', ['team' => $team->slug, 'bot' => $bot->id]);
-    }
-
-    /**
-     * Guard that the resolved user really is a bot scoped to this team.
-     */
-    private function ensureBotBelongsToTeam(User $bot, Team $team): void
-    {
-        abort_unless($bot->isBot() && $bot->owner_team_id === $team->id, 404);
     }
 }

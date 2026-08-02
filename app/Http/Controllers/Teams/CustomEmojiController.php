@@ -57,13 +57,11 @@ class CustomEmojiController extends Controller
     /**
      * Remove a custom emoji — the uploader deletes their own, an admin revokes any.
      */
-    public function destroy(Request $request, Team $team, CustomEmoji $emoji, RevokeCustomEmoji $revokeCustomEmoji): RedirectResponse
+    public function destroy(Request $request, Team $team, CustomEmoji $customEmoji, RevokeCustomEmoji $revokeCustomEmoji): RedirectResponse
     {
-        abort_unless($emoji->team_id === $team->id, 404);
+        Gate::authorize('delete', $customEmoji);
 
-        Gate::authorize('delete', $emoji);
-
-        $revokeCustomEmoji->handle($team, $request->user(), $emoji);
+        $revokeCustomEmoji->handle($team, $request->user(), $customEmoji);
 
         Inertia::flash('toast', ['type' => 'success', 'message' => __('Emoji removed')]);
 

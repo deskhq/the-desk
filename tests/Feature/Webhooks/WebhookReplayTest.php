@@ -78,7 +78,7 @@ function replayRoute(Team $team, WebhookSubscription $subscription, WebhookDeliv
     return route('teams.integrations.webhooks.deliveries.replay', [
         'team' => $team->slug,
         'webhookSubscription' => $subscription->id,
-        'webhookDelivery' => $delivery->id,
+        'delivery' => $delivery->id,
     ]);
 }
 

@@ -47,7 +47,7 @@ const candidates = computed<Member[]>(() => {
 function addToGroup(member: Member): void {
     membershipForm.user_id = member.id;
     membershipForm.post(
-        addMember({ team: props.team, group: props.group.id }).url,
+        addMember({ team: props.team, userGroup: props.group.id }).url,
         { preserveScroll: true, onSuccess: () => (search.value = '') },
     );
 }
@@ -56,8 +56,8 @@ function removeFromGroup(memberId: string): void {
     membershipForm.delete(
         removeMember({
             team: props.team,
-            group: props.group.id,
-            user: memberId,
+            userGroup: props.group.id,
+            member: memberId,
         }).url,
         { preserveScroll: true },
     );

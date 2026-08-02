@@ -44,8 +44,6 @@ class TeamInvitationController extends Controller
      */
     public function destroy(Request $request, Team $team, TeamInvitation $invitation, RevokeTeamInvitation $revokeInvitation): RedirectResponse
     {
-        abort_unless($invitation->team_id === $team->id, 404);
-
         Gate::authorize('cancelInvitation', $team);
 
         $revokeInvitation->handle($invitation, $request->user());
@@ -63,8 +61,6 @@ class TeamInvitationController extends Controller
      */
     public function resend(Request $request, Team $team, TeamInvitation $invitation, ResendTeamInvitation $resendInvitation): RedirectResponse
     {
-        abort_unless($invitation->team_id === $team->id, 404);
-
         Gate::authorize('inviteMember', $team);
 
         abort_if($invitation->isAccepted(), 404);
