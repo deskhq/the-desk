@@ -11,7 +11,6 @@ use App\Http\Resources\Api\V1\ChannelResource;
 use App\Models\Channel;
 use App\Models\User;
 use App\Support\Integrations\ApiChannelAccess;
-use Illuminate\Contracts\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
@@ -31,20 +30,8 @@ class ChannelController extends Controller
         $subject = $request->user();
         assert($subject instanceof User);
 
-        $team = ApiChannelAccess::team($subject);
-
         $channels = Channel::query()
-            ->where('team_id', $team->id)
-            ->where(function (Builder $query) use ($subject): void {
-                if ($subject->isBot()) {
-                    $query->whereHas('channelMembers', fn (Builder $member) => $member->where('user_id', $subject->id));
-
-                    return;
-                }
-
-                $query->where('visibility', ChannelVisibility::Public)
-                    ->orWhereHas('channelMembers', fn (Builder $member) => $member->where('user_id', $subject->id));
-            })
+            ->whereIn('id', ApiChannelAccess::channelIds($subject))
             ->orderBy('name')
             ->get();
 

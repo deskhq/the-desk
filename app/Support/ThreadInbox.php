@@ -100,7 +100,7 @@ class ThreadInbox
     private function followed(): Builder
     {
         return Message::query()
-            ->whereIn('channel_id', $this->viewer->visibleChannelIds($this->team))
+            ->whereIn('channel_id', $this->viewer->memberChannelIds($this->team))
             ->whereNull('thread_root_id')
             ->where('reply_count', '>', 0)
             ->followedBy($this->viewer);

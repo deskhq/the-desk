@@ -8,6 +8,7 @@ use App\Data\UserData;
 use App\Data\UserDndData;
 use App\Data\UserStatusData;
 use App\Enums\AppLocale;
+use App\Enums\ChannelVisibility;
 use App\Enums\ChimeSound;
 use App\Enums\PresenceState;
 use App\Enums\SidebarPosition;
@@ -27,6 +28,7 @@ use Illuminate\Database\Eloquent\Attributes\Appends;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Attributes\ObservedBy;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
@@ -504,19 +506,27 @@ class User extends Authenticatable implements HasLocalePreference, MustVerifyEma
     }
 
     /**
-     * The ids of the channels this user may see in a team — the whole
+     * The ids of the channels this user *belongs to* in a team — the whole
      * authorization boundary for message search, the thread inbox, unread
      * indicators, forwarding, and sidebar placement.
      *
-     * "Visible" is membership scoped to the team: every channel the user belongs
-     * to within it, archived ones included (they are still readable, just hidden
-     * from the sidebar). This is the single home of that decision — no consumer
-     * re-derives the ACL with its own query, so tightening it (a block-list, an
-     * archived exclusion) is one change every consumer inherits.
+     * This is the narrower of the two channel-ACL readings this model owns, and
+     * the one that answers "what is mine": membership scoped to the team, every
+     * channel the user belongs to within it, archived ones included (they are
+     * still readable, just hidden from the sidebar). A public channel they have
+     * never joined is deliberately *not* here — surfacing its messages in their
+     * search results is a product decision about privacy, not an ACL detail.
+     * {@see readableChannels()} is the wider reading, for the surfaces that ask
+     * "what may I open".
+     *
+     * Both readings live here and nowhere else, so tightening either one (a
+     * block-list, an archived exclusion) is a single change every consumer
+     * inherits. `tests/Unit/VisibleChannelsAclHomeTest.php` keeps a third copy
+     * from being written.
      *
      * @return SupportCollection<int, string>
      */
-    public function visibleChannelIds(Team $team): SupportCollection
+    public function memberChannelIds(Team $team): SupportCollection
     {
         return $this->channels()
             ->where('channels.team_id', $team->id)
@@ -524,19 +534,64 @@ class User extends Authenticatable implements HasLocalePreference, MustVerifyEma
     }
 
     /**
-     * The ids of every channel this user may see across all their teams — the ACL
-     * boundary for cross-team ("All workspaces") message search.
+     * The ids of every channel this user belongs to across all their teams — the
+     * ACL boundary for cross-team ("All workspaces") message search.
      *
-     * The team-agnostic counterpart to {@see visibleChannelIds()}: membership
+     * The team-agnostic counterpart to {@see memberChannelIds()}: membership
      * alone, unscoped by team. Because it is still the whole authorization
      * boundary, widening a search to this set can never surface a channel the user
      * is not a member of, in any team.
      *
      * @return SupportCollection<int, string>
      */
-    public function visibleChannelIdsAcrossTeams(): SupportCollection
+    public function memberChannelIdsAcrossTeams(): SupportCollection
     {
         return $this->channels()->pluck('channels.id');
+    }
+
+    /**
+     * The channels this user *may open* in a team — the wider of the two ACL
+     * readings, behind {@see ChannelPolicy::view()} (so the channel page) and the
+     * REST channel list.
+     *
+     * Readable is "in a team I belong to, and either public or one I belong to":
+     * a public channel nobody has joined is still something any teammate may
+     * open, which is exactly what makes `browse` a place to *discover* channels.
+     * The team-membership half is part of the rule, not a caller's preamble — a
+     * credential that outlives its holder's membership (a personal access token
+     * survives removal) must stop reading the team's public channels at the same
+     * moment it stops reading a single one of them.
+     *
+     * Returned as a query rather than a set so both shapes the rule is asked in
+     * derive from one place: `->whereKey($id)->exists()` for the policy's
+     * per-channel question, {@see readableChannelIds()} for the list.
+     *
+     * @return Builder<Channel>
+     */
+    public function readableChannels(Team $team): Builder
+    {
+        $channels = Channel::query()->where('channels.team_id', $team->id);
+
+        if (! $this->belongsToTeam($team)) {
+            return $channels->whereRaw('1 = 0');
+        }
+
+        return $channels->where(fn (Builder $query): Builder => $query
+            ->where('visibility', ChannelVisibility::Public)
+            ->orWhereHas('channelMembers', fn (Builder $member): Builder => $member->where('user_id', $this->id)));
+    }
+
+    /**
+     * The ids of the channels this user may open in a team.
+     *
+     * The set form of {@see readableChannels()}, for the surfaces that enumerate
+     * rather than ask about one channel.
+     *
+     * @return SupportCollection<int, string>
+     */
+    public function readableChannelIds(Team $team): SupportCollection
+    {
+        return $this->readableChannels($team)->pluck('channels.id');
     }
 
     /**

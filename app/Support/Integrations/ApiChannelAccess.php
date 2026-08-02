@@ -10,6 +10,7 @@ use App\Models\PersonalAccessToken;
 use App\Models\Team;
 use App\Models\User;
 use App\Support\ChannelMembership;
+use Illuminate\Support\Collection as SupportCollection;
 use Illuminate\Support\Facades\Gate;
 
 /**
@@ -46,6 +47,25 @@ class ApiChannelAccess
         abort_if(! $token instanceof PersonalAccessToken || $token->team_id === null, 403);
 
         return $token->team()->firstOrFail();
+    }
+
+    /**
+     * The ids of every channel the subject may see within its acting team.
+     *
+     * The bulk counterpart of {@see allows()}, asking the same question of a
+     * whole team at once and branching on subject kind in the same place, so the
+     * list and the single-channel read can never answer differently. Both
+     * readings it defers to are {@see User}'s.
+     *
+     * @return SupportCollection<int, string>
+     */
+    public static function channelIds(User $subject): SupportCollection
+    {
+        $team = self::team($subject);
+
+        return $subject->isBot()
+            ? $subject->memberChannelIds($team)
+            : $subject->readableChannelIds($team);
     }
 
     /**

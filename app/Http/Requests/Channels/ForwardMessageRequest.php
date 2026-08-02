@@ -107,6 +107,6 @@ class ForwardMessageRequest extends FormRequest
      */
     protected function membershipChannelIds(): array
     {
-        return $this->user()->visibleChannelIds($this->sourceChannel()->team)->all();
+        return $this->user()->memberChannelIds($this->sourceChannel()->team)->all();
     }
 }

@@ -34,12 +34,46 @@ beforeEach(function (): void {
 });
 
 it('lists the channels in the token’s bound team a human PAT may view', function (): void {
+    // The list answers the readable reading, the same one the web page asks:
+    // a public channel they never joined is in it, a private one is not.
+    $publicNotJoined = Channel::factory()->for($this->team)->create();
+    $privateNotJoined = Channel::factory()->private()->for($this->team)->create();
+
     $token = humanToken($this->user, $this->team, ['channels:read']);
+
+    $response = $this->withToken($token)
+        ->getJson('/api/v1/channels')
+        ->assertOk()
+        ->assertJsonFragment(['id' => $this->channel->id])
+        ->assertJsonFragment(['id' => $publicNotJoined->id]);
+
+    expect(collect($response->json('data'))->pluck('id')->all())
+        ->not->toContain($privateNotJoined->id);
+});
+
+/**
+ * The list and the single-channel read are the same question asked in bulk, so
+ * they have to answer alike. Before #1144 the list re-derived the rule itself
+ * and skipped the team-membership half of it, so a token outliving its holder's
+ * membership still enumerated the team's public channels while every `show` on
+ * them 404'd.
+ */
+it('stops listing a team’s channels once the human has been removed from it', function (): void {
+    $public = Channel::factory()->for($this->team)->create();
+    $token = humanToken($this->user, $this->team, ['channels:read']);
+
+    // Removal leaves the token and the channel memberships behind — only the
+    // team membership goes.
+    $this->team->members()->detach($this->user);
+
+    $this->withToken($token)
+        ->getJson("/api/v1/channels/{$public->id}")
+        ->assertNotFound();
 
     $this->withToken($token)
         ->getJson('/api/v1/channels')
         ->assertOk()
-        ->assertJsonFragment(['id' => $this->channel->id]);
+        ->assertJsonCount(0, 'data');
 });
 
 it('confines the token to its bound team, even across the human’s other teams', function (): void {

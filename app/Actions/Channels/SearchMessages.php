@@ -52,7 +52,7 @@ class SearchMessages
     {
         $query = trim($criteria->query);
 
-        $channelIds = $this->visibleChannelIds($user, $team, $criteria->scope);
+        $channelIds = $this->memberChannelIds($user, $team, $criteria->scope);
 
         if ($query === '' || $channelIds === []) {
             return new Collection;
@@ -75,16 +75,20 @@ class SearchMessages
     }
 
     /**
-     * The visible channel ids that form the whole ACL for this search, scoped to
-     * the current team or unioned across every team the user belongs to.
+     * The channel ids that form the whole ACL for this search, scoped to the
+     * current team or unioned across every team the user belongs to.
+     *
+     * Search reads the *membership* reading, not the wider readable one: a
+     * public channel the user never joined is theirs to open from `browse`, not
+     * to have its messages surfaced unasked.
      *
      * @return array<int, string>
      */
-    private function visibleChannelIds(User $user, Team $team, SearchScope $scope): array
+    private function memberChannelIds(User $user, Team $team, SearchScope $scope): array
     {
         $ids = $scope === SearchScope::All
-            ? $user->visibleChannelIdsAcrossTeams()
-            : $user->visibleChannelIds($team);
+            ? $user->memberChannelIdsAcrossTeams()
+            : $user->memberChannelIds($team);
 
         return $ids->all();
     }

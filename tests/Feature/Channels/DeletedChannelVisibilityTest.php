@@ -61,8 +61,8 @@ test('a deleted channel drops out of the visible-channel ACL', function (): void
 
     app(DeleteChannel::class)->handle($channel, null);
 
-    expect($owner->visibleChannelIds($team)->all())->not->toContain($channel->id)
-        ->and($owner->visibleChannelIdsAcrossTeams()->all())->not->toContain($channel->id);
+    expect($owner->memberChannelIds($team)->all())->not->toContain($channel->id)
+        ->and($owner->memberChannelIdsAcrossTeams()->all())->not->toContain($channel->id);
 });
 
 test('messages in a deleted channel stop matching search', function (): void {

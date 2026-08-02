@@ -66,15 +66,15 @@ class ChannelPolicy
 
     /**
      * Determine whether the user can view the channel.
+     *
+     * The rule — in a team I belong to, and either public or one I belong to —
+     * lives on {@see User::readableChannels()} rather than here, because the REST
+     * channel list asks the same question in bulk and the two must never drift
+     * apart. This is that query narrowed to one channel.
      */
     public function view(User $user, Channel $channel): bool
     {
-        if (! $user->belongsToTeam($channel->team)) {
-            return false;
-        }
-
-        return $channel->visibility === ChannelVisibility::Public
-            || $channel->members()->whereKey($user->id)->exists();
+        return $user->readableChannels($channel->team)->whereKey($channel->id)->exists();
     }
 
     /**
