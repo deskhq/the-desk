@@ -64,14 +64,13 @@ function memberAclSpellingPatterns(): array
 }
 
 /**
- * Every file under `app/` that spells either rule out, as repository-relative
+ * Every file under `app/` that spells the given rule out, as repository-relative
  * paths.
  *
+ * @param  array<string, string>  $patterns
  * @return array<int, string>
  */
-$spellings = function () use ($sourceRoot): array {
-    $patterns = [...readableAclSpellingPatterns(), ...memberAclSpellingPatterns()];
-
+$spellings = function (array $patterns) use ($sourceRoot): array {
     $files = (new Finder)->files()->in($sourceRoot.'/app')->name('*.php');
 
     $found = [];
@@ -91,8 +90,14 @@ $spellings = function () use ($sourceRoot): array {
     return $found;
 };
 
-test('both readings of the ACL are spelled in exactly one place', function () use ($spellings): void {
-    expect($spellings())->toBe(['app/Models/User.php']);
+/**
+ * Each reading is scanned for on its own. Merging the two pattern sets would let
+ * a dead readable pattern hide behind the membership one still matching `User`,
+ * which is precisely the failure this file exists to notice.
+ */
+test('each reading of the ACL is spelled in exactly one place', function () use ($spellings): void {
+    expect($spellings(readableAclSpellingPatterns()))->toBe(['app/Models/User.php'])
+        ->and($spellings(memberAclSpellingPatterns()))->toBe(['app/Models/User.php']);
 });
 
 /**
