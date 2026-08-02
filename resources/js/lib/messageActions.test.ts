@@ -14,7 +14,20 @@ import {
     showsThreadSummary,
 } from '@/lib/messageActions';
 import type { MessageActionContext } from '@/lib/messageActions';
-import type { Message } from '@/types';
+import type { Message, MessageAuthor } from '@/types';
+
+/** A message author, as `MessageData` carries them. */
+function author(id: string, name: string): MessageAuthor {
+    return {
+        id,
+        name,
+        avatar: null,
+        isBot: false,
+        status: null,
+        presence: 'active',
+        isDnd: false,
+    };
+}
 
 /** A message carrying just the fields the action guards read. */
 function message(overrides: Partial<Message> = {}): Message {
@@ -23,15 +36,7 @@ function message(overrides: Partial<Message> = {}): Message {
         clientUuid: 'uuid-1',
         body: 'hello',
         type: 'standard',
-        user: {
-            id: 'peer',
-            name: 'Peer',
-            avatar: null,
-            isBot: false,
-            status: null,
-            presence: 'active',
-            isDnd: false,
-        },
+        user: author('peer', 'Peer'),
         authorOverride: null,
         postedVia: null,
         createdAt: '2024-01-01T00:00:00.000Z',
@@ -76,15 +81,7 @@ describe('messageActions guards', () => {
     describe('canEditMessage', () => {
         it('is true only for the viewer’s own live message', () => {
             const own = message({
-                user: {
-                    id: 'me',
-                    name: 'Me',
-                    avatar: null,
-                    isBot: false,
-                    status: null,
-                    presence: 'active',
-                    isDnd: false,
-                },
+                user: author('me', 'Me'),
             });
 
             expect(canEditMessage(own, context())).toBe(true);
@@ -93,15 +90,7 @@ describe('messageActions guards', () => {
 
         it('is false for a deleted or pending message', () => {
             const own = {
-                user: {
-                    id: 'me',
-                    name: 'Me',
-                    avatar: null,
-                    isBot: false,
-                    status: null,
-                    presence: 'active',
-                    isDnd: false,
-                },
+                user: author('me', 'Me'),
             } as const;
 
             expect(
@@ -118,15 +107,7 @@ describe('messageActions guards', () => {
             expect(
                 canDeleteMessage(
                     message({
-                        user: {
-                            id: 'me',
-                            name: 'Me',
-                            avatar: null,
-                            isBot: false,
-                            status: null,
-                            presence: 'active',
-                            isDnd: false,
-                        },
+                        user: author('me', 'Me'),
                     }),
                     context(),
                 ),
@@ -333,15 +314,7 @@ describe('messageActions guards', () => {
             // The recorded actor authors the notice, yet nothing acts on it.
             const notice = message({
                 type: 'member_left',
-                user: {
-                    id: 'me',
-                    name: 'Me',
-                    avatar: null,
-                    isBot: false,
-                    status: null,
-                    presence: 'active',
-                    isDnd: false,
-                },
+                user: author('me', 'Me'),
                 threadReplyCount: 2,
             });
             const moderator = context({ canModerate: true });

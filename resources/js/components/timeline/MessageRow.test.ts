@@ -4,6 +4,7 @@ import { ref } from 'vue';
 import type { UseLongPress } from '@/composables/useLongPress';
 import type { Message } from '@/types';
 import {
+    author,
     click,
     find,
     inertiaPageProps,
@@ -163,15 +164,7 @@ describe('a message row on its own', () => {
     it('leaves the editor and the delete confirmation to the timeline', () => {
         const { host, actions, events } = mount({
             message: message({
-                user: {
-                    id: 'me',
-                    name: 'Me',
-                    avatar: null,
-                    isBot: false,
-                    status: null,
-                    presence: 'active',
-                    isDnd: false,
-                },
+                user: author({ id: 'me', name: 'Me' }),
             }),
         });
 

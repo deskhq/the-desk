@@ -50,6 +50,7 @@ vi.mock('@/components/EmojiPickerPopover.vue', async () => {
 import MessageActionsSheet from './MessageActionsSheet.vue';
 import {
     all,
+    author,
     click,
     find,
     inertiaPageProps,
@@ -134,15 +135,7 @@ describe('MessageActionsSheet action rows', () => {
     it('adds edit and delete on the viewer own message', () => {
         const { host } = mount({
             message: message({
-                user: {
-                    id: 'me',
-                    name: 'Me',
-                    avatar: null,
-                    isBot: false,
-                    status: null,
-                    presence: 'active',
-                    isDnd: false,
-                },
+                user: author({ id: 'me', name: 'Me' }),
             }),
         });
 
@@ -212,15 +205,7 @@ describe('MessageActionsSheet action rows', () => {
     it('hands the timeline the edit and delete affordances it owns', () => {
         const { host, events } = mount({
             message: message({
-                user: {
-                    id: 'me',
-                    name: 'Me',
-                    avatar: null,
-                    isBot: false,
-                    status: null,
-                    presence: 'active',
-                    isDnd: false,
-                },
+                user: author({ id: 'me', name: 'Me' }),
             }),
         });
 

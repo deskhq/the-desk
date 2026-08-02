@@ -12,7 +12,7 @@ import type {
     MessageSubtreeContext,
 } from '@/composables/useMessageActionsContext';
 import { translate } from '@/lib/i18n';
-import type { Message } from '@/types';
+import type { Message, MessageAuthor } from '@/types';
 
 /**
  * The doubles the timeline's suites share: the Inertia props its leaves read,
@@ -68,13 +68,29 @@ export function popover(name: string): Component {
     });
 }
 
+/** A message author, as `MessageData` carries them. */
+export function author(overrides: Partial<MessageAuthor> = {}): MessageAuthor {
+    return {
+        id: 'peer',
+        name: 'Peer',
+        avatar: null,
+        isBot: false,
+        status: null,
+        presence: 'active',
+        isDnd: false,
+        ...overrides,
+    };
+}
+
 export function message(overrides: Partial<Message> = {}): Message {
     return {
         id: 'm1',
         clientUuid: 'uuid-1',
         body: 'hello',
         type: 'standard',
-        user: { id: 'peer', name: 'Peer' },
+        user: author(),
+        authorOverride: null,
+        postedVia: null,
         createdAt: '2024-03-04T10:30:00.000Z',
         editedAt: null,
         isDeleted: false,
@@ -95,7 +111,7 @@ export function message(overrides: Partial<Message> = {}): Message {
         threadUnread: false,
         threadUnreadReplyCount: 0,
         ...overrides,
-    } as Message;
+    };
 }
 
 /**

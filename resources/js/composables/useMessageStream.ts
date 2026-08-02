@@ -276,9 +276,10 @@ export function optimisticMessage(params: {
         body: params.body,
         // An optimistic send is always a normal user message.
         type: 'standard',
-        // The client knows itself by id and name; the rest of the author payload
-        // is the server's to answer, so it takes the values that render as "no
-        // badge, no dot, no status" until the echo replaces this copy wholesale.
+        // The client knows the sender as a `Mention` — who they are and their
+        // avatar. The rest of the author payload is the server's to answer, so it
+        // takes the values that render as "no badge, no status, present" until the
+        // echo replaces this copy wholesale.
         user: {
             id: params.author.id,
             name: params.author.name,
