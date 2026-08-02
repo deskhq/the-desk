@@ -61,7 +61,8 @@ $dtoShapes = function () use ($sourceRoot): array {
  * Every backed enum in `app/Enums/`, as name => its case values.
  *
  * The transformer's enum collector emits all of them, so each is already an
- * `App.Enums.*` union on the client.
+ * `App.Enums.*` union on the client. A pure enum has no case values to restate, so
+ * it is skipped rather than read for a `value` it does not have.
  *
  * @return array<string, array<int, string>>
  */
@@ -73,6 +74,10 @@ $enumCases = function () use ($sourceRoot): array {
         $enum = 'App\\Enums\\'.$file->getBasename('.php');
 
         if (! enum_exists($enum)) {
+            continue;
+        }
+
+        if (! is_subclass_of($enum, BackedEnum::class)) {
             continue;
         }
 
@@ -166,10 +171,23 @@ $declaredUnions = function () use ($sourceRoot): array {
 
 test('no hand-written type restates a generated DTO', function () use ($dtoShapes, $declaredObjectShapes): void {
     $dtos = $dtoShapes();
+    $declared = $declaredObjectShapes();
+
+    // Both halves are scanned rather than declared, so a moved directory or a
+    // reformatted `resources/js/types/` would leave this test comparing nothing
+    // against nothing and passing for the wrong reason. Two known survivors — a
+    // DTO and a client-only view model that must never become an alias — pin that
+    // each scanner is still finding what it is looking at.
+    expect($dtos)->toHaveKey('MessageData')
+        ->and($declared)->toHaveKey('MessagePage');
 
     $shadows = [];
 
-    foreach ($declaredObjectShapes() as $name => $fields) {
+    foreach ($declared as $name => $fields) {
+        if ($fields === []) {
+            continue;
+        }
+
         foreach ($dtos as $dto => $dtoFields) {
             if ($fields === $dtoFields) {
                 $shadows[] = "{$name} restates App.Data.{$dto}";
@@ -184,10 +202,16 @@ test('no hand-written type restates a generated DTO', function () use ($dtoShape
 
 test('no hand-written union restates a generated enum', function () use ($enumCases, $declaredUnions): void {
     $enums = $enumCases();
+    $declared = $declaredUnions();
+
+    // Same reason as above: a union scanner that has stopped matching would report
+    // no shadows and read as green.
+    expect($enums)->toHaveKey('MessageType')
+        ->and($declared)->toHaveKey('Appearance');
 
     $shadows = [];
 
-    foreach ($declaredUnions() as $name => $values) {
+    foreach ($declared as $name => $values) {
         foreach ($enums as $enum => $enumValues) {
             if ($values === $enumValues) {
                 $shadows[] = "{$name} restates App.Enums.{$enum}";
