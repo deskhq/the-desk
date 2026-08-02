@@ -52,7 +52,7 @@ class Channel extends Model
     /**
      * Soft deletes are the grace window an admin's "Delete channel" opens: the
      * stamp hides the channel from every read path at once — the relation-backed
-     * sidebar, browse, the {@see User::visibleChannelIds()} ACL search and the
+     * sidebar, browse, the {@see User::memberChannelIds()} ACL search and the
      * thread inbox share, and route-model binding, which all inherit the trait's
      * global scope — while the scheduled purge does the irreversible work only
      * once the window has closed.

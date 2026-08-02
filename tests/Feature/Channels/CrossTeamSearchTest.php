@@ -53,20 +53,20 @@ function crossTeamSearch(User $user, Team $team, array $params): TestResponse
     ]));
 }
 
-test('visibleChannelIdsAcrossTeams unions the channels of every team the user is in but never one they are not in', function (): void {
+test('memberChannelIdsAcrossTeams unions the channels of every team the user is in but never one they are not in', function (): void {
     [$member, $teamA, $generalA] = crossTeamWithGeneral('Acme');
     [$ownerB, $teamB] = crossTeamWithGeneral('Beta');
     $generalB = addToTeam($member, $teamB);
     // A private channel in team B the member is NOT a member of.
     $privateB = Channel::factory()->for($teamB)->private()->create(['created_by' => $ownerB->id]);
 
-    $ids = $member->visibleChannelIdsAcrossTeams()->all();
+    $ids = $member->memberChannelIdsAcrossTeams()->all();
 
     // The union spans both teams, excludes the private channel the member is not
     // in, and is strictly wider than the team-scoped ACL, which never leaves A.
     expect($ids)->toContain($generalA->id, $generalB->id)
         ->not->toContain($privateB->id)
-        ->and($member->visibleChannelIds($teamA)->all())->not->toContain($generalB->id);
+        ->and($member->memberChannelIds($teamA)->all())->not->toContain($generalB->id);
 });
 
 test('scope=all searches the union of the user teams', function (): void {

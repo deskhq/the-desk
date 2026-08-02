@@ -86,7 +86,7 @@ test('an admin restores a deleted channel, bringing it and its messages back', f
         ->assertRedirect(route('teams.deleted-channels.index', ['team' => $team->slug]));
 
     expect(Channel::query()->whereKey($channel->id)->exists())->toBeTrue()
-        ->and($owner->visibleChannelIds($team)->all())->toContain($channel->id)
+        ->and($owner->memberChannelIds($team)->all())->toContain($channel->id)
         ->and(Message::where('channel_id', $channel->id)->where('body', 'still here')->exists())->toBeTrue();
 });
 

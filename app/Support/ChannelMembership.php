@@ -139,7 +139,7 @@ final class ChannelMembership
      * each of the user's matching memberships takes its index as the new
      * position, so a drag persists the whole group's order in one write. Ids for
      * channels they don't belong to — or in another team — are ignored, the ACL
-     * coming from {@see User::visibleChannelIds()} rather than being re-derived
+     * coming from {@see User::memberChannelIds()} rather than being re-derived
      * here.
      *
      * When `$moveSection` is true the channel's `section_id` is set to
@@ -153,7 +153,7 @@ final class ChannelMembership
         ManualOrder::apply(
             ChannelMember::query()
                 ->where('user_id', $this->user->id)
-                ->whereIn('channel_id', $this->user->visibleChannelIds($this->channel->team)),
+                ->whereIn('channel_id', $this->user->memberChannelIds($this->channel->team)),
             'channel_id',
             $orderedIds,
         );

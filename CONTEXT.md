@@ -68,9 +68,17 @@ built; build them once, then reuse.
   eager-loads exactly the relations `MessageData::fromMessage()` reads. Every
   timeline / thread / search / broadcast / edit payload goes through it, so the
   N+1 contract has one home. Never hand-write the `with([...])` relation list.
-- **Visible-channels ACL** _(ADR-0003)_ — one scope on `User` returning
-  the channel ids a user may see in a team. This *is* the authorization boundary
-  for search, the thread inbox, unread dots, and forwarding. Never re-`pluck` it.
+- **Visible-channels ACL** _(ADR-0003)_ — the channel authorization boundary,
+  **two named readings on `User`** because two different questions share the word
+  "visible". `memberChannelIds(Team)` (and `memberChannelIdsAcrossTeams()`) is
+  *what is mine* — search, the thread inbox, unread dots, forwarding, placement.
+  `readableChannels(Team)` / `readableChannelIds(Team)` is *what may I open* — in
+  a team I belong to, and either public or one I belong to — behind
+  `ChannelPolicy::view()` (the channel page) and, through
+  `ApiChannelAccess::channelIds()`, the REST channel list. The split is
+  deliberate: `browse` exists so a user discovers a public channel and *joins*
+  it. Never re-`pluck` either, and never re-spell "public or member" at a call
+  site; `tests/Unit/VisibleChannelsAclHomeTest.php` fails if you do.
 - **Channel timeline window** _(ADR-0004)_ — the read-model/query object
   that resolves where a channel's initial message window opens (unread anchoring,
   jump context, paging). Takes explicit params; the controller keeps HTTP glue.
@@ -277,7 +285,9 @@ built; build them once, then reuse.
 - New realtime behaviour → a composable with a seam + a pure decision core in
   `lib/`; never inline in a page.
 - New channel message payload → the **Message load-set scope**.
-- New "which channels can this user see" check → the **Visible-channels ACL**.
+- New "which channels can this user see" check → the **Visible-channels ACL**,
+  after deciding which reading you mean: *is it mine* (`memberChannelIds`) or
+  *may I open it* (`readableChannels`).
 - New auditable mutation → give it an Action if it has none, then dispatch
   `AuditableActionOccurred` from it — the **domain-event seam**, next to the
   mutation.
