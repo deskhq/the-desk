@@ -21,7 +21,7 @@ test('snoozing inside a same-day window suppresses it until it closes today', fu
             ->assertRedirect();
 
         expect($user->refresh()->dnd_schedule_snoozed_until->equalTo(Carbon::parse('2026-07-22 17:00:00', 'UTC')))->toBeTrue()
-            ->and($user->isDndActive())->toBeFalse();
+            ->and($user->availability()->isDnd())->toBeFalse();
     });
 
     Event::assertDispatched(
@@ -143,7 +143,7 @@ test('snoozing leaves the manual pause and the schedule untouched', function ():
             ->and($user->dnd_schedule_enabled)->toBeTrue()
             ->and($user->dnd_starts_at)->toBe('09:00')
             ->and($user->dnd_ends_at)->toBe('17:00')
-            ->and($user->isDndActive())->toBeTrue();
+            ->and($user->availability()->isDnd())->toBeTrue();
     });
 });
 

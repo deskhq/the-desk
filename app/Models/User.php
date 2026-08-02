@@ -2,7 +2,6 @@
 
 namespace App\Models;
 
-use App\Actions\Users\ClearExpiredUserStatuses;
 use App\Concerns\HasTeams;
 use App\Data\UserData;
 use App\Data\UserDndData;
@@ -19,7 +18,7 @@ use App\Observers\UserObserver;
 use App\Support\Gravatar;
 use App\Support\Http\OutboundUrlGuard;
 use App\Support\Images\ImageProxy;
-use App\Support\PresenceRegistry;
+use App\Support\UserAvailability;
 use Carbon\CarbonInterface;
 use Database\Factories\UserFactory;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
@@ -52,6 +51,17 @@ use NotificationChannels\WebPush\HasPushSubscriptions;
 use NotificationChannels\WebPush\PushSubscription;
 
 /**
+ * The account, and only what every part of the application asks of it.
+ *
+ * "Is this person available, and until when?" is not here: it is
+ * {@see UserAvailability}, reached through {@see availability()}. The five
+ * columns that answer it stay declared on this model — their `#[Hidden]`
+ * entries, their casts, and the `#[Appends]` accessors that carry the answer to
+ * the owner's own `auth.user` prop — because Eloquent's serialisation contract
+ * belongs to the model whose table they are on. **What they mean does not.**
+ * Each accessor below is one delegation, so the raw columns can only be read
+ * through the module that knows when a pause has lapsed or a window is running.
+ *
  * @property string $id
  * @property string $name
  * @property string $email
@@ -155,20 +165,19 @@ class User extends Authenticatable implements HasLocalePreference, MustVerifyEma
     }
 
     /**
-     * Whether the user's custom status is currently showing.
+     * Is this person available, and until when?
      *
-     * This is the lazy half of expiry: a status whose `status_expires_at` has
-     * passed reads as absent everywhere from the instant it lapses, without
-     * waiting for {@see ClearExpiredUserStatuses} to null the columns and
-     * broadcast the clear.
+     * The one seam onto {@see UserAvailability}, which owns every reading of
+     * the five columns that answer it — the manual do-not-disturb pause, the
+     * recurring quiet-hours window and its snooze, the custom status expiry, and
+     * the manual away override the live connections otherwise decide. None of
+     * the rest of this model reads any of them, and the module takes the instant
+     * it is asked about, so the wall-clock arithmetic is statable without a
+     * database row.
      */
-    public function hasLiveStatus(): bool
+    public function availability(?CarbonInterface $at = null): UserAvailability
     {
-        if ($this->status_emoji === null) {
-            return false;
-        }
-
-        return $this->status_expires_at === null || $this->status_expires_at->isFuture();
+        return UserAvailability::for($this, $at);
     }
 
     /**
@@ -190,83 +199,6 @@ class User extends Authenticatable implements HasLocalePreference, MustVerifyEma
         return $this->pushSubscriptions
             ->filter(static fn (PushSubscription $subscription): bool => OutboundUrlGuard::isPublic($subscription->endpoint))
             ->values();
-    }
-
-    /**
-     * Whether the user is in do-not-disturb right now.
-     *
-     * A manual pause whose `dnd_until` is still ahead reads as DND from the
-     * instant it is set, and lapses on read the instant it passes — the same
-     * lazy half of expiry as {@see hasLiveStatus()}, with the scheduled sweep
-     * as the eager half that propagates the lapse to teammates.
-     */
-    public function isDndActive(): bool
-    {
-        if ($this->dnd_until?->isFuture()) {
-            return true;
-        }
-
-        return $this->isInsideDndScheduleWindow();
-    }
-
-    /**
-     * Whether the recurring quiet-hours window covers this instant.
-     *
-     * The bounds are wall-clock `HH:MM` strings compared in the user's own
-     * timezone, so the window follows them when they travel. Start is
-     * inclusive and end exclusive, and a window whose end precedes its start
-     * wraps across midnight (22:00–07:00 covers the night, not an empty set).
-     * A snooze still ahead of its lapse suppresses the window outright — it is
-     * set to the instant the running window next closes, so the schedule
-     * resumes on its own without a re-enable step.
-     */
-    private function isInsideDndScheduleWindow(): bool
-    {
-        if (! $this->dnd_schedule_enabled || $this->dnd_starts_at === null || $this->dnd_ends_at === null) {
-            return false;
-        }
-
-        if ($this->dnd_schedule_snoozed_until?->isFuture()) {
-            return false;
-        }
-
-        $now = now($this->timezone ?? config('app.timezone'))->format('H:i');
-
-        if ($this->dnd_starts_at <= $this->dnd_ends_at) {
-            return $now >= $this->dnd_starts_at && $now < $this->dnd_ends_at;
-        }
-
-        return $now >= $this->dnd_starts_at || $now < $this->dnd_ends_at;
-    }
-
-    /**
-     * The instant the quiet-hours window covering this moment next closes, or
-     * null when no window covers it.
-     *
-     * This is what a snooze suppresses the schedule until: an overnight window
-     * entered before midnight closes tomorrow morning, its morning tail closes
-     * today. Null outside the window (or while already snoozed) so a stale
-     * request can never suppress a window that has not opened. Computed on the
-     * user's own wall clock but returned in the app timezone, because Eloquent
-     * persists a datetime's wall-clock reading without converting it first.
-     */
-    public function dndScheduleClosesAt(): ?CarbonInterface
-    {
-        if (! $this->isInsideDndScheduleWindow()) {
-            return null;
-        }
-
-        $now = now($this->timezone ?? config('app.timezone'));
-
-        $closes = $now->setTimeFromTimeString((string) $this->dnd_ends_at);
-
-        // Inside the window the end is always ahead on the wall clock; an end
-        // reading behind now means tonight's window closes tomorrow morning.
-        if ($closes->lessThanOrEqualTo($now)) {
-            $closes = $closes->addDay();
-        }
-
-        return $closes->setTimezone(config('app.timezone'));
     }
 
     /**
@@ -300,25 +232,6 @@ class User extends Authenticatable implements HasLocalePreference, MustVerifyEma
     }
 
     /**
-     * How reachable the user is right now, as teammates should see them.
-     *
-     * A manual away is an override and wins outright — that is the whole point
-     * of setting it, and it survives reconnects because it lives on the row.
-     * Otherwise the answer is derived from the user's live browser connections,
-     * which is away only once every one of them has gone idle.
-     */
-    public function effectivePresence(): PresenceState
-    {
-        // Null only on a freshly-made instance the column default has not been
-        // read back into yet, which is never away.
-        if (($this->presence_state ?? PresenceState::Active) === PresenceState::Away) {
-            return PresenceState::Away;
-        }
-
-        return app(PresenceRegistry::class)->aggregate($this->id);
-    }
-
-    /**
      * The user's effective presence, appended to every serialisation of the
      * model so the viewer's own `auth.user` prop carries the same answer that
      * {@see UserData::$presence} gives their teammates.
@@ -327,7 +240,7 @@ class User extends Authenticatable implements HasLocalePreference, MustVerifyEma
      */
     protected function presence(): Attribute
     {
-        return Attribute::get(fn (): PresenceState => $this->effectivePresence());
+        return Attribute::get(fn (): PresenceState => $this->availability()->presence());
     }
 
     /**

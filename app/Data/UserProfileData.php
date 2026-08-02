@@ -53,7 +53,7 @@ class UserProfileData extends Data
             memberSince: $membership->created_at?->toIso8601String(),
             isYou: $member->is($viewer),
             status: UserStatusData::forUser($member),
-            isDnd: $member->isDndActive(),
+            isDnd: $member->availability()->isDnd(),
         );
     }
 }

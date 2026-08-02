@@ -41,14 +41,16 @@ class UserData extends Data
      */
     public static function fromUser(User $user): self
     {
+        $availability = $user->availability();
+
         return new self(
             id: $user->id,
             name: $user->name,
             avatar: $user->avatar,
             isBot: $user->isBot(),
             status: UserStatusData::forUser($user),
-            presence: $user->effectivePresence(),
-            isDnd: $user->isDndActive(),
+            presence: $availability->presence(),
+            isDnd: $availability->isDnd(),
         );
     }
 }

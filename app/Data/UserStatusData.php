@@ -31,7 +31,7 @@ class UserStatusData extends Data
      */
     public static function forUser(User $user): ?self
     {
-        if (! $user->hasLiveStatus()) {
+        if (! $user->availability()->hasLiveStatus()) {
             return null;
         }
 

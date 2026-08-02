@@ -3,6 +3,7 @@
 namespace App\Data;
 
 use App\Models\User;
+use App\Support\UserAvailability;
 use Spatie\LaravelData\Data;
 use Spatie\TypeScriptTransformer\Attributes\TypeScript;
 
@@ -32,18 +33,21 @@ class UserDndData extends Data
     /**
      * Build the DTO from a user's columns. A lapsed pause or snooze reads as
      * absent immediately, without waiting for the scheduled sweep to null the
-     * column.
+     * column — which is {@see UserAvailability}'s reading of them, not a second
+     * one spelled here.
      */
     public static function forUser(User $user): self
     {
+        $availability = $user->availability();
+
         return new self(
-            until: $user->dnd_until?->isFuture() ? $user->dnd_until->toIso8601String() : null,
+            until: $availability->pausedUntil()?->toIso8601String(),
             // Null only on a freshly-made instance the column default has not
             // been read back into yet, which is never scheduled.
             scheduleEnabled: $user->dnd_schedule_enabled ?? false,
             startsAt: $user->dnd_starts_at,
             endsAt: $user->dnd_ends_at,
-            scheduleSnoozedUntil: $user->dnd_schedule_snoozed_until?->isFuture() ? $user->dnd_schedule_snoozed_until->toIso8601String() : null,
+            scheduleSnoozedUntil: $availability->snoozedUntil()?->toIso8601String(),
         );
     }
 }

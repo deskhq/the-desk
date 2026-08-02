@@ -169,6 +169,24 @@ built; build them once, then reuse.
   question per *message*, not per channel, wherever the two can differ. Its client twin is
   `lib/alerts.ts`, and both are pinned against one shared case table
   (`tests/Fixtures/alert-cases.json`).
+- **`UserAvailability`** — "is this person available, and until when?" lives once, reached
+  through `User::availability($at)`. It owns every reading of the five columns that answer
+  it: the manual pause (`pausedUntil()`), the recurring quiet-hours window and its snooze
+  (`isInsideScheduleWindow()`, `snoozedUntil()`, `scheduleClosesAt()`), the custom-status
+  expiry (`hasLiveStatus()`), the manual away override the live connections otherwise
+  decide (`presence()`), and `isDnd()` over the lot. **It takes the instant and the
+  `PresenceRegistry`, it does not fetch them** — that is what makes the midnight wrap, the
+  timezone-relative wall clock and the snooze a pure unit test rather than a travelled
+  clock and a saved row, and it is why no `app(...)` call remains in a `User` accessor.
+  The columns stay declared on `User` (Eloquent's serialisation contract is the model's),
+  but each accessor is one delegation; never read `dnd_until`, `dnd_starts_at` or
+  `presence_state` and decide for yourself. Its client twin is `lib/dnd.ts`, and both are
+  pinned against one shared case table (`tests/Fixtures/availability-cases.json`) —
+  ADR-0010's device, third application. Writes to those columns are Actions —
+  `PauseNotifications`, `ResumeNotifications`, `SetDndSchedule`, `SnoozeDndSchedule`,
+  `SetUserStatus`, `ClearUserStatus`, `SetPresenceOverride` — living in
+  `app/Actions/Users/` beside the three scheduled sweeps that clear the same columns;
+  `forceFill` appears in no controller.
 
 ### Frontend (`resources/js/`)
 
@@ -190,6 +208,14 @@ built; build them once, then reuse.
   from `muted` and a level string. It shares its case table with the server's tests. Which
   level a membership is *at* is a different question — `lib/notificationIndicator.ts` maps
   all three to an icon and deliberately does not go through this.
+- **`lib/dnd.ts`** _(ADR-0010 device, third application)_ — the client half of
+  `UserAvailability` above: `isDndActiveNow(dnd, timeZone, at)` and
+  `quietHoursEndsAt(...)`, called by the chime gate, the user menu and the settings page,
+  because those need the answer at message-arrival time rather than at page-load time. It
+  shares its case table with the server's tests, so a rule changed on one side of the wire
+  turns the other side red — the docblock used to ask whoever edited it to keep the
+  semantics in lockstep, which is an instruction, not a mechanism. The strip helpers
+  (`quietHoursSegments`, `quietHoursTicks`) are presentation and have no server twin.
 - **`useMessageStream`** — deep composable: a simple `appendLive`/`applyPatch`
   interface hiding a three-source merge engine. The model for composables.
 - **`useChannelRealtime`** _(ADR-0006)_ — owns the channel's Echo

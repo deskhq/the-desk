@@ -59,7 +59,7 @@ class SendMessagePushNotifications implements ShouldQueue
                 mentionsRecipient: in_array($recipient->id, $mentionedIds, true),
                 muted: $member->muted,
                 level: $member->notification_level,
-                dndActive: $recipient->isDndActive(),
+                dndActive: $recipient->availability()->isDnd(),
             );
 
             if ($shouldPush) {

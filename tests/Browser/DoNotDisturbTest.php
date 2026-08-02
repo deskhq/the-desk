@@ -15,7 +15,7 @@ test('a user pauses notifications from the presence menu and resumes in place', 
         ->wait(0.5);
 
     expect($alice->refresh()->dnd_until)->not->toBeNull()
-        ->and($alice->isDndActive())->toBeTrue();
+        ->and($alice->availability()->isDnd())->toBeTrue();
 
     // The STATUS section now leads with the paused card — crescent, lapse in
     // italic serif, Resume pill — and the masthead names the state.
@@ -29,7 +29,7 @@ test('a user pauses notifications from the presence menu and resumes in place', 
         ->assertPresent('@pause-notifications-menu-item');
 
     expect($alice->refresh()->dnd_until)->toBeNull()
-        ->and($alice->isDndActive())->toBeFalse();
+        ->and($alice->availability()->isDnd())->toBeFalse();
 });
 
 test('a user snoozes the quiet-hours schedule for today from the paused card', function (): void {
@@ -62,7 +62,7 @@ test('a user snoozes the quiet-hours schedule for today from the paused card', f
     $alice->refresh();
 
     expect($alice->dnd_schedule_snoozed_until)->not->toBeNull()
-        ->and($alice->isDndActive())->toBeFalse()
+        ->and($alice->availability()->isDnd())->toBeFalse()
         ->and($alice->dnd_schedule_enabled)->toBeTrue();
 });
 
