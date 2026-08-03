@@ -47,15 +47,29 @@ function routeBoundRequest(array $parameters): RouteBoundRequest
  * reads. `channel` and `message` are the two `Api/V1\ApiRequest` already had;
  * `team` is the one the web subtree copied fifteen times.
  *
- * @return array<string, array{string, string, Model}>
+ * The model is named rather than instantiated here because a dataset is resolved
+ * while the suite is being *built* — before any application boots. `Message` is
+ * `Searchable`, and Scout's `bootSearchable()` reaches for a facade that has no
+ * root yet, so constructing one in this array threw. `Model::bootIfNotBooted()`
+ * marks a class booted before it boots it, so the throw landed exactly once:
+ * the first test to pull the dataset lost all three of its cases to a single
+ * provider error, and the two after it re-resolved the same dataset against an
+ * already-booted `Message` and ran normally. That is why the file exited 2
+ * while reporting nothing but passes, and why the full suite — where something
+ * boots `Message` long before this file is built — never showed it (#1167).
+ *
+ * @return array<string, array{string, string, class-string<Model>}>
  */
 dataset('recurring route models', fn (): array => [
-    'channel' => ['channel', 'channel', new Channel],
-    'team' => ['team', 'team', new Team],
-    'message' => ['message', 'message', new Message],
+    'channel' => ['channel', 'channel', Channel::class],
+    'team' => ['team', 'team', Team::class],
+    'message' => ['message', 'message', Message::class],
 ]);
 
-test('each accessor returns the model the route bound', function (string $accessor, string $key, Model $model): void {
+test('each accessor returns the model the route bound', function (string $accessor, string $key, string $class): void {
+    /** @var Model $model */
+    $model = new $class;
+
     expect(routeBoundRequest([$key => $model])->{$accessor}())->toBe($model);
 })->with('recurring route models');
 
