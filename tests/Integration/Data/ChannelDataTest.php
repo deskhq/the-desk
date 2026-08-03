@@ -2,8 +2,11 @@
 
 use App\Actions\Channels\OpenDirectMessage;
 use App\Data\ChannelData;
+use App\Enums\NotificationLevel;
 use App\Models\Channel;
+use App\Models\User;
 use App\Support\DirectMessageRoster;
+use Database\Factories\ChannelMemberFactory;
 use Illuminate\Support\Facades\DB;
 
 /*
@@ -85,6 +88,50 @@ test('a group direct message lists the other participants in name order', functi
         // The viewer never appears in their own participant list.
         ->and(collect($anaView->dmParticipants)->pluck('name')->all())->toBe(['Owner', 'Tomas K'])
         ->and($anaView->name)->toBe('Owner, Tomas K');
+});
+
+test('the viewer per-channel state is read off the membership it is handed', function (): void {
+    ['owner' => $owner, 'channel' => $general] = teamWithChannel();
+
+    $membership = channelMembership(
+        $general,
+        $owner,
+        fn (ChannelMemberFactory $factory): ChannelMemberFactory => $factory
+            ->muted()
+            ->starred()
+            ->draft('half a thought')
+            ->notificationLevel(NotificationLevel::Mentions),
+    );
+
+    $view = ChannelData::fromChannel($general, $owner, $membership);
+
+    expect($view->muted)->toBeTrue()
+        ->and($view->notificationLevel)->toBe(NotificationLevel::Mentions)
+        ->and($view->draft)->toBe('half a thought')
+        ->and($view->hasDraft)->toBeTrue()
+        ->and($view->starred)->toBeTrue();
+});
+
+test('a non-member viewing a public channel gets the defaults, not another member state', function (): void {
+    ['owner' => $owner, 'channel' => $general] = teamWithChannel();
+
+    channelMembership(
+        $general,
+        $owner,
+        fn (ChannelMemberFactory $factory): ChannelMemberFactory => $factory->muted()->draft('mine alone'),
+    );
+
+    // Someone who reached the public channel by URL has no pivot row at all, so
+    // the DTO answers with its own defaults rather than with anybody else's.
+    $stranger = User::factory()->create();
+
+    $view = ChannelData::fromChannel($general, $stranger);
+
+    expect($view->muted)->toBeFalse()
+        ->and($view->notificationLevel)->toBe(NotificationLevel::All)
+        ->and($view->draft)->toBeNull()
+        ->and($view->hasDraft)->toBeFalse()
+        ->and($view->starred)->toBeFalse();
 });
 
 test('a batched roster costs the DTO no query of its own', function (): void {

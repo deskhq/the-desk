@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use App\Data\MessageReplyData;
+use App\Data\ScheduledMessageData;
 use App\Enums\ScheduledMessageStatus;
 use Database\Factories\ScheduledMessageFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
@@ -47,6 +49,21 @@ class ScheduledMessage extends Model
     ];
 
     /**
+     * The relations {@see ScheduledMessageData::fromScheduledMessage()} reads:
+     * the quoted parent, and what {@see MessageReplyData} needs off it to render
+     * the quote. Declared once, for the same reason
+     * {@see Message::MESSAGE_DATA_RELATIONS} is (ADR-0002) — a hand-written
+     * `with([...])` at a call site is an N+1 waiting for the day the DTO reads
+     * one relation more.
+     *
+     * @var list<string>
+     */
+    private const array SCHEDULED_MESSAGE_DATA_RELATIONS = [
+        'replyTo.user',
+        'replyTo.mentionedUsers',
+    ];
+
+    /**
      * Get the channel the message is scheduled for.
      *
      * @return BelongsTo<Channel, $this>
@@ -77,6 +94,17 @@ class ScheduledMessage extends Model
     public function replyTo(): BelongsTo
     {
         return $this->belongsTo(Message::class, 'reply_to_id')->withTrashed();
+    }
+
+    /**
+     * Eager-load exactly the relations a {@see ScheduledMessageData} payload
+     * reads, so no caller spells the set for itself.
+     *
+     * @param  Builder<ScheduledMessage>  $query
+     */
+    protected function scopeWithScheduledMessageDataRelations(Builder $query): void
+    {
+        $query->with(self::SCHEDULED_MESSAGE_DATA_RELATIONS);
     }
 
     /**
