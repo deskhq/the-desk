@@ -585,18 +585,24 @@ test('an expired export cannot be downloaded', function (): void {
         ->assertNotFound();
 });
 
-test('an export from another team cannot be downloaded', function (): void {
+// The URL names the caller's own workspace, so both download policies pass; only
+// the route's scoped binding (ADR-0014) keeps the other workspace's archive out
+// of reach, for either log.
+test('an export from another team cannot be downloaded', function (AuditExportLogType $logType): void {
     Storage::fake('local');
 
     [$owner, $team] = exportTeam();
     [, $otherTeam] = exportTeam();
-    $export = AuditExport::factory()->for($otherTeam)->ready()->create();
+    $export = AuditExport::factory()->for($otherTeam)->ready()->create(['log_type' => $logType]);
     Storage::disk('local')->put($export->path, 'csv-bytes');
 
     $this->actingAs($owner)
         ->get(route('teams.audit-exports.download', [$team, $export]))
         ->assertNotFound();
-});
+})->with([
+    'audit log' => AuditExportLogType::Audit,
+    'security log' => AuditExportLogType::Security,
+]);
 
 // ── DTO + model + mail ───────────────────────────────────────────────────────
 
