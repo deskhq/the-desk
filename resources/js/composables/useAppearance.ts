@@ -1,5 +1,5 @@
 import type { ComputedRef, Ref } from 'vue';
-import { computed, onMounted, ref } from 'vue';
+import { computed, ref } from 'vue';
 import { writeClientCookie } from '@/lib/cookies';
 import type { Appearance, ResolvedAppearance } from '@/types';
 
@@ -65,30 +65,35 @@ const handleSystemThemeChange = () => {
     updateTheme(currentAppearance || 'system');
 };
 
+const appearance = ref<Appearance>('system');
+
+/**
+ * Adopt the stored preference at boot: paint it, hold it in {@link appearance}
+ * for the surfaces that show which one is picked, and follow the system theme
+ * from here on. Called once by `app.ts`.
+ *
+ * The rehydration used to sit behind an `onMounted` inside
+ * {@link useAppearance}, which re-read storage for every component that called
+ * the composable and left the shared ref unreachable from module scope — where
+ * the command registry's theme verbs live. One place, once, at boot.
+ */
 export function initializeTheme(): void {
     if (typeof window === 'undefined') {
         return;
     }
 
     const savedAppearance = getStoredAppearance();
+
+    if (savedAppearance) {
+        appearance.value = savedAppearance;
+    }
+
     updateTheme(savedAppearance || 'system');
 
     mediaQuery()?.addEventListener('change', handleSystemThemeChange);
 }
 
-const appearance = ref<Appearance>('system');
-
 export function useAppearance(): UseAppearanceReturn {
-    onMounted(() => {
-        const savedAppearance = localStorage.getItem(
-            'appearance',
-        ) as Appearance | null;
-
-        if (savedAppearance) {
-            appearance.value = savedAppearance;
-        }
-    });
-
     const resolvedAppearance = computed<ResolvedAppearance>(() => {
         if (appearance.value === 'system') {
             return prefersDark() ? 'dark' : 'light';

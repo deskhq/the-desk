@@ -1501,5 +1501,9 @@
   "Photos": "Photos",
   "Camera": "Appareil photo",
   "Voice": "Vocal",
-  "Command": "Commande"
+  "Command": "Commande",
+  "Resume notifications": "Reprendre les notifications",
+  "Use light theme": "Utiliser le thème clair",
+  "Use dark theme": "Utiliser le thème sombre",
+  "Match system theme": "Suivre le thème du système"
 }

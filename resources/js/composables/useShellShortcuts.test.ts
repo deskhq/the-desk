@@ -1,11 +1,16 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { App } from 'vue';
-import { createApp, h, reactive } from 'vue';
+import { createApp, h } from 'vue';
 
 const { visit } = vi.hoisted(() => ({ visit: vi.fn() }));
 
-const page = reactive<{ props: Record<string, unknown> }>({ props: {} });
+/**
+ * Hoisted, because the registry the shortcuts are derived from calls
+ * `usePage()` at module-evaluation time — a plain `const` here would still be
+ * in its temporal dead zone by the time the mock is first asked for it.
+ */
+const page = vi.hoisted(() => ({ props: {} as Record<string, unknown> }));
 
 vi.mock('@inertiajs/vue3', () => ({
     router: { visit },
