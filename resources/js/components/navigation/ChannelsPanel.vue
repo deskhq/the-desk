@@ -97,7 +97,7 @@ function sectionKey(group: ChannelSectionGroup): string {
                 @click="commandPaletteOpen = true"
             >
                 <Search class="size-3.25 shrink-0" />
-                <span>{{ $t('Jump to…') }}</span>
+                <span>{{ $t('Search or run…') }}</span>
                 <kbd
                     class="ml-auto font-mono text-[10px] font-semibold tracking-wide text-muted-foreground"
                     >⌘K</kbd

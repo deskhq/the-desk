@@ -21,14 +21,16 @@ import {
     browse,
     show,
 } from '@/actions/App/Http/Controllers/Channels/ChannelController';
-import { adjacentSlug } from '@/composables/keyboardShortcuts';
+import { adjacentSlug, SHORTCUTS } from '@/composables/keyboardShortcuts';
 import type { ShortcutId } from '@/composables/keyboardShortcuts';
+import { scoreChannelName } from '@/composables/quickSwitcher';
 import { useAppearance } from '@/composables/useAppearance';
 import { useDialog } from '@/composables/useDialog';
 import { urlForDestination } from '@/composables/useNavPanel';
 import { useShellFocus } from '@/composables/useShellFocus';
 import { useUserMenu } from '@/composables/useUserMenu';
 import { isDndActiveNow } from '@/lib/dnd';
+import { translate } from '@/lib/i18n';
 import { pinUrl } from '@/lib/pinUrl';
 
 /**
@@ -244,6 +246,77 @@ export const COMMANDS: readonly CommandDefinition[] = [
         run: () => updateAppearance('system'),
     },
 ];
+
+/** A command as the palette draws it, with everything it renders resolved. */
+export type PaletteCommand = {
+    id: string;
+    /** Translated, and inherited from the claimed shortcut where there is one. */
+    title: string;
+    icon: LucideIcon;
+    /** The claimed shortcut's display keys; empty for a command claiming none. */
+    keys: string[];
+    run: () => void;
+};
+
+/**
+ * The English source of a command's title. A command claiming a shortcut has no
+ * title of its own: it inherits the binding table's one string, which is what
+ * stops a label from growing a second home.
+ */
+function sourceTitle(command: CommandDefinition): string {
+    if (command.shortcutId === undefined) {
+        return command.title;
+    }
+
+    return (
+        SHORTCUTS.find((shortcut) => shortcut.id === command.shortcutId)
+            ?.description ?? command.id
+    );
+}
+
+/** A command's row, or null for the one command that is never a row. */
+function paletteRow(command: CommandDefinition): PaletteCommand | null {
+    if (command.hidden === true) {
+        return null;
+    }
+
+    return {
+        id: command.id,
+        title: translate(sourceTitle(command)),
+        icon: command.icon,
+        keys:
+            SHORTCUTS.find((shortcut) => shortcut.id === command.shortcutId)
+                ?.keys ?? [],
+        run: command.run,
+    };
+}
+
+/**
+ * Filter and rank the catalogue for the palette's Commands group: what the
+ * viewer may run here and now, matching `query`, best match first.
+ *
+ * Titles are scored translated, so the list answers to the language it is read
+ * in, on the same scorer the channel and people groups already rank by — and on
+ * the trimmed query they rank on rather than the residual text the message
+ * search uses. An empty query scores every row `0`, leaving the registry's own
+ * order, which is the order the open palette shows.
+ *
+ * The predicates are called *here*, inside the caller's `computed`, rather than
+ * once at module scope: availability is a live reading, and a frozen one would
+ * offer a verb whose target has since gone.
+ */
+export function rankCommands(query: string): PaletteCommand[] {
+    return COMMANDS.filter((command) => command.isAvailable?.() ?? true)
+        .map(paletteRow)
+        .filter((row): row is PaletteCommand => row !== null)
+        .map((row) => ({ row, score: scoreChannelName(row.title, query) }))
+        .filter(
+            (scored): scored is { row: PaletteCommand; score: number } =>
+                scored.score !== null,
+        )
+        .sort((a, b) => b.score - a.score)
+        .map((scored) => scored.row);
+}
 
 /**
  * The dispatcher's handler map, derived from {@link COMMANDS} in full — there

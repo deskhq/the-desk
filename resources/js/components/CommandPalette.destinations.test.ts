@@ -3,9 +3,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 /**
  * Covers what the palette lists before a message search comes back: the filter
- * field on each side of the breakpoint, the Reminders action, and the ranked
- * channel and people groups — their order, their highlighting, and where
- * picking one sends the viewer.
+ * field on each side of the breakpoint, the commands group, and the ranked
+ * channel and people groups — the order the groups take, their highlighting, and
+ * where picking one sends the viewer.
  *
  * Written against the palette as it stands so a split of it can be checked
  * against this suite: every selector, every string and every fallback is pinned
@@ -125,11 +125,13 @@ import {
     mountSwitcher,
     openDirectMessage,
     person,
+    pinUrl,
     presence,
     resetDoubles,
     router,
     type,
     unmountAll,
+    viewer,
 } from './CommandPalette.doubles';
 import CommandPalette from './CommandPalette.vue';
 
@@ -146,6 +148,23 @@ function names(host: HTMLElement, dataTest: string): string[] {
     return findAll(host, dataTest).map((row) =>
         (row.textContent ?? '').replaceAll('↵', '').trim(),
     );
+}
+
+/** The groups the list renders, by heading, in the order they render. */
+function groups(host: HTMLElement): string[] {
+    return [...host.querySelectorAll('[data-heading]')].map(
+        (group) => group.getAttribute('data-heading') ?? '',
+    );
+}
+
+/**
+ * What the Commands group offers, in the order it offers it — read off each
+ * row's name rather than its text, which a claiming row ends with its keys.
+ */
+function commands(host: HTMLElement): string[] {
+    return [
+        ...(host.querySelector('[data-heading="Commands"]')?.children ?? []),
+    ].map((row) => row.querySelector('span')?.textContent?.trim() ?? '');
 }
 
 beforeEach(() => {
@@ -188,30 +207,160 @@ describe('the filter field', () => {
     });
 });
 
-describe('the actions group', () => {
-    it('offers Reminders while nothing is typed', () => {
-        const { host, emitted, open } = mount();
+describe('the commands group', () => {
+    it('offers the whole catalogue while nothing is typed', () => {
+        const { host } = mount();
+
+        // The registry's own order, which no ranking has anything to say about
+        // until something is typed.
+        expect(commands(host)).toEqual([
+            'Go to previous channel',
+            'Go to next channel',
+            'Focus notifications',
+            'Show keyboard shortcuts',
+            'New message',
+            'Browse channels',
+            'Reminders',
+            'Search',
+            'Set a status',
+            'Pause notifications',
+            'Use light theme',
+            'Use dark theme',
+            'Match system theme',
+        ]);
+    });
+
+    it('keeps the command that opens the palette out of the palette', () => {
+        const { host } = mount();
+
+        expect(find(host, 'quick-switcher-command-palette')).toBeNull();
+    });
+
+    it('narrows to the rows a query matches, best match first', async () => {
+        viewer.dnd = { until: '2999-01-01T00:00:00Z' };
+
+        const { host } = mount();
+
+        await type(host, 'res');
+
+        // Ahead of "Browse channels", which the query only reaches as a
+        // scattered subsequence — this is what puts an undoable mutation under
+        // Enter for someone who typed the start of its name.
+        expect(commands(host)[0]).toBe('Resume notifications');
+    });
+
+    it('leaves a command its predicate refuses out of the DOM entirely', () => {
+        viewer.dnd = null;
+
+        const { host } = mount();
+
+        expect(find(host, 'quick-switcher-resume-notifications')).toBeNull();
+        expect(commands(host)).not.toContain('Resume notifications');
+    });
+
+    it('offers it once the predicate is satisfied', () => {
+        viewer.dnd = { until: '2999-01-01T00:00:00Z' };
+
+        const { host } = mount();
+
+        expect(
+            find(host, 'quick-switcher-resume-notifications'),
+        ).not.toBeNull();
+    });
+
+    it('reads the permission a predicate is gated on off the page', () => {
+        viewer.canInvite = true;
+
+        const { host } = mount();
+
+        expect(find(host, 'quick-switcher-invite-people')).not.toBeNull();
+    });
+
+    it('renders the keys of a row claiming a shortcut, in place of the hint', () => {
+        const { host } = mount();
+
+        const claiming = find(host, 'quick-switcher-show-shortcuts');
+
+        expect(
+            [...(claiming?.querySelectorAll('kbd') ?? [])].map(
+                (key) => key.textContent,
+            ),
+        ).toEqual(['?']);
+        expect(claiming?.textContent).not.toContain('↵');
+
+        const plain = find(host, 'quick-switcher-reminders');
+
+        expect(plain?.querySelector('kbd')).toBeNull();
+        expect(plain?.textContent).toContain('↵');
+    });
+
+    it('runs the command a pick names, and dismisses on the way', () => {
+        const { host, open } = mount();
 
         find(host, 'quick-switcher-reminders')?.click();
 
-        expect(emitted).toEqual([['openReminders', undefined]]);
+        expect(pinUrl).toHaveBeenCalledWith('/t/acme/c/general?nav=reminders');
         expect(open.value).toBe(false);
     });
+});
 
-    it('keeps offering it for a bare hash, which reads as no query', async () => {
-        const { host } = mount();
+describe('the order of the groups', () => {
+    const channels = [
+        channel({ id: 'c1', name: 'general', slug: 'general' }),
+        channel({ id: 'c2', name: 'research', slug: 'research' }),
+    ];
 
-        await type(host, '#');
+    it('keeps the destinations above the commands while nothing is typed', () => {
+        const { host } = mount({ channels });
 
-        expect(find(host, 'quick-switcher-reminders')).not.toBeNull();
+        expect(groups(host)).toEqual(['Channels', 'People', 'Commands']);
+        // And the channel list is exactly the one that was there before.
+        expect(names(host, 'quick-switcher-channel')).toEqual([
+            '#general',
+            '#research',
+        ]);
     });
 
-    it('drops it as soon as the viewer types', async () => {
-        const { host } = mount();
+    it('lifts the commands over the destinations for a query naming a verb', async () => {
+        const { host } = mount({ channels });
 
-        await type(host, 'q');
+        await type(host, 'search');
 
-        expect(find(host, 'quick-switcher-reminders')).toBeNull();
+        expect(groups(host)).toEqual(['Commands', 'Channels', 'Messages']);
+    });
+
+    it('leaves the channels on top for a query naming a channel', async () => {
+        const { host } = mount({ channels });
+
+        await type(host, 'gen');
+
+        expect(groups(host)[0]).toBe('Channels');
+    });
+
+    it('falls back to the declared order on a tie', async () => {
+        const { host } = mount({
+            channels: [channel({ id: 'c1', name: 'search', slug: 'search' })],
+            members: [person({ id: 'u2', name: 'Search' })],
+        });
+
+        await type(host, 'search');
+
+        expect(groups(host)).toEqual([
+            'Channels',
+            'People',
+            'Commands',
+            'Messages',
+        ]);
+    });
+
+    it('pins the messages last, whatever the groups above them score', async () => {
+        const { host } = mount({ channels });
+
+        await type(host, 'search');
+
+        // They arrive on a debounce, so a group that jumped the queue a beat
+        // after the typing stopped would move the Enter target under the hands.
+        expect(groups(host).at(-1)).toBe('Messages');
     });
 });
 

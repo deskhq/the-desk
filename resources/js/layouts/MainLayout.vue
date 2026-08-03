@@ -401,10 +401,7 @@ const { isSettingsSection, startTourIfEligible } = useShellStartup();
             <slot />
         </SidebarInset>
 
-        <DialogHost
-            @open-reminders="openDestination('reminders')"
-            @prompt-answered="startTourIfEligible(false)"
-        />
+        <DialogHost @prompt-answered="startTourIfEligible(false)" />
 
         <!-- The rail's upper zone. Due reminders are persistent, not transient,
              so they sit *above* the toasts: the transient thing belongs nearest

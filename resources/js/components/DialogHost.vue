@@ -29,8 +29,6 @@ import type { RoleOption } from '@/types/teams';
  * for the same roster.
  */
 const emit = defineEmits<{
-    /** The switcher's "Reminders" row; the dock owns which destination is open. */
-    openReminders: [];
     /**
      * The post-registration prompt was answered or found unshowable, so whatever
      * was queued behind it may go ahead.
@@ -102,7 +100,6 @@ const postRegistrationPrompt = computed(
         :members="teamMembers"
         :current-user-id="currentUserId"
         :team-slug="currentTeam.slug"
-        @open-reminders="emit('openReminders')"
     />
 
     <NewDirectMessageModal

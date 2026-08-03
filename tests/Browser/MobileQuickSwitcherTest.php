@@ -51,7 +51,7 @@ test('Cancel and Escape both dismiss the overlay', function (): void {
         ->assertNotPresent('@quick-switcher-input');
 });
 
-test('an empty query lists channels most recently active first', function (): void {
+test('an empty query lists recent channels first and the commands last', function (): void {
     ['owner' => $alice, 'team' => $team, 'channel' => $general] = browserTeamWithChannel();
 
     $planning = Channel::factory()->for($team)->create([
@@ -84,11 +84,17 @@ test('an empty query lists channels most recently active first', function (): vo
         (() => {
             const names = [...document.querySelectorAll('[data-test="quick-switcher-channel"]')]
                 .map(row => row.textContent);
+            const groups = [...document.querySelectorAll('[data-slot="command-group-heading"]')]
+                .map(label => label.textContent.trim());
 
             return names.length === 3
                 && names[0].includes('design')
                 && names[1].includes('general')
-                && names[2].includes('planning');
+                && names[2].includes('planning')
+                // The verbs are on the overlay too, and they are below the
+                // recents: nothing above the fold moved to make room for them.
+                && groups[0] === 'Channels'
+                && groups[groups.length - 1] === 'Commands';
         })()
         JS, true);
 });
@@ -183,7 +189,7 @@ test('from md up the search icon opens the dock panel and the palette stays a ce
     signInThroughBrowser($alice)
         ->resize(1280, 800)
         ->navigate(browserChannelUrl($team, $channel))
-        // The sidebar's Jump-to entry opens the palette exactly as before: a
+        // The sidebar's search entry opens the palette exactly as before: a
         // centred dialog, no mobile Cancel affordance.
         ->click('@quick-switcher-trigger')
         ->assertVisible('@quick-switcher-input')

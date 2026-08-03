@@ -28,10 +28,30 @@ export function passthrough(tag: string): Component {
     });
 }
 
-/** The glyphs, each rendering as an `<svg>` that keeps its classes. */
+/**
+ * The glyphs, each rendering as an `<svg>` that keeps its classes. Every icon
+ * the command registry names has to be here: a mocked module answers `undefined`
+ * for anything it left out, and a row would then render nothing at all.
+ */
 export function lucideDouble(): Record<string, Component> {
     return Object.fromEntries(
-        ['AlarmClock', 'Search'].map((icon) => [icon, passthrough('svg')]),
+        [
+            'AlarmClock',
+            'ArrowDown',
+            'ArrowUp',
+            'Bell',
+            'BellOff',
+            'BellRing',
+            'Hash',
+            'Keyboard',
+            'Monitor',
+            'Moon',
+            'Search',
+            'SmilePlus',
+            'SquarePen',
+            'Sun',
+            'UserPlus',
+        ].map((icon) => [icon, passthrough('svg')]),
     );
 }
 
