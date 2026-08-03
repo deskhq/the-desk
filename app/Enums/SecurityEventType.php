@@ -19,6 +19,7 @@ enum SecurityEventType: string
     case DataExportRequested = 'data_export_requested';
     case DataExportDownloaded = 'data_export_downloaded';
     case AccountProvisioned = 'account_provisioned';
+    case SsoIdentityLinked = 'sso_identity_linked';
     case AccountDeactivated = 'account_deactivated';
     case AccountReactivated = 'account_reactivated';
     case TeamDeleted = 'team_deleted';
@@ -44,6 +45,7 @@ enum SecurityEventType: string
             self::DataExportRequested => __('Data export requested'),
             self::DataExportDownloaded => __('Data export downloaded'),
             self::AccountProvisioned => __('Account provisioned via SSO'),
+            self::SsoIdentityLinked => __('SSO identity linked'),
             self::AccountDeactivated => __('Account deactivated'),
             self::AccountReactivated => __('Account reactivated'),
             self::TeamDeleted => __('Workspace deleted'),

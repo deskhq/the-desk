@@ -32,6 +32,12 @@ class ProvisionSsoUser
      * accounts have no local password, are treated as email-verified (the IdP
      * verified them), and land in the default team as a Member.
      *
+     * Both of the paths that attach a subject leave a security event behind:
+     * SsoIdentityLinked for (2) and AccountProvisioned for (3). Path (2) is the
+     * one that matters for review — it widens how an account somebody already
+     * owned can be signed into — and until it was recorded the only trace was an
+     * ordinary sign-in (#1175).
+     *
      * When $syncName is set, the mapped display name is refreshed from the
      * directory on every login for an already-existing account (a blank name is
      * ignored rather than wiping the current one). Directories that push
@@ -71,8 +77,9 @@ class ProvisionSsoUser
             throw_unless($emailVerified, UnverifiedSsoEmailException::class, 'The directory did not assert the email address as verified.');
 
             $user = User::query()->whereRaw('lower(email) = ?', [$email])->first();
+            $linksExistingAccount = $user instanceof User;
 
-            if ($user) {
+            if ($user instanceof User) {
                 $this->syncName($user, $name, $syncName);
             } else {
                 $user = $this->provisionUser($email, $name);
@@ -82,6 +89,14 @@ class ProvisionSsoUser
                 'provider' => $provider,
                 'provider_id' => $providerId,
             ]);
+
+            // Only the email-match path is recorded here: it changes how an
+            // account the user already had can be authenticated, and nothing
+            // else would leave a trace of it. A JIT-provisioned account already
+            // emitted AccountProvisioned, which covers the same fact.
+            if ($linksExistingAccount) {
+                event(new SecurityEventOccurred($user, SecurityEventType::SsoIdentityLinked));
+            }
 
             return $user;
         });
