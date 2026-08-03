@@ -1,29 +1,11 @@
 <?php
 
 use App\Actions\Channels\DispatchDueMessageReminders;
-use App\Actions\Teams\CreateTeam;
 use App\Enums\MessageReminderStatus;
 use App\Events\MessageReminderDue;
-use App\Models\Channel;
 use App\Models\Message;
 use App\Models\MessageReminder;
-use App\Models\Team;
-use App\Models\User;
 use Illuminate\Support\Facades\Event;
-
-/**
- * Create a team with its owner already a member of #general.
- *
- * @return array{0: User, 1: Team, 2: Channel}
- */
-function reminderDispatchTeamWithGeneral(): array
-{
-    $owner = User::factory()->create();
-    $team = app(CreateTeam::class)->handle($owner, 'Acme');
-    $general = Channel::where('team_id', $team->id)->where('slug', 'general')->firstOrFail();
-
-    return [$owner, $team, $general];
-}
 
 /** Run the per-minute reminder scan. */
 function fireDueReminders(): void
@@ -34,7 +16,7 @@ function fireDueReminders(): void
 test('a due reminder fires and signals its owner', function (): void {
     Event::fake([MessageReminderDue::class]);
 
-    [$owner, $team, $general] = reminderDispatchTeamWithGeneral();
+    ['owner' => $owner, 'channel' => $general] = teamWithChannel();
     $message = Message::factory()->for($general)->for($owner)->create();
     $reminder = MessageReminder::factory()->for($owner)->for($message)->due()->create();
 
@@ -52,7 +34,7 @@ test('a due reminder fires and signals its owner', function (): void {
 test('a reminder whose time has not arrived is left pending', function (): void {
     Event::fake([MessageReminderDue::class]);
 
-    [$owner, $team, $general] = reminderDispatchTeamWithGeneral();
+    ['owner' => $owner, 'channel' => $general] = teamWithChannel();
     $message = Message::factory()->for($general)->for($owner)->create();
     $reminder = MessageReminder::factory()->for($owner)->for($message)->create([
         'remind_at' => now()->addHour(),
@@ -67,7 +49,7 @@ test('a reminder whose time has not arrived is left pending', function (): void 
 test('an already-fired reminder never fires twice', function (): void {
     Event::fake([MessageReminderDue::class]);
 
-    [$owner, $team, $general] = reminderDispatchTeamWithGeneral();
+    ['owner' => $owner, 'channel' => $general] = teamWithChannel();
     $message = Message::factory()->for($general)->for($owner)->create();
     MessageReminder::factory()->for($owner)->for($message)->fired()->create([
         'remind_at' => now()->subHour(),
