@@ -2,7 +2,6 @@
 
 declare(strict_types=1);
 
-use App\Actions\Teams\CreateTeam;
 use App\Models\Channel;
 use App\Models\Team;
 use App\Models\User;
@@ -16,12 +15,11 @@ use Inertia\Testing\AssertableInertia as Assert;
  */
 function botInGeneral(): array
 {
-    $owner = User::factory()->create(['name' => 'Zoe Owner']);
-    $team = app(CreateTeam::class)->handle($owner, 'Acme');
-    $bot = User::factory()->bot($team)->create(['name' => 'Deploy Bot']);
+    ['owner' => $owner, 'team' => $team, 'channel' => $general] = teamWithChannel();
+    $owner->update(['name' => 'Zoe Owner']);
 
-    $general = $team->channels()->where('slug', Channel::GENERAL_SLUG)->firstOrFail();
-    $general->channelMembers()->create(['user_id' => $bot->id]);
+    $bot = User::factory()->bot($team)->create(['name' => 'Deploy Bot']);
+    channelMembership($general, $bot);
 
     return [$owner, $team, $bot];
 }
@@ -51,16 +49,8 @@ test('a bot is excluded from the channel join member count', function (): void {
         ->assertInertia(fn (Assert $page): Assert => $page->where('memberCount', 1));
 });
 
-test('a bot is excluded from the team roster shared to the sidebar and DM picker', function (): void {
-    [$owner, $team, $bot] = botInGeneral();
-
-    $this->actingAs($owner)
-        ->get(route('channels.show', ['team' => $team->slug, 'channel' => Channel::GENERAL_SLUG]))
-        ->assertInertia(fn (Assert $page): Assert => $page
-            ->where('teamMembers', fn (Collection $members): bool => $members
-                ->doesntContain(fn (array $member): bool => $member['id'] === $bot->id))
-        );
-});
+// A bot's exclusion from the roster shared to the sidebar and DM picker is
+// stated on that roster itself, in tests/Integration/Support/WorkspaceShellTest.php.
 
 test('a bot is excluded from the team settings member list and seat count', function (): void {
     [$owner, $team, $bot] = botInGeneral();

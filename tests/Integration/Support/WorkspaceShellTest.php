@@ -1,32 +1,32 @@
 <?php
 
-use App\Actions\Teams\CreateTeam;
 use App\Data\MessageSearchCriteria;
 use App\Enums\ChannelVisibility;
 use App\Enums\MessageReminderStatus;
 use App\Enums\NavDestination;
 use App\Enums\SearchScope;
 use App\Enums\ThreadInboxFilter;
-use App\Models\Channel;
-use App\Models\Team;
 use App\Models\User;
 use App\Support\WorkspaceShell;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Route;
 
-/**
- * A viewer, their team, and its #general channel.
- *
- * @return array{0: User, 1: Team, 2: Channel}
- */
-function shellWorkspace(): array
-{
-    $viewer = User::factory()->create();
-    $team = app(CreateTeam::class)->handle($viewer, 'Acme');
-    $general = Channel::where('team_id', $team->id)->where('slug', Channel::GENERAL_SLUG)->firstOrFail();
-
-    return [$viewer, $team, $general];
-}
+/*
+|--------------------------------------------------------------------------
+| The workspace shell (#1117)
+|--------------------------------------------------------------------------
+|
+| The shell takes a viewer and a team, so every read-model it exposes is
+| reachable without an HTTP round-trip — which is the whole reason it was
+| lifted out of the middleware. This file was in `tests/Feature` and named no
+| route in it; ADR-0012 puts it here.
+|
+| `teamMembers()` is stated here in full (who is listed, in what order, and
+| who is withheld). `tests/Feature/Channels/TeamMembersPropTest.php` keeps the
+| HTTP half: that a workspace render ships the prop, and that a page outside
+| the workspace ships none.
+|
+*/
 
 /**
  * A request standing on a named route, with the given bound parameters and
@@ -54,7 +54,7 @@ function shellRequest(string $routeName, array $parameters = [], ?User $user = n
 }
 
 test('a signed-in viewer on a workspace route with a bound team gets a shell', function (): void {
-    [$viewer, $team, $general] = shellWorkspace();
+    ['owner' => $viewer, 'team' => $team, 'channel' => $general] = teamWithChannel();
 
     $shell = WorkspaceShell::forRequest(shellRequest('channels.show', ['team' => $team], $viewer));
 
@@ -63,7 +63,7 @@ test('a signed-in viewer on a workspace route with a bound team gets a shell', f
 });
 
 test('the precondition withholds a shell for a guest, off a workspace route, or with no bound team', function (): void {
-    [$viewer, $team] = shellWorkspace();
+    ['owner' => $viewer, 'team' => $team] = teamWithChannel();
 
     expect(WorkspaceShell::forRequest(shellRequest('channels.show', ['team' => $team])))->toBeNull()
         ->and(WorkspaceShell::forRequest(shellRequest('settings.profile', ['team' => $team], $viewer)))->toBeNull()
@@ -73,7 +73,7 @@ test('the precondition withholds a shell for a guest, off a workspace route, or 
 });
 
 test('the shell is constructible from a viewer and a team alone', function (): void {
-    [$viewer, $team, $general] = shellWorkspace();
+    ['owner' => $viewer, 'team' => $team, 'channel' => $general] = teamWithChannel();
 
     $shell = new WorkspaceShell($viewer, $team);
 
@@ -88,8 +88,34 @@ test('the shell is constructible from a viewer and a team alone', function (): v
         ->and($shell->creatableChannelVisibilities())->toContain(ChannelVisibility::Public->value);
 });
 
+test('the team roster is ordered by name and lists the viewer among the others', function (): void {
+    ['owner' => $viewer, 'team' => $team, 'channel' => $general] = teamWithChannel();
+    $viewer->update(['name' => 'Marie Curie']);
+    teamMemberInChannel($general, ['name' => 'Ada Lovelace']);
+    teamMemberInChannel($general, ['name' => 'Zoe Zulu']);
+
+    // The viewer is not held back: the people picker offers a self-DM, which
+    // renders as "You" rather than as their name.
+    expect(array_column(new WorkspaceShell($viewer, $team)->teamMembers(), 'name'))
+        ->toBe(['Ada Lovelace', 'Marie Curie', 'Zoe Zulu']);
+});
+
+test('the team roster withholds a bot and another workspace entirely', function (): void {
+    ['owner' => $viewer, 'team' => $team, 'channel' => $general] = teamWithChannel();
+
+    // A bot posts in #general and is on the channel's roster, but it is not
+    // someone you can open a DM with, so it is no part of this list.
+    $bot = User::factory()->bot($team)->create(['name' => 'Deploy Bot']);
+    channelMembership($general, $bot);
+
+    // Nor is anyone from a workspace the viewer happens not to be looking at.
+    teamWithChannel('Other');
+
+    expect(array_column(new WorkspaceShell($viewer, $team)->teamMembers(), 'id'))->toBe([$viewer->id]);
+});
+
 test('a panel contributes its props only while its destination is the pinned one', function (): void {
-    [$viewer, $team] = shellWorkspace();
+    ['owner' => $viewer, 'team' => $team] = teamWithChannel();
 
     $shell = new WorkspaceShell($viewer, $team);
     $criteria = new MessageSearchCriteria(query: 'hello', scope: SearchScope::default());
