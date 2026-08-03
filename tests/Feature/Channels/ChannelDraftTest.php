@@ -10,20 +10,13 @@ use Illuminate\Support\Str;
 use Illuminate\Testing\TestResponse;
 
 /**
- * Resolve the sidebar `channels` prop entry for the channel as the acting user.
+ * The sidebar `channels` row for the channel, as the acting user.
  *
  * @return array<string, mixed>
  */
 function draftSidebarEntry(User $user, Team $team, Channel $channel): array
 {
-    $response = test()->actingAs($user)->get(route('channels.show', [
-        'team' => $team->slug,
-        'channel' => $channel->slug,
-    ]))->assertOk();
-
-    $channels = $response->viewData('page')['props']['channels'];
-
-    return collect($channels)->firstWhere('slug', $channel->slug);
+    return sidebarRow($user, $team, $channel)->toArray();
 }
 
 /**

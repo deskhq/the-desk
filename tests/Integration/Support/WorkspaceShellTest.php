@@ -5,7 +5,9 @@ use App\Enums\ChannelVisibility;
 use App\Enums\MessageReminderStatus;
 use App\Enums\NavDestination;
 use App\Enums\SearchScope;
+use App\Enums\TeamRole;
 use App\Enums\ThreadInboxFilter;
+use App\Models\ChannelSection;
 use App\Models\User;
 use App\Support\WorkspaceShell;
 use Illuminate\Http\Request;
@@ -24,7 +26,8 @@ use Illuminate\Routing\Route;
 | `teamMembers()` is stated here in full (who is listed, in what order, and
 | who is withheld). `tests/Feature/Channels/TeamMembersPropTest.php` keeps the
 | HTTP half: that a workspace render ships the prop, and that a page outside
-| the workspace ships none.
+| the workspace ships none. `channelSections()` is split the same way against
+| `tests/Feature/Sidebar/ChannelSectionTest.php`, which keeps the endpoints.
 |
 */
 
@@ -112,6 +115,27 @@ test('the team roster withholds a bot and another workspace entirely', function 
     teamWithChannel('Other');
 
     expect(array_column(new WorkspaceShell($viewer, $team)->teamMembers(), 'id'))->toBe([$viewer->id]);
+});
+
+test('the sidebar sections are the viewer own, in their manual order, scoped to the team', function (): void {
+    ['owner' => $viewer, 'team' => $team, 'channel' => $general] = teamWithChannel();
+
+    // Created out of order, so the manual position is what the order can come
+    // from and not the insertion order.
+    ChannelSection::factory()->for($viewer)->for($team)->position(1)->create(['name' => 'Second']);
+    ChannelSection::factory()->for($viewer)->for($team)->position(0)->collapsed()->create(['name' => 'First']);
+
+    // Another member's section in this team, and one of the viewer's own in a
+    // workspace they are not looking at: neither belongs in this sidebar.
+    ChannelSection::factory()->for(teamMemberInChannel($general))->for($team)->create(['name' => 'Theirs']);
+    ['team' => $elsewhere] = teamWithChannel('Other');
+    $elsewhere->memberships()->create(['user_id' => $viewer->id, 'role' => TeamRole::Member]);
+    ChannelSection::factory()->for($viewer)->for($elsewhere)->create(['name' => 'Elsewhere']);
+
+    $sections = new WorkspaceShell($viewer, $team)->channelSections();
+
+    expect(array_column($sections, 'name'))->toBe(['First', 'Second'])
+        ->and(array_column($sections, 'collapsed'))->toBe([true, false]);
 });
 
 test('a panel contributes its props only while its destination is the pinned one', function (): void {

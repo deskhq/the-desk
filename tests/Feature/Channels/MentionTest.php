@@ -1,39 +1,10 @@
 <?php
 
-use App\Actions\Teams\CreateTeam;
 use App\Data\MessageData;
-use App\Enums\TeamRole;
-use App\Models\Channel;
 use App\Models\Message;
-use App\Models\Team;
 use App\Models\User;
 use Illuminate\Support\Str;
 use Inertia\Testing\AssertableInertia as Assert;
-
-/**
- * Create a team with its owner already a member of #general.
- *
- * @return array{0: User, 1: Team, 2: Channel}
- */
-function mentionTeamWithGeneral(): array
-{
-    $owner = User::factory()->create();
-    $team = app(CreateTeam::class)->handle($owner, 'Acme');
-    $general = Channel::where('team_id', $team->id)->where('slug', 'general')->firstOrFail();
-
-    return [$owner, $team, $general];
-}
-
-/**
- * Add a user to the team as a plain member and return them.
- */
-function teamMember(Team $team, ?string $name = null): User
-{
-    $user = User::factory()->create($name ? ['name' => $name] : []);
-    $team->memberships()->create(['user_id' => $user->id, 'role' => TeamRole::Member]);
-
-    return $user;
-}
 
 /**
  * Build a mention token the composer inserts and the parser round-trips.
@@ -44,8 +15,8 @@ function mentionToken(User $user): string
 }
 
 test('posting a message persists a mention row for a real team member', function (): void {
-    [$owner, $team, $general] = mentionTeamWithGeneral();
-    $mentioned = teamMember($team, 'Ada Lovelace');
+    ['owner' => $owner, 'team' => $team, 'channel' => $general] = teamWithChannel();
+    $mentioned = teamMemberInChannel($general, ['name' => 'Ada Lovelace']);
 
     $this->actingAs($owner)
         ->post(route('channels.messages.store', ['team' => $team->slug, 'channel' => $general->slug]), [
@@ -64,8 +35,8 @@ test('posting a message persists a mention row for a real team member', function
 });
 
 test('parsing resolves only real team members, ignoring non-members and unknown ids', function (): void {
-    [$owner, $team, $general] = mentionTeamWithGeneral();
-    $member = teamMember($team, 'Real Member');
+    ['owner' => $owner, 'team' => $team, 'channel' => $general] = teamWithChannel();
+    $member = teamMemberInChannel($general, ['name' => 'Real Member']);
     $stranger = User::factory()->create(['name' => 'Outsider']);
     $bogusId = (string) Str::uuid7();
 
@@ -85,8 +56,8 @@ test('parsing resolves only real team members, ignoring non-members and unknown 
 });
 
 test('a user mentioned twice in one message is persisted once', function (): void {
-    [$owner, $team, $general] = mentionTeamWithGeneral();
-    $mentioned = teamMember($team);
+    ['owner' => $owner, 'team' => $team, 'channel' => $general] = teamWithChannel();
+    $mentioned = teamMemberInChannel($general);
 
     $this->actingAs($owner)
         ->post(route('channels.messages.store', ['team' => $team->slug, 'channel' => $general->slug]), [
@@ -99,9 +70,9 @@ test('a user mentioned twice in one message is persisted once', function (): voi
 });
 
 test('a mention token inside inline code does not notify', function (): void {
-    [$owner, $team, $general] = mentionTeamWithGeneral();
-    $inCode = teamMember($team, 'Code Only');
-    $real = teamMember($team, 'Real Ping');
+    ['owner' => $owner, 'team' => $team, 'channel' => $general] = teamWithChannel();
+    $inCode = teamMemberInChannel($general, ['name' => 'Code Only']);
+    $real = teamMemberInChannel($general, ['name' => 'Real Ping']);
 
     // Matches the client: a `@[Name](id)` token inside a `code` span renders
     // inert, so it must not create a mention. The one outside the span still does.
@@ -119,9 +90,9 @@ test('a mention token inside inline code does not notify', function (): void {
 });
 
 test('editing a message re-syncs mentions: adds new and removes stale', function (): void {
-    [$owner, $team, $general] = mentionTeamWithGeneral();
-    $first = teamMember($team, 'First Person');
-    $second = teamMember($team, 'Second Person');
+    ['owner' => $owner, 'team' => $team, 'channel' => $general] = teamWithChannel();
+    $first = teamMemberInChannel($general, ['name' => 'First Person']);
+    $second = teamMemberInChannel($general, ['name' => 'Second Person']);
 
     $message = Message::factory()->for($general)->for($owner)->create([
         'body' => 'ping '.mentionToken($first),
@@ -142,8 +113,8 @@ test('editing a message re-syncs mentions: adds new and removes stale', function
 });
 
 test('the mention payload rides the MessageData on the channel page', function (): void {
-    [$owner, $team, $general] = mentionTeamWithGeneral();
-    $mentioned = teamMember($team, 'Grace Hopper');
+    ['owner' => $owner, 'team' => $team, 'channel' => $general] = teamWithChannel();
+    $mentioned = teamMemberInChannel($general, ['name' => 'Grace Hopper']);
 
     $message = Message::factory()->for($general)->for($owner)->create([
         'body' => 'hi '.mentionToken($mentioned),
@@ -160,8 +131,8 @@ test('the mention payload rides the MessageData on the channel page', function (
 });
 
 test('the mention payload rides the broadcast MessageData', function (): void {
-    [$owner, $team, $general] = mentionTeamWithGeneral();
-    $mentioned = teamMember($team, 'Alan Turing');
+    ['owner' => $owner, 'team' => $team, 'channel' => $general] = teamWithChannel();
+    $mentioned = teamMemberInChannel($general, ['name' => 'Alan Turing']);
     $clientUuid = (string) Str::uuid7();
 
     $this->actingAs($owner)->post(route('channels.messages.store', [
@@ -179,8 +150,8 @@ test('the mention payload rides the broadcast MessageData', function (): void {
 });
 
 test('a deleted message blanks its mentions in the tombstone payload', function (): void {
-    [$owner, $team, $general] = mentionTeamWithGeneral();
-    $mentioned = teamMember($team);
+    ['owner' => $owner, 'team' => $team, 'channel' => $general] = teamWithChannel();
+    $mentioned = teamMemberInChannel($general);
 
     $message = Message::factory()->for($general)->for($owner)->create();
     $message->mentionedUsers()->sync([$mentioned->id]);
@@ -193,8 +164,8 @@ test('a deleted message blanks its mentions in the tombstone payload', function 
 });
 
 test('the channel page exposes team members for the composer autocomplete', function (): void {
-    [$owner, $team, $general] = mentionTeamWithGeneral();
-    teamMember($team, 'Bea Member');
+    ['owner' => $owner, 'team' => $team, 'channel' => $general] = teamWithChannel();
+    teamMemberInChannel($general, ['name' => 'Bea Member']);
 
     $this->actingAs($owner)
         ->get(route('channels.show', ['team' => $team->slug, 'channel' => $general->slug]))

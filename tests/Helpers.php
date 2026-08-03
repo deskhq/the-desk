@@ -3,11 +3,13 @@
 declare(strict_types=1);
 
 use App\Actions\Teams\CreateTeam;
+use App\Data\ChannelData;
 use App\Enums\TeamRole;
 use App\Models\Channel;
 use App\Models\ChannelMember;
 use App\Models\Team;
 use App\Models\User;
+use App\Support\SidebarChannels;
 use Database\Factories\ChannelMemberFactory;
 
 /*
@@ -68,13 +70,52 @@ function teamMemberInChannel(
     TeamRole $role = TeamRole::Member,
     ?Closure $state = null,
 ): User {
-    $user = User::factory()->create($attributes);
+    return joinTeamAndChannel($channel, User::factory()->create($attributes), $role, $state);
+}
 
+/**
+ * The same arrange for a user who already exists.
+ *
+ * {@see teamMemberInChannel()} covers the common case, where the test cares
+ * about the membership and not about who is holding it. This one is for when
+ * the user has to be built first — because a *factory state* shapes them
+ * (`withoutReadReceipts()`) or because they are already someone in the story,
+ * joining a second team.
+ *
+ * @param  (Closure(ChannelMemberFactory): ChannelMemberFactory)|null  $state  the membership state, see {@see channelMembership()}
+ */
+function joinTeamAndChannel(
+    Channel $channel,
+    User $user,
+    TeamRole $role = TeamRole::Member,
+    ?Closure $state = null,
+): User {
     $channel->team->memberships()->create(['user_id' => $user->id, 'role' => $role]);
 
     channelMembership($channel, $user, $state);
 
     return $user;
+}
+
+/**
+ * The row the sidebar lists for the channel, as the given viewer sees it.
+ *
+ * Taken off {@see SidebarChannels}, which is what builds the `channels` prop, so
+ * a test that wants one row's state no longer renders `channels/Show` and plucks
+ * it out of the 44 props `share()` ships (#1117). What the list *holds* — which
+ * channels, in what order, carrying what state — is stated in
+ * `tests/Integration/Support/SidebarChannelsTest.php`; this is for the tests
+ * whose subject is an endpoint that writes one of those columns.
+ */
+function sidebarRow(User $viewer, Team $team, Channel $channel): ChannelData
+{
+    $row = collect(new SidebarChannels($viewer, $team)->forSidebar())
+        ->firstWhere('slug', $channel->slug);
+
+    expect($row)->toBeInstanceOf(ChannelData::class);
+
+    /** @var ChannelData $row */
+    return $row;
 }
 
 /**

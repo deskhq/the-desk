@@ -1,38 +1,33 @@
 <?php
 
-use App\Models\Channel;
-use App\Models\Team;
-use App\Models\User;
+use Inertia\Testing\AssertableInertia as Assert;
 
-/**
- * Read the shared `collapsedChannelSections` prop for the acting user off a
- * channel page (where the workspace sidebar is rendered).
- *
- * @return array<int, string>
- */
-function sidebarCollapsedProp(User $user, Team $team, Channel $channel): array
-{
-    $response = test()->actingAs($user)->get(route('channels.show', [
-        'team' => $team->slug,
-        'channel' => $channel->slug,
-    ]))->assertOk();
-
-    return $response->viewData('page')['props']['collapsedChannelSections'];
-}
+/*
+|--------------------------------------------------------------------------
+| Collapsed sidebar sections (#1117)
+|--------------------------------------------------------------------------
+|
+| `collapsedChannelSections` has no read-model of its own: `share()` ships
+| `$user->collapsed_channel_sections ?? []` verbatim, so what the endpoint
+| wrote is what the page carries. Each test below therefore states its claim
+| against the column, and one HTTP test states the Inertia half — that the
+| prop is shipped, and that a viewer who never collapsed anything gets `[]`
+| rather than the column's null.
+|
+*/
 
 test('a user can collapse a sidebar section', function (): void {
-    ['owner' => $owner, 'team' => $team, 'channel' => $general] = teamWithChannel();
+    ['owner' => $owner] = teamWithChannel();
 
     $this->actingAs($owner)
         ->patch(route('sidebar.sections.update'), ['collapsed' => ['starred']])
         ->assertRedirect();
 
     expect($owner->refresh()->collapsed_channel_sections)->toBe(['starred']);
-    expect(sidebarCollapsedProp($owner, $team, $general))->toBe(['starred']);
 });
 
 test('an empty payload clears every collapsed section', function (): void {
-    ['owner' => $owner, 'team' => $team, 'channel' => $general] = teamWithChannel();
+    ['owner' => $owner] = teamWithChannel();
     $owner->update(['collapsed_channel_sections' => ['starred', 'channels']]);
 
     $this->actingAs($owner)
@@ -40,14 +35,23 @@ test('an empty payload clears every collapsed section', function (): void {
         ->assertRedirect();
 
     expect($owner->refresh()->collapsed_channel_sections)->toBe([]);
-    expect(sidebarCollapsedProp($owner, $team, $general))->toBe([]);
 });
 
-test('collapsed sections default to empty for a fresh user', function (): void {
+test('the workspace ships the collapsed sections, empty for a user who never collapsed one', function (): void {
     ['owner' => $owner, 'team' => $team, 'channel' => $general] = teamWithChannel();
+    $show = route('channels.show', ['team' => $team->slug, 'channel' => $general->slug]);
 
+    // The column starts null, and `share()` is what turns that into an empty
+    // list the sidebar can render without a guard.
     expect($owner->collapsed_channel_sections)->toBeNull();
-    expect(sidebarCollapsedProp($owner, $team, $general))->toBe([]);
+
+    $this->actingAs($owner)->get($show)
+        ->assertInertia(fn (Assert $page): Assert => $page->where('collapsedChannelSections', [])->etc());
+
+    $owner->update(['collapsed_channel_sections' => ['starred']]);
+
+    $this->actingAs($owner)->get($show)
+        ->assertInertia(fn (Assert $page): Assert => $page->where('collapsedChannelSections', ['starred'])->etc());
 });
 
 test('duplicate section keys are stored once', function (): void {

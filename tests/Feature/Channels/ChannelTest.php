@@ -35,9 +35,8 @@ test('the team owner is auto-joined to #general on team creation', function (): 
 });
 
 test('a new team member is auto-joined to #general when accepting an invitation', function (): void {
-    $owner = User::factory()->create();
+    ['owner' => $owner, 'team' => $team, 'channel' => $general] = teamWithChannel();
     $invitedUser = User::factory()->create(['email' => 'invited@example.com']);
-    $team = app(CreateTeam::class)->handle($owner, 'Acme');
 
     $invitation = TeamInvitation::factory()->create([
         'team_id' => $team->id,
@@ -48,15 +47,11 @@ test('a new team member is auto-joined to #general when accepting an invitation'
 
     $this->actingAs($invitedUser)->get(route('invitations.accept', $invitation));
 
-    $general = Channel::where('team_id', $team->id)->where('slug', 'general')->firstOrFail();
-
     expect($general->members()->whereKey($invitedUser->id)->exists())->toBeTrue();
 });
 
 test('the channel page lists the current user\'s channels in the sidebar', function (): void {
-    $user = User::factory()->create();
-    $team = app(CreateTeam::class)->handle($user, 'Acme');
-    $general = Channel::where('team_id', $team->id)->where('slug', 'general')->firstOrFail();
+    ['owner' => $user, 'team' => $team, 'channel' => $general] = teamWithChannel();
 
     $this->actingAs($user)
         ->get(route('channels.show', ['team' => $team->slug, 'channel' => $general->slug]))
@@ -71,8 +66,7 @@ test('the channel page lists the current user\'s channels in the sidebar', funct
 });
 
 test('the CreateChannel action creates a channel, strips a leading # and joins the creator', function (): void {
-    $creator = User::factory()->create();
-    $team = app(CreateTeam::class)->handle($creator, 'Acme');
+    ['owner' => $creator, 'team' => $team] = teamWithChannel();
 
     $channel = app(CreateChannel::class)->handle($team, '#Marketing', ChannelVisibility::Private, $creator);
 
@@ -84,8 +78,7 @@ test('the CreateChannel action creates a channel, strips a leading # and joins t
 });
 
 test('a bare team URL redirects to the #general channel', function (): void {
-    $user = User::factory()->create();
-    $team = app(CreateTeam::class)->handle($user, 'Acme');
+    ['owner' => $user, 'team' => $team] = teamWithChannel();
 
     $this->actingAs($user)
         ->get(route('channels.index', ['team' => $team->slug]))
@@ -93,8 +86,7 @@ test('a bare team URL redirects to the #general channel', function (): void {
 });
 
 test('a bare team URL carries its query string onto #general so a ?nav= deep link survives', function (): void {
-    $user = User::factory()->create();
-    $team = app(CreateTeam::class)->handle($user, 'Acme');
+    ['owner' => $user, 'team' => $team] = teamWithChannel();
 
     $this->actingAs($user)
         ->get(route('channels.index', ['team' => $team->slug]).'?nav=search&q=budget')
@@ -107,8 +99,7 @@ test('a bare team URL carries its query string onto #general so a ?nav= deep lin
 });
 
 test('a bare team URL cannot be sent to another channel through its query string', function (): void {
-    $user = User::factory()->create();
-    $team = app(CreateTeam::class)->handle($user, 'Acme');
+    ['owner' => $user, 'team' => $team] = teamWithChannel();
 
     $this->actingAs($user)
         ->get(route('channels.index', ['team' => $team->slug]).'?channel=elsewhere')
@@ -116,9 +107,7 @@ test('a bare team URL cannot be sent to another channel through its query string
 });
 
 test('a member viewing a public channel is marked isMember with the channel member count', function (): void {
-    $user = User::factory()->create();
-    $team = app(CreateTeam::class)->handle($user, 'Acme');
-    $general = Channel::where('team_id', $team->id)->where('slug', 'general')->firstOrFail();
+    ['owner' => $user, 'team' => $team, 'channel' => $general] = teamWithChannel();
 
     $this->actingAs($user)
         ->get(route('channels.show', ['team' => $team->slug, 'channel' => $general->slug]))
@@ -130,10 +119,8 @@ test('a member viewing a public channel is marked isMember with the channel memb
 });
 
 test('a non-member viewing a public channel is marked not isMember so the join CTA renders', function (): void {
-    $owner = User::factory()->create();
-    $viewer = User::factory()->create();
-    $team = app(CreateTeam::class)->handle($owner, 'Acme');
-    $team->memberships()->create(['user_id' => $viewer->id, 'role' => TeamRole::Member]);
+    ['owner' => $owner, 'team' => $team, 'channel' => $general] = teamWithChannel();
+    $viewer = teamMemberInChannel($general);
 
     $channel = Channel::factory()->for($team)->create(['name' => 'Design', 'slug' => 'design']);
     app(JoinChannel::class)->handle($channel, $owner);
@@ -149,10 +136,8 @@ test('a non-member viewing a public channel is marked not isMember so the join C
 });
 
 test('joining a public channel from its view adds membership and makes the composer available', function (): void {
-    $owner = User::factory()->create();
-    $viewer = User::factory()->create();
-    $team = app(CreateTeam::class)->handle($owner, 'Acme');
-    $team->memberships()->create(['user_id' => $viewer->id, 'role' => TeamRole::Member]);
+    ['team' => $team, 'channel' => $general] = teamWithChannel();
+    $viewer = teamMemberInChannel($general);
 
     $channel = Channel::factory()->for($team)->create(['slug' => 'design']);
 
@@ -166,9 +151,8 @@ test('joining a public channel from its view adds membership and makes the compo
 });
 
 test('a user who is not a team member cannot view the team\'s channels', function (): void {
-    $owner = User::factory()->create();
+    ['team' => $team] = teamWithChannel();
     $outsider = User::factory()->create();
-    $team = app(CreateTeam::class)->handle($owner, 'Acme');
 
     $this->actingAs($outsider)
         ->get(route('channels.show', ['team' => $team->slug, 'channel' => 'general']))
@@ -176,9 +160,7 @@ test('a user who is not a team member cannot view the team\'s channels', functio
 });
 
 test('the channel page exposes the viewer\'s read pointer for the new-messages divider', function (): void {
-    $user = User::factory()->create();
-    $team = app(CreateTeam::class)->handle($user, 'Acme');
-    $general = Channel::where('team_id', $team->id)->where('slug', 'general')->firstOrFail();
+    ['owner' => $user, 'team' => $team, 'channel' => $general] = teamWithChannel();
 
     $messages = Message::factory()->count(3)->for($general)->for($user)->create();
     $user->channels()->updateExistingPivot($general->id, ['last_read_message_id' => $messages[1]->id]);
@@ -192,9 +174,7 @@ test('the channel page exposes the viewer\'s read pointer for the new-messages d
 });
 
 test('the read pointer is null on a channel the viewer has never read', function (): void {
-    $user = User::factory()->create();
-    $team = app(CreateTeam::class)->handle($user, 'Acme');
-    $general = Channel::where('team_id', $team->id)->where('slug', 'general')->firstOrFail();
+    ['owner' => $user, 'team' => $team, 'channel' => $general] = teamWithChannel();
 
     Message::factory()->for($general)->for($user)->create();
 
@@ -205,9 +185,7 @@ test('the read pointer is null on a channel the viewer has never read', function
 });
 
 test('opening a channel with more unread than a page windows the initial page around the read boundary', function (): void {
-    $user = User::factory()->create();
-    $team = app(CreateTeam::class)->handle($user, 'Acme');
-    $general = Channel::where('team_id', $team->id)->where('slug', 'general')->firstOrFail();
+    ['owner' => $user, 'team' => $team, 'channel' => $general] = teamWithChannel();
 
     // Authorship is irrelevant to the id-based window; only the read pointer is.
     $messages = collect(range(1, 100))->map(
@@ -232,9 +210,7 @@ test('opening a channel with more unread than a page windows the initial page ar
 });
 
 test('opening a channel with unread within a page keeps the default newest window', function (): void {
-    $user = User::factory()->create();
-    $team = app(CreateTeam::class)->handle($user, 'Acme');
-    $general = Channel::where('team_id', $team->id)->where('slug', 'general')->firstOrFail();
+    ['owner' => $user, 'team' => $team, 'channel' => $general] = teamWithChannel();
 
     $messages = collect(range(1, 60))->map(
         fn (int $i) => Message::factory()->for($general)->for($user)->create(['body' => "message {$i}"])
@@ -256,9 +232,7 @@ test('opening a channel with unread within a page keeps the default newest windo
 });
 
 test('a never-read channel with a long backlog still opens at newest', function (): void {
-    $user = User::factory()->create();
-    $team = app(CreateTeam::class)->handle($user, 'Acme');
-    $general = Channel::where('team_id', $team->id)->where('slug', 'general')->firstOrFail();
+    ['owner' => $user, 'team' => $team, 'channel' => $general] = teamWithChannel();
 
     // Auto-joined with a null read pointer: there is no last-read boundary to
     // anchor, so #76 deliberately leaves the default newest window in place
@@ -278,9 +252,7 @@ test('a never-read channel with a long backlog still opens at newest', function 
 });
 
 test('a fully-read channel opens at newest without a window', function (): void {
-    $user = User::factory()->create();
-    $team = app(CreateTeam::class)->handle($user, 'Acme');
-    $general = Channel::where('team_id', $team->id)->where('slug', 'general')->firstOrFail();
+    ['owner' => $user, 'team' => $team, 'channel' => $general] = teamWithChannel();
 
     $messages = collect(range(1, 60))->map(
         fn (int $i) => Message::factory()->for($general)->for($user)->create(['body' => "message {$i}"])

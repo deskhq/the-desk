@@ -1,48 +1,20 @@
 <?php
 
 use App\Actions\Channels\MarkChannelRead;
-use App\Actions\Teams\CreateTeam;
 use App\Data\UserData;
 use App\Enums\TeamRole;
 use App\Events\MessageRead;
-use App\Models\Channel;
 use App\Models\Message;
-use App\Models\Team;
 use App\Models\User;
 use Illuminate\Broadcasting\PrivateChannel;
 use Illuminate\Support\Facades\Event;
 use Inertia\Testing\AssertableInertia as Assert;
 
-/**
- * Create a team with its owner already a member of #general.
- *
- * @return array{0: User, 1: Team, 2: Channel}
- */
-function receiptsTeamWithGeneral(): array
-{
-    $owner = User::factory()->create();
-    $team = app(CreateTeam::class)->handle($owner, 'Acme');
-    $general = Channel::where('team_id', $team->id)->where('slug', 'general')->firstOrFail();
-
-    return [$owner, $team, $general];
-}
-
-/**
- * Add a user to the team and #general, returning them.
- */
-function receiptsMember(Team $team, Channel $channel, User $user): User
-{
-    $team->memberships()->create(['user_id' => $user->id, 'role' => TeamRole::Member]);
-    $channel->channelMembers()->firstOrCreate(['user_id' => $user->id]);
-
-    return $user;
-}
-
 test('MarkChannelRead broadcasts the advance for a user who shares read receipts', function (): void {
     Event::fake([MessageRead::class]);
 
-    [$owner, $team, $general] = receiptsTeamWithGeneral();
-    $member = receiptsMember($team, $general, User::factory()->create(['name' => 'Ada Lovelace']));
+    ['owner' => $owner, 'team' => $team, 'channel' => $general] = teamWithChannel();
+    $member = teamMemberInChannel($general, ['name' => 'Ada Lovelace']);
 
     Message::factory()->for($general)->for($owner)->create();
     $latest = Message::factory()->for($general)->for($owner)->create();
@@ -58,8 +30,8 @@ test('MarkChannelRead broadcasts the advance for a user who shares read receipts
 test('MarkChannelRead does not broadcast for a user who opted out of read receipts', function (): void {
     Event::fake([MessageRead::class]);
 
-    [$owner, $team, $general] = receiptsTeamWithGeneral();
-    $member = receiptsMember($team, $general, User::factory()->withoutReadReceipts()->create());
+    ['owner' => $owner, 'team' => $team, 'channel' => $general] = teamWithChannel();
+    $member = joinTeamAndChannel($general, User::factory()->withoutReadReceipts()->create());
 
     $latest = Message::factory()->for($general)->for($owner)->create();
 
@@ -79,8 +51,8 @@ test('MarkChannelRead does not broadcast for a user who opted out of read receip
 test('MarkChannelRead does not re-broadcast when the pointer is already at the tail', function (): void {
     Event::fake([MessageRead::class]);
 
-    [$owner, $team, $general] = receiptsTeamWithGeneral();
-    $member = receiptsMember($team, $general, User::factory()->create());
+    ['owner' => $owner, 'team' => $team, 'channel' => $general] = teamWithChannel();
+    $member = teamMemberInChannel($general);
 
     Message::factory()->for($general)->for($owner)->create();
 
@@ -95,8 +67,8 @@ test('MarkChannelRead does not re-broadcast when the pointer is already at the t
 test('MarkChannelRead does not broadcast on an empty channel', function (): void {
     Event::fake([MessageRead::class]);
 
-    [, $team, $general] = receiptsTeamWithGeneral();
-    $member = receiptsMember($team, $general, User::factory()->create());
+    ['team' => $team, 'channel' => $general] = teamWithChannel();
+    $member = teamMemberInChannel($general);
 
     app(MarkChannelRead::class)->handle($general, $member);
 
@@ -106,7 +78,7 @@ test('MarkChannelRead does not broadcast on an empty channel', function (): void
 test('MarkChannelRead does not broadcast for a non-member', function (): void {
     Event::fake([MessageRead::class]);
 
-    [$owner, $team, $general] = receiptsTeamWithGeneral();
+    ['owner' => $owner, 'team' => $team, 'channel' => $general] = teamWithChannel();
     $outsider = User::factory()->create();
     $team->memberships()->create(['user_id' => $outsider->id, 'role' => TeamRole::Member]);
     $general->channelMembers()->where('user_id', $outsider->id)->delete();
@@ -121,8 +93,8 @@ test('MarkChannelRead does not broadcast for a non-member', function (): void {
 test('the read endpoint broadcasts the advance for a sharing member', function (): void {
     Event::fake([MessageRead::class]);
 
-    [$owner, $team, $general] = receiptsTeamWithGeneral();
-    $member = receiptsMember($team, $general, User::factory()->create());
+    ['owner' => $owner, 'team' => $team, 'channel' => $general] = teamWithChannel();
+    $member = teamMemberInChannel($general);
 
     $latest = Message::factory()->for($general)->for($owner)->create();
 
@@ -134,7 +106,7 @@ test('the read endpoint broadcasts the advance for a sharing member', function (
 });
 
 test('MessageRead broadcasts on the channel private channel with the reader and pointer', function (): void {
-    [$owner, $team, $general] = receiptsTeamWithGeneral();
+    ['owner' => $owner, 'team' => $team, 'channel' => $general] = teamWithChannel();
 
     $message = Message::factory()->for($general)->for($owner)->create();
     $event = new MessageRead($general, UserData::fromUser($owner), $message->id);
@@ -147,10 +119,10 @@ test('MessageRead broadcasts on the channel private channel with the reader and 
 });
 
 test('the channel page seeds channelReaders with sharing members, excluding the viewer and opt-outs', function (): void {
-    [$owner, $team, $general] = receiptsTeamWithGeneral();
-    $viewer = receiptsMember($team, $general, User::factory()->create(['name' => 'Viewer']));
-    $sharer = receiptsMember($team, $general, User::factory()->create(['name' => 'Sharer']));
-    $optedOut = receiptsMember($team, $general, User::factory()->withoutReadReceipts()->create(['name' => 'Quiet']));
+    ['owner' => $owner, 'team' => $team, 'channel' => $general] = teamWithChannel();
+    $viewer = teamMemberInChannel($general, ['name' => 'Viewer']);
+    $sharer = teamMemberInChannel($general, ['name' => 'Sharer']);
+    $optedOut = joinTeamAndChannel($general, User::factory()->withoutReadReceipts()->create(['name' => 'Quiet']));
 
     $message = Message::factory()->for($general)->for($owner)->create();
     $sharer->channels()->updateExistingPivot($general->id, ['last_read_message_id' => $message->id]);
