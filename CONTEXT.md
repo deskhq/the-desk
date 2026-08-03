@@ -250,6 +250,19 @@ built; build them once, then reuse.
   and the rules are specified in `tests/Integration/Rules/` with no `route()` in sight. The
   other requests carrying domain logic are #1150's remaining work, taken as their surfaces
   are touched.
+- **A permissions DTO projects from the gate; it never re-states it.**
+  `TeamPermissions` is fifteen booleans the settings page draws itself from, and every one
+  of them is `Gate::allows(...)` on the ability that already decides it — never the rule
+  spelled a second time. Before #1198 it was the second spelling, and `canDeleteTeam` had
+  drifted: `TeamPolicy::delete()` refuses a personal workspace, the copy did not, and
+  `teams/Edit.vue` was quietly patching the difference back out with `&& !team.isPersonal`.
+  A client that has to correct the server is the symptom to watch for. The role is resolved
+  once per projection and released again, so fifteen abilities cost one lookup and a role
+  written between two projections is still read fresh;
+  `tests/Integration/Data/TeamPermissionsTest.php` pins every field to its gate and fails
+  when a new field arrives with no ability behind it. A permission with no gate to project
+  from is a missing ability (`TeamPolicy::manageEmojis()` was one), not a licence to
+  hand-write the clause.
 
 ### Frontend (`resources/js/`)
 
@@ -424,6 +437,9 @@ built; build them once, then reuse.
   somebody already holds, call the gate rather than restating it as a `Rule::exists` chain,
   and if the question is *may this actor do this at all*, it is a policy ability and not a
   rule.
+- A new flag on a permissions DTO → the ability it projects from, asked through the gate.
+  If no ability answers it yet, add the ability; never write the rule out a second time,
+  and never let the page patch the answer it was sent.
 - A new nested resource under `settings/teams/{team}/…` → name its route parameter after
   the relationship that owns it (`{customEmoji}` → `Team::customEmojis()`), and let the
   group's `->scopeBindings()` do the tenancy. A hand-rolled `belongs to this team` check

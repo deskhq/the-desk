@@ -8,16 +8,32 @@ use App\Enums\TeamPermission;
 use App\Enums\TeamRole;
 use App\Models\Membership;
 use App\Models\Team;
+use App\Models\UserGroup;
+use App\Policies\TeamPolicy;
 use App\Support\WorkspaceUnread;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\URL;
 
 trait HasTeams
 {
+    /**
+     * The role this user holds on a team, memoised for the length of a single
+     * {@see toTeamPermissions()} projection and no longer.
+     *
+     * The projection asks the gate about one membership fifteen times over, and
+     * each ability would otherwise resolve the row again. It is deliberately
+     * not kept for the request: a role rewritten between two projections must
+     * be answered from the database, not from a copy taken before the write.
+     *
+     * @var array<string, TeamRole|null>
+     */
+    private array $projectedTeamRoles = [];
+
     /**
      * Get all of the teams the user belongs to.
      *
@@ -123,6 +139,10 @@ trait HasTeams
      */
     public function teamRole(Team $team): ?TeamRole
     {
+        if (array_key_exists($team->id, $this->projectedTeamRoles)) {
+            return $this->projectedTeamRoles[$team->id];
+        }
+
         return $this->teamMemberships()
             ->where('team_id', $team->id)
             ->first()
@@ -173,30 +193,43 @@ trait HasTeams
 
     /**
      * Get the standard permissions for a team as a TeamPermissions object.
+     *
+     * Every field is projected from the ability that already decides it, so the
+     * page draws exactly what the server would let through. Re-stating those
+     * rules here is what let `canDeleteTeam` say yes on a personal workspace
+     * that {@see TeamPolicy::delete()} refuses; `TeamPermissionsTest` pins the
+     * two together field by field.
      */
     public function toTeamPermissions(Team $team): TeamPermissions
     {
-        $role = $this->teamRole($team);
+        $gate = Gate::forUser($this);
 
-        return new TeamPermissions(
-            canUpdateTeam: $role?->hasPermission(TeamPermission::UpdateTeam) ?? false,
-            canDeleteTeam: $role?->hasPermission(TeamPermission::DeleteTeam) ?? false,
-            canAddMember: $role?->hasPermission(TeamPermission::AddMember) ?? false,
-            canUpdateMember: $role?->hasPermission(TeamPermission::UpdateMember) ?? false,
-            canRemoveMember: $role?->hasPermission(TeamPermission::RemoveMember) ?? false,
-            canCreateInvitation: $role?->hasPermission(TeamPermission::CreateInvitation) ?? false,
-            canCancelInvitation: $role?->hasPermission(TeamPermission::CancelInvitation) ?? false,
-            canTransferOwnership: ! $team->is_personal && $role === TeamRole::Owner,
-            canViewAudit: ! $team->is_personal && ($role?->isAtLeast(TeamRole::Admin) ?? false),
-            canViewSecurityLog: ! $team->is_personal && ($role?->isAtLeast(TeamRole::Admin) ?? false),
-            canViewAnalytics: ! $team->is_personal && ($role?->isAtLeast(TeamRole::Admin) ?? false),
-            // Not withheld from a personal workspace: its owner can delete a
-            // channel there, so they need the panel that undoes it.
-            canViewDeletedChannels: $role?->isAtLeast(TeamRole::Admin) ?? false,
-            canManageEmojis: ! $team->is_personal && ($role?->isAtLeast(TeamRole::Admin) ?? false),
-            canManageIntegrations: ! $team->is_personal && ($role?->hasPermission(TeamPermission::ManageIntegrations) ?? false),
-            canManageUserGroups: ! $team->is_personal && ($role?->hasPermission(TeamPermission::ManageUserGroups) ?? false),
-        );
+        // One lookup answers all fifteen abilities below, which each resolve the
+        // same membership. Released again straight after, so the next caller
+        // sees any role written in between.
+        $this->projectedTeamRoles[$team->id] = $this->teamRole($team);
+
+        try {
+            return new TeamPermissions(
+                canUpdateTeam: $gate->allows('update', $team),
+                canDeleteTeam: $gate->allows('delete', $team),
+                canAddMember: $gate->allows('addMember', $team),
+                canUpdateMember: $gate->allows('updateMember', $team),
+                canRemoveMember: $gate->allows('removeMember', $team),
+                canCreateInvitation: $gate->allows('inviteMember', $team),
+                canCancelInvitation: $gate->allows('cancelInvitation', $team),
+                canTransferOwnership: $gate->allows('transferOwnership', $team),
+                canViewAudit: $gate->allows('viewAudit', $team),
+                canViewSecurityLog: $gate->allows('viewSecurityLog', $team),
+                canViewAnalytics: $gate->allows('viewAnalytics', $team),
+                canViewDeletedChannels: $gate->allows('viewDeletedChannels', $team),
+                canManageEmojis: $gate->allows('manageEmojis', $team),
+                canManageIntegrations: $gate->allows('manageIntegrations', $team),
+                canManageUserGroups: $gate->allows('viewAny', [UserGroup::class, $team]),
+            );
+        } finally {
+            unset($this->projectedTeamRoles[$team->id]);
+        }
     }
 
     public function fallbackTeam(?Team $excluding = null): ?Team
