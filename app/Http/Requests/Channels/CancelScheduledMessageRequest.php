@@ -2,11 +2,11 @@
 
 namespace App\Http\Requests\Channels;
 
+use App\Http\Requests\RouteBoundRequest;
 use App\Models\ScheduledMessage;
-use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Gate;
 
-class CancelScheduledMessageRequest extends FormRequest
+class CancelScheduledMessageRequest extends RouteBoundRequest
 {
     /**
      * Determine if the user is authorized to make this request.
@@ -23,10 +23,6 @@ class CancelScheduledMessageRequest extends FormRequest
      */
     public function scheduledMessage(): ScheduledMessage
     {
-        $scheduled = $this->route('scheduledMessage');
-
-        abort_if(! $scheduled instanceof ScheduledMessage, 404);
-
-        return $scheduled;
+        return $this->routeModel('scheduledMessage', ScheduledMessage::class);
     }
 }

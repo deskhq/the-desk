@@ -2,12 +2,11 @@
 
 namespace App\Http\Requests\Sidebar;
 
-use App\Models\Team;
+use App\Http\Requests\RouteBoundRequest;
 use Illuminate\Contracts\Validation\ValidationRule;
-use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
-class ReorderChannelSectionsRequest extends FormRequest
+class ReorderChannelSectionsRequest extends RouteBoundRequest
 {
     /**
      * Determine if the user is authorized to make this request.
@@ -36,17 +35,5 @@ class ReorderChannelSectionsRequest extends FormRequest
                     ->where('team_id', $this->team()->id),
             ],
         ];
-    }
-
-    /**
-     * Get the team whose sections are being reordered.
-     */
-    public function team(): Team
-    {
-        $team = $this->route('team');
-
-        abort_if(! $team instanceof Team, 404);
-
-        return $team;
     }
 }

@@ -2,14 +2,12 @@
 
 namespace App\Http\Requests\Channels;
 
-use App\Models\Channel;
-use App\Models\Team;
+use App\Http\Requests\RouteBoundRequest;
 use Illuminate\Contracts\Validation\ValidationRule;
-use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\Rule;
 
-class UpdateChannelPlacementRequest extends FormRequest
+class UpdateChannelPlacementRequest extends RouteBoundRequest
 {
     /**
      * Determine if the user is authorized to make this request.
@@ -65,29 +63,5 @@ class UpdateChannelPlacementRequest extends FormRequest
     public function orderedIds(): array
     {
         return array_values($this->validated('ordered_ids'));
-    }
-
-    /**
-     * Get the channel being placed.
-     */
-    public function channel(): Channel
-    {
-        $channel = $this->route('channel');
-
-        abort_if(! $channel instanceof Channel, 404);
-
-        return $channel;
-    }
-
-    /**
-     * Get the team the channel belongs to.
-     */
-    public function team(): Team
-    {
-        $team = $this->route('team');
-
-        abort_if(! $team instanceof Team, 404);
-
-        return $team;
     }
 }

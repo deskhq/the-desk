@@ -2,14 +2,13 @@
 
 namespace App\Http\Requests\Teams;
 
+use App\Http\Requests\RouteBoundRequest;
 use App\Models\CustomEmoji;
-use App\Models\Team;
 use Illuminate\Contracts\Validation\ValidationRule;
-use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\Rule;
 
-class StoreCustomEmojiRequest extends FormRequest
+class StoreCustomEmojiRequest extends RouteBoundRequest
 {
     /**
      * Determine if the user is authorized to make this request.
@@ -65,17 +64,5 @@ class StoreCustomEmojiRequest extends FormRequest
             'name.unique' => __('An emoji with this name already exists in this workspace.'),
             'image.dimensions' => __('The image must be square and at most 128×128 pixels.'),
         ];
-    }
-
-    /**
-     * Get the team the emoji is being added to.
-     */
-    public function team(): Team
-    {
-        $team = $this->route('team');
-
-        abort_if(! $team instanceof Team, 404);
-
-        return $team;
     }
 }

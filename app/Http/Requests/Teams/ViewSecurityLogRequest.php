@@ -3,19 +3,19 @@
 namespace App\Http\Requests\Teams;
 
 use App\Enums\SecurityEventType;
+use App\Http\Requests\RouteBoundRequest;
 use Illuminate\Contracts\Validation\ValidationRule;
-use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\Rule;
 
-class ViewSecurityLogRequest extends FormRequest
+class ViewSecurityLogRequest extends RouteBoundRequest
 {
     /**
      * Determine if the user is authorized to view the workspace's security log.
      */
     public function authorize(): bool
     {
-        return Gate::allows('viewSecurityLog', $this->route('team'));
+        return Gate::allows('viewSecurityLog', $this->team());
     }
 
     /**

@@ -2,13 +2,12 @@
 
 namespace App\Http\Requests\Channels;
 
-use App\Models\Channel;
+use App\Http\Requests\RouteBoundRequest;
 use Illuminate\Contracts\Validation\ValidationRule;
-use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\Rule;
 
-class ScheduleMessageRequest extends FormRequest
+class ScheduleMessageRequest extends RouteBoundRequest
 {
     /**
      * Determine if the user is authorized to make this request.
@@ -57,17 +56,5 @@ class ScheduleMessageRequest extends FormRequest
                     ->whereNull('deleted_at'),
             ],
         ];
-    }
-
-    /**
-     * Get the channel the message is being scheduled for.
-     */
-    public function channel(): Channel
-    {
-        $channel = $this->route('channel');
-
-        abort_if(! $channel instanceof Channel, 404);
-
-        return $channel;
     }
 }

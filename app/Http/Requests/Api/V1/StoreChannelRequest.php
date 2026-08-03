@@ -71,7 +71,7 @@ class StoreChannelRequest extends ApiRequest
                 }
 
                 $exists = Channel::query()
-                    ->where('team_id', $this->team()->id)
+                    ->where('team_id', $this->subjectTeam()->id)
                     ->where('slug', NameSlug::distinct((string) $this->input('name'), Channel::FALLBACK_SLUG))
                     ->exists();
 
@@ -84,8 +84,11 @@ class StoreChannelRequest extends ApiRequest
 
     /**
      * The team the channel is created in — the subject's acting team.
+     *
+     * Deliberately not named `team()`, which the base reserves for the team a
+     * route bound: no API route names a workspace, the token does.
      */
-    public function team(): Team
+    public function subjectTeam(): Team
     {
         return ApiChannelAccess::team($this->subject());
     }

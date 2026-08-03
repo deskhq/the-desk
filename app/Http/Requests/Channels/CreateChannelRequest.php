@@ -3,18 +3,17 @@
 namespace App\Http\Requests\Channels;
 
 use App\Enums\ChannelVisibility;
+use App\Http\Requests\RouteBoundRequest;
 use App\Models\Channel;
-use App\Models\Team;
 use App\Policies\TeamPolicy;
 use App\Support\NameSlug;
 use Closure;
 use Illuminate\Contracts\Validation\ValidationRule;
-use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
 
-class CreateChannelRequest extends FormRequest
+class CreateChannelRequest extends RouteBoundRequest
 {
     /**
      * Determine if the user is authorized to make this request.
@@ -88,17 +87,5 @@ class CreateChannelRequest extends FormRequest
                 }
             },
         ];
-    }
-
-    /**
-     * Get the team the channel is being created in.
-     */
-    public function team(): Team
-    {
-        $team = $this->route('team');
-
-        abort_if(! $team instanceof Team, 404);
-
-        return $team;
     }
 }

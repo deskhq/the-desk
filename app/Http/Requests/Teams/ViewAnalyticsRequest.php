@@ -3,19 +3,19 @@
 namespace App\Http\Requests\Teams;
 
 use App\Enums\AnalyticsRange;
+use App\Http\Requests\RouteBoundRequest;
 use Illuminate\Contracts\Validation\ValidationRule;
-use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\Rule;
 
-class ViewAnalyticsRequest extends FormRequest
+class ViewAnalyticsRequest extends RouteBoundRequest
 {
     /**
      * Determine if the user is authorized to view the workspace analytics.
      */
     public function authorize(): bool
     {
-        return Gate::allows('viewAnalytics', $this->route('team'));
+        return Gate::allows('viewAnalytics', $this->team());
     }
 
     /**

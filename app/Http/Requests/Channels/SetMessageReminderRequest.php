@@ -2,14 +2,13 @@
 
 namespace App\Http\Requests\Channels;
 
+use App\Http\Requests\RouteBoundRequest;
 use App\Models\Message;
-use App\Models\Team;
 use Illuminate\Contracts\Validation\ValidationRule;
-use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\Rule;
 
-class SetMessageReminderRequest extends FormRequest
+class SetMessageReminderRequest extends RouteBoundRequest
 {
     /**
      * The resolved target message, memoised so authorization and the controller
@@ -64,17 +63,5 @@ class SetMessageReminderRequest extends FormRequest
         }
 
         return $this->resolvedMessage;
-    }
-
-    /**
-     * Get the team the reminder is being set within.
-     */
-    public function team(): Team
-    {
-        $team = $this->route('team');
-
-        abort_if(! $team instanceof Team, 404);
-
-        return $team;
     }
 }

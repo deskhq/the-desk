@@ -2,14 +2,13 @@
 
 namespace App\Http\Requests\Channels;
 
+use App\Http\Requests\RouteBoundRequest;
 use App\Models\Channel;
-use App\Models\Message;
 use Illuminate\Contracts\Validation\ValidationRule;
-use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\Rule;
 
-class ForwardMessageRequest extends FormRequest
+class ForwardMessageRequest extends RouteBoundRequest
 {
     /**
      * Determine if the user is authorized to make this request.
@@ -79,23 +78,7 @@ class ForwardMessageRequest extends FormRequest
      */
     public function sourceChannel(): Channel
     {
-        $channel = $this->route('channel');
-
-        abort_if(! $channel instanceof Channel, 404);
-
-        return $channel;
-    }
-
-    /**
-     * Get the source message being forwarded.
-     */
-    public function message(): Message
-    {
-        $message = $this->route('message');
-
-        abort_if(! $message instanceof Message, 404);
-
-        return $message;
+        return $this->routeModel('channel', Channel::class);
     }
 
     /**

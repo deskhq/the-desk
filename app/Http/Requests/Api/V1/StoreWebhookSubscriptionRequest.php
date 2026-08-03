@@ -57,7 +57,7 @@ class StoreWebhookSubscriptionRequest extends ApiRequest
                 }
 
                 $ownedCount = Channel::query()
-                    ->where('team_id', $this->team()->id)
+                    ->where('team_id', $this->subjectTeam()->id)
                     ->whereIn('id', $channelIds)
                     ->count();
 
@@ -70,8 +70,11 @@ class StoreWebhookSubscriptionRequest extends ApiRequest
 
     /**
      * The team the subscription belongs to — the bot's own team.
+     *
+     * Deliberately not named `team()`, which the base reserves for the team a
+     * route bound: no API route names a workspace, the token does.
      */
-    public function team(): Team
+    public function subjectTeam(): Team
     {
         return $this->subject()->ownerTeam()->firstOrFail();
     }

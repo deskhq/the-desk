@@ -2,12 +2,11 @@
 
 namespace App\Http\Requests\Channels;
 
-use App\Models\Channel;
+use App\Http\Requests\RouteBoundRequest;
 use Illuminate\Contracts\Validation\ValidationRule;
-use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Gate;
 
-class GifSearchRequest extends FormRequest
+class GifSearchRequest extends RouteBoundRequest
 {
     /**
      * Searching the picker reuses the post-message policy: if the user could not
@@ -29,17 +28,5 @@ class GifSearchRequest extends FormRequest
             // Infinite-scroll cursor (Giphy is offset-paginated).
             'offset' => ['nullable', 'integer', 'min:0'],
         ];
-    }
-
-    /**
-     * Get the channel the picker is scoped to.
-     */
-    public function channel(): Channel
-    {
-        $channel = $this->route('channel');
-
-        abort_if(! $channel instanceof Channel, 404);
-
-        return $channel;
     }
 }

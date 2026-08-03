@@ -2,12 +2,11 @@
 
 namespace App\Http\Requests\Channels;
 
-use App\Models\Channel;
+use App\Http\Requests\RouteBoundRequest;
 use Illuminate\Contracts\Validation\ValidationRule;
-use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Gate;
 
-class SaveChannelDraftRequest extends FormRequest
+class SaveChannelDraftRequest extends RouteBoundRequest
 {
     /**
      * Determine if the user is authorized to make this request.
@@ -32,17 +31,5 @@ class SaveChannelDraftRequest extends FormRequest
         return [
             'body' => ['nullable', 'string', 'max:8000'],
         ];
-    }
-
-    /**
-     * Get the channel whose draft is being saved.
-     */
-    public function channel(): Channel
-    {
-        $channel = $this->route('channel');
-
-        abort_if(! $channel instanceof Channel, 404);
-
-        return $channel;
     }
 }

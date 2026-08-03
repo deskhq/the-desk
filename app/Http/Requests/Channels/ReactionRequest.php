@@ -2,13 +2,11 @@
 
 namespace App\Http\Requests\Channels;
 
-use App\Models\Channel;
-use App\Models\Message;
+use App\Http\Requests\RouteBoundRequest;
 use Illuminate\Contracts\Validation\ValidationRule;
-use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Gate;
 
-class ReactionRequest extends FormRequest
+class ReactionRequest extends RouteBoundRequest
 {
     /**
      * Determine if the user is authorized to make this request.
@@ -61,29 +59,5 @@ class ReactionRequest extends FormRequest
                 $fail(__('That custom emoji does not exist.'));
             }
         };
-    }
-
-    /**
-     * Get the channel the reaction is being toggled in.
-     */
-    public function channel(): Channel
-    {
-        $channel = $this->route('channel');
-
-        abort_if(! $channel instanceof Channel, 404);
-
-        return $channel;
-    }
-
-    /**
-     * Get the message the reaction is being toggled on.
-     */
-    public function message(): Message
-    {
-        $message = $this->route('message');
-
-        abort_if(! $message instanceof Message, 404);
-
-        return $message;
     }
 }

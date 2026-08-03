@@ -2,16 +2,14 @@
 
 namespace App\Http\Requests\Channels;
 
-use App\Models\Channel;
-use App\Models\Team;
+use App\Http\Requests\RouteBoundRequest;
 use App\Rules\NotExecutableFile;
 use App\Rules\WithinStorageQuota;
 use App\Support\TeamStorage;
 use Illuminate\Contracts\Validation\ValidationRule;
-use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Gate;
 
-class StoreAttachmentRequest extends FormRequest
+class StoreAttachmentRequest extends RouteBoundRequest
 {
     /**
      * Determine if the user is authorized to make this request.
@@ -59,30 +57,5 @@ class StoreAttachmentRequest extends FormRequest
         return [
             'file.max' => __('The file may not be larger than :size MB.', ['size' => (int) config('attachments.max_size_mb')]),
         ];
-    }
-
-    /**
-     * Get the channel the attachment is being uploaded to.
-     */
-    public function channel(): Channel
-    {
-        $channel = $this->route('channel');
-
-        abort_if(! $channel instanceof Channel, 404);
-
-        return $channel;
-    }
-
-    /**
-     * Get the workspace the attachment is being uploaded to. Read off the route
-     * (the channel is scope-bound to it) so the quota check costs no extra query.
-     */
-    public function team(): Team
-    {
-        $team = $this->route('team');
-
-        abort_if(! $team instanceof Team, 404);
-
-        return $team;
     }
 }

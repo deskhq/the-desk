@@ -2,12 +2,11 @@
 
 namespace App\Http\Requests\Channels;
 
-use App\Models\Channel;
+use App\Http\Requests\RouteBoundRequest;
 use Illuminate\Contracts\Validation\ValidationRule;
-use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Gate;
 
-class StoreGifRequest extends FormRequest
+class StoreGifRequest extends RouteBoundRequest
 {
     /**
      * Attaching a GIF reuses the post-message policy, exactly like uploading a
@@ -29,17 +28,5 @@ class StoreGifRequest extends FormRequest
             // re-resolves it authoritatively (never trusting a client URL).
             'id' => ['required', 'string', 'max:100'],
         ];
-    }
-
-    /**
-     * Get the channel the GIF is being attached to.
-     */
-    public function channel(): Channel
-    {
-        $channel = $this->route('channel');
-
-        abort_if(! $channel instanceof Channel, 404);
-
-        return $channel;
     }
 }

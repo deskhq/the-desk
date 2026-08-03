@@ -5,12 +5,11 @@ declare(strict_types=1);
 namespace App\Http\Requests\Teams\Integrations;
 
 use App\Enums\WebhookEvent;
+use App\Http\Requests\RouteBoundRequest;
 use App\Models\Channel;
-use App\Models\Team;
 use App\Rules\PublicWebhookUrl;
 use Closure;
 use Illuminate\Contracts\Validation\ValidationRule;
-use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
 
@@ -19,7 +18,7 @@ use Illuminate\Validation\Validator;
  * surface. An optional channel allow-list narrows delivery; every listed channel
  * must belong to the team (omit the list to receive events from every channel).
  */
-class StoreWebhookSubscriptionRequest extends FormRequest
+class StoreWebhookSubscriptionRequest extends RouteBoundRequest
 {
     /**
      * @return array<string, ValidationRule|array<mixed>|string>
@@ -77,17 +76,5 @@ class StoreWebhookSubscriptionRequest extends FormRequest
         }
 
         return array_values(array_unique($channelIds));
-    }
-
-    /**
-     * The team the subscription belongs to.
-     */
-    public function team(): Team
-    {
-        $team = $this->route('team');
-
-        abort_if(! $team instanceof Team, 404);
-
-        return $team;
     }
 }

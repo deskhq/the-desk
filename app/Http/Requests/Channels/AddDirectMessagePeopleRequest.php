@@ -2,13 +2,12 @@
 
 namespace App\Http\Requests\Channels;
 
-use App\Models\Channel;
+use App\Http\Requests\RouteBoundRequest;
 use Illuminate\Contracts\Validation\ValidationRule;
-use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\Rule;
 
-class AddDirectMessagePeopleRequest extends FormRequest
+class AddDirectMessagePeopleRequest extends RouteBoundRequest
 {
     /**
      * Determine if the user is authorized to make this request.
@@ -40,17 +39,5 @@ class AddDirectMessagePeopleRequest extends FormRequest
                 Rule::exists('team_members', 'user_id')->where('team_id', $this->channel()->team_id),
             ],
         ];
-    }
-
-    /**
-     * Get the direct message people are being added to.
-     */
-    public function channel(): Channel
-    {
-        $channel = $this->route('channel');
-
-        abort_if(! $channel instanceof Channel, 404);
-
-        return $channel;
     }
 }

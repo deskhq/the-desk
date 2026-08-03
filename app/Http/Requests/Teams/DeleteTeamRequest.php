@@ -2,21 +2,20 @@
 
 namespace App\Http\Requests\Teams;
 
-use App\Models\Team;
+use App\Http\Requests\RouteBoundRequest;
 use Closure;
 use Illuminate\Contracts\Validation\ValidationRule;
-use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\Validator;
 
-class DeleteTeamRequest extends FormRequest
+class DeleteTeamRequest extends RouteBoundRequest
 {
     /**
      * Determine if the user is authorized to make this request.
      */
     public function authorize(): bool
     {
-        return Gate::allows('delete', $this->route('team'));
+        return Gate::allows('delete', $this->team());
     }
 
     /**
@@ -45,17 +44,5 @@ class DeleteTeamRequest extends FormRequest
                 }
             },
         ];
-    }
-
-    /**
-     * Get the team associated with the request.
-     */
-    private function team(): Team
-    {
-        $team = $this->route('team');
-
-        abort_if(! $team instanceof Team, 404);
-
-        return $team;
     }
 }
