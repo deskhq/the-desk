@@ -1,41 +1,12 @@
 <?php
 
 use App\Actions\Channels\MarkChannelRead;
-use App\Actions\Teams\CreateTeam;
 use App\Enums\ChannelVisibility;
 use App\Enums\TeamRole;
 use App\Models\Channel;
 use App\Models\Message;
 use App\Models\Team;
 use App\Models\User;
-
-/**
- * Create a team with its owner already a member of #general.
- *
- * @return array{0: User, 1: Team, 2: Channel}
- */
-function unreadTeamWithGeneral(): array
-{
-    $owner = User::factory()->create();
-    $team = app(CreateTeam::class)->handle($owner, 'Acme');
-    $general = Channel::where('team_id', $team->id)->where('slug', 'general')->firstOrFail();
-
-    return [$owner, $team, $general];
-}
-
-/**
- * Add a user to the team and the given channel, returning them.
- */
-function unreadChannelMember(Team $team, Channel $channel, ?string $name = null): User
-{
-    $user = User::factory()->create($name ? ['name' => $name] : []);
-    // Joining the team auto-adds the user to #general via the membership observer,
-    // so create the channel pivot idempotently for any other channel.
-    $team->memberships()->create(['user_id' => $user->id, 'role' => TeamRole::Member]);
-    $channel->channelMembers()->firstOrCreate(['user_id' => $user->id]);
-
-    return $user;
-}
 
 /**
  * Post a message to the channel authored by the given user.
@@ -81,8 +52,8 @@ function sidebarChannel(User $user, Team $team, Channel $channel): array
 }
 
 test('unread count reflects only the messages posted after last_read', function (): void {
-    [$owner, $team, $general] = unreadTeamWithGeneral();
-    $member = unreadChannelMember($team, $general, 'Ada Lovelace');
+    ['owner' => $owner, 'team' => $team, 'channel' => $general] = teamWithChannel();
+    $member = teamMemberInChannel($general, ['name' => 'Ada Lovelace']);
 
     $messages = collect(range(1, 5))->map(fn (): Message => unreadPost($general, $owner));
     markReadUpTo($member, $general, $messages[2]);
@@ -92,8 +63,8 @@ test('unread count reflects only the messages posted after last_read', function 
 });
 
 test('a null last_read means every message in the channel is unread', function (): void {
-    [$owner, $team, $general] = unreadTeamWithGeneral();
-    $member = unreadChannelMember($team, $general);
+    ['owner' => $owner, 'team' => $team, 'channel' => $general] = teamWithChannel();
+    $member = teamMemberInChannel($general);
 
     collect(range(1, 3))->each(fn (): Message => unreadPost($general, $owner));
 
@@ -101,8 +72,8 @@ test('a null last_read means every message in the channel is unread', function (
 });
 
 test('a member does not see their own messages as unread', function (): void {
-    [$owner, $team, $general] = unreadTeamWithGeneral();
-    $member = unreadChannelMember($team, $general);
+    ['owner' => $owner, 'team' => $team, 'channel' => $general] = teamWithChannel();
+    $member = teamMemberInChannel($general);
 
     unreadPost($general, $owner);
     unreadPost($general, $member);
@@ -112,8 +83,8 @@ test('a member does not see their own messages as unread', function (): void {
 });
 
 test('soft-deleted messages are excluded from the unread count', function (): void {
-    [$owner, $team, $general] = unreadTeamWithGeneral();
-    $member = unreadChannelMember($team, $general);
+    ['owner' => $owner, 'team' => $team, 'channel' => $general] = teamWithChannel();
+    $member = teamMemberInChannel($general);
 
     unreadPost($general, $owner);
     $deleted = unreadPost($general, $owner);
@@ -123,8 +94,8 @@ test('soft-deleted messages are excluded from the unread count', function (): vo
 });
 
 test('system notices are ambient and never advance the unread or mention badge', function (): void {
-    [$owner, $team, $general] = unreadTeamWithGeneral();
-    $member = unreadChannelMember($team, $general, 'Ada Lovelace');
+    ['owner' => $owner, 'team' => $team, 'channel' => $general] = teamWithChannel();
+    $member = teamMemberInChannel($general, ['name' => 'Ada Lovelace']);
 
     $read = unreadPost($general, $owner);
     markReadUpTo($member, $general, $read);
@@ -138,8 +109,8 @@ test('system notices are ambient and never advance the unread or mention badge',
 });
 
 test('a poll badges the channel like any other user-authored message', function (): void {
-    [$owner, $team, $general] = unreadTeamWithGeneral();
-    $member = unreadChannelMember($team, $general, 'Ada Lovelace');
+    ['owner' => $owner, 'team' => $team, 'channel' => $general] = teamWithChannel();
+    $member = teamMemberInChannel($general, ['name' => 'Ada Lovelace']);
 
     $read = unreadPost($general, $owner);
     markReadUpTo($member, $general, $read);
@@ -154,8 +125,8 @@ test('a poll badges the channel like any other user-authored message', function 
 });
 
 test('a poll that mentions the user raises the mention badge', function (): void {
-    [$owner, $team, $general] = unreadTeamWithGeneral();
-    $member = unreadChannelMember($team, $general, 'Grace Hopper');
+    ['owner' => $owner, 'team' => $team, 'channel' => $general] = teamWithChannel();
+    $member = teamMemberInChannel($general, ['name' => 'Grace Hopper']);
 
     $poll = Message::factory()->for($general)->for($owner)->poll()->create();
     $poll->mentionedUsers()->attach($member->id);
@@ -165,8 +136,8 @@ test('a poll that mentions the user raises the mention badge', function (): void
 });
 
 test('the mention count only counts unread messages that mention the user', function (): void {
-    [$owner, $team, $general] = unreadTeamWithGeneral();
-    $member = unreadChannelMember($team, $general, 'Grace Hopper');
+    ['owner' => $owner, 'team' => $team, 'channel' => $general] = teamWithChannel();
+    $member = teamMemberInChannel($general, ['name' => 'Grace Hopper']);
 
     $readMention = unreadPost($general, $owner, $member);
     markReadUpTo($member, $general, $readMention);
@@ -180,9 +151,9 @@ test('the mention count only counts unread messages that mention the user', func
 });
 
 test('a mention of another member does not inflate the users mention count', function (): void {
-    [$owner, $team, $general] = unreadTeamWithGeneral();
-    $member = unreadChannelMember($team, $general);
-    $other = unreadChannelMember($team, $general, 'Someone Else');
+    ['owner' => $owner, 'team' => $team, 'channel' => $general] = teamWithChannel();
+    $member = teamMemberInChannel($general);
+    $other = teamMemberInChannel($general, ['name' => 'Someone Else']);
 
     unreadPost($general, $owner, $other);
 
@@ -190,8 +161,8 @@ test('a mention of another member does not inflate the users mention count', fun
 });
 
 test('MarkChannelRead advances last_read to the latest message and clears the badge', function (): void {
-    [$owner, $team, $general] = unreadTeamWithGeneral();
-    $member = unreadChannelMember($team, $general, 'Alan Turing');
+    ['owner' => $owner, 'team' => $team, 'channel' => $general] = teamWithChannel();
+    $member = teamMemberInChannel($general, ['name' => 'Alan Turing']);
 
     unreadPost($general, $owner, $member);
     $latest = unreadPost($general, $owner);
@@ -209,8 +180,8 @@ test('MarkChannelRead advances last_read to the latest message and clears the ba
 });
 
 test('MarkChannelRead leaves the pointer untouched when the channel has no messages', function (): void {
-    [, $team, $general] = unreadTeamWithGeneral();
-    $member = unreadChannelMember($team, $general);
+    ['team' => $team, 'channel' => $general] = teamWithChannel();
+    $member = teamMemberInChannel($general);
 
     app(MarkChannelRead::class)->handle($general, $member);
 
@@ -222,13 +193,13 @@ test('MarkChannelRead leaves the pointer untouched when the channel has no messa
 });
 
 test('MarkChannelRead is a no-op for a user who is not a channel member', function (): void {
-    [$owner, $team, $general] = unreadTeamWithGeneral();
+    ['owner' => $owner, 'team' => $team, 'channel' => $general] = teamWithChannel();
     $private = Channel::factory()->for($team)->create([
         'visibility' => ChannelVisibility::Private,
         'created_by' => $owner->id,
     ]);
     // A plain team member is auto-joined to #general but not to the private channel.
-    $outsider = unreadChannelMember($team, $general);
+    $outsider = teamMemberInChannel($general);
 
     Message::factory()->for($private)->for($owner)->create();
 
@@ -241,8 +212,8 @@ test('MarkChannelRead is a no-op for a user who is not a channel member', functi
 });
 
 test('hitting the read endpoint advances the pointer and clears the badges', function (): void {
-    [$owner, $team, $general] = unreadTeamWithGeneral();
-    $member = unreadChannelMember($team, $general, 'Katherine Johnson');
+    ['owner' => $owner, 'team' => $team, 'channel' => $general] = teamWithChannel();
+    $member = teamMemberInChannel($general, ['name' => 'Katherine Johnson']);
 
     unreadPost($general, $owner, $member);
     $latest = unreadPost($general, $owner);
@@ -266,7 +237,7 @@ test('hitting the read endpoint advances the pointer and clears the badges', fun
 });
 
 test('the read endpoint is forbidden on a private channel the user cannot view', function (): void {
-    [$owner, $team] = unreadTeamWithGeneral();
+    ['owner' => $owner, 'team' => $team] = teamWithChannel();
     $private = Channel::factory()->for($team)->create([
         'visibility' => ChannelVisibility::Private,
         'created_by' => $owner->id,

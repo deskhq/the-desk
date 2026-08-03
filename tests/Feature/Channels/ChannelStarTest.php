@@ -1,38 +1,11 @@
 <?php
 
-use App\Actions\Teams\CreateTeam;
 use App\Enums\ChannelVisibility;
 use App\Enums\TeamRole;
 use App\Models\Channel;
 use App\Models\Team;
 use App\Models\User;
 use Illuminate\Testing\TestResponse;
-
-/**
- * Create a team with its owner already a member of #general.
- *
- * @return array{0: User, 1: Team, 2: Channel}
- */
-function starTeamWithGeneral(): array
-{
-    $owner = User::factory()->create();
-    $team = app(CreateTeam::class)->handle($owner, 'Acme');
-    $general = Channel::where('team_id', $team->id)->where('slug', 'general')->firstOrFail();
-
-    return [$owner, $team, $general];
-}
-
-/**
- * Add a user to the team and the given channel, returning them.
- */
-function starMember(Team $team, Channel $channel): User
-{
-    $user = User::factory()->create();
-    $team->memberships()->create(['user_id' => $user->id, 'role' => TeamRole::Member]);
-    $channel->channelMembers()->firstOrCreate(['user_id' => $user->id]);
-
-    return $user;
-}
 
 /**
  * Resolve the sidebar `channels` prop entry for the channel as the acting user.
@@ -63,8 +36,8 @@ function setStar(User $user, Team $team, Channel $channel, bool $starred): TestR
 }
 
 test('a member can star a channel', function (): void {
-    [, $team, $general] = starTeamWithGeneral();
-    $member = starMember($team, $general);
+    ['team' => $team, 'channel' => $general] = teamWithChannel();
+    $member = teamMemberInChannel($general);
 
     setStar($member, $team, $general, true)->assertRedirect();
 
@@ -76,8 +49,8 @@ test('a member can star a channel', function (): void {
 });
 
 test('a member can unstar a channel', function (): void {
-    [, $team, $general] = starTeamWithGeneral();
-    $member = starMember($team, $general);
+    ['team' => $team, 'channel' => $general] = teamWithChannel();
+    $member = teamMemberInChannel($general);
     $member->channels()->updateExistingPivot($general->id, ['starred' => true]);
 
     setStar($member, $team, $general, false)->assertRedirect();
@@ -90,8 +63,8 @@ test('a member can unstar a channel', function (): void {
 });
 
 test('the sidebar reflects a channel star flag', function (): void {
-    [, $team, $general] = starTeamWithGeneral();
-    $member = starMember($team, $general);
+    ['team' => $team, 'channel' => $general] = teamWithChannel();
+    $member = teamMemberInChannel($general);
 
     expect(starSidebarEntry($member, $team, $general))
         ->toMatchArray(['starred' => false]);
@@ -103,8 +76,8 @@ test('the sidebar reflects a channel star flag', function (): void {
 });
 
 test('one member starring a channel does not star it for another', function (): void {
-    [$owner, $team, $general] = starTeamWithGeneral();
-    $member = starMember($team, $general);
+    ['owner' => $owner, 'team' => $team, 'channel' => $general] = teamWithChannel();
+    $member = teamMemberInChannel($general);
 
     setStar($member, $team, $general, true)->assertRedirect();
 
@@ -113,7 +86,7 @@ test('one member starring a channel does not star it for another', function (): 
 });
 
 test('a non-member cannot star a channel', function (): void {
-    [$owner, $team] = starTeamWithGeneral();
+    ['owner' => $owner, 'team' => $team] = teamWithChannel();
     $private = Channel::factory()->for($team)->create([
         'visibility' => ChannelVisibility::Private,
         'created_by' => $owner->id,
@@ -130,8 +103,8 @@ test('a non-member cannot star a channel', function (): void {
 });
 
 test('starring requires a boolean flag', function (): void {
-    [, $team, $general] = starTeamWithGeneral();
-    $member = starMember($team, $general);
+    ['team' => $team, 'channel' => $general] = teamWithChannel();
+    $member = teamMemberInChannel($general);
 
     test()->actingAs($member)->patch(route('channels.star.update', [
         'team' => $team->slug,
