@@ -308,19 +308,13 @@ test('a mention inside a thread still badges the channel', function (): void {
 });
 
 /**
- * Resolve the sidebar `channels` prop entry for the given channel as the user.
+ * The sidebar `channels` row's badge counts for the channel, as the acting user.
  *
  * @return array{unreadCount: int, mentionCount: int}
  */
 function threadSidebarEntry(User $user, Team $team, Channel $channel): array
 {
-    $response = test()->actingAs($user)->get(route('channels.show', [
-        'team' => $team->slug,
-        'channel' => $channel->slug,
-    ]))->assertOk();
+    $row = sidebarRow($user, $team, $channel);
 
-    $entry = collect($response->viewData('page')['props']['channels'])
-        ->firstWhere('slug', $channel->slug);
-
-    return ['unreadCount' => $entry['unreadCount'], 'mentionCount' => $entry['mentionCount']];
+    return ['unreadCount' => $row->unreadCount, 'mentionCount' => $row->mentionCount];
 }

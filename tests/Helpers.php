@@ -3,11 +3,13 @@
 declare(strict_types=1);
 
 use App\Actions\Teams\CreateTeam;
+use App\Data\ChannelData;
 use App\Enums\TeamRole;
 use App\Models\Channel;
 use App\Models\ChannelMember;
 use App\Models\Team;
 use App\Models\User;
+use App\Support\SidebarChannels;
 use Database\Factories\ChannelMemberFactory;
 
 /*
@@ -93,6 +95,27 @@ function joinTeamAndChannel(
     channelMembership($channel, $user, $state);
 
     return $user;
+}
+
+/**
+ * The row the sidebar lists for the channel, as the given viewer sees it.
+ *
+ * Taken off {@see SidebarChannels}, which is what builds the `channels` prop, so
+ * a test that wants one row's state no longer renders `channels/Show` and plucks
+ * it out of the 44 props `share()` ships (#1117). What the list *holds* — which
+ * channels, in what order, carrying what state — is stated in
+ * `tests/Integration/Support/SidebarChannelsTest.php`; this is for the tests
+ * whose subject is an endpoint that writes one of those columns.
+ */
+function sidebarRow(User $viewer, Team $team, Channel $channel): ChannelData
+{
+    $row = collect(new SidebarChannels($viewer, $team)->forSidebar())
+        ->firstWhere('slug', $channel->slug);
+
+    expect($row)->toBeInstanceOf(ChannelData::class);
+
+    /** @var ChannelData $row */
+    return $row;
 }
 
 /**

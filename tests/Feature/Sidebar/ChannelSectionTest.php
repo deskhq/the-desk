@@ -1,42 +1,25 @@
 <?php
 
 use App\Actions\Teams\CreateTeam;
-use App\Enums\TeamRole;
-use App\Models\Channel;
 use App\Models\ChannelMember;
 use App\Models\ChannelSection;
 use App\Models\Team;
 use App\Models\User;
 use Illuminate\Testing\TestResponse;
+use Inertia\Testing\AssertableInertia as Assert;
 
-/**
- * Create a team with its owner already a member of #general.
- *
- * @return array{0: User, 1: Team, 2: Channel}
- */
-function sectionCrudTeam(): array
-{
-    $owner = User::factory()->create();
-    $team = app(CreateTeam::class)->handle($owner, 'Acme');
-    $general = Channel::where('team_id', $team->id)->where('slug', 'general')->firstOrFail();
-
-    return [$owner, $team, $general];
-}
-
-/**
- * Read the shared `channelSections` prop for the acting user off a channel page.
- *
- * @return array<int, array<string, mixed>>
- */
-function sidebarSectionsProp(User $user, Team $team, Channel $channel): array
-{
-    $response = test()->actingAs($user)->get(route('channels.show', [
-        'team' => $team->slug,
-        'channel' => $channel->slug,
-    ]))->assertOk();
-
-    return $response->viewData('page')['props']['channelSections'];
-}
+/*
+|--------------------------------------------------------------------------
+| Sidebar section endpoints (#1117)
+|--------------------------------------------------------------------------
+|
+| The endpoints that create, rename, collapse, reorder and delete a section,
+| and who may reach them. What the sidebar then *lists* — whose sections, in
+| what order, carrying what state — is stated against `WorkspaceShell::
+| channelSections()` in `tests/Integration/Support/WorkspaceShellTest.php`;
+| one render below keeps the Inertia half, that `share()` ships the prop.
+|
+*/
 
 /**
  * Create a section for the user via the endpoint.
@@ -48,8 +31,8 @@ function createSection(User $user, Team $team, string $name): TestResponse
     ]);
 }
 
-test('a member can create a custom section', function (): void {
-    [$owner, $team, $general] = sectionCrudTeam();
+test('a member can create a custom section and the sidebar is sent it', function (): void {
+    ['owner' => $owner, 'team' => $team, 'channel' => $general] = teamWithChannel();
 
     createSection($owner, $team, 'My Projects')->assertRedirect();
 
@@ -60,14 +43,16 @@ test('a member can create a custom section', function (): void {
         'collapsed' => false,
     ]);
 
-    expect(sidebarSectionsProp($owner, $team, $general))
-        ->toHaveCount(1)
-        ->and(sidebarSectionsProp($owner, $team, $general)[0])
-        ->toMatchArray(['name' => 'My Projects', 'collapsed' => false]);
+    $this->actingAs($owner)
+        ->get(route('channels.show', ['team' => $team->slug, 'channel' => $general->slug]))
+        ->assertInertia(fn (Assert $page): Assert => $page
+            ->has('channelSections', 1)
+            ->where('channelSections.0.name', 'My Projects')
+            ->etc());
 });
 
 test('new sections are appended after existing ones', function (): void {
-    [$owner, $team] = sectionCrudTeam();
+    ['owner' => $owner, 'team' => $team] = teamWithChannel();
 
     createSection($owner, $team, 'First')->assertRedirect();
     createSection($owner, $team, 'Second')->assertRedirect();
@@ -79,7 +64,7 @@ test('new sections are appended after existing ones', function (): void {
 });
 
 test('the section name is trimmed and required', function (): void {
-    [$owner, $team] = sectionCrudTeam();
+    ['owner' => $owner, 'team' => $team] = teamWithChannel();
 
     createSection($owner, $team, '   Trimmed   ')->assertRedirect();
     $this->assertDatabaseHas('channel_sections', ['name' => 'Trimmed']);
@@ -88,13 +73,13 @@ test('the section name is trimmed and required', function (): void {
 });
 
 test('a section name is capped at 50 characters', function (): void {
-    [$owner, $team] = sectionCrudTeam();
+    ['owner' => $owner, 'team' => $team] = teamWithChannel();
 
     createSection($owner, $team, str_repeat('a', 51))->assertSessionHasErrors('name');
 });
 
 test('a non-member cannot create a section in the team', function (): void {
-    [, $team] = sectionCrudTeam();
+    ['team' => $team] = teamWithChannel();
     $stranger = User::factory()->create();
 
     createSection($stranger, $team, 'Nope')->assertForbidden();
@@ -103,7 +88,7 @@ test('a non-member cannot create a section in the team', function (): void {
 });
 
 test('a member can rename their section', function (): void {
-    [$owner, $team] = sectionCrudTeam();
+    ['owner' => $owner, 'team' => $team] = teamWithChannel();
     $section = ChannelSection::factory()->for($owner)->for($team)->create(['name' => 'Old']);
 
     $this->actingAs($owner)
@@ -114,7 +99,7 @@ test('a member can rename their section', function (): void {
 });
 
 test('a member can collapse their section', function (): void {
-    [$owner, $team] = sectionCrudTeam();
+    ['owner' => $owner, 'team' => $team] = teamWithChannel();
     $section = ChannelSection::factory()->for($owner)->for($team)->create();
 
     $this->actingAs($owner)
@@ -125,7 +110,7 @@ test('a member can collapse their section', function (): void {
 });
 
 test('an empty section update is rejected', function (): void {
-    [$owner, $team] = sectionCrudTeam();
+    ['owner' => $owner, 'team' => $team] = teamWithChannel();
     $section = ChannelSection::factory()->for($owner)->for($team)->create();
 
     $this->actingAs($owner)
@@ -134,9 +119,8 @@ test('an empty section update is rejected', function (): void {
 });
 
 test('a member cannot update another user section', function (): void {
-    [$owner, $team] = sectionCrudTeam();
-    $other = User::factory()->create();
-    $team->memberships()->create(['user_id' => $other->id, 'role' => TeamRole::Member]);
+    ['owner' => $owner, 'team' => $team, 'channel' => $general] = teamWithChannel();
+    $other = teamMemberInChannel($general);
     $section = ChannelSection::factory()->for($owner)->for($team)->create();
 
     $this->actingAs($other)
@@ -147,7 +131,7 @@ test('a member cannot update another user section', function (): void {
 });
 
 test('a section from another team cannot be updated through this team', function (): void {
-    [$owner, $team] = sectionCrudTeam();
+    ['owner' => $owner, 'team' => $team] = teamWithChannel();
     $otherTeam = app(CreateTeam::class)->handle($owner, 'Other');
     $section = ChannelSection::factory()->for($owner)->for($otherTeam)->create();
 
@@ -157,7 +141,7 @@ test('a section from another team cannot be updated through this team', function
 });
 
 test('a member can delete their section and its channels fall back to the default group', function (): void {
-    [$owner, $team, $general] = sectionCrudTeam();
+    ['owner' => $owner, 'team' => $team, 'channel' => $general] = teamWithChannel();
     $section = ChannelSection::factory()->for($owner)->for($team)->create();
     $owner->channels()->updateExistingPivot($general->id, ['section_id' => $section->id]);
 
@@ -174,9 +158,8 @@ test('a member can delete their section and its channels fall back to the defaul
 });
 
 test('a member cannot delete another user section', function (): void {
-    [$owner, $team] = sectionCrudTeam();
-    $other = User::factory()->create();
-    $team->memberships()->create(['user_id' => $other->id, 'role' => TeamRole::Member]);
+    ['owner' => $owner, 'team' => $team, 'channel' => $general] = teamWithChannel();
+    $other = teamMemberInChannel($general);
     $section = ChannelSection::factory()->for($owner)->for($team)->create();
 
     $this->actingAs($other)
@@ -187,7 +170,7 @@ test('a member cannot delete another user section', function (): void {
 });
 
 test('a member can reorder their sections', function (): void {
-    [$owner, $team] = sectionCrudTeam();
+    ['owner' => $owner, 'team' => $team] = teamWithChannel();
     $a = ChannelSection::factory()->for($owner)->for($team)->position(0)->create(['name' => 'A']);
     $b = ChannelSection::factory()->for($owner)->for($team)->position(1)->create(['name' => 'B']);
     $c = ChannelSection::factory()->for($owner)->for($team)->position(2)->create(['name' => 'C']);
@@ -204,7 +187,7 @@ test('a member can reorder their sections', function (): void {
 });
 
 test('reordering rejects a section the user does not own', function (): void {
-    [$owner, $team] = sectionCrudTeam();
+    ['owner' => $owner, 'team' => $team] = teamWithChannel();
     $mine = ChannelSection::factory()->for($owner)->for($team)->create();
     $other = User::factory()->create();
     $theirs = ChannelSection::factory()->for($other)->for($team)->create();
@@ -217,26 +200,15 @@ test('reordering rejects a section the user does not own', function (): void {
 });
 
 test('the sections payload must be present to reorder', function (): void {
-    [$owner, $team] = sectionCrudTeam();
+    ['owner' => $owner, 'team' => $team] = teamWithChannel();
 
     $this->actingAs($owner)
         ->patch(route('channels.sections.reorder', ['team' => $team->slug]), [])
         ->assertSessionHasErrors('sections');
 });
 
-test('sections are scoped per user in the sidebar prop', function (): void {
-    [$owner, $team, $general] = sectionCrudTeam();
-    ChannelSection::factory()->for($owner)->for($team)->create(['name' => 'Mine']);
-    $other = User::factory()->create();
-    ChannelSection::factory()->for($other)->for($team)->create(['name' => 'Theirs']);
-
-    $names = collect(sidebarSectionsProp($owner, $team, $general))->pluck('name');
-
-    expect($names)->toContain('Mine')->not->toContain('Theirs');
-});
-
 test('a section and its channel memberships relate both ways', function (): void {
-    [$owner, $team, $general] = sectionCrudTeam();
+    ['owner' => $owner, 'team' => $team, 'channel' => $general] = teamWithChannel();
     $section = ChannelSection::factory()->for($owner)->for($team)->create();
     $owner->channels()->updateExistingPivot($general->id, ['section_id' => $section->id]);
 
@@ -249,7 +221,7 @@ test('a section and its channel memberships relate both ways', function (): void
 });
 
 test('a guest cannot manage sections', function (): void {
-    [, $team] = sectionCrudTeam();
+    ['team' => $team] = teamWithChannel();
 
     $this->post(route('channels.sections.store', ['team' => $team->slug]), ['name' => 'X'])
         ->assertRedirect(route('login'));

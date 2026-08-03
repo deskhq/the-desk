@@ -1,29 +1,26 @@
 <?php
 
-use App\Actions\Teams\CreateTeam;
 use App\Enums\ChannelVisibility;
-use App\Enums\TeamRole;
 use App\Models\Channel;
 use App\Models\ChannelSection;
 use App\Models\Team;
 use App\Models\User;
-use Illuminate\Support\Collection;
+use App\Support\SidebarChannels;
 use Illuminate\Support\Str;
 use Illuminate\Testing\TestResponse;
 
-/**
- * Create a team with its owner already a member of #general.
- *
- * @return array{0: User, 1: Team, 2: Channel}
- */
-function placementTeam(): array
-{
-    $owner = User::factory()->create();
-    $team = app(CreateTeam::class)->handle($owner, 'Acme');
-    $general = Channel::where('team_id', $team->id)->where('slug', 'general')->firstOrFail();
-
-    return [$owner, $team, $general];
-}
+/*
+|--------------------------------------------------------------------------
+| Channel placement (#1117)
+|--------------------------------------------------------------------------
+|
+| The endpoint that files a channel under a section and reorders the sidebar,
+| and who may reach it. What the sidebar then renders off those two columns is
+| stated against `SidebarChannels` in
+| `tests/Integration/Support/SidebarChannelsTest.php`, so the one claim left
+| here that reaches past the pivot reads the read-model rather than a page.
+|
+*/
 
 /**
  * Create a public channel in the team the user is a member of.
@@ -36,7 +33,7 @@ function placementChannel(User $user, Team $team, string $name): Channel
         'visibility' => ChannelVisibility::Public,
         'created_by' => $user->id,
     ]);
-    $channel->channelMembers()->create(['user_id' => $user->id]);
+    channelMembership($channel, $user);
 
     return $channel;
 }
@@ -54,23 +51,8 @@ function placeChannel(User $user, Team $team, Channel $channel, array $payload):
     ]), $payload);
 }
 
-/**
- * The acting user's sidebar `channels` prop, keyed by slug.
- *
- * @return Collection<string, array<string, mixed>>
- */
-function placementSidebar(User $user, Team $team, Channel $channel): Collection
-{
-    $response = test()->actingAs($user)->get(route('channels.show', [
-        'team' => $team->slug,
-        'channel' => $channel->slug,
-    ]))->assertOk();
-
-    return collect($response->viewData('page')['props']['channels'])->keyBy('slug');
-}
-
 test('a member can move a channel into a custom section', function (): void {
-    [$owner, $team, $general] = placementTeam();
+    ['owner' => $owner, 'team' => $team, 'channel' => $general] = teamWithChannel();
     $section = ChannelSection::factory()->for($owner)->for($team)->create();
 
     placeChannel($owner, $team, $general, [
@@ -85,12 +67,10 @@ test('a member can move a channel into a custom section', function (): void {
         'position' => 0,
     ]);
 
-    expect(placementSidebar($owner, $team, $general)[$general->slug])
-        ->toMatchArray(['sectionId' => $section->id, 'position' => 0]);
 });
 
 test('a member can move a channel back to the default group with a null section', function (): void {
-    [$owner, $team, $general] = placementTeam();
+    ['owner' => $owner, 'team' => $team, 'channel' => $general] = teamWithChannel();
     $section = ChannelSection::factory()->for($owner)->for($team)->create();
     $owner->channels()->updateExistingPivot($general->id, ['section_id' => $section->id]);
 
@@ -107,7 +87,7 @@ test('a member can move a channel back to the default group with a null section'
 });
 
 test('a pure reorder leaves the section assignment untouched', function (): void {
-    [$owner, $team, $general] = placementTeam();
+    ['owner' => $owner, 'team' => $team, 'channel' => $general] = teamWithChannel();
     $section = ChannelSection::factory()->for($owner)->for($team)->create();
     $owner->channels()->updateExistingPivot($general->id, ['section_id' => $section->id]);
 
@@ -124,7 +104,7 @@ test('a pure reorder leaves the section assignment untouched', function (): void
 });
 
 test('reordering persists channel positions and drives the sidebar order', function (): void {
-    [$owner, $team, $general] = placementTeam();
+    ['owner' => $owner, 'team' => $team, 'channel' => $general] = teamWithChannel();
     $alpha = placementChannel($owner, $team, 'Alpha');
     $beta = placementChannel($owner, $team, 'Beta');
 
@@ -137,15 +117,13 @@ test('reordering persists channel positions and drives the sidebar order', funct
         ->and($alpha->fresh()->channelMembers()->where('user_id', $owner->id)->value('position'))->toBe(1)
         ->and($general->fresh()->channelMembers()->where('user_id', $owner->id)->value('position'))->toBe(2);
 
-    $order = placementSidebar($owner, $team, $general)->keys()->all();
-    expect($order)->toBe(['beta', 'alpha', 'general']);
+    expect(array_column(new SidebarChannels($owner, $team)->forSidebar(), 'slug'))
+        ->toBe(['beta', 'alpha', 'general']);
 });
 
 test('placement only touches the acting user own rows', function (): void {
-    [$owner, $team, $general] = placementTeam();
-    $member = User::factory()->create();
-    $team->memberships()->create(['user_id' => $member->id, 'role' => TeamRole::Member]);
-    $general->channelMembers()->firstOrCreate(['user_id' => $member->id]);
+    ['owner' => $owner, 'team' => $team, 'channel' => $general] = teamWithChannel();
+    $member = teamMemberInChannel($general);
 
     placeChannel($owner, $team, $general, [
         'ordered_ids' => [$general->id],
@@ -157,7 +135,7 @@ test('placement only touches the acting user own rows', function (): void {
 });
 
 test('a member cannot place a channel into another user section', function (): void {
-    [$owner, $team, $general] = placementTeam();
+    ['owner' => $owner, 'team' => $team, 'channel' => $general] = teamWithChannel();
     $other = User::factory()->create();
     $theirs = ChannelSection::factory()->for($other)->for($team)->create();
 
@@ -168,13 +146,12 @@ test('a member cannot place a channel into another user section', function (): v
 });
 
 test('a non-member cannot place a channel', function (): void {
-    [$owner, $team] = placementTeam();
+    ['owner' => $owner, 'team' => $team, 'channel' => $general] = teamWithChannel();
     $private = Channel::factory()->for($team)->create([
         'visibility' => ChannelVisibility::Private,
         'created_by' => $owner->id,
     ]);
-    $stranger = User::factory()->create();
-    $team->memberships()->create(['user_id' => $stranger->id, 'role' => TeamRole::Member]);
+    $stranger = teamMemberInChannel($general);
 
     placeChannel($stranger, $team, $private, [
         'ordered_ids' => [$private->id],
@@ -182,13 +159,13 @@ test('a non-member cannot place a channel', function (): void {
 });
 
 test('placement requires the ordered ids payload', function (): void {
-    [$owner, $team, $general] = placementTeam();
+    ['owner' => $owner, 'team' => $team, 'channel' => $general] = teamWithChannel();
 
     placeChannel($owner, $team, $general, [])->assertSessionHasErrors('ordered_ids');
 });
 
 test('placement rejects a channel id the user does not belong to', function (): void {
-    [$owner, $team, $general] = placementTeam();
+    ['owner' => $owner, 'team' => $team, 'channel' => $general] = teamWithChannel();
     $foreign = Channel::factory()->for($team)->create();
 
     placeChannel($owner, $team, $general, [
@@ -197,7 +174,7 @@ test('placement rejects a channel id the user does not belong to', function (): 
 });
 
 test('a guest cannot place a channel', function (): void {
-    [$owner, $team, $general] = placementTeam();
+    ['owner' => $owner, 'team' => $team, 'channel' => $general] = teamWithChannel();
 
     $this->patch(route('channels.placement.update', ['team' => $team->slug, 'channel' => $general->slug]), [
         'ordered_ids' => [$general->id],

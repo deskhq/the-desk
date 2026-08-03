@@ -7,6 +7,7 @@ use App\Actions\Teams\CreateTeam;
 use App\Data\ChannelData;
 use App\Enums\ChannelVisibility;
 use App\Models\Channel;
+use App\Models\ChannelSection;
 use App\Models\Message;
 use App\Support\ChannelMembership;
 use App\Support\SidebarChannels;
@@ -62,6 +63,23 @@ test('the list holds the viewer\'s channels in the team, ordered by position the
 
     expect(sidebarSlugs(new SidebarChannels($user, $team)->forSidebar()))
         ->toBe([$zulu->slug, $alpha->slug, $general->slug]);
+});
+
+test('a channel filed under a custom section carries that section and its manual position', function (): void {
+    ['owner' => $owner, 'team' => $team, 'channel' => $general] = teamWithChannel();
+    $filed = Channel::factory()->for($team)->create(['name' => 'Roadmap', 'slug' => 'roadmap']);
+    channelMembership($filed, $owner);
+    $section = ChannelSection::factory()->for($owner)->for($team)->create();
+
+    $owner->channels()->updateExistingPivot($filed->id, ['section_id' => $section->id, 'position' => -1]);
+
+    $rows = collect(new SidebarChannels($owner, $team)->forSidebar())->keyBy('slug');
+
+    expect($rows[$filed->slug]->sectionId)->toBe($section->id)
+        ->and($rows[$filed->slug]->position)->toBe(-1)
+        // A channel the viewer never filed sits in the default group.
+        ->and($rows[$general->slug]->sectionId)->toBeNull()
+        ->and($rows[$general->slug]->position)->toBe(0);
 });
 
 test('the list is scoped to the team and excludes archived channels and non-memberships', function (): void {

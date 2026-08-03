@@ -9,21 +9,22 @@ use App\Models\Channel;
 use App\Models\Message;
 use App\Models\Team;
 use App\Models\User;
+use Illuminate\Support\Collection;
+use Inertia\Testing\AssertableInertia as Assert;
 
 /**
- * The `teams` shared prop entry for the given team, as the acting user sees it
- * from inside their current workspace.
+ * The workspace-switcher entry for the given team, as the viewer sees it.
+ *
+ * Read off `User::toUserTeams()`, which is what `share()` hands the `teams`
+ * prop, rather than by rendering a page to pluck that prop back out (#1117).
+ * The HTTP half — that a workspace render still ships it — is stated once, in
+ * the last test in this file.
  *
  * @return array{unreadCount: int, mentionCount: int}
  */
 function workspaceBadge(User $user, Team $team): array
 {
-    $response = test()->actingAs($user)->get(route('channels.show', [
-        'team' => $user->currentTeam->slug,
-        'channel' => Channel::GENERAL_SLUG,
-    ]))->assertOk();
-
-    $entry = collect($response->viewData('page')['props']['teams'])->firstWhere('id', $team->id);
+    $entry = collect($user->toUserTeams(includeCurrent: true))->firstWhere('id', $team->id);
 
     expect($entry)->toBeInstanceOf(UserTeam::class);
 
@@ -38,12 +39,9 @@ function workspaceBadge(User $user, Team $team): array
  */
 function otherWorkspace(User $viewer): array
 {
-    $author = User::factory()->create();
-    $team = app(CreateTeam::class)->handle($author, 'Nord & Bureau');
-    $general = Channel::where('team_id', $team->id)->where('slug', Channel::GENERAL_SLUG)->firstOrFail();
+    ['owner' => $author, 'team' => $team, 'channel' => $general] = teamWithChannel('Nord & Bureau');
 
-    $team->memberships()->create(['user_id' => $viewer->id, 'role' => TeamRole::Member]);
-    $general->channelMembers()->firstOrCreate(['user_id' => $viewer->id]);
+    joinTeamAndChannel($general, $viewer);
 
     return [$team, $general, $author];
 }
@@ -218,4 +216,25 @@ test('another member unread traffic never leaks into the viewer counts', functio
 
     expect(workspaceBadge($viewer, $team))
         ->toMatchArray(['unreadCount' => 1, 'mentionCount' => 0]);
+});
+
+test('a workspace render ships the switcher its badge counts', function (): void {
+    ['owner' => $viewer, 'team' => $home, 'channel' => $homeGeneral] = teamWithChannel('Home');
+    [$team, $general, $author] = otherWorkspace($viewer);
+
+    crossWorkspacePost($general, $author, $viewer);
+
+    $badge = workspaceBadge($viewer, $team);
+    expect($badge)->toMatchArray(['unreadCount' => 1, 'mentionCount' => 1]);
+
+    // The one HTTP claim the `teams` prop needs: a render still carries the
+    // switcher, with the counts the read-model above is asserted on.
+    $this->actingAs($viewer)
+        ->get(route('channels.show', ['team' => $home->slug, 'channel' => $homeGeneral->slug]))
+        ->assertInertia(fn (Assert $page): Assert => $page
+            ->where('teams', fn (Collection $teams): bool => $teams->contains(
+                fn (array $entry): bool => $entry['id'] === $team->id
+                    && $entry['unreadCount'] === $badge['unreadCount']
+                    && $entry['mentionCount'] === $badge['mentionCount']))
+            ->etc());
 });

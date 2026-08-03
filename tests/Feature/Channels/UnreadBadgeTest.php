@@ -33,22 +33,15 @@ function markReadUpTo(User $user, Channel $channel, ?Message $message): void
 }
 
 /**
- * Resolve the sidebar `channels` prop entry for the given channel as the acting user.
+ * The sidebar `channels` row's badge counts for the channel, as the acting user.
  *
  * @return array{unreadCount: int, mentionCount: int}
  */
 function sidebarChannel(User $user, Team $team, Channel $channel): array
 {
-    $response = test()->actingAs($user)->get(route('channels.show', [
-        'team' => $team->slug,
-        'channel' => $channel->slug,
-    ]))->assertOk();
+    $row = sidebarRow($user, $team, $channel);
 
-    $channels = $response->viewData('page')['props']['channels'];
-
-    $entry = collect($channels)->firstWhere('slug', $channel->slug);
-
-    return ['unreadCount' => $entry['unreadCount'], 'mentionCount' => $entry['mentionCount']];
+    return ['unreadCount' => $row->unreadCount, 'mentionCount' => $row->mentionCount];
 }
 
 test('unread count reflects only the messages posted after last_read', function (): void {
