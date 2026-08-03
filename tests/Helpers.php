@@ -11,6 +11,9 @@ use App\Models\Team;
 use App\Models\User;
 use App\Support\SidebarChannels;
 use Database\Factories\ChannelMemberFactory;
+use GuzzleHttp\Promise\PromiseInterface;
+use Illuminate\Http\Client\Request;
+use Illuminate\Support\Facades\Http;
 
 /*
 |--------------------------------------------------------------------------
@@ -154,4 +157,40 @@ function channelMembership(Channel $channel, User $user, ?Closure $state = null)
     $membership->forceFill($stated->make()->getAttributes())->save();
 
     return $membership;
+}
+
+/*
+|--------------------------------------------------------------------------
+| Guarded egress (#1196)
+|--------------------------------------------------------------------------
+|
+| Every outbound connection to a member-controlled URL goes through
+| `App\Support\Http\GuardedEgress`, which pins each hop to the address the SSRF
+| guard vetted. Proving that took a bespoke capture helper in one of the three
+| callers' test files and nothing at all in the other two, so the pin was
+| asserted at one call site of three. This is that helper, shared.
+|
+| The DNS half lives in `Tests\Support\StubHostResolver`.
+|
+*/
+
+/**
+ * Fake every outbound request, recording the transport options it went out
+ * with, so a test can read back the address curl was pinned to:
+ *
+ *     captureTransportOptions(['https://example.test' => Http::response()], $captured);
+ *     expect($captured[0]['curl'][CURLOPT_RESOLVE])->toBe(['example.test:443:93.184.216.34']);
+ *
+ * @param  array<string, PromiseInterface>  $responses  keyed by requested URL
+ * @param  array<int, array<string, mixed>>|null  $captured
+ */
+function captureTransportOptions(array $responses, ?array &$captured): void
+{
+    $captured = [];
+
+    Http::fake(function (Request $request, array $options) use ($responses, &$captured): PromiseInterface {
+        $captured[] = $options;
+
+        return $responses[$request->url()];
+    });
 }

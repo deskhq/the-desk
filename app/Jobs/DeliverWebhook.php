@@ -8,7 +8,7 @@ use App\Enums\AuditAction;
 use App\Enums\WebhookSubscriptionStatus;
 use App\Events\AuditableActionOccurred;
 use App\Models\WebhookSubscription;
-use App\Support\Http\OutboundUrlGuard;
+use App\Support\Http\GuardedEgress;
 use App\Support\Webhooks\WebhookSignature;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
@@ -82,8 +82,14 @@ class DeliverWebhook implements ShouldQueue
 
     /**
      * Attempt one delivery.
+     *
+     * The endpoint is member-controlled, so the request goes out through
+     * {@see GuardedEgress::send()} rather than the HTTP client directly. A
+     * destination the guard refuses arrives here the same way a dead one does —
+     * as a throw — so both are one failed attempt with no status code, logged
+     * with the reason and counted towards the auto-disable threshold.
      */
-    public function handle(OutboundUrlGuard $guard): void
+    public function handle(GuardedEgress $egress): void
     {
         if (! config('integrations.enabled')) {
             return;
@@ -99,35 +105,23 @@ class DeliverWebhook implements ShouldQueue
             return;
         }
 
-        if (! OutboundUrlGuard::isPublic($subscription->url)) {
-            $this->recordFailure($subscription, null, 'Blocked non-public webhook URL', 0);
-
-            return;
-        }
-
-        $pinnedIp = $guard->resolveDeliveryIp($subscription->url);
-
-        if ($pinnedIp === false) {
-            $this->recordFailure($subscription, null, 'Blocked webhook URL resolving to a non-public address', 0);
-
-            return;
-        }
-
         $body = (string) json_encode($this->envelope);
         $timestamp = now()->getTimestamp();
         $startedAt = microtime(true);
 
         try {
-            $response = Http::withHeaders([
-                'Content-Type' => 'application/json',
-                'X-Desk-Event' => (string) $this->envelope['type'],
-                'X-Desk-Delivery' => (string) $this->envelope['id'],
-                'X-Desk-Signature' => WebhookSignature::header($subscription->secret, $body, $timestamp),
-            ])
-                ->timeout((int) config('integrations.webhooks.timeout'))
-                ->withOptions($guard->transportOptions($subscription->url, $pinnedIp))
-                ->withBody($body, 'application/json')
-                ->post($subscription->url);
+            $response = $egress->send(
+                $subscription->url,
+                Http::withHeaders([
+                    'Content-Type' => 'application/json',
+                    'X-Desk-Event' => (string) $this->envelope['type'],
+                    'X-Desk-Delivery' => (string) $this->envelope['id'],
+                    'X-Desk-Signature' => WebhookSignature::header($subscription->secret, $body, $timestamp),
+                ])
+                    ->timeout((int) config('integrations.webhooks.timeout'))
+                    ->withBody($body, 'application/json'),
+                'POST',
+            );
         } catch (Throwable $exception) {
             $this->recordFailure($subscription, null, $this->summarize($exception->getMessage()), $this->elapsedMs($startedAt));
 

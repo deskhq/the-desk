@@ -17,24 +17,10 @@ use App\Support\HostResolver;
 use App\Support\Webhooks\WebhookSignature;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
-
-/**
- * A HostResolver stub answering every host with one fixed public IP, so a
- * replay's delivery-time DNS validation never touches real DNS.
- */
-function replayResolver(): HostResolver
-{
-    return new class extends HostResolver
-    {
-        public function resolve(string $host): array
-        {
-            return ['93.184.216.34'];
-        }
-    };
-}
+use Tests\Support\StubHostResolver;
 
 beforeEach(function (): void {
-    $this->app->instance(HostResolver::class, replayResolver());
+    $this->app->instance(HostResolver::class, StubHostResolver::returning());
 
     $this->team = Team::factory()->create();
     $this->owner = User::factory()->create();

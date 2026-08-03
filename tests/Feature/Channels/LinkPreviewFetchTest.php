@@ -2,85 +2,15 @@
 
 use App\Support\FetchLinkPreview;
 use App\Support\HostResolver;
+use App\Support\Http\GuardedEgress;
 use App\Support\Http\OutboundUrlGuard;
-use GuzzleHttp\Promise\PromiseInterface;
-use Illuminate\Http\Client\Request;
+use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Facades\Http;
-
-/**
- * A HostResolver stub that returns fixed IPs per host, so the SSRF guard can be
- * exercised without touching real DNS.
- *
- * @param  array<string, array<int, string>>  $map
- * @param  array<int, string>  $default
- */
-function resolverReturning(array $map = [], array $default = ['93.184.216.34']): HostResolver
-{
-    return new class($map, $default) extends HostResolver
-    {
-        /**
-         * @param  array<string, array<int, string>>  $map
-         * @param  array<int, string>  $default
-         */
-        public function __construct(private array $map, private readonly array $default) {}
-
-        public function resolve(string $host): array
-        {
-            return $this->map[$host] ?? $this->default;
-        }
-    };
-}
-
-/**
- * A HostResolver stub answering successive lookups differently, standing in for
- * an authoritative nameserver that rebinds a host between the guard's check and
- * the connection. The final answer repeats once the script runs out, and every
- * lookup is counted so a test can prove only one was made.
- *
- * @param  array<int, array<int, string>>  $answers
- */
-function rebindingResolver(array $answers): HostResolver
-{
-    return new class($answers) extends HostResolver
-    {
-        public int $calls = 0;
-
-        /**
-         * @param  array<int, array<int, string>>  $answers
-         */
-        public function __construct(private readonly array $answers) {}
-
-        public function resolve(string $host): array
-        {
-            $answer = $this->answers[$this->calls] ?? $this->answers[array_key_last($this->answers)];
-            $this->calls++;
-
-            return $answer;
-        }
-    };
-}
-
-/**
- * Fake every outbound request, recording the transport options it went out
- * with so a test can read back the address curl was pinned to.
- *
- * @param  array<string, PromiseInterface>  $responses  keyed by requested URL
- * @param  array<int, array<string, mixed>>  $captured
- */
-function captureTransportOptions(array $responses, ?array &$captured): void
-{
-    $captured = [];
-
-    Http::fake(function (Request $request, array $options) use ($responses, &$captured): PromiseInterface {
-        $captured[] = $options;
-
-        return $responses[$request->url()];
-    });
-}
+use Tests\Support\StubHostResolver;
 
 function fetcherWith(HostResolver $resolver): FetchLinkPreview
 {
-    return new FetchLinkPreview(new OutboundUrlGuard($resolver));
+    return new FetchLinkPreview(new GuardedEgress(new OutboundUrlGuard($resolver)));
 }
 
 test('unfurls Open Graph metadata from a public URL', function (): void {
@@ -95,7 +25,7 @@ test('unfurls Open Graph metadata from a public URL', function (): void {
         ['Content-Type' => 'text/html'],
     )]);
 
-    expect(fetcherWith(resolverReturning())->handle('https://example.com'))->toBe([
+    expect(fetcherWith(StubHostResolver::returning())->handle('https://example.com'))->toBe([
         'title' => 'Hello',
         'description' => 'A page',
         'image' => 'https://example.com/img.png',
@@ -110,7 +40,7 @@ test('falls back to the title tag and host when og tags are absent', function ()
         ['Content-Type' => 'text/html'],
     )]);
 
-    expect(fetcherWith(resolverReturning())->handle('https://example.com'))->toBe([
+    expect(fetcherWith(StubHostResolver::returning())->handle('https://example.com'))->toBe([
         'title' => 'Just a title',
         'description' => null,
         'image' => null,
@@ -125,7 +55,7 @@ test('ignores whitespace-only meta content', function (): void {
         ['Content-Type' => 'text/html'],
     )]);
 
-    expect(fetcherWith(resolverReturning())->handle('https://example.com')['description'])->toBeNull();
+    expect(fetcherWith(StubHostResolver::returning())->handle('https://example.com')['description'])->toBeNull();
 });
 
 test('returns null when the page has no title at all', function (): void {
@@ -135,13 +65,13 @@ test('returns null when the page has no title at all', function (): void {
         ['Content-Type' => 'text/html'],
     )]);
 
-    expect(fetcherWith(resolverReturning())->handle('https://example.com'))->toBeNull();
+    expect(fetcherWith(StubHostResolver::returning())->handle('https://example.com'))->toBeNull();
 });
 
 test('returns null for an empty body', function (): void {
     Http::fake(['https://example.com' => Http::response('   ', 200, ['Content-Type' => 'text/html'])]);
 
-    expect(fetcherWith(resolverReturning())->handle('https://example.com'))->toBeNull();
+    expect(fetcherWith(StubHostResolver::returning())->handle('https://example.com'))->toBeNull();
 });
 
 test('resolves a protocol-relative og:image against the base scheme', function (): void {
@@ -151,7 +81,7 @@ test('resolves a protocol-relative og:image against the base scheme', function (
         ['Content-Type' => 'text/html'],
     )]);
 
-    expect(fetcherWith(resolverReturning())->handle('https://example.com')['image'])
+    expect(fetcherWith(StubHostResolver::returning())->handle('https://example.com')['image'])
         ->toBe('https://cdn.example.com/i.png');
 });
 
@@ -162,14 +92,14 @@ test('resolves a root-relative og:image against the base origin', function (): v
         ['Content-Type' => 'text/html'],
     )]);
 
-    expect(fetcherWith(resolverReturning())->handle('https://example.com')['image'])
+    expect(fetcherWith(StubHostResolver::returning())->handle('https://example.com')['image'])
         ->toBe('https://example.com/img/a.png');
 });
 
 test('blocks a private, loopback, link-local or reserved host', function (string $ip): void {
     Http::fake();
 
-    expect(fetcherWith(resolverReturning(default: [$ip]))->handle('https://internal.test'))->toBeNull();
+    expect(fetcherWith(StubHostResolver::returning(default: [$ip]))->handle('https://internal.test'))->toBeNull();
 
     Http::assertNothingSent();
 })->with(['10.0.0.5', '127.0.0.1', '169.254.169.254', '192.168.1.1', '172.16.0.1']);
@@ -177,7 +107,7 @@ test('blocks a private, loopback, link-local or reserved host', function (string
 test('rejects a non-http(s) scheme', function (): void {
     Http::fake();
 
-    expect(fetcherWith(resolverReturning())->handle('ftp://example.com'))->toBeNull();
+    expect(fetcherWith(StubHostResolver::returning())->handle('ftp://example.com'))->toBeNull();
 
     Http::assertNothingSent();
 });
@@ -185,7 +115,7 @@ test('rejects a non-http(s) scheme', function (): void {
 test('rejects a malformed URL', function (): void {
     Http::fake();
 
-    expect(fetcherWith(resolverReturning())->handle('http://foo:bar'))->toBeNull();
+    expect(fetcherWith(StubHostResolver::returning())->handle('http://foo:bar'))->toBeNull();
 
     Http::assertNothingSent();
 });
@@ -193,7 +123,7 @@ test('rejects a malformed URL', function (): void {
 test('rejects a URL with no host', function (): void {
     Http::fake();
 
-    expect(fetcherWith(resolverReturning())->handle('http:///just/a/path'))->toBeNull();
+    expect(fetcherWith(StubHostResolver::returning())->handle('http:///just/a/path'))->toBeNull();
 
     Http::assertNothingSent();
 });
@@ -201,7 +131,7 @@ test('rejects a URL with no host', function (): void {
 test('rejects a host that does not resolve', function (): void {
     Http::fake();
 
-    expect(fetcherWith(resolverReturning(default: []))->handle('https://ghost.example'))->toBeNull();
+    expect(fetcherWith(StubHostResolver::returning(default: []))->handle('https://ghost.example'))->toBeNull();
 
     Http::assertNothingSent();
 });
@@ -216,19 +146,19 @@ test('follows a safe redirect to the final page', function (): void {
         ),
     ]);
 
-    expect(fetcherWith(resolverReturning())->handle('https://example.com/start')['title'])->toBe('Final');
+    expect(fetcherWith(StubHostResolver::returning())->handle('https://example.com/start')['title'])->toBe('Final');
 });
 
 test('rejects a redirect with no Location', function (): void {
     Http::fake(['https://example.com/go' => Http::response('', 302, [])]);
 
-    expect(fetcherWith(resolverReturning())->handle('https://example.com/go'))->toBeNull();
+    expect(fetcherWith(StubHostResolver::returning())->handle('https://example.com/go'))->toBeNull();
 });
 
 test('re-validates the host on each redirect hop', function (): void {
     Http::fake(['https://safe.test/go' => Http::response('', 302, ['Location' => 'https://internal.test/secret'])]);
 
-    $resolver = resolverReturning([
+    $resolver = StubHostResolver::returning([
         'safe.test' => ['93.184.216.34'],
         'internal.test' => ['10.0.0.5'],
     ]);
@@ -239,19 +169,19 @@ test('re-validates the host on each redirect hop', function (): void {
 test('gives up after too many redirects', function (): void {
     Http::fake(['https://example.com/loop' => Http::response('', 302, ['Location' => 'https://example.com/loop'])]);
 
-    expect(fetcherWith(resolverReturning())->handle('https://example.com/loop'))->toBeNull();
+    expect(fetcherWith(StubHostResolver::returning())->handle('https://example.com/loop'))->toBeNull();
 });
 
 test('rejects an unsuccessful response', function (): void {
     Http::fake(['https://example.com' => Http::response('nope', 404)]);
 
-    expect(fetcherWith(resolverReturning())->handle('https://example.com'))->toBeNull();
+    expect(fetcherWith(StubHostResolver::returning())->handle('https://example.com'))->toBeNull();
 });
 
 test('rejects a non-html response', function (): void {
     Http::fake(['https://example.com' => Http::response('{"a":1}', 200, ['Content-Type' => 'application/json'])]);
 
-    expect(fetcherWith(resolverReturning())->handle('https://example.com'))->toBeNull();
+    expect(fetcherWith(StubHostResolver::returning())->handle('https://example.com'))->toBeNull();
 });
 
 test('rejects an oversized response', function (): void {
@@ -261,11 +191,11 @@ test('rejects an oversized response', function (): void {
         ['Content-Type' => 'text/html', 'Content-Length' => (string) (3 * 1024 * 1024)],
     )]);
 
-    expect(fetcherWith(resolverReturning())->handle('https://example.com'))->toBeNull();
+    expect(fetcherWith(StubHostResolver::returning())->handle('https://example.com'))->toBeNull();
 });
 
 test('resolves once and pins the connection, so a rebinding second answer is never dialled', function (): void {
-    $resolver = rebindingResolver([['93.184.216.34'], ['169.254.169.254']]);
+    $resolver = StubHostResolver::rebinding([['93.184.216.34'], ['169.254.169.254']]);
 
     captureTransportOptions(
         ['https://example.com/page' => Http::response(
@@ -277,12 +207,25 @@ test('resolves once and pins the connection, so a rebinding second answer is nev
     );
 
     expect(fetcherWith($resolver)->handle('https://example.com/page')['title'])->toBe('Pinned')
-        ->and($resolver->calls)->toBe(1)
-        ->and($captured[0]['curl'][CURLOPT_RESOLVE])->toBe(['example.com:443:93.184.216.34']);
+        ->and($resolver->lookups)->toBe(['example.com'])
+        ->and($captured[0]['curl'][CURLOPT_RESOLVE])->toBe(['example.com:443:93.184.216.34'])
+        // curl is never allowed to follow a redirect itself: a hop it took is a
+        // hop the guard never saw.
+        ->and($captured[0]['allow_redirects'])->toBeFalse();
+});
+
+test('truncates an oversized body rather than refusing it, since only the head is parsed', function (): void {
+    Http::fake(['https://example.com' => Http::response(
+        '<html><head><title>Long</title></head><body>'.str_repeat('x', 3 * 1024 * 1024).'</body></html>',
+        200,
+        ['Content-Type' => 'text/html'],
+    )]);
+
+    expect(fetcherWith(StubHostResolver::returning())->handle('https://example.com')['title'])->toBe('Long');
 });
 
 test('pins every redirect hop to its own vetted address', function (): void {
-    $resolver = resolverReturning([
+    $resolver = StubHostResolver::returning([
         'start.test' => ['93.184.216.34'],
         'final.test' => ['93.184.216.35'],
     ]);
@@ -313,9 +256,25 @@ test('unfurls an internal URL when the operator has turned the guard off', funct
         $captured,
     );
 
-    expect(fetcherWith(resolverReturning(default: ['10.0.0.5']))->handle('http://wiki.internal/page')['title'])
+    expect(fetcherWith(StubHostResolver::returning(default: ['10.0.0.5']))->handle('http://wiki.internal/page')['title'])
         ->toBe('Runbook')
         ->and($captured[0])->not->toHaveKey('curl');
+});
+
+test('degrades to no preview when the remote host is unreachable, and does not retry it immediately', function (): void {
+    $attempts = 0;
+
+    Http::fake(function () use (&$attempts): never {
+        $attempts++;
+
+        throw new ConnectionException('no route to host');
+    });
+
+    $fetcher = fetcherWith(StubHostResolver::returning());
+
+    expect($fetcher->handle('https://example.com'))->toBeNull()
+        ->and($fetcher->handle('https://example.com'))->toBeNull()
+        ->and($attempts)->toBe(1);
 });
 
 test('caches the result so the same URL is only fetched once', function (): void {
@@ -325,7 +284,7 @@ test('caches the result so the same URL is only fetched once', function (): void
         ['Content-Type' => 'text/html'],
     )]);
 
-    $fetcher = fetcherWith(resolverReturning());
+    $fetcher = fetcherWith(StubHostResolver::returning());
     $first = $fetcher->handle('https://example.com');
 
     expect($fetcher->handle('https://example.com'))->toBe($first);

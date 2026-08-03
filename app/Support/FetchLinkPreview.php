@@ -3,34 +3,26 @@
 namespace App\Support;
 
 use App\Support\Http\AbsoluteUrl;
-use App\Support\Http\OutboundUrlGuard;
+use App\Support\Http\FetchedBody;
+use App\Support\Http\FetchPolicy;
+use App\Support\Http\GuardedEgress;
 use Illuminate\Support\Facades\Cache;
-use Illuminate\Support\Facades\Http;
 use Symfony\Component\DomCrawler\Crawler;
 
 /**
  * Unfurls a member-posted URL into its Open Graph preview.
  *
- * The URL comes from whatever a member typed into a message, so every hop goes
- * through {@see OutboundUrlGuard}: public http(s) hosts only, the connection
- * pinned to the address the guard vetted, redirects followed manually so each
- * new target is re-checked rather than handed to curl.
+ * The URL comes from whatever a member typed into a message, so the fetch goes
+ * through {@see GuardedEgress}, which owns the SSRF guarding, the pinning and
+ * the redirect walk. This class supplies only what is its own: HTML, two
+ * megabytes of it, and what to make of what comes back.
  */
 class FetchLinkPreview
 {
     /**
-     * Total time budget for a single request, in seconds.
-     */
-    private const int TIMEOUT_SECONDS = 5;
-
-    /**
-     * How many redirect hops to follow before giving up. Each hop is re-validated
-     * against the SSRF guard so a public URL can't bounce us onto an internal one.
-     */
-    private const int MAX_REDIRECTS = 3;
-
-    /**
      * Hard cap on the HTML we read and parse, guarding against huge responses.
+     * A truncated document is fine here — everything an unfurl reads is in
+     * `<head>`.
      */
     private const int MAX_BYTES = 2097152; // 2 MB
 
@@ -45,7 +37,7 @@ class FetchLinkPreview
      */
     private const string FAILED = '__failed__';
 
-    public function __construct(private readonly OutboundUrlGuard $guard) {}
+    public function __construct(private readonly GuardedEgress $egress) {}
 
     /**
      * Unfurl a URL into its Open Graph preview, or null when it can't be fetched.
@@ -73,67 +65,16 @@ class FetchLinkPreview
      */
     private function unfurl(string $url): ?array
     {
-        $fetched = $this->fetch($url);
+        $fetched = $this->egress->fetch($url, FetchPolicy::truncatingAt(
+            self::MAX_BYTES,
+            static fn (string $contentType): bool => $contentType === 'text/html',
+        ));
 
-        if ($fetched === null) {
+        if (! $fetched instanceof FetchedBody) {
             return null;
         }
 
-        [$finalUrl, $html] = $fetched;
-
-        return $this->parse($html, $finalUrl);
-    }
-
-    /**
-     * Request the URL, manually following redirects and re-validating each hop.
-     *
-     * @return array{0: string, 1: string}|null The final URL and its HTML body.
-     */
-    private function fetch(string $url): ?array
-    {
-        for ($hop = 0; $hop <= self::MAX_REDIRECTS; $hop++) {
-            if (! OutboundUrlGuard::isPublic($url)) {
-                return null;
-            }
-
-            $pinnedIp = $this->guard->resolveDeliveryIp($url);
-
-            if ($pinnedIp === false) {
-                return null;
-            }
-
-            $response = Http::timeout(self::TIMEOUT_SECONDS)
-                ->withOptions($this->guard->transportOptions($url, $pinnedIp))
-                ->get($url);
-
-            if ($response->redirect()) {
-                $location = (string) $response->header('Location');
-
-                if ($location === '') {
-                    return null;
-                }
-
-                $url = AbsoluteUrl::from($url, $location);
-
-                continue;
-            }
-
-            if (! $response->successful()) {
-                return null;
-            }
-
-            if (! str_contains((string) $response->header('Content-Type'), 'text/html')) {
-                return null;
-            }
-
-            if ((int) $response->header('Content-Length') > self::MAX_BYTES) {
-                return null;
-            }
-
-            return [$url, substr($response->body(), 0, self::MAX_BYTES)];
-        }
-
-        return null;
+        return $this->parse($fetched->body, $fetched->url);
     }
 
     /**

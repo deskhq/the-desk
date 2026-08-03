@@ -4,6 +4,7 @@ namespace Tests;
 
 use Illuminate\Foundation\Testing\TestCase as BaseTestCase;
 use Illuminate\Support\Env;
+use Illuminate\Support\Facades\Http;
 use Laravel\Fortify\Features;
 use Laravel\Fortify\Fortify;
 use Tests\Support\FileSchemaBootstrapLock;
@@ -29,12 +30,20 @@ abstract class TestCase extends BaseTestCase
      * two worker databases — Postgres then kills one of them with a deadlock
      * and an unrelated test errors out (issue #812). The guard lets that first
      * attempt stay fully parallel and re-runs a deadlocked worker on its own.
+     *
+     * No test reaches the network (#1196). Every outbound connection to a
+     * member-controlled URL now goes through one module, so a tenth call site
+     * added later either goes through it — and is faked like the nine before it
+     * — or turns the suite red here. Before this, an unfaked request quietly
+     * dialled whatever host the fixture named, from the developer's machine and
+     * from CI.
      */
     #[\Override]
     protected function setUp(): void
     {
         if (! SchemaBootstrapGuard::shouldGuard()) {
             parent::setUp();
+            Http::preventStrayRequests();
 
             return;
         }
@@ -44,6 +53,8 @@ abstract class TestCase extends BaseTestCase
 
             parent::setUp();
         }, FileSchemaBootstrapLock::forRun());
+
+        Http::preventStrayRequests();
     }
 
     protected function skipUnlessFortifyHas(string $feature, ?string $message = null): void
@@ -170,6 +181,10 @@ abstract class TestCase extends BaseTestCase
         $database = config("database.connections.{$connection}.database");
 
         $this->refreshApplication();
+
+        // The fresh container brought a fresh HTTP factory with it, which has
+        // never been told to refuse an unfaked request. Say so again.
+        Http::preventStrayRequests();
 
         config(["database.connections.{$connection}.database" => $database]);
 

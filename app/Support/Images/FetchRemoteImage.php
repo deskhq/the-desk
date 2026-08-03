@@ -5,21 +5,21 @@ declare(strict_types=1);
 namespace App\Support\Images;
 
 use App\Actions\Images\PurgeCachedProxyImages;
-use App\Support\Http\AbsoluteUrl;
-use App\Support\Http\OutboundUrlGuard;
+use App\Support\Http\FetchedBody;
+use App\Support\Http\FetchPolicy;
+use App\Support\Http\GuardedEgress;
 use Illuminate\Support\Facades\Cache;
-use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
-use Throwable;
 
 /**
  * Fetches a remote image once and keeps the bytes on a local disk, so the app
  * can serve every image from its own origin (see {@see ImageProxy}).
  *
  * The URL comes from a member — a scraped `og:image`, a Giphy rendition, the
- * operator's Gravatar base — so every hop goes through {@see OutboundUrlGuard}:
- * public http(s) hosts only, connection pinned to the vetted IP, redirects
- * followed manually so each new target is re-checked rather than handed to curl.
+ * operator's Gravatar base — so the fetch goes through {@see GuardedEgress},
+ * which owns the SSRF guarding, the pinning and the redirect walk. This class
+ * supplies only what is its own: which image types are worth proxying, five
+ * megabytes, and where the bytes land.
  *
  * Every failure path returns null rather than throwing. An instance with no
  * egress therefore degrades to a 404 per image (initials avatar, no link
@@ -53,18 +53,9 @@ class FetchRemoteImage
     private const int FAILURE_TTL_SECONDS = 600; // 10 minutes
 
     /**
-     * Total time budget for a single hop, in seconds.
-     */
-    private const int TIMEOUT_SECONDS = 5;
-
-    /**
-     * How many redirect hops to follow before giving up. Each hop is re-validated
-     * against the SSRF guard so a public URL can't bounce us onto an internal one.
-     */
-    private const int MAX_REDIRECTS = 3;
-
-    /**
-     * Hard cap on the bytes read from a remote image.
+     * Hard cap on the bytes read from a remote image. Unlike an unfurl, this one
+     * refuses an oversize body rather than trimming it: half an image is a
+     * corrupt image, not a small one.
      */
     private const int MAX_BYTES = 5242880; // 5 MB
 
@@ -82,7 +73,7 @@ class FetchRemoteImage
      */
     private const string FAILED = '__failed__';
 
-    public function __construct(private readonly OutboundUrlGuard $guard) {}
+    public function __construct(private readonly GuardedEgress $egress) {}
 
     /**
      * Resolve a remote image URL to its cached bytes, fetching it on first use.
@@ -119,74 +110,29 @@ class FetchRemoteImage
     }
 
     /**
-     * Request the URL, manually following redirects, and store the bytes.
+     * Fetch the URL through the guarded module and store what comes back.
+     *
+     * The cache key and the file name are both hashes of the URL the caller
+     * asked for, not of whichever URL the redirect walk ended on, so the same
+     * request resolves to the same bytes however the remote host moves them.
      *
      * @return array{path: string, mime: string}|null
      */
     private function fetch(string $url): ?array
     {
-        $target = $url;
+        $fetched = $this->egress->fetch($url, FetchPolicy::refusingOver(
+            self::MAX_BYTES,
+            static fn (string $contentType): bool => in_array($contentType, self::ALLOWED_MIMES, true),
+        ));
 
-        for ($hop = 0; $hop <= self::MAX_REDIRECTS; $hop++) {
-            if (! OutboundUrlGuard::isPublic($target)) {
-                return null;
-            }
-
-            $pinnedIp = $this->guard->resolveDeliveryIp($target);
-
-            if ($pinnedIp === false) {
-                return null;
-            }
-
-            try {
-                $response = Http::timeout(self::TIMEOUT_SECONDS)
-                    ->withOptions($this->guard->transportOptions($target, $pinnedIp))
-                    ->get($target);
-            } catch (Throwable) {
-                // DNS/connect/timeout failure — degrade to no image rather than
-                // surfacing a 500 on an air-gapped instance.
-                return null;
-            }
-
-            if ($response->redirect()) {
-                $location = (string) $response->header('Location');
-
-                if ($location === '') {
-                    return null;
-                }
-
-                $target = AbsoluteUrl::from($target, $location);
-
-                continue;
-            }
-
-            if (! $response->successful()) {
-                return null;
-            }
-
-            $mime = strtolower(trim(explode(';', (string) $response->header('Content-Type'))[0]));
-
-            if (! in_array($mime, self::ALLOWED_MIMES, true)) {
-                return null;
-            }
-
-            if ((int) $response->header('Content-Length') > self::MAX_BYTES) {
-                return null;
-            }
-
-            $body = $response->body();
-
-            if ($body === '' || strlen($body) > self::MAX_BYTES) {
-                return null;
-            }
-
-            $path = self::DIRECTORY.'/'.hash('sha256', $url);
-
-            Storage::disk(self::DISK)->put($path, $body);
-
-            return ['path' => $path, 'mime' => $mime];
+        if (! $fetched instanceof FetchedBody) {
+            return null;
         }
 
-        return null;
+        $path = self::DIRECTORY.'/'.hash('sha256', $url);
+
+        Storage::disk(self::DISK)->put($path, $fetched->body);
+
+        return ['path' => $path, 'mime' => $fetched->contentType];
     }
 }
