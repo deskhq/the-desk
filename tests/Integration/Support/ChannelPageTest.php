@@ -171,6 +171,42 @@ test('the pins and their count are one reading, most-recently-pinned first', fun
         ->and($pins['pinCount'])->toBe(count($pins['pins']));
 });
 
+test('two pins landing in the same second still list newest first', function (): void {
+    ['owner' => $viewer, 'team' => $team, 'channel' => $general] = teamWithChannel();
+
+    $first = Message::factory()->for($general)->for($viewer)->create();
+    $second = Message::factory()->for($general)->for($viewer)->create();
+
+    // Same instant, so the timestamp cannot separate them and the tiebreak is
+    // the whole answer — it used to run the other way from the panel's order.
+    $pinnedAt = now();
+    MessagePin::factory()->for($first)->for($general)->for($viewer, 'pinnedBy')->create(['created_at' => $pinnedAt]);
+    MessagePin::factory()->for($second)->for($general)->for($viewer, 'pinnedBy')->create(['created_at' => $pinnedAt]);
+
+    expect(array_column(new ChannelPage($general, $viewer, $team)->pins()['pins'], 'id'))
+        ->toBe([$second->id, $first->id]);
+});
+
+test('a pin whose message has been deleted leaves the panel and the badge together', function (): void {
+    ['owner' => $viewer, 'team' => $team, 'channel' => $general] = teamWithChannel();
+
+    $live = Message::factory()->for($general)->for($viewer)->create();
+    $deleted = Message::factory()->for($general)->for($viewer)->create();
+
+    MessagePin::factory()->for($live)->for($general)->for($viewer, 'pinnedBy')->create();
+    MessagePin::factory()->for($deleted)->for($general)->for($viewer, 'pinnedBy')->create();
+
+    // Deleting a message unpins it, so a surviving pin over a tombstone is only
+    // ever a race. It used to be counted by the badge and withheld from the
+    // panel, which is the disagreement one reading makes impossible.
+    $deleted->delete();
+
+    $pins = new ChannelPage($general, $viewer, $team)->pins();
+
+    expect($pins['pinCount'])->toBe(1)
+        ->and(array_column($pins['pins'], 'id'))->toBe([$live->id]);
+});
+
 test('a pinned message carries its attribution, so the panel renders it like the timeline', function (): void {
     ['owner' => $viewer, 'team' => $team, 'channel' => $general] = teamWithChannel();
 

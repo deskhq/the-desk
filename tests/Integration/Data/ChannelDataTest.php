@@ -3,6 +3,7 @@
 use App\Actions\Channels\OpenDirectMessage;
 use App\Data\ChannelData;
 use App\Enums\NotificationLevel;
+use App\Enums\TeamRole;
 use App\Models\Channel;
 use App\Models\User;
 use App\Support\DirectMessageRoster;
@@ -113,19 +114,26 @@ test('the viewer per-channel state is read off the membership it is handed', fun
 });
 
 test('a non-member viewing a public channel gets the defaults, not another member state', function (): void {
-    ['owner' => $owner, 'channel' => $general] = teamWithChannel();
+    ['owner' => $owner, 'team' => $team, 'channel' => $general] = teamWithChannel();
+
+    // A public channel nobody is auto-joined to, so the newcomer below can read
+    // it by URL without belonging to it.
+    $public = Channel::factory()->for($team)->create(['created_by' => $owner->id]);
+    $public->members()->attach($owner->id);
 
     channelMembership(
-        $general,
+        $public,
         $owner,
         fn (ChannelMemberFactory $factory): ChannelMemberFactory => $factory->muted()->draft('mine alone'),
     );
 
-    // Someone who reached the public channel by URL has no pivot row at all, so
-    // the DTO answers with its own defaults rather than with anybody else's.
+    // On the team, so the channel is theirs to open — and with no pivot row on
+    // it, so the DTO answers with its own defaults rather than with anybody
+    // else's.
     $stranger = User::factory()->create();
+    $team->memberships()->create(['user_id' => $stranger->id, 'role' => TeamRole::Member]);
 
-    $view = ChannelData::fromChannel($general, $stranger);
+    $view = ChannelData::fromChannel($public, $stranger);
 
     expect($view->muted)->toBeFalse()
         ->and($view->notificationLevel)->toBe(NotificationLevel::All)
