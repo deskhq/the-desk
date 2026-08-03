@@ -16,6 +16,11 @@ import { useChannelSections } from '@/composables/useChannelSections';
 import { useCollapsedSections } from '@/composables/useCollapsedSections';
 import { useDialog } from '@/composables/useDialog';
 import type { ChannelSectionGroup } from '@/lib/channelSections';
+// PROTOTYPE — throwaway, branch `prototype/palette-list-shape` (#1211).
+import {
+    VARIANT_COPY,
+    variant as paletteVariant,
+} from '@/components/switcher/prototype/paletteVariant';
 
 const page = usePage();
 
@@ -97,7 +102,14 @@ function sectionKey(group: ChannelSectionGroup): string {
                 @click="quickSwitcherOpen = true"
             >
                 <Search class="size-3.25 shrink-0" />
-                <span>{{ $t('Jump to…') }}</span>
+                <!-- PROTOTYPE — each variant's trigger promise (#1211). -->
+                <span>{{
+                    $t(
+                        paletteVariant
+                            ? VARIANT_COPY[paletteVariant].trigger
+                            : 'Jump to…',
+                    )
+                }}</span>
                 <kbd
                     class="ml-auto font-mono text-[10px] font-semibold tracking-wide text-muted-foreground"
                     >⌘K</kbd

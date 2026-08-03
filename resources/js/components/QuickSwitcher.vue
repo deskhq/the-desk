@@ -31,6 +31,19 @@ import { rankPeople } from '@/lib/peopleDirectory';
 import type { MessageSearchResult } from '@/types';
 import type { Channel } from '@/types/channels';
 import type { PersonRef } from '@/types/people';
+// PROTOTYPE — throwaway, branch `prototype/palette-list-shape` (#1211).
+// Without `?variant=` in the URL nothing below changes: this file renders the
+// palette exactly as `develop` does, which is the baseline the variants are
+// judged against.
+import PaletteVariantA from '@/components/switcher/prototype/PaletteVariantA.vue';
+import PaletteVariantB from '@/components/switcher/prototype/PaletteVariantB.vue';
+import PaletteVariantC from '@/components/switcher/prototype/PaletteVariantC.vue';
+import PrototypeVariantBar from '@/components/switcher/prototype/PrototypeVariantBar.vue';
+import type { PrototypeCommand } from '@/components/switcher/prototype/paletteCommands';
+import {
+    VARIANT_COPY,
+    variant,
+} from '@/components/switcher/prototype/paletteVariant';
 
 const props = defineProps<{
     channels: Channel[];
@@ -117,6 +130,37 @@ function openReminders(): void {
     open.value = false;
     emit('openReminders');
 }
+
+/** PROTOTYPE — a variant row was picked; close and let the stub speak. */
+function runCommand(command: PrototypeCommand): void {
+    open.value = false;
+    command.run();
+}
+
+const variantProps = computed(() => ({
+    channels: props.channels,
+    members: props.members,
+    currentUserId: props.currentUserId,
+    query: query.value,
+    isMobile: isMobile.value,
+    messageResults: messageResults.value,
+    isSearchingMessages: isSearchingMessages.value,
+    searchText: searchText.value,
+}));
+
+const variantListeners = {
+    onSelectChannel: selectChannel,
+    onSelectPerson: selectPerson,
+    onSelectMessage: selectMessage,
+    onSeeAll: seeAllResults,
+    onRunCommand: runCommand,
+};
+
+const VARIANT_COMPONENTS = {
+    a: PaletteVariantA,
+    b: PaletteVariantB,
+    c: PaletteVariantC,
+};
 </script>
 
 <template>
@@ -136,56 +180,73 @@ function openReminders(): void {
                 <SwitcherField
                     v-model="query"
                     :is-mobile="isMobile"
+                    :placeholder="
+                        variant
+                            ? VARIANT_COPY[variant].placeholder
+                            : 'Jump to a channel or search messages…'
+                    "
                     @cancel="open = false"
                 />
                 <CommandList
                     :ariaLabel="$t('Quick switcher')"
                     class="max-md:max-h-none max-md:flex-1 max-md:p-1.5"
                 >
-                    <CommandGroup
-                        v-if="trimmedQuery === ''"
-                        :heading="$t('Actions')"
-                    >
-                        <CommandItem
-                            value="action:reminders"
-                            data-test="quick-switcher-reminders"
-                            class="group h-9.5 gap-2 rounded-lg px-2.5 max-md:h-11.5 max-md:gap-2.5 max-md:rounded-[11px] max-md:px-3 max-md:text-[15px] md:data-[highlighted]:bg-primary md:data-[highlighted]:text-primary-foreground"
-                            @select="openReminders"
+                    <!-- PROTOTYPE — a variant takes the whole list body. -->
+                    <component
+                        :is="VARIANT_COMPONENTS[variant]"
+                        v-if="variant"
+                        v-bind="variantProps"
+                        v-on="variantListeners"
+                    />
+
+                    <template v-else>
+                        <CommandGroup
+                            v-if="trimmedQuery === ''"
+                            :heading="$t('Actions')"
                         >
-                            <AlarmClock
-                                class="size-4 shrink-0 text-muted-foreground/70 group-data-[highlighted]:text-brass"
-                            />
-                            <span class="truncate">{{ $t('Reminders') }}</span>
-                            <span
-                                class="ml-auto font-mono text-[11px] text-primary-foreground/70 opacity-0 group-data-[highlighted]:opacity-100 max-md:hidden"
-                                aria-hidden="true"
-                                >↵</span
+                            <CommandItem
+                                value="action:reminders"
+                                data-test="quick-switcher-reminders"
+                                class="group h-9.5 gap-2 rounded-lg px-2.5 max-md:h-11.5 max-md:gap-2.5 max-md:rounded-[11px] max-md:px-3 max-md:text-[15px] md:data-[highlighted]:bg-primary md:data-[highlighted]:text-primary-foreground"
+                                @select="openReminders"
                             >
-                        </CommandItem>
-                    </CommandGroup>
+                                <AlarmClock
+                                    class="size-4 shrink-0 text-muted-foreground/70 group-data-[highlighted]:text-brass"
+                                />
+                                <span class="truncate">{{
+                                    $t('Reminders')
+                                }}</span>
+                                <span
+                                    class="ml-auto font-mono text-[11px] text-primary-foreground/70 opacity-0 group-data-[highlighted]:opacity-100 max-md:hidden"
+                                    aria-hidden="true"
+                                    >↵</span
+                                >
+                            </CommandItem>
+                        </CommandGroup>
 
-                    <SwitcherChannels
-                        :channels="channelResults"
-                        :query="query"
-                        :is-mobile="isMobile"
-                        @select="selectChannel"
-                    />
+                        <SwitcherChannels
+                            :channels="channelResults"
+                            :query="query"
+                            :is-mobile="isMobile"
+                            @select="selectChannel"
+                        />
 
-                    <SwitcherPeople
-                        :people="peopleResults"
-                        :query="query"
-                        :is-mobile="isMobile"
-                        @select="selectPerson"
-                    />
+                        <SwitcherPeople
+                            :people="peopleResults"
+                            :query="query"
+                            :is-mobile="isMobile"
+                            @select="selectPerson"
+                        />
 
-                    <SwitcherMessages
-                        v-if="searchText !== ''"
-                        :results="messageResults"
-                        :is-searching="isSearchingMessages"
-                        :search-text="searchText"
-                        @select="selectMessage"
-                        @see-all="seeAllResults"
-                    />
+                        <SwitcherMessages
+                            v-if="searchText !== ''"
+                            :results="messageResults"
+                            :is-searching="isSearchingMessages"
+                            :search-text="searchText"
+                            @select="selectMessage"
+                            @see-all="seeAllResults"
+                        />
+                    </template>
                 </CommandList>
                 <!-- The design's standing explanation of the empty-query list:
                      it doubles as the overlay's ranking hint, so it stays put
@@ -196,10 +257,13 @@ function openReminders(): void {
                 >
                     {{
                         $t(
-                            'Recent shows before you type · results ranked by activity',
+                            variant
+                                ? VARIANT_COPY[variant].mobileHint
+                                : 'Recent shows before you type · results ranked by activity',
                         )
                     }}
                 </p>
+                <PrototypeVariantBar />
             </Command>
         </DialogContent>
     </Dialog>
