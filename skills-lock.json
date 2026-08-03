@@ -55,6 +55,12 @@
       "skillPath": "skills/engineering/improve-codebase-architecture/SKILL.md",
       "computedHash": "8bf292143ca93b00276a0de0fc5f84f2381f4690c5b0d32e99fa283a072f392f"
     },
+    "prototype": {
+      "source": "mattpocock/skills",
+      "sourceType": "github",
+      "skillPath": "skills/engineering/prototype/SKILL.md",
+      "computedHash": "faba901c53a6ca245174c4ba5db3929d14253232b3050fdbd46539720adf1ab8"
+    },
     "resolving-merge-conflicts": {
       "source": "mattpocock/skills",
       "sourceType": "github",
@@ -72,6 +78,18 @@
       "sourceType": "github",
       "skillPath": "skills/engineering/to-prd/SKILL.md",
       "computedHash": "5a733e19d825f22e83de52e68b8840c9fd2fa7501282277a122c1aa28a922059"
+    },
+    "to-spec": {
+      "source": "mattpocock/skills",
+      "sourceType": "github",
+      "skillPath": "skills/engineering/to-spec/SKILL.md",
+      "computedHash": "0f544cd0c099c06f0dd0b7b9ee98b4237218e7e95fd3d3c02e791efbaf74bacb"
+    },
+    "wayfinder": {
+      "source": "mattpocock/skills",
+      "sourceType": "github",
+      "skillPath": "skills/engineering/wayfinder/SKILL.md",
+      "computedHash": "c9e18cefd77b6b5b0ee35f59ce2fd96359aa2d2f02e3479e12c873c5402d9d43"
     }
   }
 }
