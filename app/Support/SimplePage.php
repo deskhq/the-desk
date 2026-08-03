@@ -18,6 +18,13 @@ use Spatie\LaravelData\Data;
  * whole table for a page count nobody reads — an audit log grows without bound
  * and is walked, not jumped around in.
  *
+ * It is deliberately *not* a cursor. A cursor would page a deep log more cheaply,
+ * but these two surfaces are admin screens read from the top and filtered, and
+ * their prev/next controls are page URLs the client already speaks. Switching
+ * modes is a change to what a page *is*, not a deduplication — the cursor-paged
+ * surfaces ({@see ThreadInboxPage}, `MessagePage`) are their own envelope for that
+ * reason, and #1199 deliberately left them alone in both directions.
+ *
  * The walk is the point of this class. Both admin logs used to spell it out
  * themselves — the page size, `latest()->orderByDesc('id')`, `simplePaginate`,
  * `withQueryString()`, then the same three envelope keys — which is four places
