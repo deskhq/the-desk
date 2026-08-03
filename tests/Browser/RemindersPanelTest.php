@@ -139,7 +139,7 @@ test('a reminder on a deleted message keeps its row and says so', function (): v
         ->assertScript(remindersPanelShows('the vanished message'), false);
 });
 
-test('the quick switcher opens the destination rather than a dialog', function (): void {
+test('the command palette opens the destination rather than a dialog', function (): void {
     ['owner' => $alice, 'team' => $team, 'channel' => $channel] = browserTeamWithChannel();
 
     $reminder = reminderOn($channel, $alice, 'Review the proposal', now()->subDay());

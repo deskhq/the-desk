@@ -4,7 +4,7 @@
  * so a shortcut can never appear in one without the other.
  */
 export type ShortcutId =
-    | 'quick-switcher'
+    | 'command-palette'
     | 'previous-channel'
     | 'next-channel'
     | 'focus-notifications'
@@ -59,23 +59,23 @@ export type DispatchableEvent = Pick<
 
 export const SHORTCUTS: readonly ShortcutDefinition[] = [
     {
-        id: 'quick-switcher',
+        id: 'command-palette',
         category: 'Navigation',
-        description: 'Open the quick switcher',
+        description: 'Open the command palette',
         keys: ['⌘', 'K'],
         match: { key: 'k', mod: true },
     },
     {
         id: 'previous-channel',
         category: 'Navigation',
-        description: 'Previous channel',
+        description: 'Go to previous channel',
         keys: ['⌥', '↑'],
         match: { key: 'ArrowUp', alt: true },
     },
     {
         id: 'next-channel',
         category: 'Navigation',
-        description: 'Next channel',
+        description: 'Go to next channel',
         keys: ['⌥', '↓'],
         match: { key: 'ArrowDown', alt: true },
     },
@@ -99,7 +99,7 @@ export const SHORTCUTS: readonly ShortcutDefinition[] = [
     {
         id: 'show-shortcuts',
         category: 'Help',
-        description: 'Show this shortcut list',
+        description: 'Show keyboard shortcuts',
         keys: ['?'],
         match: { key: '?' },
     },

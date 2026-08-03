@@ -38,7 +38,7 @@ function performSearchWith(User $user, Team $team, array $params): TestResponse
 }
 
 /**
- * Hit the quick-switcher JSON suggest endpoint for a team as the given user.
+ * Hit the command palette's JSON suggest endpoint for a team as the given user.
  */
 function performSuggest(User $user, Team $team, string $query): TestResponse
 {

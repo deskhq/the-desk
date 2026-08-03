@@ -6,7 +6,7 @@ import type { PersonEntry, PersonRef } from '@/types/people';
  * picker and the ⌘K "People" group), tagging the viewer's own entry so it can
  * render as "You".
  *
- * Ranking reuses the quick-switcher's name scorer (exact > prefix >
+ * Ranking reuses the `quickSwitcher` name scorer (exact > prefix >
  * word-boundary > substring > subsequence, ties alphabetical), so people rank
  * consistently with channels. An empty query returns every member in
  * alphabetical order.

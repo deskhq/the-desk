@@ -11,7 +11,7 @@ import type { PersonRef } from '@/types/people';
  * The harness the palette's suites share: the app state it reads through
  * `usePage()` and its composables, the model factories, and the mount/teardown
  * boilerplate that records what it emits. The design-system stand-ins it renders
- * through live beside this, in `QuickSwitcher.stubs`.
+ * through live beside this, in `CommandPalette.stubs`.
  */
 
 /** The viewer and the route, as `usePage()` reports them. */

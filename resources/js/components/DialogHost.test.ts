@@ -33,7 +33,7 @@ function marker(name: string): Component {
 for (const [path, name] of [
     ['@/components/InviteMemberModal.vue', 'invite'],
     ['@/components/PendingInvitationsModal.vue', 'invitations'],
-    ['@/components/QuickSwitcher.vue', 'switcher'],
+    ['@/components/CommandPalette.vue', 'switcher'],
     ['@/components/NewDirectMessageModal.vue', 'newMessage'],
     ['@/components/KeyboardShortcutsModal.vue', 'shortcuts'],
     ['@/components/UserStatusDialog.vue', 'status'],

@@ -29,7 +29,7 @@ use Illuminate\Support\Carbon;
  * resolved leniently: an unparseable date, an unknown scope or an over-long
  * query is dropped rather than rejected. The client normalizes the same URL by
  * the same rules, so the chips it draws and the matches this returns agree.
- * {@see SearchMessagesRequest} still guards the quick switcher's JSON `suggest`
+ * {@see SearchMessagesRequest} still guards the command palette's JSON `suggest`
  * endpoint, which is a request in its own right.
  */
 final readonly class MessageSearchPanel

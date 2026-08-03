@@ -235,7 +235,7 @@ describe('the masthead controls', () => {
 
         expect(dock.setOpen).toHaveBeenCalledWith(true);
         expect(navigation.openDestination).toHaveBeenCalledWith('search');
-        expect(navigation.openQuickSwitcher).not.toHaveBeenCalled();
+        expect(navigation.openCommandPalette).not.toHaveBeenCalled();
     });
 
     it('sends the same glyph to the jump-to overlay below the breakpoint', () => {
@@ -245,7 +245,7 @@ describe('the masthead controls', () => {
 
         click(host, '[data-test="masthead-search"]');
 
-        expect(navigation.openQuickSwitcher).toHaveBeenCalled();
+        expect(navigation.openCommandPalette).toHaveBeenCalled();
         expect(navigation.openDestination).not.toHaveBeenCalled();
     });
 });

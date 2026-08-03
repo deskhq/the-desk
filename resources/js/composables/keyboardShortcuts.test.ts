@@ -114,7 +114,7 @@ describe('eventMatchesShortcut', () => {
 describe('matchShortcut', () => {
     it('returns the matching definition', () => {
         expect(matchShortcut(keydown({ key: 'k', metaKey: true }))?.id).toBe(
-            'quick-switcher',
+            'command-palette',
         );
         expect(
             matchShortcut(keydown({ key: 'ArrowDown', altKey: true }))?.id,
@@ -232,7 +232,7 @@ describe('dispatchKeydown', () => {
         const run = vi.fn();
 
         expect(dispatchKeydown(event, SHORTCUTS, run)).toBe(true);
-        expect(run).toHaveBeenCalledWith('quick-switcher');
+        expect(run).toHaveBeenCalledWith('command-palette');
     });
 });
 
@@ -269,7 +269,7 @@ describe('shortcutsByCategory', () => {
             'Help',
         ]);
         expect(groups[0].shortcuts.map((shortcut) => shortcut.id)).toEqual([
-            'quick-switcher',
+            'command-palette',
             'previous-channel',
             'next-channel',
             'focus-notifications',

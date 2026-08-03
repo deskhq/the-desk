@@ -179,7 +179,7 @@ class HandleInertiaRequests extends Middleware
                 'user' => $user,
             ],
             // The selectable sidebar positions (left / right) ride every request
-            // so the user-menu quick switcher can offer them anywhere, not just on
+            // so the user menu can offer them anywhere, not just on
             // Settings → Appearance where the page-level prop is scoped. The enum
             // is the single source of truth, shared the same way the settings page
             // sources its own options.

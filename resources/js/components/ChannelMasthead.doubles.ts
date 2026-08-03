@@ -66,7 +66,7 @@ export function sidebarDouble(): Record<string, unknown> {
 export const navigation = {
     isMobile: ref(false),
     openDestination: vi.fn(),
-    openQuickSwitcher: vi.fn(),
+    openCommandPalette: vi.fn(),
 };
 
 export function isMobileDouble(): Record<string, unknown> {
@@ -87,7 +87,7 @@ export function dialogDouble(): Record<string, unknown> {
     return {
         useDialog: (name: string) => ({
             isOpen: ref(false),
-            open: name === 'switcher' ? navigation.openQuickSwitcher : vi.fn(),
+            open: name === 'switcher' ? navigation.openCommandPalette : vi.fn(),
             close: vi.fn(),
             toggle: vi.fn(),
         }),
@@ -104,7 +104,7 @@ export function resetDoubles(): void {
     dock.setOpen.mockClear();
     navigation.isMobile.value = false;
     navigation.openDestination.mockClear();
-    navigation.openQuickSwitcher.mockClear();
+    navigation.openCommandPalette.mockClear();
 }
 
 export function channel(overrides: Partial<Channel> = {}): Channel {

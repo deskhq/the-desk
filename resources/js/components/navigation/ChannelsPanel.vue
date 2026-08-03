@@ -19,7 +19,7 @@ import type { ChannelSectionGroup } from '@/lib/channelSections';
 
 const page = usePage();
 
-const { isOpen: quickSwitcherOpen } = useDialog('switcher');
+const { isOpen: commandPaletteOpen } = useDialog('switcher');
 
 const currentTeam = computed(() => page.props.currentTeam);
 const activeChannelSlug = computed(
@@ -94,7 +94,7 @@ function sectionKey(group: ChannelSectionGroup): string {
                 variant="ghost"
                 data-test="quick-switcher-trigger"
                 class="flex h-9.5 w-full items-center justify-start gap-2 rounded-[10px] bg-muted px-3 text-[13.5px] font-normal text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground md:h-8 md:rounded-[9px] md:px-2.5 md:text-[13px]"
-                @click="quickSwitcherOpen = true"
+                @click="commandPaletteOpen = true"
             >
                 <Search class="size-3.25 shrink-0" />
                 <span>{{ $t('Jump to…') }}</span>

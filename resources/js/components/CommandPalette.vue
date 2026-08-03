@@ -24,9 +24,9 @@ import {
     rankChannels,
     rankChannelsByActivity,
 } from '@/composables/quickSwitcher';
+import { useCommandPaletteSearch } from '@/composables/useCommandPaletteSearch';
 import { useIsMobile } from '@/composables/useIsMobile';
 import { useOpenDirectMessage } from '@/composables/useOpenDirectMessage';
-import { useQuickSwitcherSearch } from '@/composables/useQuickSwitcherSearch';
 import { rankPeople } from '@/lib/peopleDirectory';
 import type { MessageSearchResult } from '@/types';
 import type { Channel } from '@/types/channels';
@@ -54,7 +54,7 @@ const {
     isSearchingMessages,
     clear,
     handOffToSearch,
-} = useQuickSwitcherSearch({
+} = useCommandPaletteSearch({
     teamSlug: () => props.teamSlug,
     members: () => props.members,
     channels: () => props.channels,
@@ -127,9 +127,9 @@ function openReminders(): void {
             :show-close-button="!isMobile"
         >
             <DialogHeader class="sr-only">
-                <DialogTitle>{{ $t('Quick switcher') }}</DialogTitle>
+                <DialogTitle>{{ $t('Command palette') }}</DialogTitle>
                 <DialogDescription>{{
-                    $t('Jump to a channel or search messages')
+                    $t('Search channels, people and messages, or run a command')
                 }}</DialogDescription>
             </DialogHeader>
             <Command>
@@ -139,7 +139,7 @@ function openReminders(): void {
                     @cancel="open = false"
                 />
                 <CommandList
-                    :ariaLabel="$t('Quick switcher')"
+                    :ariaLabel="$t('Command palette')"
                     class="max-md:max-h-none max-md:flex-1 max-md:p-1.5"
                 >
                     <CommandGroup

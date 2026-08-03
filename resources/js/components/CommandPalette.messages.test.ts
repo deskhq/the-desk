@@ -12,19 +12,19 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
  * here, and a pure move may change none of them.
  */
 vi.mock('@inertiajs/vue3', async () => {
-    const { inertiaDouble } = await import('./QuickSwitcher.doubles');
+    const { inertiaDouble } = await import('./CommandPalette.doubles');
 
     return inertiaDouble();
 });
 
 vi.mock('@lucide/vue', async () => {
-    const { lucideDouble } = await import('./QuickSwitcher.stubs');
+    const { lucideDouble } = await import('./CommandPalette.stubs');
 
     return lucideDouble();
 });
 
 vi.mock('reka-ui', async () => {
-    const { rekaDouble } = await import('./QuickSwitcher.stubs');
+    const { rekaDouble } = await import('./CommandPalette.stubs');
 
     return rekaDouble();
 });
@@ -32,7 +32,8 @@ vi.mock('reka-ui', async () => {
 vi.mock(
     '@/actions/App/Http/Controllers/Channels/ChannelController',
     async () => {
-        const { channelActionDouble } = await import('./QuickSwitcher.doubles');
+        const { channelActionDouble } =
+            await import('./CommandPalette.doubles');
 
         return channelActionDouble();
     },
@@ -41,68 +42,69 @@ vi.mock(
 vi.mock(
     '@/actions/App/Http/Controllers/Channels/SearchController',
     async () => {
-        const { searchActionDouble } = await import('./QuickSwitcher.doubles');
+        const { searchActionDouble } = await import('./CommandPalette.doubles');
 
         return searchActionDouble();
     },
 );
 
 vi.mock('@/components/PresenceDot.vue', async () => {
-    const { presenceDotDouble } = await import('./QuickSwitcher.stubs');
+    const { presenceDotDouble } = await import('./CommandPalette.stubs');
 
     return presenceDotDouble();
 });
 
 vi.mock('@/components/SafeHtml.vue', async () => {
-    const { safeHtmlDouble } = await import('./QuickSwitcher.stubs');
+    const { safeHtmlDouble } = await import('./CommandPalette.stubs');
 
     return safeHtmlDouble();
 });
 
 vi.mock('@/components/ui/button', async () => {
-    const { buttonDouble } = await import('./QuickSwitcher.stubs');
+    const { buttonDouble } = await import('./CommandPalette.stubs');
 
     return buttonDouble();
 });
 
 vi.mock('@/components/ui/command', async () => {
-    const { commandDouble } = await import('./QuickSwitcher.stubs');
+    const { commandDouble } = await import('./CommandPalette.stubs');
 
     return commandDouble();
 });
 
 vi.mock('@/components/ui/dialog', async () => {
-    const { dialogDouble } = await import('./QuickSwitcher.stubs');
+    const { dialogDouble } = await import('./CommandPalette.stubs');
 
     return dialogDouble();
 });
 
 vi.mock('@/components/ui/sidebar', async () => {
-    const { sidebarDouble } = await import('./QuickSwitcher.doubles');
+    const { sidebarDouble } = await import('./CommandPalette.doubles');
 
     return sidebarDouble();
 });
 
 vi.mock('@/composables/useIsMobile', async () => {
-    const { isMobileDouble } = await import('./QuickSwitcher.doubles');
+    const { isMobileDouble } = await import('./CommandPalette.doubles');
 
     return isMobileDouble();
 });
 
 vi.mock('@/composables/useMessageSearch', async () => {
-    const { messageSearchDouble } = await import('./QuickSwitcher.doubles');
+    const { messageSearchDouble } = await import('./CommandPalette.doubles');
 
     return messageSearchDouble();
 });
 
 vi.mock('@/composables/useOpenDirectMessage', async () => {
-    const { openDirectMessageDouble } = await import('./QuickSwitcher.doubles');
+    const { openDirectMessageDouble } =
+        await import('./CommandPalette.doubles');
 
     return openDirectMessageDouble();
 });
 
 vi.mock('@/lib/pinUrl', async () => {
-    const { pinUrlDouble } = await import('./QuickSwitcher.doubles');
+    const { pinUrlDouble } = await import('./CommandPalette.doubles');
 
     return pinUrlDouble();
 });
@@ -122,11 +124,11 @@ import {
     type,
     unmountAll,
     viewer,
-} from './QuickSwitcher.doubles';
-import QuickSwitcher from './QuickSwitcher.vue';
+} from './CommandPalette.doubles';
+import CommandPalette from './CommandPalette.vue';
 
 function mount(props: Record<string, unknown> = {}) {
-    return mountSwitcher(QuickSwitcher, props);
+    return mountSwitcher(CommandPalette, props);
 }
 
 /** The group's own text, with the rows it holds left in place. */

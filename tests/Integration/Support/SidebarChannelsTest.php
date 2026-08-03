@@ -310,7 +310,7 @@ test('reopening a closed direct message un-hides it', function (): void {
 
     expect(sidebarSlugs(new SidebarChannels($owner, $team)->forSidebar()))->not->toContain($dm->slug);
 
-    // Opening the same DM again (people picker / quick switcher) resurfaces it.
+    // Opening the same DM again (people picker / command palette) resurfaces it.
     app(OpenDirectMessage::class)->handle($team, $owner, $other);
 
     expect(sidebarSlugs(new SidebarChannels($owner, $team)->forSidebar()))->toContain($dm->slug);

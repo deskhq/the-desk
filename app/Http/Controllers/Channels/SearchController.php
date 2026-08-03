@@ -20,7 +20,7 @@ use Illuminate\Support\Arr;
 class SearchController extends Controller
 {
     /**
-     * The number of message matches surfaced inline in the quick switcher, kept
+     * The number of message matches surfaced inline in the command palette, kept
      * small so the palette stays a preview; the panel shows the rest.
      */
     private const int SUGGEST_LIMIT = 5;
@@ -49,7 +49,7 @@ class SearchController extends Controller
     }
 
     /**
-     * A JSON preview of the top message matches for the quick switcher.
+     * A JSON preview of the top message matches for the command palette.
      *
      * Shares the ACL-filtered, faceted SearchMessages action with the panel, capped
      * at {@see self::SUGGEST_LIMIT} so the palette shows only a handful of hits;
