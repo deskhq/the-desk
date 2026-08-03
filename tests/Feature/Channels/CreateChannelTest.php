@@ -8,8 +8,7 @@ use App\Models\Channel;
 use App\Models\User;
 
 test('a team member can create a channel and is redirected to it', function (): void {
-    $owner = User::factory()->create();
-    $team = app(CreateTeam::class)->handle($owner, 'Acme');
+    ['owner' => $owner, 'team' => $team] = teamWithChannel();
 
     $this->actingAs($owner)
         ->post(route('channels.store', ['team' => $team->slug]), [
@@ -30,10 +29,8 @@ test('a team member can create a channel and is redirected to it', function (): 
 });
 
 test('a plain team member can create a channel', function (): void {
-    $owner = User::factory()->create();
-    $member = User::factory()->create();
-    $team = app(CreateTeam::class)->handle($owner, 'Acme');
-    $team->memberships()->create(['user_id' => $member->id, 'role' => TeamRole::Member]);
+    ['team' => $team, 'channel' => $general] = teamWithChannel();
+    $member = teamMemberInChannel($general);
 
     $this->actingAs($member)
         ->post(route('channels.store', ['team' => $team->slug]), [
@@ -46,8 +43,7 @@ test('a plain team member can create a channel', function (): void {
 });
 
 test('a channel name must be unique within the team', function (): void {
-    $owner = User::factory()->create();
-    $team = app(CreateTeam::class)->handle($owner, 'Acme');
+    ['owner' => $owner, 'team' => $team] = teamWithChannel();
     Channel::factory()->for($team)->create(['name' => 'Marketing', 'slug' => 'marketing']);
 
     $this->actingAs($owner)
@@ -61,8 +57,9 @@ test('a channel name must be unique within the team', function (): void {
 });
 
 test('the same channel name may exist in different teams', function (): void {
-    $owner = User::factory()->create();
-    $teamA = app(CreateTeam::class)->handle($owner, 'Acme');
+    ['owner' => $owner, 'team' => $teamA] = teamWithChannel('Acme');
+    // The second team is the same owner's, so the claim is about the team the
+    // channel lands in and not about who is asking.
     $teamB = app(CreateTeam::class)->handle($owner, 'Globex');
     Channel::factory()->for($teamA)->create(['name' => 'Marketing', 'slug' => 'marketing']);
 
@@ -77,8 +74,7 @@ test('the same channel name may exist in different teams', function (): void {
 });
 
 test('a channel named in a non-Latin script stays reachable', function (string $name): void {
-    $owner = User::factory()->create();
-    $team = app(CreateTeam::class)->handle($owner, 'Acme');
+    ['owner' => $owner, 'team' => $team] = teamWithChannel();
 
     $this->actingAs($owner)
         ->post(route('channels.store', ['team' => $team->slug]), [
@@ -103,8 +99,7 @@ test('a channel named in a non-Latin script stays reachable', function (string $
 ]);
 
 test('two channels named in a non-Latin script coexist in one team', function (): void {
-    $owner = User::factory()->create();
-    $team = app(CreateTeam::class)->handle($owner, 'Acme');
+    ['owner' => $owner, 'team' => $team] = teamWithChannel();
 
     foreach (['日本語', '中文'] as $name) {
         $this->actingAs($owner)
@@ -122,8 +117,7 @@ test('two channels named in a non-Latin script coexist in one team', function ()
 });
 
 test('a repeated non-Latin channel name is still reported as already existing', function (): void {
-    $owner = User::factory()->create();
-    $team = app(CreateTeam::class)->handle($owner, 'Acme');
+    ['owner' => $owner, 'team' => $team] = teamWithChannel();
 
     $this->actingAs($owner)
         ->post(route('channels.store', ['team' => $team->slug]), [
@@ -143,8 +137,7 @@ test('a repeated non-Latin channel name is still reported as already existing', 
 });
 
 test('creating a channel requires a valid visibility', function (): void {
-    $owner = User::factory()->create();
-    $team = app(CreateTeam::class)->handle($owner, 'Acme');
+    ['owner' => $owner, 'team' => $team] = teamWithChannel();
 
     $this->actingAs($owner)
         ->post(route('channels.store', ['team' => $team->slug]), [
@@ -155,8 +148,7 @@ test('creating a channel requires a valid visibility', function (): void {
 });
 
 test('creating a channel requires a name', function (): void {
-    $owner = User::factory()->create();
-    $team = app(CreateTeam::class)->handle($owner, 'Acme');
+    ['owner' => $owner, 'team' => $team] = teamWithChannel();
 
     $this->actingAs($owner)
         ->post(route('channels.store', ['team' => $team->slug]), [
@@ -167,9 +159,8 @@ test('creating a channel requires a name', function (): void {
 });
 
 test('a user who is not a team member cannot create a channel', function (): void {
-    $owner = User::factory()->create();
+    ['team' => $team] = teamWithChannel();
     $outsider = User::factory()->create();
-    $team = app(CreateTeam::class)->handle($owner, 'Acme');
 
     $this->actingAs($outsider)
         ->post(route('channels.store', ['team' => $team->slug]), [
@@ -182,10 +173,8 @@ test('a user who is not a team member cannot create a channel', function (): voi
 });
 
 test('a plain member is refused the visibility their workspace reserves for admins', function (string $reserved, string $stillOpen): void {
-    $owner = User::factory()->create();
-    $member = User::factory()->create();
-    $team = app(CreateTeam::class)->handle($owner, 'Acme');
-    $team->memberships()->create(['user_id' => $member->id, 'role' => TeamRole::Member]);
+    ['team' => $team, 'channel' => $general] = teamWithChannel();
+    $member = teamMemberInChannel($general);
     $team->update([$reserved.'_channel_creation_policy' => ChannelCreationPolicy::Admins]);
 
     $this->actingAs($member)
@@ -212,10 +201,8 @@ test('a plain member is refused the visibility their workspace reserves for admi
 ]);
 
 test('an admin still creates the visibility the workspace reserves for admins', function (): void {
-    $owner = User::factory()->create();
-    $admin = User::factory()->create();
-    $team = app(CreateTeam::class)->handle($owner, 'Acme');
-    $team->memberships()->create(['user_id' => $admin->id, 'role' => TeamRole::Admin]);
+    ['team' => $team, 'channel' => $general] = teamWithChannel();
+    $admin = teamMemberInChannel($general, role: TeamRole::Admin);
     $team->update(['public_channel_creation_policy' => ChannelCreationPolicy::Admins]);
 
     $this->actingAs($admin)

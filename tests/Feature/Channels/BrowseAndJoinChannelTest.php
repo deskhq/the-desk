@@ -1,7 +1,6 @@
 <?php
 
 use App\Actions\Channels\JoinChannel;
-use App\Actions\Teams\CreateTeam;
 use App\Enums\MessageType;
 use App\Events\MessageSent;
 use App\Models\Channel;
@@ -10,8 +9,7 @@ use Illuminate\Support\Facades\Event;
 use Inertia\Testing\AssertableInertia as Assert;
 
 test('browsing lists joinable public channels only', function (): void {
-    $user = User::factory()->create();
-    $team = app(CreateTeam::class)->handle($user, 'Acme');
+    ['owner' => $user, 'team' => $team] = teamWithChannel();
 
     $joinable = Channel::factory()->for($team)->create(['name' => 'Marketing', 'slug' => 'marketing']);
     Channel::factory()->for($team)->private()->create(['name' => 'Secret', 'slug' => 'secret']);
@@ -30,9 +28,8 @@ test('browsing lists joinable public channels only', function (): void {
 });
 
 test('browsing does not leak channels from other teams', function (): void {
-    $user = User::factory()->create();
-    $team = app(CreateTeam::class)->handle($user, 'Acme');
-    $otherTeam = app(CreateTeam::class)->handle(User::factory()->create(), 'Globex');
+    ['owner' => $user, 'team' => $team] = teamWithChannel();
+    ['team' => $otherTeam] = teamWithChannel('Globex');
     Channel::factory()->for($otherTeam)->create(['name' => 'Marketing', 'slug' => 'marketing']);
 
     $this->actingAs($user)
@@ -42,8 +39,7 @@ test('browsing does not leak channels from other teams', function (): void {
 });
 
 test('a team member can join a public channel', function (): void {
-    $user = User::factory()->create();
-    $team = app(CreateTeam::class)->handle($user, 'Acme');
+    ['owner' => $user, 'team' => $team] = teamWithChannel();
     $channel = Channel::factory()->for($team)->create(['name' => 'Marketing', 'slug' => 'marketing']);
 
     $this->actingAs($user)
@@ -54,8 +50,7 @@ test('a team member can join a public channel', function (): void {
 });
 
 test('joining a channel is idempotent', function (): void {
-    $user = User::factory()->create();
-    $team = app(CreateTeam::class)->handle($user, 'Acme');
+    ['owner' => $user, 'team' => $team] = teamWithChannel();
     $channel = Channel::factory()->for($team)->create(['slug' => 'marketing']);
     app(JoinChannel::class)->handle($channel, $user);
 
@@ -67,8 +62,7 @@ test('joining a channel is idempotent', function (): void {
 });
 
 test('joining a channel posts a member_joined system notice authored by the joiner', function (): void {
-    $user = User::factory()->create();
-    $team = app(CreateTeam::class)->handle($user, 'Acme');
+    ['owner' => $user, 'team' => $team] = teamWithChannel();
     $channel = Channel::factory()->for($team)->create(['slug' => 'marketing']);
 
     app(JoinChannel::class)->handle($channel, $user);
@@ -81,8 +75,7 @@ test('joining a channel posts a member_joined system notice authored by the join
 });
 
 test('re-joining a channel posts no second notice', function (): void {
-    $user = User::factory()->create();
-    $team = app(CreateTeam::class)->handle($user, 'Acme');
+    ['owner' => $user, 'team' => $team] = teamWithChannel();
     $channel = Channel::factory()->for($team)->create(['slug' => 'marketing']);
 
     app(JoinChannel::class)->handle($channel, $user);
@@ -94,8 +87,7 @@ test('re-joining a channel posts no second notice', function (): void {
 test('the join notice broadcasts MessageSent so it appears live', function (): void {
     Event::fake([MessageSent::class]);
 
-    $user = User::factory()->create();
-    $team = app(CreateTeam::class)->handle($user, 'Acme');
+    ['owner' => $user, 'team' => $team] = teamWithChannel();
     $channel = Channel::factory()->for($team)->create(['slug' => 'marketing']);
 
     app(JoinChannel::class)->handle($channel, $user);
@@ -105,8 +97,7 @@ test('the join notice broadcasts MessageSent so it appears live', function (): v
 });
 
 test('a private channel cannot be joined by browsing', function (): void {
-    $user = User::factory()->create();
-    $team = app(CreateTeam::class)->handle($user, 'Acme');
+    ['owner' => $user, 'team' => $team] = teamWithChannel();
     $channel = Channel::factory()->for($team)->private()->create(['slug' => 'secret']);
 
     $this->actingAs($user)
@@ -117,8 +108,7 @@ test('a private channel cannot be joined by browsing', function (): void {
 });
 
 test('an archived channel cannot be joined', function (): void {
-    $user = User::factory()->create();
-    $team = app(CreateTeam::class)->handle($user, 'Acme');
+    ['owner' => $user, 'team' => $team] = teamWithChannel();
     $channel = Channel::factory()->for($team)->archived()->create(['slug' => 'old']);
 
     $this->actingAs($user)
@@ -127,9 +117,8 @@ test('an archived channel cannot be joined', function (): void {
 });
 
 test('a non-team-member cannot join a channel', function (): void {
-    $owner = User::factory()->create();
+    ['team' => $team] = teamWithChannel();
     $outsider = User::factory()->create();
-    $team = app(CreateTeam::class)->handle($owner, 'Acme');
     $channel = Channel::factory()->for($team)->create(['slug' => 'marketing']);
 
     $this->actingAs($outsider)

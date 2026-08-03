@@ -1,7 +1,6 @@
 <?php
 
 use App\Actions\Sso\ProvisionSsoUser;
-use App\Actions\Teams\CreateTeam;
 use App\Enums\TeamRole;
 use App\Models\Channel;
 use App\Models\TeamInvitation;
@@ -10,9 +9,8 @@ use Illuminate\Support\Collection;
 use Inertia\Testing\AssertableInertia as Assert;
 
 test('accepting an invitation joins the newcomer to every default channel', function (): void {
-    $owner = User::factory()->create();
+    ['team' => $team] = teamWithChannel();
     $newcomer = User::factory()->create(['email' => 'newcomer@example.com']);
-    $team = app(CreateTeam::class)->handle($owner, 'Acme');
 
     $announcements = Channel::factory()->for($team)->create(['name' => 'Announcements', 'slug' => 'announcements', 'is_default' => true]);
     $watercooler = Channel::factory()->for($team)->create(['name' => 'Watercooler', 'slug' => 'watercooler', 'is_default' => false]);
@@ -31,10 +29,8 @@ test('accepting an invitation joins the newcomer to every default channel', func
 });
 
 test('a joining member always lands in #general even with no default marked', function (): void {
-    $owner = User::factory()->create();
+    ['team' => $team, 'channel' => $general] = teamWithChannel();
     $newcomer = User::factory()->create();
-    $team = app(CreateTeam::class)->handle($owner, 'Acme');
-    $general = $team->channels()->where('slug', Channel::GENERAL_SLUG)->sole();
 
     $team->memberships()->create(['user_id' => $newcomer->id, 'role' => TeamRole::Member]);
 
@@ -42,8 +38,7 @@ test('a joining member always lands in #general even with no default marked', fu
 });
 
 test('a directory-provisioned user joins the default channels too', function (): void {
-    $owner = User::factory()->create();
-    $team = app(CreateTeam::class)->handle($owner, 'Acme');
+    ['team' => $team, 'channel' => $general] = teamWithChannel();
     config(['sso.default_team_id' => $team->id]);
 
     $announcements = Channel::factory()->for($team)->create(['slug' => 'announcements', 'is_default' => true]);
@@ -51,13 +46,12 @@ test('a directory-provisioned user joins the default channels too', function ():
     $user = app(ProvisionSsoUser::class)->handle('oidc', 'sub-123', 'jordan@example.com', 'Jordan Rivers');
 
     expect($announcements->members()->whereKey($user->id)->exists())->toBeTrue()
-        ->and($team->channels()->where('slug', Channel::GENERAL_SLUG)->sole()->members()->whereKey($user->id)->exists())->toBeTrue();
+        ->and($general->members()->whereKey($user->id)->exists())->toBeTrue();
 });
 
 test('marking a channel default does not sweep the existing members in', function (): void {
-    $owner = User::factory()->create();
+    ['team' => $team] = teamWithChannel();
     $existing = User::factory()->create();
-    $team = app(CreateTeam::class)->handle($owner, 'Acme');
     $team->memberships()->create(['user_id' => $existing->id, 'role' => TeamRole::Member]);
 
     $announcements = Channel::factory()->for($team)->create(['slug' => 'announcements', 'is_default' => false]);
@@ -73,9 +67,8 @@ test('marking a channel default does not sweep the existing members in', functio
 });
 
 test('a private or archived channel is never joined as a default', function (): void {
-    $owner = User::factory()->create();
+    ['team' => $team] = teamWithChannel();
     $newcomer = User::factory()->create();
-    $team = app(CreateTeam::class)->handle($owner, 'Acme');
 
     $private = Channel::factory()->for($team)->private()->create(['slug' => 'secret', 'is_default' => true]);
     $archived = Channel::factory()->for($team)->create(['slug' => 'retired', 'is_default' => true, 'archived_at' => now()]);
@@ -87,9 +80,8 @@ test('a private or archived channel is never joined as a default', function (): 
 });
 
 test('joining a default channel posts no notice into it', function (): void {
-    $owner = User::factory()->create();
+    ['team' => $team] = teamWithChannel();
     $newcomer = User::factory()->create();
-    $team = app(CreateTeam::class)->handle($owner, 'Acme');
     $announcements = Channel::factory()->for($team)->create(['slug' => 'announcements', 'is_default' => true]);
 
     $team->memberships()->create(['user_id' => $newcomer->id, 'role' => TeamRole::Member]);
@@ -98,10 +90,8 @@ test('joining a default channel posts no notice into it', function (): void {
 });
 
 test('a team admin marks a public channel as a default and takes it back', function (): void {
-    $owner = User::factory()->create();
-    $admin = User::factory()->create();
-    $team = app(CreateTeam::class)->handle($owner, 'Acme');
-    $team->memberships()->create(['user_id' => $admin->id, 'role' => TeamRole::Admin]);
+    ['team' => $team, 'channel' => $general] = teamWithChannel();
+    $admin = teamMemberInChannel($general, role: TeamRole::Admin);
 
     // An Admin, not the Owner, and not a member of the channel: deciding where
     // newcomers land is workspace administration, not channel membership.
@@ -125,13 +115,11 @@ test('a team admin marks a public channel as a default and takes it back', funct
 });
 
 test('a plain member cannot mark a channel as a default', function (): void {
-    $owner = User::factory()->create();
-    $member = User::factory()->create();
-    $team = app(CreateTeam::class)->handle($owner, 'Acme');
-    $team->memberships()->create(['user_id' => $member->id, 'role' => TeamRole::Member]);
+    ['team' => $team, 'channel' => $general] = teamWithChannel();
+    $member = teamMemberInChannel($general);
 
     $channel = Channel::factory()->for($team)->create(['slug' => 'announcements']);
-    $channel->channelMembers()->create(['user_id' => $member->id]);
+    channelMembership($channel, $member);
 
     $this->actingAs($member)
         ->patch(route('channels.update', ['team' => $team->slug, 'channel' => $channel->slug]), [
@@ -143,13 +131,11 @@ test('a plain member cannot mark a channel as a default', function (): void {
 });
 
 test('a member may still edit the topic of a channel they cannot default', function (): void {
-    $owner = User::factory()->create();
-    $member = User::factory()->create();
-    $team = app(CreateTeam::class)->handle($owner, 'Acme');
-    $team->memberships()->create(['user_id' => $member->id, 'role' => TeamRole::Member]);
+    ['team' => $team, 'channel' => $general] = teamWithChannel();
+    $member = teamMemberInChannel($general);
 
     $channel = Channel::factory()->for($team)->create(['slug' => 'announcements']);
-    $channel->channelMembers()->create(['user_id' => $member->id]);
+    channelMembership($channel, $member);
 
     $this->actingAs($member)
         ->patch(route('channels.update', ['team' => $team->slug, 'channel' => $channel->slug]), [
@@ -161,10 +147,9 @@ test('a member may still edit the topic of a channel they cannot default', funct
 });
 
 test('a private channel cannot be made a default', function (): void {
-    $owner = User::factory()->create();
-    $team = app(CreateTeam::class)->handle($owner, 'Acme');
+    ['owner' => $owner, 'team' => $team] = teamWithChannel();
     $channel = Channel::factory()->for($team)->private()->create(['slug' => 'secret']);
-    $channel->channelMembers()->create(['user_id' => $owner->id]);
+    channelMembership($channel, $owner);
 
     $this->actingAs($owner)
         ->patch(route('channels.update', ['team' => $team->slug, 'channel' => $channel->slug]), [
@@ -176,10 +161,8 @@ test('a private channel cannot be made a default', function (): void {
 });
 
 test('the always-default #general has no flag to toggle', function (): void {
-    $owner = User::factory()->create();
+    ['owner' => $owner, 'team' => $team, 'channel' => $general] = teamWithChannel();
     $newcomer = User::factory()->create();
-    $team = app(CreateTeam::class)->handle($owner, 'Acme');
-    $general = $team->channels()->where('slug', Channel::GENERAL_SLUG)->sole();
 
     $this->actingAs($owner)
         ->patch(route('channels.update', ['team' => $team->slug, 'channel' => $general->slug]), [
@@ -197,13 +180,11 @@ test('the always-default #general has no flag to toggle', function (): void {
 });
 
 test('re-submitting the standing default flag is not treated as a change', function (): void {
-    $owner = User::factory()->create();
-    $member = User::factory()->create();
-    $team = app(CreateTeam::class)->handle($owner, 'Acme');
-    $team->memberships()->create(['user_id' => $member->id, 'role' => TeamRole::Member]);
+    ['team' => $team, 'channel' => $general] = teamWithChannel();
+    $member = teamMemberInChannel($general);
 
     $channel = Channel::factory()->for($team)->create(['slug' => 'announcements', 'is_default' => true]);
-    $channel->channelMembers()->create(['user_id' => $member->id]);
+    channelMembership($channel, $member);
 
     // The details form posts every field it renders, so a member editing the
     // topic re-sends the flag unchanged; that must not read as an admin action.
@@ -218,8 +199,7 @@ test('re-submitting the standing default flag is not treated as a change', funct
 });
 
 test('the workspace admin page lists the public channels an admin may default', function (): void {
-    $owner = User::factory()->create();
-    $team = app(CreateTeam::class)->handle($owner, 'Acme');
+    ['owner' => $owner, 'team' => $team] = teamWithChannel();
 
     Channel::factory()->for($team)->create(['name' => 'Announcements', 'slug' => 'announcements', 'is_default' => true]);
     Channel::factory()->for($team)->create(['name' => 'Watercooler', 'slug' => 'watercooler']);
@@ -241,10 +221,8 @@ test('the workspace admin page lists the public channels an admin may default', 
 });
 
 test('a plain member is sent no list of default channels to manage', function (): void {
-    $owner = User::factory()->create();
-    $member = User::factory()->create();
-    $team = app(CreateTeam::class)->handle($owner, 'Acme');
-    $team->memberships()->create(['user_id' => $member->id, 'role' => TeamRole::Member]);
+    ['team' => $team, 'channel' => $general] = teamWithChannel();
+    $member = teamMemberInChannel($general);
 
     $this->actingAs($member)
         ->get(route('teams.edit', ['team' => $team->slug]))
@@ -254,8 +232,7 @@ test('a plain member is sent no list of default channels to manage', function ()
 });
 
 test('an archived channel cannot be made a default', function (): void {
-    $owner = User::factory()->create();
-    $team = app(CreateTeam::class)->handle($owner, 'Acme');
+    ['owner' => $owner, 'team' => $team] = teamWithChannel();
     $channel = Channel::factory()->for($team)->create(['slug' => 'retired', 'archived_at' => now()]);
 
     $this->actingAs($owner)
@@ -268,10 +245,8 @@ test('an archived channel cannot be made a default', function (): void {
 });
 
 test('flipping the default flag alongside a detail edit still needs channel membership', function (): void {
-    $owner = User::factory()->create();
-    $admin = User::factory()->create();
-    $team = app(CreateTeam::class)->handle($owner, 'Acme');
-    $team->memberships()->create(['user_id' => $admin->id, 'role' => TeamRole::Admin]);
+    ['team' => $team, 'channel' => $general] = teamWithChannel();
+    $admin = teamMemberInChannel($general, role: TeamRole::Admin);
 
     $channel = Channel::factory()->for($team)->create(['slug' => 'announcements']);
 
