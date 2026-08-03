@@ -51,6 +51,7 @@ function channelPageRender(Channel $channel, User $viewer, Team $team): array
         'channel' => $page->channel(),
         'capabilities' => $page->capabilities(),
         'isMember' => $page->isMember(),
+        'lastReadMessageId' => $page->lastReadMessageId(),
         'memberCount' => $page->memberCount(),
         'pins' => $page->pins(),
         'roster' => $page->roster(),
