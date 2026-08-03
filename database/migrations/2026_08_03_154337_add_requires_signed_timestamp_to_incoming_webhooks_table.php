@@ -23,6 +23,12 @@ return new class extends Migration
         // Adding the column stamped every existing row with the new default, so
         // walk them back: a webhook that predates the scheme keeps working under
         // the old one until its operator revokes it and creates a replacement.
+        //
+        // Only rows that predate the column may be walked back, and on Postgres
+        // that is what happens: the migration runs inside a transaction, so the
+        // ALTER above holds its exclusive lock until this UPDATE commits, and a
+        // webhook created in the meantime blocks and lands with the new default
+        // rather than being swept into the exemption.
         DB::table('incoming_webhooks')->update(['requires_signed_timestamp' => false]);
     }
 

@@ -151,9 +151,12 @@ Two rules follow from it, and a sender has to satisfy both:
   and keep the sending host's clock in step (NTP is enough). Outside the window
   the request is **401**.
 - **Each signature is accepted once.** Retrying a failed delivery means signing
-  it again with a fresh timestamp; re-sending the identical bytes is a replay and
-  is refused. A retry that reuses the signature gets **401**, never a duplicate
-  message.
+  it again; re-sending the identical bytes is a replay and is refused. Since the
+  timestamp is in whole seconds, an identical body re-signed within the same
+  second produces the same signature, so wait for the next second before
+  retrying. A retry that reuses the signature gets **401**, never a duplicate
+  message: if the first attempt did reach The Desk, that 401 is the duplicate
+  being refused rather than an authentication problem.
 
 ### Migrating an existing webhook
 
