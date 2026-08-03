@@ -1,30 +1,14 @@
 <?php
 
-use App\Actions\Teams\CreateTeam;
 use App\Enums\TeamRole;
 use App\Models\Channel;
 use App\Models\Message;
 use App\Models\ScheduledMessage;
-use App\Models\Team;
 use App\Models\User;
 use Inertia\Testing\AssertableInertia as Assert;
 
-/**
- * Create a team with its owner already a member of #general.
- *
- * @return array{0: User, 1: Team, 2: Channel}
- */
-function scheduledListTeamWithGeneral(): array
-{
-    $owner = User::factory()->create();
-    $team = app(CreateTeam::class)->handle($owner, 'Acme');
-    $general = Channel::where('team_id', $team->id)->where('slug', 'general')->firstOrFail();
-
-    return [$owner, $team, $general];
-}
-
 test('the channel page lists the viewer own pending scheduled messages, soonest first', function (): void {
-    [$owner, $team, $general] = scheduledListTeamWithGeneral();
+    ['owner' => $owner, 'team' => $team, 'channel' => $general] = teamWithChannel();
 
     $later = ScheduledMessage::factory()->for($general)->for($owner)->create([
         'body' => 'the later one',
@@ -46,7 +30,7 @@ test('the channel page lists the viewer own pending scheduled messages, soonest 
 });
 
 test('each row carries the client uuid the composer minted, so the client can point at the row it just created', function (): void {
-    [$owner, $team, $general] = scheduledListTeamWithGeneral();
+    ['owner' => $owner, 'team' => $team, 'channel' => $general] = teamWithChannel();
 
     $scheduled = ScheduledMessage::factory()->for($general)->for($owner)->create([
         'client_uuid' => '019fa561-9fc6-73d7-9166-05358afb47c9',
@@ -61,7 +45,7 @@ test('each row carries the client uuid the composer minted, so the client can po
 });
 
 test('the list excludes other members scheduled messages', function (): void {
-    [$owner, $team, $general] = scheduledListTeamWithGeneral();
+    ['owner' => $owner, 'team' => $team, 'channel' => $general] = teamWithChannel();
 
     $other = User::factory()->create();
     $team->memberships()->create(['user_id' => $other->id, 'role' => TeamRole::Member]);
@@ -78,7 +62,7 @@ test('the list excludes other members scheduled messages', function (): void {
 });
 
 test('the list excludes sent and cancelled scheduled messages', function (): void {
-    [$owner, $team, $general] = scheduledListTeamWithGeneral();
+    ['owner' => $owner, 'team' => $team, 'channel' => $general] = teamWithChannel();
 
     ScheduledMessage::factory()->for($general)->for($owner)->create(['body' => 'still pending']);
     ScheduledMessage::factory()->for($general)->for($owner)->sent()->create(['body' => 'already sent']);
@@ -93,7 +77,7 @@ test('the list excludes sent and cancelled scheduled messages', function (): voi
 });
 
 test('the list is scoped to the current channel', function (): void {
-    [$owner, $team, $general] = scheduledListTeamWithGeneral();
+    ['owner' => $owner, 'team' => $team, 'channel' => $general] = teamWithChannel();
     $other = Channel::factory()->for($team)->create();
     $other->channelMembers()->create(['user_id' => $owner->id]);
 
@@ -109,7 +93,7 @@ test('the list is scoped to the current channel', function (): void {
 });
 
 test('a scheduled message carries its inline reply quote', function (): void {
-    [$owner, $team, $general] = scheduledListTeamWithGeneral();
+    ['owner' => $owner, 'team' => $team, 'channel' => $general] = teamWithChannel();
     $parent = Message::factory()->for($general)->for($owner)->create(['body' => 'the original']);
     ScheduledMessage::factory()->for($general)->for($owner)->replyTo($parent)->create(['body' => 'scheduled answer']);
 

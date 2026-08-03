@@ -1,31 +1,14 @@
 <?php
 
-use App\Actions\Teams\CreateTeam;
 use App\Events\MessageSent;
 use App\Models\Channel;
 use App\Models\Message;
-use App\Models\Team;
-use App\Models\User;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Str;
 use Inertia\Testing\AssertableInertia as Assert;
 
-/**
- * Create a team with its owner already a member of #general.
- *
- * @return array{0: User, 1: Team, 2: Channel}
- */
-function replyTeamWithGeneral(): array
-{
-    $owner = User::factory()->create();
-    $team = app(CreateTeam::class)->handle($owner, 'Acme');
-    $general = Channel::where('team_id', $team->id)->where('slug', 'general')->firstOrFail();
-
-    return [$owner, $team, $general];
-}
-
 test('a message can reply to another message in the same channel', function (): void {
-    [$owner, $team, $general] = replyTeamWithGeneral();
+    ['owner' => $owner, 'team' => $team, 'channel' => $general] = teamWithChannel();
     $parent = Message::factory()->for($general)->for($owner)->create(['body' => 'parent']);
     $clientUuid = (string) Str::uuid7();
 
@@ -45,7 +28,7 @@ test('a message can reply to another message in the same channel', function (): 
 });
 
 test('a message can reply to a poll inline', function (): void {
-    [$owner, $team, $general] = replyTeamWithGeneral();
+    ['owner' => $owner, 'team' => $team, 'channel' => $general] = teamWithChannel();
     $poll = Message::factory()->poll()->for($general)->for($owner)->create();
     $clientUuid = (string) Str::uuid7();
 
@@ -65,7 +48,7 @@ test('a message can reply to a poll inline', function (): void {
 });
 
 test('a message without a reply target persists a null reply reference', function (): void {
-    [$owner, $team, $general] = replyTeamWithGeneral();
+    ['owner' => $owner, 'team' => $team, 'channel' => $general] = teamWithChannel();
     $clientUuid = (string) Str::uuid7();
 
     $this->actingAs($owner)
@@ -81,7 +64,7 @@ test('a message without a reply target persists a null reply reference', functio
 });
 
 test('the reply target must belong to the same channel', function (): void {
-    [$owner, $team, $general] = replyTeamWithGeneral();
+    ['owner' => $owner, 'team' => $team, 'channel' => $general] = teamWithChannel();
     $other = Channel::factory()->for($team)->create();
     $other->channelMembers()->create(['user_id' => $owner->id]);
     $foreign = Message::factory()->for($other)->for($owner)->create();
@@ -98,7 +81,7 @@ test('the reply target must belong to the same channel', function (): void {
 });
 
 test('a reply cannot target a deleted message', function (): void {
-    [$owner, $team, $general] = replyTeamWithGeneral();
+    ['owner' => $owner, 'team' => $team, 'channel' => $general] = teamWithChannel();
     $parent = Message::factory()->for($general)->for($owner)->create();
     $parent->delete();
 
@@ -112,7 +95,7 @@ test('a reply cannot target a deleted message', function (): void {
 });
 
 test('a non-uuid reply target is rejected', function (): void {
-    [$owner, $team, $general] = replyTeamWithGeneral();
+    ['owner' => $owner, 'team' => $team, 'channel' => $general] = teamWithChannel();
 
     $this->actingAs($owner)
         ->post(route('channels.messages.store', ['team' => $team->slug, 'channel' => $general->slug]), [
@@ -124,7 +107,7 @@ test('a non-uuid reply target is rejected', function (): void {
 });
 
 test('the channel page renders a reply as a compact quote of its parent', function (): void {
-    [$owner, $team, $general] = replyTeamWithGeneral();
+    ['owner' => $owner, 'team' => $team, 'channel' => $general] = teamWithChannel();
     $parent = Message::factory()->for($general)->for($owner)->create(['body' => 'the original']);
     Message::factory()->for($general)->for($owner)->replyTo($parent)->create(['body' => 'the answer']);
 
@@ -142,7 +125,7 @@ test('the channel page renders a reply as a compact quote of its parent', functi
 });
 
 test('a reply to a deleted parent renders a deleted quote stub with a blanked body', function (): void {
-    [$owner, $team, $general] = replyTeamWithGeneral();
+    ['owner' => $owner, 'team' => $team, 'channel' => $general] = teamWithChannel();
     $parent = Message::factory()->for($general)->for($owner)->create(['body' => 'secret original']);
     Message::factory()->for($general)->for($owner)->replyTo($parent)->create(['body' => 'still here']);
     $parent->delete();
@@ -158,7 +141,7 @@ test('a reply to a deleted parent renders a deleted quote stub with a blanked bo
 });
 
 test('a deleted reply carries no quote of its own', function (): void {
-    [$owner, $team, $general] = replyTeamWithGeneral();
+    ['owner' => $owner, 'team' => $team, 'channel' => $general] = teamWithChannel();
     $parent = Message::factory()->for($general)->for($owner)->create(['body' => 'original']);
     $reply = Message::factory()->for($general)->for($owner)->replyTo($parent)->create(['body' => 'answer']);
     $reply->delete();
@@ -174,7 +157,7 @@ test('a deleted reply carries no quote of its own', function (): void {
 test('posting a reply broadcasts the parent quote in the MessageSent payload', function (): void {
     Event::fake([MessageSent::class]);
 
-    [$owner, $team, $general] = replyTeamWithGeneral();
+    ['owner' => $owner, 'team' => $team, 'channel' => $general] = teamWithChannel();
     $parent = Message::factory()->for($general)->for($owner)->create(['body' => 'parent body']);
     $clientUuid = (string) Str::uuid7();
 
@@ -196,7 +179,7 @@ test('posting a reply broadcasts the parent quote in the MessageSent payload', f
 });
 
 test('the reply reference survives an idempotent resend', function (): void {
-    [$owner, $team, $general] = replyTeamWithGeneral();
+    ['owner' => $owner, 'team' => $team, 'channel' => $general] = teamWithChannel();
     $parent = Message::factory()->for($general)->for($owner)->create();
     $clientUuid = (string) Str::uuid7();
 

@@ -1,29 +1,12 @@
 <?php
 
-use App\Actions\Teams\CreateTeam;
 use App\Enums\TeamRole;
-use App\Models\Channel;
 use App\Models\Message;
-use App\Models\Team;
 use App\Models\User;
 use Inertia\Testing\AssertableInertia as Assert;
 
-/**
- * Create a team with its owner already a member of #general.
- *
- * @return array{0: User, 1: Team, 2: Channel}
- */
-function editTeamWithGeneral(): array
-{
-    $owner = User::factory()->create();
-    $team = app(CreateTeam::class)->handle($owner, 'Acme');
-    $general = Channel::where('team_id', $team->id)->where('slug', 'general')->firstOrFail();
-
-    return [$owner, $team, $general];
-}
-
 test('the author can edit their own message and edited_at is set', function (): void {
-    [$owner, $team, $general] = editTeamWithGeneral();
+    ['owner' => $owner, 'team' => $team, 'channel' => $general] = teamWithChannel();
     $message = Message::factory()->for($general)->for($owner)->create(['body' => 'original']);
 
     $this->actingAs($owner)
@@ -41,7 +24,7 @@ test('the author can edit their own message and edited_at is set', function (): 
 });
 
 test('the message body is trimmed and required on edit', function (): void {
-    [$owner, $team, $general] = editTeamWithGeneral();
+    ['owner' => $owner, 'team' => $team, 'channel' => $general] = teamWithChannel();
     $message = Message::factory()->for($general)->for($owner)->create(['body' => 'original']);
 
     $this->actingAs($owner)
@@ -56,7 +39,7 @@ test('the message body is trimmed and required on edit', function (): void {
 });
 
 test('a user cannot edit another members message', function (): void {
-    [$owner, $team, $general] = editTeamWithGeneral();
+    ['owner' => $owner, 'team' => $team, 'channel' => $general] = teamWithChannel();
     $other = User::factory()->create();
     $team->memberships()->create(['user_id' => $other->id, 'role' => TeamRole::Member]);
 
@@ -74,7 +57,7 @@ test('a user cannot edit another members message', function (): void {
 });
 
 test('the author can delete their own message', function (): void {
-    [$owner, $team, $general] = editTeamWithGeneral();
+    ['owner' => $owner, 'team' => $team, 'channel' => $general] = teamWithChannel();
     $message = Message::factory()->for($general)->for($owner)->create();
 
     $this->actingAs($owner)
@@ -89,7 +72,7 @@ test('the author can delete their own message', function (): void {
 });
 
 test('a team admin can delete another members message', function (): void {
-    [$owner, $team, $general] = editTeamWithGeneral();
+    ['owner' => $owner, 'team' => $team, 'channel' => $general] = teamWithChannel();
     $admin = User::factory()->create();
     $team->memberships()->create(['user_id' => $admin->id, 'role' => TeamRole::Admin]);
 
@@ -107,7 +90,7 @@ test('a team admin can delete another members message', function (): void {
 });
 
 test('a plain member cannot delete another members message', function (): void {
-    [$owner, $team, $general] = editTeamWithGeneral();
+    ['owner' => $owner, 'team' => $team, 'channel' => $general] = teamWithChannel();
     $member = User::factory()->create();
     $team->memberships()->create(['user_id' => $member->id, 'role' => TeamRole::Member]);
 
@@ -125,7 +108,7 @@ test('a plain member cannot delete another members message', function (): void {
 });
 
 test('the channel page includes deleted messages as tombstones with a blanked body', function (): void {
-    [$owner, $team, $general] = editTeamWithGeneral();
+    ['owner' => $owner, 'team' => $team, 'channel' => $general] = teamWithChannel();
     Message::factory()->for($general)->for($owner)->create(['body' => 'kept']);
     $deleted = Message::factory()->for($general)->for($owner)->create(['body' => 'secret']);
     $deleted->delete();

@@ -1,6 +1,5 @@
 <?php
 
-use App\Actions\Teams\CreateTeam;
 use App\Data\MessageData;
 use App\Enums\MessageType;
 use App\Enums\TeamRole;
@@ -13,20 +12,6 @@ use App\Models\User;
 use App\Support\AccountDeleter;
 use Illuminate\Broadcasting\PrivateChannel;
 use Illuminate\Support\Facades\Event;
-
-/**
- * Create a team with its owner already a member of #general.
- *
- * @return array{0: User, 1: Team, 2: Channel}
- */
-function pinTeamWithGeneral(): array
-{
-    $owner = User::factory()->create();
-    $team = app(CreateTeam::class)->handle($owner, 'Acme');
-    $general = Channel::where('team_id', $team->id)->where('slug', 'general')->firstOrFail();
-
-    return [$owner, $team, $general];
-}
 
 /**
  * POST the pin endpoint for the given actor.
@@ -53,7 +38,7 @@ function unpinMessage($actor, $team, $channel, $message)
 }
 
 test('pinning a message adds a pin row attributed to the pinner', function (): void {
-    [$owner, $team, $general] = pinTeamWithGeneral();
+    ['owner' => $owner, 'team' => $team, 'channel' => $general] = teamWithChannel();
     $message = Message::factory()->for($general)->for($owner)->create();
 
     pinMessage($owner, $team, $general, $message)->assertRedirect();
@@ -66,7 +51,7 @@ test('pinning a message adds a pin row attributed to the pinner', function (): v
 });
 
 test('pinning again is an idempotent no-op that leaves one pin row', function (): void {
-    [$owner, $team, $general] = pinTeamWithGeneral();
+    ['owner' => $owner, 'team' => $team, 'channel' => $general] = teamWithChannel();
     $message = Message::factory()->for($general)->for($owner)->create();
 
     pinMessage($owner, $team, $general, $message)->assertRedirect();
@@ -76,7 +61,7 @@ test('pinning again is an idempotent no-op that leaves one pin row', function ()
 });
 
 test('unpinning removes the pin, and unpinning again is a no-op', function (): void {
-    [$owner, $team, $general] = pinTeamWithGeneral();
+    ['owner' => $owner, 'team' => $team, 'channel' => $general] = teamWithChannel();
     $message = Message::factory()->for($general)->for($owner)->create();
     MessagePin::factory()->for($message)->for($general)->for($owner, 'pinnedBy')->create();
 
@@ -89,7 +74,7 @@ test('unpinning removes the pin, and unpinning again is a no-op', function (): v
 });
 
 test('any member can unpin a message another member pinned', function (): void {
-    [$owner, $team, $general] = pinTeamWithGeneral();
+    ['owner' => $owner, 'team' => $team, 'channel' => $general] = teamWithChannel();
     $alice = User::factory()->create();
     $team->memberships()->create(['user_id' => $alice->id, 'role' => TeamRole::Member]);
 
@@ -103,7 +88,7 @@ test('any member can unpin a message another member pinned', function (): void {
 });
 
 test('a non-member of a private channel cannot pin', function (): void {
-    [$owner, $team] = pinTeamWithGeneral();
+    ['owner' => $owner, 'team' => $team] = teamWithChannel();
 
     $stranger = User::factory()->create();
     $team->memberships()->create(['user_id' => $stranger->id, 'role' => TeamRole::Member]);
@@ -118,7 +103,7 @@ test('a non-member of a private channel cannot pin', function (): void {
 });
 
 test('messages cannot be pinned or unpinned in an archived channel', function (): void {
-    [$owner, $team, $general] = pinTeamWithGeneral();
+    ['owner' => $owner, 'team' => $team, 'channel' => $general] = teamWithChannel();
     $channel = Channel::factory()->for($team)->create(['archived_at' => now()]);
     $channel->channelMembers()->create(['user_id' => $owner->id]);
     $message = Message::factory()->for($channel)->for($owner)->create();
@@ -132,7 +117,7 @@ test('messages cannot be pinned or unpinned in an archived channel', function ()
 });
 
 test('a system notice cannot be pinned', function (): void {
-    [$owner, $team, $general] = pinTeamWithGeneral();
+    ['owner' => $owner, 'team' => $team, 'channel' => $general] = teamWithChannel();
     $message = Message::factory()->for($general)->for($owner)->create(['type' => MessageType::MemberJoined]);
 
     pinMessage($owner, $team, $general, $message)->assertForbidden();
@@ -141,7 +126,7 @@ test('a system notice cannot be pinned', function (): void {
 });
 
 test('thread replies and direct messages can be pinned', function (): void {
-    [$owner, $team, $general] = pinTeamWithGeneral();
+    ['owner' => $owner, 'team' => $team, 'channel' => $general] = teamWithChannel();
     $root = Message::factory()->for($general)->for($owner)->create();
     $reply = Message::factory()->for($general)->for($owner)->create(['thread_root_id' => $root->id]);
 
@@ -160,7 +145,7 @@ test('thread replies and direct messages can be pinned', function (): void {
 });
 
 test('pinning is rejected once the channel is at its pin cap', function (): void {
-    [$owner, $team, $general] = pinTeamWithGeneral();
+    ['owner' => $owner, 'team' => $team, 'channel' => $general] = teamWithChannel();
 
     // Fill the channel to the cap.
     $filler = Message::factory()->count(PinMessageRequest::MAX_PINS)->for($general)->for($owner)->create();
@@ -178,7 +163,7 @@ test('pinning is rejected once the channel is at its pin cap', function (): void
 });
 
 test('re-pinning an already-pinned message at the cap is still an idempotent no-op', function (): void {
-    [$owner, $team, $general] = pinTeamWithGeneral();
+    ['owner' => $owner, 'team' => $team, 'channel' => $general] = teamWithChannel();
 
     $messages = Message::factory()->count(PinMessageRequest::MAX_PINS)->for($general)->for($owner)->create();
     foreach ($messages as $message) {
@@ -192,7 +177,7 @@ test('re-pinning an already-pinned message at the cap is still an idempotent no-
 });
 
 test('MessageData carries the pin, and a tombstone carries none', function (): void {
-    [$owner, $team, $general] = pinTeamWithGeneral();
+    ['owner' => $owner, 'team' => $team, 'channel' => $general] = teamWithChannel();
     $message = Message::factory()->for($general)->for($owner)->create();
     MessagePin::factory()->for($message)->for($general)->for($owner, 'pinnedBy')->create();
 
@@ -213,7 +198,7 @@ test('MessageData carries the pin, and a tombstone carries none', function (): v
 test('pinning broadcasts MessagePinned on the channel with the pinner and count', function (): void {
     Event::fake([MessagePinned::class]);
 
-    [$owner, $team, $general] = pinTeamWithGeneral();
+    ['owner' => $owner, 'team' => $team, 'channel' => $general] = teamWithChannel();
     $message = Message::factory()->for($general)->for($owner)->create();
 
     pinMessage($owner, $team, $general, $message);
@@ -240,7 +225,7 @@ test('pinning broadcasts MessagePinned on the channel with the pinner and count'
 test('unpinning broadcasts MessagePinned with pinned false and no pinner', function (): void {
     Event::fake([MessagePinned::class]);
 
-    [$owner, $team, $general] = pinTeamWithGeneral();
+    ['owner' => $owner, 'team' => $team, 'channel' => $general] = teamWithChannel();
     $message = Message::factory()->for($general)->for($owner)->create();
     MessagePin::factory()->for($message)->for($general)->for($owner, 'pinnedBy')->create();
 
@@ -264,7 +249,7 @@ test('unpinning broadcasts MessagePinned with pinned false and no pinner', funct
 test('soft-deleting a pinned message removes the pin and broadcasts an unpin', function (): void {
     Event::fake([MessagePinned::class]);
 
-    [$owner, $team, $general] = pinTeamWithGeneral();
+    ['owner' => $owner, 'team' => $team, 'channel' => $general] = teamWithChannel();
     $message = Message::factory()->for($general)->for($owner)->create();
     MessagePin::factory()->for($message)->for($general)->for($owner, 'pinnedBy')->create();
 
@@ -280,7 +265,7 @@ test('soft-deleting a pinned message removes the pin and broadcasts an unpin', f
 });
 
 test('the channel page carries the pin count and pins most-recently-pinned first', function (): void {
-    [$owner, $team, $general] = pinTeamWithGeneral();
+    ['owner' => $owner, 'team' => $team, 'channel' => $general] = teamWithChannel();
     $older = Message::factory()->for($general)->for($owner)->create();
     $newer = Message::factory()->for($general)->for($owner)->create();
 
@@ -298,7 +283,7 @@ test('the channel page carries the pin count and pins most-recently-pinned first
 });
 
 test('deleting a user reassigns the pins they created to the tombstone', function (): void {
-    [$owner, $team, $general] = pinTeamWithGeneral();
+    ['owner' => $owner, 'team' => $team, 'channel' => $general] = teamWithChannel();
     $alice = User::factory()->create();
     $team->memberships()->create(['user_id' => $alice->id, 'role' => TeamRole::Member]);
 
@@ -314,7 +299,7 @@ test('deleting a user reassigns the pins they created to the tombstone', functio
 });
 
 test('force-deleting a message cascades its pin away', function (): void {
-    [$owner, $team, $general] = pinTeamWithGeneral();
+    ['owner' => $owner, 'team' => $team, 'channel' => $general] = teamWithChannel();
     $message = Message::factory()->for($general)->for($owner)->create();
     MessagePin::factory()->for($message)->for($general)->for($owner, 'pinnedBy')->create();
 

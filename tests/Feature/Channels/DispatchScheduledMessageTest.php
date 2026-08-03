@@ -1,7 +1,6 @@
 <?php
 
 use App\Actions\Channels\DispatchDueScheduledMessages;
-use App\Actions\Teams\CreateTeam;
 use App\Data\MessageData;
 use App\Enums\ScheduledMessageStatus;
 use App\Enums\TeamRole;
@@ -9,23 +8,8 @@ use App\Events\MessageSent;
 use App\Models\Channel;
 use App\Models\Message;
 use App\Models\ScheduledMessage;
-use App\Models\Team;
 use App\Models\User;
 use Illuminate\Support\Facades\Event;
-
-/**
- * Create a team with its owner already a member of #general.
- *
- * @return array{0: User, 1: Team, 2: Channel}
- */
-function dispatchTeamWithGeneral(): array
-{
-    $owner = User::factory()->create();
-    $team = app(CreateTeam::class)->handle($owner, 'Acme');
-    $general = Channel::where('team_id', $team->id)->where('slug', 'general')->firstOrFail();
-
-    return [$owner, $team, $general];
-}
 
 /** Run the per-minute dispatch scan. */
 function dispatchDue(): void
@@ -36,7 +20,7 @@ function dispatchDue(): void
 test('a due scheduled message is delivered through the normal send path and broadcasts', function (): void {
     Event::fake([MessageSent::class]);
 
-    [$owner, $team, $general] = dispatchTeamWithGeneral();
+    ['owner' => $owner, 'team' => $team, 'channel' => $general] = teamWithChannel();
     $scheduled = ScheduledMessage::factory()->for($general)->for($owner)->create([
         'body' => 'from the past',
         'send_at' => now()->subMinute(),
@@ -59,7 +43,7 @@ test('a due scheduled message is delivered through the normal send path and broa
 test('a scheduled message not yet due is left pending', function (): void {
     Event::fake([MessageSent::class]);
 
-    [$owner, $team, $general] = dispatchTeamWithGeneral();
+    ['owner' => $owner, 'team' => $team, 'channel' => $general] = teamWithChannel();
     $scheduled = ScheduledMessage::factory()->for($general)->for($owner)->create([
         'send_at' => now()->addHour(),
     ]);
@@ -74,7 +58,7 @@ test('a scheduled message not yet due is left pending', function (): void {
 test('a cancelled scheduled message is never delivered', function (): void {
     Event::fake([MessageSent::class]);
 
-    [$owner, $team, $general] = dispatchTeamWithGeneral();
+    ['owner' => $owner, 'team' => $team, 'channel' => $general] = teamWithChannel();
     ScheduledMessage::factory()->for($general)->for($owner)->cancelled()->create([
         'send_at' => now()->subMinute(),
     ]);
@@ -88,7 +72,7 @@ test('a cancelled scheduled message is never delivered', function (): void {
 test('a due message is delivered at most once across overlapping runs', function (): void {
     Event::fake([MessageSent::class]);
 
-    [$owner, $team, $general] = dispatchTeamWithGeneral();
+    ['owner' => $owner, 'team' => $team, 'channel' => $general] = teamWithChannel();
     ScheduledMessage::factory()->for($general)->for($owner)->create([
         'send_at' => now()->subMinute(),
     ]);
@@ -101,7 +85,7 @@ test('a due message is delivered at most once across overlapping runs', function
 });
 
 test('a due message preserves the inline reply quote when its target is still live', function (): void {
-    [$owner, $team, $general] = dispatchTeamWithGeneral();
+    ['owner' => $owner, 'team' => $team, 'channel' => $general] = teamWithChannel();
     $parent = Message::factory()->for($general)->for($owner)->create();
     $scheduled = ScheduledMessage::factory()->for($general)->for($owner)->replyTo($parent)->create([
         'send_at' => now()->subMinute(),
@@ -116,7 +100,7 @@ test('a due message preserves the inline reply quote when its target is still li
 });
 
 test('a due message drops a since-deleted reply target but still sends', function (): void {
-    [$owner, $team, $general] = dispatchTeamWithGeneral();
+    ['owner' => $owner, 'team' => $team, 'channel' => $general] = teamWithChannel();
     $parent = Message::factory()->for($general)->for($owner)->create();
     $scheduled = ScheduledMessage::factory()->for($general)->for($owner)->replyTo($parent)->create([
         'body' => 'still worth sending',
@@ -136,7 +120,7 @@ test('a due message drops a since-deleted reply target but still sends', functio
 test('a due message for an archived channel fails instead of delivering', function (): void {
     Event::fake([MessageSent::class]);
 
-    [$owner, $team] = dispatchTeamWithGeneral();
+    ['owner' => $owner, 'team' => $team] = teamWithChannel();
     $channel = Channel::factory()->for($team)->create();
     $channel->channelMembers()->create(['user_id' => $owner->id]);
     $scheduled = ScheduledMessage::factory()->for($channel)->for($owner)->create([
@@ -156,7 +140,7 @@ test('a due message for an archived channel fails instead of delivering', functi
 test('a due message fails when its author is no longer a channel member', function (): void {
     Event::fake([MessageSent::class]);
 
-    [$owner, $team, $general] = dispatchTeamWithGeneral();
+    ['owner' => $owner, 'team' => $team, 'channel' => $general] = teamWithChannel();
     $author = User::factory()->create();
     $team->memberships()->create(['user_id' => $author->id, 'role' => TeamRole::Member]);
     $general->channelMembers()->firstOrCreate(['user_id' => $author->id]);
@@ -173,7 +157,7 @@ test('a due message fails when its author is no longer a channel member', functi
 });
 
 test('delivering a scheduled message leaves the author current draft untouched', function (): void {
-    [$owner, $team, $general] = dispatchTeamWithGeneral();
+    ['owner' => $owner, 'team' => $team, 'channel' => $general] = teamWithChannel();
     $owner->channels()->updateExistingPivot($general->id, ['draft' => 'a fresh draft']);
     ScheduledMessage::factory()->for($general)->for($owner)->create([
         'send_at' => now()->subMinute(),
@@ -186,7 +170,7 @@ test('delivering a scheduled message leaves the author current draft untouched',
 });
 
 test('the send time is honored as a UTC instant regardless of when the scan runs', function (): void {
-    [$owner, $team, $general] = dispatchTeamWithGeneral();
+    ['owner' => $owner, 'team' => $team, 'channel' => $general] = teamWithChannel();
     $sendAt = now()->addMinutes(30);
     ScheduledMessage::factory()->for($general)->for($owner)->create(['send_at' => $sendAt]);
 
