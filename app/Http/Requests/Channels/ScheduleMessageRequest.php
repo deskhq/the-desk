@@ -3,9 +3,9 @@
 namespace App\Http\Requests\Channels;
 
 use App\Http\Requests\RouteBoundRequest;
+use App\Rules\MessageTarget;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Support\Facades\Gate;
-use Illuminate\Validation\Rule;
 
 class ScheduleMessageRequest extends RouteBoundRequest
 {
@@ -46,15 +46,7 @@ class ScheduleMessageRequest extends RouteBoundRequest
             // insists the moment is still in the future, so a stale request that
             // has slipped into the past is rejected rather than firing instantly.
             'send_at' => ['required', 'date', 'after:now'],
-            // An inline reply must quote a live (non-deleted) message in this same
-            // channel, exactly like an immediate reply.
-            'reply_to_id' => [
-                'nullable',
-                'uuid',
-                Rule::exists('messages', 'id')
-                    ->where('channel_id', $this->channel()->id)
-                    ->whereNull('deleted_at'),
-            ],
+            'reply_to_id' => ['nullable', 'uuid', MessageTarget::replyTo($this->channel())],
         ];
     }
 }
