@@ -54,8 +54,40 @@ it('rejects literal private, loopback, link-local, and metadata IPs', function (
     'ipv6-loopback' => 'http://[::1]/x',
 ]);
 
+it('rejects every reserved IPv6 literal, at both ends of each range', function (string $ip): void {
+    expect(OutboundUrlGuard::isPublic('http://['.$ip.']/x'))->toBeFalse();
+})->with([
+    'unspecified' => '::',
+    'loopback' => '::1',
+    'ipv4-mapped-loopback' => '::ffff:127.0.0.1',
+    'ipv4-mapped-metadata' => '::ffff:169.254.169.254',
+    'unique-local-bottom' => 'fc00::',
+    'unique-local-top' => 'fdff:ffff:ffff:ffff:ffff:ffff:ffff:ffff',
+    'link-local-bottom' => 'fe80::',
+    'link-local' => 'fe80::1',
+    'link-local-top' => 'febf:ffff:ffff:ffff:ffff:ffff:ffff:ffff',
+    'site-local-bottom' => 'fec0::',
+    'site-local-top' => 'feff:ffff:ffff:ffff:ffff:ffff:ffff:ffff',
+    'multicast-bottom' => 'ff00::',
+    'multicast-all-nodes' => 'ff02::1',
+    'multicast-top' => 'ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff',
+]);
+
 it('accepts a literal public IP', function (): void {
     expect(OutboundUrlGuard::isPublic('https://8.8.8.8/x'))->toBeTrue();
+    expect(OutboundUrlGuard::isPublic('https://[2606:4700:4700::1111]/x'))->toBeTrue();
+});
+
+it('rejects a zone-index host, which would otherwise pass as a hostname', function (string $url): void {
+    expect(OutboundUrlGuard::isPublic($url))->toBeFalse();
+})->with([
+    'encoded' => 'http://[fe80::1%25eth0]/x',
+    'raw' => 'http://[fe80::1%eth0]/x',
+    'unbracketed' => 'http://fe80::1%25eth0/x',
+]);
+
+it('blocks delivery to a zone-index host', function (): void {
+    expect(guardResolving(['93.184.216.34'])->resolveDeliveryIp('http://[fe80::1%25eth0]/hook'))->toBeFalse();
 });
 
 it('rejects local hostnames without a DNS lookup', function (string $url): void {
@@ -87,7 +119,16 @@ it('blocks delivery when any resolved address is non-public', function (string $
     'loopback' => '127.0.0.1',
     'metadata' => '169.254.169.254',
     'ipv6-loopback' => '::1',
+    'ipv6-unique-local' => 'fc00::1',
+    'ipv6-link-local' => 'fe80::1',
+    'ipv6-site-local' => 'fec0::1',
+    'ipv6-multicast' => 'ff02::1',
 ]);
+
+it('resolves a hostname to a vetted public IPv6 address for delivery pinning', function (): void {
+    expect(guardResolving(['2606:4700:4700::1111'])->resolveDeliveryIp('https://example.test/hook'))
+        ->toBe('2606:4700:4700::1111');
+});
 
 it('blocks delivery when the hostname does not resolve', function (): void {
     expect(guardResolving([])->resolveDeliveryIp('https://example.test/hook'))->toBeFalse();
@@ -115,6 +156,18 @@ it('drives the PublicWebhookUrl validation rule', function (): void {
     expect($fails->fails())->toBeTrue()
         ->and($fails->errors()->first('url'))->toBe('The webhook URL must be a public HTTP or HTTPS address.');
 });
+
+it('rejects a reserved IPv6 endpoint through the validation rule', function (string $url): void {
+    $validator = Validator::make(['url' => $url], ['url' => new PublicWebhookUrl]);
+
+    expect($validator->fails())->toBeTrue()
+        ->and($validator->errors()->first('url'))->toBe('The webhook URL must be a public HTTP or HTTPS address.');
+})->with([
+    'link-local' => 'http://[fe80::1]/webhook',
+    'site-local' => 'http://[fec0::1]/webhook',
+    'multicast' => 'http://[ff02::1]/webhook',
+    'zone-index' => 'http://[fe80::1%25eth0]/webhook',
+]);
 
 it('lets a surface name the destination in its own words', function (): void {
     $fails = Validator::make(

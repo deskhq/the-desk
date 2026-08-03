@@ -70,7 +70,11 @@ class OutboundUrlGuard
             return false;
         }
 
-        $host = trim($parts['host'], '[]');
+        $host = self::normalizeHost($parts['host']);
+
+        if ($host === null) {
+            return false;
+        }
 
         if (filter_var($host, FILTER_VALIDATE_IP) !== false) {
             return self::isPublicIp($host);
@@ -94,9 +98,9 @@ class OutboundUrlGuard
             return null;
         }
 
-        $host = trim((string) (parse_url($url, PHP_URL_HOST) ?? ''), '[]');
+        $host = self::normalizeHost((string) (parse_url($url, PHP_URL_HOST) ?? ''));
 
-        if ($host === '') {
+        if ($host === null) {
             return false;
         }
 
@@ -151,10 +155,54 @@ class OutboundUrlGuard
     /**
      * Whether an IP address sits in a publicly-routable range (rejecting private,
      * loopback, link-local, and other reserved blocks in both IPv4 and IPv6).
+     *
+     * The filter flags carry IPv4 on their own, but for IPv6 they only reject
+     * `fc00::/7` (`NO_PRIV_RANGE`) plus `::/128`, `::1/128`, `::ffff:0:0/96` and
+     * `fe80::/10` (`NO_RES_RANGE`) — an undocumented table that has never
+     * covered `fec0::/10` or `ff00::/8`. So the v6 ranges are checked here, on
+     * the packed address, rather than resting on PHP's internals.
      */
     private static function isPublicIp(string $ip): bool
     {
-        return filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE) !== false;
+        if (filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE) === false) {
+            return false;
+        }
+
+        $packed = inet_pton($ip);
+
+        if ($packed === false || strlen($packed) !== 16) {
+            return true;
+        }
+
+        $first = ord($packed[0]);
+        $second = ord($packed[1]);
+
+        return match (true) {
+            $first === 0xFE && ($second & 0xC0) === 0x80 => false, // fe80::/10 link-local.
+            $first === 0xFE && ($second & 0xC0) === 0xC0 => false, // fec0::/10 site-local (deprecated).
+            $first === 0xFF => false, // ff00::/8 multicast.
+            default => true,
+        };
+    }
+
+    /**
+     * The URL's host in the form the checks below expect — IPv6 brackets
+     * stripped — or `null` when there is nothing usable to check.
+     *
+     * A zone index (`fe80::1%eth0`, or `%25eth0` once encoded into the URL) is
+     * rejected outright: it is never part of a public destination, and left in
+     * place it fails {@see FILTER_VALIDATE_IP}, so the address would fall
+     * through to the hostname branch and skip the IP ranges entirely.
+     */
+    private static function normalizeHost(string $host): ?string
+    {
+        $host = trim($host, '[]');
+
+        if ($host === '' || str_contains($host, '%')) {
+            return null;
+        }
+
+        return $host;
     }
 
     /**
