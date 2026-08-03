@@ -21,7 +21,7 @@ use App\Models\Message;
  * The two are not interchangeable and differ on exactly one message: a thread
  * reply may be quoted inline, but may not root a thread of its own.
  */
-final class MessageTarget extends PresenceRule
+final class MessageTarget extends LookupRule
 {
     private function __construct(
         private readonly Channel $channel,

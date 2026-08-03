@@ -120,7 +120,7 @@ test('a rejected target fails with the message the exists rule gave', function (
 });
 
 /**
- * The other half of what {@see App\Rules\PresenceRule} reproduces: a value that
+ * The other half of what {@see App\Rules\LookupRule} reproduces: a value that
  * already failed is never looked up. It is not tidiness — `messages.id` is a
  * Postgres `uuid`, so asking the database about `not-a-uuid` raises a 22P02 and
  * turns a 422 into a 500. Laravel skips its own `exists` for exactly this

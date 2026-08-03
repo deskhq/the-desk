@@ -6,12 +6,10 @@ use App\Enums\ChannelVisibility;
 use App\Http\Requests\RouteBoundRequest;
 use App\Models\Channel;
 use App\Policies\TeamPolicy;
-use App\Support\NameSlug;
-use Closure;
+use App\Rules\AvailableChannelName;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\Rule;
-use Illuminate\Validation\Validator;
 
 class CreateChannelRequest extends RouteBoundRequest
 {
@@ -56,36 +54,9 @@ class CreateChannelRequest extends RouteBoundRequest
     public function rules(): array
     {
         return [
-            'name' => ['required', 'string', 'max:255'],
+            'name' => ['required', 'string', 'max:255', new AvailableChannelName($this->team())],
             'visibility' => ['required', Rule::enum(ChannelVisibility::class)],
             'topic' => ['nullable', 'string', 'max:255'],
-        ];
-    }
-
-    /**
-     * Configure the validator instance.
-     *
-     * @return array<int, Closure(Validator): void>
-     */
-    public function after(): array
-    {
-        return [
-            function (Validator $validator): void {
-                if ($validator->errors()->has('name')) {
-                    return;
-                }
-
-                $slug = NameSlug::distinct((string) $this->input('name'), Channel::FALLBACK_SLUG);
-
-                $exists = Channel::query()
-                    ->where('team_id', $this->team()->id)
-                    ->where('slug', $slug)
-                    ->exists();
-
-                if ($exists) {
-                    $validator->errors()->add('name', __('A channel with this name already exists.'));
-                }
-            },
         ];
     }
 }
