@@ -1,6 +1,5 @@
 <?php
 
-use App\Actions\Teams\CreateTeam;
 use App\Data\UserTeam;
 use App\Enums\MessageType;
 use App\Enums\NotificationLevel;

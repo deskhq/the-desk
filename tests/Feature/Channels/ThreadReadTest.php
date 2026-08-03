@@ -2,11 +2,10 @@
 
 use App\Actions\Channels\MarkChannelRead;
 use App\Actions\Channels\MarkThreadRead;
-use App\Enums\NotificationLevel;
 use App\Data\MessageData;
+use App\Enums\NotificationLevel;
 use App\Models\Channel;
 use App\Models\Message;
-use App\Models\Team;
 use App\Models\ThreadRead;
 use App\Models\User;
 use App\Support\ChannelTimelineWindow;
