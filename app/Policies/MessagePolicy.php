@@ -29,6 +29,29 @@ class MessagePolicy
     }
 
     /**
+     * Determine whether the user can forward the message elsewhere.
+     *
+     * Forwarding copies a message somewhere its author never put it, so the
+     * question is whether the user may read it in the first place: the *what may
+     * I open* reading of the channel ACL, which lets a teammate forward out of a
+     * public channel they never joined but not out of a private one. A system
+     * notice is inert and carries nothing to quote, so it is not forwardable
+     * even by someone who can see it.
+     *
+     * Where the copy may land is a separate question with a separate answer —
+     * {@see \App\Rules\ForwardDestination} — because being able to read a
+     * message says nothing about which channels the reader may post into.
+     */
+    public function forward(User $user, Message $message): bool
+    {
+        if ($message->isSystem()) {
+            return false;
+        }
+
+        return $user->can('view', $message->channel);
+    }
+
+    /**
      * Determine whether the user can delete the message.
      *
      * The author may delete their own message only in a channel they can
