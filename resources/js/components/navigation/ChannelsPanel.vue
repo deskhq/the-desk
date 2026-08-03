@@ -16,14 +16,6 @@ import { useChannelSections } from '@/composables/useChannelSections';
 import { useCollapsedSections } from '@/composables/useCollapsedSections';
 import { useDialog } from '@/composables/useDialog';
 import type { ChannelSectionGroup } from '@/lib/channelSections';
-import type { RenderedPresence } from '@/lib/presence';
-
-defineProps<{
-    /** How a teammate's presence dot should render, for the DM rows. */
-    presenceFor: (userId: string) => RenderedPresence;
-    /** Whether a teammate is in do-not-disturb, for the DM rows. */
-    isDndFor: (userId: string) => boolean;
-}>();
 
 const page = usePage();
 
@@ -207,8 +199,6 @@ function sectionKey(group: ChannelSectionGroup): string {
             :team-slug="currentTeam?.slug ?? ''"
             :active-channel-slug="activeChannelSlug"
             :collapsed="isSectionCollapsed('direct')"
-            :presence-for="presenceFor"
-            :is-dnd-for="isDndFor"
             @toggle="toggleSection('direct')"
         />
 

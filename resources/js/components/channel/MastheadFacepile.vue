@@ -4,9 +4,9 @@ import { computed } from 'vue';
 import PresenceDot from '@/components/PresenceDot.vue';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { getInitials } from '@/composables/useInitials';
+import { useTeamPresence } from '@/composables/useTeamPresence';
 import { MAX_MASTHEAD_AVATARS, memberAvatarStack } from '@/lib/memberAvatars';
 import { activeMemberCount } from '@/lib/presence';
-import type { RenderedPresence } from '@/lib/presence';
 import type { RosterMember } from '@/types';
 
 /**
@@ -19,11 +19,9 @@ const props = defineProps<{
      * overlapping member facepile.
      */
     members: RosterMember[];
-    /** How each team member reads on the presence roster, driving every dot here. */
-    presenceFor: (userId: string) => RenderedPresence;
-    /** Whether each member is in do-not-disturb, driving the crescent badge. */
-    isDndFor?: (userId: string) => boolean;
 }>();
+
+const { presenceFor, isDndFor } = useTeamPresence();
 
 /** The overlapping member avatars for the masthead's right side. */
 const mastheadAvatars = computed(() =>
@@ -32,7 +30,7 @@ const mastheadAvatars = computed(() =>
 
 /** How many of the roster are active, as the readout beside the stack says. */
 const activeCount = computed(() =>
-    activeMemberCount(props.members, props.presenceFor),
+    activeMemberCount(props.members, presenceFor),
 );
 </script>
 
@@ -79,8 +77,8 @@ const activeCount = computed(() =>
                 <PresenceDot
                     v-if="!member.isBot"
                     data-test="masthead-member-presence"
-                    :presence="props.presenceFor(member.id)"
-                    :is-dnd="props.isDndFor?.(member.id) ?? false"
+                    :presence="presenceFor(member.id)"
+                    :is-dnd="isDndFor(member.id)"
                     surface-class="bg-card"
                     size="24"
                     class="ring-card"

@@ -83,6 +83,12 @@ vi.mock('@/components/ui/sidebar', async () => {
     return sidebarDouble();
 });
 
+vi.mock('@/composables/useTeamPresence', async () => {
+    const { teamPresenceDouble } = await import('./QuickSwitcher.doubles');
+
+    return teamPresenceDouble();
+});
+
 vi.mock('@/composables/useIsMobile', async () => {
     const { isMobileDouble } = await import('./QuickSwitcher.doubles');
 
@@ -117,6 +123,7 @@ import {
     mountSwitcher,
     openDirectMessage,
     person,
+    presence,
     resetDoubles,
     router,
     type,
@@ -291,12 +298,9 @@ describe('the people group', () => {
 
     it('reads out presence instead of the enter hint below the breakpoint', () => {
         isMobile.value = true;
+        presence.presenceFor = () => 'away';
 
-        const { host } = mount({
-            members,
-            currentUserId: 'me',
-            presenceFor: () => 'away',
-        });
+        const { host } = mount({ members, currentUserId: 'me' });
 
         expect(names(host, 'quick-switcher-person')[0]).toContain('Away');
     });

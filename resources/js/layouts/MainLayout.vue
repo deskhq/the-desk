@@ -49,7 +49,7 @@ import { useShellShortcuts } from '@/composables/useShellShortcuts';
 import { useShellStartup } from '@/composables/useShellStartup';
 import { useSidebarBadges } from '@/composables/useSidebarBadges';
 import { useSidebarPosition } from '@/composables/useSidebarPosition';
-import { useTeamPresence } from '@/composables/useTeamPresence';
+import { useTeamPresenceSubscription } from '@/composables/useTeamPresence';
 import { useToastZoneHeight } from '@/composables/useToastZoneHeight';
 import type { MessageReminder } from '@/types/messages';
 
@@ -95,8 +95,10 @@ useShellShortcuts();
 const currentTeam = computed(() => page.props.currentTeam);
 const teams = computed(() => page.props.teams ?? []);
 
-/** Live presence for the current team, driving the dot on each DM row. */
-const { presenceFor, isDndFor } = useTeamPresence(() => currentTeam.value?.id);
+// The shell holds the team's presence channel open for as long as it is
+// mounted; every dot surface reads the roster through `useTeamPresence()`
+// rather than being handed it.
+useTeamPresenceSubscription(() => currentTeam.value?.id);
 
 // Report this tab's own idle state from the layout every authenticated surface
 // mounts, so someone reading a settings page still counts as here.
@@ -335,8 +337,6 @@ const { isSettingsSection, startTourIfEligible } = useShellStartup();
                         <SettingsNav v-if="isSettingsSection" />
                         <ChannelsPanel
                             v-else-if="activeDestination === 'channels'"
-                            :presence-for="presenceFor"
-                            :is-dnd-for="isDndFor"
                         />
                         <ThreadsPanel
                             v-else-if="activeDestination === 'threads'"
@@ -402,8 +402,6 @@ const { isSettingsSection, startTourIfEligible } = useShellStartup();
         </SidebarInset>
 
         <DialogHost
-            :presence-for="presenceFor"
-            :is-dnd-for="isDndFor"
             @open-reminders="openDestination('reminders')"
             @prompt-answered="startTourIfEligible(false)"
         />

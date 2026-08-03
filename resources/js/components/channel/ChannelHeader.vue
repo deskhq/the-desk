@@ -4,7 +4,6 @@ import PinsPanel from '@/components/PinsPanel.vue';
 import { useChannelPins } from '@/composables/useChannelPins';
 import { useChannelPreferences } from '@/composables/useChannelPreferences';
 import type { ConnectionPill } from '@/composables/useConnectionState';
-import type { RenderedPresence } from '@/lib/presence';
 import type {
     Channel,
     Message,
@@ -24,8 +23,6 @@ const props = defineProps<{
     team: { slug: string };
     channel: Channel;
     members: RosterMember[];
-    presenceFor: (userId: string) => RenderedPresence;
-    isDndFor: (userId: string) => boolean;
     /** What the channel is called from this viewer's side of it. */
     title: string;
     canManagePreferences: boolean;
@@ -105,8 +102,6 @@ defineExpose({
         <ChannelMasthead
             :channel="props.channel"
             :members="props.members"
-            :presence-for="props.presenceFor"
-            :is-dnd-for="props.isDndFor"
             :title="props.title"
             :can-manage-preferences="props.canManagePreferences"
             :can-archive="props.canArchive"

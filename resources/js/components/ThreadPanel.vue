@@ -20,7 +20,6 @@ import {
 } from '@/composables/useMessageActionsContext';
 import { useRailInset } from '@/composables/useRailInset';
 import { useScrollPin } from '@/composables/useScrollPin';
-import type { RenderedPresence } from '@/lib/presence';
 import type { Mention, Message, PersonRef, RosterMember } from '@/types';
 
 const props = defineProps<{
@@ -41,10 +40,6 @@ const props = defineProps<{
     // Whether the channel has a bot member, forwarded to the reply composer's
     // mention menu footnote.
     hasBots?: boolean;
-    /** How each author reads on the team presence roster, passed straight down. */
-    presenceFor?: (userId: string) => RenderedPresence;
-    /** Whether each author is in do-not-disturb, threaded through to the list. */
-    isDndFor?: (userId: string) => boolean;
     loading?: boolean;
     readOnly?: boolean;
 }>();
@@ -392,8 +387,6 @@ watch(
                     :messages="props.messages"
                     :team-slug="props.teamSlug"
                     :pending-uuids="props.pendingUuids"
-                    :presence-for="props.presenceFor"
-                    :is-dnd-for="props.isDndFor"
                     :editing-message-id="editingMessageId"
                     :reply-divider-count="isMobile ? replyCount : 0"
                     @load-older="loadOlderReplies"

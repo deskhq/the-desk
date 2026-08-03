@@ -76,6 +76,12 @@ vi.mock('@/composables/useNavPanel', async () => {
     return navPanelDouble();
 });
 
+vi.mock('@/composables/useTeamPresence', async () => {
+    const { teamPresenceDouble } = await import('./ChannelMasthead.doubles');
+
+    return teamPresenceDouble();
+});
+
 vi.mock('@/composables/useDialog', async () => {
     const { dialogDouble } = await import('./ChannelMasthead.doubles');
 
@@ -92,6 +98,7 @@ import {
     mountMasthead,
     navigation,
     participant,
+    presence,
     resetDoubles,
     unmountAll,
 } from './ChannelMasthead.doubles';
@@ -145,13 +152,14 @@ describe('the masthead facepile', () => {
     });
 
     it('counts the active members against the roster, so away reads as present but idle', () => {
+        presence.presenceFor = (id: string) => (id === 'a' ? 'active' : 'away');
+
         const { host } = mount({
             members: [
                 member({ id: 'a' }),
                 member({ id: 'b' }),
                 member({ id: 'c' }),
             ],
-            presenceFor: (id: string) => (id === 'a' ? 'active' : 'away'),
         });
 
         expect(find(host, 'masthead-active-count')?.textContent).toContain(

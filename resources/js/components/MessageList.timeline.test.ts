@@ -7,6 +7,7 @@ import {
     inertiaPageProps,
     message,
     mountWithActions,
+    presence,
     unmountAll,
 } from './MessageList.doubles';
 
@@ -25,6 +26,12 @@ vi.mock('@inertiajs/vue3', async () => {
     const { inertiaPageProps } = await import('./MessageList.doubles');
 
     return { usePage: () => ({ props: inertiaPageProps }) };
+});
+
+vi.mock('@/composables/useTeamPresence', async () => {
+    const { teamPresenceDouble } = await import('./MessageList.doubles');
+
+    return teamPresenceDouble();
 });
 
 vi.mock('@/composables/useIsMobile', async () => {
@@ -81,6 +88,8 @@ function texts(host: HTMLElement, selector: string): string[] {
 
 beforeEach(() => {
     inertiaPageProps.auth.user.timezone = 'UTC';
+    presence.presenceFor = () => 'offline';
+    presence.isDndFor = () => false;
 
     if (mobile.current) {
         mobile.current.value = false;
@@ -225,7 +234,9 @@ describe('an author group', () => {
     });
 
     it('announces the author’s presence once per group', () => {
-        const host = mount({ presenceFor: () => 'away' });
+        presence.presenceFor = () => 'away';
+
+        const host = mount();
 
         expect(host.querySelector('.sr-only')?.textContent?.trim()).toBe(
             'Away',
@@ -233,7 +244,7 @@ describe('an author group', () => {
         expect(host.querySelector('[data-test="presence-dot"]')).not.toBeNull();
     });
 
-    it('falls back to offline when the surface carries no presence roster', () => {
+    it('reads an author absent from the presence roster as offline', () => {
         const host = mount();
 
         expect(host.querySelector('.sr-only')?.textContent?.trim()).toBe(

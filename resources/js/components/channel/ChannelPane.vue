@@ -19,7 +19,6 @@ import { useStickyDayLabel } from '@/composables/useStickyDayLabel';
 import { useUnreadDivider } from '@/composables/useUnreadDivider';
 import { useUnreadJump } from '@/composables/useUnreadJump';
 import type { TimelineRange } from '@/composables/useUnreadJump';
-import type { RenderedPresence } from '@/lib/presence';
 import { buildTimelineItems } from '@/lib/timeline';
 import type { Channel, ChannelReader, Message } from '@/types';
 
@@ -48,8 +47,6 @@ const props = defineProps<{
     queuedUuids: string[];
     /** Whether a file drop would be staged (a member of a live channel). */
     canDropFiles: boolean;
-    presenceFor: (userId: string) => RenderedPresence;
-    isDndFor: (userId: string) => boolean;
     readers: ChannelReader[];
     activeThreadRootId: string | null;
     editingMessageId: string | null;
@@ -275,8 +272,6 @@ defineExpose({
                         :pending-uuids="props.pendingUuids"
                         :queued-uuids="props.queuedUuids"
                         :is-direct="props.channel.isDirect"
-                        :presence-for="props.presenceFor"
-                        :is-dnd-for="props.isDndFor"
                         :readers="props.readers"
                         :highlight-message-id="highlightedMessageId"
                         :unread-divider-id="unreadDividerId"

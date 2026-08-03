@@ -11,6 +11,15 @@ const page = reactive<{ props: Record<string, unknown> }>({
 
 vi.mock('@inertiajs/vue3', () => ({ usePage: () => page }));
 
+// The roster the rows read: u-2 is away and paused, everyone else offline.
+vi.mock('@/composables/useTeamPresence', () => ({
+    useTeamPresence: () => ({
+        presenceFor: (userId: string) =>
+            userId === 'u-2' ? 'away' : 'offline',
+        isDndFor: (userId: string) => userId === 'u-2',
+    }),
+}));
+
 vi.mock('@lucide/vue', () => ({
     ChevronRight: { render: () => h('svg') },
     Plus: { render: () => h('svg') },
@@ -74,9 +83,6 @@ function mountGroup(
                 teamSlug: 'acme',
                 activeChannelSlug: null,
                 collapsed: overrides.collapsed ?? false,
-                presenceFor: (userId: string) =>
-                    userId === 'u-2' ? 'away' : 'offline',
-                isDndFor: (userId: string) => userId === 'u-2',
                 onToggle: toggle,
             }),
     });

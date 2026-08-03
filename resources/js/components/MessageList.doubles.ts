@@ -11,6 +11,7 @@ import type {
     MessageActionsContext,
     MessageSubtreeContext,
 } from '@/composables/useMessageActionsContext';
+import type { TeamPresence } from '@/composables/useTeamPresence';
 import { translate } from '@/lib/i18n';
 import type { Message, MessageAuthor } from '@/types';
 
@@ -32,6 +33,22 @@ export const inertiaPageProps = {
     userGroups: [] as Array<{ id: string }>,
     frequentEmojis: [] as string[],
 };
+
+/**
+ * The team roster the author dots read. Mutable so a suite can put an author
+ * away; set it before mounting, since the list reads the accessor once in setup.
+ */
+export const presence: TeamPresence = {
+    presenceFor: () => 'offline',
+    isDndFor: () => false,
+};
+
+export function teamPresenceDouble(): Record<string, unknown> {
+    return {
+        useTeamPresence: () => presence,
+        useTeamPresenceSubscription: () => {},
+    };
+}
 
 /** Renders nothing, standing in for a leaf whose own tests cover it. */
 export function inert(name: string): Component {

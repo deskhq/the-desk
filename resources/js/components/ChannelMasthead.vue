@@ -15,7 +15,6 @@ import {
 import type { ConnectionPill } from '@/composables/useConnectionState';
 import { useMastheadSearch } from '@/composables/useMastheadSearch';
 import type { NotificationIndicator } from '@/lib/notificationIndicator';
-import type { RenderedPresence } from '@/lib/presence';
 import type {
     Channel,
     NotificationLevel,
@@ -30,10 +29,6 @@ const props = defineProps<{
      * overlapping member facepile.
      */
     members: RosterMember[];
-    /** How each team member reads on the presence roster, driving every dot here. */
-    presenceFor: (userId: string) => RenderedPresence;
-    /** Whether each member is in do-not-disturb, driving the crescent badge. */
-    isDndFor?: (userId: string) => boolean;
     /**
      * The viewer-relative title (self-DM reads "You"); the page also feeds it to
      * `<Head>`, so it is resolved once there and passed down.
@@ -116,8 +111,6 @@ const { isMobile, openSearch } = useMastheadSearch();
         <MastheadTitle
             :channel="props.channel"
             :members="props.members"
-            :presence-for="props.presenceFor"
-            :is-dnd-for="props.isDndFor"
             :title="props.title"
             :notification-status="props.notificationStatus"
         />
@@ -130,8 +123,6 @@ const { isMobile, openSearch } = useMastheadSearch();
             <MastheadFacepile
                 v-if="!props.channel.isDirect"
                 :members="props.members"
-                :presence-for="props.presenceFor"
-                :is-dnd-for="props.isDndFor"
             />
 
             <!-- Add people: opens the picker that grows this DM into (or reuses)
