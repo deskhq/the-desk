@@ -86,7 +86,7 @@ export function scoreChannelName(name: string, query: string): number | null {
 }
 
 /**
- * Filter and rank channels for the quick switcher. A leading `#` and
+ * Filter and rank channels for the command palette. A leading `#` and
  * surrounding whitespace are stripped so typing `#gen` behaves like `gen`. An
  * empty query returns every channel in alphabetical order; otherwise only
  * matches are returned, best score first, ties broken alphabetically.

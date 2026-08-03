@@ -15,13 +15,13 @@ import type { Channel } from '@/types/channels';
 import type { PersonRef } from '@/types/people';
 
 /** What a token in the palette's query resolves against. */
-export type QuickSwitcherLookup = {
+export type CommandPaletteLookup = {
     teamSlug: () => string;
     members: () => PersonRef[];
     channels: () => Channel[];
 };
 
-export type QuickSwitcherSearch = {
+export type CommandPaletteSearch = {
     /** The raw input, which the ranked groups read as well. */
     query: Ref<string>;
     /** The query with its surrounding noise gone: `#gen` and `gen` are one. */
@@ -47,9 +47,9 @@ export type QuickSwitcherSearch = {
  * that reaches the server, and it does so on its own schedule — a debounce, a
  * cancellation, and a client-side write of the criteria onto the current route.
  */
-export function useQuickSwitcherSearch(
-    lookup: QuickSwitcherLookup,
-): QuickSwitcherSearch {
+export function useCommandPaletteSearch(
+    lookup: CommandPaletteLookup,
+): CommandPaletteSearch {
     const page = usePage();
     const isMobile = useIsMobile();
 

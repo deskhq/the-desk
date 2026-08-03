@@ -371,7 +371,7 @@ function emojiImgHtml(name: string, url: string): string {
  * Render a raw message body into safe HTML with inline formatting, mention
  * pills, autolinked bare URLs, and newlines preserved as `<br>`. Intended for
  * `v-html` where an interactive per-link affordance isn't needed (compact
- * reply/forward quotes, quick-switcher, search results); the main timeline
+ * reply/forward quotes, command palette, search results); the main timeline
  * renders {@see tokenizeMessageBody} instead so it can wrap links in a hover
  * card. The assembled HTML passes through DOMPurify one final time.
  */

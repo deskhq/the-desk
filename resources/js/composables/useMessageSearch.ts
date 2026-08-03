@@ -10,7 +10,7 @@ export type UseMessageSearch = {
 };
 
 /**
- * Debounced live message search for the quick switcher.
+ * Debounced live message search for the command palette.
  *
  * `search()` debounces keystrokes into a single JSON request built by
  * `buildUrl`. The previous request — whether still waiting out the debounce or

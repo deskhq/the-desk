@@ -29,13 +29,13 @@ export interface MastheadSearch {
  */
 export function useMastheadSearch(): MastheadSearch {
     const isMobile = useIsMobile();
-    const { open: openQuickSwitcher } = useDialog('switcher');
+    const { open: openCommandPalette } = useDialog('switcher');
     const { openDestination } = useNavPanel();
     const { open: dockOpen, setOpen: setDockOpen } = useSidebar();
 
     function openSearch(): void {
         if (isMobile.value) {
-            openQuickSwitcher();
+            openCommandPalette();
 
             return;
         }

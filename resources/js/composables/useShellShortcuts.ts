@@ -50,7 +50,7 @@ export function useShellShortcuts(): void {
     }
 
     useKeyboardShortcuts({
-        'quick-switcher': () => switcher.toggle(),
+        'command-palette': () => switcher.toggle(),
         'previous-channel': () => moveChannel(-1),
         'next-channel': () => moveChannel(1),
         'focus-notifications': () => focusNotificationRail(),

@@ -2,6 +2,7 @@
 import { usePage } from '@inertiajs/vue3';
 import { computed } from 'vue';
 import PasskeyPromptDialog from '@/components/auth/PasskeyPromptDialog.vue';
+import CommandPalette from '@/components/CommandPalette.vue';
 import DndPauseDialog from '@/components/DndPauseDialog.vue';
 import InstallAppDialog from '@/components/InstallAppDialog.vue';
 import InviteMemberModal from '@/components/InviteMemberModal.vue';
@@ -9,7 +10,6 @@ import KeyboardShortcutsModal from '@/components/KeyboardShortcutsModal.vue';
 import NewDirectMessageModal from '@/components/NewDirectMessageModal.vue';
 import OnboardingTour from '@/components/OnboardingTour.vue';
 import PendingInvitationsModal from '@/components/PendingInvitationsModal.vue';
-import QuickSwitcher from '@/components/QuickSwitcher.vue';
 import UserStatusDialog from '@/components/UserStatusDialog.vue';
 import { useDialog } from '@/composables/useDialog';
 import type { RoleOption } from '@/types/teams';
@@ -95,7 +95,7 @@ const postRegistrationPrompt = computed(
         :invitations="pendingInvitations"
     />
 
-    <QuickSwitcher
+    <CommandPalette
         v-if="currentTeam"
         v-model:open="switcherOpen"
         :channels="channels"

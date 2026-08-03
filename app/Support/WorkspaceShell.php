@@ -101,7 +101,7 @@ final readonly class WorkspaceShell
 
     /**
      * The team's members, feeding the DM entry points (the sidebar people picker
-     * and the quick-switcher "People" group). Ordered by name and including the
+     * and the command palette's "People" group). Ordered by name and including the
      * viewer themselves — a self-DM renders as "You".
      *
      * @return array<int, UserData>

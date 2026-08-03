@@ -108,7 +108,7 @@ tags and attributes just before the browser renders it.
 
 The second stage runs in exactly one component, `SafeHtml`, which is the only
 place in the interface allowed to render a string as markup. Every surface goes
-through it: message bodies, forwarded and quoted messages, the quick switcher,
+through it: message bodies, forwarded and quoted messages, the command palette,
 the threads list, search snippets, and the two-factor QR code. Each names the
 allow-list it renders under, so a search snippet can carry a highlight and
 nothing else, and a QR code can carry SVG shapes but no script.

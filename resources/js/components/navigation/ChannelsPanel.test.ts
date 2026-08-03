@@ -165,7 +165,7 @@ it('is the named navigation landmark the browser suite reaches the list by', () 
     expect(nav.getAttribute('aria-label')).toBe('Channels');
 });
 
-it('opens the quick switcher from its pinned trigger', () => {
+it('opens the command palette from its pinned trigger', () => {
     const { host } = mountPanel();
 
     host.querySelector<HTMLElement>(
