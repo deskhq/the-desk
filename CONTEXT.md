@@ -118,6 +118,23 @@ built; build them once, then reuse.
   lapsed profile instant (compare-and-swap, then broadcast). Sweepers stay one
   Action per concern, each with its own name, description and
   `withoutOverlapping()` in `routes/console.php`; only the walk is shared.
+- **`GuardedEgress`** _(ADR-0015)_ — the one place the application opens a
+  connection to a **member-controlled** URL, in two named readings.
+  `fetch($url, FetchPolicy)` is *give me the bytes*: it owns the hop bound,
+  re-guards and re-pins every hop, disables curl-level redirects, enforces the
+  size cap and returns one null for every way a fetch can fail, a dead host
+  included. `send($url, PendingRequest)` is *send what I composed*: the guard
+  triple and the no-redirects rule and nothing else, for `DeliverWebhook`, which
+  keeps its own retry and failure log. Callers supply only what differs — the
+  content-type predicate, the byte cap, and which reading of the cap they want
+  (`FetchPolicy::truncatingAt()` for an unfurl, `refusingOver()` for an image).
+  **Never call `OutboundUrlGuard::resolveDeliveryIp()` or `transportOptions()`
+  from anywhere else**; `tests/Unit/GuardedEgressHomeTest.php` fails if you do.
+  `isPublic()` is the exception and stays public and static — it is a pre-flight
+  question asked before any request exists (`PublicWebhookUrl`,
+  `User::routeNotificationForWebPush`). Giphy, `UpdateChecker` and the OIDC
+  discovery calls are deliberately outside: they talk to operator-configured
+  hosts, and the ADR records why folding them in would be a mistake.
 - **Channel membership** — `ChannelMembership` is the one module that reads and
   writes the channel-member pivot: star, mute, notification level, draft, close
   (hide) and sidebar placement are its columns, not five unrelated settings. It is

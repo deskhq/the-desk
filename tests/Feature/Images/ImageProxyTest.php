@@ -15,27 +15,18 @@ use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
+use Tests\Support\StubHostResolver;
 
 /**
  * Point every hostname at a public IP so the SSRF guard's delivery-time
  * resolution can run without touching real DNS.
  *
- * @param  array<int, string>  $ips
+ * @param  array<string, array<int, string>>  $map
+ * @param  array<int, string>  $default
  */
-function resolveHostsTo(array $ips = ['93.184.216.34']): void
+function resolveHostsTo(array $map = [], array $default = ['93.184.216.34']): void
 {
-    app()->bind(HostResolver::class, fn (): HostResolver => new class($ips) extends HostResolver
-    {
-        /**
-         * @param  array<int, string>  $ips
-         */
-        public function __construct(private readonly array $ips) {}
-
-        public function resolve(string $host): array
-        {
-            return $this->ips;
-        }
-    });
+    app()->instance(HostResolver::class, StubHostResolver::returning($map, $default));
 }
 
 /**
@@ -124,6 +115,45 @@ it('follows a redirect, re-checking each hop against the guard', function (): vo
     $response->assertOk()->assertHeader('Content-Type', 'image/gif');
 });
 
+it('refuses a redirect whose next hop resolves to a private address', function (): void {
+    resolveHostsTo([
+        'cdn.example.test' => ['93.184.216.34'],
+        'internal.example.test' => ['10.0.0.5'],
+    ]);
+
+    Http::fake([
+        'cdn.example.test/cat.png' => Http::response('', 302, ['Location' => 'https://internal.example.test/cat.png']),
+        'internal.example.test/*' => imageResponse(),
+    ]);
+
+    $this->actingAs(User::factory()->create())
+        ->get((string) ImageProxy::url('https://cdn.example.test/cat.png'))
+        ->assertNotFound();
+
+    Http::assertNotSent(fn ($request): bool => str_contains((string) $request->url(), 'internal.example.test'));
+});
+
+it('pins each hop to the address the guard vetted, and never lets curl follow one', function (): void {
+    resolveHostsTo([
+        'cdn.example.test' => ['93.184.216.34'],
+        'images.example.test' => ['93.184.216.35'],
+    ]);
+
+    captureTransportOptions([
+        'https://cdn.example.test/cat.png' => Http::response('', 302, ['Location' => 'https://images.example.test/cat.png']),
+        'https://images.example.test/cat.png' => imageResponse(),
+    ], $captured);
+
+    $this->actingAs(User::factory()->create())
+        ->get((string) ImageProxy::url('https://cdn.example.test/cat.png'))
+        ->assertOk();
+
+    expect($captured[0]['curl'][CURLOPT_RESOLVE])->toBe(['cdn.example.test:443:93.184.216.34'])
+        ->and($captured[0]['allow_redirects'])->toBeFalse()
+        ->and($captured[1]['curl'][CURLOPT_RESOLVE])->toBe(['images.example.test:443:93.184.216.35'])
+        ->and($captured[1]['allow_redirects'])->toBeFalse();
+});
+
 it('rejects an unsigned or tampered url', function (): void {
     $signed = (string) ImageProxy::url('https://cdn.example.test/cat.png');
     $user = User::factory()->create();
@@ -142,7 +172,7 @@ it('requires an authenticated session', function (): void {
 
 it('404s rather than fetching a target the SSRF guard blocks', function (string $url, array $resolvesTo): void {
     Http::fake();
-    resolveHostsTo($resolvesTo);
+    resolveHostsTo(default: $resolvesTo);
 
     $this->actingAs(User::factory()->create())
         ->get((string) ImageProxy::url($url))

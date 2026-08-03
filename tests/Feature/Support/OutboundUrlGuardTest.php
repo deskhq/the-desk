@@ -3,9 +3,9 @@
 declare(strict_types=1);
 
 use App\Rules\PublicWebhookUrl;
-use App\Support\HostResolver;
 use App\Support\Http\OutboundUrlGuard;
 use Illuminate\Support\Facades\Validator;
+use Tests\Support\StubHostResolver;
 
 /**
  * Build a guard whose resolver returns the given IPs for every hostname, so
@@ -15,18 +15,7 @@ use Illuminate\Support\Facades\Validator;
  */
 function guardResolving(array $ips): OutboundUrlGuard
 {
-    return new OutboundUrlGuard(new class($ips) extends HostResolver
-    {
-        /**
-         * @param  array<int, string>  $ips
-         */
-        public function __construct(private readonly array $ips) {}
-
-        public function resolve(string $host): array
-        {
-            return $this->ips;
-        }
-    });
+    return new OutboundUrlGuard(StubHostResolver::returning(default: $ips));
 }
 
 it('accepts a public https URL', function (): void {
@@ -147,6 +136,23 @@ it('skips delivery-time resolution when the guard is disabled', function (): voi
 
     expect(guardResolving(['10.0.0.5'])->resolveDeliveryIp('https://example.test/hook'))->toBeNull();
 });
+
+it('never lets the transport follow a redirect itself', function (): void {
+    expect(guardResolving(['93.184.216.34'])->transportOptions('https://example.test/hook', null))
+        ->toBe(['allow_redirects' => false]);
+});
+
+it('pins the connection to the vetted address, on the URL\'s own port', function (string $url, string $pinnedIp, string $expected): void {
+    expect(guardResolving(['93.184.216.34'])->transportOptions($url, $pinnedIp))
+        ->toBe(['allow_redirects' => false, 'curl' => [CURLOPT_RESOLVE => [$expected]]]);
+})->with([
+    'https defaults to 443' => ['https://example.test/hook', '93.184.216.34', 'example.test:443:93.184.216.34'],
+    'http defaults to 80' => ['http://example.test/hook', '93.184.216.34', 'example.test:80:93.184.216.34'],
+    'an explicit port wins' => ['https://example.test:8443/hook', '93.184.216.34', 'example.test:8443:93.184.216.34'],
+    // curl's resolve entries take the address in brackets, or the colons in an
+    // IPv6 literal would read as the port separator.
+    'an IPv6 address is bracketed' => ['https://example.test/hook', '2606:4700::6810:84e5', 'example.test:443:[2606:4700::6810:84e5]'],
+]);
 
 it('drives the PublicWebhookUrl validation rule', function (): void {
     $passes = Validator::make(['url' => 'https://example.test/x'], ['url' => new PublicWebhookUrl]);
