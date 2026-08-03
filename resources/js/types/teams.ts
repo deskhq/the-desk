@@ -1,3 +1,5 @@
+import type { SimplePage } from './pagination';
+
 /** A member's standing in a workspace. Backed by the PHP enum. */
 export type TeamRole = App.Enums.TeamRole;
 
@@ -119,15 +121,8 @@ export type AuditActor = {
     name: string;
 };
 
-/**
- * One page of audit entries. Uses simple (prev/next) pagination so the log can
- * be paged through in full without a bounded cap.
- */
-export type AuditEntriesPage = {
-    data: AuditEntry[];
-    prevPageUrl: string | null;
-    nextPageUrl: string | null;
-};
+/** One page of audit entries. */
+export type AuditEntriesPage = SimplePage<AuditEntry>;
 
 /** A single headline metric on the analytics dashboard. */
 export type AnalyticsStat = App.Data.AnalyticsStatData;

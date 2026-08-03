@@ -121,6 +121,23 @@ built; build them once, then reuse.
   new call site is a sign the event seam was skipped. Neither depends on the live
   `Request` — `RecordSecurityEvents` captures the device context and passes it in,
   which is what lets a queued job record.
+- **Paged admin log read-models** — the read half of that pair. `AuditLog` and
+  `SecurityLog` are **two** read-models sharing **three** modules, not one
+  parameterised log: each takes `(Team, ...$filters)` and never a `Request`, and
+  each owns the one thing that genuinely differs — its scope and its filter
+  column. What they share is `SimplePage` (the page size, the newest-first
+  `simplePaginate` walk and the `{data, prevPageUrl, nextPageUrl}` envelope, whose
+  client half is `SimplePage<T>` in `resources/js/types/pagination.ts`) and
+  `LogActors` (the actor-filter facet, derived from the log's own scope so it only
+  ever offers a name with rows behind it). Staying two is what gives
+  `SecurityLog::ofCurrentMembers()` a home: a security event is recorded against an
+  *account*, so a workspace's log is a **live** join to that team's current
+  membership — removing a member drops their events from it at once, and that rule
+  is asserted directly rather than through a rendered page. Both controllers hold
+  HTTP glue only; `tests/Unit/PagedAdminLogHomeTest.php` fails if a third log
+  re-spells the walk, the envelope or the facet. Cursor-paged surfaces
+  (`MessagePage`, `ThreadInboxPage`) are a different envelope for a different
+  pagination mode and are deliberately not retrofitted onto `SimplePage`.
 - **`ExportLifecycle`** — the one lifecycle every asynchronous file export runs:
   resolve-or-bail, write, mark ready, send the ready notice, and fail cleanly.
   `GenerateAuditExport` and `ExportUserData` are adapters over it, supplying only
