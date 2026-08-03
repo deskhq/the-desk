@@ -71,6 +71,44 @@ test('an existing user with a matching email is linked, not duplicated', functio
     expect(SecurityEvent::query()->where('type', SecurityEventType::AccountProvisioned)->count())->toBe(0);
 });
 
+test('linking a directory identity to an existing account records a security event', function (): void {
+    $existing = User::factory()->create(['email' => 'jordan@example.com']);
+
+    app(ProvisionSsoUser::class)->handle('oidc', 'sub-123', 'jordan@example.com', 'Jordan Rivers');
+
+    expect(SecurityEvent::query()
+        ->where('user_id', $existing->id)
+        ->where('type', SecurityEventType::SsoIdentityLinked)
+        ->count())->toBe(1);
+});
+
+test('a just-in-time provisioned account records no identity linked event', function (): void {
+    Team::factory()->create();
+
+    $user = app(ProvisionSsoUser::class)->handle('oidc', 'sub-123', 'jordan@example.com', 'Jordan Rivers');
+
+    expect(SecurityEvent::query()->where('user_id', $user->id)->where('type', SecurityEventType::SsoIdentityLinked)->count())->toBe(0)
+        ->and(SecurityEvent::query()->where('user_id', $user->id)->where('type', SecurityEventType::AccountProvisioned)->count())->toBe(1);
+});
+
+test('a returning directory user records no identity linked event', function (): void {
+    $existing = User::factory()->create();
+    SsoIdentity::factory()->provider('oidc')->for($existing)->create(['provider_id' => 'sub-xyz']);
+
+    app(ProvisionSsoUser::class)->handle('oidc', 'sub-xyz', 'jordan@example.com', 'Jordan Rivers');
+
+    expect(SecurityEvent::query()->where('type', SecurityEventType::SsoIdentityLinked)->count())->toBe(0);
+});
+
+test('a rejected unverified email records no identity linked event', function (): void {
+    User::factory()->create(['email' => 'jordan@example.com']);
+
+    expect(fn (): User => app(ProvisionSsoUser::class)->handle('oidc', 'sub-123', 'jordan@example.com', 'Jordan Rivers', emailVerified: false))
+        ->toThrow(UnverifiedSsoEmailException::class);
+
+    expect(SecurityEvent::query()->where('type', SecurityEventType::SsoIdentityLinked)->count())->toBe(0);
+});
+
 test('an already-linked identity resolves straight to its user, even against a different email', function (): void {
     $existing = User::factory()->create();
     SsoIdentity::factory()->provider('oidc')->for($existing)->create(['provider_id' => 'sub-xyz']);
