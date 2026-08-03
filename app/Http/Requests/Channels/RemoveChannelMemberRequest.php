@@ -2,12 +2,11 @@
 
 namespace App\Http\Requests\Channels;
 
-use App\Models\Channel;
+use App\Http\Requests\RouteBoundRequest;
 use Illuminate\Contracts\Validation\ValidationRule;
-use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Gate;
 
-class RemoveChannelMemberRequest extends FormRequest
+class RemoveChannelMemberRequest extends RouteBoundRequest
 {
     /**
      * Determine if the user is authorized to make this request.
@@ -27,17 +26,5 @@ class RemoveChannelMemberRequest extends FormRequest
         return [
             'user_id' => ['required', 'uuid', 'exists:users,id'],
         ];
-    }
-
-    /**
-     * Get the channel the member is being removed from.
-     */
-    public function channel(): Channel
-    {
-        $channel = $this->route('channel');
-
-        abort_if(! $channel instanceof Channel, 404);
-
-        return $channel;
     }
 }

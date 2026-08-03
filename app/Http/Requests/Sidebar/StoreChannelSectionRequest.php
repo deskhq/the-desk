@@ -2,11 +2,10 @@
 
 namespace App\Http\Requests\Sidebar;
 
-use App\Models\Team;
+use App\Http\Requests\RouteBoundRequest;
 use Illuminate\Contracts\Validation\ValidationRule;
-use Illuminate\Foundation\Http\FormRequest;
 
-class StoreChannelSectionRequest extends FormRequest
+class StoreChannelSectionRequest extends RouteBoundRequest
 {
     /**
      * Determine if the user is authorized to make this request.
@@ -40,17 +39,5 @@ class StoreChannelSectionRequest extends FormRequest
         return [
             'name' => ['required', 'string', 'max:50'],
         ];
-    }
-
-    /**
-     * Get the team the section is being created in.
-     */
-    public function team(): Team
-    {
-        $team = $this->route('team');
-
-        abort_if(! $team instanceof Team, 404);
-
-        return $team;
     }
 }

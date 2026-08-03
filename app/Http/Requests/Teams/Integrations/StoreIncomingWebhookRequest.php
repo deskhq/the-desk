@@ -4,9 +4,8 @@ declare(strict_types=1);
 
 namespace App\Http\Requests\Teams\Integrations;
 
-use App\Models\Team;
+use App\Http\Requests\RouteBoundRequest;
 use Illuminate\Contracts\Validation\ValidationRule;
-use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
 /**
@@ -14,7 +13,7 @@ use Illuminate\Validation\Rule;
  * channel as a bot) from the settings surface. The channel and bot must both
  * belong to the team; the action re-checks that the bot can post to the channel.
  */
-class StoreIncomingWebhookRequest extends FormRequest
+class StoreIncomingWebhookRequest extends RouteBoundRequest
 {
     /**
      * @return array<string, ValidationRule|array<mixed>|string>
@@ -39,17 +38,5 @@ class StoreIncomingWebhookRequest extends FormRequest
             ],
             'with_signing_secret' => ['boolean'],
         ];
-    }
-
-    /**
-     * The team the webhook belongs to.
-     */
-    public function team(): Team
-    {
-        $team = $this->route('team');
-
-        abort_if(! $team instanceof Team, 404);
-
-        return $team;
     }
 }

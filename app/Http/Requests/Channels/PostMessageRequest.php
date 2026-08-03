@@ -3,13 +3,12 @@
 namespace App\Http\Requests\Channels;
 
 use App\Enums\MessageType;
-use App\Models\Channel;
+use App\Http\Requests\RouteBoundRequest;
 use Illuminate\Contracts\Validation\ValidationRule;
-use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\Rule;
 
-class PostMessageRequest extends FormRequest
+class PostMessageRequest extends RouteBoundRequest
 {
     /**
      * Determine if the user is authorized to make this request.
@@ -78,17 +77,5 @@ class PostMessageRequest extends FormRequest
             // main timeline in addition to the thread.
             'sent_to_channel' => ['boolean'],
         ];
-    }
-
-    /**
-     * Get the channel the message is being posted to.
-     */
-    public function channel(): Channel
-    {
-        $channel = $this->route('channel');
-
-        abort_if(! $channel instanceof Channel, 404);
-
-        return $channel;
     }
 }

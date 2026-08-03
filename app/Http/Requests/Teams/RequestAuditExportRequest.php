@@ -4,13 +4,12 @@ namespace App\Http\Requests\Teams;
 
 use App\Enums\AuditExportFormat;
 use App\Enums\AuditExportLogType;
-use App\Models\Team;
+use App\Http\Requests\RouteBoundRequest;
 use Illuminate\Contracts\Validation\ValidationRule;
-use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\Rule;
 
-class RequestAuditExportRequest extends FormRequest
+class RequestAuditExportRequest extends RouteBoundRequest
 {
     /**
      * Determine if the user may export the requested log for this workspace.
@@ -21,9 +20,7 @@ class RequestAuditExportRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        $team = $this->route('team');
-
-        return $team instanceof Team && Gate::allows($this->gate(), $team);
+        return Gate::allows($this->gate(), $this->team());
     }
 
     /**

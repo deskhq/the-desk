@@ -5,11 +5,10 @@ declare(strict_types=1);
 namespace App\Http\Requests\Teams\Integrations;
 
 use App\Enums\ChannelType;
-use App\Models\Team;
+use App\Http\Requests\RouteBoundRequest;
 use App\Models\User;
 use Closure;
 use Illuminate\Contracts\Validation\ValidationRule;
-use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
 /**
@@ -17,7 +16,7 @@ use Illuminate\Validation\Rule;
  * surface. The bot may join any standard channel in its own team (public or
  * private) — direct messages are never a valid target.
  */
-class StoreBotChannelRequest extends FormRequest
+class StoreBotChannelRequest extends RouteBoundRequest
 {
     /**
      * @return array<string, ValidationRule|array<mixed>|string>
@@ -41,26 +40,10 @@ class StoreBotChannelRequest extends FormRequest
     }
 
     /**
-     * The team the bot belongs to.
-     */
-    public function team(): Team
-    {
-        $team = $this->route('team');
-
-        abort_if(! $team instanceof Team, 404);
-
-        return $team;
-    }
-
-    /**
      * The bot whose channel membership is being changed.
      */
     public function bot(): User
     {
-        $bot = $this->route('bot');
-
-        abort_if(! $bot instanceof User, 404);
-
-        return $bot;
+        return $this->routeModel('bot', User::class);
     }
 }

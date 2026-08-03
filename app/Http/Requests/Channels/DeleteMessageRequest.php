@@ -2,11 +2,10 @@
 
 namespace App\Http\Requests\Channels;
 
-use App\Models\Message;
-use Illuminate\Foundation\Http\FormRequest;
+use App\Http\Requests\RouteBoundRequest;
 use Illuminate\Support\Facades\Gate;
 
-class DeleteMessageRequest extends FormRequest
+class DeleteMessageRequest extends RouteBoundRequest
 {
     /**
      * Determine if the user is authorized to make this request.
@@ -14,17 +13,5 @@ class DeleteMessageRequest extends FormRequest
     public function authorize(): bool
     {
         return Gate::allows('delete', $this->message());
-    }
-
-    /**
-     * Get the message being deleted.
-     */
-    public function message(): Message
-    {
-        $message = $this->route('message');
-
-        abort_if(! $message instanceof Message, 404);
-
-        return $message;
     }
 }

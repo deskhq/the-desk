@@ -2,13 +2,12 @@
 
 namespace App\Http\Requests\Sidebar;
 
+use App\Http\Requests\RouteBoundRequest;
 use App\Models\ChannelSection;
-use App\Models\Team;
 use Illuminate\Contracts\Validation\ValidationRule;
-use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Gate;
 
-class UpdateChannelSectionRequest extends FormRequest
+class UpdateChannelSectionRequest extends RouteBoundRequest
 {
     /**
      * Determine if the user is authorized to make this request.
@@ -57,22 +56,6 @@ class UpdateChannelSectionRequest extends FormRequest
      */
     public function section(): ChannelSection
     {
-        $section = $this->route('section');
-
-        abort_if(! $section instanceof ChannelSection, 404);
-
-        return $section;
-    }
-
-    /**
-     * Get the team the section belongs to.
-     */
-    public function team(): Team
-    {
-        $team = $this->route('team');
-
-        abort_if(! $team instanceof Team, 404);
-
-        return $team;
+        return $this->routeModel('section', ChannelSection::class);
     }
 }

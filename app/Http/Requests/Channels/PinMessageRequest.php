@@ -2,13 +2,11 @@
 
 namespace App\Http\Requests\Channels;
 
-use App\Models\Channel;
-use App\Models\Message;
+use App\Http\Requests\RouteBoundRequest;
 use Illuminate\Contracts\Validation\Validator;
-use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Gate;
 
-class PinMessageRequest extends FormRequest
+class PinMessageRequest extends RouteBoundRequest
 {
     /**
      * The hard cap on how many messages a single channel may pin at once.
@@ -64,29 +62,5 @@ class PinMessageRequest extends FormRequest
                 $validator->errors()->add('message', __('This channel has reached its limit of :max pinned messages.', ['max' => self::MAX_PINS]));
             }
         });
-    }
-
-    /**
-     * Get the channel the message is being pinned in.
-     */
-    public function channel(): Channel
-    {
-        $channel = $this->route('channel');
-
-        abort_if(! $channel instanceof Channel, 404);
-
-        return $channel;
-    }
-
-    /**
-     * Get the message being pinned or unpinned.
-     */
-    public function message(): Message
-    {
-        $message = $this->route('message');
-
-        abort_if(! $message instanceof Message, 404);
-
-        return $message;
     }
 }

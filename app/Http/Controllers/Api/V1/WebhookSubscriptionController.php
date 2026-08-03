@@ -48,7 +48,7 @@ class WebhookSubscriptionController extends Controller
         $channelIds = $request->validated('channel_ids');
 
         $subscription = $createWebhookSubscription->handle(
-            team: $request->team(),
+            team: $request->subjectTeam(),
             actor: $bot,
             name: $request->validated('name'),
             url: $request->validated('url'),

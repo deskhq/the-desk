@@ -2,12 +2,11 @@
 
 namespace App\Http\Requests\Channels;
 
-use App\Models\Message;
+use App\Http\Requests\RouteBoundRequest;
 use Illuminate\Contracts\Validation\ValidationRule;
-use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Gate;
 
-class EditMessageRequest extends FormRequest
+class EditMessageRequest extends RouteBoundRequest
 {
     /**
      * Determine if the user is authorized to make this request.
@@ -38,17 +37,5 @@ class EditMessageRequest extends FormRequest
         return [
             'body' => ['required', 'string', 'max:8000'],
         ];
-    }
-
-    /**
-     * Get the message being edited.
-     */
-    public function message(): Message
-    {
-        $message = $this->route('message');
-
-        abort_if(! $message instanceof Message, 404);
-
-        return $message;
     }
 }

@@ -3,14 +3,13 @@
 namespace App\Http\Requests\Channels;
 
 use App\Enums\MessageType;
-use App\Models\Channel;
+use App\Http\Requests\RouteBoundRequest;
 use App\Models\Poll;
 use Illuminate\Contracts\Validation\ValidationRule;
-use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\Rule;
 
-class StorePollRequest extends FormRequest
+class StorePollRequest extends RouteBoundRequest
 {
     /**
      * Determine if the user is authorized to make this request.
@@ -90,17 +89,5 @@ class StorePollRequest extends FormRequest
         return [
             'options.*.distinct' => __('Options must be different from each other.'),
         ];
-    }
-
-    /**
-     * Get the channel the poll is being posted to.
-     */
-    public function channel(): Channel
-    {
-        $channel = $this->route('channel');
-
-        abort_if(! $channel instanceof Channel, 404);
-
-        return $channel;
     }
 }

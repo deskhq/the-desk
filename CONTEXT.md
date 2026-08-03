@@ -187,6 +187,18 @@ built; build them once, then reuse.
   `SetUserStatus`, `ClearUserStatus`, `SetPresenceOverride` — living in
   `app/Actions/Users/` beside the three scheduled sweeps that clear the same columns;
   `forceFill` appears in no controller.
+- **`RouteBoundRequest`** — route model binding hands a form request a `mixed`, and
+  narrowing it back to the model the route named (or 404ing when it bound none) is one
+  rule with one home: the base every route-bound form request extends. `channel()`,
+  `team()` and `message()` are named on it; a one-off binding — a poll, a section, a
+  scheduled message — is one line through `routeModel($key, Model::class)` rather than a
+  method on the base. **A hand-written `abort_if(! $x instanceof Y, 404)` in a form
+  request is a defect**, and so is handing `$this->route(...)` to `Gate::allows()`:
+  before #1151 the same question shipped at three levels of type safety, four requests
+  gating on an unnarrowed `mixed`. `tests/Unit/FormRequestRouteModelHomeTest.php` fails
+  if a copy comes back. `Api/V1\ApiRequest` extends it and adds only what the API adds —
+  `subject()`, the token's bot or human — and names its token-derived team
+  `subjectTeam()`, because `team()` means *the team the route bound*.
 
 ### Frontend (`resources/js/`)
 
@@ -351,6 +363,10 @@ built; build them once, then reuse.
   `AuditableActionOccurred` from it — the **domain-event seam**, next to the
   mutation.
 - New channel-member preference → the **channel membership settings** concern.
+- A form request that needs the model its route bound → extend **`RouteBoundRequest`** and
+  call `channel()` / `team()` / `message()`, or `routeModel()` for a one-off. Never a
+  hand-written `abort_if(! $x instanceof Y, 404)`, and never `$this->route(...)` straight
+  into a gate.
 - A new nested resource under `settings/teams/{team}/…` → name its route parameter after
   the relationship that owns it (`{customEmoji}` → `Team::customEmojis()`), and let the
   group's `->scopeBindings()` do the tenancy. A hand-rolled `belongs to this team` check

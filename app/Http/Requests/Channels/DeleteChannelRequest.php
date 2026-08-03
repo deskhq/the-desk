@@ -2,14 +2,13 @@
 
 namespace App\Http\Requests\Channels;
 
-use App\Models\Channel;
+use App\Http\Requests\RouteBoundRequest;
 use Closure;
 use Illuminate\Contracts\Validation\ValidationRule;
-use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\Validator;
 
-class DeleteChannelRequest extends FormRequest
+class DeleteChannelRequest extends RouteBoundRequest
 {
     /**
      * Determine if the user is authorized to make this request.
@@ -62,17 +61,5 @@ class DeleteChannelRequest extends FormRequest
                 }
             },
         ];
-    }
-
-    /**
-     * Get the channel being deleted.
-     */
-    private function channel(): Channel
-    {
-        $channel = $this->route('channel');
-
-        abort_if(! $channel instanceof Channel, 404);
-
-        return $channel;
     }
 }

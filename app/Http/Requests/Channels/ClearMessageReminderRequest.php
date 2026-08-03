@@ -2,11 +2,11 @@
 
 namespace App\Http\Requests\Channels;
 
+use App\Http\Requests\RouteBoundRequest;
 use App\Models\MessageReminder;
-use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Gate;
 
-class ClearMessageReminderRequest extends FormRequest
+class ClearMessageReminderRequest extends RouteBoundRequest
 {
     /**
      * Determine if the user is authorized to make this request.
@@ -23,10 +23,6 @@ class ClearMessageReminderRequest extends FormRequest
      */
     public function reminder(): MessageReminder
     {
-        $reminder = $this->route('reminder');
-
-        abort_if(! $reminder instanceof MessageReminder, 404);
-
-        return $reminder;
+        return $this->routeModel('reminder', MessageReminder::class);
     }
 }

@@ -2,13 +2,12 @@
 
 namespace App\Http\Requests\Channels;
 
-use App\Models\Channel;
+use App\Http\Requests\RouteBoundRequest;
 use App\Rules\AddableChannelMember;
 use Illuminate\Contracts\Validation\ValidationRule;
-use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Gate;
 
-class AddChannelMemberRequest extends FormRequest
+class AddChannelMemberRequest extends RouteBoundRequest
 {
     /**
      * Determine if the user is authorized to make this request.
@@ -32,17 +31,5 @@ class AddChannelMemberRequest extends FormRequest
                 new AddableChannelMember($this->channel()->team_id),
             ],
         ];
-    }
-
-    /**
-     * Get the channel the member is being added to.
-     */
-    public function channel(): Channel
-    {
-        $channel = $this->route('channel');
-
-        abort_if(! $channel instanceof Channel, 404);
-
-        return $channel;
     }
 }

@@ -2,16 +2,16 @@
 
 namespace App\Http\Requests\Channels;
 
+use App\Http\Requests\RouteBoundRequest;
 use App\Models\Channel;
 use App\Policies\ChannelPolicy;
 use App\Support\NameSlug;
 use Closure;
 use Illuminate\Contracts\Validation\ValidationRule;
-use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\Validator;
 
-class UpdateChannelRequest extends FormRequest
+class UpdateChannelRequest extends RouteBoundRequest
 {
     /**
      * The longest a channel description may be — room for a few paragraphs of
@@ -117,18 +117,6 @@ class UpdateChannelRequest extends FormRequest
                 }
             },
         ];
-    }
-
-    /**
-     * Get the channel being edited.
-     */
-    public function channel(): Channel
-    {
-        $channel = $this->route('channel');
-
-        abort_if(! $channel instanceof Channel, 404);
-
-        return $channel;
     }
 
     /**

@@ -3,9 +3,8 @@
 namespace App\Http\Requests\Channels;
 
 use App\Enums\MessageType;
-use App\Models\Channel;
+use App\Http\Requests\RouteBoundRequest;
 use Illuminate\Contracts\Validation\ValidationRule;
-use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\Rule;
 
@@ -17,7 +16,7 @@ use Illuminate\Validation\Rule;
  * reuses the channel's `postMessage` policy, since dispatching a command may
  * post a message on the sender's behalf.
  */
-class StoreSlashCommandRequest extends FormRequest
+class StoreSlashCommandRequest extends RouteBoundRequest
 {
     /**
      * Determine if the user is authorized to make this request.
@@ -67,17 +66,5 @@ class StoreSlashCommandRequest extends FormRequest
             // in the main timeline in addition to the thread.
             'sent_to_channel' => ['boolean'],
         ];
-    }
-
-    /**
-     * Get the channel the command is being run in.
-     */
-    public function channel(): Channel
-    {
-        $channel = $this->route('channel');
-
-        abort_if(! $channel instanceof Channel, 404);
-
-        return $channel;
     }
 }

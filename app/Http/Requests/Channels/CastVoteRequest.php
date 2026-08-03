@@ -2,14 +2,13 @@
 
 namespace App\Http\Requests\Channels;
 
-use App\Models\Channel;
+use App\Http\Requests\RouteBoundRequest;
 use App\Models\Poll;
 use Illuminate\Contracts\Validation\ValidationRule;
-use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\Rule;
 
-class CastVoteRequest extends FormRequest
+class CastVoteRequest extends RouteBoundRequest
 {
     /**
      * Determine if the user is authorized to make this request.
@@ -41,26 +40,10 @@ class CastVoteRequest extends FormRequest
     }
 
     /**
-     * Get the channel the poll belongs to.
-     */
-    public function channel(): Channel
-    {
-        $channel = $this->route('channel');
-
-        abort_if(! $channel instanceof Channel, 404);
-
-        return $channel;
-    }
-
-    /**
      * Get the poll being voted on.
      */
     public function poll(): Poll
     {
-        $poll = $this->route('poll');
-
-        abort_if(! $poll instanceof Poll, 404);
-
-        return $poll;
+        return $this->routeModel('poll', Poll::class);
     }
 }
