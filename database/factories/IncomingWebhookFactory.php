@@ -38,6 +38,17 @@ class IncomingWebhookFactory extends Factory
     }
 
     /**
+     * Indicate that the webhook predates the timestamped signing scheme, so its
+     * senders still sign the raw body on its own.
+     */
+    public function legacySignatures(): static
+    {
+        return $this->state(fn (array $attributes): array => [
+            'requires_signed_timestamp' => false,
+        ]);
+    }
+
+    /**
      * Indicate that the webhook has been revoked and no longer resolves.
      */
     public function revoked(): static

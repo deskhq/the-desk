@@ -108,16 +108,24 @@ survives the revocation.
 
 When you create the webhook you can also mint an **HMAC signing secret**, shown
 once alongside the URL. If you do, sign each request so The Desk can reject
-forgeries: compute `HMAC-SHA256` over the exact raw request body and send the hex
-digest in the **`X-Signature-256`** header. A bare digest and a `sha256=`-prefixed
-one (GitHub/Slack style) are both accepted.
+forgeries and replays. Two headers make up a signed request:
+
+| Header | Value |
+| --- | --- |
+| `X-Timestamp` | The Unix time, in whole seconds, that you signed at. |
+| `X-Signature-256` | `HMAC-SHA256` of `"{timestamp}.{raw body}"`, hex-encoded. A bare digest and a `sha256=`-prefixed one (GitHub/Slack style) are both accepted. |
+
+Note what is signed: the timestamp, a literal `.`, then the exact request body.
+That is the same construction The Desk signs its own outgoing deliveries with.
 
 ```bash
 BODY='{"text": "Build passed ✅"}'
-SIGNATURE=$(printf '%s' "$BODY" | openssl dgst -sha256 -hmac "$SIGNING_SECRET" | awk '{print $2}')
+TIMESTAMP=$(date +%s)
+SIGNATURE=$(printf '%s.%s' "$TIMESTAMP" "$BODY" | openssl dgst -sha256 -hmac "$SIGNING_SECRET" | awk '{print $2}')
 
 curl -X POST $WEBHOOK_URL \
   -H 'Content-Type: application/json' \
+  -H "X-Timestamp: $TIMESTAMP" \
   -H "X-Signature-256: sha256=$SIGNATURE" \
   -d "$BODY"
 ```
@@ -129,11 +137,46 @@ A webhook created without a secret accepts unsigned requests. One created with a
 secret rejects a missing, malformed, or mismatched signature with **401** — so a
 signature sent under any other header name fails as if it were absent.
 
+### Why the timestamp
+
+A signature over the body alone never expires. Anyone who captures one signed
+request, from a plaintext internal hop, a CI log that echoes the request, or a
+compromised proxy, can POST it back forever, and each replay posts the message
+again. Signing the time you sent at closes that.
+
+Two rules follow from it, and a sender has to satisfy both:
+
+- **The timestamp must be within 5 minutes of The Desk's clock**, in either
+  direction. Sign at send time rather than reusing a signature computed earlier,
+  and keep the sending host's clock in step (NTP is enough). Outside the window
+  the request is **401**.
+- **Each signature is accepted once.** Retrying a failed delivery means signing
+  it again; re-sending the identical bytes is a replay and is refused. Since the
+  timestamp is in whole seconds, an identical body re-signed within the same
+  second produces the same signature, so wait for the next second before
+  retrying. A retry that reuses the signature gets **401**, never a duplicate
+  message: if the first attempt did reach The Desk, that 401 is the duplicate
+  being refused rather than an authentication problem.
+
+### Migrating an existing webhook
+
+Webhooks created **before** you upgraded to this version still accept the old
+scheme, where the digest covers the body alone and no `X-Timestamp` is sent:
+upgrading The Desk cannot rewrite the systems that post to them. Those webhooks
+accept **either** scheme, so you can switch a sender over on its own schedule and
+verify it before anything changes on this end.
+
+They keep accepting the old scheme, and stay replayable, until you retire them:
+**revoke the webhook and create a new one**, then move the sender to the new URL.
+Every webhook created from now on requires the timestamp and cannot fall back.
+Treat the old scheme as deprecated and plan the swap: a future release will drop
+it, and any sender still on it will start getting **401**.
+
 :::caution[Not the header outgoing deliveries use]
-Deliveries _from_ The Desk are signed with `X-Desk-Signature`, which carries
-`t=<unix ts>,v1=<hex>` computed over `"{timestamp}.{body}"` — see
+Deliveries _from_ The Desk are signed with `X-Desk-Signature`, which packs both
+values into one header as `t=<unix ts>,v1=<hex>`. See
 [verifying an outgoing signature](/reference/webhooks/#verifying-the-signature).
-That is a different header with a different value format. Incoming ingest reads
-only `X-Signature-256`, and the digest there is over the body alone — bare or
-`sha256=`-prefixed, never timestamped.
+The signed message is the same `"{timestamp}.{body}"`, but the header names and
+the value format are not: incoming ingest reads the timestamp and the digest as
+two separate headers and never parses a `t=…,v1=…` value.
 :::

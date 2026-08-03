@@ -8,6 +8,7 @@ use App\Models\IncomingWebhook;
 use App\Support\Integrations\IncomingWebhookPayload;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
@@ -34,6 +35,21 @@ class IncomingWebhookController extends Controller
      * raw request body, tolerating a `sha256=` prefix (GitHub/Slack style).
      */
     private const string SIGNATURE_HEADER = 'X-Signature-256';
+
+    /**
+     * The request header carrying the Unix timestamp the signature was computed
+     * at. Its presence selects the timestamped scheme: the signed message becomes
+     * `"{timestamp}.{raw body}"`, the same one outgoing deliveries use.
+     */
+    private const string TIMESTAMP_HEADER = 'X-Timestamp';
+
+    /**
+     * How far a signature's timestamp may sit from the server's own clock, in
+     * either direction, before the request is refused. It absorbs ordinary clock
+     * skew and delivery latency while bounding how long a captured request stays
+     * usable.
+     */
+    private const int TIMESTAMP_TOLERANCE = 300;
 
     public function __invoke(Request $request, string $token, PostMessage $postMessage): JsonResponse
     {
@@ -113,6 +129,13 @@ class IncomingWebhookController extends Controller
      * Enforce the HMAC signature when the webhook is configured with a signing
      * secret. An unsigned webhook skips this entirely (drop-in curl support); a
      * signed one rejects a missing or mismatched signature with 401.
+     *
+     * Two schemes are verified here. The one to send signs `"{timestamp}.{body}"`
+     * and states that timestamp, which bounds how long a captured request stays
+     * usable and lets a replay inside that window be refused outright. The other
+     * signs the body alone and replays forever; it is accepted only by webhooks
+     * created before the timestamped scheme existed, whose senders predate it,
+     * and those webhooks accept either so a sender can move over on its own.
      */
     private function verifySignature(Request $request, IncomingWebhook $webhook): void
     {
@@ -122,10 +145,63 @@ class IncomingWebhookController extends Controller
 
         $header = $request->header(self::SIGNATURE_HEADER);
         $signature = is_string($header) ? Str::after($header, 'sha256=') : '';
+        $timestamp = $this->signedTimestamp($request);
 
+        // A webhook minted under the timestamped scheme never falls back to the
+        // replayable one, so an absent or malformed timestamp is refused here
+        // rather than quietly verifying the body on its own.
+        abort_if($timestamp === null && $webhook->requires_signed_timestamp, 401);
+
+        // `claimSignature` is last on purpose: it has a side effect, and the
+        // short-circuit keeps it from burning a signature that failed anything
+        // before it.
         abort_unless(
-            $signature !== '' && $webhook->signatureMatches($signature, $request->getContent()),
+            $signature !== ''
+                && $this->timestampIsFresh($timestamp)
+                && $webhook->signatureMatches($signature, $request->getContent(), $timestamp)
+                && $this->claimSignature($webhook, $signature, $timestamp),
             401,
         );
+    }
+
+    /**
+     * Record a timestamped signature as spent, and report whether it was still
+     * unspent — a replay inside the freshness window loses the race and is
+     * refused. The marker outlives the window it was accepted in: a timestamp up
+     * to the tolerance in the future stays fresh for twice the tolerance, so a
+     * shorter marker would expire while the signature is still verifiable.
+     *
+     * A request under the legacy scheme carries no timestamp to bound the marker,
+     * so there is nothing here to expire against and it is not claimed.
+     */
+    private function claimSignature(IncomingWebhook $webhook, string $signature, ?int $timestamp): bool
+    {
+        if ($timestamp === null) {
+            return true;
+        }
+
+        return Cache::add("incoming-webhook:{$webhook->id}:{$signature}", true, self::TIMESTAMP_TOLERANCE * 2);
+    }
+
+    /**
+     * Whether a claimed signing time is close enough to now to be acted on. A
+     * request carrying no timestamp is not held to the window — it is verified
+     * under the legacy scheme instead.
+     */
+    private function timestampIsFresh(?int $timestamp): bool
+    {
+        return $timestamp === null || abs(now()->getTimestamp() - $timestamp) <= self::TIMESTAMP_TOLERANCE;
+    }
+
+    /**
+     * The Unix timestamp the request claims to have been signed at, or null when
+     * the header is absent or not an integer — either way the request is held to
+     * the legacy body-only scheme, which only a legacy webhook still accepts.
+     */
+    private function signedTimestamp(Request $request): ?int
+    {
+        $header = $request->header(self::TIMESTAMP_HEADER);
+
+        return is_string($header) && ctype_digit($header) ? (int) $header : null;
     }
 }

@@ -92,6 +92,39 @@ test('the incoming-webhook page names the outgoing header only to tell them apar
         ->and(array_values($ambiguous))->toBe([]);
 });
 
+/**
+ * The timestamp half of the scheme is what makes a captured request expire, and
+ * a sender only sends it because the page says to. Both the prose and the
+ * copy-paste sample are held to the controller's own constants so a rename or a
+ * retuned window cannot leave integrators signing the replayable way. See #1176.
+ */
+$constant = function (string $name): string {
+    $value = (new ReflectionClass(IncomingWebhookController::class))->getConstant($name);
+
+    throw_if($value === false, RuntimeException::class, "IncomingWebhookController::{$name} no longer exists.");
+
+    return (string) $value;
+};
+
+test('the signing section documents the timestamp header and its tolerance window', function () use ($incomingPage, $signingSection, $constant): void {
+    $section = $signingSection($incomingPage);
+
+    expect($section)->toContain($constant('TIMESTAMP_HEADER'))
+        // Stated in minutes, because it is what an integrator sizes a retry and
+        // a clock-skew budget against.
+        ->and($section)->toContain(intdiv((int) $constant('TIMESTAMP_TOLERANCE'), 60).' minutes');
+});
+
+test('the copy-paste signing sample sends the timestamp it signs', function () use ($incomingPage, $signingSection, $constant): void {
+    preg_match_all('/^```.*?\n(?<body>.*?)^```/ms', $signingSection($incomingPage), $matches);
+
+    $samples = implode("\n", $matches['body']);
+
+    // A sample that signs `"{timestamp}.{body}"` but forgets to send the header
+    // produces a 401 nobody can diagnose from the page.
+    expect($samples)->toContain($constant('TIMESTAMP_HEADER'));
+});
+
 test('the feature-toggles page names the same incoming signature header', function () use ($togglesPage, $incomingHeader): void {
     expect((string) file_get_contents($togglesPage))->toContain($incomingHeader());
 });
