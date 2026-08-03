@@ -217,18 +217,24 @@ without a thumbnail — rather than hanging or erroring. Setting
 ### Link previews are fetched through the same guard
 
 Posting a URL queues a background unfurl that fetches the page and reads its
-Open Graph tags. That is the server opening a connection to an address a member
-chose, so it goes through the guard the image proxy and outgoing webhooks use:
-public `http`/`https` hosts only, a 5-second timeout, a 2 MB cap, an
-HTML-only content-type check, and at most three redirects, each hop re-checked
-rather than handed to curl.
+Open Graph tags. Whatever the guard's setting, that fetch is bounded: a 5-second
+timeout, a 2 MB cap, an HTML-only content-type check, and at most three
+redirects, followed one hop at a time rather than handed to curl.
 
-Every hop resolves its hostname exactly once and pins the connection to the
-address that resolution vetted, so a domain whose authoritative DNS answers the
-check with a public address and the connection with an internal one cannot
-retarget the fetch. Without that pin an unfurl could be steered at cloud
-instance metadata, and the scraped `<title>` would carry the response back onto
-a preview card.
+Where the URL may point is governed by
+[`WEBHOOKS_BLOCK_PRIVATE_URLS`](/reference/feature-toggles/#outgoing-webhooks),
+the same guard the image proxy and outgoing webhooks use. While it is on
+(the default), every hop must be a public `http`/`https` host, resolves its
+hostname exactly once, and pins the connection to the address that resolution
+vetted — so a domain whose authoritative DNS answers the check with a public
+address and the connection with an internal one cannot retarget the fetch.
+Without that pin an unfurl could be steered at cloud instance metadata, and the
+scraped `<title>` would carry the response back onto a preview card.
+
+Turning the toggle off removes both the host check and the pin from link
+previews as well as from webhooks, which lets any member trigger a server-side
+fetch of an internal address by pasting its URL into a message. Only do it on an
+instance that deliberately targets internal endpoints.
 
 ### Running behind Cloudflare or a script-injecting proxy
 
