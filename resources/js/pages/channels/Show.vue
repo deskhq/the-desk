@@ -23,7 +23,7 @@ import { useRailBottomInset } from '@/composables/useRailInset';
 import { useReadOnFocus } from '@/composables/useReadOnFocus';
 import { useReadPointer } from '@/composables/useReadPointer';
 import { useScrollPin } from '@/composables/useScrollPin';
-import { useTeamPresence } from '@/composables/useTeamPresence';
+import { useTeamPresenceSubscription } from '@/composables/useTeamPresence';
 import { useThreadPanel } from '@/composables/useThreadPanel';
 import { useTimezone } from '@/composables/useTimezone';
 import type {
@@ -130,11 +130,10 @@ const typing = useChannelTyping({
 
 const typingNames = typing.typingNames;
 
-/**
- * Live presence for the team, driving the dots on message avatars, the masthead
- * and the facepile. Follows the team across channel switches.
- */
-const { presenceFor, isDndFor } = useTeamPresence(() => props.team.id);
+// The page holds the team's presence channel open alongside the shell — the
+// subscription is reference-counted, so the two share one channel and only the
+// last of them to unmount leaves it.
+useTeamPresenceSubscription(() => props.team.id);
 
 const { readers, seedReaders, channelReadersList } = useChannelReaders({
     channelReaders: () => props.channelReaders,
@@ -421,8 +420,6 @@ provideMessageActions(
                 :team="props.team"
                 :channel="props.channel"
                 :members="props.members"
-                :presence-for="presenceFor"
-                :is-dnd-for="isDndFor"
                 :title="mastheadTitle"
                 :can-manage-preferences="props.canManagePreferences"
                 :can-archive="props.canArchive"
@@ -455,8 +452,6 @@ provideMessageActions(
                 :pending-uuids="pendingUuids"
                 :queued-uuids="queuedUuids"
                 :can-drop-files="props.isMember && !props.channel.isArchived"
-                :presence-for="presenceFor"
-                :is-dnd-for="isDndFor"
                 :readers="channelReadersList"
                 :active-thread-root-id="activeThreadRootId"
                 :editing-message-id="composerEditingId"
@@ -532,8 +527,6 @@ provideMessageActions(
                 :pending-uuids="threadPendingUuids"
                 :members="mentionableMembers"
                 :has-bots="channelHasBots"
-                :presence-for="presenceFor"
-                :is-dnd-for="isDndFor"
                 :loading="threadLoading"
                 :read-only="props.channel.isArchived"
                 @close="closeThread"

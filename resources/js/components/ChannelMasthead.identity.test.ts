@@ -77,6 +77,12 @@ vi.mock('@/composables/useNavPanel', async () => {
     return navPanelDouble();
 });
 
+vi.mock('@/composables/useTeamPresence', async () => {
+    const { teamPresenceDouble } = await import('./ChannelMasthead.doubles');
+
+    return teamPresenceDouble();
+});
+
 vi.mock('@/composables/useDialog', async () => {
     const { dialogDouble } = await import('./ChannelMasthead.doubles');
 
@@ -90,6 +96,7 @@ import {
     mountMasthead,
     notificationIcon,
     participant,
+    presence,
     resetDoubles,
     unmountAll,
     viewer,
@@ -128,6 +135,8 @@ describe('the masthead title', () => {
     });
 
     it('shows the counterpart’s avatar and presence on a 1:1', () => {
+        presence.presenceFor = () => 'away';
+
         const host = mount({
             channel: channel({
                 isDirect: true,
@@ -136,7 +145,6 @@ describe('the masthead title', () => {
                 dmParticipants: [participant({ avatar: '/ada.png' })],
             }),
             title: 'Ada Lovelace',
-            presenceFor: () => 'away',
         });
 
         expect(avatarSrc(host, 'masthead-dm-avatar')).toBe('/ada.png');
@@ -149,6 +157,7 @@ describe('the masthead title', () => {
     it('falls back to the viewer’s own avatar and presence in a self-DM', () => {
         viewer.avatar = '/me.png';
         viewer.presence = 'away';
+        presence.presenceFor = () => 'offline';
 
         const host = mount({
             channel: channel({
@@ -158,7 +167,6 @@ describe('the masthead title', () => {
                 dmParticipants: [],
             }),
             title: 'You',
-            presenceFor: () => 'offline',
         });
 
         expect(avatarSrc(host, 'masthead-dm-avatar')).toBe('/me.png');
@@ -183,6 +191,8 @@ describe('the masthead title', () => {
     });
 
     it('announces a paused counterpart rather than their presence', () => {
+        presence.isDndFor = () => true;
+
         const host = mount({
             channel: channel({
                 isDirect: true,
@@ -191,7 +201,6 @@ describe('the masthead title', () => {
                 dmParticipants: [participant()],
             }),
             title: 'Ada',
-            isDndFor: () => true,
         });
 
         expect(find(host, 'masthead-dm-avatar')?.textContent).toContain(
@@ -245,13 +254,15 @@ describe('the masthead title', () => {
 
 describe('the masthead sub-lines', () => {
     it('stands the activity readout in for the facepile on a narrow viewport', () => {
+        presence.presenceFor = (id: string) =>
+            id === 'a' ? 'active' : 'offline';
+
         const host = mount({
             members: [
                 member({ id: 'a' }),
                 member({ id: 'b' }),
                 member({ id: 'c' }),
             ],
-            presenceFor: (id: string) => (id === 'a' ? 'active' : 'offline'),
         });
 
         expect(find(host, 'masthead-compact-activity')?.textContent).toContain(

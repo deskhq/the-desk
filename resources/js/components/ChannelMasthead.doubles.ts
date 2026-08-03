@@ -2,6 +2,7 @@ import { vi } from 'vitest';
 import type { App, Component } from 'vue';
 import { createApp, h, ref } from 'vue';
 import { passthrough } from '@/components/ChannelMasthead.stubs';
+import type { TeamPresence } from '@/composables/useTeamPresence';
 import { translate } from '@/lib/i18n';
 import type { RenderedPresence } from '@/lib/presence';
 import type { Channel, DmParticipant, RosterMember } from '@/types';
@@ -26,6 +27,23 @@ export function inertiaDouble(): Record<string, unknown> {
             url: '/t/acme/c/general',
             props: { auth: { user: viewer } },
         }),
+    };
+}
+
+/**
+ * The team roster the masthead's dots read. Mutable so a suite can put someone
+ * away or on do-not-disturb; set it before mounting, since the components read
+ * the accessor once in setup.
+ */
+export const presence: TeamPresence = {
+    presenceFor: () => 'active',
+    isDndFor: () => false,
+};
+
+export function teamPresenceDouble(): Record<string, unknown> {
+    return {
+        useTeamPresence: () => presence,
+        useTeamPresenceSubscription: () => {},
     };
 }
 
@@ -80,6 +98,8 @@ export function dialogDouble(): Record<string, unknown> {
 export function resetDoubles(): void {
     viewer.avatar = null;
     viewer.presence = 'active';
+    presence.presenceFor = () => 'active';
+    presence.isDndFor = () => false;
     dock.open.value = true;
     dock.setOpen.mockClear();
     navigation.isMobile.value = false;
@@ -176,8 +196,6 @@ export function mountMasthead(
             h(Masthead, {
                 channel: channel(),
                 members: [],
-                presenceFor: () => 'active' as RenderedPresence,
-                isDndFor: () => false,
                 title: 'general',
                 canManagePreferences: false,
                 canArchive: false,

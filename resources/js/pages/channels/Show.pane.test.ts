@@ -56,7 +56,10 @@ vi.mock('@/composables/useChannelRealtime', () => ({
 vi.mock('@/composables/useTeamPresence', async () => {
     const { teamPresenceDouble } = await import('./Show.doubles');
 
-    return { useTeamPresence: teamPresenceDouble };
+    return {
+        useTeamPresence: teamPresenceDouble,
+        useTeamPresenceSubscription: () => {},
+    };
 });
 
 vi.mock('@/composables/useChannelDraft', async () => {

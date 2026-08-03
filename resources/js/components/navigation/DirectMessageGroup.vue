@@ -10,20 +10,17 @@ import {
     SidebarGroupContent,
 } from '@/components/ui/sidebar';
 import { useDialog } from '@/composables/useDialog';
+import { useTeamPresence } from '@/composables/useTeamPresence';
 import { dmParticipantPresence } from '@/lib/presence';
 import type { RenderedPresence } from '@/lib/presence';
 import type { Channel } from '@/types/channels';
 
-const props = defineProps<{
+defineProps<{
     /** The DM conversations, already ordered by recent activity. */
     channels: Channel[];
     teamSlug: string;
     activeChannelSlug: string | null;
     collapsed: boolean;
-    /** How a teammate's presence dot should render. */
-    presenceFor: (userId: string) => RenderedPresence;
-    /** Whether a teammate is in do-not-disturb, for the crescent badge. */
-    isDndFor: (userId: string) => boolean;
 }>();
 
 defineEmits<{
@@ -32,6 +29,8 @@ defineEmits<{
 }>();
 
 const page = usePage();
+
+const { presenceFor, isDndFor } = useTeamPresence();
 
 /** The header's "+": the people picker the shell mounts. */
 const { open: openNewMessage } = useDialog('newMessage');
@@ -45,7 +44,7 @@ const currentUser = computed(() => page.props.auth.user);
 function presenceForRow(channel: Channel): RenderedPresence {
     return dmParticipantPresence(
         channel.dmUserId,
-        props.presenceFor,
+        presenceFor,
         currentUser.value.presence,
     );
 }

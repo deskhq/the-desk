@@ -18,11 +18,11 @@ import {
     useMessageSubtree,
 } from '@/composables/useMessageActionsContext';
 import { useMessageActionSheet } from '@/composables/useMessageActionSheet';
+import { useTeamPresence } from '@/composables/useTeamPresence';
 import { useTimelineWindow } from '@/composables/useTimelineWindow';
 import { displayAuthorName } from '@/lib/authorIdentity';
 import { formatTimeOfDay } from '@/lib/datetime';
 import { hasAnyMessageAction } from '@/lib/messageActions';
-import type { RenderedPresence } from '@/lib/presence';
 import { readersForMessage } from '@/lib/readReceipts';
 import { buildTimelineItems } from '@/lib/timeline';
 import type { TimelineGroup } from '@/lib/timeline';
@@ -46,16 +46,6 @@ const props = defineProps<{
      * reads "left the conversation" rather than "left the channel".
      */
     isDirect?: boolean;
-    /**
-     * How each author reads on the team presence roster. Absent on the surfaces
-     * that render a timeline without one, where every author reads as offline.
-     */
-    presenceFor?: (userId: string) => RenderedPresence;
-    /**
-     * Whether each author is in do-not-disturb, driving the crescent badge on
-     * their dot. Absent on the same surfaces that carry no roster.
-     */
-    isDndFor?: (userId: string) => boolean;
     highlightMessageId?: string | null;
     /**
      * The message the "New messages" divider sits above — the first unread on
@@ -112,6 +102,11 @@ const emit = defineEmits<{
 
 const scope = useMessageActionsContext();
 const subtree = useMessageSubtree();
+
+// How each author's avatar dot reads. Read here rather than handed down: a
+// timeline mounted with nothing subscribed sees an empty roster, which renders
+// every author offline — the answer the optional props used to fall back to.
+const { presenceFor, isDndFor } = useTeamPresence();
 const { contextFor } = useMessageActionGuards();
 
 /** Render timestamps in the viewer's stored zone, falling back to the browser's. */
@@ -147,20 +142,6 @@ const seenByReaders = computed<MessageAuthor[]>(() => {
         scope.currentUserId,
     );
 });
-
-/**
- * How a message author reads on the team presence roster.
- */
-function presenceOf(authorId: string): RenderedPresence {
-    return props.presenceFor?.(authorId) ?? 'offline';
-}
-
-/**
- * Whether a message author shows the crescent DND badge on their dot.
- */
-function dndOf(authorId: string): boolean {
-    return props.isDndFor?.(authorId) ?? false;
-}
 
 /**
  * The grouped, divider-interleaved render list. The grouping and boundary logic
@@ -312,8 +293,8 @@ function confirmDelete(): void {
                         :author-override="item.authorOverride"
                         :posted-via="item.postedVia"
                         :team-slug="props.teamSlug"
-                        :presence="presenceOf(item.author.id)"
-                        :is-dnd="dndOf(item.author.id)"
+                        :presence="presenceFor(item.author.id)"
+                        :is-dnd="isDndFor(item.author.id)"
                         :time="formatTime(item.leadCreatedAt)"
                         :is-mobile="isMobile"
                         @mention="(member) => subtree.mention(member)"
@@ -332,8 +313,8 @@ function confirmDelete(): void {
                             :author-override="item.authorOverride"
                             :posted-via="item.postedVia"
                             :team-slug="props.teamSlug"
-                            :presence="presenceOf(item.author.id)"
-                            :is-dnd="dndOf(item.author.id)"
+                            :presence="presenceFor(item.author.id)"
+                            :is-dnd="isDndFor(item.author.id)"
                             :time="formatTime(item.leadCreatedAt)"
                             @mention="(member) => subtree.mention(member)"
                         />

@@ -74,6 +74,12 @@ vi.mock('@/components/ui/tooltip', () => ({
     TooltipTrigger: stub('div'),
     TooltipContent: stub('div'),
 }));
+vi.mock('@/composables/useTeamPresence', async () => {
+    const { teamPresenceDouble } = await import('./ChannelMasthead.doubles');
+
+    return teamPresenceDouble();
+});
+
 vi.mock('@/composables/useDialog', async () => {
     const { ref } = await import('vue');
 
@@ -122,7 +128,6 @@ async function render(connectionPill: ConnectionPill): Promise<string> {
             h(ChannelMasthead, {
                 channel: channel(),
                 members: [],
-                presenceFor: () => 'active' as const,
                 title: 'general',
                 canManagePreferences: false,
                 canArchive: false,

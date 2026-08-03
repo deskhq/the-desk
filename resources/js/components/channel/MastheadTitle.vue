@@ -11,6 +11,7 @@ import {
     TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { getInitials } from '@/composables/useInitials';
+import { useTeamPresence } from '@/composables/useTeamPresence';
 import { MAX_MASTHEAD_AVATARS } from '@/lib/memberAvatars';
 import type { NotificationIndicator } from '@/lib/notificationIndicator';
 import {
@@ -29,10 +30,6 @@ const props = defineProps<{
     channel: Channel;
     /** The team roster, which the activity readout counts. */
     members: RosterMember[];
-    /** How each team member reads on the presence roster. */
-    presenceFor: (userId: string) => RenderedPresence;
-    /** Whether each member is in do-not-disturb, driving the crescent badge. */
-    isDndFor?: (userId: string) => boolean;
     /**
      * The viewer-relative title (self-DM reads "You"); the page also feeds it to
      * `<Head>`, so it is resolved once there and passed down.
@@ -43,6 +40,8 @@ const props = defineProps<{
 }>();
 
 const page = usePage();
+
+const { presenceFor, isDndFor } = useTeamPresence();
 
 /** The other participant of a 1:1 DM, whose avatar the masthead shows. */
 const dmParticipant = computed(() => props.channel.dmParticipants?.[0] ?? null);
@@ -65,21 +64,19 @@ const dmAvatar = computed(() =>
 const dmPresence = computed<RenderedPresence>(() =>
     dmParticipantPresence(
         props.channel.dmUserId,
-        props.presenceFor,
+        presenceFor,
         page.props.auth.user.presence,
     ),
 );
 
 /** Whether the 1:1 counterpart shows the crescent DND badge. */
 const dmDnd = computed(
-    () =>
-        props.channel.dmUserId != null &&
-        (props.isDndFor?.(props.channel.dmUserId) ?? false),
+    () => props.channel.dmUserId != null && isDndFor(props.channel.dmUserId),
 );
 
 /** How many of the roster are active, for the compact activity readout. */
 const activeCount = computed(() =>
-    activeMemberCount(props.members, props.presenceFor),
+    activeMemberCount(props.members, presenceFor),
 );
 
 /** The group's participant count, including the viewer, for the subtitle. */

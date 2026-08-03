@@ -3,7 +3,6 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import type { App, Component } from 'vue';
 import { createApp, defineComponent, h, nextTick, reactive } from 'vue';
 import { SHELL_DIALOG_NAMES, useDialog } from '@/composables/useDialog';
-import type { RenderedPresence } from '@/lib/presence';
 
 const page = reactive<{ props: Record<string, unknown> }>({ props: {} });
 
@@ -69,11 +68,7 @@ function mountHost(): HTMLElement {
     document.body.append(host);
 
     app = createApp({
-        render: () =>
-            h(DialogHost, {
-                presenceFor: (): RenderedPresence => 'offline',
-                isDndFor: () => false,
-            }),
+        render: () => h(DialogHost, {}),
     });
     app.config.globalProperties.$t = (key: string) => key;
     app.mount(host);

@@ -240,6 +240,18 @@ built; build them once, then reuse.
 - **`useChannelFleetSubscription`** _(ADR-0006)_ — one engine for
   subscribing to a set of channels (sidebar badges, chimes, and the active
   channel all share it). One tested reconcile/teardown lifecycle.
+- **`useTeamPresence` + `useTeamPresenceSubscription`** _(ADR-0006)_ — the
+  `team.{id}` roster, split into the state and the lifecycle. The state is
+  **module-scoped** and the subscription is **reference-counted**: the shell and the
+  open channel page both want the roster and both land on the same cached Echo
+  channel, so the first mount joins, the rest are free, and only the last unmount
+  calls `leave()`. Every dot surface reads `presenceFor` / `isDndFor` through
+  `useTeamPresence()` at the point of use, the way a message row reads the
+  message-action context, rather than being handed them three and four hops down
+  (#1145). ADR-0006 puts realtime *lifecycles* in a composable; the refinement is
+  that realtime *state* read by more than one subtree is module-scoped, not
+  per-caller — per-caller state means N callers pay N debounced reloads, and either
+  one's teardown takes the channel down for all of them.
 - **`useDebouncedPost`** — the debounced, focus-gated, auto-teardown router POST
   used by mark-read, mark-thread-read, and draft persistence.
 - **`useAutocompleteMenu` + `AutocompleteListbox`** — the composer's one
@@ -328,7 +340,9 @@ built; build them once, then reuse.
   a one-line **alias** in `resources/js/types/`. Never hand-write the shape a second time;
   if the alias would lose a fact, sharpen the DTO (ADR-0013).
 - New realtime behaviour → a composable with a seam + a pure decision core in
-  `lib/`; never inline in a page.
+  `lib/`; never inline in a page. If more than one subtree reads the same live
+  state, the state is module-scoped and the subscription reference-counted
+  (**`useTeamPresence`**) — a second caller must be free.
 - New channel message payload → the **Message load-set scope**.
 - New "which channels can this user see" check → the **Visible-channels ACL**,
   after deciding which reading you mean: *is it mine* (`memberChannelIds`) or

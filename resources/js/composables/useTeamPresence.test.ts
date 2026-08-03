@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { createRenderer, defineComponent, nextTick, reactive } from 'vue';
+import { createRenderer, defineComponent, nextTick, reactive, ref } from 'vue';
+import type { MaybeRefOrGetter } from 'vue';
 
 const reload = vi.fn();
 
@@ -16,15 +17,22 @@ const page = reactive({
     },
 });
 
-/** Roster handlers registered per presence channel, by hook name. */
+/**
+ * Roster handlers registered per presence channel, by hook name.
+ *
+ * Every hook is a *list*, because Echo caches one channel per name and each
+ * `.here()` / `.listen()` on it adds a callback rather than replacing the last —
+ * which is exactly how a second subscriber ends up doubling the work.
+ */
 type Handlers = {
-    here?: (members: { id: string; name: string }[]) => void;
-    joining?: (member: { id: string; name: string }) => void;
-    leaving?: (member: { id: string; name: string }) => void;
-    listeners: Map<string, (payload: never) => void>;
+    here: ((members: { id: string; name: string }[]) => void)[];
+    joining: ((member: { id: string; name: string }) => void)[];
+    leaving: ((member: { id: string; name: string }) => void)[];
+    listeners: Map<string, ((payload: never) => void)[]>;
 };
 
 const channels = new Map<string, Handlers>();
+const joined: string[] = [];
 const left: string[] = [];
 
 vi.mock('@inertiajs/vue3', () => ({
@@ -35,29 +43,37 @@ vi.mock('@inertiajs/vue3', () => ({
 vi.mock('@laravel/echo-vue', () => ({
     echo: () => ({
         join(name: string) {
+            joined.push(name);
+
             const handlers: Handlers = channels.get(name) ?? {
+                here: [],
+                joining: [],
+                leaving: [],
                 listeners: new Map(),
             };
             channels.set(name, handlers);
 
             const chain = {
-                here(callback: Handlers['here']) {
-                    handlers.here = callback;
+                here(callback: Handlers['here'][number]) {
+                    handlers.here.push(callback);
 
                     return chain;
                 },
-                joining(callback: Handlers['joining']) {
-                    handlers.joining = callback;
+                joining(callback: Handlers['joining'][number]) {
+                    handlers.joining.push(callback);
 
                     return chain;
                 },
-                leaving(callback: Handlers['leaving']) {
-                    handlers.leaving = callback;
+                leaving(callback: Handlers['leaving'][number]) {
+                    handlers.leaving.push(callback);
 
                     return chain;
                 },
                 listen(event: string, callback: (payload: never) => void) {
-                    handlers.listeners.set(event, callback);
+                    handlers.listeners.set(event, [
+                        ...(handlers.listeners.get(event) ?? []),
+                        callback,
+                    ]);
 
                     return chain;
                 },
@@ -65,11 +81,17 @@ vi.mock('@laravel/echo-vue', () => ({
 
             return chain;
         },
-        leave: (name: string) => left.push(name),
+        leave: (name: string) => {
+            channels.delete(name);
+            left.push(name);
+        },
     }),
 }));
 
-import { useTeamPresence } from '@/composables/useTeamPresence';
+import {
+    useTeamPresence,
+    useTeamPresenceSubscription,
+} from '@/composables/useTeamPresence';
 
 /**
  * A no-op renderer mounts a real component instance under Node (no DOM), which
@@ -89,13 +111,16 @@ const { createApp } = createRenderer<object, object>({
     setScopeId: () => {},
 });
 
-function mount() {
-    let api!: ReturnType<typeof useTeamPresence>;
-
+/**
+ * A subscriber, standing in for the shell or the channel page. The reader half
+ * is module state, so {@link useTeamPresence} answers from anywhere — the tests
+ * call it outside a component the way a deep dot component calls it inside one.
+ */
+function mount(teamId: MaybeRefOrGetter<string | undefined> = () => 'team-1') {
     const app = createApp(
         defineComponent({
             setup() {
-                api = useTeamPresence(() => 'team-1');
+                useTeamPresenceSubscription(teamId);
 
                 return () => null;
             },
@@ -104,13 +129,34 @@ function mount() {
 
     app.mount({});
 
-    return { api, unmount: () => app.unmount() };
+    return { api: useTeamPresence(), unmount: () => app.unmount() };
 }
 
 const roster = () => channels.get('team.team-1')!;
 
+/** Broadcast the roster snapshot to every `here` callback bound to the channel. */
+function here(members: { id: string; name: string }[]): void {
+    roster().here.forEach((callback) => callback(members));
+}
+
+function joining(member: { id: string; name: string }): void {
+    roster().joining.forEach((callback) => callback(member));
+}
+
+function leaving(member: { id: string; name: string }): void {
+    roster().leaving.forEach((callback) => callback(member));
+}
+
+/** Broadcast a server event to every listener bound to it, as Echo does. */
+function broadcast(event: string, payload?: unknown): void {
+    roster()
+        .listeners.get(event)!
+        .forEach((callback) => callback(payload as never));
+}
+
 beforeEach(() => {
     channels.clear();
+    joined.length = 0;
     left.length = 0;
     reload.mockClear();
     page.props.teamMembers = [];
@@ -124,7 +170,7 @@ describe('useTeamPresence', () => {
     it('reports a member absent from the roster as offline', () => {
         const { api, unmount } = mount();
 
-        roster().here!([]);
+        here([]);
 
         expect(api.presenceFor('maya')).toBe('offline');
 
@@ -134,7 +180,7 @@ describe('useTeamPresence', () => {
     it('reports a roster member with no reported state as active', () => {
         const { api, unmount } = mount();
 
-        roster().here!([{ id: 'maya', name: 'Maya' }]);
+        here([{ id: 'maya', name: 'Maya' }]);
 
         expect(api.presenceFor('maya')).toBe('active');
 
@@ -149,7 +195,7 @@ describe('useTeamPresence', () => {
 
         const { api, unmount } = mount();
 
-        roster().here!([
+        here([
             { id: 'maya', name: 'Maya' },
             { id: 'jonas', name: 'Jonas' },
         ]);
@@ -209,8 +255,8 @@ describe('useTeamPresence', () => {
     it('patches a member live when they go away, with no reload', () => {
         const { api, unmount } = mount();
 
-        roster().here!([{ id: 'maya', name: 'Maya' }]);
-        roster().listeners.get('UserPresenceChanged')!({
+        here([{ id: 'maya', name: 'Maya' }]);
+        broadcast('UserPresenceChanged', {
             id: 'maya',
             state: 'away',
         } as never);
@@ -224,12 +270,12 @@ describe('useTeamPresence', () => {
     it('patches them back to active on their next activity', () => {
         const { api, unmount } = mount();
 
-        roster().here!([{ id: 'maya', name: 'Maya' }]);
-        roster().listeners.get('UserPresenceChanged')!({
+        here([{ id: 'maya', name: 'Maya' }]);
+        broadcast('UserPresenceChanged', {
             id: 'maya',
             state: 'away',
         } as never);
-        roster().listeners.get('UserPresenceChanged')!({
+        broadcast('UserPresenceChanged', {
             id: 'maya',
             state: 'active',
         } as never);
@@ -246,8 +292,8 @@ describe('useTeamPresence', () => {
 
         const { api, unmount } = mount();
 
-        roster().here!([{ id: 'maya', name: 'Maya' }]);
-        roster().listeners.get('UserPresenceChanged')!({
+        here([{ id: 'maya', name: 'Maya' }]);
+        broadcast('UserPresenceChanged', {
             id: 'maya',
             state: 'active',
         } as never);
@@ -260,12 +306,12 @@ describe('useTeamPresence', () => {
     it('renders a member who leaves as offline, whatever they last reported', () => {
         const { api, unmount } = mount();
 
-        roster().here!([{ id: 'maya', name: 'Maya' }]);
-        roster().listeners.get('UserPresenceChanged')!({
+        here([{ id: 'maya', name: 'Maya' }]);
+        broadcast('UserPresenceChanged', {
             id: 'maya',
             state: 'away',
         } as never);
-        roster().leaving!({ id: 'maya', name: 'Maya' });
+        leaving({ id: 'maya', name: 'Maya' });
 
         expect(api.presenceFor('maya')).toBe('offline');
 
@@ -279,13 +325,13 @@ describe('useTeamPresence', () => {
 
         const { api, unmount } = mount();
 
-        roster().here!([{ id: 'maya', name: 'Maya' }]);
-        roster().listeners.get('UserPresenceChanged')!({
+        here([{ id: 'maya', name: 'Maya' }]);
+        broadcast('UserPresenceChanged', {
             id: 'maya',
             state: 'away',
         } as never);
-        roster().leaving!({ id: 'maya', name: 'Maya' });
-        roster().joining!({ id: 'maya', name: 'Maya' });
+        leaving({ id: 'maya', name: 'Maya' });
+        joining({ id: 'maya', name: 'Maya' });
 
         expect(api.presenceFor('maya')).toBe('active');
 
@@ -297,7 +343,7 @@ describe('useTeamPresence', () => {
 
         const { unmount } = mount();
 
-        roster().listeners.get('UserProfileUpdated')!(undefined as never);
+        broadcast('UserProfileUpdated', undefined as never);
 
         await vi.advanceTimersByTimeAsync(500);
         await nextTick();
@@ -313,5 +359,91 @@ describe('useTeamPresence', () => {
         unmount();
 
         expect(left).toContain('team.team-1');
+    });
+
+    it('joins the channel once however many subscribers mount', () => {
+        const first = mount();
+        const second = mount();
+
+        expect(joined).toEqual(['team.team-1']);
+
+        first.unmount();
+        second.unmount();
+    });
+
+    it('reloads once per broadcast, not once per subscriber', async () => {
+        vi.useFakeTimers();
+
+        const first = mount();
+        const second = mount();
+
+        broadcast('UserProfileUpdated');
+
+        await vi.advanceTimersByTimeAsync(500);
+        await nextTick();
+
+        expect(reload).toHaveBeenCalledTimes(1);
+
+        first.unmount();
+        second.unmount();
+    });
+
+    it('keeps the channel while another subscriber is still mounted', () => {
+        const first = mount();
+        const second = mount();
+
+        first.unmount();
+
+        expect(left).not.toContain('team.team-1');
+
+        second.unmount();
+
+        expect(left).toContain('team.team-1');
+    });
+
+    it('keeps the roster readable when one subscriber unmounts', () => {
+        const first = mount();
+        const second = mount();
+
+        here([{ id: 'maya', name: 'Maya' }]);
+        first.unmount();
+
+        expect(second.api.presenceFor('maya')).toBe('active');
+
+        second.unmount();
+    });
+
+    it('leaves the roster standing when a second subscriber arrives', () => {
+        const first = mount();
+
+        here([{ id: 'maya', name: 'Maya' }]);
+
+        const second = mount();
+
+        expect(second.api.presenceFor('maya')).toBe('active');
+
+        first.unmount();
+        second.unmount();
+    });
+
+    it('follows a team switch, leaving the old channel for the new one', async () => {
+        const teamId = ref<string | undefined>('team-1');
+        const { api, unmount } = mount(teamId);
+
+        here([{ id: 'maya', name: 'Maya' }]);
+
+        teamId.value = 'team-2';
+        await nextTick();
+
+        expect(left).toEqual(['team.team-1']);
+        expect(joined).toEqual(['team.team-1', 'team.team-2']);
+        // A stale team's presence must never bleed into the next one's roster.
+        expect(api.presenceFor('maya')).toBe('offline');
+
+        unmount();
+    });
+
+    it('reads everyone as offline before anything has subscribed', () => {
+        expect(useTeamPresence().presenceFor('maya')).toBe('offline');
     });
 });

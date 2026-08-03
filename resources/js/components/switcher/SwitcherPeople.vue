@@ -3,9 +3,9 @@ import PresenceDot from '@/components/PresenceDot.vue';
 import SwitcherName from '@/components/switcher/SwitcherName.vue';
 import { CommandGroup, CommandItem } from '@/components/ui/command';
 import { getInitials } from '@/composables/useInitials';
+import { useTeamPresence } from '@/composables/useTeamPresence';
 import { useTranslations } from '@/composables/useTranslations';
 import { presenceLabelKey } from '@/lib/presence';
-import type { RenderedPresence } from '@/lib/presence';
 import type { PersonEntry } from '@/types/people';
 
 defineProps<{
@@ -15,13 +15,6 @@ defineProps<{
     query: string;
     /** Whether the palette is rendering as the mobile full-screen overlay. */
     isMobile: boolean;
-    /**
-     * How each team member reads on the presence roster, driving the mobile
-     * overlay's avatar dots and presence words.
-     */
-    presenceFor: (userId: string) => RenderedPresence;
-    /** Whether each member is in do-not-disturb, driving the crescent badge. */
-    isDndFor?: (userId: string) => boolean;
 }>();
 
 defineEmits<{
@@ -30,6 +23,8 @@ defineEmits<{
 }>();
 
 const { t } = useTranslations();
+
+const { presenceFor, isDndFor } = useTeamPresence();
 </script>
 
 <template>
@@ -53,7 +48,7 @@ const { t } = useTranslations();
                 >
                 <PresenceDot
                     :presence="presenceFor(person.id)"
-                    :is-dnd="isDndFor?.(person.id) ?? false"
+                    :is-dnd="isDndFor(person.id)"
                     surface-class="bg-sidebar"
                     size="28"
                     class="ring-sidebar"

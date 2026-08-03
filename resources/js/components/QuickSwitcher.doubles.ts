@@ -1,8 +1,8 @@
 import { vi } from 'vitest';
 import type { App, Component, Ref } from 'vue';
 import { createApp, h, nextTick, ref } from 'vue';
+import type { TeamPresence } from '@/composables/useTeamPresence';
 import { translate } from '@/lib/i18n';
-import type { RenderedPresence } from '@/lib/presence';
 import type { MessageSearchResult } from '@/types';
 import type { Channel } from '@/types/channels';
 import type { PersonRef } from '@/types/people';
@@ -19,6 +19,22 @@ export const viewer = {
     url: '/t/acme/c/general',
     timezone: null as string | null,
 };
+
+/**
+ * The team roster the people rows read. Mutable so a suite can put someone
+ * away; set it before mounting, since the rows read the accessor once in setup.
+ */
+export const presence: TeamPresence = {
+    presenceFor: () => 'active',
+    isDndFor: () => false,
+};
+
+export function teamPresenceDouble(): Record<string, unknown> {
+    return {
+        useTeamPresence: () => presence,
+        useTeamPresenceSubscription: () => {},
+    };
+}
 
 /** Where a picked row sends the viewer. */
 export const router = { visit: vi.fn() };
@@ -126,6 +142,8 @@ export function searchActionDouble(): Record<string, unknown> {
 export function resetDoubles(): void {
     viewer.url = '/t/acme/c/general';
     viewer.timezone = null;
+    presence.presenceFor = () => 'active';
+    presence.isDndFor = () => false;
     router.visit.mockClear();
     messageSearch.results.value = [];
     messageSearch.isSearching.value = false;
@@ -229,8 +247,6 @@ export function mountSwitcher(
                 members: [person()],
                 currentUserId: 'me',
                 teamSlug: 'acme',
-                presenceFor: () => 'active' as RenderedPresence,
-                isDndFor: () => false,
                 onOpenReminders: record('openReminders'),
                 ...props,
             }),

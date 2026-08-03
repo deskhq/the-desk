@@ -28,7 +28,6 @@ import { useIsMobile } from '@/composables/useIsMobile';
 import { useOpenDirectMessage } from '@/composables/useOpenDirectMessage';
 import { useQuickSwitcherSearch } from '@/composables/useQuickSwitcherSearch';
 import { rankPeople } from '@/lib/peopleDirectory';
-import type { RenderedPresence } from '@/lib/presence';
 import type { MessageSearchResult } from '@/types';
 import type { Channel } from '@/types/channels';
 import type { PersonRef } from '@/types/people';
@@ -38,13 +37,6 @@ const props = defineProps<{
     members: PersonRef[];
     currentUserId: string;
     teamSlug: string;
-    /**
-     * How each team member reads on the presence roster, driving the mobile
-     * overlay's avatar dots and presence words.
-     */
-    presenceFor: (userId: string) => RenderedPresence;
-    /** Whether each member is in do-not-disturb, driving the crescent badge. */
-    isDndFor?: (userId: string) => boolean;
 }>();
 
 const open = defineModel<boolean>('open', { default: false });
@@ -183,8 +175,6 @@ function openReminders(): void {
                         :people="peopleResults"
                         :query="query"
                         :is-mobile="isMobile"
-                        :presence-for="presenceFor"
-                        :is-dnd-for="isDndFor"
                         @select="selectPerson"
                     />
 

@@ -85,7 +85,6 @@ vi.mock('@/components/navigation/DirectMessageGroup.vue', () => ({
 
 import { useChannelSections } from '@/composables/useChannelSections';
 import { useDialog } from '@/composables/useDialog';
-import type { RenderedPresence } from '@/lib/presence';
 import type { Channel, ChannelSection } from '@/types/channels';
 import ChannelsPanel from './ChannelsPanel.vue';
 
@@ -144,11 +143,7 @@ function mountPanel(
     document.body.append(host);
 
     app = createApp({
-        render: () =>
-            h(ChannelsPanel, {
-                presenceFor: (): RenderedPresence => 'offline',
-                isDndFor: () => false,
-            }),
+        render: () => h(ChannelsPanel, {}),
     });
     app.config.globalProperties.$t = (key: string) => key;
     app.mount(host);

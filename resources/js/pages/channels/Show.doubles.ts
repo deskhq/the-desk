@@ -126,7 +126,7 @@ export function threadPanelDouble() {
 
 /** The team roster, with everyone offline and nobody in do-not-disturb. */
 export function teamPresenceDouble() {
-    return { presenceFor: () => 'offline', isDndFor: () => false };
+    return { presenceFor: () => 'offline' as const, isDndFor: () => false };
 }
 
 /** The per-channel draft, persisting nothing. */

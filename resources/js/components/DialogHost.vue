@@ -12,7 +12,6 @@ import PendingInvitationsModal from '@/components/PendingInvitationsModal.vue';
 import QuickSwitcher from '@/components/QuickSwitcher.vue';
 import UserStatusDialog from '@/components/UserStatusDialog.vue';
 import { useDialog } from '@/composables/useDialog';
-import type { RenderedPresence } from '@/lib/presence';
 import type { RoleOption } from '@/types/teams';
 
 /**
@@ -29,13 +28,6 @@ import type { RoleOption } from '@/types/teams';
  * subscription, and subscribing a second time here would open a second channel
  * for the same roster.
  */
-defineProps<{
-    /** How a teammate's presence dot should render, for the switcher's DM rows. */
-    presenceFor: (userId: string) => RenderedPresence;
-    /** Whether a teammate is in do-not-disturb, for the same rows. */
-    isDndFor: (userId: string) => boolean;
-}>();
-
 const emit = defineEmits<{
     /** The switcher's "Reminders" row; the dock owns which destination is open. */
     openReminders: [];
@@ -110,8 +102,6 @@ const postRegistrationPrompt = computed(
         :members="teamMembers"
         :current-user-id="currentUserId"
         :team-slug="currentTeam.slug"
-        :presence-for="presenceFor"
-        :is-dnd-for="isDndFor"
         @open-reminders="emit('openReminders')"
     />
 
