@@ -2,12 +2,11 @@
 
 namespace App\Http\Requests\Channels;
 
-use App\Enums\MessageType;
 use App\Http\Requests\RouteBoundRequest;
 use App\Models\Poll;
+use App\Rules\MessageTarget;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Support\Facades\Gate;
-use Illuminate\Validation\Rule;
 
 class StorePollRequest extends RouteBoundRequest
 {
@@ -62,17 +61,9 @@ class StorePollRequest extends RouteBoundRequest
             'allow_multiple' => ['boolean'],
             'is_anonymous' => ['boolean'],
             'client_uuid' => ['required', 'uuid'],
-            // A poll posted into a thread targets a live root user message in this
-            // same channel, mirroring the message send path's thread rule.
-            'thread_root_id' => [
-                'nullable',
-                'uuid',
-                Rule::exists('messages', 'id')
-                    ->where('channel_id', $this->channel()->id)
-                    ->whereNotIn('type', MessageType::systemValues())
-                    ->whereNull('deleted_at')
-                    ->whereNull('thread_root_id'),
-            ],
+            // A poll posted into a thread targets the same message a thread reply
+            // would: the send path's rule, not a poll-shaped copy of it.
+            'thread_root_id' => ['nullable', 'uuid', MessageTarget::threadRootIn($this->channel())],
             'sent_to_channel' => ['boolean'],
         ];
     }

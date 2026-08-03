@@ -2,11 +2,10 @@
 
 namespace App\Http\Requests\Channels;
 
-use App\Enums\MessageType;
 use App\Http\Requests\RouteBoundRequest;
+use App\Rules\MessageTarget;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Support\Facades\Gate;
-use Illuminate\Validation\Rule;
 
 /**
  * Validates a slash-command send. The payload carries the *raw* body — the
@@ -50,18 +49,9 @@ class StoreSlashCommandRequest extends RouteBoundRequest
             // it never carries attachments, which the endpoint does not accept.
             'body' => ['required', 'string', 'max:8000'],
             'client_uuid' => ['required', 'uuid'],
-            // A command run from a thread targets a live root user message in
-            // this channel, matching the message-post rule so a `postMessage`
-            // result echoes into the right thread.
-            'thread_root_id' => [
-                'nullable',
-                'uuid',
-                Rule::exists('messages', 'id')
-                    ->where('channel_id', $this->channel()->id)
-                    ->whereNotIn('type', MessageType::systemValues())
-                    ->whereNull('deleted_at')
-                    ->whereNull('thread_root_id'),
-            ],
+            // A command run from a thread echoes its `postMessage` result into
+            // that thread, so it targets the same message a thread reply would.
+            'thread_root_id' => ['nullable', 'uuid', MessageTarget::threadRootIn($this->channel())],
             // Only meaningful alongside thread_root_id; surfaces a thread reply
             // in the main timeline in addition to the thread.
             'sent_to_channel' => ['boolean'],
