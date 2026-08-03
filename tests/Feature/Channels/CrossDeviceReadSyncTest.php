@@ -2,47 +2,19 @@
 
 use App\Actions\Channels\MarkChannelRead;
 use App\Actions\Channels\OpenDirectMessage;
-use App\Actions\Teams\CreateTeam;
 use App\Enums\TeamRole;
 use App\Events\MessageRead;
 use App\Events\ReadStateAdvanced;
-use App\Models\Channel;
 use App\Models\Message;
-use App\Models\Team;
 use App\Models\User;
 use Illuminate\Broadcasting\PrivateChannel;
 use Illuminate\Support\Facades\Event;
 
-/**
- * Create a team with its owner already a member of #general.
- *
- * @return array{0: User, 1: Team, 2: Channel}
- */
-function readSyncTeamWithGeneral(): array
-{
-    $owner = User::factory()->create();
-    $team = app(CreateTeam::class)->handle($owner, 'Acme');
-    $general = Channel::where('team_id', $team->id)->where('slug', 'general')->firstOrFail();
-
-    return [$owner, $team, $general];
-}
-
-/**
- * Add a user to the team and the given channel, returning them.
- */
-function readSyncMember(Team $team, Channel $channel, User $user): User
-{
-    $team->memberships()->create(['user_id' => $user->id, 'role' => TeamRole::Member]);
-    $channel->channelMembers()->firstOrCreate(['user_id' => $user->id]);
-
-    return $user;
-}
-
 test('advancing the read pointer signals the reader other devices', function (): void {
     Event::fake([ReadStateAdvanced::class]);
 
-    [$owner, $team, $general] = readSyncTeamWithGeneral();
-    $member = readSyncMember($team, $general, User::factory()->create());
+    ['owner' => $owner, 'team' => $team, 'channel' => $general] = teamWithChannel();
+    $member = teamMemberInChannel($general);
 
     Message::factory()->for($general)->for($owner)->create();
 
@@ -55,8 +27,8 @@ test('advancing the read pointer signals the reader other devices', function ():
 test('a reader who hides read receipts still syncs their own devices', function (): void {
     Event::fake([ReadStateAdvanced::class, MessageRead::class]);
 
-    [$owner, $team, $general] = readSyncTeamWithGeneral();
-    $member = readSyncMember($team, $general, User::factory()->withoutReadReceipts()->create());
+    ['owner' => $owner, 'team' => $team, 'channel' => $general] = teamWithChannel();
+    $member = joinTeamAndChannel($general, User::factory()->withoutReadReceipts()->create());
 
     Message::factory()->for($general)->for($owner)->create();
 
@@ -71,8 +43,8 @@ test('a reader who hides read receipts still syncs their own devices', function 
 test('a read that advances nothing signals nothing', function (): void {
     Event::fake([ReadStateAdvanced::class]);
 
-    [$owner, $team, $general] = readSyncTeamWithGeneral();
-    $member = readSyncMember($team, $general, User::factory()->create());
+    ['owner' => $owner, 'team' => $team, 'channel' => $general] = teamWithChannel();
+    $member = teamMemberInChannel($general);
 
     Message::factory()->for($general)->for($owner)->create();
 
@@ -88,8 +60,8 @@ test('a read that advances nothing signals nothing', function (): void {
 test('a read with nothing to point at signals nothing', function (): void {
     Event::fake([ReadStateAdvanced::class]);
 
-    [$owner, $team, $general] = readSyncTeamWithGeneral();
-    $member = readSyncMember($team, $general, User::factory()->create());
+    ['owner' => $owner, 'team' => $team, 'channel' => $general] = teamWithChannel();
+    $member = teamMemberInChannel($general);
     $outsider = User::factory()->create();
     $team->memberships()->create(['user_id' => $outsider->id, 'role' => TeamRole::Member]);
     $general->channelMembers()->where('user_id', $outsider->id)->delete();
@@ -108,8 +80,8 @@ test('a read with nothing to point at signals nothing', function (): void {
 test('the read endpoint signals the reader other devices for a channel', function (): void {
     Event::fake([ReadStateAdvanced::class]);
 
-    [$owner, $team, $general] = readSyncTeamWithGeneral();
-    $member = readSyncMember($team, $general, User::factory()->create());
+    ['owner' => $owner, 'team' => $team, 'channel' => $general] = teamWithChannel();
+    $member = teamMemberInChannel($general);
 
     Message::factory()->for($general)->for($owner)->create();
 
@@ -124,8 +96,8 @@ test('the read endpoint signals the reader other devices for a channel', functio
 test('the read endpoint signals the reader other devices for a direct message', function (): void {
     Event::fake([ReadStateAdvanced::class]);
 
-    [$owner, $team, $general] = readSyncTeamWithGeneral();
-    $member = readSyncMember($team, $general, User::factory()->create());
+    ['owner' => $owner, 'team' => $team, 'channel' => $general] = teamWithChannel();
+    $member = teamMemberInChannel($general);
 
     $dm = app(OpenDirectMessage::class)->handle($team, $owner, $member);
     Message::factory()->for($dm)->for($owner)->create();
@@ -141,8 +113,8 @@ test('the read endpoint signals the reader other devices for a direct message', 
 test('the signal skips the very device that did the reading', function (): void {
     Event::fake([ReadStateAdvanced::class]);
 
-    [$owner, $team, $general] = readSyncTeamWithGeneral();
-    $member = readSyncMember($team, $general, User::factory()->create());
+    ['owner' => $owner, 'team' => $team, 'channel' => $general] = teamWithChannel();
+    $member = teamMemberInChannel($general);
 
     Message::factory()->for($general)->for($owner)->create();
 

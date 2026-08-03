@@ -1,8 +1,6 @@
 <?php
 
-use App\Actions\Teams\CreateTeam;
 use App\Enums\NavDestination;
-use App\Enums\TeamRole;
 use App\Models\Channel;
 use App\Models\Message;
 use App\Models\Team;
@@ -10,32 +8,6 @@ use App\Models\User;
 use Illuminate\Support\Collection;
 use Illuminate\Testing\TestResponse;
 use Inertia\Testing\AssertableInertia as Assert;
-
-/**
- * Create a team owned by a fresh user with its #general channel.
- *
- * @return array{0: User, 1: Team, 2: Channel}
- */
-function crossTeamWithGeneral(string $name): array
-{
-    $owner = User::factory()->create();
-    $team = app(CreateTeam::class)->handle($owner, $name);
-    $general = Channel::where('team_id', $team->id)->where('slug', 'general')->firstOrFail();
-
-    return [$owner, $team, $general];
-}
-
-/**
- * Add an existing user to a team and its #general, returning the channel.
- */
-function addToTeam(User $user, Team $team): Channel
-{
-    $general = Channel::where('team_id', $team->id)->where('slug', 'general')->firstOrFail();
-    $team->memberships()->firstOrCreate(['user_id' => $user->id], ['role' => TeamRole::Member]);
-    $general->channelMembers()->firstOrCreate(['user_id' => $user->id]);
-
-    return $general;
-}
 
 /**
  * Open the Search destination on the team's #general with the given facets.
@@ -54,9 +26,9 @@ function crossTeamSearch(User $user, Team $team, array $params): TestResponse
 }
 
 test('memberChannelIdsAcrossTeams unions the channels of every team the user is in but never one they are not in', function (): void {
-    [$member, $teamA, $generalA] = crossTeamWithGeneral('Acme');
-    [$ownerB, $teamB] = crossTeamWithGeneral('Beta');
-    $generalB = addToTeam($member, $teamB);
+    ['owner' => $member, 'team' => $teamA, 'channel' => $generalA] = teamWithChannel('Acme');
+    ['owner' => $ownerB, 'team' => $teamB, 'channel' => $generalB] = teamWithChannel('Beta');
+    joinTeamAndChannel($generalB, $member);
     // A private channel in team B the member is NOT a member of.
     $privateB = Channel::factory()->for($teamB)->private()->create(['created_by' => $ownerB->id]);
 
@@ -70,9 +42,9 @@ test('memberChannelIdsAcrossTeams unions the channels of every team the user is 
 });
 
 test('scope=all searches the union of the user teams', function (): void {
-    [$member, $teamA, $generalA] = crossTeamWithGeneral('Acme');
-    [$ownerB, $teamB] = crossTeamWithGeneral('Beta');
-    $generalB = addToTeam($member, $teamB);
+    ['owner' => $member, 'team' => $teamA, 'channel' => $generalA] = teamWithChannel('Acme');
+    ['owner' => $ownerB, 'team' => $teamB, 'channel' => $generalB] = teamWithChannel('Beta');
+    joinTeamAndChannel($generalB, $member);
     Message::factory()->for($generalA)->for($member)->create(['body' => 'zephyr in acme']);
     Message::factory()->for($generalB)->for($ownerB)->create(['body' => 'zephyr in beta']);
 
@@ -81,9 +53,9 @@ test('scope=all searches the union of the user teams', function (): void {
 });
 
 test('scope=team stays within the current team', function (): void {
-    [$member, $teamA, $generalA] = crossTeamWithGeneral('Acme');
-    [$ownerB, $teamB] = crossTeamWithGeneral('Beta');
-    $generalB = addToTeam($member, $teamB);
+    ['owner' => $member, 'team' => $teamA, 'channel' => $generalA] = teamWithChannel('Acme');
+    ['owner' => $ownerB, 'team' => $teamB, 'channel' => $generalB] = teamWithChannel('Beta');
+    joinTeamAndChannel($generalB, $member);
     Message::factory()->for($generalA)->for($member)->create(['body' => 'zephyr in acme']);
     Message::factory()->for($generalB)->for($ownerB)->create(['body' => 'zephyr in beta']);
 
@@ -95,9 +67,9 @@ test('scope=team stays within the current team', function (): void {
 });
 
 test('scope defaults to the current team when omitted', function (): void {
-    [$member, $teamA, $generalA] = crossTeamWithGeneral('Acme');
-    [$ownerB, $teamB] = crossTeamWithGeneral('Beta');
-    $generalB = addToTeam($member, $teamB);
+    ['owner' => $member, 'team' => $teamA, 'channel' => $generalA] = teamWithChannel('Acme');
+    ['owner' => $ownerB, 'team' => $teamB, 'channel' => $generalB] = teamWithChannel('Beta');
+    joinTeamAndChannel($generalB, $member);
     Message::factory()->for($generalA)->for($member)->create(['body' => 'zephyr in acme']);
     Message::factory()->for($generalB)->for($ownerB)->create(['body' => 'zephyr in beta']);
 
@@ -106,8 +78,8 @@ test('scope defaults to the current team when omitted', function (): void {
 });
 
 test('scope=all never surfaces a team the user does not belong to', function (): void {
-    [$member, $teamA] = crossTeamWithGeneral('Acme');
-    [$ownerB, $teamB, $generalB] = crossTeamWithGeneral('Beta');
+    ['owner' => $member, 'team' => $teamA] = teamWithChannel('Acme');
+    ['owner' => $ownerB, 'channel' => $generalB] = teamWithChannel('Beta');
     // The member is NOT in team B.
     Message::factory()->for($generalB)->for($ownerB)->create(['body' => 'zephyr in beta']);
 
@@ -116,9 +88,9 @@ test('scope=all never surfaces a team the user does not belong to', function ():
 });
 
 test('scope=all never leaks a private channel the user is not in', function (): void {
-    [$member, $teamA] = crossTeamWithGeneral('Acme');
-    [$ownerB, $teamB] = crossTeamWithGeneral('Beta');
-    addToTeam($member, $teamB);
+    ['owner' => $member, 'team' => $teamA] = teamWithChannel('Acme');
+    ['owner' => $ownerB, 'team' => $teamB, 'channel' => $generalB] = teamWithChannel('Beta');
+    joinTeamAndChannel($generalB, $member);
     $privateB = Channel::factory()->for($teamB)->private()->create(['created_by' => $ownerB->id]);
     Message::factory()->for($privateB)->for($ownerB)->create(['body' => 'secret zephyr']);
 
@@ -127,9 +99,9 @@ test('scope=all never leaks a private channel the user is not in', function (): 
 });
 
 test('a cross-team result carries its own team for tagging and jump links', function (): void {
-    [$member, $teamA] = crossTeamWithGeneral('Acme');
-    [$ownerB, $teamB] = crossTeamWithGeneral('Beta');
-    $generalB = addToTeam($member, $teamB);
+    ['owner' => $member, 'team' => $teamA] = teamWithChannel('Acme');
+    ['owner' => $ownerB, 'team' => $teamB, 'channel' => $generalB] = teamWithChannel('Beta');
+    joinTeamAndChannel($generalB, $member);
     Message::factory()->for($generalB)->for($ownerB)->create(['body' => 'zephyr in beta']);
 
     crossTeamSearch($member, $teamA, ['q' => 'zephyr', 'scope' => 'all'])
@@ -142,9 +114,9 @@ test('a cross-team result carries its own team for tagging and jump links', func
 });
 
 test('an unknown scope falls back to the current team', function (): void {
-    [$member, $teamA, $generalA] = crossTeamWithGeneral('Acme');
-    [$ownerB, $teamB] = crossTeamWithGeneral('Beta');
-    $generalB = addToTeam($member, $teamB);
+    ['owner' => $member, 'team' => $teamA, 'channel' => $generalA] = teamWithChannel('Acme');
+    ['owner' => $ownerB, 'team' => $teamB, 'channel' => $generalB] = teamWithChannel('Beta');
+    joinTeamAndChannel($generalB, $member);
     Message::factory()->for($generalA)->for($member)->create(['body' => 'zephyr in acme']);
     Message::factory()->for($generalB)->for($ownerB)->create(['body' => 'zephyr in beta']);
 
@@ -156,9 +128,9 @@ test('an unknown scope falls back to the current team', function (): void {
 });
 
 test('the panel exposes the cross-team channel union for the global-mode facet', function (): void {
-    [$member, $teamA, $generalA] = crossTeamWithGeneral('Acme');
-    [, $teamB] = crossTeamWithGeneral('Beta');
-    $generalB = addToTeam($member, $teamB);
+    ['owner' => $member, 'team' => $teamA, 'channel' => $generalA] = teamWithChannel('Acme');
+    ['team' => $teamB, 'channel' => $generalB] = teamWithChannel('Beta');
+    joinTeamAndChannel($generalB, $member);
 
     crossTeamSearch($member, $teamA, ['q' => 'zephyr', 'scope' => 'all'])
         ->assertInertia(fn (Assert $page): Assert => $page
