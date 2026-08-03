@@ -5,6 +5,7 @@ namespace App\Policies;
 use App\Enums\TeamRole;
 use App\Models\Message;
 use App\Models\User;
+use App\Rules\ForwardDestination;
 
 class MessagePolicy
 {
@@ -39,7 +40,7 @@ class MessagePolicy
      * even by someone who can see it.
      *
      * Where the copy may land is a separate question with a separate answer —
-     * {@see \App\Rules\ForwardDestination} — because being able to read a
+     * {@see ForwardDestination} — because being able to read a
      * message says nothing about which channels the reader may post into.
      */
     public function forward(User $user, Message $message): bool

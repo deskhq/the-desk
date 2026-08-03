@@ -2,6 +2,9 @@
 
 declare(strict_types=1);
 
+use App\Rules\AvailableChannelName;
+use App\Rules\ForwardDestination;
+use App\Rules\MessageTarget;
 use Symfony\Component\Finder\Finder;
 
 /**
@@ -11,9 +14,9 @@ use Symfony\Component\Finder\Finder;
  * rendered 422 to assert.
  *
  * #1150 moved them: the reply and thread-root target to
- * {@see App\Rules\MessageTarget}, the channel-name collision check to
- * {@see App\Rules\AvailableChannelName}, and the forward destination to
- * {@see App\Rules\ForwardDestination} — which asks the `postMessage` gate rather
+ * {@see MessageTarget}, the channel-name collision check to
+ * {@see AvailableChannelName}, and the forward destination to
+ * {@see ForwardDestination} — which asks the `postMessage` gate rather
  * than restating it. Between them they replaced ten spellings across seven form
  * requests.
  *

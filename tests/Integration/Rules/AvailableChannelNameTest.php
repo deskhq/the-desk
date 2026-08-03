@@ -2,9 +2,11 @@
 
 declare(strict_types=1);
 
+use App\Actions\Channels\CreateChannel;
 use App\Models\Channel;
 use App\Models\Team;
 use App\Rules\AvailableChannelName;
+use App\Rules\LookupRule;
 use App\Support\NameSlug;
 use Illuminate\Support\Facades\Validator;
 
@@ -32,7 +34,7 @@ function nameIsFree(AvailableChannelName $rule, string $name): bool
 }
 
 /**
- * A channel in the team, slugged the way {@see App\Actions\Channels\CreateChannel}
+ * A channel in the team, slugged the way {@see CreateChannel}
  * slugs one — the factory would otherwise keep the slug of the name it invented.
  */
 function namedChannel(Team $team, string $name): Channel
@@ -102,7 +104,7 @@ test('a taken name is refused with the copy the after() bodies gave', function (
 
 /**
  * The guard the three bodies opened with, now inherited from
- * {@see App\Rules\LookupRule}: a name that already failed is not slugged and not
+ * {@see LookupRule}: a name that already failed is not slugged and not
  * looked up, so the client is told the one thing that is wrong with it.
  */
 test('a name that already failed an earlier rule is left alone', function (): void {
