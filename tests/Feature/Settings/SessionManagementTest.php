@@ -424,7 +424,7 @@ test('changing the password signs out the other devices and keeps the current on
     expect(sessionRegistry()->has($user->id, $anotherId))->toBeFalse();
 });
 
-test('changing the password regenerates the acting session id', function (): void {
+test('changing the password regenerates the acting session id and keeps that device signed in', function (): void {
     $user = User::factory()->create();
     $currentId = Str::random(40);
 
@@ -441,7 +441,20 @@ test('changing the password regenerates the acting session id', function (): voi
         ])
         ->assertSessionHasNoErrors();
 
-    expect(session()->getId())->not->toBe($currentId);
+    $regeneratedId = session()->getId();
+
+    expect($regeneratedId)->not->toBe($currentId);
+
+    // The rotated id carries the marker of the id it replaced, so the next
+    // request moves the index entry across rather than reading as revoked.
+    $this->actingAs($user)
+        ->withSession(['auth.password_confirmed_at' => time(), 'active_session_id' => $currentId])
+        ->withCookie(config('session.cookie'), $regeneratedId)
+        ->get(route('security.edit'))
+        ->assertOk();
+
+    expect(sessionRegistry()->has($user->id, $currentId))->toBeFalse();
+    expect(sessionRegistry()->has($user->id, $regeneratedId))->toBeTrue();
 });
 
 test('changing the password with nothing else signed in reports only the update', function (): void {
