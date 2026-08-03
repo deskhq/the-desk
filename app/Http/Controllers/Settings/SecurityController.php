@@ -130,13 +130,26 @@ class SecurityController extends Controller
     }
 
     /**
-     * Update the user's password.
+     * Update the user's password, signing the account out of every other device.
+     *
+     * The acting session is spared and then given a fresh id, so the cookie a
+     * thief may already hold for this device stops working too. The toast only
+     * claims other devices were signed out when some actually were.
      */
     public function update(PasswordUpdateRequest $request, ChangePassword $changePassword): RedirectResponse
     {
-        $changePassword->handle($request->user(), $request->password);
+        $session = $request->session();
 
-        Inertia::flash('toast', ['type' => 'success', 'message' => __('Password updated')]);
+        $revoked = $changePassword->handle($request->user(), $request->password, $session->getId());
+
+        $session->regenerate(destroy: true);
+
+        Inertia::flash('toast', [
+            'type' => 'success',
+            'message' => $revoked > 0
+                ? __('Password updated, and your other devices were signed out')
+                : __('Password updated'),
+        ]);
 
         return back();
     }

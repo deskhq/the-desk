@@ -4,6 +4,8 @@ use App\Enums\SecurityEventType;
 use App\Models\SecurityEvent;
 use App\Models\User;
 use App\Support\SessionRegistry;
+use Illuminate\Auth\Notifications\ResetPassword;
+use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Str;
 use Inertia\Testing\AssertableInertia as Assert;
 
@@ -389,4 +391,172 @@ test('logging out other devices requires the correct password', function (): voi
         ->assertRedirect(route('security.edit'));
 
     expect(sessionRegistry()->has($user->id, $otherId))->toBeTrue();
+});
+
+test('changing the password signs out the other devices and keeps the current one', function (): void {
+    $user = User::factory()->create();
+    $currentId = Str::random(40);
+    $otherId = Str::random(40);
+    $anotherId = Str::random(40);
+
+    seedSession($user, $currentId);
+    seedSession($user, $otherId);
+    seedSession($user, $anotherId);
+
+    $this->actingAs($user)
+        ->withSession(['active_session_id' => $currentId])
+        ->withCookie(config('session.cookie'), $currentId)
+        ->from(route('security.edit'))
+        ->put(route('user-password.update'), [
+            'current_password' => 'password',
+            'password' => 'new-password',
+            'password_confirmation' => 'new-password',
+        ])
+        ->assertSessionHasNoErrors()
+        ->assertRedirect(route('security.edit'))
+        ->assertInertiaFlash('toast', [
+            'type' => 'success',
+            'message' => 'Password updated, and your other devices were signed out',
+        ]);
+
+    expect(sessionRegistry()->has($user->id, $currentId))->toBeTrue();
+    expect(sessionRegistry()->has($user->id, $otherId))->toBeFalse();
+    expect(sessionRegistry()->has($user->id, $anotherId))->toBeFalse();
+});
+
+test('changing the password regenerates the acting session id and keeps that device signed in', function (): void {
+    $user = User::factory()->create();
+    $currentId = Str::random(40);
+
+    seedSession($user, $currentId);
+
+    $this->actingAs($user)
+        ->withSession(['active_session_id' => $currentId])
+        ->withCookie(config('session.cookie'), $currentId)
+        ->from(route('security.edit'))
+        ->put(route('user-password.update'), [
+            'current_password' => 'password',
+            'password' => 'new-password',
+            'password_confirmation' => 'new-password',
+        ])
+        ->assertSessionHasNoErrors();
+
+    $regeneratedId = session()->getId();
+
+    expect($regeneratedId)->not->toBe($currentId);
+
+    // The rotated id carries the marker of the id it replaced, so the next
+    // request moves the index entry across rather than reading as revoked.
+    $this->actingAs($user)
+        ->withSession(['auth.password_confirmed_at' => time(), 'active_session_id' => $currentId])
+        ->withCookie(config('session.cookie'), $regeneratedId)
+        ->get(route('security.edit'))
+        ->assertOk();
+
+    expect(sessionRegistry()->has($user->id, $currentId))->toBeFalse();
+    expect(sessionRegistry()->has($user->id, $regeneratedId))->toBeTrue();
+});
+
+test('changing the password with nothing else signed in reports only the update', function (): void {
+    $user = User::factory()->create();
+    $currentId = Str::random(40);
+
+    seedSession($user, $currentId);
+
+    $this->actingAs($user)
+        ->withSession(['active_session_id' => $currentId])
+        ->withCookie(config('session.cookie'), $currentId)
+        ->from(route('security.edit'))
+        ->put(route('user-password.update'), [
+            'current_password' => 'password',
+            'password' => 'new-password',
+            'password_confirmation' => 'new-password',
+        ])
+        ->assertSessionHasNoErrors()
+        ->assertInertiaFlash('toast', ['type' => 'success', 'message' => 'Password updated']);
+
+    expect(sessionRegistry()->has($user->id, $currentId))->toBeTrue();
+});
+
+test('a device signed out by a password change is bounced to login', function (): void {
+    $user = User::factory()->create();
+    $currentId = Str::random(40);
+    $otherId = Str::random(40);
+
+    seedSession($user, $currentId);
+    seedSession($user, $otherId);
+
+    $this->actingAs($user)
+        ->withSession(['active_session_id' => $currentId])
+        ->withCookie(config('session.cookie'), $currentId)
+        ->put(route('user-password.update'), [
+            'current_password' => 'password',
+            'password' => 'new-password',
+            'password_confirmation' => 'new-password',
+        ])
+        ->assertSessionHasNoErrors();
+
+    $this->actingAs($user)
+        ->withSession(['auth.password_confirmed_at' => time(), 'active_session_id' => $otherId])
+        ->withCookie(config('session.cookie'), $otherId)
+        ->get(route('security.edit'))
+        ->assertRedirect(route('login'));
+
+    $this->assertGuest();
+});
+
+test('resetting a forgotten password signs out every device', function (): void {
+    Notification::fake();
+
+    $user = User::factory()->create();
+    $firstId = Str::random(40);
+    $secondId = Str::random(40);
+
+    seedSession($user, $firstId);
+    seedSession($user, $secondId);
+
+    $this->post(route('password.email'), ['email' => $user->email]);
+
+    Notification::assertSentTo($user, ResetPassword::class, function (ResetPassword $notification) use ($user): true {
+        $this->post(route('password.update'), [
+            'token' => $notification->token,
+            'email' => $user->email,
+            'password' => 'new-password',
+            'password_confirmation' => 'new-password',
+        ])->assertSessionHasNoErrors();
+
+        return true;
+    });
+
+    expect(sessionRegistry()->all($user->id))->toBeEmpty();
+});
+
+test('a device signed out by a password reset is bounced to login', function (): void {
+    Notification::fake();
+
+    $user = User::factory()->create();
+    $sessionId = Str::random(40);
+
+    seedSession($user, $sessionId);
+
+    $this->post(route('password.email'), ['email' => $user->email]);
+
+    Notification::assertSentTo($user, ResetPassword::class, function (ResetPassword $notification) use ($user): true {
+        $this->post(route('password.update'), [
+            'token' => $notification->token,
+            'email' => $user->email,
+            'password' => 'new-password',
+            'password_confirmation' => 'new-password',
+        ])->assertSessionHasNoErrors();
+
+        return true;
+    });
+
+    $this->actingAs($user)
+        ->withSession(['auth.password_confirmed_at' => time(), 'active_session_id' => $sessionId])
+        ->withCookie(config('session.cookie'), $sessionId)
+        ->get(route('security.edit'))
+        ->assertRedirect(route('login'));
+
+    $this->assertGuest();
 });

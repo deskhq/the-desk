@@ -69,9 +69,15 @@ class RecordSecurityEvents
 
     /**
      * Handle a password reset completed via the forgot-password flow.
+     *
+     * A reset is how someone recovers an account they may have lost control of,
+     * so every session is revoked. Unlike the in-app change there is none to
+     * spare: the flow is unauthenticated and lands on the login screen.
      */
     public function handlePasswordReset(PasswordReset $event): void
     {
+        $this->registry->flush((string) $event->user->getAuthIdentifier());
+
         $this->record($event->user, SecurityEventType::PasswordReset);
     }
 
