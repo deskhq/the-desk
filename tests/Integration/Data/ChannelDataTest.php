@@ -2,8 +2,12 @@
 
 use App\Actions\Channels\OpenDirectMessage;
 use App\Data\ChannelData;
+use App\Enums\NotificationLevel;
+use App\Enums\TeamRole;
 use App\Models\Channel;
+use App\Models\User;
 use App\Support\DirectMessageRoster;
+use Database\Factories\ChannelMemberFactory;
 use Illuminate\Support\Facades\DB;
 
 /*
@@ -85,6 +89,57 @@ test('a group direct message lists the other participants in name order', functi
         // The viewer never appears in their own participant list.
         ->and(collect($anaView->dmParticipants)->pluck('name')->all())->toBe(['Owner', 'Tomas K'])
         ->and($anaView->name)->toBe('Owner, Tomas K');
+});
+
+test('the viewer per-channel state is read off the membership it is handed', function (): void {
+    ['owner' => $owner, 'channel' => $general] = teamWithChannel();
+
+    $membership = channelMembership(
+        $general,
+        $owner,
+        fn (ChannelMemberFactory $factory): ChannelMemberFactory => $factory
+            ->muted()
+            ->starred()
+            ->draft('half a thought')
+            ->notificationLevel(NotificationLevel::Mentions),
+    );
+
+    $view = ChannelData::fromChannel($general, $owner, $membership);
+
+    expect($view->muted)->toBeTrue()
+        ->and($view->notificationLevel)->toBe(NotificationLevel::Mentions)
+        ->and($view->draft)->toBe('half a thought')
+        ->and($view->hasDraft)->toBeTrue()
+        ->and($view->starred)->toBeTrue();
+});
+
+test('a non-member viewing a public channel gets the defaults, not another member state', function (): void {
+    ['owner' => $owner, 'team' => $team, 'channel' => $general] = teamWithChannel();
+
+    // A public channel nobody is auto-joined to, so the newcomer below can read
+    // it by URL without belonging to it.
+    $public = Channel::factory()->for($team)->create(['created_by' => $owner->id]);
+    $public->members()->attach($owner->id);
+
+    channelMembership(
+        $public,
+        $owner,
+        fn (ChannelMemberFactory $factory): ChannelMemberFactory => $factory->muted()->draft('mine alone'),
+    );
+
+    // On the team, so the channel is theirs to open — and with no pivot row on
+    // it, so the DTO answers with its own defaults rather than with anybody
+    // else's.
+    $stranger = User::factory()->create();
+    $team->memberships()->create(['user_id' => $stranger->id, 'role' => TeamRole::Member]);
+
+    $view = ChannelData::fromChannel($public, $stranger);
+
+    expect($view->muted)->toBeFalse()
+        ->and($view->notificationLevel)->toBe(NotificationLevel::All)
+        ->and($view->draft)->toBeNull()
+        ->and($view->hasDraft)->toBeFalse()
+        ->and($view->starred)->toBeFalse();
 });
 
 test('a batched roster costs the DTO no query of its own', function (): void {

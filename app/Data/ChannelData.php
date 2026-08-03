@@ -4,7 +4,9 @@ namespace App\Data;
 
 use App\Enums\NotificationLevel;
 use App\Models\Channel;
+use App\Models\ChannelMember;
 use App\Models\User;
+use App\Support\ChannelPage;
 use App\Support\DirectMessageRoster;
 use Illuminate\Support\Carbon;
 use Spatie\LaravelData\Data;
@@ -43,10 +45,19 @@ class ChannelData extends Data
     /**
      * Build the DTO from a Channel model.
      *
-     * `unread_count`, `mention_count`, `muted` and `notification_level` are the
-     * current user's per-channel state, populated only when the channel was
-     * loaded for their sidebar or view; elsewhere they are absent and fall back
-     * to the defaults (unmuted, "all", zero badges).
+     * `$membership` is the viewer's own row on the channel, and it is where their
+     * per-channel state — mute, notification level, draft, star — is read from
+     * when the caller already holds it: the channel page passes the row
+     * {@see ChannelPage} resolved, so nothing has to be written onto the model to
+     * smuggle it in. A caller with no row to hand over passes none, and a viewer
+     * with no row at all — a non-member reading a public channel — gets the
+     * defaults (unmuted, "all", no draft, unstarred).
+     *
+     * The sidebar is the one caller that passes none and still carries state: its
+     * single query selects every pivot column onto each channel, so those
+     * attributes stand in for the row rather than costing one query per row.
+     * `unread_count` and `mention_count` are only ever attributes — they are
+     * correlated sub-queries, not columns of the pivot — and fall back to zero.
      *
      * The badge counts are suppressed here so the sidebar prop is authoritative:
      * a muted channel or the "nothing" level shows no badge at all, and the
@@ -73,22 +84,31 @@ class ChannelData extends Data
      * channels through {@see DirectMessageRoster} first and naming their direct
      * messages then costs this no query at all.
      */
-    public static function fromChannel(Channel $channel, User $viewer): self
+    public static function fromChannel(Channel $channel, User $viewer, ?ChannelMember $membership = null): self
     {
-        $muted = (bool) ($channel->getAttribute('muted') ?? false);
+        // A handed-over row answers for the whole membership, attributes for the
+        // whole of it, or neither — never half of each, so a null column on the
+        // row reads as "not set" rather than falling through to a stale attribute.
+        $stated = $membership instanceof ChannelMember;
 
-        $level = NotificationLevel::tryFrom((string) ($channel->getAttribute('notification_level') ?? NotificationLevel::All->value)) ?? NotificationLevel::All;
+        $muted = $stated ? $membership->muted : (bool) ($channel->getAttribute('muted') ?? false);
+
+        $level = $stated
+            ? $membership->notification_level
+            : NotificationLevel::tryFrom((string) ($channel->getAttribute('notification_level') ?? NotificationLevel::All->value)) ?? NotificationLevel::All;
 
         $unreadCount = (int) ($channel->getAttribute('unread_count') ?? 0);
         $mentionCount = (int) ($channel->getAttribute('mention_count') ?? 0);
 
-        $draftText = $channel->getAttribute('draft');
+        $draftText = $stated ? $membership->draft : $channel->getAttribute('draft');
         $draft = is_string($draftText) && trim($draftText) !== '' ? $draftText : null;
 
-        $hasDraftAttribute = $channel->getAttribute('has_draft');
+        // The sidebar ships a `has_draft` flag in place of the text it withholds;
+        // everywhere else the presence of the draft is the answer.
+        $hasDraftAttribute = $stated ? null : $channel->getAttribute('has_draft');
         $hasDraft = $hasDraftAttribute !== null ? (bool) $hasDraftAttribute : $draft !== null;
 
-        $starred = (bool) ($channel->getAttribute('starred') ?? false);
+        $starred = $stated ? $membership->starred : (bool) ($channel->getAttribute('starred') ?? false);
 
         $sectionId = $channel->getAttribute('section_id');
         $sectionId = is_string($sectionId) ? $sectionId : null;

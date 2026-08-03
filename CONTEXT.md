@@ -68,6 +68,8 @@ built; build them once, then reuse.
   eager-loads exactly the relations `MessageData::fromMessage()` reads. Every
   timeline / thread / search / broadcast / edit payload goes through it, so the
   N+1 contract has one home. Never hand-write the `with([...])` relation list.
+  `ScheduledMessage::withScheduledMessageDataRelations()` is the same device for the
+  smaller payload the composer's "Scheduled" list ships.
 - **Visible-channels ACL** _(ADR-0003)_ — the channel authorization boundary,
   **two named readings on `User`** because two different questions share the word
   "visible". `memberChannelIds(Team)` (and `memberChannelIdsAcrossTeams()`) is
@@ -82,6 +84,19 @@ built; build them once, then reuse.
 - **Channel timeline window** _(ADR-0004)_ — the read-model/query object
   that resolves where a channel's initial message window opens (unread anchoring,
   jump context, paging). Takes explicit params; the controller keeps HTTP glue.
+- **`ChannelPage`** _(ADR-0004, amended)_ — the other half of that decision: everything
+  a channel page renders that is *not* its timeline, in one reading per prop group —
+  the channel DTO, the viewer's membership facts, the seven capability gates, the pins
+  **and** their count as a single reading, the roster, the read receipts, the pending
+  schedules, the member count. Constructed from a `Channel`, a `User` and a `Team`,
+  never a `Request`, so every reading is reachable without an HTTP round-trip; the
+  window stays a separate collaborator because it is the only one that answers to
+  `?message=` / `?thread=`, and the controller holds both. `ChannelController::show()`
+  holds no query builder, no `Gate::allows` and no `setAttribute` — the viewer's mute,
+  level and draft reach `ChannelData::fromChannel()` as its `?ChannelMember $membership`
+  parameter rather than being written onto the model for the DTO to find.
+  `ChannelPageQueryCountTest` pins its cost the way `SidebarChannelsQueryCountTest` pins
+  the sidebar's.
 - **Workspace shell read-model** _(ADR-0008)_ — `WorkspaceShell` owns the
   `(authenticated, on a workspace route, with a bound team)` precondition and every
   read-model an in-workspace page draws its shell from (`SidebarChannels`,
