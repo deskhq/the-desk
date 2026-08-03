@@ -115,6 +115,22 @@ test('a system notice cannot be the root of a thread reply', function (): void {
         ->assertSessionHasErrors('thread_root_id');
 });
 
+test('a scheduled message cannot inline-reply to a system notice', function (): void {
+    [$owner, $team, $general, $notice] = systemNoticeFixture();
+
+    $this->actingAs($owner)
+        ->post(route('channels.scheduled-messages.store', [
+            'team' => $team->slug,
+            'channel' => $general->slug,
+        ]), [
+            'body' => 'scheduling a reply to a notice',
+            'client_uuid' => (string) Str::uuid7(),
+            'send_at' => now()->addHour()->toIso8601String(),
+            'reply_to_id' => $notice->id,
+        ])
+        ->assertSessionHasErrors('reply_to_id');
+});
+
 test('MessageData exposes the message type', function (): void {
     [, , , $notice] = systemNoticeFixture();
     $notice->loadMessageDataRelations();
