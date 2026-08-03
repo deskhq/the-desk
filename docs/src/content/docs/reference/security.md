@@ -214,6 +214,28 @@ egress simply degrades — avatars fall back to initials and link previews rende
 without a thumbnail — rather than hanging or erroring. Setting
 `GRAVATAR_ENABLED=false` stops the avatar fetch being attempted at all.
 
+### Link previews are fetched through the same guard
+
+Posting a URL queues a background unfurl that fetches the page and reads its
+Open Graph tags. Whatever the guard's setting, that fetch is bounded: a 5-second
+timeout, a 2 MB cap, an HTML-only content-type check, and at most three
+redirects, followed one hop at a time rather than handed to curl.
+
+Where the URL may point is governed by
+[`WEBHOOKS_BLOCK_PRIVATE_URLS`](/reference/feature-toggles/#outgoing-webhooks),
+the same guard the image proxy and outgoing webhooks use. While it is on
+(the default), every hop must be a public `http`/`https` host, resolves its
+hostname exactly once, and pins the connection to the address that resolution
+vetted — so a domain whose authoritative DNS answers the check with a public
+address and the connection with an internal one cannot retarget the fetch.
+Without that pin an unfurl could be steered at cloud instance metadata, and the
+scraped `<title>` would carry the response back onto a preview card.
+
+Turning the toggle off removes both the host check and the pin from link
+previews as well as from webhooks, which lets any member trigger a server-side
+fetch of an internal address by pasting its URL into a message. Only do it on an
+instance that deliberately targets internal endpoints.
+
 ### Running behind Cloudflare or a script-injecting proxy
 
 Cloudflare features that inject their own JavaScript into your pages — Email

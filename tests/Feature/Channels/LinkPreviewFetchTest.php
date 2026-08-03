@@ -2,6 +2,9 @@
 
 use App\Support\FetchLinkPreview;
 use App\Support\HostResolver;
+use App\Support\Http\OutboundUrlGuard;
+use GuzzleHttp\Promise\PromiseInterface;
+use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Http;
 
 /**
@@ -28,9 +31,56 @@ function resolverReturning(array $map = [], array $default = ['93.184.216.34']):
     };
 }
 
+/**
+ * A HostResolver stub answering successive lookups differently, standing in for
+ * an authoritative nameserver that rebinds a host between the guard's check and
+ * the connection. The final answer repeats once the script runs out, and every
+ * lookup is counted so a test can prove only one was made.
+ *
+ * @param  array<int, array<int, string>>  $answers
+ */
+function rebindingResolver(array $answers): HostResolver
+{
+    return new class($answers) extends HostResolver
+    {
+        public int $calls = 0;
+
+        /**
+         * @param  array<int, array<int, string>>  $answers
+         */
+        public function __construct(private readonly array $answers) {}
+
+        public function resolve(string $host): array
+        {
+            $answer = $this->answers[$this->calls] ?? $this->answers[array_key_last($this->answers)];
+            $this->calls++;
+
+            return $answer;
+        }
+    };
+}
+
+/**
+ * Fake every outbound request, recording the transport options it went out
+ * with so a test can read back the address curl was pinned to.
+ *
+ * @param  array<string, PromiseInterface>  $responses  keyed by requested URL
+ * @param  array<int, array<string, mixed>>  $captured
+ */
+function captureTransportOptions(array $responses, ?array &$captured): void
+{
+    $captured = [];
+
+    Http::fake(function (Request $request, array $options) use ($responses, &$captured): PromiseInterface {
+        $captured[] = $options;
+
+        return $responses[$request->url()];
+    });
+}
+
 function fetcherWith(HostResolver $resolver): FetchLinkPreview
 {
-    return new FetchLinkPreview($resolver);
+    return new FetchLinkPreview(new OutboundUrlGuard($resolver));
 }
 
 test('unfurls Open Graph metadata from a public URL', function (): void {
@@ -212,6 +262,60 @@ test('rejects an oversized response', function (): void {
     )]);
 
     expect(fetcherWith(resolverReturning())->handle('https://example.com'))->toBeNull();
+});
+
+test('resolves once and pins the connection, so a rebinding second answer is never dialled', function (): void {
+    $resolver = rebindingResolver([['93.184.216.34'], ['169.254.169.254']]);
+
+    captureTransportOptions(
+        ['https://example.com/page' => Http::response(
+            '<html><head><title>Pinned</title></head></html>',
+            200,
+            ['Content-Type' => 'text/html'],
+        )],
+        $captured,
+    );
+
+    expect(fetcherWith($resolver)->handle('https://example.com/page')['title'])->toBe('Pinned')
+        ->and($resolver->calls)->toBe(1)
+        ->and($captured[0]['curl'][CURLOPT_RESOLVE])->toBe(['example.com:443:93.184.216.34']);
+});
+
+test('pins every redirect hop to its own vetted address', function (): void {
+    $resolver = resolverReturning([
+        'start.test' => ['93.184.216.34'],
+        'final.test' => ['93.184.216.35'],
+    ]);
+
+    captureTransportOptions([
+        'http://start.test/go' => Http::response('', 301, ['Location' => 'https://final.test/here']),
+        'https://final.test/here' => Http::response(
+            '<html><head><title>Hopped</title></head></html>',
+            200,
+            ['Content-Type' => 'text/html'],
+        ),
+    ], $captured);
+
+    expect(fetcherWith($resolver)->handle('http://start.test/go')['title'])->toBe('Hopped')
+        ->and($captured[0]['curl'][CURLOPT_RESOLVE])->toBe(['start.test:80:93.184.216.34'])
+        ->and($captured[1]['curl'][CURLOPT_RESOLVE])->toBe(['final.test:443:93.184.216.35']);
+});
+
+test('unfurls an internal URL when the operator has turned the guard off', function (): void {
+    config(['integrations.webhooks.block_private_urls' => false]);
+
+    captureTransportOptions(
+        ['http://wiki.internal/page' => Http::response(
+            '<html><head><title>Runbook</title></head></html>',
+            200,
+            ['Content-Type' => 'text/html'],
+        )],
+        $captured,
+    );
+
+    expect(fetcherWith(resolverReturning(default: ['10.0.0.5']))->handle('http://wiki.internal/page')['title'])
+        ->toBe('Runbook')
+        ->and($captured[0])->not->toHaveKey('curl');
 });
 
 test('caches the result so the same URL is only fetched once', function (): void {

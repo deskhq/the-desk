@@ -3,10 +3,19 @@
 namespace App\Support;
 
 use App\Support\Http\AbsoluteUrl;
+use App\Support\Http\OutboundUrlGuard;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Symfony\Component\DomCrawler\Crawler;
 
+/**
+ * Unfurls a member-posted URL into its Open Graph preview.
+ *
+ * The URL comes from whatever a member typed into a message, so every hop goes
+ * through {@see OutboundUrlGuard}: public http(s) hosts only, the connection
+ * pinned to the address the guard vetted, redirects followed manually so each
+ * new target is re-checked rather than handed to curl.
+ */
 class FetchLinkPreview
 {
     /**
@@ -36,7 +45,7 @@ class FetchLinkPreview
      */
     private const string FAILED = '__failed__';
 
-    public function __construct(private readonly HostResolver $resolver) {}
+    public function __construct(private readonly OutboundUrlGuard $guard) {}
 
     /**
      * Unfurl a URL into its Open Graph preview, or null when it can't be fetched.
@@ -83,12 +92,18 @@ class FetchLinkPreview
     private function fetch(string $url): ?array
     {
         for ($hop = 0; $hop <= self::MAX_REDIRECTS; $hop++) {
-            if (! $this->isSafe($url)) {
+            if (! OutboundUrlGuard::isPublic($url)) {
+                return null;
+            }
+
+            $pinnedIp = $this->guard->resolveDeliveryIp($url);
+
+            if ($pinnedIp === false) {
                 return null;
             }
 
             $response = Http::timeout(self::TIMEOUT_SECONDS)
-                ->withOptions(['allow_redirects' => false])
+                ->withOptions($this->guard->transportOptions($url, $pinnedIp))
                 ->get($url);
 
             if ($response->redirect()) {
@@ -119,35 +134,6 @@ class FetchLinkPreview
         }
 
         return null;
-    }
-
-    /**
-     * Decide whether a URL is safe to fetch: an http(s) URL whose host resolves
-     * only to public IPs. Any private, loopback, link-local (incl. the cloud
-     * metadata endpoint) or reserved address rejects the whole URL.
-     */
-    private function isSafe(string $url): bool
-    {
-        $parts = parse_url($url);
-
-        if ($parts === false || ! in_array($parts['scheme'] ?? '', ['http', 'https'], true)) {
-            return false;
-        }
-
-        $host = $parts['host'] ?? '';
-        $ips = $host === '' ? [] : $this->resolver->resolve($host);
-
-        if ($ips === []) {
-            return false;
-        }
-
-        foreach ($ips as $ip) {
-            if (filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE) === false) {
-                return false;
-            }
-        }
-
-        return true;
     }
 
     /**
