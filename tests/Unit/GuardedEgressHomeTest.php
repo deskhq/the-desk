@@ -53,13 +53,22 @@ function guardTriplePattern(): string
 }
 
 /**
- * Composing or dispatching an outbound request through the HTTP client, in the
- * facade form every site in this repository uses. The test-only entry points are
- * excluded so this can be replayed against a fake below.
+ * Reaching the HTTP client at all, in any of the three forms that would let a
+ * new site open its own connection: the facade by its short name (which also
+ * catches the fully-qualified call, since the leading `\` is a word boundary),
+ * the facade aliased to another name on import, and the underlying client
+ * factory injected directly.
+ *
+ * The facade's test-only entry points are excluded, so this can be replayed
+ * against a fake below without the tripwire firing on it.
  */
 function outboundClientPattern(): string
 {
-    return '/\bHttp::(?!fake|response|assert|preventStrayRequests|allowStrayRequests)\w+\(/';
+    $facade = '\bHttp::(?!fake|response|assert|preventStrayRequests|allowStrayRequests)\w+\(';
+    $aliased = 'use\s+Illuminate\\\\Support\\\\Facades\\\\Http\s+as\s';
+    $factory = 'use\s+Illuminate\\\\Http\\\\Client\\\\Factory\b';
+
+    return "/{$facade}|{$aliased}|{$factory}/";
 }
 
 test('the guard\'s delivery-time pair is asked from exactly one place', function () use ($sourceRoot): void {
@@ -115,6 +124,11 @@ test('each pattern still catches the code it was written for', function (string 
     'the pin half' => [guardTriplePattern(), '->withOptions($this->guard->transportOptions($url, $pinnedIp))'],
     'a fetch' => [outboundClientPattern(), '$response = Http::timeout(self::TIMEOUT_SECONDS)->get($url);'],
     'a composed delivery' => [outboundClientPattern(), "Http::withHeaders(['X-Desk-Event' => \$type])"],
+    // The three ways round the short name, which a tripwire keyed to `Http::`
+    // alone would wave through.
+    'a fully-qualified call' => [outboundClientPattern(), '\Illuminate\Support\Facades\Http::get($url);'],
+    'an aliased import' => [outboundClientPattern(), 'use Illuminate\Support\Facades\Http as Client;'],
+    'an injected factory' => [outboundClientPattern(), 'use Illuminate\Http\Client\Factory;'],
 ]);
 
 /**
@@ -132,4 +146,7 @@ test('each pattern leaves what it is not about alone', function (string $pattern
     // Faking is what a test does, never what production code does.
     'a fake' => [outboundClientPattern(), "Http::fake(['example.test/*' => Http::response('', 200)]);"],
     'a bare fake' => [outboundClientPattern(), 'Http::fake();'],
+    // Importing the facade under its own name is what every allowed site does;
+    // it is the *call* that the pattern is keyed to.
+    'a plain import of the facade' => [outboundClientPattern(), 'use Illuminate\Support\Facades\Http;'],
 ]);

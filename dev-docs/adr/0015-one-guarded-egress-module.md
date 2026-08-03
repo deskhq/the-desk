@@ -128,6 +128,11 @@ the fixture named.
   taken verbatim from the fetched discovery document with no scheme or issuer-host
   check. Real, and worth their own issue; fixed with Guzzle client config and a
   check, not with this module.
+- **Bounding the response in memory (#1202).** The byte cap is enforced after the
+  body is buffered, so it bounds what the module *keeps* rather than what it reads —
+  a chunked response declares no `Content-Length` to pre-check against. That is
+  pre-existing, identical in both of the copies collapsed here, and fixing it means
+  streaming the body rather than moving it.
 - **A user-agent, a connect timeout, or egress logging.** `GuardedEgress` is the
   first place any of those could live. Deciding whether they should is a separate
   question, and adding them here by reflex would be the same mistake as folding
