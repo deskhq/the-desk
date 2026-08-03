@@ -1,30 +1,12 @@
 <?php
 
-use App\Actions\Teams\CreateTeam;
 use App\Enums\MessageReminderStatus;
-use App\Enums\TeamRole;
 use App\Models\Channel;
 use App\Models\Message;
 use App\Models\MessageReminder;
-use App\Models\Team;
-use App\Models\User;
-
-/**
- * Create a team with its owner already a member of #general.
- *
- * @return array{0: User, 1: Team, 2: Channel}
- */
-function reminderTeamWithGeneral(): array
-{
-    $owner = User::factory()->create();
-    $team = app(CreateTeam::class)->handle($owner, 'Acme');
-    $general = Channel::where('team_id', $team->id)->where('slug', 'general')->firstOrFail();
-
-    return [$owner, $team, $general];
-}
 
 test('a member can set a reminder on a message they can see', function (): void {
-    [$owner, $team, $general] = reminderTeamWithGeneral();
+    ['owner' => $owner, 'team' => $team, 'channel' => $general] = teamWithChannel();
     $message = Message::factory()->for($general)->for($owner)->create();
     $remindAt = now()->addHour();
 
@@ -45,7 +27,7 @@ test('a member can set a reminder on a message they can see', function (): void 
 });
 
 test('setting a reminder again re-arms the same row rather than stacking', function (): void {
-    [$owner, $team, $general] = reminderTeamWithGeneral();
+    ['owner' => $owner, 'team' => $team, 'channel' => $general] = teamWithChannel();
     $message = Message::factory()->for($general)->for($owner)->create();
     $existing = MessageReminder::factory()->for($owner)->for($message)->fired()->create([
         'remind_at' => now()->subHour(),
@@ -68,7 +50,7 @@ test('setting a reminder again re-arms the same row rather than stacking', funct
 });
 
 test('a non-future remind time is rejected', function (): void {
-    [$owner, $team, $general] = reminderTeamWithGeneral();
+    ['owner' => $owner, 'team' => $team, 'channel' => $general] = teamWithChannel();
     $message = Message::factory()->for($general)->for($owner)->create();
 
     $this->actingAs($owner)
@@ -82,7 +64,7 @@ test('a non-future remind time is rejected', function (): void {
 });
 
 test('a missing remind time is rejected', function (): void {
-    [$owner, $team, $general] = reminderTeamWithGeneral();
+    ['owner' => $owner, 'team' => $team, 'channel' => $general] = teamWithChannel();
     $message = Message::factory()->for($general)->for($owner)->create();
 
     $this->actingAs($owner)
@@ -93,7 +75,7 @@ test('a missing remind time is rejected', function (): void {
 });
 
 test('a reminder cannot target a deleted message', function (): void {
-    [$owner, $team, $general] = reminderTeamWithGeneral();
+    ['owner' => $owner, 'team' => $team, 'channel' => $general] = teamWithChannel();
     $message = Message::factory()->for($general)->for($owner)->create();
     $message->delete();
 
@@ -110,13 +92,13 @@ test('a reminder cannot target a deleted message', function (): void {
 });
 
 test('a user cannot set a reminder on a message in a channel they cannot see', function (): void {
-    [$owner, $team, $general] = reminderTeamWithGeneral();
+    ['owner' => $owner, 'team' => $team, 'channel' => $general] = teamWithChannel();
     $private = Channel::factory()->for($team)->private()->create();
-    $private->channelMembers()->create(['user_id' => $owner->id]);
+    channelMembership($private, $owner);
     $message = Message::factory()->for($private)->for($owner)->create();
 
-    $stranger = User::factory()->create();
-    $team->memberships()->create(['user_id' => $stranger->id, 'role' => TeamRole::Member]);
+    // In the team and in #general, but never in the private channel.
+    $stranger = teamMemberInChannel($general);
 
     $this->actingAs($stranger)
         ->post(route('channels.reminders.store', ['team' => $team->slug]), [
@@ -129,11 +111,9 @@ test('a user cannot set a reminder on a message in a channel they cannot see', f
 });
 
 test('a reminder cannot target a message in a different team', function (): void {
-    [$owner, $team, $general] = reminderTeamWithGeneral();
+    ['owner' => $owner, 'team' => $team] = teamWithChannel();
+    ['owner' => $otherOwner, 'channel' => $otherGeneral] = teamWithChannel('Beta');
 
-    $otherOwner = User::factory()->create();
-    $otherTeam = app(CreateTeam::class)->handle($otherOwner, 'Beta');
-    $otherGeneral = Channel::where('team_id', $otherTeam->id)->where('slug', 'general')->firstOrFail();
     $foreign = Message::factory()->for($otherGeneral)->for($otherOwner)->create();
 
     $this->actingAs($owner)
