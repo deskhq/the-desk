@@ -2,11 +2,10 @@
 
 namespace App\Http\Requests\Channels;
 
-use App\Enums\MessageType;
 use App\Http\Requests\RouteBoundRequest;
+use App\Rules\MessageTarget;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Support\Facades\Gate;
-use Illuminate\Validation\Rule;
 
 class PostMessageRequest extends RouteBoundRequest
 {
@@ -49,30 +48,8 @@ class PostMessageRequest extends RouteBoundRequest
             // already attached, so "must be pending" can't live here).
             'attachment_ids' => ['nullable', 'array', 'required_without:body', 'max:'.(int) config('attachments.max_per_message')],
             'attachment_ids.*' => ['uuid', 'exists:attachments,id'],
-            // An inline reply must quote a live (non-deleted) user message that
-            // belongs to this same channel; a cross-channel, deleted, or inert
-            // system-notice target is rejected rather than silently dropped.
-            'reply_to_id' => [
-                'nullable',
-                'uuid',
-                Rule::exists('messages', 'id')
-                    ->where('channel_id', $this->channel()->id)
-                    ->whereNotIn('type', MessageType::systemValues())
-                    ->whereNull('deleted_at'),
-            ],
-            // A thread reply must target a live root user message in this same
-            // channel. Requiring the target's own thread_root_id to be null keeps
-            // threads one level deep — you reply to a root, never to a reply — and
-            // a system notice is never a thread root.
-            'thread_root_id' => [
-                'nullable',
-                'uuid',
-                Rule::exists('messages', 'id')
-                    ->where('channel_id', $this->channel()->id)
-                    ->whereNotIn('type', MessageType::systemValues())
-                    ->whereNull('deleted_at')
-                    ->whereNull('thread_root_id'),
-            ],
+            'reply_to_id' => ['nullable', 'uuid', MessageTarget::replyTo($this->channel())],
+            'thread_root_id' => ['nullable', 'uuid', MessageTarget::threadRootIn($this->channel())],
             // Only meaningful alongside thread_root_id; surfaces the reply in the
             // main timeline in addition to the thread.
             'sent_to_channel' => ['boolean'],

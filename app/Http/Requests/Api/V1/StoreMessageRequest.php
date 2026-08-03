@@ -2,11 +2,10 @@
 
 namespace App\Http\Requests\Api\V1;
 
-use App\Enums\MessageType;
+use App\Rules\MessageTarget;
 use App\Support\Integrations\ApiChannelAccess;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Support\Facades\Gate;
-use Illuminate\Validation\Rule;
 
 /**
  * Validates a bot posting a message to one of its channels via the public API.
@@ -48,27 +47,8 @@ class StoreMessageRequest extends ApiRequest
             // the same uuid resolves to the message already created rather than a
             // duplicate. The controller generates one when omitted.
             'client_uuid' => ['nullable', 'uuid'],
-            // An inline reply must quote a live user message in this same channel.
-            'reply_to_id' => [
-                'nullable',
-                'uuid',
-                Rule::exists('messages', 'id')
-                    ->where('channel_id', $this->channel()->id)
-                    ->whereNotIn('type', MessageType::systemValues())
-                    ->whereNull('deleted_at'),
-            ],
-            // A thread reply must target a live root message in this same channel;
-            // requiring the target's own thread_root_id to be null keeps threads
-            // one level deep.
-            'thread_root_id' => [
-                'nullable',
-                'uuid',
-                Rule::exists('messages', 'id')
-                    ->where('channel_id', $this->channel()->id)
-                    ->whereNotIn('type', MessageType::systemValues())
-                    ->whereNull('deleted_at')
-                    ->whereNull('thread_root_id'),
-            ],
+            'reply_to_id' => ['nullable', 'uuid', MessageTarget::replyTo($this->channel())],
+            'thread_root_id' => ['nullable', 'uuid', MessageTarget::threadRootIn($this->channel())],
             'sent_to_channel' => ['boolean'],
         ];
     }

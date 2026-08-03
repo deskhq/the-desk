@@ -3,13 +3,11 @@
 namespace App\Http\Requests\Channels;
 
 use App\Http\Requests\RouteBoundRequest;
-use App\Models\Channel;
 use App\Policies\ChannelPolicy;
-use App\Support\NameSlug;
-use Closure;
+use App\Rules\AvailableChannelName;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Support\Facades\Gate;
-use Illuminate\Validation\Validator;
+use Illuminate\Validation\Rule;
 
 class UpdateChannelRequest extends RouteBoundRequest
 {
@@ -80,42 +78,20 @@ class UpdateChannelRequest extends RouteBoundRequest
      */
     public function rules(): array
     {
+        $channel = $this->channel();
+
         return [
-            'name' => ['sometimes', 'required', 'string', 'max:255'],
+            // The availability question is asked only of an actual rename. A form
+            // that posts the channel's current name back is not claiming a name,
+            // and holding it to the rule would fail a topic edit on a channel
+            // whose slug no longer matches what its name slugs to today.
+            'name' => ['sometimes', 'required', 'string', 'max:255', Rule::when(
+                $this->isRenaming(),
+                [new AvailableChannelName($channel->team, except: $channel)],
+            )],
             'topic' => ['sometimes', 'nullable', 'string', 'max:255'],
             'description' => ['sometimes', 'nullable', 'string', 'max:'.self::MAX_DESCRIPTION_LENGTH],
             'is_default' => ['sometimes', 'boolean'],
-        ];
-    }
-
-    /**
-     * Configure the validator instance.
-     *
-     * @return array<int, Closure(Validator): void>
-     */
-    public function after(): array
-    {
-        return [
-            function (Validator $validator): void {
-                if (! $this->isRenaming() || $validator->errors()->has('name')) {
-                    return;
-                }
-
-                // The channel keeps its original slug through a rename, so the
-                // collision to guard against is with *other* channels: two names
-                // that slug the same way would leave one of them unreachable.
-                $slug = NameSlug::distinct($this->submittedName(), Channel::FALLBACK_SLUG);
-
-                $exists = Channel::query()
-                    ->where('team_id', $this->channel()->team_id)
-                    ->where('slug', $slug)
-                    ->whereKeyNot($this->channel()->id)
-                    ->exists();
-
-                if ($exists) {
-                    $validator->errors()->add('name', __('A channel with this name already exists.'));
-                }
-            },
         ];
     }
 

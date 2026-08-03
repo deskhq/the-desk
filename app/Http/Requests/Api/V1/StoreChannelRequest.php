@@ -3,15 +3,12 @@
 namespace App\Http\Requests\Api\V1;
 
 use App\Enums\ChannelVisibility;
-use App\Models\Channel;
 use App\Models\Team;
+use App\Rules\AvailableChannelName;
 use App\Support\Integrations\ApiChannelAccess;
-use App\Support\NameSlug;
-use Closure;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\Rule;
-use Illuminate\Validation\Validator;
 
 /**
  * Validates a subject creating a channel in its acting team via the public API.
@@ -51,34 +48,9 @@ class StoreChannelRequest extends ApiRequest
     public function rules(): array
     {
         return [
-            'name' => ['required', 'string', 'max:255'],
+            'name' => ['required', 'string', 'max:255', new AvailableChannelName($this->subjectTeam())],
             'visibility' => ['required', Rule::enum(ChannelVisibility::class)],
             'topic' => ['nullable', 'string', 'max:255'],
-        ];
-    }
-
-    /**
-     * Reject a name that collides with an existing channel in the team.
-     *
-     * @return array<int, Closure(Validator): void>
-     */
-    public function after(): array
-    {
-        return [
-            function (Validator $validator): void {
-                if ($validator->errors()->has('name')) {
-                    return;
-                }
-
-                $exists = Channel::query()
-                    ->where('team_id', $this->subjectTeam()->id)
-                    ->where('slug', NameSlug::distinct((string) $this->input('name'), Channel::FALLBACK_SLUG))
-                    ->exists();
-
-                if ($exists) {
-                    $validator->errors()->add('name', __('A channel with this name already exists.'));
-                }
-            },
         ];
     }
 

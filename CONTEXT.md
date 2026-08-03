@@ -199,6 +199,25 @@ built; build them once, then reuse.
   if a copy comes back. `Api/V1\ApiRequest` extends it and adds only what the API adds —
   `subject()`, the token's bot or human — and names its token-derived team
   `subjectTeam()`, because `team()` means *the team the route bound*.
+- **Domain rules validation asks** (`app/Rules/`) — a form request's own rules are about
+  the payload: present, a string, under the cap. A rule about the *domain* — which message
+  may be pointed at, which name is still free, where a forward may land — takes models and
+  lives in `app/Rules/`, because a class whose only constructor is a `Request` can only be
+  asserted through a route, a session and a rendered 422. Three have moved so far, and each
+  collapsed copies rather than relocating one: `MessageTarget` (`replyTo()` /
+  `threadRootIn()`, the two readings of "which message may this one point at", six
+  spellings before #1150), `AvailableChannelName` (the channel-name *slug* collision, three
+  spellings, `except:` for the rename reading) and `ForwardDestination`. **Where such a rule
+  restates an ability, it asks the ability instead** — `ForwardDestination` calls the
+  `postMessage` gate rather than respelling it as `whereNull('archived_at')` plus a
+  membership `whereIn`, and what may be forwarded *at all* is `MessagePolicy::forward()`,
+  not an `authorize()` body. Each extends `LookupRule`, which carries the one thing a
+  hand-rolled rule gets wrong: it stays silent when the attribute has already failed, the
+  way Laravel skips its own `exists`, so a malformed uuid still raises a 422 rather than a
+  Postgres 22P02. `tests/Unit/FormRequestDomainRuleHomeTest.php` fails if a copy comes back,
+  and the rules are specified in `tests/Integration/Rules/` with no `route()` in sight. The
+  other requests carrying domain logic are #1150's remaining work, taken as their surfaces
+  are touched.
 
 ### Frontend (`resources/js/`)
 
@@ -367,6 +386,12 @@ built; build them once, then reuse.
   call `channel()` / `team()` / `message()`, or `routeModel()` for a one-off. Never a
   hand-written `abort_if(! $x instanceof Y, 404)`, and never `$this->route(...)` straight
   into a gate.
+- A validation rule that has to ask the domain a question — which record may be pointed
+  at, whether a name is free, where something may land → a `LookupRule` in **`app/Rules/`**
+  taking models, specified in `tests/Integration/Rules/`. If the answer is an ability
+  somebody already holds, call the gate rather than restating it as a `Rule::exists` chain,
+  and if the question is *may this actor do this at all*, it is a policy ability and not a
+  rule.
 - A new nested resource under `settings/teams/{team}/…` → name its route parameter after
   the relationship that owns it (`{customEmoji}` → `Team::customEmojis()`), and let the
   group's `->scopeBindings()` do the tenancy. A hand-rolled `belongs to this team` check
