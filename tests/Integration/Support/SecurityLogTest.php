@@ -1,10 +1,7 @@
 <?php
 
-use App\Actions\Teams\CreateTeam;
 use App\Enums\SecurityEventType;
-use App\Enums\TeamRole;
 use App\Models\SecurityEvent;
-use App\Models\Team;
 use App\Models\User;
 use App\Support\SecurityLog;
 use App\Support\SimplePage;
@@ -26,33 +23,9 @@ use App\Support\SimplePage;
 |
 */
 
-/**
- * Create a real (non-personal) team owned by a fresh user.
- *
- * @return array{0: User, 1: Team}
- */
-function securityLogReadModelTeam(): array
-{
-    $owner = User::factory()->create();
-    $team = app(CreateTeam::class)->handle($owner, 'Acme');
-
-    return [$owner, $team];
-}
-
-/**
- * Attach a member to a team with the given role.
- */
-function securityLogReadModelMember(Team $team, TeamRole $role = TeamRole::Member): User
-{
-    $member = User::factory()->create();
-    $team->members()->attach($member, ['role' => $role->value]);
-
-    return $member;
-}
-
 test('the log is constructible from a team alone and reads its members events', function (): void {
-    [$owner, $team] = securityLogReadModelTeam();
-    $member = securityLogReadModelMember($team);
+    ['owner' => $owner, 'team' => $team, 'channel' => $general] = teamWithChannel();
+    $member = teamMemberInChannel($general);
     $stranger = User::factory()->create();
 
     SecurityEvent::factory()->for($owner)->create();
@@ -74,8 +47,8 @@ test('the log is constructible from a team alone and reads its members events', 
  * history from this workspace's view of them at once.
  */
 test('an event leaves the log the moment its user leaves the team', function (): void {
-    [$owner, $team] = securityLogReadModelTeam();
-    $member = securityLogReadModelMember($team);
+    ['owner' => $owner, 'team' => $team, 'channel' => $general] = teamWithChannel();
+    $member = teamMemberInChannel($general);
 
     SecurityEvent::factory()->for($owner)->create();
     SecurityEvent::factory()->for($member)->create();
@@ -91,7 +64,7 @@ test('an event leaves the log the moment its user leaves the team', function ():
 });
 
 test('the type filter narrows the log to one kind of event', function (): void {
-    [$owner, $team] = securityLogReadModelTeam();
+    ['owner' => $owner, 'team' => $team] = teamWithChannel();
 
     SecurityEvent::factory()->for($owner)->ofType(SecurityEventType::LoggedIn)->create();
     SecurityEvent::factory()->for($owner)->ofType(SecurityEventType::PasswordChanged)->create();
@@ -102,8 +75,8 @@ test('the type filter narrows the log to one kind of event', function (): void {
 });
 
 test('the actor filter narrows the log to one person', function (): void {
-    [$owner, $team] = securityLogReadModelTeam();
-    $member = securityLogReadModelMember($team);
+    ['owner' => $owner, 'team' => $team, 'channel' => $general] = teamWithChannel();
+    $member = teamMemberInChannel($general);
 
     SecurityEvent::factory()->for($owner)->create();
     SecurityEvent::factory()->for($member)->create();
@@ -114,9 +87,9 @@ test('the actor filter narrows the log to one person', function (): void {
 });
 
 test('the actor facet offers only the members the log names', function (): void {
-    [$owner, $team] = securityLogReadModelTeam();
-    $member = securityLogReadModelMember($team);
-    securityLogReadModelMember($team);
+    ['owner' => $owner, 'team' => $team, 'channel' => $general] = teamWithChannel();
+    $member = teamMemberInChannel($general);
+    teamMemberInChannel($general);
     $stranger = User::factory()->create();
 
     SecurityEvent::factory()->for($owner)->create();
@@ -130,7 +103,7 @@ test('the actor facet offers only the members the log names', function (): void 
 });
 
 test('a page is capped and carries the link to the next one', function (): void {
-    [$owner, $team] = securityLogReadModelTeam();
+    ['owner' => $owner, 'team' => $team] = teamWithChannel();
 
     SecurityEvent::factory()->for($owner)->count(SimplePage::PER_PAGE + 5)->create();
 

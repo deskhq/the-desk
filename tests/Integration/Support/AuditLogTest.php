@@ -1,11 +1,9 @@
 <?php
 
-use App\Actions\Teams\CreateTeam;
 use App\Enums\AuditAction;
 use App\Enums\TeamRole;
 use App\Models\AuditActivity;
 use App\Models\Team;
-use App\Models\User;
 use App\Support\AuditLog;
 use App\Support\SimplePage;
 
@@ -27,32 +25,8 @@ use App\Support\SimplePage;
 |
 */
 
-/**
- * Create a real (non-personal) team owned by a fresh user.
- *
- * @return array{0: User, 1: Team}
- */
-function auditLogReadModelTeam(): array
-{
-    $owner = User::factory()->create();
-    $team = app(CreateTeam::class)->handle($owner, 'Acme');
-
-    return [$owner, $team];
-}
-
-/**
- * Attach a member to a team with the given role.
- */
-function auditLogReadModelMember(Team $team, TeamRole $role = TeamRole::Member): User
-{
-    $member = User::factory()->create();
-    $team->members()->attach($member, ['role' => $role->value]);
-
-    return $member;
-}
-
 test('the log is constructible from a team alone and reads its own entries', function (): void {
-    [$owner, $team] = auditLogReadModelTeam();
+    ['owner' => $owner, 'team' => $team] = teamWithChannel();
 
     AuditActivity::factory()->forTeam($team)->causedBy($owner)->ofAction(AuditAction::ChannelCreated)->create();
     AuditActivity::factory()->forTeam(Team::factory()->create())->ofAction(AuditAction::TeamRenamed)->create();
@@ -66,7 +40,7 @@ test('the log is constructible from a team alone and reads its own entries', fun
 });
 
 test('the action filter narrows the log to one kind of entry', function (): void {
-    [$owner, $team] = auditLogReadModelTeam();
+    ['owner' => $owner, 'team' => $team] = teamWithChannel();
 
     AuditActivity::factory()->forTeam($team)->causedBy($owner)->ofAction(AuditAction::ChannelCreated)->create();
     AuditActivity::factory()->forTeam($team)->causedBy($owner)->ofAction(AuditAction::MemberRemoved)->create();
@@ -77,8 +51,8 @@ test('the action filter narrows the log to one kind of entry', function (): void
 });
 
 test('the actor filter narrows the log to one person', function (): void {
-    [$owner, $team] = auditLogReadModelTeam();
-    $admin = auditLogReadModelMember($team, TeamRole::Admin);
+    ['owner' => $owner, 'team' => $team, 'channel' => $general] = teamWithChannel();
+    $admin = teamMemberInChannel($general, role: TeamRole::Admin);
 
     AuditActivity::factory()->forTeam($team)->causedBy($owner)->ofAction(AuditAction::ChannelCreated)->create();
     AuditActivity::factory()->forTeam($team)->causedBy($admin)->ofAction(AuditAction::MemberRemoved)->create();
@@ -89,9 +63,9 @@ test('the actor filter narrows the log to one person', function (): void {
 });
 
 test('the actor facet offers only the people the log names', function (): void {
-    [$owner, $team] = auditLogReadModelTeam();
-    $admin = auditLogReadModelMember($team, TeamRole::Admin);
-    auditLogReadModelMember($team, TeamRole::Admin);
+    ['owner' => $owner, 'team' => $team, 'channel' => $general] = teamWithChannel();
+    $admin = teamMemberInChannel($general, role: TeamRole::Admin);
+    teamMemberInChannel($general, role: TeamRole::Admin);
 
     AuditActivity::factory()->forTeam($team)->causedBy($admin)->ofAction(AuditAction::MemberRemoved)->create();
     AuditActivity::factory()->forTeam($team)->causedBy($owner)->ofAction(AuditAction::ChannelCreated)->create();
@@ -105,7 +79,7 @@ test('the actor facet offers only the people the log names', function (): void {
 });
 
 test('a page is capped and carries the link to the next one', function (): void {
-    [$owner, $team] = auditLogReadModelTeam();
+    ['owner' => $owner, 'team' => $team] = teamWithChannel();
 
     AuditActivity::factory()->forTeam($team)->causedBy($owner)->ofAction(AuditAction::ChannelCreated)
         ->count(SimplePage::PER_PAGE + 5)

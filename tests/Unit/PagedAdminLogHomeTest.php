@@ -61,6 +61,16 @@ function pageEnvelopePattern(): string
     return '/\bprevPageUrl\b|\bnextPageUrl\b/';
 }
 
+/**
+ * Building a query, in both spellings — through `::query()` and through a model's
+ * static passthrough (`AuditActivity::where(...)`), which is the same thing with
+ * one call elided and is how the duplication would grow back unnoticed.
+ */
+function controllerQueryPattern(): string
+{
+    return '/::query\(|::where\(|::when\(|->where\(|->when\(/';
+}
+
 test('the pagination walk and its page size are declared in one place', function () use ($sourceRoot): void {
     expect(pagedLogFilesMatching($sourceRoot, 'app', '*.php', simplePaginationWalkPattern()))->toBe([
         'app/Support/SimplePage.php',
@@ -104,7 +114,7 @@ test('the actor facet is one module, called by both logs', function () use ($sou
  * duplication growing back.
  */
 test('neither log controller holds a query', function () use ($sourceRoot): void {
-    expect(pagedLogFilesMatching($sourceRoot, 'app/Http/Controllers/Teams', '*.php', '/::query\(\)|->where\(|->when\(/'))
+    expect(pagedLogFilesMatching($sourceRoot, 'app/Http/Controllers/Teams', '*.php', controllerQueryPattern()))
         ->not->toContain(
             'app/Http/Controllers/Teams/AuditController.php',
             'app/Http/Controllers/Teams/SecurityLogController.php',
@@ -123,6 +133,9 @@ test('each pattern still catches the code it was written for', function (string 
     'the page size' => [simplePaginationWalkPattern(), 'private const int PER_PAGE = 30;'],
     'the prev key' => [pageEnvelopePattern(), "'prevPageUrl' => \$entries->previousPageUrl(),"],
     'the next key' => [pageEnvelopePattern(), '    nextPageUrl: string | null;'],
+    'a query built through the builder' => [controllerQueryPattern(), '$entries = AuditActivity::query()'],
+    'a query built through the static passthrough' => [controllerQueryPattern(), "AuditActivity::where('team_id', \$team->id)"],
+    'a filter applied inline' => [controllerQueryPattern(), "->when(\$action, fn (\$query) => \$query->where('event', \$action))"],
 ]);
 
 /**
