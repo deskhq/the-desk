@@ -57,6 +57,18 @@ class AuditActivityFactory extends Factory
     }
 
     /**
+     * Record the entry with no human behind it, the way a scheduled sweep or a
+     * system action is recorded.
+     */
+    public function uncaused(): static
+    {
+        return $this->state(fn (array $attributes): array => [
+            'causer_type' => null,
+            'causer_id' => null,
+        ]);
+    }
+
+    /**
      * Attribute the entry to a specific actor.
      */
     public function causedBy(User $user): static

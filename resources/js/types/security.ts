@@ -1,3 +1,5 @@
+import type { SimplePage } from './pagination';
+
 /**
  * A recorded security-relevant account event as shown on the Security settings
  * page.
@@ -21,12 +23,5 @@ export type SecurityLogActor = {
     name: string;
 };
 
-/**
- * One page of admin security-log events. Uses simple (prev/next) pagination so
- * the log can be paged through in full without a bounded cap.
- */
-export type SecurityEventsPage = {
-    data: TeamSecurityEvent[];
-    prevPageUrl: string | null;
-    nextPageUrl: string | null;
-};
+/** One page of admin security-log events. */
+export type SecurityEventsPage = SimplePage<TeamSecurityEvent>;
