@@ -337,11 +337,29 @@ describe('the danger zone', () => {
         expect(stub(host, 'DeleteTeamModal')).toBeNull();
     });
 
+    // A personal workspace cannot be deleted, and the server is what says so:
+    // its owner arrives with `canDeleteTeam: false` (#1198).
     it('withholds it on a personal team', () => {
-        const host = mount({ team: team({ isPersonal: true }) });
+        const host = mount({
+            team: team({ isPersonal: true }),
+            permissions: teamPermissions({ canDeleteTeam: false }),
+        });
 
         expect(find(host, 'delete-team-button')).toBeNull();
         expect(stub(host, 'DeleteTeamModal')).toBeNull();
+    });
+
+    // The permission alone decides. The page used to re-check `isPersonal` on
+    // top of it, which is what let the server's own copy of the rule drift
+    // unnoticed: re-adding that patch fails here.
+    it('takes the permission at its word rather than re-deciding it', () => {
+        const host = mount({
+            team: team({ isPersonal: true }),
+            permissions: teamPermissions({ canDeleteTeam: true }),
+        });
+
+        expect(find(host, 'delete-team-button')).not.toBeNull();
+        expect(stub(host, 'DeleteTeamModal')).not.toBeNull();
     });
 
     it('opens the deletion dialog from the button', async () => {

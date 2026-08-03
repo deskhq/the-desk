@@ -2,10 +2,10 @@
 
 namespace App\Policies;
 
-use App\Enums\TeamRole;
 use App\Models\CustomEmoji;
 use App\Models\Team;
 use App\Models\User;
+use Illuminate\Support\Facades\Gate;
 
 class CustomEmojiPolicy
 {
@@ -22,9 +22,10 @@ class CustomEmojiPolicy
     /**
      * Determine whether the user can remove a custom emoji.
      *
-     * A member may delete their own upload; an admin (or owner) of a real
-     * workspace may revoke anyone's. The single ability backs both the
-     * self-service "Delete" and the admin "Revoke" affordances.
+     * A member may delete their own upload; whoever curates the registry
+     * ({@see TeamPolicy::manageEmojis()}) may revoke anyone's. The single
+     * ability backs both the self-service "Delete" and the admin "Revoke"
+     * affordances.
      */
     public function delete(User $user, CustomEmoji $emoji): bool
     {
@@ -32,9 +33,6 @@ class CustomEmojiPolicy
             return true;
         }
 
-        $team = $emoji->team;
-
-        return ! $team->is_personal
-            && ($user->teamRole($team)?->isAtLeast(TeamRole::Admin) ?? false);
+        return Gate::forUser($user)->allows('manageEmojis', $emoji->team);
     }
 }

@@ -162,6 +162,20 @@ class TeamPolicy
     }
 
     /**
+     * Determine whether the user can curate the team's custom emoji registry.
+     *
+     * Any member may add an emoji and remove their own ({@see
+     * CustomEmojiPolicy}); revoking someone else's is the moderation half, and
+     * it is scoped to admins and the owner of a real (non-personal) workspace —
+     * a one-person workspace has nobody else's upload to revoke.
+     */
+    public function manageEmojis(User $user, Team $team): bool
+    {
+        return ! $team->is_personal
+            && ($user->teamRole($team)?->isAtLeast(TeamRole::Admin) ?? false);
+    }
+
+    /**
      * Determine whether the user can manage the team's integrations.
      *
      * The integrations surface mints bot credentials and webhook secrets, so it

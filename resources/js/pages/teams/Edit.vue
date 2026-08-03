@@ -150,7 +150,7 @@ const confirmTransferOwnership = (member: TeamMember) => {
         <AdminLinks :team="team" :permissions="permissions" />
 
         <DangerZone
-            v-if="permissions.canDeleteTeam && !team.isPersonal"
+            v-if="permissions.canDeleteTeam"
             @delete="deleteDialogOpen = true"
         />
     </div>
@@ -185,7 +185,7 @@ const confirmTransferOwnership = (member: TeamMember) => {
     />
 
     <DeleteTeamModal
-        v-if="permissions.canDeleteTeam && !team.isPersonal"
+        v-if="permissions.canDeleteTeam"
         :team="team"
         :open="deleteDialogOpen"
         @update:open="deleteDialogOpen = $event"
