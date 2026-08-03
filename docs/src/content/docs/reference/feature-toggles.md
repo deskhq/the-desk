@@ -206,7 +206,8 @@ opaque token in the URL **is** the credential (Slack-style). Each webhook is bou
 to a single bot and channel, its token is stored only as a hash, and it is
 individually revocable. The JSON body accepts either a native `{"body": "..."}` or
 a Slack-compatible `{"text": "..."}` field (Block Kit is ignored); an optional
-HMAC `X-Signature-256` header is honoured when a signing secret is configured.
+HMAC `X-Signature-256` header, paired with the `X-Timestamp` it was signed at, is
+honoured when a signing secret is configured.
 Incoming webhooks are governed by the same `INTEGRATIONS_ENABLED` toggle — the
 endpoint 404s when the platform is off.
 

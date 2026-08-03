@@ -113,17 +113,142 @@ it('422s a body that exceeds the maximum length', function (): void {
     $this->assertDatabaseCount('messages', 0);
 });
 
-it('accepts a correctly HMAC-signed request when the webhook requires signing', function (): void {
+it('accepts a request signed over the timestamp and the body', function (): void {
     $secret = Str::random(48);
     [$webhook, $token] = makeWebhook(['signing_secret' => $secret]);
+
+    $payload = ['body' => 'timestamped and sealed'];
+    $timestamp = now()->getTimestamp();
+    $signature = hash_hmac('sha256', $timestamp.'.'.json_encode($payload), $secret);
+
+    $this->postJson("/webhooks/incoming/{$token}", $payload, [
+        'X-Signature-256' => 'sha256='.$signature,
+        'X-Timestamp' => (string) $timestamp,
+    ])->assertStatus(202);
+
+    $this->assertDatabaseHas('messages', ['channel_id' => $webhook->channel_id, 'body' => 'timestamped and sealed']);
+});
+
+it('401s a webhook on the timestamped scheme when no usable timestamp is sent', function (?string $timestamp): void {
+    $secret = Str::random(48);
+    [, $token] = makeWebhook(['signing_secret' => $secret]);
+
+    $payload = ['body' => 'signed the old way'];
+    $headers = ['X-Signature-256' => hash_hmac('sha256', json_encode($payload), $secret)];
+
+    if ($timestamp !== null) {
+        $headers['X-Timestamp'] = $timestamp;
+    }
+
+    $this->postJson("/webhooks/incoming/{$token}", $payload, $headers)->assertStatus(401);
+
+    $this->assertDatabaseCount('messages', 0);
+})->with([
+    'no timestamp header at all' => [null],
+    'a non-numeric timestamp' => ['yesterday'],
+    'an empty timestamp' => [''],
+    'a fractional timestamp' => ['1764547200.5'],
+]);
+
+it('401s a byte-for-byte replay of a request it has already accepted', function (): void {
+    $secret = Str::random(48);
+    [$webhook, $token] = makeWebhook(['signing_secret' => $secret]);
+
+    $payload = ['body' => 'deploy finished'];
+    $timestamp = now()->getTimestamp();
+    $headers = [
+        'X-Signature-256' => 'sha256='.hash_hmac('sha256', $timestamp.'.'.json_encode($payload), $secret),
+        'X-Timestamp' => (string) $timestamp,
+    ];
+
+    $this->postJson("/webhooks/incoming/{$token}", $payload, $headers)->assertStatus(202);
+
+    // Still inside the freshness window, so the window alone would let this one
+    // through and post the message a second time.
+    $this->postJson("/webhooks/incoming/{$token}", $payload, $headers)->assertStatus(401);
+
+    expect(Message::query()->where('channel_id', $webhook->channel_id)->count())->toBe(1);
+});
+
+it('401s a signature whose timestamp falls outside the freshness window', function (int $offset): void {
+    // The window is asserted at its exact edge, so the second the request spends
+    // in flight would otherwise decide the outcome.
+    $this->freezeTime();
+
+    $secret = Str::random(48);
+    [, $token] = makeWebhook(['signing_secret' => $secret]);
+
+    $payload = ['body' => 'stale'];
+    $timestamp = now()->getTimestamp() + $offset;
+    $signature = hash_hmac('sha256', $timestamp.'.'.json_encode($payload), $secret);
+
+    $this->postJson("/webhooks/incoming/{$token}", $payload, [
+        'X-Signature-256' => 'sha256='.$signature,
+        'X-Timestamp' => (string) $timestamp,
+    ])->assertStatus(401);
+
+    $this->assertDatabaseCount('messages', 0);
+})->with([
+    // Both directions: a captured request replayed later, and a sender whose
+    // clock runs far enough ahead that its signature would outlive the window.
+    'signed more than five minutes ago' => [-301],
+    'signed more than five minutes from now' => [301],
+]);
+
+it('accepts a signature sitting exactly on the edge of the freshness window', function (int $offset): void {
+    $this->freezeTime();
+
+    $secret = Str::random(48);
+    [$webhook, $token] = makeWebhook(['signing_secret' => $secret]);
+
+    $payload = ['body' => 'skewed but honest'];
+    $timestamp = now()->getTimestamp() + $offset;
+    $signature = hash_hmac('sha256', $timestamp.'.'.json_encode($payload), $secret);
+
+    // The tolerance exists to absorb clock skew, so the edge itself belongs to
+    // the senders it is there for.
+    $this->postJson("/webhooks/incoming/{$token}", $payload, [
+        'X-Signature-256' => 'sha256='.$signature,
+        'X-Timestamp' => (string) $timestamp,
+    ])->assertStatus(202);
+
+    $this->assertDatabaseHas('messages', ['channel_id' => $webhook->channel_id, 'body' => 'skewed but honest']);
+})->with([
+    'a clock five minutes behind' => [-300],
+    'a clock five minutes ahead' => [300],
+]);
+
+it('still accepts a body-only signature from a webhook that predates the timestamp', function (): void {
+    $secret = Str::random(48);
+    [$webhook, $token] = makeWebhook(['signing_secret' => $secret, 'requires_signed_timestamp' => false]);
 
     $payload = ['body' => 'signed and sealed'];
     $signature = hash_hmac('sha256', json_encode($payload), $secret);
 
+    // The migration window: this sender was written against the old scheme and
+    // cannot be updated by upgrading The Desk.
     $this->postJson("/webhooks/incoming/{$token}", $payload, ['X-Signature-256' => 'sha256='.$signature])
         ->assertStatus(202);
 
     $this->assertDatabaseHas('messages', ['channel_id' => $webhook->channel_id, 'body' => 'signed and sealed']);
+});
+
+it('lets a legacy webhook move to the timestamped scheme before it is required', function (): void {
+    $secret = Str::random(48);
+    [$webhook, $token] = makeWebhook(['signing_secret' => $secret, 'requires_signed_timestamp' => false]);
+
+    $payload = ['body' => 'migrated early'];
+    $timestamp = now()->getTimestamp();
+    $signature = hash_hmac('sha256', $timestamp.'.'.json_encode($payload), $secret);
+
+    // Accepting both is what makes the window usable: a sender switches over on
+    // its own schedule, with no coordinated flip at the other end.
+    $this->postJson("/webhooks/incoming/{$token}", $payload, [
+        'X-Signature-256' => 'sha256='.$signature,
+        'X-Timestamp' => (string) $timestamp,
+    ])->assertStatus(202);
+
+    $this->assertDatabaseHas('messages', ['channel_id' => $webhook->channel_id, 'body' => 'migrated early']);
 });
 
 it('accepts a bare hex signature without the sha256= prefix', function (): void {
@@ -131,10 +256,13 @@ it('accepts a bare hex signature without the sha256= prefix', function (): void 
     [$webhook, $token] = makeWebhook(['signing_secret' => $secret]);
 
     $payload = ['body' => 'bare hex'];
-    $signature = hash_hmac('sha256', json_encode($payload), $secret);
+    $timestamp = now()->getTimestamp();
+    $signature = hash_hmac('sha256', $timestamp.'.'.json_encode($payload), $secret);
 
-    $this->postJson("/webhooks/incoming/{$token}", $payload, ['X-Signature-256' => $signature])
-        ->assertStatus(202);
+    $this->postJson("/webhooks/incoming/{$token}", $payload, [
+        'X-Signature-256' => $signature,
+        'X-Timestamp' => (string) $timestamp,
+    ])->assertStatus(202);
 
     $this->assertDatabaseHas('messages', ['channel_id' => $webhook->channel_id, 'body' => 'bare hex']);
 });

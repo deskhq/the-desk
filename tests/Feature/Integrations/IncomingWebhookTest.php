@@ -61,6 +61,14 @@ it('optionally mints an encrypted HMAC signing secret', function (): void {
     expect($raw)->not->toBe($result->signingSecret);
 });
 
+it('mints a webhook on the timestamped signing scheme', function (): void {
+    $result = app(CreateIncomingWebhook::class)->handle($this->bot, $this->channel, $this->owner, 'Signed', withSigningSecret: true);
+
+    // Only webhooks that predate the scheme are exempt, and they are exempted by
+    // the migration that introduced it — nothing minted from here on is.
+    expect($result->webhook->fresh()?->requires_signed_timestamp)->toBeTrue();
+});
+
 it('refuses to bind a webhook to a channel the bot is not a member of', function (): void {
     $other = Channel::factory()->for($this->team)->create();
 
