@@ -10,6 +10,7 @@ use App\Models\Message;
 use App\Models\Team;
 use App\Models\User;
 use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 
 /**
@@ -218,37 +219,30 @@ it('accepts a signature sitting exactly on the edge of the freshness window', fu
     'a clock five minutes ahead' => [300],
 ]);
 
-it('still accepts a body-only signature from a webhook that predates the timestamp', function (): void {
+it('401s a body-only signature however long the webhook has existed', function (): void {
     $secret = Str::random(48);
-    [$webhook, $token] = makeWebhook(['signing_secret' => $secret, 'requires_signed_timestamp' => false]);
+    [$webhook, $token] = makeWebhook(['signing_secret' => $secret]);
 
-    $payload = ['body' => 'signed and sealed'];
+    // Webhooks minted before the timestamped scheme were exempted from it for
+    // one release so their senders could be moved over. That exemption is gone:
+    // a webhook's age no longer buys it the replayable scheme, and the 401 is
+    // how a sender still on the old one finds out.
+    $webhook->forceFill(['created_at' => now()->subYear()])->save();
+
+    $payload = ['body' => 'signed the old way'];
     $signature = hash_hmac('sha256', json_encode($payload), $secret);
 
-    // The migration window: this sender was written against the old scheme and
-    // cannot be updated by upgrading The Desk.
     $this->postJson("/webhooks/incoming/{$token}", $payload, ['X-Signature-256' => 'sha256='.$signature])
-        ->assertStatus(202);
+        ->assertStatus(401);
 
-    $this->assertDatabaseHas('messages', ['channel_id' => $webhook->channel_id, 'body' => 'signed and sealed']);
+    $this->assertDatabaseCount('messages', 0);
 });
 
-it('lets a legacy webhook move to the timestamped scheme before it is required', function (): void {
-    $secret = Str::random(48);
-    [$webhook, $token] = makeWebhook(['signing_secret' => $secret, 'requires_signed_timestamp' => false]);
-
-    $payload = ['body' => 'migrated early'];
-    $timestamp = now()->getTimestamp();
-    $signature = hash_hmac('sha256', $timestamp.'.'.json_encode($payload), $secret);
-
-    // Accepting both is what makes the window usable: a sender switches over on
-    // its own schedule, with no coordinated flip at the other end.
-    $this->postJson("/webhooks/incoming/{$token}", $payload, [
-        'X-Signature-256' => 'sha256='.$signature,
-        'X-Timestamp' => (string) $timestamp,
-    ])->assertStatus(202);
-
-    $this->assertDatabaseHas('messages', ['channel_id' => $webhook->channel_id, 'body' => 'migrated early']);
+it('no longer carries a column that could exempt a webhook from the timestamp', function (): void {
+    // The exemption was a schema flag, so retiring the branch that read it is
+    // only half the job — a surviving column is an exemption waiting to be
+    // honoured again by the next person who finds it.
+    expect(Schema::hasColumn('incoming_webhooks', 'requires_signed_timestamp'))->toBeFalse();
 });
 
 it('accepts a bare hex signature without the sha256= prefix', function (): void {

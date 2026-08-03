@@ -26,7 +26,6 @@ use Illuminate\Support\Carbon;
  * @property string $name
  * @property string $token_hash
  * @property string|null $signing_secret
- * @property bool $requires_signed_timestamp
  * @property Carbon|null $revoked_at
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
@@ -34,7 +33,7 @@ use Illuminate\Support\Carbon;
  * @property-read Channel|null $channel
  * @property-read User $bot
  */
-#[Fillable(['team_id', 'channel_id', 'bot_id', 'created_by', 'name', 'token_hash', 'signing_secret', 'requires_signed_timestamp'])]
+#[Fillable(['team_id', 'channel_id', 'bot_id', 'created_by', 'name', 'token_hash', 'signing_secret'])]
 class IncomingWebhook extends Model
 {
     /** @use HasFactory<IncomingWebhookFactory> */
@@ -48,7 +47,6 @@ class IncomingWebhook extends Model
     {
         return [
             'signing_secret' => 'encrypted',
-            'requires_signed_timestamp' => 'boolean',
             'revoked_at' => 'datetime',
         ];
     }
@@ -77,23 +75,19 @@ class IncomingWebhook extends Model
      * A webhook without a signing secret is unsigned and never matches here — the
      * caller decides whether an unsigned request is acceptable.
      *
-     * Passing a timestamp signs `"{timestamp}.{body}"` through the same
+     * The signed message is `"{timestamp}.{body}"`, computed through the same
      * {@see WebhookSignature} both directions share, so a captured request stops
      * verifying once its timestamp falls outside the caller's freshness window.
-     * Omitting it is the original body-only scheme, which replays forever and
-     * survives only for webhooks minted before the timestamped one.
+     * The timestamp is not optional: a digest over the body alone replays
+     * forever, and signing one is no longer a way to authenticate here.
      */
-    public function signatureMatches(string $signature, string $rawBody, ?int $timestamp = null): bool
+    public function signatureMatches(string $signature, string $rawBody, int $timestamp): bool
     {
         if ($this->signing_secret === null) {
             return false;
         }
 
-        $expected = $timestamp === null
-            ? hash_hmac('sha256', $rawBody, $this->signing_secret)
-            : WebhookSignature::digest($this->signing_secret, $rawBody, $timestamp);
-
-        return hash_equals($expected, $signature);
+        return hash_equals(WebhookSignature::digest($this->signing_secret, $rawBody, $timestamp), $signature);
     }
 
     /**

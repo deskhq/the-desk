@@ -237,6 +237,30 @@ queue, so real-time updates still arrive — they simply wait behind whatever el
 that worker is busy with, which is how the stack behaved before the service
 existed. Adding it is what makes them immediate.
 
+### Behaviour retired in a release
+
+A release can also **remove** something a previous one deprecated. Nothing in
+your `.env` or your compose file changes, so there is no report to read — the
+break shows up in whatever was still relying on it.
+
+:::danger[Incoming webhooks: the body-only signature is gone]
+Incoming webhooks created before the timestamped signing scheme existed were
+allowed to keep signing the request body on its own, with no `X-Timestamp`
+header, for one release. That exemption has been removed: **every** signed
+incoming webhook now requires the timestamp, and a sender still signing the body
+alone gets **401** from the upgrade onwards.
+
+Only webhooks that were minted with a signing secret *and* whose sender was never
+moved over are affected. Unsigned webhooks are untouched, and so is any sender
+already sending `X-Timestamp`. If you are not sure, the sender's own logs are the
+place to look: a `401` where a `202` used to be is this.
+
+Fix it by signing `"{timestamp}.{body}"` and sending the timestamp you signed at,
+exactly as the current scheme has always documented — see
+[Signing](/reference/incoming-webhooks/#signing-optional). The webhook URL and
+its signing secret do not change, so no re-minting is needed.
+:::
+
 ### If it fails, it stops and hands you the backup
 
 The script **never rolls back on its own**, and that is deliberate.

@@ -158,19 +158,19 @@ Two rules follow from it, and a sender has to satisfy both:
   message: if the first attempt did reach The Desk, that 401 is the duplicate
   being refused rather than an authentication problem.
 
-### Migrating an existing webhook
+### The body-only scheme has been removed
 
-Webhooks created **before** you upgraded to this version still accept the old
-scheme, where the digest covers the body alone and no `X-Timestamp` is sent:
-upgrading The Desk cannot rewrite the systems that post to them. Those webhooks
-accept **either** scheme, so you can switch a sender over on its own schedule and
-verify it before anything changes on this end.
+An older scheme signed the body alone and sent no `X-Timestamp`. A signature like
+that never expires, so a captured request replays forever — the whole reason the
+timestamp exists. Webhooks that predated the timestamped scheme were allowed to
+keep using it for one release, so their senders could be moved over without a
+coordinated flip at both ends.
 
-They keep accepting the old scheme, and stay replayable, until you retire them:
-**revoke the webhook and create a new one**, then move the sender to the new URL.
-Every webhook created from now on requires the timestamp and cannot fall back.
-Treat the old scheme as deprecated and plan the swap: a future release will drop
-it, and any sender still on it will start getting **401**.
+That window has closed. **Every signed webhook now requires `X-Timestamp`**, and
+a sender still signing the body alone gets **401**, whenever the webhook was
+created. There is nothing to re-mint: the URL and the signing secret are
+unchanged, and the fix is entirely on the sending side — sign
+`"{timestamp}.{body}"` and send that timestamp, as above.
 
 :::caution[Not the header outgoing deliveries use]
 Deliveries _from_ The Desk are signed with `X-Desk-Signature`, which packs both
