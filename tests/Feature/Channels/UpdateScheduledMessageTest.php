@@ -1,29 +1,13 @@
 <?php
 
-use App\Actions\Teams\CreateTeam;
 use App\Enums\ScheduledMessageStatus;
 use App\Enums\TeamRole;
 use App\Models\Channel;
 use App\Models\ScheduledMessage;
-use App\Models\Team;
 use App\Models\User;
 
-/**
- * Create a team with its owner already a member of #general.
- *
- * @return array{0: User, 1: Team, 2: Channel}
- */
-function updateScheduledTeamWithGeneral(): array
-{
-    $owner = User::factory()->create();
-    $team = app(CreateTeam::class)->handle($owner, 'Acme');
-    $general = Channel::where('team_id', $team->id)->where('slug', 'general')->firstOrFail();
-
-    return [$owner, $team, $general];
-}
-
 test('the author can edit the body and send time of a pending scheduled message', function (): void {
-    [$owner, $team, $general] = updateScheduledTeamWithGeneral();
+    ['owner' => $owner, 'team' => $team, 'channel' => $general] = teamWithChannel();
     $scheduled = ScheduledMessage::factory()->for($general)->for($owner)->create([
         'body' => 'first draft',
         'send_at' => now()->addHour(),
@@ -49,7 +33,7 @@ test('the author can edit the body and send time of a pending scheduled message'
 });
 
 test('editing rejects a non-future send time', function (): void {
-    [$owner, $team, $general] = updateScheduledTeamWithGeneral();
+    ['owner' => $owner, 'team' => $team, 'channel' => $general] = teamWithChannel();
     $scheduled = ScheduledMessage::factory()->for($general)->for($owner)->create();
 
     $this->actingAs($owner)
@@ -65,7 +49,7 @@ test('editing rejects a non-future send time', function (): void {
 });
 
 test('editing rejects an empty body', function (): void {
-    [$owner, $team, $general] = updateScheduledTeamWithGeneral();
+    ['owner' => $owner, 'team' => $team, 'channel' => $general] = teamWithChannel();
     $scheduled = ScheduledMessage::factory()->for($general)->for($owner)->create();
 
     $this->actingAs($owner)
@@ -81,7 +65,7 @@ test('editing rejects an empty body', function (): void {
 });
 
 test('a non-author cannot edit a scheduled message', function (): void {
-    [$owner, $team, $general] = updateScheduledTeamWithGeneral();
+    ['owner' => $owner, 'team' => $team, 'channel' => $general] = teamWithChannel();
     $other = User::factory()->create();
     $team->memberships()->create(['user_id' => $other->id, 'role' => TeamRole::Member]);
     $scheduled = ScheduledMessage::factory()->for($general)->for($owner)->create(['body' => 'not yours']);
@@ -101,7 +85,7 @@ test('a non-author cannot edit a scheduled message', function (): void {
 });
 
 test('an already-sent scheduled message cannot be edited', function (): void {
-    [$owner, $team, $general] = updateScheduledTeamWithGeneral();
+    ['owner' => $owner, 'team' => $team, 'channel' => $general] = teamWithChannel();
     $scheduled = ScheduledMessage::factory()->for($general)->for($owner)->sent()->create();
 
     $this->actingAs($owner)
@@ -117,7 +101,7 @@ test('an already-sent scheduled message cannot be edited', function (): void {
 });
 
 test('the author can cancel a pending scheduled message', function (): void {
-    [$owner, $team, $general] = updateScheduledTeamWithGeneral();
+    ['owner' => $owner, 'team' => $team, 'channel' => $general] = teamWithChannel();
     $scheduled = ScheduledMessage::factory()->for($general)->for($owner)->create();
 
     $this->actingAs($owner)
@@ -135,7 +119,7 @@ test('the author can cancel a pending scheduled message', function (): void {
 });
 
 test('a non-author cannot cancel a scheduled message', function (): void {
-    [$owner, $team, $general] = updateScheduledTeamWithGeneral();
+    ['owner' => $owner, 'team' => $team, 'channel' => $general] = teamWithChannel();
     $other = User::factory()->create();
     $team->memberships()->create(['user_id' => $other->id, 'role' => TeamRole::Member]);
     $scheduled = ScheduledMessage::factory()->for($general)->for($owner)->create();
@@ -152,7 +136,7 @@ test('a non-author cannot cancel a scheduled message', function (): void {
 });
 
 test('a scheduled message id from another channel is not resolvable', function (): void {
-    [$owner, $team, $general] = updateScheduledTeamWithGeneral();
+    ['owner' => $owner, 'team' => $team, 'channel' => $general] = teamWithChannel();
     $other = Channel::factory()->for($team)->create();
     $other->channelMembers()->create(['user_id' => $owner->id]);
     $scheduled = ScheduledMessage::factory()->for($other)->for($owner)->create();

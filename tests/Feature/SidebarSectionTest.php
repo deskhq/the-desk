@@ -1,23 +1,8 @@
 <?php
 
-use App\Actions\Teams\CreateTeam;
 use App\Models\Channel;
 use App\Models\Team;
 use App\Models\User;
-
-/**
- * Create a team with its owner already a member of #general.
- *
- * @return array{0: User, 1: Team, 2: Channel}
- */
-function sectionTeamWithGeneral(): array
-{
-    $owner = User::factory()->create();
-    $team = app(CreateTeam::class)->handle($owner, 'Acme');
-    $general = Channel::where('team_id', $team->id)->where('slug', 'general')->firstOrFail();
-
-    return [$owner, $team, $general];
-}
 
 /**
  * Read the shared `collapsedChannelSections` prop for the acting user off a
@@ -36,7 +21,7 @@ function sidebarCollapsedProp(User $user, Team $team, Channel $channel): array
 }
 
 test('a user can collapse a sidebar section', function (): void {
-    [$owner, $team, $general] = sectionTeamWithGeneral();
+    ['owner' => $owner, 'team' => $team, 'channel' => $general] = teamWithChannel();
 
     $this->actingAs($owner)
         ->patch(route('sidebar.sections.update'), ['collapsed' => ['starred']])
@@ -47,7 +32,7 @@ test('a user can collapse a sidebar section', function (): void {
 });
 
 test('an empty payload clears every collapsed section', function (): void {
-    [$owner, $team, $general] = sectionTeamWithGeneral();
+    ['owner' => $owner, 'team' => $team, 'channel' => $general] = teamWithChannel();
     $owner->update(['collapsed_channel_sections' => ['starred', 'channels']]);
 
     $this->actingAs($owner)
@@ -59,14 +44,14 @@ test('an empty payload clears every collapsed section', function (): void {
 });
 
 test('collapsed sections default to empty for a fresh user', function (): void {
-    [$owner, $team, $general] = sectionTeamWithGeneral();
+    ['owner' => $owner, 'team' => $team, 'channel' => $general] = teamWithChannel();
 
     expect($owner->collapsed_channel_sections)->toBeNull();
     expect(sidebarCollapsedProp($owner, $team, $general))->toBe([]);
 });
 
 test('duplicate section keys are stored once', function (): void {
-    [$owner] = sectionTeamWithGeneral();
+    ['owner' => $owner] = teamWithChannel();
 
     $this->actingAs($owner)
         ->patch(route('sidebar.sections.update'), ['collapsed' => ['channels', 'channels']])
@@ -76,7 +61,7 @@ test('duplicate section keys are stored once', function (): void {
 });
 
 test('unknown section keys are rejected', function (): void {
-    [$owner] = sectionTeamWithGeneral();
+    ['owner' => $owner] = teamWithChannel();
 
     $this->actingAs($owner)
         ->patch(route('sidebar.sections.update'), ['collapsed' => ['bogus']])
@@ -86,7 +71,7 @@ test('unknown section keys are rejected', function (): void {
 });
 
 test('the collapsed payload must be present', function (): void {
-    [$owner] = sectionTeamWithGeneral();
+    ['owner' => $owner] = teamWithChannel();
 
     $this->actingAs($owner)
         ->patch(route('sidebar.sections.update'), [])

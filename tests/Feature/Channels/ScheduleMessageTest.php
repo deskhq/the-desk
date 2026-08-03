@@ -1,35 +1,19 @@
 <?php
 
-use App\Actions\Teams\CreateTeam;
 use App\Enums\ScheduledMessageStatus;
 use App\Enums\TeamRole;
 use App\Events\MessageSent;
 use App\Models\Channel;
 use App\Models\Message;
 use App\Models\ScheduledMessage;
-use App\Models\Team;
 use App\Models\User;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Str;
 
-/**
- * Create a team with its owner already a member of #general.
- *
- * @return array{0: User, 1: Team, 2: Channel}
- */
-function scheduleTeamWithGeneral(): array
-{
-    $owner = User::factory()->create();
-    $team = app(CreateTeam::class)->handle($owner, 'Acme');
-    $general = Channel::where('team_id', $team->id)->where('slug', 'general')->firstOrFail();
-
-    return [$owner, $team, $general];
-}
-
 test('a member can schedule a message for a future time', function (): void {
     Event::fake([MessageSent::class]);
 
-    [$owner, $team, $general] = scheduleTeamWithGeneral();
+    ['owner' => $owner, 'team' => $team, 'channel' => $general] = teamWithChannel();
     $clientUuid = (string) Str::uuid7();
     $sendAt = now()->addHour();
 
@@ -56,7 +40,7 @@ test('a member can schedule a message for a future time', function (): void {
 });
 
 test('scheduling clears the author composer draft for the channel', function (): void {
-    [$owner, $team, $general] = scheduleTeamWithGeneral();
+    ['owner' => $owner, 'team' => $team, 'channel' => $general] = teamWithChannel();
     $owner->channels()->updateExistingPivot($general->id, ['draft' => 'half-typed']);
 
     $this->actingAs($owner)
@@ -70,7 +54,7 @@ test('scheduling clears the author composer draft for the channel', function ():
 });
 
 test('a scheduled message can quote a live message in the same channel', function (): void {
-    [$owner, $team, $general] = scheduleTeamWithGeneral();
+    ['owner' => $owner, 'team' => $team, 'channel' => $general] = teamWithChannel();
     $parent = Message::factory()->for($general)->for($owner)->create();
 
     $this->actingAs($owner)
@@ -85,7 +69,7 @@ test('a scheduled message can quote a live message in the same channel', functio
 });
 
 test('a non-future send time is rejected', function (): void {
-    [$owner, $team, $general] = scheduleTeamWithGeneral();
+    ['owner' => $owner, 'team' => $team, 'channel' => $general] = teamWithChannel();
 
     $this->actingAs($owner)
         ->post(route('channels.scheduled-messages.store', ['team' => $team->slug, 'channel' => $general->slug]), [
@@ -99,7 +83,7 @@ test('a non-future send time is rejected', function (): void {
 });
 
 test('a missing send time is rejected', function (): void {
-    [$owner, $team, $general] = scheduleTeamWithGeneral();
+    ['owner' => $owner, 'team' => $team, 'channel' => $general] = teamWithChannel();
 
     $this->actingAs($owner)
         ->post(route('channels.scheduled-messages.store', ['team' => $team->slug, 'channel' => $general->slug]), [
@@ -110,7 +94,7 @@ test('a missing send time is rejected', function (): void {
 });
 
 test('an empty body is rejected', function (): void {
-    [$owner, $team, $general] = scheduleTeamWithGeneral();
+    ['owner' => $owner, 'team' => $team, 'channel' => $general] = teamWithChannel();
 
     $this->actingAs($owner)
         ->post(route('channels.scheduled-messages.store', ['team' => $team->slug, 'channel' => $general->slug]), [
@@ -122,7 +106,7 @@ test('an empty body is rejected', function (): void {
 });
 
 test('the reply target must belong to the same channel', function (): void {
-    [$owner, $team, $general] = scheduleTeamWithGeneral();
+    ['owner' => $owner, 'team' => $team, 'channel' => $general] = teamWithChannel();
     $other = Channel::factory()->for($team)->create();
     $other->channelMembers()->create(['user_id' => $owner->id]);
     $foreign = Message::factory()->for($other)->for($owner)->create();
@@ -138,7 +122,7 @@ test('the reply target must belong to the same channel', function (): void {
 });
 
 test('the reply target cannot be a deleted message', function (): void {
-    [$owner, $team, $general] = scheduleTeamWithGeneral();
+    ['owner' => $owner, 'team' => $team, 'channel' => $general] = teamWithChannel();
     $parent = Message::factory()->for($general)->for($owner)->create();
     $parent->delete();
 
@@ -153,7 +137,7 @@ test('the reply target cannot be a deleted message', function (): void {
 });
 
 test('a non-member cannot schedule a message', function (): void {
-    [$owner, $team] = scheduleTeamWithGeneral();
+    ['owner' => $owner, 'team' => $team] = teamWithChannel();
     // A private channel the team member is not a member of: the postMessage gate
     // rejects scheduling just as it would an immediate send.
     $private = Channel::factory()->for($team)->private()->create();
@@ -174,7 +158,7 @@ test('a non-member cannot schedule a message', function (): void {
 });
 
 test('a message cannot be scheduled to an archived channel', function (): void {
-    [$owner, $team, $general] = scheduleTeamWithGeneral();
+    ['owner' => $owner, 'team' => $team, 'channel' => $general] = teamWithChannel();
     $channel = Channel::factory()->for($team)->archived()->create();
     $channel->channelMembers()->create(['user_id' => $owner->id]);
 

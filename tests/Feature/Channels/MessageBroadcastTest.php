@@ -1,6 +1,5 @@
 <?php
 
-use App\Actions\Teams\CreateTeam;
 use App\Data\MessageData;
 use App\Enums\TeamRole;
 use App\Events\MessageDeleted;
@@ -12,20 +11,6 @@ use App\Models\User;
 use Illuminate\Broadcasting\PrivateChannel;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Str;
-
-/**
- * Create a team with its owner already a member of #general.
- *
- * @return array{0: User, 1: Team, 2: Channel}
- */
-function broadcastTeamWithGeneral(): array
-{
-    $owner = User::factory()->create();
-    $team = app(CreateTeam::class)->handle($owner, 'Acme');
-    $general = Channel::where('team_id', $team->id)->where('slug', 'general')->firstOrFail();
-
-    return [$owner, $team, $general];
-}
 
 /**
  * Exercise channel authorization against a real broadcaster.
@@ -45,7 +30,7 @@ function useRealBroadcaster(): void
 test('posting a message broadcasts MessageSent on the channel private channel with the MessageData payload', function (): void {
     Event::fake([MessageSent::class]);
 
-    [$owner, $team, $general] = broadcastTeamWithGeneral();
+    ['owner' => $owner, 'team' => $team, 'channel' => $general] = teamWithChannel();
     $clientUuid = (string) Str::uuid7();
 
     $this->actingAs($owner)->post(route('channels.messages.store', [
@@ -71,7 +56,7 @@ test('posting a message broadcasts MessageSent on the channel private channel wi
 test('a resent message with the same client uuid broadcasts only once', function (): void {
     Event::fake([MessageSent::class]);
 
-    [$owner, $team, $general] = broadcastTeamWithGeneral();
+    ['owner' => $owner, 'team' => $team, 'channel' => $general] = teamWithChannel();
     $clientUuid = (string) Str::uuid7();
 
     $payload = [
@@ -95,7 +80,7 @@ test('a resent message with the same client uuid broadcasts only once', function
 test('editing a message broadcasts MessageUpdated on the channel private channel with the MessageData payload', function (): void {
     Event::fake([MessageUpdated::class]);
 
-    [$owner, $team, $general] = broadcastTeamWithGeneral();
+    ['owner' => $owner, 'team' => $team, 'channel' => $general] = teamWithChannel();
     $message = Message::factory()->for($general)->for($owner)->create(['body' => 'original']);
 
     $this->actingAs($owner)->patch(route('channels.messages.update', [
@@ -119,7 +104,7 @@ test('editing a message broadcasts MessageUpdated on the channel private channel
 test('deleting a message broadcasts MessageDeleted as a tombstone with a blanked body', function (): void {
     Event::fake([MessageDeleted::class]);
 
-    [$owner, $team, $general] = broadcastTeamWithGeneral();
+    ['owner' => $owner, 'team' => $team, 'channel' => $general] = teamWithChannel();
     $message = Message::factory()->for($general)->for($owner)->create(['body' => 'secret']);
 
     $this->actingAs($owner)->delete(route('channels.messages.destroy', [
@@ -142,7 +127,7 @@ test('deleting a message broadcasts MessageDeleted as a tombstone with a blanked
 test('a channel member is authorized to subscribe to the channel', function (): void {
     useRealBroadcaster();
 
-    [$owner, $team, $general] = broadcastTeamWithGeneral();
+    ['owner' => $owner, 'team' => $team, 'channel' => $general] = teamWithChannel();
 
     $this->actingAs($owner)
         ->post('/broadcasting/auth', [
@@ -155,7 +140,7 @@ test('a channel member is authorized to subscribe to the channel', function (): 
 test('a non-member cannot subscribe to the channel', function (): void {
     useRealBroadcaster();
 
-    [$owner, $team] = broadcastTeamWithGeneral();
+    ['owner' => $owner, 'team' => $team] = teamWithChannel();
 
     $stranger = User::factory()->create();
     $team->memberships()->create(['user_id' => $stranger->id, 'role' => TeamRole::Member]);

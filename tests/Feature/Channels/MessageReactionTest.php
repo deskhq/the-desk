@@ -1,6 +1,5 @@
 <?php
 
-use App\Actions\Teams\CreateTeam;
 use App\Data\MessageData;
 use App\Enums\TeamRole;
 use App\Events\MessageReactionChanged;
@@ -11,20 +10,6 @@ use App\Models\User;
 use App\Support\AccountDeleter;
 use Illuminate\Broadcasting\PrivateChannel;
 use Illuminate\Support\Facades\Event;
-
-/**
- * Create a team with its owner already a member of #general.
- *
- * @return array{0: User, 1: Team, 2: Channel}
- */
-function reactionTeamWithGeneral(): array
-{
-    $owner = User::factory()->create();
-    $team = app(CreateTeam::class)->handle($owner, 'Acme');
-    $general = Channel::where('team_id', $team->id)->where('slug', 'general')->firstOrFail();
-
-    return [$owner, $team, $general];
-}
 
 /**
  * POST the toggle-reaction endpoint for the given actor.
@@ -39,7 +24,7 @@ function toggleReaction($actor, $team, $channel, $message, string $emoji)
 }
 
 test('reacting adds the reaction, and reacting again with the same emoji removes it', function (): void {
-    [$owner, $team, $general] = reactionTeamWithGeneral();
+    ['owner' => $owner, 'team' => $team, 'channel' => $general] = teamWithChannel();
     $message = Message::factory()->for($general)->for($owner)->create();
 
     toggleReaction($owner, $team, $general, $message, '👍')->assertRedirect();
@@ -52,7 +37,7 @@ test('reacting adds the reaction, and reacting again with the same emoji removes
 });
 
 test('a user holds at most one row per distinct emoji and can react with several emoji', function (): void {
-    [$owner, $team, $general] = reactionTeamWithGeneral();
+    ['owner' => $owner, 'team' => $team, 'channel' => $general] = teamWithChannel();
     $message = Message::factory()->for($general)->for($owner)->create();
 
     toggleReaction($owner, $team, $general, $message, '👍');
@@ -70,7 +55,7 @@ test('a user holds at most one row per distinct emoji and can react with several
 });
 
 test('a non-member of a private channel cannot react', function (): void {
-    [$owner, $team] = reactionTeamWithGeneral();
+    ['owner' => $owner, 'team' => $team] = teamWithChannel();
 
     $stranger = User::factory()->create();
     $team->memberships()->create(['user_id' => $stranger->id, 'role' => TeamRole::Member]);
@@ -85,7 +70,7 @@ test('a non-member of a private channel cannot react', function (): void {
 });
 
 test('reactions cannot be added in an archived channel', function (): void {
-    [$owner, $team, $general] = reactionTeamWithGeneral();
+    ['owner' => $owner, 'team' => $team, 'channel' => $general] = teamWithChannel();
     $channel = Channel::factory()->for($team)->create(['archived_at' => now()]);
     $channel->channelMembers()->create(['user_id' => $owner->id]);
     $message = Message::factory()->for($channel)->for($owner)->create();
@@ -96,7 +81,7 @@ test('reactions cannot be added in an archived channel', function (): void {
 });
 
 test('the emoji is required', function (): void {
-    [$owner, $team, $general] = reactionTeamWithGeneral();
+    ['owner' => $owner, 'team' => $team, 'channel' => $general] = teamWithChannel();
     $message = Message::factory()->for($general)->for($owner)->create();
 
     $this->actingAs($owner)->post(route('channels.messages.reactions.store', [
@@ -107,7 +92,7 @@ test('the emoji is required', function (): void {
 });
 
 test('a message aggregates its reactions per emoji with reactor sets', function (): void {
-    [$owner, $team, $general] = reactionTeamWithGeneral();
+    ['owner' => $owner, 'team' => $team, 'channel' => $general] = teamWithChannel();
     $alice = User::factory()->create(['name' => 'Alice']);
     $team->memberships()->create(['user_id' => $alice->id, 'role' => TeamRole::Member]);
 
@@ -134,7 +119,7 @@ test('a message aggregates its reactions per emoji with reactor sets', function 
 test('toggling a reaction broadcasts MessageReactionChanged on the channel with the fresh summary', function (): void {
     Event::fake([MessageReactionChanged::class]);
 
-    [$owner, $team, $general] = reactionTeamWithGeneral();
+    ['owner' => $owner, 'team' => $team, 'channel' => $general] = teamWithChannel();
     $message = Message::factory()->for($general)->for($owner)->create();
 
     // Add.
@@ -161,7 +146,7 @@ test('toggling a reaction broadcasts MessageReactionChanged on the channel with 
 });
 
 test('deleting a message removes its reactions and emits none in the tombstone payload', function (): void {
-    [$owner, $team, $general] = reactionTeamWithGeneral();
+    ['owner' => $owner, 'team' => $team, 'channel' => $general] = teamWithChannel();
     $message = Message::factory()->for($general)->for($owner)->create();
     MessageReaction::factory()->for($message)->for($owner)->emoji('👍')->create();
 
@@ -178,7 +163,7 @@ test('deleting a message removes its reactions and emits none in the tombstone p
 });
 
 test('deleting a reacting user drops their reactions via the cascade', function (): void {
-    [$owner, $team, $general] = reactionTeamWithGeneral();
+    ['owner' => $owner, 'team' => $team, 'channel' => $general] = teamWithChannel();
     $alice = User::factory()->create();
     $team->memberships()->create(['user_id' => $alice->id, 'role' => TeamRole::Member]);
 
