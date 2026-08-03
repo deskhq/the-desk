@@ -24,32 +24,6 @@ use Illuminate\Http\Request;
  */
 
 /**
- * A team with its owner already a member of #general.
- *
- * @return array{0: User, 1: Team, 2: Channel}
- */
-function panelTeamWithGeneral(): array
-{
-    $owner = User::factory()->create();
-    $team = app(CreateTeam::class)->handle($owner, 'Acme');
-    $general = Channel::where('team_id', $team->id)->where('slug', Channel::GENERAL_SLUG)->firstOrFail();
-
-    return [$owner, $team, $general];
-}
-
-/**
- * Add a user to the team and the given channel, returning them.
- */
-function panelMember(Team $team, Channel $channel, ?string $name = null): User
-{
-    $user = User::factory()->create($name ? ['name' => $name] : []);
-    $team->memberships()->create(['user_id' => $user->id, 'role' => TeamRole::Member]);
-    $channel->channelMembers()->firstOrCreate(['user_id' => $user->id]);
-
-    return $user;
-}
-
-/**
  * The panel the shell would build for these facets on the URL.
  *
  * @param  array<string, mixed>  $params
@@ -73,8 +47,8 @@ function panelBodies(array $results): array
 }
 
 test('a member matches messages in their channels, shaped for the client', function (): void {
-    [$owner, $team, $general] = panelTeamWithGeneral();
-    $member = panelMember($team, $general, 'Ada Lovelace');
+    ['owner' => $owner, 'team' => $team, 'channel' => $general] = teamWithChannel();
+    $member = teamMemberInChannel($general, ['name' => 'Ada Lovelace']);
     Message::factory()->for($general)->for($member)->create(['body' => 'the quokka danced at dawn']);
     Message::factory()->for($general)->for($owner)->create(['body' => 'totally unrelated chatter']);
 
@@ -91,8 +65,8 @@ test('a member matches messages in their channels, shaped for the client', funct
 });
 
 test('a result carries a highlighted snippet, with mention tokens unwrapped', function (): void {
-    [$owner, $team, $general] = panelTeamWithGeneral();
-    $member = panelMember($team, $general);
+    ['owner' => $owner, 'team' => $team, 'channel' => $general] = teamWithChannel();
+    $member = teamMemberInChannel($general);
     Message::factory()->for($general)->for($owner)->create(['body' => 'the quokka danced at dawn']);
 
     expect(panelFor($member, $team, ['q' => 'quokka'])->results()[0]->snippet)
@@ -107,9 +81,9 @@ test('a result carries a highlighted snippet, with mention tokens unwrapped', fu
 });
 
 test('the author facet limits matches to messages from that user', function (): void {
-    [, $team, $general] = panelTeamWithGeneral();
-    $ada = panelMember($team, $general, 'Ada');
-    $bob = panelMember($team, $general, 'Bob');
+    ['team' => $team, 'channel' => $general] = teamWithChannel();
+    $ada = teamMemberInChannel($general, ['name' => 'Ada']);
+    $bob = teamMemberInChannel($general, ['name' => 'Bob']);
     Message::factory()->for($general)->for($ada)->create(['body' => 'zephyr from ada']);
     Message::factory()->for($general)->for($bob)->create(['body' => 'zephyr from bob']);
 
@@ -118,7 +92,7 @@ test('the author facet limits matches to messages from that user', function (): 
 });
 
 test('the channel facet limits matches to that channel', function (): void {
-    [$owner, $team, $general] = panelTeamWithGeneral();
+    ['owner' => $owner, 'team' => $team, 'channel' => $general] = teamWithChannel();
     $other = Channel::factory()->for($team)->create(['created_by' => $owner->id]);
     $other->channelMembers()->firstOrCreate(['user_id' => $owner->id]);
     Message::factory()->for($general)->for($owner)->create(['body' => 'zephyr in general']);
@@ -129,8 +103,8 @@ test('the channel facet limits matches to that channel', function (): void {
 });
 
 test('the date facets limit matches to the created-at range', function (): void {
-    [$owner, $team, $general] = panelTeamWithGeneral();
-    $member = panelMember($team, $general);
+    ['owner' => $owner, 'team' => $team, 'channel' => $general] = teamWithChannel();
+    $member = teamMemberInChannel($general);
     Message::factory()->for($general)->for($owner)->create(['body' => 'zephyr old', 'created_at' => now()->subDays(10)]);
     Message::factory()->for($general)->for($owner)->create(['body' => 'zephyr new', 'created_at' => now()->subDay()]);
 
@@ -141,8 +115,8 @@ test('the date facets limit matches to the created-at range', function (): void 
 });
 
 test('the file facet limits matches to messages still carrying an attachment', function (): void {
-    [$owner, $team, $general] = panelTeamWithGeneral();
-    $member = panelMember($team, $general);
+    ['owner' => $owner, 'team' => $team, 'channel' => $general] = teamWithChannel();
+    $member = teamMemberInChannel($general);
     $withFile = Message::factory()->for($general)->for($owner)->create(['body' => 'zephyr with the deck']);
     Message::factory()->for($general)->for($owner)->create(['body' => 'zephyr without anything']);
     $attachment = Attachment::factory()->for($owner)->attachedTo($withFile)->create();
@@ -158,8 +132,8 @@ test('the file facet limits matches to messages still carrying an attachment', f
 });
 
 test('matches come back newest first regardless of engine relevance order', function (): void {
-    [$owner, $team, $general] = panelTeamWithGeneral();
-    $member = panelMember($team, $general);
+    ['owner' => $owner, 'team' => $team, 'channel' => $general] = teamWithChannel();
+    $member = teamMemberInChannel($general);
     Message::factory()->for($general)->for($owner)->create(['body' => 'zephyr one', 'created_at' => now()->subDays(3)]);
     Message::factory()->for($general)->for($owner)->create(['body' => 'zephyr two', 'created_at' => now()->subDay()]);
 
@@ -168,8 +142,8 @@ test('matches come back newest first regardless of engine relevance order', func
 });
 
 test('no facet widens the channel ACL', function (): void {
-    [$owner, $team, $general] = panelTeamWithGeneral();
-    $member = panelMember($team, $general);
+    ['owner' => $owner, 'team' => $team, 'channel' => $general] = teamWithChannel();
+    $member = teamMemberInChannel($general);
     $private = Channel::factory()->for($team)->private()->create(['created_by' => $owner->id]);
     $secret = Message::factory()->for($private)->for($owner)->create(['body' => 'secret zephyr deck']);
     Attachment::factory()->for($owner)->attachedTo($secret)->create();
@@ -181,8 +155,8 @@ test('no facet widens the channel ACL', function (): void {
 });
 
 test('matches never cross into another team the viewer also belongs to', function (): void {
-    [, $team, $general] = panelTeamWithGeneral();
-    $member = panelMember($team, $general);
+    ['team' => $team, 'channel' => $general] = teamWithChannel();
+    $member = teamMemberInChannel($general);
 
     $otherOwner = User::factory()->create();
     $otherTeam = app(CreateTeam::class)->handle($otherOwner, 'Beta');
@@ -194,8 +168,8 @@ test('matches never cross into another team the viewer also belongs to', functio
 });
 
 test('a soft-deleted message drops out, and an edit changes what matches', function (): void {
-    [$owner, $team, $general] = panelTeamWithGeneral();
-    $member = panelMember($team, $general);
+    ['owner' => $owner, 'team' => $team, 'channel' => $general] = teamWithChannel();
+    $member = teamMemberInChannel($general);
 
     $deleted = Message::factory()->for($general)->for($owner)->create(['body' => 'deletable zephyr note']);
     $deleted->delete();
@@ -208,7 +182,7 @@ test('a soft-deleted message drops out, and an edit changes what matches', funct
 });
 
 test('a team member who belongs to no channel matches nothing', function (): void {
-    [$owner, $team, $general] = panelTeamWithGeneral();
+    ['owner' => $owner, 'team' => $team, 'channel' => $general] = teamWithChannel();
     $loner = User::factory()->create();
     $team->memberships()->create(['user_id' => $loner->id, 'role' => TeamRole::Member]);
     // The observer joins new members to #general, so drop that membership to
@@ -220,8 +194,8 @@ test('a team member who belongs to no channel matches nothing', function (): voi
 });
 
 test('an empty query matches nothing without touching the search engine', function (): void {
-    [$owner, $team, $general] = panelTeamWithGeneral();
-    $member = panelMember($team, $general);
+    ['owner' => $owner, 'team' => $team, 'channel' => $general] = teamWithChannel();
+    $member = teamMemberInChannel($general);
     Message::factory()->for($general)->for($owner)->create(['body' => 'zephyr']);
 
     expect(panelFor($member, $team, ['q' => ''])->results())->toBe([])
@@ -229,8 +203,8 @@ test('an empty query matches nothing without touching the search engine', functi
 });
 
 test('a query longer than the engine accepts runs no search at all', function (): void {
-    [$owner, $team, $general] = panelTeamWithGeneral();
-    $member = panelMember($team, $general);
+    ['owner' => $owner, 'team' => $team, 'channel' => $general] = teamWithChannel();
+    $member = teamMemberInChannel($general);
     Message::factory()->for($general)->for($owner)->create(['body' => str_repeat('a', 300)]);
 
     // Dropped, not truncated: half a query is a different search, and the panel
@@ -239,8 +213,8 @@ test('a query longer than the engine accepts runs no search at all', function ()
 });
 
 test('a malformed facet is dropped rather than rejecting the shell', function (): void {
-    [$owner, $team, $general] = panelTeamWithGeneral();
-    $member = panelMember($team, $general);
+    ['owner' => $owner, 'team' => $team, 'channel' => $general] = teamWithChannel();
+    $member = teamMemberInChannel($general);
     Message::factory()->for($general)->for($owner)->create(['body' => 'zephyr note']);
 
     // The panel's criteria are resolved in the shared props of whatever workspace
@@ -265,8 +239,8 @@ test('a malformed facet is dropped rather than rejecting the shell', function ()
 });
 
 test('the criteria are echoed back as the client writes them onto the URL', function (): void {
-    [$owner, $team, $general] = panelTeamWithGeneral();
-    $member = panelMember($team, $general);
+    ['owner' => $owner, 'team' => $team, 'channel' => $general] = teamWithChannel();
+    $member = teamMemberInChannel($general);
 
     expect(panelFor($member, $team, ['q' => 'zephyr', 'has' => 'file', 'from' => $owner->id, 'after' => '2026-01-02'])->criteria())
         ->toMatchArray([
@@ -284,7 +258,7 @@ test('the criteria are echoed back as the client writes them onto the URL', func
 });
 
 test('a direct message match is named after the viewer\'s counterpart', function (): void {
-    [$owner, $team] = panelTeamWithGeneral();
+    ['owner' => $owner, 'team' => $team] = teamWithChannel();
     $counterpart = User::factory()->create(['name' => 'Grace Hopper']);
     $team->memberships()->create(['user_id' => $counterpart->id, 'role' => TeamRole::Member]);
     $dm = app(OpenDirectMessage::class)->handle($team, $owner, $counterpart);
@@ -300,7 +274,7 @@ test('a direct message match is named after the viewer\'s counterpart', function
 });
 
 test('a group direct message match joins the other participants as its name', function (): void {
-    [$owner, $team] = panelTeamWithGeneral();
+    ['owner' => $owner, 'team' => $team] = teamWithChannel();
     $ada = User::factory()->create(['name' => 'Ada Lovelace']);
     $grace = User::factory()->create(['name' => 'Grace Hopper']);
     $team->memberships()->create(['user_id' => $ada->id, 'role' => TeamRole::Member]);
@@ -314,7 +288,7 @@ test('a group direct message match joins the other participants as its name', fu
 });
 
 test('a self direct message match shows the viewer their own name', function (): void {
-    [$owner, $team] = panelTeamWithGeneral();
+    ['owner' => $owner, 'team' => $team] = teamWithChannel();
     $selfDm = app(OpenDirectMessage::class)->handle($team, $owner, $owner);
     Message::factory()->for($selfDm)->for($owner)->create(['body' => 'note to self: quokka']);
 
@@ -324,7 +298,7 @@ test('a self direct message match shows the viewer their own name', function ():
 });
 
 test('the channel facet union spans every workspace the viewer belongs to', function (): void {
-    [$owner, $team, $general] = panelTeamWithGeneral();
+    ['owner' => $owner, 'team' => $team, 'channel' => $general] = teamWithChannel();
     $otherTeam = app(CreateTeam::class)->handle($owner, 'Beta');
     $otherGeneral = Channel::where('team_id', $otherTeam->id)->where('slug', Channel::GENERAL_SLUG)->firstOrFail();
 

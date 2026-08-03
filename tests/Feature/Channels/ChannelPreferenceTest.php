@@ -1,7 +1,6 @@
 <?php
 
 use App\Actions\Channels\JoinChannel;
-use App\Actions\Teams\CreateTeam;
 use App\Enums\ChannelVisibility;
 use App\Enums\NotificationLevel;
 use App\Enums\TeamRole;
@@ -10,32 +9,6 @@ use App\Models\Message;
 use App\Models\Team;
 use App\Models\User;
 use Illuminate\Testing\TestResponse;
-
-/**
- * Create a team with its owner already a member of #general.
- *
- * @return array{0: User, 1: Team, 2: Channel}
- */
-function prefTeamWithGeneral(): array
-{
-    $owner = User::factory()->create();
-    $team = app(CreateTeam::class)->handle($owner, 'Acme');
-    $general = Channel::where('team_id', $team->id)->where('slug', 'general')->firstOrFail();
-
-    return [$owner, $team, $general];
-}
-
-/**
- * Add a user to the team and the given channel, returning them.
- */
-function prefMember(Team $team, Channel $channel, ?string $name = null): User
-{
-    $user = User::factory()->create($name ? ['name' => $name] : []);
-    $team->memberships()->create(['user_id' => $user->id, 'role' => TeamRole::Member]);
-    $channel->channelMembers()->firstOrCreate(['user_id' => $user->id]);
-
-    return $user;
-}
 
 /**
  * Post a message to the channel, optionally mentioning a member.
@@ -82,7 +55,7 @@ function updatePreferences(User $user, Team $team, Channel $channel, bool $muted
 }
 
 test('joining a channel applies the default notification preferences', function (): void {
-    [$owner, $team] = prefTeamWithGeneral();
+    ['owner' => $owner, 'team' => $team] = teamWithChannel();
     $channel = Channel::factory()->for($team)->create([
         'visibility' => ChannelVisibility::Public,
         'created_by' => $owner->id,
@@ -101,8 +74,8 @@ test('joining a channel applies the default notification preferences', function 
 });
 
 test('a member can update their notification preferences', function (): void {
-    [, $team, $general] = prefTeamWithGeneral();
-    $member = prefMember($team, $general);
+    ['team' => $team, 'channel' => $general] = teamWithChannel();
+    $member = teamMemberInChannel($general);
 
     updatePreferences($member, $team, $general, muted: true, level: 'mentions')
         ->assertRedirect();
@@ -116,7 +89,7 @@ test('a member can update their notification preferences', function (): void {
 });
 
 test('a non-member cannot update preferences for a channel', function (): void {
-    [$owner, $team] = prefTeamWithGeneral();
+    ['owner' => $owner, 'team' => $team] = teamWithChannel();
     $private = Channel::factory()->for($team)->create([
         'visibility' => ChannelVisibility::Private,
         'created_by' => $owner->id,
@@ -134,16 +107,16 @@ test('a non-member cannot update preferences for a channel', function (): void {
 });
 
 test('the notification level must be one of the allowed values', function (): void {
-    [, $team, $general] = prefTeamWithGeneral();
-    $member = prefMember($team, $general);
+    ['team' => $team, 'channel' => $general] = teamWithChannel();
+    $member = teamMemberInChannel($general);
 
     updatePreferences($member, $team, $general, muted: false, level: 'sometimes')
         ->assertSessionHasErrors('notification_level');
 });
 
 test('the muted flag must be a boolean', function (): void {
-    [, $team, $general] = prefTeamWithGeneral();
-    $member = prefMember($team, $general);
+    ['team' => $team, 'channel' => $general] = teamWithChannel();
+    $member = teamMemberInChannel($general);
 
     test()->actingAs($member)->patch(route('channels.preferences.update', [
         'team' => $team->slug,
@@ -153,8 +126,8 @@ test('the muted flag must be a boolean', function (): void {
 });
 
 test('the channel view exposes the members own preferences and the level options', function (): void {
-    [, $team, $general] = prefTeamWithGeneral();
-    $member = prefMember($team, $general);
+    ['team' => $team, 'channel' => $general] = teamWithChannel();
+    $member = teamMemberInChannel($general);
     $member->channels()->updateExistingPivot($general->id, [
         'muted' => true,
         'notification_level' => 'mentions',
@@ -178,7 +151,7 @@ test('the channel view exposes the members own preferences and the level options
 });
 
 test('a non-member viewing a public channel cannot manage preferences and sees defaults', function (): void {
-    [$owner, $team] = prefTeamWithGeneral();
+    ['owner' => $owner, 'team' => $team] = teamWithChannel();
     $public = Channel::factory()->for($team)->create([
         'visibility' => ChannelVisibility::Public,
         'created_by' => $owner->id,
@@ -199,8 +172,8 @@ test('a non-member viewing a public channel cannot manage preferences and sees d
 });
 
 test('the notification level and mute suppress the sidebar badges', function (bool $muted, string $level, int $expectedUnread, int $expectedMention): void {
-    [$owner, $team, $general] = prefTeamWithGeneral();
-    $member = prefMember($team, $general, 'Ada Lovelace');
+    ['owner' => $owner, 'team' => $team, 'channel' => $general] = teamWithChannel();
+    $member = teamMemberInChannel($general, ['name' => 'Ada Lovelace']);
 
     // Two unread messages, one of which is a direct @mention of the member.
     prefPost($general, $owner);

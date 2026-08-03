@@ -1,7 +1,5 @@
 <?php
 
-use App\Actions\Teams\CreateTeam;
-use App\Enums\TeamRole;
 use App\Events\MessageSent;
 use App\Events\MessageUpdated;
 use App\Models\Channel;
@@ -12,32 +10,6 @@ use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Str;
 use Illuminate\Testing\TestResponse;
 use Inertia\Testing\AssertableInertia as Assert;
-
-/**
- * Create a team with its owner already a member of #general.
- *
- * @return array{0: User, 1: Team, 2: Channel}
- */
-function threadTeamWithGeneral(): array
-{
-    $owner = User::factory()->create();
-    $team = app(CreateTeam::class)->handle($owner, 'Acme');
-    $general = Channel::where('team_id', $team->id)->where('slug', 'general')->firstOrFail();
-
-    return [$owner, $team, $general];
-}
-
-/**
- * Add a user to the team and #general, returning them.
- */
-function threadMember(Team $team, Channel $channel, ?string $name = null): User
-{
-    $user = User::factory()->create($name ? ['name' => $name] : []);
-    $team->memberships()->create(['user_id' => $user->id, 'role' => TeamRole::Member]);
-    $channel->channelMembers()->firstOrCreate(['user_id' => $user->id]);
-
-    return $user;
-}
 
 /**
  * Post a thread reply through the HTTP endpoint as the given user.
@@ -55,7 +27,7 @@ function postThreadReply(Team $team, Channel $channel, User $author, Message $ro
 }
 
 test('a reply persists against its thread root and bumps the root aggregates', function (): void {
-    [$owner, $team, $general] = threadTeamWithGeneral();
+    ['owner' => $owner, 'team' => $team, 'channel' => $general] = teamWithChannel();
     $root = Message::factory()->for($general)->for($owner)->create(['body' => 'root']);
     $clientUuid = (string) Str::uuid7();
 
@@ -75,7 +47,7 @@ test('a reply persists against its thread root and bumps the root aggregates', f
 });
 
 test('a second reply increments the root reply count', function (): void {
-    [$owner, $team, $general] = threadTeamWithGeneral();
+    ['owner' => $owner, 'team' => $team, 'channel' => $general] = teamWithChannel();
     $root = Message::factory()->for($general)->for($owner)->create();
 
     postThreadReply($team, $general, $owner, $root);
@@ -85,7 +57,7 @@ test('a second reply increments the root reply count', function (): void {
 });
 
 test('a reply cannot target another reply (threads are one level deep)', function (): void {
-    [$owner, $team, $general] = threadTeamWithGeneral();
+    ['owner' => $owner, 'team' => $team, 'channel' => $general] = teamWithChannel();
     $root = Message::factory()->for($general)->for($owner)->create();
     $reply = Message::factory()->for($owner)->inThread($root)->create();
 
@@ -94,7 +66,7 @@ test('a reply cannot target another reply (threads are one level deep)', functio
 });
 
 test('the thread root must belong to the same channel', function (): void {
-    [$owner, $team, $general] = threadTeamWithGeneral();
+    ['owner' => $owner, 'team' => $team, 'channel' => $general] = teamWithChannel();
     $other = Channel::factory()->for($team)->create();
     $other->channelMembers()->create(['user_id' => $owner->id]);
     $foreign = Message::factory()->for($other)->for($owner)->create();
@@ -104,7 +76,7 @@ test('the thread root must belong to the same channel', function (): void {
 });
 
 test('a reply cannot start on a deleted root', function (): void {
-    [$owner, $team, $general] = threadTeamWithGeneral();
+    ['owner' => $owner, 'team' => $team, 'channel' => $general] = teamWithChannel();
     $root = Message::factory()->for($general)->for($owner)->create();
     $root->delete();
 
@@ -115,7 +87,7 @@ test('a reply cannot start on a deleted root', function (): void {
 test('a reply persists in a thread whose root is a poll', function (): void {
     Event::fake([MessageSent::class]);
 
-    [$owner, $team, $general] = threadTeamWithGeneral();
+    ['owner' => $owner, 'team' => $team, 'channel' => $general] = teamWithChannel();
     $root = Message::factory()->poll()->for($general)->for($owner)->create();
     $clientUuid = (string) Str::uuid7();
 
@@ -143,7 +115,7 @@ test('a reply persists in a thread whose root is a poll', function (): void {
 });
 
 test('a non-uuid thread root is rejected', function (): void {
-    [$owner, $team, $general] = threadTeamWithGeneral();
+    ['owner' => $owner, 'team' => $team, 'channel' => $general] = teamWithChannel();
     $root = Message::factory()->for($general)->for($owner)->create();
 
     postThreadReply($team, $general, $owner, $root, ['thread_root_id' => 'not-a-uuid'])
@@ -151,7 +123,7 @@ test('a non-uuid thread root is rejected', function (): void {
 });
 
 test('sent_to_channel is ignored without a thread root', function (): void {
-    [$owner, $team, $general] = threadTeamWithGeneral();
+    ['owner' => $owner, 'team' => $team, 'channel' => $general] = teamWithChannel();
     $clientUuid = (string) Str::uuid7();
 
     $this->actingAs($owner)->post(
@@ -167,7 +139,7 @@ test('sent_to_channel is ignored without a thread root', function (): void {
 });
 
 test('the main timeline hides thread-only replies but keeps sent-to-channel replies', function (): void {
-    [$owner, $team, $general] = threadTeamWithGeneral();
+    ['owner' => $owner, 'team' => $team, 'channel' => $general] = teamWithChannel();
     $root = Message::factory()->for($general)->for($owner)->create(['body' => 'root']);
     Message::factory()->for($owner)->inThread($root)->create(['body' => 'thread only']);
     Message::factory()->for($owner)->inThread($root)->sentToChannel()->create(['body' => 'also in channel']);
@@ -184,7 +156,7 @@ test('the main timeline hides thread-only replies but keeps sent-to-channel repl
 });
 
 test('the thread prop returns the root and paginated replies newest-first, tombstones included', function (): void {
-    [$owner, $team, $general] = threadTeamWithGeneral();
+    ['owner' => $owner, 'team' => $team, 'channel' => $general] = teamWithChannel();
     $root = Message::factory()->for($general)->for($owner)->create(['body' => 'root']);
     Message::factory()->for($owner)->inThread($root)->create(['body' => 'first reply']);
     $second = Message::factory()->for($owner)->inThread($root)->create(['body' => 'second reply']);
@@ -204,7 +176,7 @@ test('the thread prop returns the root and paginated replies newest-first, tombs
 });
 
 test('the thread prop is null and replies are empty for a normal visit', function (): void {
-    [$owner, $team, $general] = threadTeamWithGeneral();
+    ['owner' => $owner, 'team' => $team, 'channel' => $general] = teamWithChannel();
 
     $this->actingAs($owner)
         ->get(route('channels.show', ['team' => $team->slug, 'channel' => $general->slug]))
@@ -214,7 +186,7 @@ test('the thread prop is null and replies are empty for a normal visit', functio
 });
 
 test('a long thread caps the first page of replies and offers more', function (): void {
-    [$owner, $team, $general] = threadTeamWithGeneral();
+    ['owner' => $owner, 'team' => $team, 'channel' => $general] = teamWithChannel();
     $root = Message::factory()->for($general)->for($owner)->create();
     Message::factory()->count(51)->for($owner)->inThread($root)->create();
 
@@ -229,7 +201,7 @@ test('a long thread caps the first page of replies and offers more', function ()
 });
 
 test('the thread prop is null when the param is blank or points elsewhere', function (): void {
-    [$owner, $team, $general] = threadTeamWithGeneral();
+    ['owner' => $owner, 'team' => $team, 'channel' => $general] = teamWithChannel();
     $reply = Message::factory()->for($owner)->inThread(
         Message::factory()->for($general)->for($owner)->create(),
     )->create();
@@ -246,9 +218,9 @@ test('the thread prop is null when the param is blank or points elsewhere', func
 });
 
 test('a root exposes its distinct thread participants and survives deletion', function (): void {
-    [$owner, $team, $general] = threadTeamWithGeneral();
-    $ada = threadMember($team, $general, 'Ada');
-    $grace = threadMember($team, $general, 'Grace');
+    ['owner' => $owner, 'team' => $team, 'channel' => $general] = teamWithChannel();
+    $ada = teamMemberInChannel($general, ['name' => 'Ada']);
+    $grace = teamMemberInChannel($general, ['name' => 'Grace']);
 
     $root = Message::factory()->for($general)->for($owner)->create([
         'reply_count' => 3,
@@ -273,7 +245,7 @@ test('a root exposes its distinct thread participants and survives deletion', fu
 test('posting a reply broadcasts the reply and the updated root aggregate', function (): void {
     Event::fake([MessageSent::class, MessageUpdated::class]);
 
-    [$owner, $team, $general] = threadTeamWithGeneral();
+    ['owner' => $owner, 'team' => $team, 'channel' => $general] = teamWithChannel();
     $root = Message::factory()->for($general)->for($owner)->create();
     $clientUuid = (string) Str::uuid7();
 
@@ -294,8 +266,8 @@ test('posting a reply broadcasts the reply and the updated root aggregate', func
 });
 
 test('a thread-only reply does not raise the channel unread badge', function (): void {
-    [$owner, $team, $general] = threadTeamWithGeneral();
-    $member = threadMember($team, $general, 'Reader');
+    ['owner' => $owner, 'team' => $team, 'channel' => $general] = teamWithChannel();
+    $member = teamMemberInChannel($general, ['name' => 'Reader']);
     $root = Message::factory()->for($general)->for($owner)->create();
 
     // A plain timeline message and a thread-only reply, both by someone else.
@@ -309,8 +281,8 @@ test('a thread-only reply does not raise the channel unread badge', function ():
 });
 
 test('a sent-to-channel reply raises the channel unread badge', function (): void {
-    [$owner, $team, $general] = threadTeamWithGeneral();
-    $member = threadMember($team, $general, 'Reader');
+    ['owner' => $owner, 'team' => $team, 'channel' => $general] = teamWithChannel();
+    $member = teamMemberInChannel($general, ['name' => 'Reader']);
     $root = Message::factory()->for($general)->for($owner)->create();
     Message::factory()->for($owner)->inThread($root)->sentToChannel()->create();
 
@@ -319,8 +291,8 @@ test('a sent-to-channel reply raises the channel unread badge', function (): voi
 });
 
 test('a mention inside a thread still badges the channel', function (): void {
-    [$owner, $team, $general] = threadTeamWithGeneral();
-    $member = threadMember($team, $general, 'Reader');
+    ['owner' => $owner, 'team' => $team, 'channel' => $general] = teamWithChannel();
+    $member = teamMemberInChannel($general, ['name' => 'Reader']);
     $root = Message::factory()->for($general)->for($owner)->create();
 
     $reply = Message::factory()->for($owner)->inThread($root)->create([

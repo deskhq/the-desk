@@ -1,8 +1,6 @@
 <?php
 
-use App\Actions\Teams\CreateTeam;
 use App\Enums\NavDestination;
-use App\Enums\TeamRole;
 use App\Models\Attachment;
 use App\Models\Channel;
 use App\Models\Message;
@@ -10,32 +8,6 @@ use App\Models\Team;
 use App\Models\User;
 use Illuminate\Testing\TestResponse;
 use Inertia\Testing\AssertableInertia as Assert;
-
-/**
- * Create a team with its owner already a member of #general.
- *
- * @return array{0: User, 1: Team, 2: Channel}
- */
-function searchTeamWithGeneral(): array
-{
-    $owner = User::factory()->create();
-    $team = app(CreateTeam::class)->handle($owner, 'Acme');
-    $general = Channel::where('team_id', $team->id)->where('slug', 'general')->firstOrFail();
-
-    return [$owner, $team, $general];
-}
-
-/**
- * Add a user to the team and the given channel, returning them.
- */
-function searchMember(Team $team, Channel $channel, ?string $name = null): User
-{
-    $user = User::factory()->create($name ? ['name' => $name] : []);
-    $team->memberships()->create(['user_id' => $user->id, 'role' => TeamRole::Member]);
-    $channel->channelMembers()->firstOrCreate(['user_id' => $user->id]);
-
-    return $user;
-}
 
 /**
  * Open the Search destination on the team's #general as the given user.
@@ -74,8 +46,8 @@ function performSuggest(User $user, Team $team, string $query): TestResponse
 }
 
 test('a member searches messages in their channels', function (): void {
-    [$owner, $team, $general] = searchTeamWithGeneral();
-    $member = searchMember($team, $general, 'Ada Lovelace');
+    ['owner' => $owner, 'team' => $team, 'channel' => $general] = teamWithChannel();
+    $member = teamMemberInChannel($general, ['name' => 'Ada Lovelace']);
     Message::factory()->for($general)->for($member)->create(['body' => 'the quokka danced at dawn']);
     Message::factory()->for($general)->for($owner)->create(['body' => 'totally unrelated chatter']);
 
@@ -93,8 +65,8 @@ test('a member searches messages in their channels', function (): void {
 });
 
 test('the panel props are absent until the destination is pinned', function (): void {
-    [, $team, $general] = searchTeamWithGeneral();
-    $member = searchMember($team, $general);
+    ['team' => $team, 'channel' => $general] = teamWithChannel();
+    $member = teamMemberInChannel($general);
 
     // A search runs a full-text query, so it must ride on `?nav=search` rather
     // than on every workspace navigation.
@@ -107,8 +79,8 @@ test('the panel props are absent until the destination is pinned', function (): 
 });
 
 test('the legacy search url redirects onto the destination carrying its facets', function (): void {
-    [$owner, $team, $general] = searchTeamWithGeneral();
-    $member = searchMember($team, $general);
+    ['owner' => $owner, 'team' => $team, 'channel' => $general] = teamWithChannel();
+    $member = teamMemberInChannel($general);
 
     // #391's shared links have to keep working: the old page is a redirect that
     // hands its query and facets to the panel.
@@ -129,8 +101,8 @@ test('the legacy search url redirects onto the destination carrying its facets',
 });
 
 test('the search destination shares the workspace sidebar props', function (): void {
-    [, $team, $general] = searchTeamWithGeneral();
-    $member = searchMember($team, $general, 'Ada Lovelace');
+    ['team' => $team, 'channel' => $general] = teamWithChannel();
+    $member = teamMemberInChannel($general, ['name' => 'Ada Lovelace']);
 
     // The facet pickers read the channels and members off the same shared props
     // the conversation list feeds on.
@@ -145,14 +117,14 @@ test('the search destination shares the workspace sidebar props', function (): v
 });
 
 test('a non-member of the team cannot search it', function (): void {
-    [, $team] = searchTeamWithGeneral();
+    ['team' => $team] = teamWithChannel();
     $outsider = User::factory()->create();
 
     performSearch($outsider, $team, 'zephyr')->assertForbidden();
 });
 
 test('a jump windows the messages around the target with newer context below', function (): void {
-    [$owner, $team, $general] = searchTeamWithGeneral();
+    ['owner' => $owner, 'team' => $team, 'channel' => $general] = teamWithChannel();
     $messages = collect(range(1, 30))->map(
         fn (int $i) => Message::factory()->for($general)->for($owner)->create(['body' => "message {$i}"])
     );
@@ -172,7 +144,7 @@ test('a jump windows the messages around the target with newer context below', f
 });
 
 test('a jump to the newest message keeps it at the bottom of the window', function (): void {
-    [$owner, $team, $general] = searchTeamWithGeneral();
+    ['owner' => $owner, 'team' => $team, 'channel' => $general] = teamWithChannel();
     $messages = collect(range(1, 5))->map(
         fn (int $i) => Message::factory()->for($general)->for($owner)->create(['body' => "message {$i}"])
     );
@@ -190,7 +162,7 @@ test('a jump to the newest message keeps it at the bottom of the window', functi
 });
 
 test('a message param from another channel is ignored', function (): void {
-    [$owner, $team, $general] = searchTeamWithGeneral();
+    ['owner' => $owner, 'team' => $team, 'channel' => $general] = teamWithChannel();
     Message::factory()->for($general)->for($owner)->create(['body' => 'only message here']);
     $other = Channel::factory()->for($team)->create(['created_by' => $owner->id]);
     $foreign = Message::factory()->for($other)->for($owner)->create(['body' => 'elsewhere']);
@@ -206,8 +178,8 @@ test('a message param from another channel is ignored', function (): void {
 });
 
 test('the suggest endpoint returns matching messages as JSON', function (): void {
-    [$owner, $team, $general] = searchTeamWithGeneral();
-    $member = searchMember($team, $general, 'Ada Lovelace');
+    ['owner' => $owner, 'team' => $team, 'channel' => $general] = teamWithChannel();
+    $member = teamMemberInChannel($general, ['name' => 'Ada Lovelace']);
     Message::factory()->for($general)->for($member)->create(['body' => 'the quokka danced at dawn']);
     Message::factory()->for($general)->for($owner)->create(['body' => 'totally unrelated chatter']);
 
@@ -221,8 +193,8 @@ test('the suggest endpoint returns matching messages as JSON', function (): void
 });
 
 test('the suggest endpoint caps results at the preview limit', function (): void {
-    [$owner, $team, $general] = searchTeamWithGeneral();
-    $member = searchMember($team, $general);
+    ['owner' => $owner, 'team' => $team, 'channel' => $general] = teamWithChannel();
+    $member = teamMemberInChannel($general);
     collect(range(1, 8))->each(
         fn (int $i) => Message::factory()->for($general)->for($owner)->create(['body' => "zephyr note {$i}"])
     );
@@ -233,8 +205,8 @@ test('the suggest endpoint caps results at the preview limit', function (): void
 });
 
 test('the suggest endpoint honours the file facet', function (): void {
-    [$owner, $team, $general] = searchTeamWithGeneral();
-    $member = searchMember($team, $general);
+    ['owner' => $owner, 'team' => $team, 'channel' => $general] = teamWithChannel();
+    $member = teamMemberInChannel($general);
     $withFile = Message::factory()->for($general)->for($owner)->create(['body' => 'zephyr with the deck']);
     Message::factory()->for($general)->for($owner)->create(['body' => 'zephyr without anything']);
     Attachment::factory()->for($owner)->attachedTo($withFile)->create();
@@ -249,8 +221,8 @@ test('the suggest endpoint honours the file facet', function (): void {
 });
 
 test('the suggest endpoint rejects a file facet it does not offer', function (): void {
-    [, $team, $general] = searchTeamWithGeneral();
-    $member = searchMember($team, $general);
+    ['team' => $team, 'channel' => $general] = teamWithChannel();
+    $member = teamMemberInChannel($general);
 
     test()->actingAs($member)
         ->getJson(route('search.suggest', ['team' => $team->slug, 'q' => 'zephyr', 'has' => 'audio']))
@@ -258,8 +230,8 @@ test('the suggest endpoint rejects a file facet it does not offer', function ():
 });
 
 test('the suggest endpoint is ACL-filtered to the user channels', function (): void {
-    [$owner, $team, $general] = searchTeamWithGeneral();
-    $member = searchMember($team, $general);
+    ['owner' => $owner, 'team' => $team, 'channel' => $general] = teamWithChannel();
+    $member = teamMemberInChannel($general);
     $private = Channel::factory()->for($team)->private()->create(['created_by' => $owner->id]);
     Message::factory()->for($private)->for($owner)->create(['body' => 'secret zephyr plans']);
 
@@ -269,8 +241,8 @@ test('the suggest endpoint is ACL-filtered to the user channels', function (): v
 });
 
 test('an empty suggest query returns no results without touching the engine', function (): void {
-    [$owner, $team, $general] = searchTeamWithGeneral();
-    $member = searchMember($team, $general);
+    ['owner' => $owner, 'team' => $team, 'channel' => $general] = teamWithChannel();
+    $member = teamMemberInChannel($general);
     Message::factory()->for($general)->for($owner)->create(['body' => 'zephyr']);
 
     performSuggest($member, $team, '')
@@ -279,15 +251,15 @@ test('an empty suggest query returns no results without touching the engine', fu
 });
 
 test('a non-member of the team cannot use suggest', function (): void {
-    [, $team] = searchTeamWithGeneral();
+    ['team' => $team] = teamWithChannel();
     $outsider = User::factory()->create();
 
     performSuggest($outsider, $team, 'zephyr')->assertForbidden();
 });
 
 test('the suggest query cannot exceed 255 characters', function (): void {
-    [, $team, $general] = searchTeamWithGeneral();
-    $member = searchMember($team, $general);
+    ['team' => $team, 'channel' => $general] = teamWithChannel();
+    $member = teamMemberInChannel($general);
 
     performSuggest($member, $team, str_repeat('a', 256))
         ->assertJsonValidationErrorFor('q');
