@@ -55,7 +55,7 @@ defineOptions({
             :title="$t('Update password')"
             :description="
                 $t(
-                    'Ensure your account is using a long, random password to stay secure',
+                    'A long, random password keeps your account secure. Changing it signs you out on your other devices',
                 )
             "
         >
