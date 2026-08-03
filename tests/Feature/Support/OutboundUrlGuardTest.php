@@ -61,15 +61,16 @@ it('rejects every reserved IPv6 literal, at both ends of each range', function (
     'loopback' => '::1',
     'ipv4-mapped-loopback' => '::ffff:127.0.0.1',
     'ipv4-mapped-metadata' => '::ffff:169.254.169.254',
-    'unique-local-bottom' => 'fc00::1',
-    'unique-local-top' => 'fdff:ffff::1',
-    'link-local-bottom' => 'fe80::1',
-    'link-local-top' => 'febf:ffff::1',
-    'site-local-bottom' => 'fec0::1',
-    'site-local-top' => 'feff:ffff::1',
+    'unique-local-bottom' => 'fc00::',
+    'unique-local-top' => 'fdff:ffff:ffff:ffff:ffff:ffff:ffff:ffff',
+    'link-local-bottom' => 'fe80::',
+    'link-local' => 'fe80::1',
+    'link-local-top' => 'febf:ffff:ffff:ffff:ffff:ffff:ffff:ffff',
+    'site-local-bottom' => 'fec0::',
+    'site-local-top' => 'feff:ffff:ffff:ffff:ffff:ffff:ffff:ffff',
     'multicast-bottom' => 'ff00::',
     'multicast-all-nodes' => 'ff02::1',
-    'multicast-top' => 'ffff:ffff::1',
+    'multicast-top' => 'ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff',
 ]);
 
 it('accepts a literal public IP', function (): void {
