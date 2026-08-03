@@ -66,3 +66,13 @@ Layer-specific conventions live in `.claude/rules/`, loaded when you touch a mat
 - **When you discover a bug, broken tooling, or other pre-existing defect while implementing something unrelated, do not fix it inline.** Keep the current change focused on its own scope.
 - **Check for an existing issue first** (`gh issue list --state open --search "<keywords>"`, and closed issues too). If none exists, `gh issue create` one describing what's broken, how it surfaced, why it matters, and clear acceptance criteria, with a fitting label (e.g. `tech-debt`).
 - Mention the issue in the PR of the feature you're working on so the discovery is traceable, then carry on. Only fix it inline if it directly blocks you.
+
+## graphify
+
+This project has a knowledge graph at graphify-out/ with god nodes, community structure, and cross-file relationships.
+
+Rules:
+- For codebase questions, first run `graphify query "<question>"` when graphify-out/graph.json exists. Use `graphify path "<A>" "<B>"` for relationships and `graphify explain "<concept>"` for focused concepts. These return a scoped subgraph, usually much smaller than GRAPH_REPORT.md or raw grep output.
+- If graphify-out/wiki/index.md exists, use it for broad navigation instead of raw source browsing.
+- Read graphify-out/GRAPH_REPORT.md only for broad architecture review or when query/path/explain do not surface enough context.
+- After modifying code, run `graphify update .` to keep the graph current (AST-only, no API cost).
