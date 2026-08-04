@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Enums\PresenceState;
 use App\Models\Message;
 use App\Models\MessageReminder;
 
@@ -116,13 +117,19 @@ test('a command opening a dialog leaves focus inside it, not back on the trigger
 test('the availability predicates read prop paths a real page carries', function (): void {
     ['owner' => $alice, 'member' => $bob, 'team' => $team, 'channel' => $channel] = browserTeamWithChannel();
 
-    // Four rows, three distinct prop paths: `currentTeam` for the first two,
-    // `auth.user.dnd` for the resume, `canInviteToCurrentTeam` for the invite.
-    // All three fail the same silent way — a path that is not there reads
-    // `undefined`, falls to false, and the row vanishes for everyone — and a
-    // unit stub written from the same wrong path agrees with it. Only a real
-    // page can say the strings are right.
-    $alice->forceFill(['dnd_until' => now()->addMinutes(30)])->save();
+    // Six rows, four distinct prop paths: `currentTeam` for the first two,
+    // `auth.user.dnd` for the resume, `canInviteToCurrentTeam` for the invite,
+    // `auth.user.presence` for the presence pair. All four fail the same silent
+    // way — a path that is not there reads `undefined`, falls to false, and the
+    // row vanishes for everyone — and a unit stub written from the same wrong
+    // path agrees with it. Only a real page can say the strings are right.
+    //
+    // The manual override is what makes Alice away here, because it wins over
+    // the connection roster outright; Bob is left alone and reads active.
+    $alice->forceFill([
+        'dnd_until' => now()->addMinutes(30),
+        'presence_state' => PresenceState::Away,
+    ])->save();
 
     signInThroughBrowser($alice)
         ->resize(1280, 900)
@@ -132,6 +139,10 @@ test('the availability predicates read prop paths a real page carries', function
         ->assertPresent('@quick-switcher-browse-channels')
         ->assertPresent('@quick-switcher-invite-people')
         ->assertPresent('@quick-switcher-resume-notifications')
+        // The presence pair is one capability split across two rows, so what is
+        // proven is that only ever one of them is on the page (#1224).
+        ->assertPresent('@quick-switcher-set-presence-active')
+        ->assertNotPresent('@quick-switcher-set-presence-away')
         // The other half of the gate: the modal is mounted only for a viewer who
         // may invite, so a row that renders has to reach something listening.
         ->click('@quick-switcher-invite-people')
@@ -148,7 +159,9 @@ test('the availability predicates read prop paths a real page carries', function
         // Absent, never disabled: the list is the set of things this viewer can
         // do rather than a list of things they cannot.
         ->assertNotPresent('@quick-switcher-invite-people')
-        ->assertNotPresent('@quick-switcher-resume-notifications');
+        ->assertNotPresent('@quick-switcher-resume-notifications')
+        ->assertPresent('@quick-switcher-set-presence-away')
+        ->assertNotPresent('@quick-switcher-set-presence-active');
 });
 
 test('a theme command repaints the document', function (): void {

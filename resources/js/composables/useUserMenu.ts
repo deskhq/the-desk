@@ -21,13 +21,14 @@ export type UseUserMenuReturn = {
     currentTeam: ComputedRef<Team | null>;
     ownStatus: ComputedRef<App.Data.UserStatusData | null>;
     ownPresence: ComputedRef<RenderedPresence>;
-    togglesTo: ComputedRef<RenderedPresence>;
+    togglesTo: ComputedRef<App.Enums.PresenceState>;
     isDnd: ComputedRef<boolean>;
     pausedUntil: ComputedRef<string | null>;
     quietHoursUntil: ComputedRef<string | null>;
     clearsAt: ComputedRef<string | null>;
     pausePresets: DndPauseKey[];
     clearStatus: (event?: Event) => void;
+    setPresence: (state: App.Enums.PresenceState, event?: Event) => void;
     togglePresence: (event?: Event) => void;
     choosePause: (key: DndPauseKey, event?: Event) => void;
     resumeNotifications: (event?: Event) => void;
@@ -63,7 +64,7 @@ export function useUserMenu(): UseUserMenuReturn {
     );
 
     /** The state the toggle would switch to, which is also the glyph it previews. */
-    const togglesTo = computed<RenderedPresence>(() =>
+    const togglesTo = computed<App.Enums.PresenceState>(() =>
         ownPresence.value === 'away' ? 'active' : 'away',
     );
 
@@ -129,18 +130,33 @@ export function useUserMenu(): UseUserMenuReturn {
         });
     }
 
-    /** Flip the manual away override, in place. */
-    function togglePresence(event?: Event): void {
+    /**
+     * Set the manual away override to `state` outright.
+     *
+     * The target state is sent rather than a flip, so two surfaces pressing at
+     * once agree instead of racing each other back and forth — the reasoning
+     * {@see UpdatePresenceRequest} already records for the endpoint. It matters
+     * for a caller whose label promised a particular state: the command palette
+     * offers *Set yourself away* or *Set yourself active* as separate rows, and
+     * a row must still do what it said if presence changed under it between the
+     * list rendering and `Enter` landing.
+     */
+    function setPresence(state: App.Enums.PresenceState, event?: Event): void {
         event?.preventDefault();
 
         router.put(
             updatePresence().url,
-            { state: togglesTo.value },
+            { state },
             {
                 preserveScroll: true,
                 onError: () => toast.error(t('Could not change your presence')),
             },
         );
+    }
+
+    /** Flip the manual away override, in place. */
+    function togglePresence(event?: Event): void {
+        setPresence(togglesTo.value, event);
     }
 
     /** The preset rows: everything but Custom…, which opens the dialog. */
@@ -216,6 +232,7 @@ export function useUserMenu(): UseUserMenuReturn {
         clearsAt,
         pausePresets,
         clearStatus,
+        setPresence,
         togglePresence,
         choosePause,
         resumeNotifications,

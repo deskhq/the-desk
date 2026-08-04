@@ -6,6 +6,8 @@ import {
     Bell,
     BellOff,
     BellRing,
+    Circle,
+    CircleDot,
     Hash,
     Keyboard,
     Monitor,
@@ -72,7 +74,7 @@ export type CommandDefinition = {
 const page = usePage();
 const { focusNotificationRail } = useShellFocus();
 const { updateAppearance } = useAppearance();
-const { resumeNotifications } = useUserMenu();
+const { resumeNotifications, setPresence } = useUserMenu();
 
 /**
  * Jump `delta` channels along the sidebar list from the active one, wrapping at
@@ -97,6 +99,26 @@ function moveChannel(delta: number): void {
     if (slug) {
         router.visit(show({ team: team.slug, channel: slug }).url);
     }
+}
+
+/**
+ * The presence the viewer would be moving *to*, or null when the page carries
+ * nobody to move. The same derivation the user menu's own toggle makes, read
+ * straight off the shared prop rather than through its `computed`: a predicate
+ * is called inside the palette's own `computed` on every rebuild, and a cached
+ * reading would offer the row for a presence the viewer has since left.
+ *
+ * An absent presence reads as active and never as offline, because someone
+ * reading the palette is plainly here.
+ */
+function presenceTogglesTo(): App.Enums.PresenceState | null {
+    const user = page.props.auth?.user;
+
+    if (user === undefined) {
+        return null;
+    }
+
+    return (user.presence ?? 'active') === 'away' ? 'active' : 'away';
 }
 
 /**
@@ -203,6 +225,33 @@ export const COMMANDS: readonly CommandDefinition[] = [
         title: 'Set a status',
         icon: SmilePlus,
         run: () => useDialog('status').open(),
+    },
+    {
+        /**
+         * One toggle as two gated rows, and the answer to the first verb this
+         * contract could not express (#1224). A single row would have to name
+         * the state it moves to, which is a `title` that follows state, and
+         * {@link CommandDefinition} keeps that string static on purpose. The
+         * pair is what the widening would have rendered anyway — exactly one of
+         * these is ever offered — so the catalogue names the states instead,
+         * the same answer the theme trio gave.
+         *
+         * The glyphs quote {@see PresenceDot}, which draws away as a hollow
+         * ring and active as a filled disc. They are near-identical shapes,
+         * which is safe only because the two rows are mutually exclusive.
+         */
+        id: 'set-presence-away',
+        title: 'Set yourself away',
+        icon: Circle,
+        isAvailable: () => presenceTogglesTo() === 'away',
+        run: () => setPresence('away'),
+    },
+    {
+        id: 'set-presence-active',
+        title: 'Set yourself active',
+        icon: CircleDot,
+        isAvailable: () => presenceTogglesTo() === 'active',
+        run: () => setPresence('active'),
     },
     {
         id: 'pause-notifications',

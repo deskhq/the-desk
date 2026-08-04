@@ -1,9 +1,10 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { visit, destroy } = vi.hoisted(() => ({
+const { visit, destroy, put } = vi.hoisted(() => ({
     visit: vi.fn(),
     destroy: vi.fn(),
+    put: vi.fn(),
 }));
 
 /**
@@ -17,7 +18,7 @@ const page = vi.hoisted(() => ({
 }));
 
 vi.mock('@inertiajs/vue3', () => ({
-    router: { visit, delete: destroy, put: vi.fn(), flushAll: vi.fn() },
+    router: { visit, delete: destroy, put, flushAll: vi.fn() },
     usePage: () => page,
 }));
 
@@ -27,6 +28,7 @@ vi.mock('@/lib/pinUrl', () => ({ pinUrl }));
 
 import { browse } from '@/actions/App/Http/Controllers/Channels/ChannelController';
 import { destroy as destroyDndPause } from '@/actions/App/Http/Controllers/Settings/DndController';
+import { update as updatePresence } from '@/actions/App/Http/Controllers/Settings/PresenceController';
 import { COMMANDS } from '@/composables/commands';
 import { SHORTCUTS } from '@/composables/keyboardShortcuts';
 import { SHELL_DIALOG_NAMES, useDialog } from '@/composables/useDialog';
@@ -214,6 +216,55 @@ describe('resume-notifications', () => {
 
         expect(command?.isAvailable?.()).toBe(true);
     });
+});
+
+/**
+ * One capability as two gated rows rather than one row whose label follows the
+ * viewer's presence (#1224). The pair is observationally identical to a dynamic
+ * title — exactly one of them is ever offered — which is why the contract was
+ * left alone, so the assertion that matters is that "exactly one" holds in every
+ * state rather than that either row exists.
+ */
+describe('the presence rows', () => {
+    /** The ids of the presence rows this viewer is actually offered. */
+    function offeredPresenceRows(): string[] {
+        return COMMANDS.filter(
+            (command) =>
+                command.id.startsWith('set-presence-') &&
+                (command.isAvailable?.() ?? true),
+        ).map((command) => command.id);
+    }
+
+    it.each([
+        ['set-presence-away', 'away'],
+        ['set-presence-active', 'active'],
+    ])('%s asks the server for %s outright', (id, state) => {
+        run(id);
+
+        expect(put).toHaveBeenCalledWith(
+            updatePresence().url,
+            { state },
+            expect.anything(),
+        );
+    });
+
+    /**
+     * Including the case where the prop is missing altogether: a viewer reading
+     * the palette is plainly here, so the shell reads an absent presence as
+     * active exactly as the user menu does, and still offers them a row.
+     */
+    it.each([
+        [undefined, 'set-presence-away'],
+        ['active', 'set-presence-away'],
+        ['away', 'set-presence-active'],
+    ])(
+        'offers exactly one row while presence reads %s',
+        (presence, offered) => {
+            seed({ auth: { user: { dnd: null, timezone: 'UTC', presence } } });
+
+            expect(offeredPresenceRows()).toEqual([offered]);
+        },
+    );
 });
 
 /**
