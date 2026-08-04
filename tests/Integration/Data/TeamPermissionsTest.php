@@ -125,6 +125,22 @@ test('the projection resolves the role once, not once per ability', function ():
     expect($queries)->toHaveCount(1);
 });
 
+test('a projection that throws still releases the role it held', function (): void {
+    $user = User::factory()->create();
+    $team = Team::factory()->create();
+    $team->members()->attach($user, ['role' => TeamRole::Member->value]);
+
+    expect(fn () => $user->holdingTeamRole($team, function () use ($team, $user): never {
+        $team->members()->updateExistingPivot($user->id, ['role' => TeamRole::Admin->value]);
+
+        throw new RuntimeException('the projection blew up');
+    }))->toThrow(RuntimeException::class);
+
+    // The window closed with the exception, so the promotion written inside it
+    // is answered from the database rather than from the role it was holding.
+    expect($user->teamRole($team))->toBe(TeamRole::Admin);
+});
+
 test('a role written after a projection is answered fresh', function (): void {
     $user = User::factory()->create();
     $team = Team::factory()->create();
