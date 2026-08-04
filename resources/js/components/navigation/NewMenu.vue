@@ -1,7 +1,7 @@
 <script setup lang="ts">
+import { usePage } from '@inertiajs/vue3';
 import { FolderPlus, Hash, MessageSquare } from '@lucide/vue';
-import { ref, watch } from 'vue';
-import CreateChannelModal from '@/components/CreateChannelModal.vue';
+import { computed, ref, watch } from 'vue';
 import { Button } from '@/components/ui/button';
 import {
     Dialog,
@@ -18,6 +18,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { useDialog } from '@/composables/useDialog';
 import { useIsMobile } from '@/composables/useIsMobile';
+import { canCreateChannel } from '@/lib/channelCreation';
 
 /**
  * The dock header's "+ New" menu: exactly three ways to start something —
@@ -30,20 +31,23 @@ import { useIsMobile } from '@/composables/useIsMobile';
  * Like the workspace sheet, the trigger is the default slot and the surface
  * presents as a bottom sheet below `md`.
  */
-defineProps<{
-    /** The workspace the new channel would belong to. */
-    teamSlug: string;
-}>();
-
 const emit = defineEmits<{
     /** Start a section; the host owns the inline name field. */
     section: [];
 }>();
 
+const page = usePage();
+
 const isSheetViewport = useIsMobile();
 
 /** "Message" opens the people picker the shell mounts. */
 const newMessageDialog = useDialog('newMessage');
+
+/** "Channel" opens the create form the shell mounts, on the policy's say-so. */
+const createChannelDialog = useDialog('createChannel');
+const canCreate = computed(() =>
+    canCreateChannel(page.props.creatableChannelVisibilities),
+);
 
 const open = ref(false);
 
@@ -54,6 +58,11 @@ watch(isSheetViewport, () => {
 function requestMessage(): void {
     open.value = false;
     newMessageDialog.open();
+}
+
+function requestChannel(): void {
+    open.value = false;
+    createChannelDialog.open();
 }
 
 /** The bottom sheet has no focus scope to outlive, so it announces at once. */
@@ -108,20 +117,20 @@ const sheetRowClass =
                 {{ $t('Start a channel, a message, or a section.') }}
             </DialogDescription>
 
-            <CreateChannelModal :team-slug="teamSlug">
-                <Button
-                    variant="unstyled"
-                    size="none"
-                    type="button"
-                    data-test="new-menu-channel"
-                    :class="sheetRowClass"
-                >
-                    <Hash class="size-5 text-muted-foreground" />
-                    <span class="min-w-0 flex-1 truncate">{{
-                        $t('New channel')
-                    }}</span>
-                </Button>
-            </CreateChannelModal>
+            <Button
+                v-if="canCreate"
+                variant="unstyled"
+                size="none"
+                type="button"
+                data-test="new-menu-channel"
+                :class="sheetRowClass"
+                @click="requestChannel"
+            >
+                <Hash class="size-5 text-muted-foreground" />
+                <span class="min-w-0 flex-1 truncate">{{
+                    $t('New channel')
+                }}</span>
+            </Button>
             <Button
                 variant="unstyled"
                 size="none"
@@ -161,16 +170,15 @@ const sheetRowClass =
             class="w-53.5 rounded-[14px] p-1.5"
             @close-auto-focus="onCloseAutoFocus"
         >
-            <CreateChannelModal :team-slug="teamSlug">
-                <DropdownMenuItem
-                    data-test="new-menu-channel"
-                    class="h-8.5 cursor-pointer gap-2.25"
-                    @select.prevent
-                >
-                    <Hash class="size-3.75 text-muted-foreground" />
-                    {{ $t('New channel') }}
-                </DropdownMenuItem>
-            </CreateChannelModal>
+            <DropdownMenuItem
+                v-if="canCreate"
+                data-test="new-menu-channel"
+                class="h-8.5 cursor-pointer gap-2.25"
+                @select="requestChannel"
+            >
+                <Hash class="size-3.75 text-muted-foreground" />
+                {{ $t('New channel') }}
+            </DropdownMenuItem>
             <DropdownMenuItem
                 data-test="new-menu-message"
                 class="h-8.5 cursor-pointer gap-2.25"

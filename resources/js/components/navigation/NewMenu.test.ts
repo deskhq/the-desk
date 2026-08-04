@@ -4,6 +4,16 @@ import type { App } from 'vue';
 import { createApp, defineComponent, h } from 'vue';
 import { useDialog } from '@/composables/useDialog';
 
+/** The workspace props the "New channel" row is gated on. */
+const page = vi.hoisted(() => ({
+    props: { creatableChannelVisibilities: ['public', 'private'] } as Record<
+        string,
+        unknown
+    >,
+}));
+
+vi.mock('@inertiajs/vue3', () => ({ usePage: () => page }));
+
 /** Drives the mocked breakpoint flag, which has to stay a real ref. */
 const viewport = vi.hoisted(() => ({
     setMobile: null as null | ((mobile: boolean) => void),
@@ -26,21 +36,8 @@ vi.mock('@lucide/vue', () => ({
     MessageSquare: { render: () => h('svg') },
 }));
 
-const channelModalTeamSlug = vi.hoisted(() => ({ value: '' }));
-
 /** Lets a test replay the moment the menu finishes closing. */
 const menu = vi.hoisted(() => ({ replayClose: null as null | (() => Event) }));
-
-vi.mock('@/components/CreateChannelModal.vue', () => ({
-    default: defineComponent({
-        props: { teamSlug: { type: String, default: '' } },
-        setup(modalProps, { slots }) {
-            channelModalTeamSlug.value = modalProps.teamSlug;
-
-            return () => h('div', slots.default?.());
-        },
-    }),
-}));
 
 /** Renders its slot and forwards a click as the `select` menu rows are wired to. */
 function passthrough(tag = 'div') {
@@ -101,9 +98,10 @@ let app: App | null = null;
 
 beforeEach(() => {
     viewport.setMobile?.(false);
-    channelModalTeamSlug.value = '';
+    page.props = { creatableChannelVisibilities: ['public', 'private'] };
     menu.replayClose = null;
     useDialog('newMessage').close();
+    useDialog('createChannel').close();
 });
 
 afterEach(() => {
@@ -122,7 +120,7 @@ function mountMenu() {
         render: () =>
             h(
                 NewMenu,
-                { teamSlug: 'acme', onSection: sectioned },
+                { onSection: sectioned },
                 {
                     default: () =>
                         h('button', { 'data-test': 'new-menu-trigger' }),
@@ -165,10 +163,23 @@ it('keeps the trigger the caller supplied', () => {
     expect(row(host, 'new-menu-trigger')).not.toBeNull();
 });
 
-it('points the channel modal at the open workspace', () => {
-    mountMenu();
+it('opens the create form the shell mounts, closing the menu behind it', () => {
+    const { host } = mountMenu();
 
-    expect(channelModalTeamSlug.value).toBe('acme');
+    row(host, 'new-menu-channel')!.click();
+
+    expect(useDialog('createChannel').isOpen.value).toBe(true);
+});
+
+it('drops the channel row for a viewer the workspace policy shuts out', () => {
+    // The row used to disappear because the modal wrapping it declined to
+    // render; unpicked from that wrapper, the menu owes the gate itself.
+    page.props = { creatableChannelVisibilities: [] };
+
+    const { host } = mountMenu();
+
+    expect(row(host, 'new-menu-channel')).toBeNull();
+    expect(row(host, 'new-menu-message')).not.toBeNull();
 });
 
 it('opens the people picker the shell mounts', () => {

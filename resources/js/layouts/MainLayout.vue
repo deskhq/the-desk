@@ -297,7 +297,6 @@ const { isSettingsSection, startTourIfEligible } = useShellStartup();
                             <div class="flex shrink-0 items-center gap-1">
                                 <NewMenu
                                     v-if="currentTeam"
-                                    :team-slug="currentTeam.slug"
                                     @section="openSectionForm"
                                 >
                                     <Button

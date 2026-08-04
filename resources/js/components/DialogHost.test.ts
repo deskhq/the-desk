@@ -15,7 +15,10 @@ vi.mock('@inertiajs/vue3', () => ({ usePage: () => page }));
  */
 function marker(name: string): Component {
     return defineComponent({
-        props: { open: { type: Boolean, default: false } },
+        props: {
+            open: { type: Boolean, default: false },
+            teamSlug: { type: String, default: undefined },
+        },
         emits: ['update:open'],
         setup:
             (props, { emit }) =>
@@ -23,6 +26,7 @@ function marker(name: string): Component {
                 h('button', {
                     'data-test': `dialog-${name}`,
                     'data-open': String(props.open),
+                    'data-team-slug': props.teamSlug,
                     // Standing in for the dialog's own chrome dismissing it, which
                     // is what `v-model:open` has to write back through.
                     onClick: () => emit('update:open', false),
@@ -35,6 +39,7 @@ for (const [path, name] of [
     ['@/components/PendingInvitationsModal.vue', 'invitations'],
     ['@/components/CommandPalette.vue', 'switcher'],
     ['@/components/NewDirectMessageModal.vue', 'newMessage'],
+    ['@/components/CreateChannelModal.vue', 'createChannel'],
     ['@/components/KeyboardShortcutsModal.vue', 'shortcuts'],
     ['@/components/UserStatusDialog.vue', 'status'],
     ['@/components/InstallAppDialog.vue', 'install'],
@@ -95,6 +100,7 @@ it.each([
     'invite',
     'switcher',
     'newMessage',
+    'createChannel',
     'shortcuts',
     'status',
     'install',
@@ -148,7 +154,7 @@ it('mounts no invite modal for a viewer who may not invite', () => {
     expect(dialog(mountHost(), 'invite')).toBeNull();
 });
 
-it.each(['switcher', 'newMessage'] as const)(
+it.each(['switcher', 'newMessage', 'createChannel'] as const)(
     'mounts no %s before a workspace is loaded',
     (name) => {
         seed({ currentTeam: null });
@@ -156,6 +162,12 @@ it.each(['switcher', 'newMessage'] as const)(
         expect(dialog(mountHost(), name)).toBeNull();
     },
 );
+
+it('points the create-channel dialog at the open workspace', () => {
+    // It used to take the slug from whichever trigger wrapped it; as a
+    // singleton there is one workspace to take it from.
+    expect(dialog(mountHost(), 'createChannel')!.dataset.teamSlug).toBe('acme');
+});
 
 it('mounts the post-registration prompt only while one is queued', () => {
     expect(dialog(mountHost(), 'passkey-prompt')).toBeNull();

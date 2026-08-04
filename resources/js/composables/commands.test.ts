@@ -37,6 +37,7 @@ function seed(props: Record<string, unknown> = {}): void {
     page.props = {
         currentTeam: { id: 't1', slug: 'acme' },
         canInviteToCurrentTeam: true,
+        creatableChannelVisibilities: ['public', 'private'],
         auth: { user: { dnd: null, timezone: 'UTC' } },
         ...props,
     };
@@ -122,6 +123,7 @@ const DIALOG_COMMANDS: Record<string, ShellDialog> = {
     'command-palette': 'switcher',
     'show-shortcuts': 'shortcuts',
     'new-message': 'newMessage',
+    'create-channel': 'createChannel',
     'set-status': 'status',
     'pause-notifications': 'dnd',
     'invite-people': 'invite',
@@ -211,6 +213,26 @@ describe('resume-notifications', () => {
         });
 
         expect(command?.isAvailable?.()).toBe(true);
+    });
+});
+
+/**
+ * Read in both polarities, because the failure this guards against is the whole
+ * gate reading `undefined`: a predicate pointed at the wrong prop path hides the
+ * row from everyone, and a one-sided assertion cannot tell that apart from the
+ * policy doing its job.
+ */
+describe('create-channel', () => {
+    it('is offered only where the workspace policy leaves a visibility open', () => {
+        const command = COMMANDS.find(
+            (candidate) => candidate.id === 'create-channel',
+        );
+
+        expect(command?.isAvailable?.()).toBe(true);
+
+        seed({ creatableChannelVisibilities: [] });
+
+        expect(command?.isAvailable?.()).toBe(false);
     });
 });
 

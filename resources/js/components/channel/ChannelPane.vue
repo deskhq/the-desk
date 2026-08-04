@@ -287,7 +287,6 @@ defineExpose({
                     :channel="props.channel"
                     :is-self-dm="props.isSelfDm"
                     :team-name="props.team.name"
-                    :team-slug="props.team.slug"
                     @focus-composer="emit('focusComposer')"
                 />
             </ScrollableMessageList>

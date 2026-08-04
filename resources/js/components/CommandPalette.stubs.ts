@@ -46,6 +46,7 @@ export function lucideDouble(): Record<string, Component> {
             'Keyboard',
             'Monitor',
             'Moon',
+            'Plus',
             'Search',
             'SmilePlus',
             'SquarePen',

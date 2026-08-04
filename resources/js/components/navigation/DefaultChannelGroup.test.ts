@@ -1,10 +1,20 @@
 // @vitest-environment jsdom
-import { afterEach, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import type { App } from 'vue';
 import { createApp, defineComponent, h } from 'vue';
+import { useDialog } from '@/composables/useDialog';
 import type { Channel, ChannelSection } from '@/types/channels';
 
+/** The workspace props the create-channel "+" is gated on. */
+const page = vi.hoisted(() => ({
+    props: { creatableChannelVisibilities: ['public', 'private'] } as Record<
+        string,
+        unknown
+    >,
+}));
+
 vi.mock('@inertiajs/vue3', () => ({
+    usePage: () => page,
     Link: defineComponent({
         props: { href: { type: String, default: '' } },
         setup:
@@ -62,15 +72,6 @@ vi.mock('@/components/ui/dropdown-menu', () => {
     };
 });
 
-vi.mock('@/components/CreateChannelModal.vue', () => ({
-    default: defineComponent({
-        setup:
-            (_, { slots }) =>
-            () =>
-                h('div', slots.default?.()),
-    }),
-}));
-
 vi.mock('@/components/ChannelListItem.vue', () => ({
     default: defineComponent({
         props: {
@@ -103,6 +104,11 @@ function channel(overrides: Partial<Channel> = {}): Channel {
 const sections = [{ id: 's-1', name: 'Projects' } as ChannelSection];
 
 let app: App | null = null;
+
+beforeEach(() => {
+    page.props = { creatableChannelVisibilities: ['public', 'private'] };
+    useDialog('createChannel').close();
+});
 
 afterEach(() => {
     app?.unmount();
@@ -155,6 +161,31 @@ it('keeps the selectors the browser suite reaches the group by', () => {
     ).not.toBeNull();
     expect(
         host.querySelector('[data-test="create-channel-trigger"]'),
+    ).not.toBeNull();
+});
+
+it('opens the create form the shell mounts', () => {
+    const { host } = mountGroup();
+
+    host.querySelector<HTMLElement>(
+        '[data-test="create-channel-trigger"]',
+    )!.click();
+
+    expect(useDialog('createChannel').isOpen.value).toBe(true);
+});
+
+it('withdraws the "+" from a viewer the workspace policy shuts out', () => {
+    // The trigger used to disappear because the modal wrapping it declined to
+    // render; unpicked from that wrapper, the group owes the gate itself.
+    page.props = { creatableChannelVisibilities: [] };
+
+    const { host } = mountGroup();
+
+    expect(
+        host.querySelector('[data-test="create-channel-trigger"]'),
+    ).toBeNull();
+    expect(
+        host.querySelector('[data-test="channels-section-menu"]'),
     ).not.toBeNull();
 });
 

@@ -10,6 +10,7 @@ import {
     Keyboard,
     Monitor,
     Moon,
+    Plus,
     Search,
     SmilePlus,
     SquarePen,
@@ -29,6 +30,7 @@ import { useDialog } from '@/composables/useDialog';
 import { urlForDestination } from '@/composables/useNavPanel';
 import { useShellFocus } from '@/composables/useShellFocus';
 import { useUserMenu } from '@/composables/useUserMenu';
+import { canCreateChannel } from '@/lib/channelCreation';
 import { isDndActiveNow } from '@/lib/dnd';
 import { translate } from '@/lib/i18n';
 import { pinUrl } from '@/lib/pinUrl';
@@ -149,6 +151,20 @@ export const COMMANDS: readonly CommandDefinition[] = [
         icon: SquarePen,
         isAvailable: () => Boolean(page.props.currentTeam),
         run: () => useDialog('newMessage').open(),
+    },
+    {
+        /**
+         * Gated on the workspace's channel-creation policy, the same reading
+         * every other affordance that opens this dialog makes — and the reason
+         * the verb waited for the dialog to become a shell singleton (#1223):
+         * as a wrapper around its own triggers there was no ref to flip.
+         */
+        id: 'create-channel',
+        title: 'Create a channel',
+        icon: Plus,
+        isAvailable: () =>
+            canCreateChannel(page.props.creatableChannelVisibilities),
+        run: () => useDialog('createChannel').open(),
     },
     {
         id: 'browse-channels',

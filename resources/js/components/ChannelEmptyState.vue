@@ -2,11 +2,12 @@
 import { usePage } from '@inertiajs/vue3';
 import { Send, UserPlus } from '@lucide/vue';
 import { computed, ref } from 'vue';
-import CreateChannelModal from '@/components/CreateChannelModal.vue';
 import InviteMemberModal from '@/components/InviteMemberModal.vue';
 import { Button } from '@/components/ui/button';
+import { useDialog } from '@/composables/useDialog';
 import { useOnboardingTour } from '@/composables/useOnboardingTour';
 import { useTranslations } from '@/composables/useTranslations';
+import { canCreateChannel } from '@/lib/channelCreation';
 import { groupDmMastheadName } from '@/lib/groupDm';
 import type { Channel } from '@/types';
 
@@ -15,7 +16,6 @@ const props = defineProps<{
     /** Whether the open DM is the viewer's own space, tuning the empty-state copy. */
     isSelfDm: boolean;
     teamName: string;
-    teamSlug: string;
 }>();
 
 const emit = defineEmits<{
@@ -36,6 +36,15 @@ const showWelcome = computed(
     () =>
         props.channel.slug === 'general' &&
         page.props.auth.user.onboarding_completed_at == null,
+);
+
+/**
+ * The welcome's "Create your first channel" action opens the shell's create
+ * dialog, on the same policy reading that gates the sidebar's "+".
+ */
+const createChannelDialog = useDialog('createChannel');
+const canCreate = computed(() =>
+    canCreateChannel(page.props.creatableChannelVisibilities),
 );
 
 /**
@@ -100,33 +109,33 @@ const conversationName = computed(() =>
             </p>
 
             <div class="mt-7 flex w-full flex-col gap-2.5">
-                <CreateChannelModal :team-slug="props.teamSlug">
-                    <Button
-                        variant="unstyled"
-                        size="none"
-                        type="button"
-                        data-test="welcome-create-channel"
-                        class="flex items-center gap-3.5 rounded-[13px] border border-border bg-card px-4 py-3.5 text-left shadow-sm transition-colors hover:bg-accent/40"
+                <Button
+                    v-if="canCreate"
+                    variant="unstyled"
+                    size="none"
+                    type="button"
+                    data-test="welcome-create-channel"
+                    class="flex items-center gap-3.5 rounded-[13px] border border-border bg-card px-4 py-3.5 text-left shadow-sm transition-colors hover:bg-accent/40"
+                    @click="createChannelDialog.open()"
+                >
+                    <span
+                        class="flex size-9 shrink-0 items-center justify-center rounded-[11px] bg-brass-fill text-[16px] font-semibold text-brass-fill-foreground"
+                        >#</span
                     >
+                    <span class="flex flex-1 flex-col">
                         <span
-                            class="flex size-9 shrink-0 items-center justify-center rounded-[11px] bg-brass-fill text-[16px] font-semibold text-brass-fill-foreground"
-                            >#</span
+                            class="text-[14.5px] font-semibold text-foreground"
+                            >{{ $t('Create your first channel') }}</span
                         >
-                        <span class="flex flex-1 flex-col">
-                            <span
-                                class="text-[14.5px] font-semibold text-foreground"
-                                >{{ $t('Create your first channel') }}</span
-                            >
-                            <span class="text-[12.5px] text-muted-foreground">{{
-                                $t('Group conversations by topic or project')
-                            }}</span>
-                        </span>
-                        <span
-                            class="inline-flex h-9 items-center rounded-full bg-primary px-4 text-[13px] font-semibold text-primary-foreground"
-                            >{{ $t('Create') }}</span
-                        >
-                    </Button>
-                </CreateChannelModal>
+                        <span class="text-[12.5px] text-muted-foreground">{{
+                            $t('Group conversations by topic or project')
+                        }}</span>
+                    </span>
+                    <span
+                        class="inline-flex h-9 items-center rounded-full bg-primary px-4 text-[13px] font-semibold text-primary-foreground"
+                        >{{ $t('Create') }}</span
+                    >
+                </Button>
 
                 <Button
                     v-if="canInviteToCurrentTeam"
