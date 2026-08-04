@@ -223,6 +223,9 @@ describe('the commands group', () => {
             'Reminders',
             'Search',
             'Set a status',
+            // Only the away half of the presence pair: this viewer is active,
+            // and the row naming the state they are already in is not offered.
+            'Set yourself away',
             'Pause notifications',
             'Use light theme',
             'Use dark theme',

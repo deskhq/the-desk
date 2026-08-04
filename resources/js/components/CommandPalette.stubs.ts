@@ -42,6 +42,8 @@ export function lucideDouble(): Record<string, Component> {
             'Bell',
             'BellOff',
             'BellRing',
+            'Circle',
+            'CircleDot',
             'Hash',
             'Keyboard',
             'Monitor',
