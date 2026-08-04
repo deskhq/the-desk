@@ -1,18 +1,13 @@
 <script setup lang="ts">
 import { router } from '@inertiajs/vue3';
-import { AlarmClock } from '@lucide/vue';
 import { computed, watch } from 'vue';
 import { show } from '@/actions/App/Http/Controllers/Channels/ChannelController';
 import SwitcherChannels from '@/components/switcher/SwitcherChannels.vue';
+import SwitcherCommands from '@/components/switcher/SwitcherCommands.vue';
 import SwitcherField from '@/components/switcher/SwitcherField.vue';
 import SwitcherMessages from '@/components/switcher/SwitcherMessages.vue';
 import SwitcherPeople from '@/components/switcher/SwitcherPeople.vue';
-import {
-    Command,
-    CommandGroup,
-    CommandItem,
-    CommandList,
-} from '@/components/ui/command';
+import { Command, CommandList } from '@/components/ui/command';
 import {
     Dialog,
     DialogContent,
@@ -20,9 +15,12 @@ import {
     DialogHeader,
     DialogTitle,
 } from '@/components/ui/dialog';
+import { rankCommands } from '@/composables/commands';
+import type { PaletteCommand } from '@/composables/commands';
 import {
     rankChannels,
     rankChannelsByActivity,
+    scoreChannelName,
 } from '@/composables/quickSwitcher';
 import { useCommandPaletteSearch } from '@/composables/useCommandPaletteSearch';
 import { useIsMobile } from '@/composables/useIsMobile';
@@ -40,11 +38,6 @@ const props = defineProps<{
 }>();
 
 const open = defineModel<boolean>('open', { default: false });
-
-const emit = defineEmits<{
-    /** The viewer picked the "Reminders" action; the layout opens its panel. */
-    openReminders: [];
-}>();
 
 const {
     query,
@@ -81,6 +74,60 @@ const peopleResults = computed(() =>
     rankPeople(props.members, query.value, props.currentUserId),
 );
 
+/**
+ * The verbs, ranked on the same trimmed query the destinations rank on. The
+ * predicates run in here rather than once at import, so a row appears and
+ * disappears with the state it is gated on.
+ */
+const commandResults = computed(() => rankCommands(trimmedQuery.value));
+
+/** The groups whose place in the list the query decides. */
+type RankedGroup = 'channels' | 'people' | 'commands';
+
+/** The declared order, which an empty query and every tie fall back to. */
+const DECLARED_ORDER: readonly RankedGroup[] = [
+    'channels',
+    'people',
+    'commands',
+];
+
+/**
+ * How well a group answers the query: the best any of its own rows scores. A
+ * group with nothing matching scores 0 — the same as every group scores on an
+ * empty query — and does not render at all.
+ */
+function bestScore(names: string[]): number {
+    return names.reduce(
+        (best, name) =>
+            Math.max(best, scoreChannelName(name, trimmedQuery.value) ?? 0),
+        0,
+    );
+}
+
+/**
+ * The order the groups take, which is a decision about `Enter`: the list
+ * highlights its first row on every keystroke, so the group on top *is* the
+ * default action. Destinations keep it until something plainly names a verb.
+ *
+ * Messages never enters this sort and is pinned last: it arrives on a debounce,
+ * and a group jumping to the top a beat after the typing stopped would move the
+ * Enter target under the viewer's hands.
+ */
+const groupOrder = computed<RankedGroup[]>(() => {
+    const rows: Record<RankedGroup, string[]> = {
+        channels: channelResults.value.map((channel) => channel.name),
+        people: peopleResults.value.map((person) => person.name),
+        commands: commandResults.value.map((command) => command.title),
+    };
+
+    return DECLARED_ORDER.map((group) => ({
+        group,
+        score: bestScore(rows[group]),
+    }))
+        .sort((a, b) => b.score - a.score)
+        .map((scored) => scored.group);
+});
+
 // Reset everything on dismiss so the palette always reopens blank.
 watch(open, (isOpen) => {
     if (!isOpen) {
@@ -113,9 +160,9 @@ function seeAllResults(): void {
     handOffToSearch();
 }
 
-function openReminders(): void {
+function runCommand(command: PaletteCommand): void {
     open.value = false;
-    emit('openReminders');
+    command.run();
 }
 </script>
 
@@ -142,41 +189,31 @@ function openReminders(): void {
                     :ariaLabel="$t('Command palette')"
                     class="max-md:max-h-none max-md:flex-1 max-md:p-1.5"
                 >
-                    <CommandGroup
-                        v-if="trimmedQuery === ''"
-                        :heading="$t('Actions')"
-                    >
-                        <CommandItem
-                            value="action:reminders"
-                            data-test="quick-switcher-reminders"
-                            class="group h-9.5 gap-2 rounded-lg px-2.5 max-md:h-11.5 max-md:gap-2.5 max-md:rounded-[11px] max-md:px-3 max-md:text-[15px] md:data-[highlighted]:bg-primary md:data-[highlighted]:text-primary-foreground"
-                            @select="openReminders"
-                        >
-                            <AlarmClock
-                                class="size-4 shrink-0 text-muted-foreground/70 group-data-[highlighted]:text-brass"
-                            />
-                            <span class="truncate">{{ $t('Reminders') }}</span>
-                            <span
-                                class="ml-auto font-mono text-[11px] text-primary-foreground/70 opacity-0 group-data-[highlighted]:opacity-100 max-md:hidden"
-                                aria-hidden="true"
-                                >↵</span
-                            >
-                        </CommandItem>
-                    </CommandGroup>
+                    <template v-for="group in groupOrder" :key="group">
+                        <SwitcherChannels
+                            v-if="group === 'channels'"
+                            :channels="channelResults"
+                            :query="query"
+                            :is-mobile="isMobile"
+                            @select="selectChannel"
+                        />
 
-                    <SwitcherChannels
-                        :channels="channelResults"
-                        :query="query"
-                        :is-mobile="isMobile"
-                        @select="selectChannel"
-                    />
+                        <SwitcherPeople
+                            v-else-if="group === 'people'"
+                            :people="peopleResults"
+                            :query="query"
+                            :is-mobile="isMobile"
+                            @select="selectPerson"
+                        />
 
-                    <SwitcherPeople
-                        :people="peopleResults"
-                        :query="query"
-                        :is-mobile="isMobile"
-                        @select="selectPerson"
-                    />
+                        <SwitcherCommands
+                            v-else
+                            :commands="commandResults"
+                            :query="query"
+                            :is-mobile="isMobile"
+                            @select="runCommand"
+                        />
+                    </template>
 
                     <SwitcherMessages
                         v-if="searchText !== ''"
@@ -196,7 +233,7 @@ function openReminders(): void {
                 >
                     {{
                         $t(
-                            'Recent shows before you type · results ranked by activity',
+                            'Recent shows before you type · commands rank as you type',
                         )
                     }}
                 </p>

@@ -18,6 +18,10 @@ import type { PersonRef } from '@/types/people';
 export const viewer = {
     url: '/t/acme/c/general',
     timezone: null as string | null,
+    /** Whether the viewer may invite, which one command's availability reads. */
+    canInvite: false,
+    /** The running do-not-disturb pause, which another one reads. */
+    dnd: null as { until: string } | null,
 };
 
 /**
@@ -39,18 +43,34 @@ export function teamPresenceDouble(): Record<string, unknown> {
 /** Where a picked row sends the viewer. */
 export const router = { visit: vi.fn() };
 
+/**
+ * The page, read through getters rather than rebuilt per call: the command
+ * registry is module-scope, so it holds whatever `usePage()` answered the once —
+ * and a suite that writes to {@link viewer} after that still has to be seen.
+ */
+const page = {
+    get url(): string {
+        return viewer.url;
+    },
+    props: {
+        get auth() {
+            return {
+                user: { timezone: viewer.timezone, dnd: viewer.dnd },
+            };
+        },
+        get currentTeam() {
+            return { id: 't1', slug: 'acme' };
+        },
+        get canInviteToCurrentTeam(): boolean {
+            return viewer.canInvite;
+        },
+        customEmojis: {},
+        userGroups: [],
+    },
+};
+
 export function inertiaDouble(): Record<string, unknown> {
-    return {
-        router,
-        usePage: () => ({
-            url: viewer.url,
-            props: {
-                auth: { user: { timezone: viewer.timezone } },
-                customEmojis: {},
-                userGroups: [],
-            },
-        }),
-    };
+    return { router, usePage: () => page };
 }
 
 /**
@@ -142,6 +162,8 @@ export function searchActionDouble(): Record<string, unknown> {
 export function resetDoubles(): void {
     viewer.url = '/t/acme/c/general';
     viewer.timezone = null;
+    viewer.canInvite = false;
+    viewer.dnd = null;
     presence.presenceFor = () => 'active';
     presence.isDndFor = () => false;
     router.visit.mockClear();
@@ -213,28 +235,19 @@ export function searchResult(
 
 const mounted: Array<{ app: App; host: HTMLElement }> = [];
 
-/** Every event the palette emits, in the order it emitted them. */
-export type Emitted = Array<[string, unknown]>;
-
 /**
- * Mount the palette over its defaults, recording what it emits. Its open state
- * is a ref the harness owns, so a suite can watch the palette close itself —
- * which is half of what picking a row is supposed to do.
+ * Mount the palette over its defaults. Its open state is a ref the harness owns,
+ * so a suite can watch the palette close itself — which is half of what picking
+ * a row is supposed to do.
  */
 export function mountSwitcher(
     Switcher: Component,
     props: Record<string, unknown> = {},
-): { host: HTMLElement; emitted: Emitted; open: Ref<boolean> } {
+): { host: HTMLElement; open: Ref<boolean> } {
     const host = document.createElement('div');
     document.body.appendChild(host);
 
     const open = ref(true);
-    const emitted: Emitted = [];
-    const record =
-        (event: string) =>
-        (payload?: unknown): void => {
-            emitted.push([event, payload]);
-        };
 
     const app = createApp({
         render: () =>
@@ -247,7 +260,6 @@ export function mountSwitcher(
                 members: [person()],
                 currentUserId: 'me',
                 teamSlug: 'acme',
-                onOpenReminders: record('openReminders'),
                 ...props,
             }),
     });
@@ -256,7 +268,7 @@ export function mountSwitcher(
     app.mount(host);
     mounted.push({ app, host });
 
-    return { host, emitted, open };
+    return { host, open };
 }
 
 export function unmountAll(): void {

@@ -31,7 +31,7 @@ defineEmits<{
             <ListboxFilter
                 v-model="query"
                 auto-focus
-                :placeholder="$t('Jump to a channel or search messages…')"
+                :placeholder="$t('Search, jump, or run a command…')"
                 data-test="quick-switcher-input"
                 class="h-full w-full min-w-0 bg-transparent text-base outline-hidden placeholder:text-muted-foreground md:text-[15px]"
             />
@@ -51,7 +51,7 @@ defineEmits<{
         <ListboxFilter
             v-model="query"
             auto-focus
-            :placeholder="$t('Jump to a channel or search messages…')"
+            :placeholder="$t('Search, jump, or run a command…')"
             data-test="quick-switcher-input"
             class="flex h-10 w-full rounded-md bg-transparent py-3 text-base outline-hidden placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50 md:text-sm"
         />

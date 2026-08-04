@@ -20,7 +20,7 @@ test('a French user who signs in gets a French UI with no reload', function (): 
         // The dock the redirect lands on reads from the French catalog. The
         // utility rows this used to read moved to the rail as glyphs in #937,
         // so it reads the conversation panel's own copy instead.
-        ->assertSee('Accéder à…')
+        ->assertSee('Rechercher ou exécuter…')
         ->assertSee('Canaux')
         ->assertSee('Messages directs')
         // ...and the document agrees about the language it is written in, which
