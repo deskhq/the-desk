@@ -7,6 +7,7 @@ import ChannelComposerDock from '@/components/channel/ChannelComposerDock.vue';
 import ChannelDialogs from '@/components/channel/ChannelDialogs.vue';
 import ChannelHeader from '@/components/channel/ChannelHeader.vue';
 import ChannelPane from '@/components/channel/ChannelPane.vue';
+import NavigationInFlightPrototype from '@/components/channel/prototype/NavigationInFlightPrototype.vue';
 import JoinChannelBar from '@/components/JoinChannelBar.vue';
 import ThreadPanel from '@/components/ThreadPanel.vue';
 import { useChannelDraft } from '@/composables/useChannelDraft';
@@ -106,6 +107,14 @@ const props = defineProps<{
      */
     scheduledMessages: ScheduledMessage[];
 }>();
+
+/**
+ * PROTOTYPE (#1244) — throwaway. Mounts the in-flight navigation variants when
+ * the route carries `?variant=`, in dev only. Goes when the prototype does.
+ */
+const showInFlightPrototype =
+    import.meta.env.DEV &&
+    new URL(window.location.href).searchParams.has('variant');
 
 const {
     currentUser,
@@ -508,6 +517,11 @@ provideMessageActions(
                     @view-scheduled="dialogs?.openScheduled()"
                 />
             </ChannelPane>
+
+            <NavigationInFlightPrototype
+                v-if="showInFlightPrototype"
+                :current-slug="props.channel.slug"
+            />
         </div>
 
         <Transition
