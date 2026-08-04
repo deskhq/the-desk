@@ -580,6 +580,7 @@
   "Ready to download": "Prêt à télécharger",
   "Recent activity": "Activité récente",
   "Recent shows before you type · commands rank as you type": "Les récents s'affichent avant la saisie · les commandes se classent au fil de la saisie",
+  "/:name is a message command. Type it in a channel to use it.": "/:name est une commande de message. Tapez-la dans un canal pour l’utiliser.",
   "Reconnected — 1 queued message sent, you're caught up.": "Reconnecté — 1 message en attente envoyé, vous êtes à jour.",
   "Reconnected — :count queued messages sent, you're caught up.": "Reconnecté — :count messages en attente envoyés, vous êtes à jour.",
   "Reconnecting": "Reconnexion",

@@ -14,6 +14,25 @@ import type { PersonRef } from '@/types/people';
  * through live beside this, in `CommandPalette.stubs`.
  */
 
+/**
+ * The workspace-wide props the palette reads that are nobody's in particular.
+ * The slash-command manifest rides every workspace page unscoped to a team, so
+ * the palette can read it even where no composer is on screen; mutable, because
+ * emptying it or taking it away is what turns the hint off.
+ */
+export const workspace = {
+    slashCommands: undefined as App.Data.SlashCommandData[] | undefined,
+};
+
+/** The manifest a real workspace page carries, in the order the registry lists. */
+const SHIPPED_SLASH_COMMANDS: App.Data.SlashCommandData[] = [
+    'gif',
+    'poll',
+    'shrug',
+    'tableflip',
+    'unflip',
+].map((name) => ({ name, description: name, argumentHint: null }));
+
 /** The viewer and the route, as `usePage()` reports them. */
 export const viewer = {
     url: '/t/acme/c/general',
@@ -63,6 +82,9 @@ const page = {
         },
         get canInviteToCurrentTeam(): boolean {
             return viewer.canInvite;
+        },
+        get slashCommands(): App.Data.SlashCommandData[] | undefined {
+            return workspace.slashCommands;
         },
         customEmojis: {},
         userGroups: [],
@@ -160,6 +182,7 @@ export function searchActionDouble(): Record<string, unknown> {
 
 /** Reset every double's state between tests, so a suite reads in any order. */
 export function resetDoubles(): void {
+    workspace.slashCommands = SHIPPED_SLASH_COMMANDS;
     viewer.url = '/t/acme/c/general';
     viewer.timezone = null;
     viewer.canInvite = false;

@@ -120,12 +120,29 @@ const commandGroup = defineComponent({
             ),
 });
 
+/**
+ * The list, marked the way the real one marks its listbox — which is how a suite
+ * tells a row inside it from a line the palette renders below it.
+ */
+const commandList = defineComponent({
+    name: 'CommandListStub',
+    inheritAttrs: false,
+    setup:
+        (_props, { attrs, slots }) =>
+        () =>
+            h(
+                'div',
+                { ...attrs, 'data-slot': 'command-list' },
+                slots.default?.(),
+            ),
+});
+
 export function commandDouble(): Record<string, Component> {
     return {
         Command: passthrough('div'),
         CommandGroup: commandGroup,
         CommandItem: commandItem,
-        CommandList: passthrough('div'),
+        CommandList: commandList,
     };
 }
 
