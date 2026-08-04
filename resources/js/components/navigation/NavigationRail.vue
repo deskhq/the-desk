@@ -11,7 +11,9 @@ import UserMenuPopover from '@/components/UserMenuPopover.vue';
 import { useInitials } from '@/composables/useInitials';
 import type { NavDestination } from '@/composables/useNavPanel';
 import { useTeamSwitch } from '@/composables/useTeamSwitch';
+import { useUnreadDigest } from '@/composables/useUnreadDigest';
 import type { RenderedPresence } from '@/lib/presence';
+import { workspaceUnread } from '@/lib/unreadDigest';
 import type { Team, User } from '@/types';
 
 /**
@@ -52,6 +54,7 @@ const emit = defineEmits<{
 
 const { getInitials } = useInitials();
 const { switchTeam } = useTeamSwitch();
+const digest = useUnreadDigest();
 
 const hasAvatar = computed(
     () => !!props.user.avatar && props.user.avatar !== '',
@@ -72,7 +75,9 @@ const hasAvatar = computed(
  * room to read it.
  */
 function hasUnread(team: Team): boolean {
-    return team.unreadCount > 0 || team.mentionCount > 0;
+    const counts = workspaceUnread(digest.value, team.id);
+
+    return counts.unread > 0 || counts.mention > 0;
 }
 
 /**

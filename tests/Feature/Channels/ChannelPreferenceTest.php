@@ -27,16 +27,6 @@ function prefPost(Channel $channel, User $author, ?User $mention = null): Messag
 }
 
 /**
- * The sidebar `channels` row for the channel, as the acting user.
- *
- * @return array<string, mixed>
- */
-function prefSidebarEntry(User $user, Team $team, Channel $channel): array
-{
-    return sidebarRow($user, $team, $channel)->toArray();
-}
-
-/**
  * Update the preferences endpoint as the given user.
  */
 function updatePreferences(User $user, Team $team, Channel $channel, bool $muted, string $level): TestResponse
@@ -177,8 +167,11 @@ test('the notification level and mute suppress the sidebar badges', function (bo
         'notification_level' => $level,
     ]);
 
-    expect(prefSidebarEntry($member, $team, $general))
-        ->toMatchArray(['unreadCount' => $expectedUnread, 'mentionCount' => $expectedMention]);
+    // The suppression is applied server-side, in the digest's own query, so a
+    // silenced channel arrives with nothing rather than with a count the client
+    // has to know to hide.
+    expect(unreadBadge($member, $team, $general))
+        ->toBe(['unread' => $expectedUnread, 'mention' => $expectedMention]);
 })->with([
     '"all" shows the unread dot and the mention badge' => [false, 'all', 2, 1],
     '"mentions" keeps the mention badge but silences the unread dot' => [false, 'mentions', 0, 1],

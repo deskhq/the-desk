@@ -240,7 +240,7 @@ test('a mention inside a thread dots its card on a mentions-level channel', func
         ->and($props['threads']['data'][0]['root']['threadUnread'])->toBeTrue()
         ->and($props['threads']['data'][0]['root']['threadUnreadReplyCount'])->toBe(1)
         ->and($props['unreadThreadCount'])->toBe(1)
-        ->and($props['hasUnreadThreads'])->toBeTrue();
+        ->and($props['unread']['threads'])->toBeTrue();
 });
 
 test('opening and reading a thread clears its unread dot in the inbox', function (): void {
@@ -458,21 +458,21 @@ test('the legacy threads inbox route redirects onto the pinned destination', fun
         ->assertRedirect(route('channels.index', ['team' => $team->slug, 'nav' => 'threads']));
 });
 
-test('hasUnreadThreads flags an unread followed thread and clears when read', function (): void {
+test('the digest flags an unread followed thread and clears when read', function (): void {
     [$owner, $team, $general] = inboxSetup();
     $alice = inboxMember($team, $general);
 
     $root = inboxRoot($general, $owner);
     Message::factory()->for($general)->for($alice)->inThread($root)->create();
 
-    expect(inboxProps($owner, $team)['hasUnreadThreads'])->toBeTrue();
+    expect(inboxProps($owner, $team)['unread']['threads'])->toBeTrue();
 
     app(MarkThreadRead::class)->handle($root, $owner);
 
-    expect(inboxProps($owner, $team)['hasUnreadThreads'])->toBeFalse();
+    expect(inboxProps($owner, $team)['unread']['threads'])->toBeFalse();
 });
 
-test('hasUnreadThreads ignores threads the user does not follow', function (): void {
+test('the digest ignores threads the user does not follow', function (): void {
     [$owner, $team, $general] = inboxSetup();
     $alice = inboxMember($team, $general);
     $bob = inboxMember($team, $general);
@@ -480,10 +480,10 @@ test('hasUnreadThreads ignores threads the user does not follow', function (): v
     $root = inboxRoot($general, $owner);
     Message::factory()->for($general)->for($alice)->inThread($root)->create();
 
-    expect(inboxProps($bob, $team)['hasUnreadThreads'])->toBeFalse();
+    expect(inboxProps($bob, $team)['unread']['threads'])->toBeFalse();
 });
 
-test('hasUnreadThreads respects channel mute', function (): void {
+test('the digest respects channel mute', function (): void {
     [$owner, $team, $general] = inboxSetup();
     $alice = inboxMember($team, $general);
 
@@ -493,5 +493,5 @@ test('hasUnreadThreads respects channel mute', function (): void {
     $root = inboxRoot($general, $owner);
     Message::factory()->for($general)->for($alice)->inThread($root)->create();
 
-    expect(inboxProps($owner, $team)['hasUnreadThreads'])->toBeFalse();
+    expect(inboxProps($owner, $team)['unread']['threads'])->toBeFalse();
 });

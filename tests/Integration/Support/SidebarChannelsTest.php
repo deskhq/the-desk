@@ -124,60 +124,24 @@ test('a deleted channel leaves the list at once', function (): void {
     expect(sidebarSlugs(new SidebarChannels($owner, $team)->forSidebar()))->not->toContain($channel->slug);
 });
 
-test('unread and mention counts ride along, ignoring the viewer\'s own messages', function (): void {
-    ['owner' => $user, 'team' => $team, 'channel' => $general] = teamWithChannel();
-
-    $mate = teamMemberInChannel($general);
-
-    Message::factory()->for($general)->for($user)->create();
-    $theirs = Message::factory()->for($general)->for($mate)->count(3)->create();
-    $theirs->last()->mentionedUsers()->attach($user);
-
-    $channels = new SidebarChannels($user, $team)->forSidebar();
-
-    expect($channels[0]->unreadCount)->toBe(3)
-        ->and($channels[0]->mentionCount)->toBe(1);
-});
-
 /**
- * The predicate is opt-in per sub-query, and this is the asymmetry that makes it
- * so: the unread badge asks for channel traffic, the mention badge deliberately
- * does not. Baking the rule into `WorkspaceUnread::forChannelsOf()` — the shared
- * half both counts ride — would silently take the second half with it, and a
- * mention nobody was badged for is the worst failure this module has.
+ * The badges left this read model with #1249: the list says which channels the
+ * viewer has and how they are placed, and `App\Support\WorkspaceUnread` says
+ * what is waiting in each. What the counts themselves hold — the thread-traffic
+ * asymmetry, muting, the read pointer — is stated where they now live, in
+ * `tests/Feature/Support/WorkspaceUnreadTest.php`.
  */
-test('a thread-only reply raises the mention badge without touching the unread count', function (): void {
+test('the listed row carries the viewer\'s own state and no badge of its own', function (): void {
     ['owner' => $user, 'team' => $team, 'channel' => $general] = teamWithChannel();
 
     $mate = teamMemberInChannel($general);
+    Message::factory()->for($general)->for($mate)->create();
 
-    $root = Message::factory()->for($general)->for($mate)->create();
+    $row = new SidebarChannels($user, $team)->forSidebar()[0];
 
-    // The reply lives only in the thread, and it @mentions the viewer.
-    Message::factory()->for($general)->for($mate)->create([
-        'thread_root_id' => $root->id,
-        'sent_to_channel' => false,
-    ])->mentionedUsers()->attach($user);
-
-    $channels = new SidebarChannels($user, $team)->forSidebar();
-
-    expect($channels[0]->unreadCount)->toBe(1)
-        ->and($channels[0]->mentionCount)->toBe(1);
-});
-
-test('a thread reply also sent to the channel counts towards the unread badge', function (): void {
-    ['owner' => $user, 'team' => $team, 'channel' => $general] = teamWithChannel();
-
-    $mate = teamMemberInChannel($general);
-
-    $root = Message::factory()->for($general)->for($mate)->create();
-
-    Message::factory()->for($general)->for($mate)->create([
-        'thread_root_id' => $root->id,
-        'sent_to_channel' => true,
-    ]);
-
-    expect(new SidebarChannels($user, $team)->forSidebar()[0]->unreadCount)->toBe(2);
+    expect($row->slug)->toBe($general->slug)
+        ->and($row->muted)->toBeFalse()
+        ->and(array_keys($row->toArray()))->not->toContain('unreadCount', 'mentionCount');
 });
 
 test('a draft is reported as a flag without shipping its text', function (): void {
@@ -296,7 +260,7 @@ test('a message after closing re-surfaces the direct message with an unread badg
     $row = collect(new SidebarChannels($owner, $team)->forSidebar())->firstWhere('slug', $dm->slug);
 
     expect($row)->not->toBeNull()
-        ->and($row->unreadCount)->toBe(1);
+        ->and(unreadBadge($owner, $team, $dm))->toBe(['unread' => 1, 'mention' => 0]);
 });
 
 test('reopening a closed direct message un-hides it', function (): void {

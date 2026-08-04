@@ -9,9 +9,9 @@
  * `pinCount` are two readings of one fact, and so are `thread` and
  * `threadReplies`.
  *
- * Seven invalidation sets live here; the eighth, {@see REMINDER_PROPS}, is next
+ * Eight invalidation sets live here; the ninth, {@see REMINDER_PROPS}, is next
  * door in {@see reminderReload} with the visit options a reminder mutation
- * carries. All eight are enforced the same way, by a test that fails on a second
+ * carries. All nine are enforced the same way, by a test that fails on a second
  * copy. {@link THREAD_RESET_PROPS} is not one of them — it names what a thread
  * load *resets* rather than what a write invalidates.
  *
@@ -36,13 +36,25 @@ export const AUTH_PROPS: string[] = ['auth'];
 /**
  * The sidebar's channel list.
  *
- * Nearly every workspace write touches it, because the prop carries far more
- * than the roster: unread counts, the member's star/mute/notification state,
- * placement, and the last-activity order the direct-message group sorts on. A
- * reaction, a vote, a read pointer and a drag all move something the sidebar
- * draws.
+ * Nearly every workspace write touches it, because the prop carries more than
+ * the names: the member's star/mute/notification state, placement, and the
+ * last-activity order the direct-message group sorts on. A reaction, a vote and
+ * a drag all move something the sidebar draws. What it no longer carries is the
+ * badges — see {@link UNREAD_DIGEST_PROPS}, which is why marking a channel read
+ * is no longer one of the writes that reaches for this set.
  */
 export const CHANNEL_LIST_PROPS: string[] = ['channels'];
+
+/**
+ * What the viewer has not read, everywhere at once.
+ *
+ * The counterpart to {@link CHANNEL_LIST_PROPS} and deliberately separate from
+ * it: marking a channel read used to reload the whole roster — every channel's
+ * name, placement and participants — to move four integers. The badges now live
+ * in one prop of their own, so the write that clears them asks for that and
+ * nothing else.
+ */
+export const UNREAD_DIGEST_PROPS: string[] = ['unread'];
 
 /** The viewer's custom sidebar sections, in their persisted order. */
 export const CHANNEL_SECTION_PROPS: string[] = ['channelSections'];

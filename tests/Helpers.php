@@ -4,12 +4,14 @@ declare(strict_types=1);
 
 use App\Actions\Teams\CreateTeam;
 use App\Data\ChannelData;
+use App\Data\UnreadCountsData;
 use App\Enums\TeamRole;
 use App\Models\Channel;
 use App\Models\ChannelMember;
 use App\Models\Team;
 use App\Models\User;
 use App\Support\SidebarChannels;
+use App\Support\WorkspaceUnread;
 use Database\Factories\ChannelMemberFactory;
 use GuzzleHttp\Promise\PromiseInterface;
 use Illuminate\Http\Client\Request;
@@ -119,6 +121,43 @@ function sidebarRow(User $viewer, Team $team, Channel $channel): ChannelData
 
     /** @var ChannelData $row */
     return $row;
+}
+
+/**
+ * What the shell's unread digest says is waiting in the channel, as the given
+ * viewer sees it — the badge the sidebar row draws.
+ *
+ * The counts left {@see sidebarRow()} when the roster and the unread state were
+ * split (#1249), so a test about a badge asks here and a test about a row's
+ * placement, mute or draft asks there. Both readings of the digest are sparse,
+ * so "nothing waiting" arrives as two zeroes rather than as a missing key.
+ *
+ * @return array{unread: int, mention: int}
+ */
+function unreadBadge(User $viewer, Team $team, Channel $channel): array
+{
+    return unreadCounts(WorkspaceUnread::digest($viewer, $team)->channels[$channel->id] ?? null);
+}
+
+/**
+ * The same reading for a whole workspace: the rail's dot and the workspace
+ * sheet's badge.
+ *
+ * @return array{unread: int, mention: int}
+ */
+function workspaceUnreadBadge(User $viewer, Team $team): array
+{
+    return unreadCounts(WorkspaceUnread::digest($viewer)->teams[$team->id] ?? null);
+}
+
+/**
+ * One entry of the digest as a plain pair, defaulting an absent one to zero.
+ *
+ * @return array{unread: int, mention: int}
+ */
+function unreadCounts(?UnreadCountsData $counts): array
+{
+    return ['unread' => $counts?->unread ?? 0, 'mention' => $counts?->mention ?? 0];
 }
 
 /**

@@ -18,11 +18,13 @@ import UserStatusEmoji from '@/components/UserStatusEmoji.vue';
 import { useInitials } from '@/composables/useInitials';
 import { useToast } from '@/composables/useToast';
 import { useTranslations } from '@/composables/useTranslations';
+import { useUnreadDigest } from '@/composables/useUnreadDigest';
 import { groupDmSidebarName } from '@/lib/groupDm';
 import { notificationIndicator } from '@/lib/notificationIndicator';
 import { presenceLabelKey } from '@/lib/presence';
 import type { RenderedPresence } from '@/lib/presence';
 import { CHANNEL_LIST_PROPS } from '@/lib/reloadProps';
+import { channelUnread } from '@/lib/unreadDigest';
 import type { Channel } from '@/types/channels';
 
 const props = defineProps<{
@@ -47,6 +49,11 @@ const MAX_ROW_AVATARS = 3;
 const isGroup = computed(() => props.channel.isGroupDirect);
 
 const page = usePage();
+const digest = useUnreadDigest();
+
+// What this conversation has waiting, read from the shared digest rather than
+// from the `channel` prop: the roster is allowed to be stale, a badge is not.
+const unread = computed(() => channelUnread(digest.value, props.channel.id));
 
 // The other participant of a 1:1 DM, whose avatar the row shows.
 const soloParticipant = computed(
@@ -178,7 +185,7 @@ function hide(): void {
                 <span
                     class="truncate"
                     :class="
-                        channel.unreadCount > 0 && !isActive
+                        unread.unread > 0 && !isActive
                             ? 'font-semibold text-sidebar-foreground'
                             : ''
                     "
@@ -215,15 +222,15 @@ function hide(): void {
                      (the pill can be wider than the button's mask on multi-digit
                      counts, so masking alone would leave it peeking out). -->
                 <span
-                    v-if="channel.unreadCount > 0"
+                    v-if="unread.unread > 0"
                     data-test="dm-unread-badge"
                     class="ml-auto flex h-4.25 min-w-4.5 items-center justify-center rounded-full bg-brass px-1.5 text-[10px] font-bold text-brass-foreground tabular-nums transition-opacity group-hover/row:opacity-0 group-has-[button:focus-visible]/row:opacity-0"
                     :aria-label="
                         $t(':count unread messages', {
-                            count: channel.unreadCount,
+                            count: unread.unread,
                         })
                     "
-                    >{{ channel.unreadCount }}</span
+                    >{{ unread.unread }}</span
                 >
             </Link>
         </SidebarMenuButton>

@@ -36,8 +36,6 @@ use Illuminate\Support\Carbon;
  * @property Carbon|null $deleted_at
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
- * @property-read int|null $unread_count
- * @property-read int|null $mention_count
  * @property-read bool|null $muted
  * @property-read string|null $notification_level
  * @property-read Team $team

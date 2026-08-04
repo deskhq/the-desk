@@ -12,8 +12,6 @@ export const team: Team = {
     isPersonal: false,
     role: 'owner',
     membersCount: 12,
-    unreadCount: 0,
-    mentionCount: 0,
 };
 
 export const logTypeOptions: AuditExportOption[] = [

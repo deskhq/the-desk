@@ -95,7 +95,7 @@ test('marking all read advances the pointer on every unread followed thread', fu
 
     $props = markAllPanelProps($owner, $team);
 
-    expect($props['hasUnreadThreads'])->toBeFalse()
+    expect($props['unread']['threads'])->toBeFalse()
         ->and($props['unreadThreadCount'])->toBe(0)
         ->and($props['threads']['data'])->toHaveCount(2)
         ->and(collect($props['threads']['data'])->pluck('root.threadUnread')->all())->toBe([false, false])
@@ -120,7 +120,7 @@ test('marking all read points past a deleted tail', function (): void {
 
     expect(ThreadRead::where('user_id', $owner->id)->where('thread_root_id', $root->id)->value('last_read_reply_id'))
         ->toBe($deleted->id)
-        ->and(markAllPanelProps($owner, $team)['hasUnreadThreads'])->toBeFalse();
+        ->and(markAllPanelProps($owner, $team)['unread']['threads'])->toBeFalse();
 });
 
 test('marking all read leaves a thread in a channel the viewer cannot see alone', function (): void {
@@ -152,7 +152,7 @@ test('marking all read leaves other members read state untouched', function (): 
     markAllRead($owner, $team);
 
     expect(ThreadRead::where('user_id', $alice->id)->exists())->toBeFalse()
-        ->and(markAllPanelProps($alice, $team)['hasUnreadThreads'])->toBeTrue()
+        ->and(markAllPanelProps($alice, $team)['unread']['threads'])->toBeTrue()
         ->and(ThreadRead::where('user_id', $owner->id)->where('thread_root_id', $root->id)->exists())
         ->toBeTrue();
 });

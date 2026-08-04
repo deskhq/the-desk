@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { reactive } from 'vue';
 import type { Channel } from '@/types/channels';
+import type { UnreadCounts, UnreadDigest } from '@/types/unread';
 
 const page = reactive<{ props: Record<string, unknown> }>({ props: {} });
 
@@ -20,8 +21,6 @@ function channel(overrides: Partial<Channel> = {}): Channel {
         isArchived: false,
         muted: false,
         notificationLevel: 'all',
-        unreadCount: 0,
-        mentionCount: 0,
         hasDraft: false,
         draft: null,
         starred: false,
@@ -36,6 +35,11 @@ function channel(overrides: Partial<Channel> = {}): Channel {
     };
 }
 
+/** The shared digest, naming only the conversations that hold something. */
+function digest(channels: Record<string, UnreadCounts>): UnreadDigest {
+    return { channels, teams: {}, threads: false };
+}
+
 describe('useUnreadElsewhere', () => {
     it('reports nothing on a page that carries no sidebar channels', () => {
         page.props = {};
@@ -46,12 +50,16 @@ describe('useUnreadElsewhere', () => {
         });
     });
 
-    it('derives the rollup from the shared channels prop', () => {
+    it('derives the rollup from the channels roster and the unread digest', () => {
         page.props = {
             channels: [
-                channel({ id: 'ch-design', unreadCount: 3 }),
-                channel({ id: 'dm-ep', isDirect: true, unreadCount: 1 }),
+                channel({ id: 'ch-design' }),
+                channel({ id: 'dm-ep', isDirect: true }),
             ],
+            unread: digest({
+                'ch-design': { unread: 3, mention: 0 },
+                'dm-ep': { unread: 1, mention: 0 },
+            }),
         };
 
         expect(useUnreadElsewhere().value).toEqual({
@@ -63,9 +71,8 @@ describe('useUnreadElsewhere', () => {
     it('excludes the open conversation named by the page', () => {
         page.props = {
             channel: { id: 'dm-ep' },
-            channels: [
-                channel({ id: 'dm-ep', isDirect: true, unreadCount: 1 }),
-            ],
+            channels: [channel({ id: 'dm-ep', isDirect: true })],
+            unread: digest({ 'dm-ep': { unread: 1, mention: 0 } }),
         };
 
         expect(useUnreadElsewhere().value).toEqual({
@@ -74,17 +81,21 @@ describe('useUnreadElsewhere', () => {
         });
     });
 
-    it('tracks the channels prop, so the partial reload behind the sidebar badges moves it too', () => {
-        page.props = { channels: [channel({ id: 'ch-design' })] };
+    it('tracks the digest, so the partial reload behind the sidebar badges moves it too', () => {
+        page.props = {
+            channels: [channel({ id: 'dm-ep', isDirect: true })],
+            unread: digest({}),
+        };
 
         const summary = useUnreadElsewhere();
 
         expect(summary.value.hasUnread).toBe(false);
 
+        // The badge reload asks for the digest alone; the roster beside it is
+        // unchanged, and the rollup still moves.
         page.props = {
-            channels: [
-                channel({ id: 'dm-ep', isDirect: true, unreadCount: 2 }),
-            ],
+            ...page.props,
+            unread: digest({ 'dm-ep': { unread: 2, mention: 0 } }),
         };
 
         expect(summary.value).toEqual({ count: 2, hasUnread: true });

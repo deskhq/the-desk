@@ -1,6 +1,5 @@
 <?php
 
-use App\Data\UserTeam;
 use App\Enums\MessageType;
 use App\Enums\NotificationLevel;
 use App\Enums\TeamRole;
@@ -8,26 +7,21 @@ use App\Models\Channel;
 use App\Models\Message;
 use App\Models\Team;
 use App\Models\User;
-use Illuminate\Support\Collection;
 use Inertia\Testing\AssertableInertia as Assert;
 
 /**
- * The workspace-switcher entry for the given team, as the viewer sees it.
+ * The rail's badge for the given workspace, as the viewer sees it.
  *
- * Read off `User::toUserTeams()`, which is what `share()` hands the `teams`
+ * Read off the shared unread digest, which is what `share()` hands the `unread`
  * prop, rather than by rendering a page to pluck that prop back out (#1117).
  * The HTTP half — that a workspace render still ships it — is stated once, in
  * the last test in this file.
  *
- * @return array{unreadCount: int, mentionCount: int}
+ * @return array{unread: int, mention: int}
  */
 function workspaceBadge(User $user, Team $team): array
 {
-    $entry = collect($user->toUserTeams(includeCurrent: true))->firstWhere('id', $team->id);
-
-    expect($entry)->toBeInstanceOf(UserTeam::class);
-
-    return ['unreadCount' => $entry->unreadCount, 'mentionCount' => $entry->mentionCount];
+    return workspaceUnreadBadge($user, $team);
 }
 
 /**
@@ -66,7 +60,7 @@ test('a workspace the viewer is not reading carries its unread and mention count
     crossWorkspacePost($general, $author, $viewer);
 
     expect(workspaceBadge($viewer, $team))
-        ->toMatchArray(['unreadCount' => 3, 'mentionCount' => 1]);
+        ->toMatchArray(['unread' => 3, 'mention' => 1]);
 });
 
 test('a workspace with nothing new reports zero', function (): void {
@@ -74,7 +68,7 @@ test('a workspace with nothing new reports zero', function (): void {
     [$team] = otherWorkspace($viewer);
 
     expect(workspaceBadge($viewer, $team))
-        ->toMatchArray(['unreadCount' => 0, 'mentionCount' => 0]);
+        ->toMatchArray(['unread' => 0, 'mention' => 0]);
 });
 
 test('messages already read do not count', function (): void {
@@ -87,7 +81,7 @@ test('messages already read do not count', function (): void {
 
     $viewer->channels()->updateExistingPivot($general->id, ['last_read_message_id' => $last->id]);
 
-    expect(workspaceBadge($viewer, $team)['unreadCount'])->toBe(1);
+    expect(workspaceBadge($viewer, $team)['unread'])->toBe(1);
 });
 
 test('the viewer own messages and system notices never count', function (): void {
@@ -98,7 +92,7 @@ test('the viewer own messages and system notices never count', function (): void
     crossWorkspacePost($general, $author, attributes: ['type' => MessageType::MemberJoined]);
 
     expect(workspaceBadge($viewer, $team))
-        ->toMatchArray(['unreadCount' => 0, 'mentionCount' => 0]);
+        ->toMatchArray(['unread' => 0, 'mention' => 0]);
 });
 
 test('a muted channel contributes neither unread nor mentions', function (): void {
@@ -111,7 +105,7 @@ test('a muted channel contributes neither unread nor mentions', function (): voi
     $viewer->channels()->updateExistingPivot($general->id, ['muted' => true]);
 
     expect(workspaceBadge($viewer, $team))
-        ->toMatchArray(['unreadCount' => 0, 'mentionCount' => 0]);
+        ->toMatchArray(['unread' => 0, 'mention' => 0]);
 });
 
 test('the mentions-only level keeps the mention count and silences ordinary unread', function (): void {
@@ -126,7 +120,7 @@ test('the mentions-only level keeps the mention count and silences ordinary unre
     ]);
 
     expect(workspaceBadge($viewer, $team))
-        ->toMatchArray(['unreadCount' => 0, 'mentionCount' => 1]);
+        ->toMatchArray(['unread' => 0, 'mention' => 1]);
 });
 
 test('the nothing level silences the workspace entirely', function (): void {
@@ -141,7 +135,7 @@ test('the nothing level silences the workspace entirely', function (): void {
     ]);
 
     expect(workspaceBadge($viewer, $team))
-        ->toMatchArray(['unreadCount' => 0, 'mentionCount' => 0]);
+        ->toMatchArray(['unread' => 0, 'mention' => 0]);
 });
 
 test('a thread-only reply stays out of the unread count but its mention still counts', function (): void {
@@ -155,7 +149,7 @@ test('a thread-only reply stays out of the unread count but its mention still co
     ]);
 
     expect(workspaceBadge($viewer, $team))
-        ->toMatchArray(['unreadCount' => 1, 'mentionCount' => 1]);
+        ->toMatchArray(['unread' => 1, 'mention' => 1]);
 });
 
 test('a thread reply also sent to the channel counts like any other message', function (): void {
@@ -168,7 +162,7 @@ test('a thread reply also sent to the channel counts like any other message', fu
         'sent_to_channel' => true,
     ]);
 
-    expect(workspaceBadge($viewer, $team)['unreadCount'])->toBe(2);
+    expect(workspaceBadge($viewer, $team)['unread'])->toBe(2);
 });
 
 test('an archived channel drops out of the workspace counts', function (): void {
@@ -178,7 +172,7 @@ test('an archived channel drops out of the workspace counts', function (): void 
     crossWorkspacePost($general, $author);
     $general->update(['archived_at' => now()]);
 
-    expect(workspaceBadge($viewer, $team)['unreadCount'])->toBe(0);
+    expect(workspaceBadge($viewer, $team)['unread'])->toBe(0);
 });
 
 test('a deleted message stops counting', function (): void {
@@ -187,7 +181,7 @@ test('a deleted message stops counting', function (): void {
 
     crossWorkspacePost($general, $author)->delete();
 
-    expect(workspaceBadge($viewer, $team)['unreadCount'])->toBe(0);
+    expect(workspaceBadge($viewer, $team)['unread'])->toBe(0);
 });
 
 test('counts are grouped per workspace rather than pooled', function (): void {
@@ -199,8 +193,8 @@ test('counts are grouped per workspace rather than pooled', function (): void {
     crossWorkspacePost($secondGeneral, $secondAuthor);
     crossWorkspacePost($secondGeneral, $secondAuthor, $viewer);
 
-    expect(workspaceBadge($viewer, $first))->toMatchArray(['unreadCount' => 1, 'mentionCount' => 0]);
-    expect(workspaceBadge($viewer, $second))->toMatchArray(['unreadCount' => 2, 'mentionCount' => 1]);
+    expect(workspaceBadge($viewer, $first))->toMatchArray(['unread' => 1, 'mention' => 0]);
+    expect(workspaceBadge($viewer, $second))->toMatchArray(['unread' => 2, 'mention' => 1]);
 });
 
 test('another member unread traffic never leaks into the viewer counts', function (): void {
@@ -214,7 +208,7 @@ test('another member unread traffic never leaks into the viewer counts', functio
     crossWorkspacePost($general, $author, $bystander);
 
     expect(workspaceBadge($viewer, $team))
-        ->toMatchArray(['unreadCount' => 1, 'mentionCount' => 0]);
+        ->toMatchArray(['unread' => 1, 'mention' => 0]);
 });
 
 test('a workspace render ships the switcher its badge counts', function (): void {
@@ -224,16 +218,13 @@ test('a workspace render ships the switcher its badge counts', function (): void
     crossWorkspacePost($general, $author, $viewer);
 
     $badge = workspaceBadge($viewer, $team);
-    expect($badge)->toMatchArray(['unreadCount' => 1, 'mentionCount' => 1]);
+    expect($badge)->toMatchArray(['unread' => 1, 'mention' => 1]);
 
-    // The one HTTP claim the `teams` prop needs: a render still carries the
-    // switcher, with the counts the read-model above is asserted on.
+    // The one HTTP claim the digest needs here: a render still carries the
+    // other workspace's counts, exactly as the read-model above states them.
     $this->actingAs($viewer)
         ->get(route('channels.show', ['team' => $home->slug, 'channel' => $homeGeneral->slug]))
         ->assertInertia(fn (Assert $page): Assert => $page
-            ->where('teams', fn (Collection $teams): bool => $teams->contains(
-                fn (array $entry): bool => $entry['id'] === $team->id
-                    && $entry['unreadCount'] === $badge['unreadCount']
-                    && $entry['mentionCount'] === $badge['mentionCount']))
+            ->where("unread.teams.{$team->id}", $badge)
             ->etc());
 });

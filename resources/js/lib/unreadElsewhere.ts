@@ -1,5 +1,6 @@
-import { alertsOnMention } from '@/lib/alerts';
+import { channelUnread } from '@/lib/unreadDigest';
 import type { Channel } from '@/types/channels';
+import type { UnreadDigest } from '@/types/unread';
 
 /** Highest numeral the badge spells out; anything past it renders as `99+`. */
 const UNREAD_BADGE_CAP = 99;
@@ -26,19 +27,22 @@ export type UnreadElsewhereSummary = {
  * mobile toggle carries, since below `md` the sidebar itself is a sheet and
  * every badge it holds is off screen while a conversation is open.
  *
- * Three rules shape the rollup, all of them narrowing what the sidebar shows:
+ * Two rules shape the rollup, both of them narrowing what the sidebar shows:
  *
  * - The open conversation is excluded — the badge means "unread *elsewhere*",
  *   and its own unread is already in front of the viewer.
- * - Conversations that would not alert even on a mention are excluded outright,
- *   read through `lib/alerts.ts`. The sidebar dims a muted row rather than
- *   silencing it, but a single aggregate cannot be dimmed per row, so a muted
- *   room would shout exactly as loudly as a live one.
  * - Only mentions and DM unread reach the numeral. Everything else contributes
  *   the `hasUnread` flag alone, which the glyph carries as a brass rail.
+ *
+ * A conversation the viewer muted, or set to "nothing", never reaches here at
+ * all: the digest suppresses it server-side, so it is simply absent. That
+ * matters because the sidebar dims a muted row rather than silencing it, and a
+ * single aggregate cannot be dimmed per row — a muted room would otherwise
+ * shout exactly as loudly as a live one.
  */
 export function summarizeUnreadElsewhere(
     channels: Channel[],
+    digest: UnreadDigest,
     activeChannelId: string | null,
 ): UnreadElsewhereSummary {
     let count = 0;
@@ -49,18 +53,16 @@ export function summarizeUnreadElsewhere(
             continue;
         }
 
-        if (!alertsOnMention(channel)) {
-            continue;
-        }
+        const unread = channelUnread(digest, channel.id);
 
         // A DM's whole unread run is addressed to the viewer, so all of it
         // counts; a channel contributes only its @mentions. Taking the larger of
         // the two on a DM keeps an @mention inside one from counting twice.
         count += channel.isDirect
-            ? Math.max(channel.unreadCount, channel.mentionCount)
-            : channel.mentionCount;
+            ? Math.max(unread.unread, unread.mention)
+            : unread.mention;
 
-        if (channel.unreadCount > 0 || channel.mentionCount > 0) {
+        if (unread.unread > 0 || unread.mention > 0) {
             hasUnread = true;
         }
     }

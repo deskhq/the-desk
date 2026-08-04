@@ -4,6 +4,15 @@ import type { App } from 'vue';
 import { createApp, defineComponent, h } from 'vue';
 import type { NavDestination } from '@/composables/useNavPanel';
 import type { Team, User } from '@/types';
+import type { UnreadCounts } from '@/types/unread';
+
+/**
+ * The shared props the rail reads through {@see useUnreadDigest}: the workspace
+ * dots come off the digest, not off the workspace roster beside them.
+ */
+const page = vi.hoisted(() => ({ props: {} as Record<string, unknown> }));
+
+vi.mock('@inertiajs/vue3', () => ({ usePage: () => page }));
 
 vi.mock('@lucide/vue', () => ({
     AlarmClock: { render: () => h('svg') },
@@ -90,8 +99,6 @@ function makeTeam(overrides: Partial<Team> = {}): Team {
         isPersonal: false,
         membersCount: 7,
         isCurrent: true,
-        unreadCount: 0,
-        mentionCount: 0,
         ...overrides,
     };
 }
@@ -103,6 +110,7 @@ afterEach(() => {
     app = null;
     document.body.innerHTML = '';
     switchTeam.mockClear();
+    page.props = {};
 });
 
 function mountRail(
@@ -112,10 +120,16 @@ function mountRail(
         hasPendingReminders?: boolean;
         teams?: Team[];
         avatar?: string;
+        /** What the digest says is waiting in each workspace, keyed by team id. */
+        unread?: Record<string, UnreadCounts>;
     } = {},
 ) {
     const host = document.createElement('div');
     document.body.append(host);
+
+    page.props = {
+        unread: { channels: {}, teams: overrides.unread ?? {}, threads: false },
+    };
 
     const select = vi.fn();
 
@@ -320,14 +334,10 @@ it('dots a workspace holding anything unread, and only that one', () => {
     const { host } = mountRail({
         teams: [
             makeTeam(),
-            makeTeam({
-                id: 't-2',
-                name: 'Nord',
-                isCurrent: false,
-                unreadCount: 4,
-            }),
+            makeTeam({ id: 't-2', name: 'Nord', isCurrent: false }),
             makeTeam({ id: 't-3', name: 'Sud', isCurrent: false }),
         ],
+        unread: { 't-2': { unread: 4, mention: 0 } },
     });
 
     expect(
@@ -337,14 +347,8 @@ it('dots a workspace holding anything unread, and only that one', () => {
 
 it('dots a workspace whose only news is a mention', () => {
     const { host } = mountRail({
-        teams: [
-            makeTeam({
-                id: 't-2',
-                name: 'Nord',
-                isCurrent: false,
-                mentionCount: 2,
-            }),
-        ],
+        teams: [makeTeam({ id: 't-2', name: 'Nord', isCurrent: false })],
+        unread: { 't-2': { unread: 0, mention: 2 } },
     });
 
     expect(

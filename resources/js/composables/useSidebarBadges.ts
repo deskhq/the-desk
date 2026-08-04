@@ -5,6 +5,7 @@ import { useChannelFleetSubscription } from '@/composables/useChannelFleetSubscr
 import { useDebouncedPost } from '@/composables/useDebouncedPost';
 import { backgroundVisit } from '@/lib/backgroundVisit';
 import { isChannelTraffic } from '@/lib/channelTraffic';
+import { CHANNEL_LIST_PROPS, UNREAD_DIGEST_PROPS } from '@/lib/reloadProps';
 import { shouldRefreshSidebar } from '@/lib/shouldRefreshSidebar';
 
 /** Coalesce a burst of arrivals into a single sidebar reload. */
@@ -13,13 +14,13 @@ const REFRESH_DEBOUNCE_MS = 500;
 /**
  * Keep the sidebar's unread and mention badges live.
  *
- * The shared `channels` prop is recomputed server-side (see HandleInertiaRequests)
+ * The shared `unread` digest is recomputed server-side (see HandleInertiaRequests)
  * but only refreshes on navigation and when the open channel is marked read, so a
  * message posted in a channel the user belongs to but is not viewing would not move
  * its badge until the next visit. Mounted once in the persistent channel layout,
  * this rides {@see useChannelFleetSubscription} — the shared subscribe/reconcile/
  * teardown engine — and, on a qualifying MessageSent, debounces a partial reload of
- * `channels` so the badge updates without a manual navigation. A single reload
+ * the digest so the badge updates without a manual navigation. A single reload
  * recomputes every channel's count, so bursts across channels collapse to one
  * request.
  *
@@ -38,19 +39,19 @@ export function useSidebarBadges(): void {
         () => (page.props.channel as { id?: string } | undefined)?.id ?? null,
     );
 
-    // reload defaults to preserving scroll and page state; it re-evaluates the
-    // shared `channels` prop to recompute every badge count, the aggregate
-    // `hasUnreadThreads` flag behind the rail's Threads dot, the
-    // `unreadThreadCount` behind the Threads panel's "Unread" pill, and `teams` —
-    // whose per-workspace counts are the cross-workspace dots on the rail. The
-    // last one rides along rather than getting its own signal: no per-member
-    // fanout of MessageSent exists, so a workspace the viewer is not in
-    // refreshes on the next trigger any of their own channels raises. A
-    // teammate's
-    // message — or another of the viewer's own devices — decides when it fires,
-    // so it runs as a background visit ({@see backgroundVisit}); otherwise an
-    // arrival landing mid-navigation cancels the visit the user actually asked
-    // for.
+    // reload defaults to preserving scroll and page state. One prop answers
+    // every badge the shell draws — the sidebar's per-channel counts, the
+    // rail's cross-workspace dots and its Threads dot were three readings of
+    // the same fact before the digest consolidated them — so a burst across
+    // channels still collapses to a single request for a single prop.
+    //
+    // `channels` rides along because an arrival also moves what the *roster*
+    // says: the direct-message group orders on last activity, and a DM nobody
+    // had messaged in yet earns its row on the first message. Neither is unread
+    // state, so neither belongs in the digest. A teammate's message — or
+    // another of the viewer's own devices — decides when this fires, so it runs
+    // as a background visit ({@see backgroundVisit}); otherwise an arrival
+    // landing mid-navigation cancels the visit the user actually asked for.
     //
     // `unreadThreadCount` is shared only while that panel is open, so asking for
     // it off the destination costs nothing: the server simply has no such prop to
@@ -61,10 +62,9 @@ export function useSidebarBadges(): void {
             router.reload({
                 ...backgroundVisit,
                 only: [
-                    'channels',
-                    'hasUnreadThreads',
+                    ...UNREAD_DIGEST_PROPS,
+                    ...CHANNEL_LIST_PROPS,
                     'unreadThreadCount',
-                    'teams',
                 ],
             }),
         { delay: REFRESH_DEBOUNCE_MS },

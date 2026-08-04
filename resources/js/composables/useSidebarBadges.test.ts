@@ -107,15 +107,11 @@ describe('useSidebarBadges cross-device read sync', () => {
         expect(reload).toHaveBeenCalledTimes(1);
         expect(reload).toHaveBeenCalledWith(
             expect.objectContaining({
-                // `unreadThreadCount` and `teams` ride along so the Threads
-                // panel's tally and the cross-workspace dots refresh on the same
-                // debounced reload the channel badges already use.
-                only: [
-                    'channels',
-                    'hasUnreadThreads',
-                    'unreadThreadCount',
-                    'teams',
-                ],
+                // One prop answers every badge the shell draws. `channels`
+                // rides along because an arrival also reorders the DM group and
+                // can earn a new row, and `unreadThreadCount` so the Threads
+                // panel's tally refreshes on the same debounced reload.
+                only: ['unread', 'channels', 'unreadThreadCount'],
             }),
         );
     });

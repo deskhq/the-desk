@@ -8,6 +8,7 @@ import {
     SCHEDULED_MESSAGE_PROPS,
     THREAD_PROPS,
     THREAD_RESET_PROPS,
+    UNREAD_DIGEST_PROPS,
 } from '@/lib/reloadProps';
 import { filesSpelling } from '@/lib/sourceScan.harness';
 
@@ -30,6 +31,12 @@ describe('reloadProps', () => {
 
     it('names the sidebar channel read-model', () => {
         expect(CHANNEL_LIST_PROPS).toEqual(['channels']);
+    });
+
+    it('keeps the unread digest apart from the roster it badges', () => {
+        // Marking a channel read used to reload the whole roster to move four
+        // integers; the badges are their own prop, so the write asks for that.
+        expect(UNREAD_DIGEST_PROPS).toEqual(['unread']);
     });
 
     it('names the sidebar section read-model', () => {
@@ -74,6 +81,7 @@ describe('reloadProps', () => {
         ['SCHEDULED_MESSAGE_PROPS', arrayLiteralOf(/'scheduledMessages'/)],
         ['THREAD_PROPS', arrayLiteralOf(/'thread',\s*'threadReplies'/)],
         ['THREAD_RESET_PROPS', arrayLiteralOf(/'threadReplies'/)],
+        ['UNREAD_DIGEST_PROPS', arrayLiteralOf(/'unread'/)],
     ])('is the only place %s is spelled out', (_name, pattern) => {
         // Sixteen copies of `only: ['channels']` across twelve files is what
         // this replaces: a surface refreshing one prop of a pair goes stale, and

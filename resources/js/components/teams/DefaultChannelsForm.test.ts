@@ -54,8 +54,6 @@ function team(): Team {
         slug: 'acme',
         isPersonal: false,
         membersCount: 1,
-        unreadCount: 0,
-        mentionCount: 0,
     };
 }
 

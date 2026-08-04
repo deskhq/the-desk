@@ -4,6 +4,7 @@ import type { App } from 'vue';
 import { createApp, defineComponent, h } from 'vue';
 import { useDialog } from '@/composables/useDialog';
 import type { Team } from '@/types';
+import type { UnreadDigest } from '@/types/unread';
 
 /** Mutable stand-in for the shared workspace props. */
 const props = vi.hoisted(() => ({
@@ -12,6 +13,7 @@ const props = vi.hoisted(() => ({
     canInviteToCurrentTeam: false,
     canUpdateCurrentTeam: false,
     pendingInvitations: [] as unknown[],
+    unread: null as UnreadDigest | null,
 }));
 
 const switchTeam = vi.hoisted(() => vi.fn());
@@ -116,8 +118,6 @@ function team(overrides: Partial<Team> = {}): Team {
         isPersonal: false,
         membersCount: 7,
         isCurrent: true,
-        unreadCount: 0,
-        mentionCount: 0,
         ...overrides,
     };
 }
@@ -130,6 +130,7 @@ beforeEach(() => {
     props.canInviteToCurrentTeam = true;
     props.canUpdateCurrentTeam = true;
     props.pendingInvitations = [];
+    props.unread = { channels: {}, teams: {}, threads: false };
     viewport.setMobile?.(false);
     switchTeam.mockClear();
     useDialog('invite').close();
@@ -276,9 +277,17 @@ it('switches straight to another workspace', () => {
 
 it('badges a workspace with its mention count, and dots a merely unread one', () => {
     props.teams = [
-        team({ id: 't-2', name: 'Nord', isCurrent: false, mentionCount: 3 }),
-        team({ id: 't-3', name: 'Sud', isCurrent: false, unreadCount: 5 }),
+        team({ id: 't-2', name: 'Nord', isCurrent: false }),
+        team({ id: 't-3', name: 'Sud', isCurrent: false }),
     ];
+    props.unread = {
+        channels: {},
+        teams: {
+            't-2': { unread: 0, mention: 3 },
+            't-3': { unread: 5, mention: 0 },
+        },
+        threads: false,
+    };
 
     const { host } = mountSheet();
 

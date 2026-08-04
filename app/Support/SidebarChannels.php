@@ -10,20 +10,19 @@ use App\Models\ChannelMember;
 use App\Models\Message;
 use App\Models\Team;
 use App\Models\User;
-use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Support\Carbon;
 
 /**
  * The read model behind the workspace sidebar's channel list: every channel the
  * viewer belongs to in one team, with the per-channel state the rows render from
- * — unread and mention counts, mute and notification level, star, section,
- * manual position, and whether a draft is waiting.
+ * — mute and notification level, star, section, manual position, and whether a
+ * draft is waiting.
  *
- * One query fills all of it. The badge counts are correlated sub-queries
- * ({@see WorkspaceUnread::forChannelsOf()}) rather than a per-channel loop,
- * because the list rides every workspace request and an N+1 here is an N+1 on
- * the whole shell.
+ * One query fills all of it. What is *unread* in each channel is deliberately
+ * not here: it is the one thing that moves on every message anyone sends, and it
+ * rides its own prop ({@see WorkspaceUnread}) so this list does not have to be
+ * rebuilt to move a badge.
  *
  * Direct messages are the one place the list is not simply "what you belong to":
  * a DM exists from the moment either side opens it, so listing every membership
@@ -96,16 +95,6 @@ final readonly class SidebarChannels
             // sidebar payload and expose a 1/0 flag instead (an integer, not a
             // driver-specific boolean, so the DTO's cast reads it reliably).
             ->selectRaw("case when channel_members.draft is not null and channel_members.draft != '' then 1 else 0 end as has_draft")
-            // Thread-only replies stay out of the plain unread badge (they live
-            // in the thread view), but a mention anywhere — including inside a
-            // thread — still badges the channel. That asymmetry is why the
-            // predicate is opt-in per call site: only the first of these two
-            // sub-queries asks for it.
-            ->selectSub(WorkspaceUnread::forChannelsOf($this->viewer)->channelTraffic(), 'unread_count')
-            ->selectSub(
-                WorkspaceUnread::forChannelsOf($this->viewer)->whereHas('mentionedUsers', fn (Builder $query) => $query->whereKey($this->viewer->id)),
-                'mention_count'
-            )
             // Manual order within each sidebar group first, then alphabetical as a
             // stable tiebreak for channels the user has never reordered.
             ->orderBy('channel_members.position')

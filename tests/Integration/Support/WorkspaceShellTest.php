@@ -86,7 +86,7 @@ test('the shell is constructible from a viewer and a team alone', function (): v
         ->and($shell->customEmojis())->toBe([])
         ->and($shell->userGroups())->toBe([])
         ->and($shell->reminders(MessageReminderStatus::Pending))->toBe([])
-        ->and($shell->hasUnreadThreads())->toBeFalse()
+        ->and($shell->unreadDigest()->threads)->toBeFalse()
         ->and($shell->slashCommands())->not->toBeEmpty()
         ->and($shell->creatableChannelVisibilities())->toContain(ChannelVisibility::Public->value);
 });

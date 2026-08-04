@@ -3,7 +3,7 @@ import { echo } from '@laravel/echo-vue';
 import { read as markChannelRead } from '@/actions/App/Http/Controllers/Channels/ChannelController';
 import { useDebouncedPost } from '@/composables/useDebouncedPost';
 import { backgroundVisit } from '@/lib/backgroundVisit';
-import { CHANNEL_LIST_PROPS } from '@/lib/reloadProps';
+import { UNREAD_DIGEST_PROPS } from '@/lib/reloadProps';
 
 export interface ReadPointerOptions {
     teamSlug: () => string;
@@ -14,7 +14,9 @@ export interface ReadPointerOptions {
  * Advance the read pointer for the open channel so its sidebar badge clears.
  * Debounced and gated on tab focus: a channel is only "read" while the user is
  * actually looking at it, and a burst of arriving messages collapses to one
- * request. The redirect refreshes just the shared `channels` prop.
+ * request. The redirect refreshes just the unread digest — the badge is the
+ * only thing this write moves, and reloading the roster to move it was the
+ * second PHP round trip every click used to pay.
  *
  * The Echo socket id rides along so the resulting `ReadStateAdvanced` broadcast
  * skips this tab: the response above already brings it fresh counts, and its
@@ -41,7 +43,7 @@ export function useReadPointer(options: ReadPointerOptions): {
                     ...backgroundVisit,
                     preserveScroll: true,
                     preserveState: true,
-                    only: CHANNEL_LIST_PROPS,
+                    only: UNREAD_DIGEST_PROPS,
                     headers: socketId ? { 'X-Socket-ID': socketId } : {},
                 },
             );

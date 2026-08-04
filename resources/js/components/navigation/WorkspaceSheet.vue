@@ -24,8 +24,11 @@ import { useInitials } from '@/composables/useInitials';
 import { useIsMobile } from '@/composables/useIsMobile';
 import { useTeamSwitch } from '@/composables/useTeamSwitch';
 import { useTranslations } from '@/composables/useTranslations';
+import { useUnreadDigest } from '@/composables/useUnreadDigest';
+import { workspaceUnread } from '@/lib/unreadDigest';
 import { edit as teamEdit } from '@/routes/teams';
 import type { Team } from '@/types';
+import type { UnreadCounts } from '@/types/unread';
 
 /**
  * The workspace sheet: one surface behind three anchors — the desktop panel
@@ -66,6 +69,16 @@ const { getInitials } = useInitials();
 const inviteDialog = useDialog('invite');
 const invitationsDialog = useDialog('invitations');
 const { switchTeam } = useTeamSwitch();
+const digest = useUnreadDigest();
+
+/**
+ * What a workspace row has waiting. Read from the shared digest, which is the
+ * one prop refreshed often enough to be trusted for a badge — the workspace
+ * roster beside it says only what the workspaces *are*.
+ */
+function unreadFor(team: Team): UnreadCounts {
+    return workspaceUnread(digest.value, team.id);
+}
 
 const currentTeam = computed<Team | null>(() => page.props.currentTeam);
 const teams = computed<Team[]>(() => page.props.teams ?? []);
@@ -249,17 +262,17 @@ const sheetRowClass =
                 />
                 <template v-else>
                     <span
-                        v-if="team.mentionCount > 0"
+                        v-if="unreadFor(team).mention > 0"
                         data-test="workspace-mention-badge"
                         class="flex h-4.5 min-w-4.5 shrink-0 items-center justify-center rounded-full bg-brass px-1.5 text-[10px] font-bold text-brass-foreground tabular-nums"
                         :aria-label="
                             $t(':count unread mentions', {
-                                count: team.mentionCount,
+                                count: unreadFor(team).mention,
                             })
                         "
-                        >{{ team.mentionCount }}</span
+                        >{{ unreadFor(team).mention }}</span
                     >
-                    <template v-else-if="team.unreadCount > 0">
+                    <template v-else-if="unreadFor(team).unread > 0">
                         <span
                             aria-hidden="true"
                             data-test="workspace-unread-dot"
@@ -409,17 +422,17 @@ const sheetRowClass =
                 />
                 <template v-else>
                     <span
-                        v-if="team.mentionCount > 0"
+                        v-if="unreadFor(team).mention > 0"
                         data-test="workspace-mention-badge"
                         class="flex h-4.25 min-w-4.5 shrink-0 items-center justify-center rounded-full bg-brass px-1.5 text-[10px] font-bold text-brass-foreground tabular-nums"
                         :aria-label="
                             $t(':count unread mentions', {
-                                count: team.mentionCount,
+                                count: unreadFor(team).mention,
                             })
                         "
-                        >{{ team.mentionCount }}</span
+                        >{{ unreadFor(team).mention }}</span
                     >
-                    <template v-else-if="team.unreadCount > 0">
+                    <template v-else-if="unreadFor(team).unread > 0">
                         <span
                             aria-hidden="true"
                             data-test="workspace-unread-dot"
