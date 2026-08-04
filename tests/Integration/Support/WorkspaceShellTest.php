@@ -1,7 +1,6 @@
 <?php
 
 use App\Data\MessageSearchCriteria;
-use App\Enums\ChannelVisibility;
 use App\Enums\MessageReminderStatus;
 use App\Enums\NavDestination;
 use App\Enums\SearchScope;
@@ -87,8 +86,7 @@ test('the shell is constructible from a viewer and a team alone', function (): v
         ->and($shell->userGroups())->toBe([])
         ->and($shell->reminders(MessageReminderStatus::Pending))->toBe([])
         ->and($shell->unreadDigest()->threads)->toBeFalse()
-        ->and($shell->slashCommands())->not->toBeEmpty()
-        ->and($shell->creatableChannelVisibilities())->toContain(ChannelVisibility::Public->value);
+        ->and($shell->slashCommands())->not->toBeEmpty();
 });
 
 test('the team roster is ordered by name and lists the viewer among the others', function (): void {

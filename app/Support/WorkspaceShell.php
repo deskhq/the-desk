@@ -13,7 +13,6 @@ use App\Data\SlashCommandData;
 use App\Data\UnreadDigestData;
 use App\Data\UserData;
 use App\Data\UserGroupData;
-use App\Enums\ChannelVisibility;
 use App\Enums\MessageReminderStatus;
 use App\Enums\NavDestination;
 use App\Enums\ThreadInboxFilter;
@@ -150,27 +149,6 @@ final readonly class WorkspaceShell
     public function userGroups(): array
     {
         return UserGroupData::mentionableForTeam($this->team);
-    }
-
-    /**
-     * The channel visibilities the viewer may create in this workspace.
-     *
-     * Asked of the policy rather than derived from the role here, so the shell's
-     * affordance and the create endpoint answer the same question the same way.
-     * An empty list withdraws the affordance entirely, matching the 403 the
-     * create endpoint would answer with.
-     *
-     * @return array<int, string>
-     */
-    public function creatableChannelVisibilities(): array
-    {
-        return array_values(array_map(
-            fn (ChannelVisibility $visibility): string => $visibility->value,
-            array_filter(
-                ChannelVisibility::cases(),
-                fn (ChannelVisibility $visibility): bool => $this->viewer->can('create', [Channel::class, $this->team, $visibility]),
-            ),
-        ));
     }
 
     /**

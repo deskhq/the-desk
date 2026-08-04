@@ -22,9 +22,9 @@ trait HasTeams
 {
     /**
      * The role this user holds on a team, memoised for the length of a single
-     * {@see toTeamPermissions()} projection and no longer.
+     * {@see holdingTeamRole()} window and no longer.
      *
-     * The projection asks the gate about one membership fifteen times over, and
+     * A projection asks the gate about one membership fifteen times over, and
      * each ability would otherwise resolve the row again. It is deliberately
      * not kept for the request: a role rewritten between two projections must
      * be answered from the database, not from a copy taken before the write.
@@ -195,28 +195,56 @@ trait HasTeams
         $gate = Gate::forUser($this);
 
         // One lookup answers all fifteen abilities below, which each resolve the
-        // same membership. Released again straight after, so the next caller
-        // sees any role written in between.
+        // same membership.
+        return $this->holdingTeamRole($team, fn (): TeamPermissions => new TeamPermissions(
+            canUpdateTeam: $gate->allows('update', $team),
+            canDeleteTeam: $gate->allows('delete', $team),
+            canAddMember: $gate->allows('addMember', $team),
+            canUpdateMember: $gate->allows('updateMember', $team),
+            canRemoveMember: $gate->allows('removeMember', $team),
+            canCreateInvitation: $gate->allows('inviteMember', $team),
+            canCancelInvitation: $gate->allows('cancelInvitation', $team),
+            canTransferOwnership: $gate->allows('transferOwnership', $team),
+            canViewAudit: $gate->allows('viewAudit', $team),
+            canViewSecurityLog: $gate->allows('viewSecurityLog', $team),
+            canViewAnalytics: $gate->allows('viewAnalytics', $team),
+            canViewDeletedChannels: $gate->allows('viewDeletedChannels', $team),
+            canManageEmojis: $gate->allows('manageEmojis', $team),
+            canManageIntegrations: $gate->allows('manageIntegrations', $team),
+            canManageUserGroups: $gate->allows('viewAny', [UserGroup::class, $team]),
+        ));
+    }
+
+    /**
+     * Run the callback with this user's role on the team held, so every ability
+     * it asks about resolves the one membership once instead of per question.
+     *
+     * Re-entrant, and that is the point of it being reachable at all: a caller
+     * that asks two projections of the same membership — the fifteen team
+     * abilities in {@see toTeamPermissions()} and the channel-creation ones
+     * beside them — pays one lookup for both, because the inner call reuses the
+     * role the outer one holds and leaves releasing it to that outer call.
+     *
+     * The role is released as soon as the outermost call returns. It is
+     * deliberately not kept for the request: a role rewritten between two
+     * derivations must be answered from the database, not from a copy taken
+     * before the write.
+     *
+     * @template TReturn
+     *
+     * @param  callable(): TReturn  $callback
+     * @return TReturn
+     */
+    public function holdingTeamRole(Team $team, callable $callback): mixed
+    {
+        if (array_key_exists($team->id, $this->projectedTeamRoles)) {
+            return $callback();
+        }
+
         $this->projectedTeamRoles[$team->id] = $this->teamRole($team);
 
         try {
-            return new TeamPermissions(
-                canUpdateTeam: $gate->allows('update', $team),
-                canDeleteTeam: $gate->allows('delete', $team),
-                canAddMember: $gate->allows('addMember', $team),
-                canUpdateMember: $gate->allows('updateMember', $team),
-                canRemoveMember: $gate->allows('removeMember', $team),
-                canCreateInvitation: $gate->allows('inviteMember', $team),
-                canCancelInvitation: $gate->allows('cancelInvitation', $team),
-                canTransferOwnership: $gate->allows('transferOwnership', $team),
-                canViewAudit: $gate->allows('viewAudit', $team),
-                canViewSecurityLog: $gate->allows('viewSecurityLog', $team),
-                canViewAnalytics: $gate->allows('viewAnalytics', $team),
-                canViewDeletedChannels: $gate->allows('viewDeletedChannels', $team),
-                canManageEmojis: $gate->allows('manageEmojis', $team),
-                canManageIntegrations: $gate->allows('manageIntegrations', $team),
-                canManageUserGroups: $gate->allows('viewAny', [UserGroup::class, $team]),
-            );
+            return $callback();
         } finally {
             unset($this->projectedTeamRoles[$team->id]);
         }

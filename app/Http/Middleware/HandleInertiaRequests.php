@@ -20,6 +20,7 @@ use App\Support\TranslationCatalog;
 use App\Support\UpdateChecker;
 use App\Support\UserAgentParser;
 use App\Support\WebPushConfig;
+use App\Support\WorkspacePermissions;
 use App\Support\WorkspaceShell;
 use App\Support\WorkspaceUnread;
 use Illuminate\Http\Request;
@@ -62,6 +63,9 @@ class HandleInertiaRequests extends Middleware
      * (signed in, on a workspace route, with a bound team) precondition once.
      * A null shell means there is no workspace to describe, and each of its props
      * falls back to the empty value the frontend already renders for "not here".
+     * The affordance flags are the one thing that outlives the shell — the
+     * settings pages draw them too — so they come off
+     * {@see WorkspacePermissions}, which answers all six from one derivation.
      *
      * @see https://inertiajs.com/shared-data
      *
@@ -72,6 +76,7 @@ class HandleInertiaRequests extends Middleware
     {
         $user = $request->user();
         $shell = WorkspaceShell::forRequest($request);
+        $permissions = WorkspacePermissions::forRequest($request);
         $pinned = NavDestination::fromQuery($request->query(NavDestination::QUERY_PARAM));
         $boundChannel = $request->route('channel');
         $activeChannel = $boundChannel instanceof Channel ? $boundChannel : null;
@@ -198,38 +203,29 @@ class HandleInertiaRequests extends Middleware
             // The dock header's "invite" affordance reuses the member-invite modal,
             // so the current team's invite permission and the assignable roles ride
             // along with every workspace request.
-            'canInviteToCurrentTeam' => fn () => $user?->currentTeam
-                ? $user->toTeamPermissions($user->currentTeam)->canCreateInvitation
-                : false,
+            'canInviteToCurrentTeam' => fn (): bool => $permissions->forCurrentTeam()->canCreateInvitation ?? false,
             // Which kinds of channel the viewer may open here, per the
             // workspace's channel-creation policy. The create modal is raised
             // from the sidebar and the New menu rather than from a page of its
-            // own, so this rides along instead of being threaded through them.
-            'creatableChannelVisibilities' => fn (): array => $shell?->creatableChannelVisibilities() ?? [],
+            // own, so this rides along instead of being threaded through them —
+            // but only inside the workspace, which is what the shell answers.
+            'creatableChannelVisibilities' => fn (): array => $shell instanceof WorkspaceShell ? $permissions->creatableChannelVisibilities() : [],
             // The workspace sheet offers "Workspace settings" only to someone who
             // can actually change the workspace. The page-scoped permission set
             // is not in reach from the shell, so the one flag the sheet needs
             // rides along like its siblings below.
-            'canUpdateCurrentTeam' => fn (): bool => $user?->currentTeam
-                ? $user->toTeamPermissions($user->currentTeam)->canUpdateTeam
-                : false,
+            'canUpdateCurrentTeam' => fn (): bool => $permissions->forCurrentTeam()->canUpdateTeam ?? false,
             // The settings sidebar surfaces a team-admin "evidence" group (Audit
             // log, Security log, Exports) gated by the same permissions as the
             // Team-settings cards, so an admin can jump straight to those surfaces
             // from any settings page. Both default to false off a team / for guests.
-            'canViewCurrentTeamAudit' => fn (): bool => $user?->currentTeam
-                ? $user->toTeamPermissions($user->currentTeam)->canViewAudit
-                : false,
-            'canViewCurrentTeamSecurityLog' => fn (): bool => $user?->currentTeam
-                ? $user->toTeamPermissions($user->currentTeam)->canViewSecurityLog
-                : false,
+            'canViewCurrentTeamAudit' => fn (): bool => $permissions->forCurrentTeam()->canViewAudit ?? false,
+            'canViewCurrentTeamSecurityLog' => fn (): bool => $permissions->forCurrentTeam()->canViewSecurityLog ?? false,
             // The integrations settings surface (bots, tokens, webhooks) hides
             // entirely unless the viewer can manage it and the platform is on, so
             // the permission and the master toggle ride along with every request
             // to gate the nav entry and the Team-settings card.
-            'canManageCurrentTeamIntegrations' => fn (): bool => $user?->currentTeam
-                ? $user->toTeamPermissions($user->currentTeam)->canManageIntegrations
-                : false,
+            'canManageCurrentTeamIntegrations' => fn (): bool => $permissions->forCurrentTeam()->canManageIntegrations ?? false,
             'integrationsEnabled' => (bool) config('integrations.enabled'),
             // How long a deleted channel stays restorable. A fixed instance-wide
             // constant, and the delete dialog is raised from the channel shell
