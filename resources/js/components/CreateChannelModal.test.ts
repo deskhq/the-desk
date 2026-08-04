@@ -229,6 +229,9 @@ describe('the create-channel modal', () => {
         await open();
 
         expect(
+            document.querySelector('[data-slot="dialog-content"]'),
+        ).toBeNull();
+        expect(
             document.querySelector('[data-test="create-channel-submit"]'),
         ).toBeNull();
         expect(visibilityOptions()).toEqual([]);
