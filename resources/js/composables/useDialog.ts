@@ -17,6 +17,11 @@ import type { Ref } from 'vue';
 const SHELL_DIALOGS = {
     /** The people picker behind "New message". */
     newMessage: false,
+    /**
+     * The create-channel form, reached from the sidebar's "+", the "New" menu,
+     * the first-run welcome and the palette (#1223).
+     */
+    createChannel: false,
     /** The member-invite modal. */
     invite: false,
     /** The prompt listing workspaces the viewer has been invited to. */

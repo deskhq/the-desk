@@ -1,10 +1,10 @@
 <script setup lang="ts">
-import { Link } from '@inertiajs/vue3';
+import { Link, usePage } from '@inertiajs/vue3';
 import { MoreHorizontal, Plus, Search } from '@lucide/vue';
+import { computed } from 'vue';
 import draggable from 'vuedraggable';
 import { browse } from '@/actions/App/Http/Controllers/Channels/ChannelController';
 import ChannelListItem from '@/components/ChannelListItem.vue';
-import CreateChannelModal from '@/components/CreateChannelModal.vue';
 import SidebarSectionHeader from '@/components/navigation/SidebarSectionHeader.vue';
 import {
     DropdownMenu,
@@ -18,6 +18,8 @@ import {
     SidebarGroupContent,
 } from '@/components/ui/sidebar';
 import type { ChannelDragChange } from '@/composables/useChannelPlacement';
+import { useDialog } from '@/composables/useDialog';
+import { canCreateChannel } from '@/lib/channelCreation';
 import type { Channel, ChannelSection } from '@/types/channels';
 
 defineProps<{
@@ -44,6 +46,14 @@ defineEmits<{
     /** vuedraggable reordered the group, or a channel was dragged into it. */
     change: [change: ChannelDragChange];
 }>();
+
+const page = usePage();
+
+/** The "+" opens the shell's create-channel dialog, on the policy's say-so. */
+const createChannelDialog = useDialog('createChannel');
+const canCreate = computed(() =>
+    canCreateChannel(page.props.creatableChannelVisibilities),
+);
 </script>
 
 <template>
@@ -83,17 +93,17 @@ defineEmits<{
                 </DropdownMenuItem>
             </DropdownMenuContent>
         </DropdownMenu>
-        <CreateChannelModal v-if="teamSlug !== ''" :team-slug="teamSlug">
-            <SidebarGroupAction
-                :title="$t('Create channel')"
-                data-test="create-channel-trigger"
-                data-tour="create-channel"
-                class="top-2 size-5 rounded-md text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
-            >
-                <Plus class="size-3.25" />
-                <span class="sr-only">{{ $t('Create channel') }}</span>
-            </SidebarGroupAction>
-        </CreateChannelModal>
+        <SidebarGroupAction
+            v-if="teamSlug !== '' && canCreate"
+            :title="$t('Create channel')"
+            data-test="create-channel-trigger"
+            data-tour="create-channel"
+            class="top-2 size-5 rounded-md text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+            @click="createChannelDialog.open()"
+        >
+            <Plus class="size-3.25" />
+            <span class="sr-only">{{ $t('Create channel') }}</span>
+        </SidebarGroupAction>
         <SidebarGroupContent
             v-show="!collapsed"
             data-test="section-content-channels"

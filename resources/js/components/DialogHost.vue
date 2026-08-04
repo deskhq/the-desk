@@ -3,6 +3,7 @@ import { usePage } from '@inertiajs/vue3';
 import { computed } from 'vue';
 import PasskeyPromptDialog from '@/components/auth/PasskeyPromptDialog.vue';
 import CommandPalette from '@/components/CommandPalette.vue';
+import CreateChannelModal from '@/components/CreateChannelModal.vue';
 import DndPauseDialog from '@/components/DndPauseDialog.vue';
 import InstallAppDialog from '@/components/InstallAppDialog.vue';
 import InviteMemberModal from '@/components/InviteMemberModal.vue';
@@ -41,6 +42,7 @@ const page = usePage();
 // Destructured so each flag is a top-level ref the template unwraps, and
 // `v-model:open` binds it as the dialog's own state rather than a copy.
 const { isOpen: newMessageOpen } = useDialog('newMessage');
+const { isOpen: createChannelOpen } = useDialog('createChannel');
 const { isOpen: inviteOpen } = useDialog('invite');
 const { isOpen: invitationsOpen } = useDialog('invitations');
 const { isOpen: switcherOpen } = useDialog('switcher');
@@ -107,6 +109,12 @@ const postRegistrationPrompt = computed(
         v-model:open="newMessageOpen"
         :members="teamMembers"
         :current-user-id="currentUserId"
+        :team-slug="currentTeam.slug"
+    />
+
+    <CreateChannelModal
+        v-if="currentTeam"
+        v-model:open="createChannelOpen"
         :team-slug="currentTeam.slug"
     />
 

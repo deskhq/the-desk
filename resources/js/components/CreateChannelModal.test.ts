@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { App } from 'vue';
-import { createApp, defineComponent, h, nextTick } from 'vue';
+import { createApp, defineComponent, h, nextTick, ref } from 'vue';
 import { translate } from '@/lib/i18n';
 
 /**
@@ -10,6 +10,9 @@ import { translate } from '@/lib/i18n';
  * member the policy shuts out of public channels must not be shown the option —
  * and a member shut out of both is not shown the affordance at all, matching the
  * 403 the create endpoint would answer with.
+ *
+ * It is a shell singleton rather than a wrapper around its own triggers (#1223),
+ * so the way in is `v-model:open` and there is no slot to click.
  */
 const pageProps = vi.hoisted(
     (): { creatableChannelVisibilities: string[] } => ({
@@ -81,27 +84,33 @@ import CreateChannelModal from './CreateChannelModal.vue';
 
 let app: App | null = null;
 
-function mount(visibilities: string[]): HTMLElement {
+/** The host's `v-model:open`, which is the only way in now. */
+const isOpen = ref(false);
+
+function mount(visibilities: string[]): void {
     pageProps.creatableChannelVisibilities = visibilities;
+    isOpen.value = false;
 
     const host = document.createElement('div');
     document.body.append(host);
 
     app = createApp({
         render: () =>
-            h(CreateChannelModal, { teamSlug: 'acme' }, () =>
-                h('button', { 'data-test': 'trigger' }, 'New channel'),
-            ),
+            h(CreateChannelModal, {
+                teamSlug: 'acme',
+                open: isOpen.value,
+                'onUpdate:open': (value: boolean) => {
+                    isOpen.value = value;
+                },
+            }),
     });
     app.config.globalProperties.$t = translate;
     app.mount(host);
-
-    return host;
 }
 
-/** Opens the dialog through its trigger, which is how the form is ever seen. */
-async function open(host: HTMLElement): Promise<void> {
-    host.querySelector<HTMLElement>('[data-test="trigger"]')?.click();
+/** Opens the dialog the way the shell does, and lets the form render. */
+async function open(): Promise<void> {
+    isOpen.value = true;
     await nextTick();
     await nextTick();
 }
@@ -123,19 +132,22 @@ afterEach(() => {
 
 describe('the create-channel modal', () => {
     it('offers both visibilities while the workspace leaves both open', async () => {
-        await open(mount(['public', 'private']));
+        mount(['public', 'private']);
+        await open();
 
         expect(visibilityOptions()).toEqual(['public', 'private']);
     });
 
     it('offers only the visibility the policy leaves open', async () => {
-        await open(mount(['private']));
+        mount(['private']);
+        await open();
 
         expect(visibilityOptions()).toEqual(['private']);
     });
 
     it('starts on the only visibility left rather than a refused default', async () => {
-        await open(mount(['private']));
+        mount(['private']);
+        await open();
 
         expect(
             document.querySelector<HTMLSelectElement>(
@@ -145,8 +157,8 @@ describe('the create-channel modal', () => {
     });
 
     it('forgets a half-finished choice when the modal is closed and reopened', async () => {
-        const host = mount(['public', 'private']);
-        await open(host);
+        mount(['public', 'private']);
+        await open();
 
         const control = document.querySelector<HTMLSelectElement>(
             '[data-test="create-channel-visibility"]',
@@ -155,10 +167,9 @@ describe('the create-channel modal', () => {
         control.dispatchEvent(new Event('change'));
         await nextTick();
 
-        // Close through the same path the dialog itself uses, then reopen.
-        host.querySelector<HTMLElement>('[data-test="trigger"]')?.click();
+        isOpen.value = false;
         await nextTick();
-        await open(host);
+        await open();
 
         expect(
             document.querySelector<HTMLSelectElement>(
@@ -167,10 +178,30 @@ describe('the create-channel modal', () => {
         ).toBe('public');
     });
 
-    it('withdraws the affordance entirely when neither is open', () => {
-        const host = mount([]);
+    it('writes a dismissal back to the host, so its opener sees the dialog go', async () => {
+        // `v-model:open` is now the whole contract: bound to a copy, the "+"
+        // that opened it would still believe it up and do nothing on a second
+        // press.
+        mount(['public', 'private']);
+        await open();
 
-        expect(host.querySelector('[data-test="trigger"]')).toBeNull();
+        document
+            .querySelector<HTMLElement>('[data-test="dialog-close-button"]')
+            ?.click();
+        await nextTick();
+
+        expect(isOpen.value).toBe(false);
+    });
+
+    it('mounts nothing at all when the policy leaves neither open', async () => {
+        // The affordances that open it are gated on the same reading, so this is
+        // the backstop rather than the gate: asked to open anyway, it declines.
+        mount([]);
+        await open();
+
+        expect(
+            document.querySelector('[data-test="create-channel-submit"]'),
+        ).toBeNull();
         expect(visibilityOptions()).toEqual([]);
     });
 });

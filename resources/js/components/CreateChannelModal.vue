@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Form, usePage } from '@inertiajs/vue3';
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { store } from '@/actions/App/Http/Controllers/Channels/ChannelController';
 import FormField from '@/components/FormField.vue';
 import { Button } from '@/components/ui/button';
@@ -12,7 +12,6 @@ import {
     DialogFooter,
     DialogHeader,
     DialogTitle,
-    DialogTrigger,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import {
@@ -23,64 +22,75 @@ import {
     SelectValue,
 } from '@/components/ui/select';
 import { useTranslations } from '@/composables/useTranslations';
+import { canCreateChannel, creatableVisibilities } from '@/lib/channelCreation';
 
+/**
+ * The shell's create-channel form.
+ *
+ * One of {@see DialogHost}'s singletons rather than a wrapper around each of its
+ * triggers, which is what lets a zero-argument palette verb reach it (#1223).
+ * The affordances that open it gate themselves on {@see canCreateChannel}, the
+ * same reading this makes to decide whether to mount at all.
+ */
 const props = defineProps<{
     teamSlug: string;
 }>();
 
+const open = defineModel<boolean>('open', { default: false });
+
 const page = usePage();
 const { t } = useTranslations();
 
-/**
- * The visibilities this workspace's channel-creation policy leaves open to the
- * viewer, in the order the picker offers them. The create endpoint re-enforces
- * the policy, so this only keeps the form from offering a choice that would come
- * straight back as a 403.
- */
-const visibilities = computed(() =>
-    (
-        [
-            { value: 'public', label: t('Public') },
-            { value: 'private', label: t('Private') },
-        ] as const
-    ).filter((option) =>
-        (page.props.creatableChannelVisibilities ?? []).includes(option.value),
-    ),
-);
+/** The picker's options, labelled, for the visibilities the policy leaves open. */
+const visibilities = computed(() => {
+    const labels: Record<App.Enums.ChannelVisibility, string> = {
+        public: t('Public'),
+        private: t('Private'),
+    };
+
+    return creatableVisibilities(page.props.creatableChannelVisibilities).map(
+        (value) => ({ value, label: labels[value] }),
+    );
+});
 
 /** Whether there is any channel at all for the viewer to open here. */
-const canCreate = computed(() => visibilities.value.length > 0);
+const canCreate = computed(() =>
+    canCreateChannel(page.props.creatableChannelVisibilities),
+);
 
 const defaultVisibility = computed(
     () => visibilities.value[0]?.value ?? 'public',
 );
 
-const open = ref(false);
 const visibility = ref<string>(defaultVisibility.value);
 const formKey = ref(0);
 
-function handleOpenChange(value: boolean) {
-    open.value = value;
-
-    if (!value) {
-        visibility.value = defaultVisibility.value;
-        formKey.value++;
+/**
+ * A half-finished form is forgotten on the way out, so reopening starts clean.
+ *
+ * Watched off the model rather than hooked onto the dialog's own
+ * `update:open`, because as a singleton it is closed from both sides: its own
+ * chrome writes through the model, and so does whatever opened it.
+ */
+watch(open, (isOpen) => {
+    if (isOpen) {
+        return;
     }
-}
+
+    visibility.value = defaultVisibility.value;
+    formKey.value++;
+});
 </script>
 
 <template>
-    <Dialog v-if="canCreate" :open="open" @update:open="handleOpenChange">
-        <DialogTrigger as-child>
-            <slot />
-        </DialogTrigger>
+    <Dialog v-if="canCreate" v-model:open="open">
         <DialogContent>
             <Form
                 :key="formKey"
                 v-bind="store.form(props.teamSlug)"
                 class="space-y-6"
                 v-slot="{ errors, processing }"
-                @success="handleOpenChange(false)"
+                @success="open = false"
             >
                 <DialogHeader>
                     <DialogTitle>{{ $t('Create a channel') }}</DialogTitle>
