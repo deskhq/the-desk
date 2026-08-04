@@ -66,18 +66,25 @@ const visibility = ref<string>(defaultVisibility.value);
 const formKey = ref(0);
 
 /**
- * A half-finished form is forgotten on the way out, so reopening starts clean.
+ * A half-finished form is forgotten between openings, so it always starts clean.
  *
- * Watched off the model rather than hooked onto the dialog's own
- * `update:open`, because as a singleton it is closed from both sides: its own
- * chrome writes through the model, and so does whatever opened it.
+ * Watched off the model rather than hooked onto the dialog's own `update:open`,
+ * because as a singleton it is closed from both sides: its own chrome writes
+ * through the model, and so does whatever opened it.
+ *
+ * The picker is re-read on the way *in* rather than reset on the way out,
+ * because the singleton outlives a workspace switch — a default settled on
+ * leaving one workspace may not be offered at all in the next, and the picker
+ * would open holding a value with no option under it. The fields the `Form`
+ * owns are cleared by remounting it, which is the close's business.
  */
 watch(open, (isOpen) => {
     if (isOpen) {
+        visibility.value = defaultVisibility.value;
+
         return;
     }
 
-    visibility.value = defaultVisibility.value;
     formKey.value++;
 });
 </script>

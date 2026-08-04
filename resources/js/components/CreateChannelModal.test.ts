@@ -14,26 +14,35 @@ import { translate } from '@/lib/i18n';
  * It is a shell singleton rather than a wrapper around its own triggers (#1223),
  * so the way in is `v-model:open` and there is no slot to click.
  */
-const pageProps = vi.hoisted(
-    (): { creatableChannelVisibilities: string[] } => ({
-        creatableChannelVisibilities: ['public', 'private'],
+const page = vi.hoisted(
+    (): { props: { creatableChannelVisibilities: string[] } } => ({
+        props: { creatableChannelVisibilities: ['public', 'private'] },
     }),
 );
 
-vi.mock('@inertiajs/vue3', () => ({
-    usePage: () => ({ props: pageProps }),
-    Form: defineComponent({
-        props: { action: { type: String, default: '' } },
-        setup:
-            (props, { slots }) =>
-            () =>
-                h(
-                    'form',
-                    { action: props.action },
-                    slots.default?.({ errors: {}, processing: false }),
-                ),
-    }),
-}));
+vi.mock('@inertiajs/vue3', async () => {
+    // Reactive, because the real shared props are: the singleton outlives a
+    // workspace switch, and a double that could not change under it would let a
+    // stale reading pass.
+    const { reactive } = await import('vue');
+
+    page.props = reactive(page.props);
+
+    return {
+        usePage: () => page,
+        Form: defineComponent({
+            props: { action: { type: String, default: '' } },
+            setup:
+                (props, { slots }) =>
+                () =>
+                    h(
+                        'form',
+                        { action: props.action },
+                        slots.default?.({ errors: {}, processing: false }),
+                    ),
+        }),
+    };
+});
 
 vi.mock('@/actions/App/Http/Controllers/Channels/ChannelController', () => ({
     store: { form: (slug: string) => ({ action: `/t/${slug}/channels` }) },
@@ -88,7 +97,7 @@ let app: App | null = null;
 const isOpen = ref(false);
 
 function mount(visibilities: string[]): void {
-    pageProps.creatableChannelVisibilities = visibilities;
+    page.props.creatableChannelVisibilities = visibilities;
     isOpen.value = false;
 
     const host = document.createElement('div');
@@ -176,6 +185,26 @@ describe('the create-channel modal', () => {
                 '[data-test="create-channel-visibility"]',
             )?.value,
         ).toBe('public');
+    });
+
+    it('re-reads the policy on the way in, not on the way out', async () => {
+        // The singleton outlives a workspace switch, where the last default it
+        // reset to may no longer be offered at all. Reading on close would leave
+        // the picker holding a value with no option under it.
+        mount(['public', 'private']);
+        await open();
+
+        isOpen.value = false;
+        await nextTick();
+
+        page.props.creatableChannelVisibilities = ['private'];
+        await open();
+
+        expect(
+            document.querySelector<HTMLSelectElement>(
+                '[data-test="create-channel-visibility"]',
+            )?.value,
+        ).toBe('private');
     });
 
     it('writes a dismissal back to the host, so its opener sees the dialog go', async () => {
