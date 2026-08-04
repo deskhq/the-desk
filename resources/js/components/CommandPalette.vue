@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { router } from '@inertiajs/vue3';
+import { router, usePage } from '@inertiajs/vue3';
 import { computed, watch } from 'vue';
 import { show } from '@/actions/App/Http/Controllers/Channels/ChannelController';
 import SwitcherChannels from '@/components/switcher/SwitcherChannels.vue';
@@ -80,6 +80,26 @@ const peopleResults = computed(() =>
  * disappears with the state it is gated on.
  */
 const commandResults = computed(() => rankCommands(trimmedQuery.value));
+
+const page = usePage();
+
+/**
+ * The slash command the query plainly names, or null. Slash commands are never
+ * rows here — their context requires a channel and every one of their results is
+ * a message — so a query naming one is answered by a line saying where it lives.
+ *
+ * Exact equality only, on the trimmed query with at most one leading `/` gone.
+ * Prefix matching would pop the line on `g`; matching outright means it is
+ * silent for everyone who was not already asking for a slash command.
+ */
+const namedSlashCommand = computed<string | null>(
+    () =>
+        page.props.slashCommands?.find(
+            (command) =>
+                command.name.toLowerCase() ===
+                trimmedQuery.value.replace(/^\//, '').toLowerCase(),
+        )?.name ?? null,
+);
 
 /** The groups whose place in the list the query decides. */
 type RankedGroup = 'channels' | 'people' | 'commands';
@@ -224,11 +244,30 @@ function runCommand(command: PaletteCommand): void {
                         @see-all="seeAllResults"
                     />
                 </CommandList>
+                <!-- Where a query that names a slash command actually leads. A
+                     plain paragraph rather than a row, so it sits in no group,
+                     in no sort, and cannot move what Enter runs — the same
+                     construction the "No messages match" line has always used.
+                     Below the breakpoint it takes the standing hint's place:
+                     one line in this slot, always. -->
+                <p
+                    v-if="namedSlashCommand !== null"
+                    data-test="quick-switcher-slash-command-hint"
+                    class="shrink-0 px-4 pt-2.5 pb-3 text-center text-[11.5px] text-muted-foreground"
+                >
+                    {{
+                        $t(
+                            '/:name is a message command. Type it in a channel to use it.',
+                            { name: namedSlashCommand },
+                        )
+                    }}
+                </p>
                 <!-- The design's standing explanation of the empty-query list:
                      it doubles as the overlay's ranking hint, so it stays put
                      rather than living inside the scrolling results. -->
                 <p
-                    v-if="isMobile"
+                    v-else-if="isMobile"
+                    data-test="quick-switcher-ranking-hint"
                     class="shrink-0 px-4 pt-2.5 pb-3 text-center text-[11.5px] text-muted-foreground"
                 >
                     {{
