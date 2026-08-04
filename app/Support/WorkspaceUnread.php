@@ -4,101 +4,113 @@ declare(strict_types=1);
 
 namespace App\Support;
 
-use App\Data\ChannelData;
+use App\Data\UnreadCountsData;
+use App\Data\UnreadDigestData;
 use App\Enums\MessageType;
 use App\Enums\NotificationLevel;
 use App\Models\Message;
+use App\Models\Team;
 use App\Models\User;
-use Illuminate\Database\Eloquent\Builder as EloquentBuilder;
-use Illuminate\Database\Query\Builder as QueryBuilder;
 use Illuminate\Database\Query\JoinClause;
+use Illuminate\Support\Collection;
+use stdClass;
 
 /**
  * What the viewer has not read, in the two shapes the shell asks for: per
  * workspace (the rail's dots and the workspace sheet's badges) and per channel
  * (the sidebar's badges).
  *
- * Both live here so they cannot drift. "Unread" is one rule — every non-deleted,
- * non-system message authored by someone else that lands after the viewer's
- * `last_read_message_id`, a null pointer meaning the channel was never opened —
- * and a workspace dot that disagreed with the channel rows found inside it would
- * be worse than no dot at all. Muting and the notification level are applied
- * through {@see NotificationLevel}'s own SQL forms, the same rule
- * {@see ChannelData::fromChannel()} applies per channel in PHP.
+ * Both come out of **one** grouped query here, so they cannot drift. The
+ * per-workspace reading is the per-channel readings summed, which is stronger
+ * than two queries agreeing by inspection: a workspace dot that disagreed with
+ * the channel rows found inside it would be worse than no dot at all.
+ *
+ * "Unread" is one rule — every non-deleted, non-system message authored by
+ * someone else that lands after the viewer's `last_read_message_id`, a null
+ * pointer meaning the channel was never opened. Muting and the notification
+ * level are applied here, through {@see NotificationLevel}'s own SQL forms, so
+ * suppression stays server-side and the client renders what it is handed.
+ *
+ * The query is an indexed aggregate over `messages`, not a hydrate-and-serialise
+ * of the roster: it returns one row per channel that holds something, whatever
+ * the workspace's size, and its cost is one query however many channels the
+ * viewer belongs to.
  */
 class WorkspaceUnread
 {
     /**
-     * Unread and mention counts per team id, for the teams that have any. A team
-     * with nothing new is simply absent, so callers default it to zero.
+     * The viewer's whole unread standing, ready to ship.
      *
-     * @return array<string, array{unread: int, mention: int}>
+     * `$workspace` is the one they are currently looking at, if any: its
+     * channels are detailed and its threads consulted. Every workspace they
+     * belong to is counted either way, because the rail draws its dots from
+     * pages that have no workspace of their own (settings, team admin).
      */
-    public static function forUser(User $user): array
+    public static function digest(?User $viewer, ?Team $workspace = null): UnreadDigestData
     {
-        return self::query($user)
-            ->get()
-            ->mapWithKeys(fn (object $row): array => [
-                (string) $row->team_id => [
-                    'unread' => (int) $row->unread_count,
-                    'mention' => (int) $row->mention_count,
-                ],
-            ])
-            ->all();
+        if (! $viewer instanceof User) {
+            return UnreadDigestData::none();
+        }
+
+        $teams = [];
+        $channels = [];
+
+        foreach (self::countsByChannel($viewer) as $row) {
+            $unread = (int) $row->unread_count;
+            $mention = (int) $row->mention_count;
+
+            // A channel can match the aggregate and still report nothing — every
+            // message in it a thread-only reply, say. Sparse means sparse.
+            if ($unread === 0 && $mention === 0) {
+                continue;
+            }
+
+            $teamId = (string) $row->team_id;
+            $running = $teams[$teamId] ?? new UnreadCountsData(unread: 0, mention: 0);
+
+            $teams[$teamId] = new UnreadCountsData(
+                unread: $running->unread + $unread,
+                mention: $running->mention + $mention,
+            );
+
+            if ($workspace instanceof Team && $teamId === $workspace->id) {
+                $channels[(string) $row->channel_id] = new UnreadCountsData($unread, $mention);
+            }
+        }
+
+        return new UnreadDigestData(
+            channels: $channels,
+            teams: $teams,
+            threads: $workspace instanceof Team && new ThreadInbox($viewer, $workspace)->hasUnread(),
+        );
     }
 
     /**
-     * A correlated sub-query counting one channel's messages the viewer has not
-     * yet read, for the sidebar's per-channel badges.
-     *
-     * Correlated against the outer sidebar query's `channels` and
-     * `channel_members` rows, so a single query fills every channel's badge
-     * without an N+1. Unlike {@see self::forUser()} it applies no muting: the
-     * sidebar ships the raw counts and {@see ChannelData::fromChannel()}
-     * suppresses the badge, because a muted channel still has to know it holds
-     * something new.
-     *
-     * @return EloquentBuilder<Message>
-     */
-    public static function forChannelsOf(User $user): EloquentBuilder
-    {
-        return Message::query()
-            ->selectRaw('count(*)')
-            ->whereColumn('messages.channel_id', 'channels.id')
-            ->where('messages.user_id', '!=', $user->id)
-            // System notices (member joined / left) are ambient: they never
-            // advance the unread badge or raise a mention, so they are excluded
-            // from both the unread and mention counts. Every other type counts —
-            // a poll is user-authored and badges the channel like a message.
-            ->whereNotIn('messages.type', MessageType::systemValues())
-            ->where(fn (EloquentBuilder $query) => $query
-                ->whereNull('channel_members.last_read_message_id')
-                ->orWhereColumn('messages.id', '>', 'channel_members.last_read_message_id'));
-    }
-
-    /**
-     * The grouped query behind {@see self::forUser()}.
+     * One row per channel the viewer has anything waiting in, across every
+     * workspace they belong to.
      *
      * Rides `Message::query()` rather than the query builder so the model's
      * soft-delete scope applies — a deleted message must stop counting — then
      * drops to the base builder because the rows are aggregates, not messages.
+     *
+     * @return Collection<int, stdClass>
      */
-    protected static function query(User $user): QueryBuilder
+    protected static function countsByChannel(User $viewer): Collection
     {
         return Message::query()
             ->join('channels', 'channels.id', '=', 'messages.channel_id')
-            ->join('channel_members', function (JoinClause $join) use ($user): void {
+            ->join('channel_members', function (JoinClause $join) use ($viewer): void {
                 $join->on('channel_members.channel_id', '=', 'channels.id')
-                    ->where('channel_members.user_id', '=', $user->id);
+                    ->where('channel_members.user_id', '=', $viewer->id);
             })
             // A mention is a row in the pivot for *this* viewer; the left join
             // keeps ordinary messages in the aggregate with a null side.
-            ->leftJoin('mentions', function (JoinClause $join) use ($user): void {
+            ->leftJoin('mentions', function (JoinClause $join) use ($viewer): void {
                 $join->on('mentions.message_id', '=', 'messages.id')
-                    ->where('mentions.mentioned_user_id', '=', $user->id);
+                    ->where('mentions.mentioned_user_id', '=', $viewer->id);
             })
             ->whereNull('channels.archived_at')
-            ->where('messages.user_id', '!=', $user->id)
+            ->where('messages.user_id', '!=', $viewer->id)
             // System notices (member joined / left) are ambient: they never
             // badge a channel, so they never badge a workspace either.
             ->whereNotIn('messages.type', MessageType::systemValues())
@@ -110,8 +122,8 @@ class WorkspaceUnread
             // reading is the wider of the two, so it is the one that bounds the
             // whole aggregate.
             ->whereRaw(NotificationLevel::alertsOnMentionSql('channel_members'))
-            ->groupBy('channels.team_id')
-            ->select('channels.team_id')
+            ->groupBy('channels.id', 'channels.team_id')
+            ->select('channels.id as channel_id', 'channels.team_id')
             // Thread-only replies live in the thread view and stay out of the
             // plain unread count, and the "mentions" level silences it entirely.
             // Both halves are the owning module's own SQL fragment rather than a
@@ -123,6 +135,7 @@ class WorkspaceUnread
                 .' and '.Message::channelTrafficSql().' then 1 else 0 end) as unread_count',
             )
             ->selectRaw('sum(case when mentions.message_id is not null then 1 else 0 end) as mention_count')
-            ->toBase();
+            ->toBase()
+            ->get();
     }
 }

@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { createSSRApp, h } from 'vue';
 import { renderToString } from 'vue/server-renderer';
 import type { Channel } from '@/types/channels';
+import type { UnreadCounts } from '@/types/unread';
 
 /**
  * Inertia + Wayfinder + UI stubs so the row's own markup (unread badge, close
@@ -23,10 +24,21 @@ const { stub } = await vi.hoisted(async () => {
     };
 });
 
+/**
+ * The row reads its badge off the shared unread digest, so the stubbed page
+ * carries one — the `channel` prop beside it holds no counts at all.
+ */
+const page = await vi.hoisted(async () => ({
+    props: {
+        auth: { user: { avatar: null } },
+        unread: { channels: {}, teams: {}, threads: false },
+    } as Record<string, unknown>,
+}));
+
 vi.mock('@inertiajs/vue3', () => ({
     Link: stub('a'),
     router: { post: vi.fn() },
-    usePage: () => ({ props: { auth: { user: { avatar: null } } } }),
+    usePage: () => page,
 }));
 vi.mock('@/composables/useToast', () => {
     const toast = {
@@ -78,8 +90,6 @@ function channel(overrides: Partial<Channel> = {}): Channel {
         isArchived: false,
         muted: false,
         notificationLevel: 'all',
-        unreadCount: 0,
-        mentionCount: 0,
         hasDraft: false,
         draft: null,
         starred: false,
@@ -94,7 +104,16 @@ function channel(overrides: Partial<Channel> = {}): Channel {
     };
 }
 
-async function render(overrides: Partial<Channel> = {}): Promise<string> {
+async function render(
+    unread: UnreadCounts = { unread: 0, mention: 0 },
+    overrides: Partial<Channel> = {},
+): Promise<string> {
+    page.props.unread = {
+        channels: { [channel(overrides).id]: unread },
+        teams: {},
+        threads: false,
+    };
+
     const app = createSSRApp({
         render: () =>
             h(DirectMessageListItem, {
@@ -113,7 +132,7 @@ async function render(overrides: Partial<Channel> = {}): Promise<string> {
 
 describe('DirectMessageListItem unread badge', () => {
     it('fades the unread pill out on hover and close-button focus so the ✕ replaces it', async () => {
-        const html = await render({ unreadCount: 3 });
+        const html = await render({ unread: 3, mention: 0 });
 
         expect(html).toContain('data-test="dm-unread-badge"');
         // The pill hides whenever the close button is revealed: on row hover...
@@ -125,14 +144,14 @@ describe('DirectMessageListItem unread badge', () => {
     });
 
     it('hides the multi-digit pill the same way, so a wider count never peeks past the mask', async () => {
-        const html = await render({ unreadCount: 42 });
+        const html = await render({ unread: 42, mention: 0 });
 
         expect(html).toContain('>42</span>');
         expect(html).toContain('group-hover/row:opacity-0');
     });
 
     it('anchors the close button to the same right edge as the pill so the ✕ replaces it in place', async () => {
-        const html = await render({ unreadCount: 3 });
+        const html = await render({ unread: 3, mention: 0 });
 
         // Row content sits at `pr-2.5`, so the right-aligned pill rests on that
         // inset; the overlay close button matches it (`right-2.5`) instead of the
@@ -143,7 +162,7 @@ describe('DirectMessageListItem unread badge', () => {
     });
 
     it('renders no pill when there is nothing unread', async () => {
-        const html = await render({ unreadCount: 0 });
+        const html = await render();
 
         expect(html).not.toContain('data-test="dm-unread-badge"');
     });

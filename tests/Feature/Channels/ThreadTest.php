@@ -277,7 +277,7 @@ test('a thread-only reply does not raise the channel unread badge', function ():
     $entry = threadSidebarEntry($member, $team, $general);
 
     // The root + the plain message count; the thread-only reply does not.
-    expect($entry['unreadCount'])->toBe(2);
+    expect($entry['unread'])->toBe(2);
 });
 
 test('a sent-to-channel reply raises the channel unread badge', function (): void {
@@ -287,7 +287,7 @@ test('a sent-to-channel reply raises the channel unread badge', function (): voi
     Message::factory()->for($owner)->inThread($root)->sentToChannel()->create();
 
     // The root + the sent-to-channel reply both count.
-    expect(threadSidebarEntry($member, $team, $general)['unreadCount'])->toBe(2);
+    expect(threadSidebarEntry($member, $team, $general)['unread'])->toBe(2);
 });
 
 test('a mention inside a thread still badges the channel', function (): void {
@@ -303,18 +303,16 @@ test('a mention inside a thread still badges the channel', function (): void {
     $entry = threadSidebarEntry($member, $team, $general);
 
     // The thread reply is not in the plain unread count, but its mention badges.
-    expect($entry['unreadCount'])->toBe(1)
-        ->and($entry['mentionCount'])->toBe(1);
+    expect($entry['unread'])->toBe(1)
+        ->and($entry['mention'])->toBe(1);
 });
 
 /**
- * The sidebar `channels` row's badge counts for the channel, as the acting user.
+ * The badge the sidebar draws on the channel, as the acting user.
  *
- * @return array{unreadCount: int, mentionCount: int}
+ * @return array{unread: int, mention: int}
  */
 function threadSidebarEntry(User $user, Team $team, Channel $channel): array
 {
-    $row = sidebarRow($user, $team, $channel);
-
-    return ['unreadCount' => $row->unreadCount, 'mentionCount' => $row->mentionCount];
+    return unreadBadge($user, $team, $channel);
 }

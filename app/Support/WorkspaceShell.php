@@ -10,6 +10,7 @@ use App\Data\CustomEmojiData;
 use App\Data\MessageReminderData;
 use App\Data\MessageSearchCriteria;
 use App\Data\SlashCommandData;
+use App\Data\UnreadDigestData;
 use App\Data\UserData;
 use App\Data\UserGroupData;
 use App\Enums\ChannelVisibility;
@@ -185,12 +186,16 @@ final readonly class WorkspaceShell
     }
 
     /**
-     * Whether the viewer has any unread followed thread here, driving the rail's
-     * and the tab bar's "Threads" dot.
+     * What the viewer has not read, detailed for this workspace: its channels'
+     * badges, every workspace's dot, and whether a followed thread is waiting.
+     *
+     * The one shared prop that is not a roster, and the only one that has to be
+     * recomputed on an ordinary navigation — which is why it is derived from an
+     * indexed aggregate rather than from the channel list this shell also feeds.
      */
-    public function hasUnreadThreads(): bool
+    public function unreadDigest(): UnreadDigestData
     {
-        return $this->threadInbox()->hasUnread();
+        return WorkspaceUnread::digest($this->viewer, $this->team);
     }
 
     /**

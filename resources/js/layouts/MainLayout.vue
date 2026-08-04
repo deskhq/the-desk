@@ -51,6 +51,7 @@ import { useSidebarBadges } from '@/composables/useSidebarBadges';
 import { useSidebarPosition } from '@/composables/useSidebarPosition';
 import { useTeamPresenceSubscription } from '@/composables/useTeamPresence';
 import { useToastZoneHeight } from '@/composables/useToastZoneHeight';
+import { useUnreadDigest } from '@/composables/useUnreadDigest';
 import type { MessageReminder } from '@/types/messages';
 
 const page = usePage();
@@ -104,7 +105,11 @@ useTeamPresenceSubscription(() => currentTeam.value?.id);
 // mounts, so someone reading a settings page still counts as here.
 usePresenceReporter();
 
-const hasUnreadThreads = computed(() => page.props.hasUnreadThreads ?? false);
+// The Threads dot, read off the shared unread digest along with every other
+// badge in the shell rather than from a flag of its own — the two were three
+// readings of the same fact before the digest consolidated them.
+const digest = useUnreadDigest();
+const hasUnreadThreads = computed(() => digest.value.threads);
 
 /**
  * Whether the reminders glyph wears its dot. The pending rows already ride

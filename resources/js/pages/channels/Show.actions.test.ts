@@ -294,7 +294,7 @@ describe('the typing beat', () => {
 });
 
 describe('the read pointer', () => {
-    it('advances the pointer for the open channel, refreshing only the sidebar', async () => {
+    it('advances the pointer for the open channel, refreshing only the unread digest', async () => {
         vi.useFakeTimers();
         vi.spyOn(document, 'hasFocus').mockReturnValue(true);
 
@@ -307,7 +307,9 @@ describe('the read pointer', () => {
 
         expect(url).toContain('/t/acme/c/general/read');
         expect(payload).toEqual({});
-        expect(options.only).toEqual(['channels']);
+        // The badge is the only thing this write moves, so the roster stays out
+        // of the response entirely.
+        expect(options.only).toEqual(['unread']);
         expect(options.preserveScroll).toBe(true);
         expect(options.preserveState).toBe(true);
         expect(options.headers).toEqual({ 'X-Socket-ID': 'socket-1' });

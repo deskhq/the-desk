@@ -191,10 +191,10 @@ test('seeded system notices stay ambient — they never badge the demo landing c
         'channel' => $announcements->slug,
     ]))->assertOk();
 
-    $entry = collect($response->viewData('page')['props']['channels'])
-        ->firstWhere('slug', 'announcements');
+    $digest = $response->viewData('page')['props']['unread'];
 
-    expect($entry['unreadCount'])->toBe(0);
+    // Nothing waiting means no entry at all — the digest is sparse.
+    expect($digest['channels'])->not->toHaveKey($announcements->id);
 });
 
 test('it varies the demo user unread state across channels', function (): void {

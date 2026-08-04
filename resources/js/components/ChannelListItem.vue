@@ -21,8 +21,10 @@ import {
 } from '@/components/ui/tooltip';
 import { useToast } from '@/composables/useToast';
 import { useTranslations } from '@/composables/useTranslations';
+import { useUnreadDigest } from '@/composables/useUnreadDigest';
 import { notificationIndicator } from '@/lib/notificationIndicator';
 import { CHANNEL_LIST_PROPS } from '@/lib/reloadProps';
+import { channelUnread } from '@/lib/unreadDigest';
 import type { Channel, ChannelSection } from '@/types/channels';
 
 const props = defineProps<{
@@ -50,6 +52,12 @@ const menuOpen = ref(false);
 
 const { t } = useTranslations();
 const toast = useToast();
+const digest = useUnreadDigest();
+
+// What this row has waiting. Read from the shared digest rather than from the
+// `channel` prop beside it: the roster says what the channel *is*, and only the
+// digest is refreshed often enough to be trusted for a badge.
+const unread = computed(() => channelUnread(digest.value, props.channel.id));
 
 // The mute / notification-level cue for this row, matching the conversation
 // masthead; null (and so no icon) for an unmuted channel at the default level.
@@ -104,7 +112,7 @@ function toggleStar(): void {
                     :class="
                         channel.slug === activeChannelSlug
                             ? 'text-brass'
-                            : channel.unreadCount > 0
+                            : unread.unread > 0
                               ? 'text-muted-foreground'
                               : 'text-muted-foreground'
                     "
@@ -113,8 +121,7 @@ function toggleStar(): void {
                 <span
                     class="truncate"
                     :class="
-                        channel.unreadCount > 0 &&
-                        channel.slug !== activeChannelSlug
+                        unread.unread > 0 && channel.slug !== activeChannelSlug
                             ? 'font-semibold text-sidebar-foreground'
                             : ''
                     "
@@ -140,15 +147,15 @@ function toggleStar(): void {
                 <!-- then a "draft" cue for a pending unsent message on -->
                 <!-- another channel; otherwise a plain unread dot. -->
                 <span
-                    v-if="channel.mentionCount > 0"
+                    v-if="unread.mention > 0"
                     data-test="mention-badge"
                     class="ml-auto flex h-4.25 min-w-4.5 items-center justify-center rounded-full bg-brass px-1.5 text-[10px] font-bold text-brass-foreground tabular-nums"
                     :aria-label="
                         $t(':count unread mentions', {
-                            count: channel.mentionCount,
+                            count: unread.mention,
                         })
                     "
-                    >{{ channel.mentionCount }}</span
+                    >{{ unread.mention }}</span
                 >
                 <span
                     v-else-if="
@@ -161,7 +168,7 @@ function toggleStar(): void {
                     <Pencil class="size-3" />
                     {{ $t('Draft') }}
                 </span>
-                <template v-else-if="channel.unreadCount > 0">
+                <template v-else-if="unread.unread > 0">
                     <span
                         data-test="unread-dot"
                         aria-hidden="true"

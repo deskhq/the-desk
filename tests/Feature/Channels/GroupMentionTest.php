@@ -177,9 +177,9 @@ test('a group mention counts toward the sidebar mention badge like a direct one'
         ->get(route('channels.show', ['team' => $team->slug, 'channel' => $general->slug]))
         ->assertOk();
 
-    $entry = collect($response->viewData('page')['props']['channels'])->firstWhere('slug', $general->slug);
+    $digest = $response->viewData('page')['props']['unread'];
 
-    expect($entry['mentionCount'])->toBe(1);
+    expect($digest['channels'][$general->id]['mention'])->toBe(1);
 });
 
 test('a group mention makes the thread show up in the mentioned member inbox', function (): void {

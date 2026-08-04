@@ -175,8 +175,6 @@ function team(overrides: Partial<Team> = {}): Team {
         isPersonal: false,
         role: 'owner',
         membersCount: 2,
-        unreadCount: 0,
-        mentionCount: 0,
         ...overrides,
     };
 }

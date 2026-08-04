@@ -16,6 +16,7 @@ import type {
     Team,
     TeamInvitationContext,
 } from '@/types/teams';
+import type { UnreadDigest } from '@/types/unread';
 
 // Extend ImportMeta interface for Vite...
 declare module 'vite/client' {
@@ -88,7 +89,13 @@ declare module '@inertiajs/core' {
             userGroups?: App.Data.UserGroupData[];
             slashCommands?: App.Data.SlashCommandData[];
             collapsedChannelSections?: string[];
-            hasUnreadThreads?: boolean;
+            /**
+             * What the viewer has not read, per channel and per workspace, plus
+             * the Threads dot. The one shared prop that is never cached: the
+             * rosters above say what the workspace is, this says what has
+             * happened in it.
+             */
+            unread?: UnreadDigest;
             /**
              * The Threads panel's own props, present only while the dock has that
              * destination pinned (`?nav=threads`) — absent everywhere else, which is

@@ -89,8 +89,6 @@ function channel(overrides: Partial<Channel> = {}): Channel {
         isArchived: false,
         muted: false,
         notificationLevel: 'all',
-        unreadCount: 0,
-        mentionCount: 0,
         hasDraft: false,
         draft: null,
         starred: false,

@@ -27,8 +27,6 @@ class ChannelData extends Data
         public bool $isArchived,
         public bool $muted = false,
         public NotificationLevel $notificationLevel = NotificationLevel::All,
-        public int $unreadCount = 0,
-        public int $mentionCount = 0,
         public bool $hasDraft = false,
         public ?string $draft = null,
         public bool $starred = false,
@@ -56,13 +54,15 @@ class ChannelData extends Data
      * The sidebar is the one caller that passes none and still carries state: its
      * single query selects every pivot column onto each channel, so those
      * attributes stand in for the row rather than costing one query per row.
-     * `unread_count` and `mention_count` are only ever attributes — they are
-     * correlated sub-queries, not columns of the pivot — and fall back to zero.
      *
-     * The badge counts are suppressed here so the sidebar prop is authoritative:
-     * a muted channel or the "nothing" level shows no badge at all, and the
-     * "mentions" level keeps only the mention badge (a direct @mention still
-     * alerts while ordinary unread traffic is silenced).
+     * What this DTO deliberately does *not* carry is what is unread in the
+     * channel. A roster changes when someone renames or joins something; unread
+     * state changes on every message anyone sends, and welding the two together
+     * is why the whole list used to be rebuilt on every navigation to move four
+     * integers. The badges now ride {@see UnreadDigestData}, which
+     * still applies mute and the notification level server-side. `muted` and
+     * `notificationLevel` stay here because they are the viewer's own standing
+     * preference — what the row is *set to*, not what is waiting in it.
      *
      * The draft is the viewer's own pending composer text. The open channel
      * (`Show`) carries the full `draft` so the composer restores it; the sidebar
@@ -96,9 +96,6 @@ class ChannelData extends Data
         $level = $stated
             ? $membership->notification_level
             : NotificationLevel::tryFrom((string) ($channel->getAttribute('notification_level') ?? NotificationLevel::All->value)) ?? NotificationLevel::All;
-
-        $unreadCount = (int) ($channel->getAttribute('unread_count') ?? 0);
-        $mentionCount = (int) ($channel->getAttribute('mention_count') ?? 0);
 
         $draftText = $stated ? $membership->draft : $channel->getAttribute('draft');
         $draft = is_string($draftText) && trim($draftText) !== '' ? $draftText : null;
@@ -157,8 +154,6 @@ class ChannelData extends Data
             isArchived: $channel->isArchived(),
             muted: $muted,
             notificationLevel: $level,
-            unreadCount: $level->alertsOnUnread($muted) ? $unreadCount : 0,
-            mentionCount: $level->alertsOnMention($muted) ? $mentionCount : 0,
             hasDraft: $hasDraft,
             draft: $draft,
             starred: $starred,

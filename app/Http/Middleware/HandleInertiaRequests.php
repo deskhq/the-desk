@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Data\UnreadDigestData;
 use App\Data\UpdateStatusData;
 use App\Enums\MessageReminderStatus;
 use App\Enums\NavDestination;
@@ -20,6 +21,7 @@ use App\Support\UpdateChecker;
 use App\Support\UserAgentParser;
 use App\Support\WebPushConfig;
 use App\Support\WorkspaceShell;
+use App\Support\WorkspaceUnread;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Middleware;
@@ -236,6 +238,14 @@ class HandleInertiaRequests extends Middleware
             'channelRestoreWindowDays' => Channel::RESTORE_WINDOW_DAYS,
             'invitableRoles' => TeamRole::assignable(),
             'channels' => fn (): array => $shell?->channels($activeChannel) ?? [],
+            // What the viewer has not read: the sidebar's per-channel badges,
+            // every workspace's dot, and the Threads dot, in one prop. The
+            // rosters above carry none of it, so they can be cached while this
+            // one — the single genuinely volatile fact on a navigation — is
+            // recomputed every visit. Off a workspace route there is no sidebar
+            // to badge, but the rail still draws its cross-workspace dots, so
+            // the per-workspace half is answered there too.
+            'unread' => fn (): UnreadDigestData => $shell?->unreadDigest() ?? WorkspaceUnread::digest($user),
             // The current team's members feed the DM entry points (the sidebar
             // people picker and the ⌘K "People" group); empty off the workspace.
             'teamMembers' => fn (): array => $shell?->teamMembers() ?? [],
@@ -262,7 +272,6 @@ class HandleInertiaRequests extends Middleware
             // where the composer isn't rendered.
             'slashCommands' => fn (): array => $shell?->slashCommands() ?? [],
             'collapsedChannelSections' => fn () => $user->collapsed_channel_sections ?? [],
-            'hasUnreadThreads' => fn (): bool => $shell?->hasUnreadThreads() ?? false,
             // The Threads panel's inbox and its "Unread" tally, present only while
             // the dock actually has that destination pinned.
             ...$shell?->threadsPanelProps($pinned, ThreadInboxFilter::fromQuery($request->query('filter'))) ?? [],

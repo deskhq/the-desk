@@ -33,15 +33,16 @@ function markReadUpTo(User $user, Channel $channel, ?Message $message): void
 }
 
 /**
- * The sidebar `channels` row's badge counts for the channel, as the acting user.
+ * The badge the sidebar draws on the channel, as the acting user.
  *
- * @return array{unreadCount: int, mentionCount: int}
+ * Read off the shared unread digest: the badge left the `channels` row when the
+ * roster and the unread state were split (#1249).
+ *
+ * @return array{unread: int, mention: int}
  */
 function sidebarChannel(User $user, Team $team, Channel $channel): array
 {
-    $row = sidebarRow($user, $team, $channel);
-
-    return ['unreadCount' => $row->unreadCount, 'mentionCount' => $row->mentionCount];
+    return unreadBadge($user, $team, $channel);
 }
 
 test('unread count reflects only the messages posted after last_read', function (): void {
@@ -52,7 +53,7 @@ test('unread count reflects only the messages posted after last_read', function 
     markReadUpTo($member, $general, $messages[2]);
 
     expect(sidebarChannel($member, $team, $general))
-        ->toMatchArray(['unreadCount' => 2, 'mentionCount' => 0]);
+        ->toMatchArray(['unread' => 2, 'mention' => 0]);
 });
 
 test('a null last_read means every message in the channel is unread', function (): void {
@@ -61,7 +62,7 @@ test('a null last_read means every message in the channel is unread', function (
 
     collect(range(1, 3))->each(fn (): Message => unreadPost($general, $owner));
 
-    expect(sidebarChannel($member, $team, $general)['unreadCount'])->toBe(3);
+    expect(sidebarChannel($member, $team, $general)['unread'])->toBe(3);
 });
 
 test('a member does not see their own messages as unread', function (): void {
@@ -72,7 +73,7 @@ test('a member does not see their own messages as unread', function (): void {
     unreadPost($general, $member);
     unreadPost($general, $member);
 
-    expect(sidebarChannel($member, $team, $general)['unreadCount'])->toBe(1);
+    expect(sidebarChannel($member, $team, $general)['unread'])->toBe(1);
 });
 
 test('soft-deleted messages are excluded from the unread count', function (): void {
@@ -83,7 +84,7 @@ test('soft-deleted messages are excluded from the unread count', function (): vo
     $deleted = unreadPost($general, $owner);
     $deleted->delete();
 
-    expect(sidebarChannel($member, $team, $general)['unreadCount'])->toBe(1);
+    expect(sidebarChannel($member, $team, $general)['unread'])->toBe(1);
 });
 
 test('system notices are ambient and never advance the unread or mention badge', function (): void {
@@ -98,7 +99,7 @@ test('system notices are ambient and never advance the unread or mention badge',
     Message::factory()->for($general)->for($owner)->memberLeft()->create();
 
     expect(sidebarChannel($member, $team, $general))
-        ->toMatchArray(['unreadCount' => 0, 'mentionCount' => 0]);
+        ->toMatchArray(['unread' => 0, 'mention' => 0]);
 });
 
 test('a poll badges the channel like any other user-authored message', function (): void {
@@ -114,7 +115,7 @@ test('a poll badges the channel like any other user-authored message', function 
     Message::factory()->for($general)->for($owner)->memberJoined()->create();
 
     expect(sidebarChannel($member, $team, $general))
-        ->toMatchArray(['unreadCount' => 1, 'mentionCount' => 0]);
+        ->toMatchArray(['unread' => 1, 'mention' => 0]);
 });
 
 test('a poll that mentions the user raises the mention badge', function (): void {
@@ -125,7 +126,7 @@ test('a poll that mentions the user raises the mention badge', function (): void
     $poll->mentionedUsers()->attach($member->id);
 
     expect(sidebarChannel($member, $team, $general))
-        ->toMatchArray(['unreadCount' => 1, 'mentionCount' => 1]);
+        ->toMatchArray(['unread' => 1, 'mention' => 1]);
 });
 
 test('the mention count only counts unread messages that mention the user', function (): void {
@@ -140,7 +141,7 @@ test('the mention count only counts unread messages that mention the user', func
     unreadPost($general, $owner, $member);
 
     expect(sidebarChannel($member, $team, $general))
-        ->toMatchArray(['unreadCount' => 3, 'mentionCount' => 2]);
+        ->toMatchArray(['unread' => 3, 'mention' => 2]);
 });
 
 test('a mention of another member does not inflate the users mention count', function (): void {
@@ -150,7 +151,7 @@ test('a mention of another member does not inflate the users mention count', fun
 
     unreadPost($general, $owner, $other);
 
-    expect(sidebarChannel($member, $team, $general)['mentionCount'])->toBe(0);
+    expect(sidebarChannel($member, $team, $general)['mention'])->toBe(0);
 });
 
 test('MarkChannelRead advances last_read to the latest message and clears the badge', function (): void {
@@ -169,7 +170,7 @@ test('MarkChannelRead advances last_read to the latest message and clears the ba
     ]);
 
     expect(sidebarChannel($member, $team, $general))
-        ->toMatchArray(['unreadCount' => 0, 'mentionCount' => 0]);
+        ->toMatchArray(['unread' => 0, 'mention' => 0]);
 });
 
 test('MarkChannelRead leaves the pointer untouched when the channel has no messages', function (): void {
@@ -213,7 +214,7 @@ test('hitting the read endpoint advances the pointer and clears the badges', fun
 
     // The badges are showing before the channel is marked read.
     expect(sidebarChannel($member, $team, $general))
-        ->toMatchArray(['unreadCount' => 2, 'mentionCount' => 1]);
+        ->toMatchArray(['unread' => 2, 'mention' => 1]);
 
     $this->actingAs($member)
         ->post(route('channels.read', ['team' => $team->slug, 'channel' => $general->slug]))
@@ -226,7 +227,7 @@ test('hitting the read endpoint advances the pointer and clears the badges', fun
     ]);
 
     expect(sidebarChannel($member, $team, $general))
-        ->toMatchArray(['unreadCount' => 0, 'mentionCount' => 0]);
+        ->toMatchArray(['unread' => 0, 'mention' => 0]);
 });
 
 test('the read endpoint is forbidden on a private channel the user cannot view', function (): void {
