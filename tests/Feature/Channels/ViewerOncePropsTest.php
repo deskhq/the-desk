@@ -157,7 +157,12 @@ test('a reminder coming due still reaches the client', function (): void {
         'status' => MessageReminderStatus::Fired,
     ]);
 
-    expect(partialRevisit($first, workspaceUrl($team), ['reminders', 'firedReminders'])->assertOk()
+    // Reached from a navigation rather than the document load, since that is
+    // where a reminder actually comes due: the reader has been clicking around
+    // for an hour, and the pair has been excluded from every click since.
+    $navigated = revisit($first, workspaceUrl($team))->assertOk();
+
+    expect(partialRevisit($navigated, workspaceUrl($team), ['reminders', 'firedReminders'])->assertOk()
         ->json('props.firedReminders'))
         ->toHaveCount(1);
 });

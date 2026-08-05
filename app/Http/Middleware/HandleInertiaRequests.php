@@ -445,6 +445,15 @@ class HandleInertiaRequests extends Middleware
      * path, and returning to it would restore the roster of the one just left.
      * `useTeamSwitch` names them for that reason.
      *
+     * `channelSections` and both reminder lists are the viewer's own rows, so
+     * the viewer is the only one who can move them. `channels` is not: a
+     * teammate can rename a channel, archive one, or add the viewer to one.
+     * Renaming the *open* channel is covered — `ChannelUpdated` reloads the
+     * roster by name — and a message anywhere brings it back through
+     * `useSidebarBadges`. The rest reach the sidebar on the next hard load
+     * rather than the next click, which is the one thing this child knowingly
+     * gives up; closing it needs broadcasts the server does not send yet.
+     *
      * @return array<string, mixed>
      */
     protected function workspaceProps(WorkspaceShell $shell, string $viewer, ?Channel $activeChannel): array
@@ -485,8 +494,16 @@ class HandleInertiaRequests extends Middleware
      * in would restore the guest.
      *
      * Hashed because the token is a secret and this rides a request header on
-     * every navigation, and truncated for the same reason the instance digest is
-     * — a collision costs a hard reload, not correctness.
+     * every navigation — 32 bits of an xxh128 over a 40-character random token
+     * is not a token anyone can walk back. Truncated for the same reason the
+     * instance digest is: the keys are sent on every navigation, and the header
+     * is already the honest cost of this whole mechanism.
+     *
+     * What a collision would take, and cost: two *consecutive sessions in one
+     * browser tab* landing on the same 32 bits, which is the only way the client
+     * still holds the earlier one's keys. For `auth` that is not enough on its
+     * own — its key carries the payload digest too, so both must collide — and
+     * for the other two it is one stale preference until the next hard load.
      */
     protected function viewerFingerprint(Request $request): string
     {
