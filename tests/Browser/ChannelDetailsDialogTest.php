@@ -93,3 +93,26 @@ test('an edit reaches another member without them reloading', function (): void 
             'Where the launch is run from.',
         );
 });
+
+test('a rename reaches another member sidebar without them reloading', function (): void {
+    ['owner' => $alice, 'member' => $bob, 'channel' => $channel] = browserTeamWithChannel();
+
+    $alicePage = signInThroughBrowser($alice);
+    $bobPage = signInThroughBrowser($bob);
+
+    $bobPage->assertSeeIn("@channel-name-{$channel->slug}", $channel->name);
+
+    $alicePage
+        ->click('@channel-options')
+        ->click('@channel-details')
+        ->click('@channel-details-edit')
+        ->fill('@channel-details-name', 'launch-room')
+        ->click('@channel-details-save');
+
+    // The sidebar row is the half at risk since #1252: `channels` is a once
+    // prop now, so an ordinary navigation no longer rebuilds the roster and the
+    // `ChannelUpdated` reload naming `CHANNEL_LIST_PROPS` is the only thing that
+    // brings Bob a name he did not change himself. Keyed on the original slug,
+    // which a rename deliberately does not move — see {@see UpdateChannel}.
+    $bobPage->assertSeeIn("@channel-name-{$channel->slug}", 'launch-room');
+});

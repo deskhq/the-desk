@@ -18,6 +18,7 @@ use GuzzleHttp\Promise\PromiseInterface;
 use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Testing\TestResponse;
+use Inertia\Inertia;
 
 /*
 |--------------------------------------------------------------------------
@@ -232,19 +233,28 @@ function visitWorkspaceAs(User $viewer, Team $team): TestResponse
 }
 
 /**
- * The once-prop keys a response handed the client, whether it rendered a
- * document or answered an Inertia visit.
+ * The Inertia page object a response handed the client, whether it rendered a
+ * document or answered a visit — the one place that branch is written, so a
+ * helper can take either kind of response without knowing which it has.
+ *
+ * @return array<string, mixed>
+ */
+function inertiaPage(TestResponse $response): array
+{
+    return $response->headers->get('X-Inertia') === 'true'
+        ? (array) $response->json()
+        : (array) $response->viewData('page');
+}
+
+/**
+ * The once-prop keys a response handed the client.
  *
  * @return array<int, string>
  */
 function oncePropKeys(TestResponse $response): array
 {
-    $page = $response->headers->get('X-Inertia') === 'true'
-        ? (array) $response->json()
-        : (array) $response->viewData('page');
-
     /** @var array<string, mixed> $onceProps */
-    $onceProps = $page['onceProps'] ?? [];
+    $onceProps = inertiaPage($response)['onceProps'] ?? [];
 
     return array_keys($onceProps);
 }
@@ -279,12 +289,37 @@ function onceExpiry(TestResponse $response, string $prop): ?int
  */
 function revisit(TestResponse $previous, string $url, array $headers = []): TestResponse
 {
+    // Inertia accumulates shared props on a singleton and never flushes them,
+    // so a second request in the same test would still be holding the first
+    // one's — including a prop the route it is now on does not share at all.
+    // Every non-Octane request gets a fresh application; this is that.
+    Inertia::flushShared();
+
     return test()->withHeaders([
         'X-Inertia' => 'true',
         'X-Inertia-Version' => (string) app(HandleInertiaRequests::class)->version(request()),
         'X-Inertia-Except-Once-Props' => implode(',', oncePropKeys($previous)),
         ...$headers,
     ])->get($url);
+}
+
+/**
+ * The same visit as a partial reload naming `$only` — what every `only:` call
+ * site in `resources/js/lib/reloadProps.ts` sends, and the one request shape a
+ * once prop is never excluded from.
+ *
+ * A partial response is only recognised as one when it names the component the
+ * client is on, so that is read off `$previous` — from whichever shape it came
+ * in, since a reload can just as well follow another visit as a document load.
+ *
+ * @param  array<int, string>  $only  the prop set, as the registry names it
+ */
+function partialRevisit(TestResponse $previous, string $url, array $only): TestResponse
+{
+    return revisit($previous, $url, [
+        'X-Inertia-Partial-Component' => (string) inertiaPage($previous)['component'],
+        'X-Inertia-Partial-Data' => implode(',', $only),
+    ]);
 }
 
 /*

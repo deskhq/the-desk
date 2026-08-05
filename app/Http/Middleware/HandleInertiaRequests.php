@@ -71,8 +71,14 @@ class HandleInertiaRequests extends Middleware
      *
      * What is *not* here is the instance's own description — its name, branding,
      * connection details and feature toggles — along with the session facts that
-     * settle at sign-in. Those cannot change between two clicks, so they are
+     * settle at sign-in, and the rosters that move only when the viewer writes.
+     * None of those can change between two clicks on their own, so they are
      * declared next door in {@see self::shareOnce()} and reach the client once.
+     *
+     * What is left is the residue that genuinely moves under the viewer while
+     * they read: `unread`, and the member roster whose presence dots follow
+     * other people. Those are recomputed on every navigation, and are the reason
+     * this list is not simply {@see self::shareOnce()}.
      *
      * @see https://inertiajs.com/shared-data
      *
@@ -85,14 +91,9 @@ class HandleInertiaRequests extends Middleware
         $shell = WorkspaceShell::forRequest($request);
         $permissions = WorkspacePermissions::forRequest($request);
         $pinned = NavDestination::fromQuery($request->query(NavDestination::QUERY_PARAM));
-        $boundChannel = $request->route('channel');
-        $activeChannel = $boundChannel instanceof Channel ? $boundChannel : null;
 
         return [
             ...parent::share($request),
-            'auth' => [
-                'user' => $user,
-            ],
             'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',
             'currentTeam' => fn () => $user?->currentTeam ? $user->toUserTeam($user->currentTeam) : null,
             'teams' => fn () => $user?->toUserTeams(includeCurrent: true) ?? [],
@@ -122,7 +123,6 @@ class HandleInertiaRequests extends Middleware
             // the permission and the master toggle ride along with every request
             // to gate the nav entry and the Team-settings card.
             'canManageCurrentTeamIntegrations' => fn (): bool => $permissions->forCurrentTeam()->canManageIntegrations ?? false,
-            'channels' => fn (): array => $shell?->channels($activeChannel) ?? [],
             // What the viewer has not read: the sidebar's per-channel badges,
             // every workspace's dot, and the Threads dot, in one prop. The
             // rosters above carry none of it, so they can be cached while this
@@ -134,35 +134,21 @@ class HandleInertiaRequests extends Middleware
             // The current team's members feed the DM entry points (the sidebar
             // people picker and the ⌘K "People" group); empty off the workspace.
             'teamMembers' => fn (): array => $shell?->teamMembers() ?? [],
-            'channelSections' => fn (): array => $shell?->channelSections() ?? [],
             // The current team's custom emoji as a flat name->url map, so message
             // bodies and reaction pills can resolve `:name:` shortcodes to images.
             // A revoked emoji is simply absent, so its token falls back to text.
             'customEmojis' => fn (): array => $shell?->customEmojis() ?? [],
-            // The viewer's five most-used emoji in their current workspace,
-            // feeding the hover bar's quick-react cluster and the picker's
-            // "Frequently used" strip. Derived from reaction history per visit
-            // (frequently-used is slow-moving, so it is eventually consistent —
-            // a live reaction doesn't re-rank until the next Inertia visit).
-            'frequentEmojis' => fn (): array => FrequentEmoji::forUser($user),
             // The current team's mentionable user groups, feeding the composer's
             // `@` menu and the anti-spoof check that decides whether a
             // `group:<id>` token renders as a pill or as plain text. A deleted
             // group is simply absent, so its token falls back to text.
             'userGroups' => fn (): array => $shell?->userGroups() ?? [],
-            'collapsedChannelSections' => fn () => $user->collapsed_channel_sections ?? [],
             // The Threads panel's inbox and its "Unread" tally, present only while
             // the dock actually has that destination pinned.
             ...$shell?->threadsPanelProps($pinned, ThreadInboxFilter::fromQuery($request->query('filter'))) ?? [],
             // The Search panel's echoed criteria and matches, on the same terms.
             ...$shell?->searchPanelProps($pinned, MessageSearchPanel::criteriaFromRequest($request)) ?? [],
             'pendingInvitations' => Inertia::optional(fn (): array => $user ? PendingInvitations::forUser($user) : []),
-            // The viewer's still-pending reminders in this team, soonest first,
-            // feeding the "Reminders" list and its sidebar count.
-            'reminders' => fn (): array => $shell?->reminders(MessageReminderStatus::Pending) ?? [],
-            // Reminders that have come due and await acknowledgement, driving the
-            // in-app nudges; reloaded live when a MessageReminderDue signal lands.
-            'firedReminders' => fn (): array => $shell?->reminders(MessageReminderStatus::Fired) ?? [],
         ];
     }
 
@@ -179,7 +165,7 @@ class HandleInertiaRequests extends Middleware
      * on an ordinary navigation; that is why the two that read the filesystem
      * and parse a user agent are closures rather than eager values.
      *
-     * Three groups, distinguished only by what their key is made of:
+     * Five groups, distinguished only by what their key is made of:
      *
      * 1. **Instance config**, behind one shared {@see InstanceFingerprint}. The
      *    key is the same digest for all of them because they change together.
@@ -188,16 +174,29 @@ class HandleInertiaRequests extends Middleware
      * 3. **Session-, locale- or version-keyed** — what the viewer's own session
      *    settles: the language they read in, the device they arrived on, the
      *    prompt their registration queued.
+     * 4. **Viewer-keyed** — `auth`, `collapsedChannelSections` and
+     *    `frequentEmojis`, which change when the viewer themselves writes.
+     * 5. **Workspace-keyed** — the four rosters whose answer is one team's.
+     *    Absent off a workspace route rather than empty, for the reason given
+     *    on the group itself.
+     *
+     * Groups 4 and 5 are the ones with no key-shaped trigger at all: nothing
+     * about a clock, a config value or a session says when a channel was
+     * starred. Their trigger is the partial reload the client *already* fires
+     * after that write, since the exclusion below is bypassed on partial
+     * requests — the sets in `resources/js/lib/reloadProps.ts` are the
+     * invalidation, and adding a prop here means checking it has one (#1252).
      *
      * Every key carries its own discriminator because the **client stores once
      * props by key and restores them by prop path**: two props sharing one key
      * collapse into a single entry client-side, and the other would come back
-     * absent on the second visit rather than cached. One digest, sixteen keys.
+     * absent on the second visit rather than cached. One key per prop, however
+     * many of them share a digest.
      *
-     * The exclusion is bypassed on partial requests, so a `router.reload({ only:
-     * [...] })` naming any of these still receives it — which is what makes
-     * `resources/js/lib/reloadProps.ts` the invalidation registry for the props
-     * whose trigger is a write rather than a key.
+     * That same property is why a key may never come back round to a value the
+     * prop path no longer holds — it would restore the other one. Which is what
+     * the viewer and workspace discriminators are for, and why the four rosters
+     * are absent off a workspace route rather than shipped empty.
      *
      * @see https://inertiajs.com/shared-data
      *
@@ -210,6 +209,11 @@ class HandleInertiaRequests extends Middleware
         $locale = app()->getLocale();
         $user = $request->user();
         $prompt = $this->postRegistrationPrompt($request);
+        $shell = WorkspaceShell::forRequest($request);
+        $boundChannel = $request->route('channel');
+        $activeChannel = $boundChannel instanceof Channel ? $boundChannel : null;
+        $viewer = $this->viewerFingerprint($request);
+        $sessionless = ! $request->hasSession();
 
         return [
             'name' => Inertia::once(fn (): string => (string) config('app.name'))->as($instance.':name'),
@@ -384,7 +388,130 @@ class HandleInertiaRequests extends Middleware
             // (see `usePostRegistrationPrompt`), which is what stops a refresh
             // re-asking.
             'postRegistrationPrompt' => Inertia::once(fn (): ?string => $prompt)->fresh($prompt !== null),
+            // The viewer themselves. Every surface in the shell reads their
+            // name, avatar, preferences, status and do-not-disturb state off
+            // this one prop, and a dozen settings writes refresh it from the
+            // redirect they end in rather than by naming `AUTH_PROPS`.
+            //
+            // So the key carries a digest of the prop's own payload: any write
+            // to the viewer's row — one of those dozen, a status that has
+            // lapsed, a schedule window that has opened — moves the key and the
+            // next navigation ships it, without every write site having to
+            // remember. The reload `useTimezone` already fires still works and
+            // is still faster, being a partial request; this is the floor under
+            // it rather than a replacement for it.
+            'auth' => Inertia::once(fn (): array => ['user' => $user])
+                ->as($viewer.':auth:'.substr(hash('xxh128', (string) json_encode($user?->toArray())), 0, 8))
+                ->fresh($sessionless),
+            // Which of the sidebar's built-in groups the viewer has collapsed —
+            // a set on their own account, so it holds across workspaces and is
+            // keyed on the viewer alone. Invalidated by `COLLAPSED_SECTION_PROPS`.
+            'collapsedChannelSections' => Inertia::once(fn (): array => $user->collapsed_channel_sections ?? [])
+                ->as($viewer.':collapsedChannelSections')
+                ->fresh($sessionless),
+            // The viewer's five most-used emoji in their current workspace,
+            // feeding the hover bar's quick-react cluster and the picker's
+            // "Frequently used" strip. Derived from reaction history, and now
+            // derived once: the reaction write names it (`FREQUENT_EMOJI_PROPS`)
+            // and re-ranks on the reply, which is the same eventual consistency
+            // it always had and one query less on every navigation between.
+            //
+            // Shared everywhere rather than only inside the workspace, and keyed
+            // on the current team rather than the bound one, because that is
+            // what it reads: the ranking is the same answer on a settings page
+            // as in the workspace, so there is one value per prop path.
+            'frequentEmojis' => Inertia::once(fn (): array => FrequentEmoji::forUser($user))
+                ->as($viewer.':frequentEmojis:'.($user?->currentTeam?->getKey() ?? 'none'))
+                ->fresh($sessionless),
+            // The workspace's own rosters. Absent off a workspace route rather
+            // than empty: a once prop has one value per prop path for the life
+            // of the page, so an empty roster shipped from a settings page would
+            // be the answer a later workspace visit restored. Absent, the client
+            // drops the key instead — every consumer already defaults it — and
+            // the way back in is a first load again.
+            ...$shell instanceof WorkspaceShell ? $this->workspaceProps($shell, $viewer, $activeChannel) : [],
         ];
+    }
+
+    /**
+     * The rosters that describe one workspace, keyed on which workspace that is.
+     *
+     * Each is invalidated by the set the client already names after the writes
+     * that move it — `CHANNEL_LIST_PROPS` for a star, a drag, a mute or a draft,
+     * `CHANNEL_SECTION_PROPS` for a rename or a reorder, `REMINDER_PROPS` for a
+     * reminder set, cleared or come due. What none of those cover is *switching
+     * workspaces*, which is not a write at all: the key moves, but the client
+     * has by then declared the previous workspace's key against the same prop
+     * path, and returning to it would restore the roster of the one just left.
+     * `useTeamSwitch` names them for that reason.
+     *
+     * `channelSections` and both reminder lists are the viewer's own rows, so
+     * the viewer is the only one who can move them. `channels` is not: a
+     * teammate can rename a channel, archive one, or add the viewer to one.
+     * Renaming the *open* channel is covered — `ChannelUpdated` reloads the
+     * roster by name — and a message anywhere brings it back through
+     * `useSidebarBadges`. The rest reach the sidebar on the next hard load
+     * rather than the next click, which is the one thing this child knowingly
+     * gives up; closing it needs broadcasts the server does not send yet.
+     *
+     * @return array<string, mixed>
+     */
+    protected function workspaceProps(WorkspaceShell $shell, string $viewer, ?Channel $activeChannel): array
+    {
+        $workspace = $viewer.':team:'.$shell->teamKey();
+
+        return [
+            // Deliberately *not* keyed on the active channel, though the roster
+            // is built with it: this is the largest prop in the shell, and a key
+            // that moved with every click would cache nothing. What the active
+            // channel buys is one row — a direct message with no messages yet,
+            // opened by the other side, which is listed only while the viewer is
+            // standing in it. Reaching one is a document load or a
+            // `useNewDirectMessages` reload, both of which rebuild the list; all
+            // a cached roster can do is carry that row one channel too far.
+            'channels' => Inertia::once(fn (): array => $shell->channels($activeChannel))->as($workspace.':channels'),
+            'channelSections' => Inertia::once($shell->channelSections(...))->as($workspace.':channelSections'),
+            // The viewer's still-pending reminders in this workspace, soonest
+            // first, feeding the "Reminders" list and its sidebar count.
+            'reminders' => Inertia::once(fn (): array => $shell->reminders(MessageReminderStatus::Pending))
+                ->as($workspace.':reminders'),
+            // Reminders that have come due and await acknowledgement, driving
+            // the in-app nudges; reloaded live when a MessageReminderDue signal
+            // lands, which is a partial request and so reaches the client.
+            'firedReminders' => Inertia::once(fn (): array => $shell->reminders(MessageReminderStatus::Fired))
+                ->as($workspace.':firedReminders'),
+        ];
+    }
+
+    /**
+     * Which viewer the props above describe, as a once key's discriminator.
+     *
+     * Taken from the session's CSRF token, which Laravel rotates on both
+     * sign-in and sign-out — the two moments these answers stop being this
+     * viewer's, and the two the account id alone cannot see. Without it, signing
+     * out would be answered under a key the client already holds for the guest
+     * page and the client would restore the account that just left; signing back
+     * in would restore the guest.
+     *
+     * Hashed because the token is a secret and this rides a request header on
+     * every navigation — 32 bits of an xxh128 over a 40-character random token
+     * is not a token anyone can walk back. Truncated for the same reason the
+     * instance digest is: the keys are sent on every navigation, and the header
+     * is already the honest cost of this whole mechanism.
+     *
+     * What a collision would take, and cost: two *consecutive sessions in one
+     * browser tab* landing on the same 32 bits, which is the only way the client
+     * still holds the earlier one's keys. For `auth` that is not enough on its
+     * own — its key carries the payload digest too, so both must collide — and
+     * for the other two it is one stale preference until the next hard load.
+     */
+    protected function viewerFingerprint(Request $request): string
+    {
+        if (! $request->hasSession()) {
+            return 'viewer:sessionless';
+        }
+
+        return 'viewer:'.substr(hash('xxh128', $request->session()->token()), 0, 8);
     }
 
     /**

@@ -125,6 +125,7 @@ function toggleStar(): void {
                             ? 'font-semibold text-sidebar-foreground'
                             : ''
                     "
+                    :data-test="`channel-name-${channel.slug}`"
                     >{{ channel.name }}</span
                 >
                 <!-- The mute / notification-level cue sits just after the name,

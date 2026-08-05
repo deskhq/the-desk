@@ -9,16 +9,26 @@
  * `pinCount` are two readings of one fact, and so are `thread` and
  * `threadReplies`.
  *
- * Ten invalidation sets live here; the eleventh, {@see REMINDER_PROPS}, is next
- * door in {@see reminderReload} with the visit options a reminder mutation
- * carries. All eleven are enforced the same way, by a test that fails on a
- * second copy. {@link THREAD_RESET_PROPS} is not one of them — it names what a
- * thread load *resets* rather than what a write invalidates.
+ * Twelve invalidation sets live here; the thirteenth, {@see REMINDER_PROPS}, is
+ * next door in {@see reminderReload} with the visit options a reminder mutation
+ * carries. All thirteen are enforced the same way, by a test that fails on a
+ * second copy. Two are not quite invalidation sets: {@link THREAD_RESET_PROPS}
+ * names what a thread load *resets* rather than what a write invalidates, and
+ * {@link WORKSPACE_PROPS} names what a *switch* invalidates, which is not a
+ * write at all.
+ *
+ * Since #1252 these sets carry a second duty. Most of the props they name are
+ * `once` props, excluded from every ordinary navigation, and it is the reload
+ * naming them that brings them back — the once exclusion is bypassed on partial
+ * requests. A write that stops naming its set therefore no longer goes stale on
+ * the next navigation; it stays stale until a hard reload.
  *
  * Every set is typed as a mutable `string[]` because that is what Inertia's
  * `only` takes; a `readonly` tuple would force an `as string[]` cast back at
  * every call site, which is exactly the noise this replaces.
  */
+
+import { REMINDER_PROPS } from '@/lib/reminderReload';
 
 /**
  * The viewer: the account the shell reads its identity, preferences and
@@ -119,6 +129,50 @@ export const LOCALE_PROPS: string[] = [
     'slashCommands',
     'sidebarPositions',
     'invitableRoles',
+];
+
+/**
+ * The team's member roster, as the DM entry points and the presence dots read it.
+ *
+ * Named for the reload it replaces. A teammate changing their avatar, status or
+ * do-not-disturb state used to reload the page with no `only` at all — the
+ * anti-pattern this file exists to retire (#1099), and on someone else's timing:
+ * the reply is the whole page as the route stood when it left, and it replaces
+ * every prop rather than merging, so a destination the reader opened in the
+ * meantime loses props that were never in the reply.
+ */
+export const TEAM_MEMBER_PROPS: string[] = ['teamMembers'];
+
+/**
+ * The viewer's frequently-used emoji, as the quick-react cluster ranks them.
+ *
+ * Rides the reaction write next to {@link CHANNEL_LIST_PROPS} rather than alone:
+ * a reaction is the only thing that re-ranks the list, and it already asks for
+ * the roster because the sidebar's activity order moves with it.
+ */
+export const FREQUENT_EMOJI_PROPS: string[] = ['frequentEmojis'];
+
+/**
+ * Everything whose answer is one workspace's, named for the one move that
+ * changes all of them at once and is not a write: switching workspace.
+ *
+ * These are `once` props keyed by the team they describe (#1252), which answers
+ * moving *to* a workspace the client has not seen. It does not answer moving
+ * *back*. The client stores a once prop by key but restores it by prop name, so
+ * A → B → A finds team A's key already declared, excludes the props, and
+ * restores the rosters of the workspace the reader just left — the sidebar of
+ * one workspace on the pages of another.
+ *
+ * A partial reload is what closes that, exactly as it does for
+ * {@link LOCALE_PROPS}: the once exclusion is bypassed on partial requests. It
+ * fires once the switch has landed rather than riding the visit that lands it,
+ * because that visit is a navigation and needs the destination's page props too.
+ */
+export const WORKSPACE_PROPS: string[] = [
+    ...CHANNEL_LIST_PROPS,
+    ...CHANNEL_SECTION_PROPS,
+    ...FREQUENT_EMOJI_PROPS,
+    ...REMINDER_PROPS,
 ];
 
 /**

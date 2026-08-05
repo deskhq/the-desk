@@ -11,6 +11,7 @@ import type { AlertPreference } from '@/lib/alerts';
 import { backgroundVisit } from '@/lib/backgroundVisit';
 import { createChannelFleet } from '@/lib/channelFleet';
 import { placeIncomingMessage } from '@/lib/messagePlacement';
+import { CHANNEL_LIST_PROPS } from '@/lib/reloadProps';
 import type {
     ChannelReader,
     Mention,
@@ -229,9 +230,15 @@ export function useChannelRealtime(options: ChannelRealtimeOptions): void {
                     // title alike, so refetch them rather than merging the
                     // broadcast into each of the three by hand. Nobody asked
                     // for this request, so it rides `backgroundVisit`.
+                    //
+                    // The roster half is named from the registry rather than
+                    // spelled out here, because since #1252 it is the *only*
+                    // thing that brings the roster back: it is a once prop, and
+                    // an editor who is not the viewer moves it without any write
+                    // of the viewer's for an ordinary navigation to pick up.
                     router.reload({
                         ...backgroundVisit,
-                        only: ['channel', 'channels'],
+                        only: ['channel', ...CHANNEL_LIST_PROPS],
                     });
                 })
                 .listen('UserTyping', (user: TypingUser) => {

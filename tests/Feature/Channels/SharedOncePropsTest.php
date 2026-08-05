@@ -83,7 +83,10 @@ test('a second visit still carries what an ordinary navigation owes', function (
 
     $props = (array) revisit($first, workspaceUrl($team))->assertOk()->json('props');
 
-    expect(array_keys($props))->toContain('errors', 'unread', 'auth', 'sidebarOpen')
+    // `auth` was here until #1252 once'd it behind a digest of its own payload;
+    // what is left is the errors bag, the read state and the cookie-derived
+    // flags — the props that are genuinely a function of this request.
+    expect(array_keys($props))->toContain('errors', 'unread', 'sidebarOpen')
         ->and($props['sidebarOpen'])->toBeTrue();
 });
 

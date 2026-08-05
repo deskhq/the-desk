@@ -92,6 +92,7 @@ import {
     useTeamPresence,
     useTeamPresenceSubscription,
 } from '@/composables/useTeamPresence';
+import { TEAM_MEMBER_PROPS } from '@/lib/reloadProps';
 
 /**
  * A no-op renderer mounts a real component instance under Node (no DOM), which
@@ -338,7 +339,7 @@ describe('useTeamPresence', () => {
         unmount();
     });
 
-    it('still reloads every prop when a teammate changes their profile', async () => {
+    it('asks for the roster, and only the roster, when a teammate changes their profile', async () => {
         vi.useFakeTimers();
 
         const { unmount } = mount();
@@ -348,7 +349,14 @@ describe('useTeamPresence', () => {
         await vi.advanceTimersByTimeAsync(500);
         await nextTick();
 
+        // This fired with no `only` at all until #1252 — a whole page of props
+        // on a teammate's timing, to move a do-not-disturb crescent. The bound
+        // list is the regression: a reload without `only` is answered with the
+        // page as the route stood when it left, and replaces every prop with it.
         expect(reload).toHaveBeenCalledTimes(1);
+        expect(reload).toHaveBeenCalledWith(
+            expect.objectContaining({ only: TEAM_MEMBER_PROPS }),
+        );
 
         unmount();
     });

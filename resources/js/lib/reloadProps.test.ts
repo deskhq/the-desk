@@ -4,13 +4,16 @@ import {
     CHANNEL_LIST_PROPS,
     CHANNEL_SECTION_PROPS,
     COLLAPSED_SECTION_PROPS,
+    FREQUENT_EMOJI_PROPS,
     LOCALE_PROPS,
     PIN_PROPS,
     POST_REGISTRATION_PROMPT_PROPS,
     SCHEDULED_MESSAGE_PROPS,
+    TEAM_MEMBER_PROPS,
     THREAD_PROPS,
     THREAD_RESET_PROPS,
     UNREAD_DIGEST_PROPS,
+    WORKSPACE_PROPS,
 } from '@/lib/reloadProps';
 import { filesSpelling } from '@/lib/sourceScan.harness';
 
@@ -84,6 +87,30 @@ describe('reloadProps', () => {
         ]);
     });
 
+    it('names the member roster, so a teammate write need not ask for the page', () => {
+        // This reload carried no `only` at all until #1252: a whole page of
+        // props, on a teammate's timing, to move a do-not-disturb crescent.
+        expect(TEAM_MEMBER_PROPS).toEqual(['teamMembers']);
+    });
+
+    it('names the quick-react ranking, which only a reaction re-ranks', () => {
+        expect(FREQUENT_EMOJI_PROPS).toEqual(['frequentEmojis']);
+    });
+
+    it('names everything one workspace answers, for the move that is not a write', () => {
+        // Switching workspace changes every one of these at once. They are
+        // `once` props keyed by their team, which answers moving to a workspace
+        // the client has not seen; returning to one it has finds the key
+        // declared and restores the rosters of the workspace just left (#1252).
+        expect(WORKSPACE_PROPS).toEqual([
+            'channels',
+            'channelSections',
+            'frequentEmojis',
+            'reminders',
+            'firedReminders',
+        ]);
+    });
+
     it('names the one-time security prompt, which is cached while empty', () => {
         expect(POST_REGISTRATION_PROMPT_PROPS).toEqual([
             'postRegistrationPrompt',
@@ -109,7 +136,9 @@ describe('reloadProps', () => {
             'POST_REGISTRATION_PROMPT_PROPS',
             arrayLiteralOf(/'postRegistrationPrompt',?/),
         ],
+        ['FREQUENT_EMOJI_PROPS', arrayLiteralOf(/'frequentEmojis'/)],
         ['SCHEDULED_MESSAGE_PROPS', arrayLiteralOf(/'scheduledMessages'/)],
+        ['TEAM_MEMBER_PROPS', arrayLiteralOf(/'teamMembers'/)],
         ['THREAD_PROPS', arrayLiteralOf(/'thread',\s*'threadReplies'/)],
         ['THREAD_RESET_PROPS', arrayLiteralOf(/'threadReplies'/)],
         ['UNREAD_DIGEST_PROPS', arrayLiteralOf(/'unread'/)],

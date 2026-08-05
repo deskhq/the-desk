@@ -42,8 +42,9 @@ use Inertia\ProvidesScrollMetadata;
  *    facets on the URL — is passed in as a resolved value.
  *
  * The shell does not name the props it feeds. That list is the Inertia contract
- * and it stays in {@see HandleInertiaRequests::share()}, which is glue: it names
- * the props and computes none of them.
+ * and it stays in {@see HandleInertiaRequests}, split between `share()` and
+ * `shareOnce()` by whether a prop can change between two clicks. Both halves are
+ * glue: they name the props and compute none of them.
  */
 final readonly class WorkspaceShell
 {
@@ -83,6 +84,19 @@ final readonly class WorkspaceShell
     private static function isWorkspaceRoute(Request $request): bool
     {
         return $request->routeIs('channels.*');
+    }
+
+    /**
+     * The workspace these read-models describe, as a once key's discriminator.
+     *
+     * The client stores a once prop by key but restores it by prop *path*, so a
+     * prop whose answer is one team's has to carry which team that was: without
+     * it, moving between two workspaces would find the key already declared and
+     * restore the roster of the one the viewer just left.
+     */
+    public function teamKey(): string
+    {
+        return (string) $this->team->getKey();
     }
 
     /**
