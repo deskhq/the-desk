@@ -250,6 +250,28 @@ function oncePropKeys(TestResponse $response): array
 }
 
 /**
+ * When the client is told a once prop expires, as a millisecond timestamp —
+ * null when it is told to hold it indefinitely.
+ *
+ * Looked up by prop name rather than by key, because the key is the middleware's
+ * business and a test that spelled one out would break on every change to how
+ * they are composed.
+ */
+function onceExpiry(TestResponse $response, string $prop): ?int
+{
+    $page = (array) $response->viewData('page');
+
+    /** @var array<string, array{prop: string, expiresAt: int|null}> $onceProps */
+    $onceProps = $page['onceProps'] ?? [];
+
+    $entry = collect($onceProps)->firstWhere('prop', $prop);
+
+    expect($entry)->not->toBeNull("no once metadata for [{$prop}]");
+
+    return $entry['expiresAt'];
+}
+
+/**
  * The next visit in the same session, made the way the client makes it: over
  * Inertia, declaring back the once props `$previous` delivered.
  *

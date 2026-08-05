@@ -148,20 +148,21 @@ test('the demo reset instant holds until the top of the next hour', function ():
 
     ['owner' => $viewer, 'team' => $team] = teamWithChannel();
 
-    $page = visitWorkspaceAs($viewer, $team)->assertOk()->viewData('page');
+    $visit = visitWorkspaceAs($viewer, $team)->assertOk();
 
-    expect($page['props']['demoResetsAt'])->toBe(Date::parse('2026-08-04 15:00:00')->toIso8601String())
-        ->and($page['onceProps']['demoResetsAt']['expiresAt'])
+    expect($visit->viewData('page')['props']['demoResetsAt'])
+        ->toBe(Date::parse('2026-08-04 15:00:00')->toIso8601String())
+        ->and(onceExpiry($visit, 'demoResetsAt'))
         ->toBe(Date::parse('2026-08-04 15:00:00')->getTimestamp() * 1000);
 });
 
 test('off the demo there is no reset instant and nothing to expire', function (): void {
     ['owner' => $viewer, 'team' => $team] = teamWithChannel();
 
-    $page = visitWorkspaceAs($viewer, $team)->assertOk()->viewData('page');
+    $visit = visitWorkspaceAs($viewer, $team)->assertOk();
 
-    expect($page['props']['demoResetsAt'])->toBeNull()
-        ->and($page['onceProps']['demoResetsAt']['expiresAt'])->toBeNull();
+    expect($visit->viewData('page')['props']['demoResetsAt'])->toBeNull()
+        ->and(onceExpiry($visit, 'demoResetsAt'))->toBeNull();
 });
 
 test('the version standing holds for as long as the check that feeds it', function (): void {
@@ -170,8 +171,21 @@ test('the version standing holds for as long as the check that feeds it', functi
 
     ['owner' => $viewer, 'team' => $team] = teamWithChannel();
 
-    expect(visitWorkspaceAs($viewer, $team)->assertOk()->viewData('page')['onceProps']['update:viewer']['expiresAt'])
+    expect(onceExpiry(visitWorkspaceAs($viewer, $team)->assertOk(), 'update'))
         ->toBe(Date::parse('2026-08-04 20:20:00')->getTimestamp() * 1000);
+});
+
+test('a nonsensical check interval still leaves the version standing an interval', function (): void {
+    config(['updates.cache_ttl_hours' => 0]);
+    $this->travelTo(Date::parse('2026-08-04 14:20:00'));
+
+    ['owner' => $viewer, 'team' => $team] = teamWithChannel();
+
+    // An expiry in the present is one the client treats as already past, which
+    // would put the prop back on every navigation — the one thing this file is
+    // about. The floor is the same one `presence.away_after_minutes` carries.
+    expect(onceExpiry(visitWorkspaceAs($viewer, $team)->assertOk(), 'update'))
+        ->toBe(Date::parse('2026-08-04 15:20:00')->getTimestamp() * 1000);
 });
 
 test('signing in without a document load still ships the version standing', function (): void {

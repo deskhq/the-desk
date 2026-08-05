@@ -305,7 +305,7 @@ class HandleInertiaRequests extends Middleware
             'presence' => Inertia::once(fn (): array => [
                 'awayAfterMinutes' => max((int) config('presence.away_after_minutes'), 1),
             ])->as($instance.':presence'),
-            'demoResetsAt' => $this->demoResetsAt(),
+            'demoResetsAt' => $this->demoResetsAt($instance),
             // The instance's version standing, so authenticated users see a
             // low-key "update available" indicator when the self-hosted release
             // is behind. `current` is always present; `latest`/`notesUrl` fill in
@@ -316,7 +316,7 @@ class HandleInertiaRequests extends Middleware
             // cached value a sign-in from that same tab never replaced.
             'update' => Inertia::once(fn (): ?UpdateStatusData => $user ? app(UpdateChecker::class)->status() : null)
                 ->as('update:'.($user ? 'viewer' : 'guest'))
-                ->until(now()->addHours((int) config('updates.cache_ttl_hours', 12))),
+                ->until(now()->addHours(max((int) config('updates.cache_ttl_hours', 12), 1))),
             'locale' => Inertia::once(fn (): string => app()->getLocale())->as('locale:'.$locale),
             // The active locale's catalog rides the initial document as a "once"
             // prop: it reaches the SSR render and first hydration (so the first
@@ -391,16 +391,24 @@ class HandleInertiaRequests extends Middleware
      * prefetched page** — an hour against the 30 s prefetch cache is no
      * constraint at all, but a TTL shorter than 30 s here would silently shrink
      * that cache instead (#1237).
+     *
+     * It carries the instance key in both branches even though only one of them
+     * has a clock, because *whether* there is a wipe to count down to is
+     * instance config like any other: keeping one key for the prop is what stops
+     * an instance that switches the demo on from being answered under a key the
+     * client already holds the other answer for.
      */
-    protected function demoResetsAt(): OnceProp
+    protected function demoResetsAt(string $instance): OnceProp
     {
+        $key = $instance.':demoResetsAt';
+
         if (! config('demo.mode')) {
-            return Inertia::once(fn (): null => null);
+            return Inertia::once(fn (): null => null)->as($key);
         }
 
         $resetsAt = now()->startOfHour()->addHour();
 
-        return Inertia::once(fn (): string => $resetsAt->toIso8601String())->until($resetsAt);
+        return Inertia::once(fn (): string => $resetsAt->toIso8601String())->as($key)->until($resetsAt);
     }
 
     /**
