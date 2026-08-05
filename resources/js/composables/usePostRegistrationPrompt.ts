@@ -1,6 +1,7 @@
 import { router, usePage } from '@inertiajs/vue3';
 import { computed } from 'vue';
 import { destroy as answerPrompt } from '@/actions/App/Http/Controllers/PostRegistrationPromptController';
+import { POST_REGISTRATION_PROMPT_PROPS } from '@/lib/reloadProps';
 
 /**
  * Whether the passkey enrolment prompt should be presented on this landing.
@@ -35,9 +36,14 @@ export function usePostRegistrationPrompt() {
     /**
      * Record that the prompt has been answered, whichever way. Idempotent server
      * side, so enrolling and then dismissing (or two tabs racing) is harmless.
+     *
+     * Names the prop it invalidates, because a cleared prompt is the *cached*
+     * answer: without it the reply would be subject to the once exclusion and
+     * the client would keep restoring the prompt it just answered.
      */
     function answer(): void {
         router.delete(answerPrompt().url, {
+            only: POST_REGISTRATION_PROMPT_PROPS,
             preserveScroll: true,
             preserveState: true,
         });

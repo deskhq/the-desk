@@ -1,7 +1,6 @@
 <?php
 
 use App\Enums\PostRegistrationPrompt;
-use App\Models\Channel;
 use App\Models\User;
 use Inertia\Testing\AssertableInertia as Assert;
 
@@ -19,18 +18,6 @@ function registerAccount(): User
     ])->assertSessionHasNoErrors();
 
     return User::where('email', 'test@example.com')->sole();
-}
-
-/**
- * The workspace page the registering user lands on — the team's `#general`
- * channel, which is where `channels.index` forwards them.
- */
-function workspaceUrl(User $user): string
-{
-    return route('channels.show', [
-        'team' => $user->currentTeam->slug,
-        'channel' => Channel::GENERAL_SLUG,
-    ]);
 }
 
 test('registering queues the passkey prompt and confirms the password for the session', function (): void {
@@ -53,7 +40,7 @@ test('the shared prop offers the prompt while passkeys are available', function 
 
     $user = registerAccount();
 
-    $this->get(workspaceUrl($user))
+    $this->get(workspaceUrl($user->currentTeam))
         ->assertInertia(fn (Assert $page): Assert => $page
             ->where('postRegistrationPrompt', PostRegistrationPrompt::Passkey->value));
 });
@@ -66,7 +53,7 @@ test('the shared props name the device the request came from', function (): void
     // The prompt prefills its name field with this, so the passkey the user keeps
     // is named after the device they enrolled it on.
     $this->withHeader('User-Agent', 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) Chrome/140.0.0.0')
-        ->get(workspaceUrl($user))
+        ->get(workspaceUrl($user->currentTeam))
         ->assertInertia(fn (Assert $page): Assert => $page
             ->where('currentDevice.browser', 'Chrome')
             ->where('currentDevice.platform', 'macOS'));
@@ -79,7 +66,7 @@ test('the shared prop withholds the prompt when passkeys are switched off', func
 
     config(['fortify.passkeys_enabled' => false]);
 
-    $this->get(workspaceUrl($user))
+    $this->get(workspaceUrl($user->currentTeam))
         ->assertInertia(fn (Assert $page): Assert => $page
             ->where('postRegistrationPrompt', null));
 });
@@ -91,7 +78,7 @@ test('the shared prop withholds the prompt under enforced single sign-on', funct
 
     config(['sso.enforced' => true]);
 
-    $this->get(workspaceUrl($user))
+    $this->get(workspaceUrl($user->currentTeam))
         ->assertInertia(fn (Assert $page): Assert => $page
             ->where('postRegistrationPrompt', null));
 });
@@ -106,7 +93,7 @@ test('the shared prop ignores a session value that is not a known prompt', funct
     foreach (['no-such-prompt', ['passkey'], 42] as $queued) {
         $this->actingAs($user)
             ->withSession([PostRegistrationPrompt::SESSION_KEY => $queued])
-            ->get(workspaceUrl($user))
+            ->get(workspaceUrl($user->currentTeam))
             ->assertInertia(fn (Assert $page): Assert => $page
                 ->where('postRegistrationPrompt', null));
     }
@@ -120,7 +107,7 @@ test('a user who simply signs in is never prompted', function (): void {
     $this->post(route('login.store'), ['email' => $user->email, 'password' => 'password'])
         ->assertSessionHasNoErrors();
 
-    $this->get(workspaceUrl($user))
+    $this->get(workspaceUrl($user->currentTeam))
         ->assertInertia(fn (Assert $page): Assert => $page
             ->where('postRegistrationPrompt', null));
 });

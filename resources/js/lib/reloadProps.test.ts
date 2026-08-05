@@ -4,7 +4,9 @@ import {
     CHANNEL_LIST_PROPS,
     CHANNEL_SECTION_PROPS,
     COLLAPSED_SECTION_PROPS,
+    LOCALE_PROPS,
     PIN_PROPS,
+    POST_REGISTRATION_PROMPT_PROPS,
     SCHEDULED_MESSAGE_PROPS,
     THREAD_PROPS,
     THREAD_RESET_PROPS,
@@ -69,6 +71,25 @@ describe('reloadProps', () => {
         expect(THREAD_RESET_PROPS).toEqual(['threadReplies']);
     });
 
+    it('names everything the server renders in the reader own language', () => {
+        // A locale the reader has already used this session is one the client
+        // believes it holds, so moving back to it restores the copy of the
+        // language they just left unless these are asked for by name (#1251).
+        expect(LOCALE_PROPS).toEqual([
+            'locale',
+            'translations',
+            'slashCommands',
+            'sidebarPositions',
+            'invitableRoles',
+        ]);
+    });
+
+    it('names the one-time security prompt, which is cached while empty', () => {
+        expect(POST_REGISTRATION_PROMPT_PROPS).toEqual([
+            'postRegistrationPrompt',
+        ]);
+    });
+
     it.each([
         ['AUTH_PROPS', arrayLiteralOf(/'auth'/)],
         ['CHANNEL_LIST_PROPS', arrayLiteralOf(/'channels'/)],
@@ -77,7 +98,17 @@ describe('reloadProps', () => {
             'COLLAPSED_SECTION_PROPS',
             arrayLiteralOf(/'collapsedChannelSections'/),
         ],
+        [
+            'LOCALE_PROPS',
+            arrayLiteralOf(
+                /'locale',\s*'translations',\s*'slashCommands',\s*'sidebarPositions',\s*'invitableRoles',?/,
+            ),
+        ],
         ['PIN_PROPS', arrayLiteralOf(/'pins',\s*'pinCount'/)],
+        [
+            'POST_REGISTRATION_PROMPT_PROPS',
+            arrayLiteralOf(/'postRegistrationPrompt',?/),
+        ],
         ['SCHEDULED_MESSAGE_PROPS', arrayLiteralOf(/'scheduledMessages'/)],
         ['THREAD_PROPS', arrayLiteralOf(/'thread',\s*'threadReplies'/)],
         ['THREAD_RESET_PROPS', arrayLiteralOf(/'threadReplies'/)],

@@ -85,8 +85,7 @@ test('the shell is constructible from a viewer and a team alone', function (): v
         ->and($shell->customEmojis())->toBe([])
         ->and($shell->userGroups())->toBe([])
         ->and($shell->reminders(MessageReminderStatus::Pending))->toBe([])
-        ->and($shell->unreadDigest()->threads)->toBeFalse()
-        ->and($shell->slashCommands())->not->toBeEmpty();
+        ->and($shell->unreadDigest()->threads)->toBeFalse();
 });
 
 test('the team roster is ordered by name and lists the viewer among the others', function (): void {

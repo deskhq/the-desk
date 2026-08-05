@@ -11,8 +11,10 @@ use App\Enums\SidebarPosition;
 use App\Enums\TeamRole;
 use App\Enums\ThreadInboxFilter;
 use App\Models\Channel;
+use App\SlashCommands\SlashCommandRegistry;
 use App\Support\Branding\BrandingAssets;
 use App\Support\FrequentEmoji;
+use App\Support\InstanceFingerprint;
 use App\Support\MessageSearchPanel;
 use App\Support\PendingInvitations;
 use App\Support\ReverbConfig;
@@ -26,6 +28,7 @@ use App\Support\WorkspaceUnread;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Middleware;
+use Inertia\OnceProp;
 use Laravel\Fortify\Features;
 
 class HandleInertiaRequests extends Middleware
@@ -57,15 +60,19 @@ class HandleInertiaRequests extends Middleware
      *
      * This list *is* the Inertia contract with the frontend, so it stays spelled
      * out here — one line per prop, naming it and saying where it comes from.
-     * What it deliberately does not do is compute any of them: instance-level
-     * props read config or a `Support` helper, and everything an in-workspace
-     * page needs comes off {@see WorkspaceShell}, which resolves the
+     * What it deliberately does not do is compute any of them: everything an
+     * in-workspace page needs comes off {@see WorkspaceShell}, which resolves the
      * (signed in, on a workspace route, with a bound team) precondition once.
      * A null shell means there is no workspace to describe, and each of its props
      * falls back to the empty value the frontend already renders for "not here".
      * The affordance flags are the one thing that outlives the shell — the
      * settings pages draw them too — so they come off
      * {@see WorkspacePermissions}, which answers all six from one derivation.
+     *
+     * What is *not* here is the instance's own description — its name, branding,
+     * connection details and feature toggles — along with the session facts that
+     * settle at sign-in. Those cannot change between two clicks, so they are
+     * declared next door in {@see self::shareOnce()} and reach the client once.
      *
      * @see https://inertiajs.com/shared-data
      *
@@ -83,119 +90,8 @@ class HandleInertiaRequests extends Middleware
 
         return [
             ...parent::share($request),
-            'name' => config('app.name'),
-            // Instance branding. `logo` is the operator's mark, or null when the
-            // instance still ships ours — the shipped mark is an inline SVG whose
-            // lower planes ride on `currentColor`, which an uploaded file cannot
-            // do, so the client only swaps in an <img> once there is something to
-            // swap in. `attribution` drives the removable "Powered by" line.
-            'branding' => [
-                'logo' => $this->brandingAssets->logoPath() === null ? null : route('branding.logo'),
-                'attribution' => (bool) config('branding.attribution'),
-            ],
-            // Browser-facing Reverb connection details, resolved at runtime so a
-            // single built image works for any operator without baking VITE_*
-            // values into the bundle. Read by app.ts to configure Echo at boot.
-            'reverb' => ReverbConfig::forFrontend(),
-            // Whether this instance can send web push, plus the VAPID public key
-            // a browser needs to subscribe. Resolved at runtime for the same
-            // reason as the Reverb block above: one published image serves every
-            // operator's keypair without a rebuild. Both are withheld when no
-            // keypair is configured, which is what hides the settings toggle.
-            'webPush' => WebPushConfig::forFrontend(),
-            'locale' => app()->getLocale(),
-            // The active locale's catalog rides the initial document as a "once"
-            // prop: it reaches the SSR render and first hydration (so the first
-            // paint is already translated) but is excluded from every subsequent
-            // SPA visit, keeping navigation payloads free of the catalog.
-            //
-            // The once key carries the locale it holds, so "already loaded" means
-            // "already loaded *this* catalog". A visit that changes the effective
-            // locale without a document load — signing in as a French user from
-            // the English guest page — therefore ships the new catalog instead of
-            // leaving the client rendering the old one (#764).
-            'translations' => Inertia::once(fn () => app(TranslationCatalog::class)->messages(app()->getLocale()))
-                ->as('translations:'.app()->getLocale()),
-            // A single deploy-time flag lets self-hosters lock down public
-            // registration; when off, Fortify never registers the register
-            // routes, so the frontend hides its "sign up" affordances to match.
-            'registrationEnabled' => Features::enabled(Features::registration()),
-            // Whether new accounts must confirm their email before using the app.
-            // Off by default; the frontend reads it only to hide copy that would
-            // imply a verification step that can't happen (e.g. the profile
-            // "resend verification email" affordance).
-            'emailVerificationEnabled' => (bool) config('fortify.email_verification_enabled'),
-            // Whether this instance is the public single-shared-account demo.
-            // The frontend reads it only to disable the destructive owner-level
-            // controls (delete/rename the workspace, change email/password,
-            // enable 2FA/passkeys, remove members) with a "disabled in the demo"
-            // tooltip — the server enforces every block regardless (see
-            // PreventDestructiveDemoActions), so this is UI affordance only.
-            'demoMode' => (bool) config('demo.mode'),
-            // ISO-8601 instant of the next hourly demo wipe (top of the hour),
-            // so the banner's "Resets in X min" chip ticks against the real
-            // schedule (see routes/console.php). Null off the demo.
-            'demoResetsAt' => config('demo.mode')
-                ? now()->startOfHour()->addHour()->toIso8601String()
-                : null,
-            // Single sign-on state for the login page: whether to show the
-            // "Sign in with SSO" entry point (an OIDC provider is configured),
-            // and whether the password form still applies (off only when SSO
-            // enforcement is active — AUTH_SSO_ONLY with a configured provider —
-            // where the password login POST is blocked too).
-            'sso' => [
-                'oidcEnabled' => (bool) config('sso.oidc.enabled'),
-                'passwordLoginEnabled' => ! config('sso.enforced'),
-            ],
-            // A readable name for the device this request came from, so a surface
-            // that has to name it (the post-registration passkey prompt prefills
-            // its name field with it) does not re-derive the parse client-side.
-            // Joined into one line by the frontend through the `:browser on
-            // :platform` key the session list already uses, so it follows a live
-            // locale switch rather than freezing at render time.
-            'currentDevice' => UserAgentParser::parse($request->userAgent()),
-            // The one-time account-security prompt owed to an account created in
-            // this session, or null. Read from the session rather than the user so
-            // it dies with the session — a returning user is no longer "just
-            // registered" — and re-gated per request, so switching the feature off
-            // withdraws the prompt instead of offering something that would 404.
-            'postRegistrationPrompt' => $this->postRegistrationPrompt($request),
-            // The per-file and per-message attachment caps, so the composer can
-            // reject an oversized or over-count drop client-side for instant
-            // feedback. The upload and send endpoints re-enforce them as the
-            // source of truth (see config/attachments.php).
-            'attachments' => [
-                'maxSizeMb' => (int) config('attachments.max_size_mb'),
-                'maxPerMessage' => (int) config('attachments.max_per_message'),
-            ],
-            // Whether the Giphy `/gif` picker is available, derived from the API
-            // key being set. False fully hides the picker client-side (and the
-            // `/gif` command is absent from autocomplete), matching the 404 the
-            // search/attach endpoints return when unconfigured.
-            'gifPickerEnabled' => filled(config('services.giphy.key')),
-            // Whether the `/poll` builder is available. False fully hides the
-            // builder client-side (and the `/poll` command is absent from
-            // autocomplete), matching the 404 the poll endpoints return when off.
-            'pollsEnabled' => (bool) config('polls.enabled'),
-            // The instance's version standing, so authenticated users see a
-            // low-key "update available" indicator when the self-hosted release
-            // is behind. `current` is always present; `latest`/`notesUrl` fill in
-            // once a scheduled check has cached a result (never when disabled).
-            'update' => fn (): ?UpdateStatusData => $user ? app(UpdateChecker::class)->status() : null,
             'auth' => [
                 'user' => $user,
-            ],
-            // The selectable sidebar positions (left / right) ride every request
-            // so the user menu can offer them anywhere, not just on
-            // Settings → Appearance where the page-level prop is scoped. The enum
-            // is the single source of truth, shared the same way the settings page
-            // sources its own options.
-            'sidebarPositions' => SidebarPosition::options(),
-            // The auto-idle threshold rides every request because the detector
-            // that enforces it runs in the browser: a tab has to know how long
-            // "no activity" may last before it reports itself away.
-            'presence' => [
-                'awayAfterMinutes' => max((int) config('presence.away_after_minutes'), 1),
             ],
             'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',
             'currentTeam' => fn () => $user?->currentTeam ? $user->toUserTeam($user->currentTeam) : null,
@@ -226,13 +122,6 @@ class HandleInertiaRequests extends Middleware
             // the permission and the master toggle ride along with every request
             // to gate the nav entry and the Team-settings card.
             'canManageCurrentTeamIntegrations' => fn (): bool => $permissions->forCurrentTeam()->canManageIntegrations ?? false,
-            'integrationsEnabled' => (bool) config('integrations.enabled'),
-            // How long a deleted channel stays restorable. A fixed instance-wide
-            // constant, and the delete dialog is raised from the channel shell
-            // rather than from a page of its own, so it rides along here instead
-            // of being threaded through the channel view as a page prop.
-            'channelRestoreWindowDays' => Channel::RESTORE_WINDOW_DAYS,
-            'invitableRoles' => TeamRole::assignable(),
             'channels' => fn (): array => $shell?->channels($activeChannel) ?? [],
             // What the viewer has not read: the sidebar's per-channel badges,
             // every workspace's dot, and the Threads dot, in one prop. The
@@ -261,12 +150,6 @@ class HandleInertiaRequests extends Middleware
             // `group:<id>` token renders as a pill or as plain text. A deleted
             // group is simply absent, so its token falls back to text.
             'userGroups' => fn (): array => $shell?->userGroups() ?? [],
-            // The composer's slash-command autocomplete manifest, built from the
-            // registry with copy already translated under the active locale.
-            // Server-authoritative: a newly registered command appears in
-            // autocomplete with no frontend change. Empty off the workspace,
-            // where the composer isn't rendered.
-            'slashCommands' => fn (): array => $shell?->slashCommands() ?? [],
             'collapsedChannelSections' => fn () => $user->collapsed_channel_sections ?? [],
             // The Threads panel's inbox and its "Unread" tally, present only while
             // the dock actually has that destination pinned.
@@ -281,6 +164,243 @@ class HandleInertiaRequests extends Middleware
             // in-app nudges; reloaded live when a MessageReminderDue signal lands.
             'firedReminders' => fn (): array => $shell?->reminders(MessageReminderStatus::Fired) ?? [],
         ];
+    }
+
+    /**
+     * Define the props that are shared once and remembered across navigations.
+     *
+     * The counterpart to {@see self::share()}: everything there is recomputed
+     * and reserialised on every click, and everything here is not. A prop
+     * belongs in this list when it **cannot change between two clicks** and
+     * there is an honest trigger for when it can — an instance whose operator
+     * changed something, a clock reaching the top of the hour, a session whose
+     * locale or device is different. Inertia excludes a once prop *before*
+     * resolving it, so a prop moved here costs zero bytes and zero closure time
+     * on an ordinary navigation; that is why the two that read the filesystem
+     * and parse a user agent are closures rather than eager values.
+     *
+     * Three groups, distinguished only by what their key is made of:
+     *
+     * 1. **Instance config**, behind one shared {@see InstanceFingerprint}. The
+     *    key is the same digest for all of them because they change together.
+     * 2. **TTL'd** — `demoResetsAt` and `update`, where the trigger is a clock
+     *    rather than an event.
+     * 3. **Session-, locale- or version-keyed** — what the viewer's own session
+     *    settles: the language they read in, the device they arrived on, the
+     *    prompt their registration queued.
+     *
+     * Every key carries its own discriminator because the **client stores once
+     * props by key and restores them by prop path**: two props sharing one key
+     * collapse into a single entry client-side, and the other would come back
+     * absent on the second visit rather than cached. One digest, sixteen keys.
+     *
+     * The exclusion is bypassed on partial requests, so a `router.reload({ only:
+     * [...] })` naming any of these still receives it — which is what makes
+     * `resources/js/lib/reloadProps.ts` the invalidation registry for the props
+     * whose trigger is a write rather than a key.
+     *
+     * @see https://inertiajs.com/shared-data
+     *
+     * @return array<string, mixed>
+     */
+    #[\Override]
+    public function shareOnce(Request $request): array
+    {
+        $instance = 'instance:'.InstanceFingerprint::current();
+        $locale = app()->getLocale();
+        $user = $request->user();
+        $prompt = $this->postRegistrationPrompt($request);
+
+        return [
+            'name' => Inertia::once(fn (): string => (string) config('app.name'))->as($instance.':name'),
+            // Instance branding. `logo` is the operator's mark, or null when the
+            // instance still ships ours — the shipped mark is an inline SVG whose
+            // lower planes ride on `currentColor`, which an uploaded file cannot
+            // do, so the client only swaps in an <img> once there is something to
+            // swap in. `attribution` drives the removable "Powered by" line.
+            //
+            // Resolving the logo is up to two filesystem stats, and it is the
+            // reason this prop is a closure: the stats now run on a first load
+            // and never again. The fingerprint deliberately does not cover them
+            // — see {@see InstanceFingerprint}.
+            'branding' => Inertia::once(fn (): array => [
+                'logo' => $this->brandingAssets->logoPath() === null ? null : route('branding.logo'),
+                'attribution' => (bool) config('branding.attribution'),
+            ])->as($instance.':branding'),
+            // Browser-facing Reverb connection details, resolved at runtime so a
+            // single built image works for any operator without baking VITE_*
+            // values into the bundle. Read by app.ts to configure Echo at boot —
+            // and by nothing afterwards, which is what makes it a once prop
+            // rather than something the shell keeps re-reading.
+            'reverb' => Inertia::once(ReverbConfig::forFrontend(...))->as($instance.':reverb'),
+            // Whether this instance can send web push, plus the VAPID public key
+            // a browser needs to subscribe. Resolved at runtime for the same
+            // reason as the Reverb block above: one published image serves every
+            // operator's keypair without a rebuild. Both are withheld when no
+            // keypair is configured, which is what hides the settings toggle.
+            'webPush' => Inertia::once(WebPushConfig::forFrontend(...))->as($instance.':webPush'),
+            // A single deploy-time flag lets self-hosters lock down public
+            // registration; when off, Fortify never registers the register
+            // routes, so the frontend hides its "sign up" affordances to match.
+            'registrationEnabled' => Inertia::once(fn (): bool => Features::enabled(Features::registration()))
+                ->as($instance.':registrationEnabled'),
+            // Whether new accounts must confirm their email before using the app.
+            // Off by default; the frontend reads it only to hide copy that would
+            // imply a verification step that can't happen (e.g. the profile
+            // "resend verification email" affordance).
+            'emailVerificationEnabled' => Inertia::once(fn (): bool => (bool) config('fortify.email_verification_enabled'))
+                ->as($instance.':emailVerificationEnabled'),
+            // Whether this instance is the public single-shared-account demo.
+            // The frontend reads it only to disable the destructive owner-level
+            // controls (delete/rename the workspace, change email/password,
+            // enable 2FA/passkeys, remove members) with a "disabled in the demo"
+            // tooltip — the server enforces every block regardless (see
+            // PreventDestructiveDemoActions), so this is UI affordance only.
+            'demoMode' => Inertia::once(fn (): bool => (bool) config('demo.mode'))->as($instance.':demoMode'),
+            // Single sign-on state for the login page: whether to show the
+            // "Sign in with SSO" entry point (an OIDC provider is configured),
+            // and whether the password form still applies (off only when SSO
+            // enforcement is active — AUTH_SSO_ONLY with a configured provider —
+            // where the password login POST is blocked too).
+            'sso' => Inertia::once(fn (): array => [
+                'oidcEnabled' => (bool) config('sso.oidc.enabled'),
+                'passwordLoginEnabled' => ! config('sso.enforced'),
+            ])->as($instance.':sso'),
+            // The per-file and per-message attachment caps, so the composer can
+            // reject an oversized or over-count drop client-side for instant
+            // feedback. The upload and send endpoints re-enforce them as the
+            // source of truth (see config/attachments.php).
+            'attachments' => Inertia::once(fn (): array => [
+                'maxSizeMb' => (int) config('attachments.max_size_mb'),
+                'maxPerMessage' => (int) config('attachments.max_per_message'),
+            ])->as($instance.':attachments'),
+            // Whether the Giphy `/gif` picker is available, derived from the API
+            // key being set. False fully hides the picker client-side (and the
+            // `/gif` command is absent from autocomplete), matching the 404 the
+            // search/attach endpoints return when unconfigured.
+            'gifPickerEnabled' => Inertia::once(fn (): bool => filled(config('services.giphy.key')))
+                ->as($instance.':gifPickerEnabled'),
+            // Whether the `/poll` builder is available. False fully hides the
+            // builder client-side (and the `/poll` command is absent from
+            // autocomplete), matching the 404 the poll endpoints return when off.
+            'pollsEnabled' => Inertia::once(fn (): bool => (bool) config('polls.enabled'))
+                ->as($instance.':pollsEnabled'),
+            // The integrations settings surface (bots, tokens, webhooks) hides
+            // entirely unless the platform is on, so the master toggle rides
+            // along to gate the nav entry and the Team-settings card. The
+            // permission half of that gate stays in share(): it follows the
+            // viewer's role, not the instance.
+            'integrationsEnabled' => Inertia::once(fn (): bool => (bool) config('integrations.enabled'))
+                ->as($instance.':integrationsEnabled'),
+            // How long a deleted channel stays restorable. A fixed instance-wide
+            // constant, and the delete dialog is raised from the channel shell
+            // rather than from a page of its own, so it rides along here instead
+            // of being threaded through the channel view as a page prop. A code
+            // constant rather than a config value, which `app.version` covers.
+            'channelRestoreWindowDays' => Inertia::once(fn (): int => Channel::RESTORE_WINDOW_DAYS)
+                ->as($instance.':channelRestoreWindowDays'),
+            // The auto-idle threshold rides every request because the detector
+            // that enforces it runs in the browser: a tab has to know how long
+            // "no activity" may last before it reports itself away.
+            'presence' => Inertia::once(fn (): array => [
+                'awayAfterMinutes' => max((int) config('presence.away_after_minutes'), 1),
+            ])->as($instance.':presence'),
+            'demoResetsAt' => $this->demoResetsAt(),
+            // The instance's version standing, so authenticated users see a
+            // low-key "update available" indicator when the self-hosted release
+            // is behind. `current` is always present; `latest`/`notesUrl` fill in
+            // once a scheduled check has cached a result (never when disabled).
+            //
+            // Keyed on whether anyone is signed in, because the two answers are
+            // different props: without the split, a guest's null would be the
+            // cached value a sign-in from that same tab never replaced.
+            'update' => Inertia::once(fn (): ?UpdateStatusData => $user ? app(UpdateChecker::class)->status() : null)
+                ->as('update:'.($user ? 'viewer' : 'guest'))
+                ->until(now()->addHours((int) config('updates.cache_ttl_hours', 12))),
+            'locale' => Inertia::once(fn (): string => app()->getLocale())->as('locale:'.$locale),
+            // The active locale's catalog rides the initial document as a "once"
+            // prop: it reaches the SSR render and first hydration (so the first
+            // paint is already translated) but is excluded from every subsequent
+            // SPA visit, keeping navigation payloads free of the catalog.
+            //
+            // The once key carries the locale it holds, so "already loaded" means
+            // "already loaded *this* catalog". A visit that changes the effective
+            // locale without a document load — signing in as a French user from
+            // the English guest page — therefore ships the new catalog instead of
+            // leaving the client rendering the old one (#764).
+            'translations' => Inertia::once(fn () => app(TranslationCatalog::class)->messages($locale))
+                ->as('translations:'.$locale),
+            // The selectable sidebar positions (left / right) ride every request
+            // so the user menu can offer them anywhere, not just on
+            // Settings → Appearance where the page-level prop is scoped. The enum
+            // is the single source of truth, shared the same way the settings page
+            // sources its own options. Locale-keyed rather than fingerprinted,
+            // because the labels are translated server-side.
+            'sidebarPositions' => Inertia::once(SidebarPosition::options(...))->as('sidebarPositions:'.$locale),
+            'invitableRoles' => Inertia::once(TeamRole::assignable(...))->as('invitableRoles:'.$locale),
+            // The composer's slash-command autocomplete manifest, built from the
+            // registry with copy already translated under the active locale.
+            // Server-authoritative: a newly registered command appears in
+            // autocomplete with no frontend change.
+            //
+            // Shared everywhere rather than only inside the workspace: a once
+            // prop has one value per prop name for the life of the page, so a
+            // settings visit answering `[]` would be the value a later workspace
+            // visit restored. It is a global registry, so there is one honest
+            // answer, and it is paid for once.
+            'slashCommands' => Inertia::once(fn (): array => app(SlashCommandRegistry::class)->manifest())
+                ->as("slashCommands:{$locale}:".config('app.version')),
+            // A readable name for the device this request came from, so a surface
+            // that has to name it (the post-registration passkey prompt prefills
+            // its name field with it) does not re-derive the parse client-side.
+            // Joined into one line by the frontend through the `:browser on
+            // :platform` key the session list already uses, so it follows a live
+            // locale switch rather than freezing at render time.
+            //
+            // Keyed on the raw header rather than on the session: the parse is a
+            // function of the header alone, and hashing it is what keeps the
+            // regexes off the navigation path. Truncated for the same reason the
+            // instance digest is — the key rides a request header on every
+            // navigation, and a collision costs a device name, not correctness.
+            'currentDevice' => Inertia::once(fn (): array => UserAgentParser::parse($request->userAgent()))
+                ->as('currentDevice:'.substr(hash('xxh128', (string) $request->userAgent()), 0, 8)),
+            // The one-time account-security prompt owed to an account created in
+            // this session, or null. Read from the session rather than the user so
+            // it dies with the session — a returning user is no longer "just
+            // registered" — and re-gated per request, so switching the feature off
+            // withdraws the prompt instead of offering something that would 404.
+            //
+            // Cached only while there is nothing to offer, which is every visit
+            // but a handful: a queued prompt is forced through so that registering
+            // in a tab that has already cached the empty answer still raises it.
+            // Answering it clears the session key and reloads this prop by name
+            // (see `usePostRegistrationPrompt`), which is what stops a refresh
+            // re-asking.
+            'postRegistrationPrompt' => Inertia::once(fn (): ?string => $prompt)->fresh($prompt !== null),
+        ];
+    }
+
+    /**
+     * The next hourly demo wipe, as the banner's "Resets in X min" chip counts
+     * down to it — null off the demo, where there is no wipe to count down to.
+     *
+     * The one prop here whose trigger is purely a clock: it holds until the top
+     * of the next hour and is then recomputed, instead of being recomputed on
+     * every click for an answer that changes hourly. Its TTL is also the
+     * shortest in this file, and a once prop's TTL **caps the lifetime of a
+     * prefetched page** — an hour against the 30 s prefetch cache is no
+     * constraint at all, but a TTL shorter than 30 s here would silently shrink
+     * that cache instead (#1237).
+     */
+    protected function demoResetsAt(): OnceProp
+    {
+        if (! config('demo.mode')) {
+            return Inertia::once(fn (): null => null);
+        }
+
+        $resetsAt = now()->startOfHour()->addHour();
+
+        return Inertia::once(fn (): string => $resetsAt->toIso8601String())->until($resetsAt);
     }
 
     /**

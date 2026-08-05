@@ -15,12 +15,15 @@ use Inertia\Testing\AssertableInertia as Assert;
 | page to read them back was proving the registry through the widest interface
 | in the application.
 |
-| These two are not about the contents. The first is that `share()` hands the
-| client every registered command with its copy resolved under the *request's*
-| locale rather than the process's — middleware behaviour the registry cannot
-| state, since it is handed an already-active translator. The second is the
-| `$shell?->slashCommands() ?? []` fallback off the workspace, which is the
-| Inertia contract for a page with no channel.
+| These two are not about the contents. The first is that the middleware hands
+| the client every registered command with its copy resolved under the
+| *request's* locale rather than the process's — behaviour the registry cannot
+| state, since it is handed an already-active translator. The second is that
+| the manifest rides every page rather than only the workspace ones: it became
+| a once prop in #1251, and a once prop holds one value per prop name for the
+| life of the page, so a settings visit answering `[]` would be the value a
+| later workspace visit restored. It is a global registry with one honest
+| answer, and the client pays for it once.
 |
 */
 
@@ -38,10 +41,12 @@ test('a channel page ships every registered command, translated under the reques
         );
 });
 
-test('the manifest is omitted off the workspace', function (): void {
+test('the manifest rides a page outside the workspace too', function (): void {
     ['owner' => $owner] = teamWithChannel();
 
     $this->actingAs($owner)
         ->get(route('profile.edit'))
-        ->assertInertia(fn (Assert $page): Assert => $page->where('slashCommands', []));
+        ->assertInertia(fn (Assert $page): Assert => $page
+            ->has('slashCommands', count(app(SlashCommandRegistry::class)->manifest()))
+        );
 });

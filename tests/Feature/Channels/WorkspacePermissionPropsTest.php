@@ -3,11 +3,8 @@
 use App\Enums\ChannelCreationPolicy;
 use App\Enums\ChannelVisibility;
 use App\Enums\TeamRole;
-use App\Models\Channel;
-use App\Models\Team;
 use App\Models\User;
 use Illuminate\Support\Facades\Gate;
-use Illuminate\Testing\TestResponse;
 use Inertia\Testing\AssertableInertia as Assert;
 
 /*
@@ -27,17 +24,6 @@ use Inertia\Testing\AssertableInertia as Assert;
 | the derivation itself, without a round-trip.
 |
 */
-
-/**
- * A workspace visit to the team's `#general` as the given viewer.
- */
-function visitWorkspaceAs(User $viewer, Team $team): TestResponse
-{
-    return test()->actingAs($viewer)->get(route('channels.show', [
-        'team' => $team->slug,
-        'channel' => Channel::GENERAL_SLUG,
-    ]));
-}
 
 test('a workspace visit reports the six permission props for the viewer role', function (
     string $role,
