@@ -6,6 +6,7 @@ use App\Actions\Teams\CreateTeam;
 use App\Data\ChannelData;
 use App\Data\UnreadCountsData;
 use App\Enums\TeamRole;
+use App\Http\Middleware\HandleInertiaRequests;
 use App\Models\Channel;
 use App\Models\ChannelMember;
 use App\Models\Team;
@@ -16,6 +17,7 @@ use Database\Factories\ChannelMemberFactory;
 use GuzzleHttp\Promise\PromiseInterface;
 use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Testing\TestResponse;
 
 /*
 |--------------------------------------------------------------------------
@@ -196,6 +198,93 @@ function channelMembership(Channel $channel, User $user, ?Closure $state = null)
     $membership->forceFill($stated->make()->getAttributes())->save();
 
     return $membership;
+}
+
+/*
+|--------------------------------------------------------------------------
+| The second visit (#1251)
+|--------------------------------------------------------------------------
+|
+| Most of the shell contract is a statement about the *second* click, and a
+| test can only make it by arriving the way the SPA does: as an Inertia
+| request that declares back every once prop the previous response handed
+| over. Hence {@see revisit()}, which reads those keys off the first response
+| rather than spelling them out — the keys are a private arrangement between
+| the middleware and the client, and a test that hardcoded them would be
+| asserting the key format instead of the behaviour it carries.
+|
+*/
+
+/**
+ * The URL of a team's #general — the workspace visit the shell tests drive.
+ */
+function workspaceUrl(Team $team): string
+{
+    return route('channels.show', ['team' => $team->slug, 'channel' => Channel::GENERAL_SLUG]);
+}
+
+/**
+ * A workspace visit to the team's #general as the given viewer.
+ */
+function visitWorkspaceAs(User $viewer, Team $team): TestResponse
+{
+    return test()->actingAs($viewer)->get(workspaceUrl($team));
+}
+
+/**
+ * The once-prop keys a response handed the client, whether it rendered a
+ * document or answered an Inertia visit.
+ *
+ * @return array<int, string>
+ */
+function oncePropKeys(TestResponse $response): array
+{
+    $page = $response->headers->get('X-Inertia') === 'true'
+        ? (array) $response->json()
+        : (array) $response->viewData('page');
+
+    /** @var array<string, mixed> $onceProps */
+    $onceProps = $page['onceProps'] ?? [];
+
+    return array_keys($onceProps);
+}
+
+/**
+ * When the client is told a once prop expires, as a millisecond timestamp —
+ * null when it is told to hold it indefinitely.
+ *
+ * Looked up by prop name rather than by key, because the key is the middleware's
+ * business and a test that spelled one out would break on every change to how
+ * they are composed.
+ */
+function onceExpiry(TestResponse $response, string $prop): ?int
+{
+    $page = (array) $response->viewData('page');
+
+    /** @var array<string, array{prop: string, expiresAt: int|null}> $onceProps */
+    $onceProps = $page['onceProps'] ?? [];
+
+    $entry = collect($onceProps)->firstWhere('prop', $prop);
+
+    expect($entry)->not->toBeNull("no once metadata for [{$prop}]");
+
+    return $entry['expiresAt'];
+}
+
+/**
+ * The next visit in the same session, made the way the client makes it: over
+ * Inertia, declaring back the once props `$previous` delivered.
+ *
+ * @param  array<string, string>  $headers  extra headers, e.g. a partial reload's
+ */
+function revisit(TestResponse $previous, string $url, array $headers = []): TestResponse
+{
+    return test()->withHeaders([
+        'X-Inertia' => 'true',
+        'X-Inertia-Version' => (string) app(HandleInertiaRequests::class)->version(request()),
+        'X-Inertia-Except-Once-Props' => implode(',', oncePropKeys($previous)),
+        ...$headers,
+    ])->get($url);
 }
 
 /*

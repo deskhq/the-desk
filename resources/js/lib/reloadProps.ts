@@ -9,11 +9,11 @@
  * `pinCount` are two readings of one fact, and so are `thread` and
  * `threadReplies`.
  *
- * Eight invalidation sets live here; the ninth, {@see REMINDER_PROPS}, is next
+ * Ten invalidation sets live here; the eleventh, {@see REMINDER_PROPS}, is next
  * door in {@see reminderReload} with the visit options a reminder mutation
- * carries. All nine are enforced the same way, by a test that fails on a second
- * copy. {@link THREAD_RESET_PROPS} is not one of them — it names what a thread
- * load *resets* rather than what a write invalidates.
+ * carries. All eleven are enforced the same way, by a test that fails on a
+ * second copy. {@link THREAD_RESET_PROPS} is not one of them — it names what a
+ * thread load *resets* rather than what a write invalidates.
  *
  * Every set is typed as a mutable `string[]` because that is what Inertia's
  * `only` takes; a `readonly` tuple would force an `as string[]` cast back at
@@ -97,3 +97,38 @@ export const THREAD_RESET_PROPS: string[] = ['threadReplies'];
 
 /** The channel's pending scheduled messages, as the later-delivery tray lists them. */
 export const SCHEDULED_MESSAGE_PROPS: string[] = ['scheduledMessages'];
+
+/**
+ * Everything the server renders in the reader's own language.
+ *
+ * These are `once` props keyed by the locale they hold (#1251), which answers
+ * moving *to* a new language: the key is one the client has never declared, so
+ * the props ship. It does not answer moving *back*. The client stores a once
+ * prop by key but restores it by prop name, so `en → fr → en` finds `locale:en`
+ * already declared, excludes the props, and restores the French copy it happens
+ * to be holding — labels frozen in the language the reader just left.
+ *
+ * A partial reload is what closes that, because the once exclusion is bypassed
+ * on partial requests. Hence the one write that changes the reader's language
+ * asks for these by name; the visit that persists the preference cannot do it
+ * on its own, since it is an ordinary visit and subject to the exclusion.
+ */
+export const LOCALE_PROPS: string[] = [
+    'locale',
+    'translations',
+    'slashCommands',
+    'sidebarPositions',
+    'invitableRoles',
+];
+
+/**
+ * The one-time security prompt owed to an account created in this session.
+ *
+ * Cached while there is nothing to offer — which is every visit but a handful —
+ * so answering it has to say so by name. Without this the dismissal would leave
+ * the client restoring the prompt it just answered, and the modal would come
+ * back on the next navigation.
+ */
+export const POST_REGISTRATION_PROMPT_PROPS: string[] = [
+    'postRegistrationPrompt',
+];

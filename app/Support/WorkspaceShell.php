@@ -9,7 +9,6 @@ use App\Data\ChannelSectionData;
 use App\Data\CustomEmojiData;
 use App\Data\MessageReminderData;
 use App\Data\MessageSearchCriteria;
-use App\Data\SlashCommandData;
 use App\Data\UnreadDigestData;
 use App\Data\UserData;
 use App\Data\UserGroupData;
@@ -20,7 +19,6 @@ use App\Http\Middleware\HandleInertiaRequests;
 use App\Models\Channel;
 use App\Models\Team;
 use App\Models\User;
-use App\SlashCommands\SlashCommandRegistry;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\ProvidesScrollMetadata;
@@ -28,8 +26,7 @@ use Inertia\ProvidesScrollMetadata;
 /**
  * Everything an in-workspace page needs to draw its shell — the sidebar's
  * channels, sections, members and reminders, the emoji and group vocabularies
- * message bodies resolve against, the composer's command manifest, and the dock
- * panels' payloads.
+ * message bodies resolve against, and the dock panels' payloads.
  *
  * It exists so that "the shell" is an addressable thing rather than 40-odd
  * unrelated closures in a middleware. Two properties matter:
@@ -240,21 +237,6 @@ final readonly class WorkspaceShell
             'searchResults' => $panel->results(...),
             'searchWorkspaceChannels' => $panel->workspaceChannels(...),
         ];
-    }
-
-    /**
-     * The composer's slash-command autocomplete manifest.
-     *
-     * Global and unscoped to a team — the v1 commands are unrestricted — but
-     * built per request so its copy reflects the active locale. Server
-     * authoritative: a newly registered command appears in autocomplete with no
-     * frontend change.
-     *
-     * @return array<int, SlashCommandData>
-     */
-    public function slashCommands(): array
-    {
-        return app(SlashCommandRegistry::class)->manifest();
     }
 
     /**
