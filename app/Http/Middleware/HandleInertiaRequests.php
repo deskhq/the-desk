@@ -176,7 +176,7 @@ class HandleInertiaRequests extends Middleware
      *    prompt their registration queued.
      * 4. **Viewer-keyed** — `auth`, `collapsedChannelSections` and
      *    `frequentEmojis`, which change when the viewer themselves writes.
-     * 5. **Workspace-keyed** — the three rosters whose answer is one team's.
+     * 5. **Workspace-keyed** — the four rosters whose answer is one team's.
      *    Absent off a workspace route rather than empty, for the reason given
      *    on the group itself.
      *
@@ -190,12 +190,13 @@ class HandleInertiaRequests extends Middleware
      * Every key carries its own discriminator because the **client stores once
      * props by key and restores them by prop path**: two props sharing one key
      * collapse into a single entry client-side, and the other would come back
-     * absent on the second visit rather than cached. One digest, sixteen keys.
+     * absent on the second visit rather than cached. One key per prop, however
+     * many of them share a digest.
      *
-     * The exclusion is bypassed on partial requests, so a `router.reload({ only:
-     * [...] })` naming any of these still receives it — which is what makes
-     * `resources/js/lib/reloadProps.ts` the invalidation registry for the props
-     * whose trigger is a write rather than a key.
+     * That same property is why a key may never come back round to a value the
+     * prop path no longer holds — it would restore the other one. Which is what
+     * the viewer and workspace discriminators are for, and why the four rosters
+     * are absent off a workspace route rather than shipped empty.
      *
      * @see https://inertiajs.com/shared-data
      *

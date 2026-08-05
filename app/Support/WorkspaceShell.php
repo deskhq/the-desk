@@ -42,8 +42,9 @@ use Inertia\ProvidesScrollMetadata;
  *    facets on the URL — is passed in as a resolved value.
  *
  * The shell does not name the props it feeds. That list is the Inertia contract
- * and it stays in {@see HandleInertiaRequests::share()}, which is glue: it names
- * the props and computes none of them.
+ * and it stays in {@see HandleInertiaRequests}, split between `share()` and
+ * `shareOnce()` by whether a prop can change between two clicks. Both halves are
+ * glue: they name the props and compute none of them.
  */
 final readonly class WorkspaceShell
 {
