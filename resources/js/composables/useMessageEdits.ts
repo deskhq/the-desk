@@ -11,7 +11,7 @@ import {
 import type { Rollback } from '@/composables/useOptimisticWrite';
 import { useTranslations } from '@/composables/useTranslations';
 import { toggleReaction } from '@/lib/reactions';
-import { CHANNEL_LIST_PROPS } from '@/lib/reloadProps';
+import { CHANNEL_LIST_PROPS, FREQUENT_EMOJI_PROPS } from '@/lib/reloadProps';
 import type { Message } from '@/types';
 
 export interface MessageEdits {
@@ -117,7 +117,10 @@ export function useMessageEdits(options: MessageEditsOptions): MessageEdits {
                 message: message.id,
             }).url,
             data: { emoji },
-            only: CHANNEL_LIST_PROPS,
+            // The roster, because a reaction moves the sidebar's activity order,
+            // and the quick-react ranking, which is the only thing a reaction
+            // re-ranks and no longer rides an ordinary navigation.
+            only: [...CHANNEL_LIST_PROPS, ...FREQUENT_EMOJI_PROPS],
             failure: t('Failed to update the reaction'),
         });
     }

@@ -37,6 +37,7 @@ import {
     optionsOf,
     payloadOf,
 } from '@/composables/useMessageActions.harness';
+import { CHANNEL_LIST_PROPS, FREQUENT_EMOJI_PROPS } from '@/lib/reloadProps';
 
 describe('useMessageActions', () => {
     beforeEach(() => {
@@ -98,7 +99,13 @@ describe('useMessageActions', () => {
                 h.mainStream.displayMessages.value.find((m) => m.id === 'm1')
                     ?.reactions,
             ).toHaveLength(1);
-            expect(optionsOf(post).only).toEqual(['channels']);
+            // The roster, because a reaction moves the sidebar's activity
+            // order, and the quick-react ranking, which nothing else re-ranks
+            // and which stopped riding an ordinary navigation in #1252.
+            expect(optionsOf(post).only).toEqual([
+                ...CHANNEL_LIST_PROPS,
+                ...FREQUENT_EMOJI_PROPS,
+            ]);
 
             optionsOf(post).onError?.();
             expect(

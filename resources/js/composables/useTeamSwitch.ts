@@ -1,5 +1,7 @@
 import { router, usePage } from '@inertiajs/vue3';
 import { computed } from 'vue';
+import { backgroundVisit } from '@/lib/backgroundVisit';
+import { WORKSPACE_PROPS } from '@/lib/reloadProps';
 import { switchMethod } from '@/routes/teams';
 import type { Team } from '@/types';
 
@@ -45,6 +47,25 @@ export function targetUrlForTeamSwitch(
 }
 
 /**
+ * Ask the new workspace for the props that describe it, once the switch has
+ * landed on one of its pages.
+ *
+ * The rosters are `once` props keyed by the team they belong to (#1252), which
+ * is enough for a workspace the client has not seen. It is not enough for going
+ * back: the client stores a once prop by key but restores it by prop name, so
+ * returning to a workspace it has already loaded finds that key declared,
+ * excludes the props, and leaves the sidebar showing the workspace just left.
+ *
+ * It is a request of its own rather than an `only` on the visit above, because
+ * that visit is a navigation: naming the shared props would filter out the
+ * destination page's own, and the new workspace would render with the previous
+ * page's channel, messages and pins.
+ */
+function refreshWorkspaceProps(): void {
+    router.reload({ ...backgroundVisit, only: WORKSPACE_PROPS });
+}
+
+/**
  * Shared workspace-switching behaviour used by both the team rail and the
  * TeamSwitcher dropdown. Visiting the switch route swaps the active team, then
  * moves the user to the equivalent page under the new workspace (falling back
@@ -78,7 +99,10 @@ export function useTeamSwitch(): UseTeamSwitchReturn {
                     return;
                 }
 
-                router.visit(target, { replace: true });
+                router.visit(target, {
+                    replace: true,
+                    onSuccess: refreshWorkspaceProps,
+                });
             },
         });
     };

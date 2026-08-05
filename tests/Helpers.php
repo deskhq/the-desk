@@ -18,6 +18,7 @@ use GuzzleHttp\Promise\PromiseInterface;
 use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Testing\TestResponse;
+use Inertia\Inertia;
 
 /*
 |--------------------------------------------------------------------------
@@ -279,12 +280,33 @@ function onceExpiry(TestResponse $response, string $prop): ?int
  */
 function revisit(TestResponse $previous, string $url, array $headers = []): TestResponse
 {
+    // Inertia accumulates shared props on a singleton and never flushes them,
+    // so a second request in the same test would still be holding the first
+    // one's — including a prop the route it is now on does not share at all.
+    // Every non-Octane request gets a fresh application; this is that.
+    Inertia::flushShared();
+
     return test()->withHeaders([
         'X-Inertia' => 'true',
         'X-Inertia-Version' => (string) app(HandleInertiaRequests::class)->version(request()),
         'X-Inertia-Except-Once-Props' => implode(',', oncePropKeys($previous)),
         ...$headers,
     ])->get($url);
+}
+
+/**
+ * The same visit as a partial reload naming `$only` — what every `only:` call
+ * site in `resources/js/lib/reloadProps.ts` sends, and the one request shape a
+ * once prop is never excluded from.
+ *
+ * @param  array<int, string>  $only  the prop set, as the registry names it
+ */
+function partialRevisit(TestResponse $previous, string $url, array $only): TestResponse
+{
+    return revisit($previous, $url, [
+        'X-Inertia-Partial-Component' => (string) $previous->viewData('page')['component'],
+        'X-Inertia-Partial-Data' => implode(',', $only),
+    ]);
 }
 
 /*

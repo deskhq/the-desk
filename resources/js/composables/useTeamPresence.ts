@@ -4,6 +4,7 @@ import { computed, onBeforeUnmount, onMounted, ref, toValue, watch } from 'vue';
 import type { MaybeRefOrGetter } from 'vue';
 import { backgroundVisit } from '@/lib/backgroundVisit';
 import type { RenderedPresence } from '@/lib/presence';
+import { TEAM_MEMBER_PROPS } from '@/lib/reloadProps';
 
 /**
  * How long to coalesce a burst of profile updates before reloading, so many
@@ -120,16 +121,16 @@ function isDndFor(userId: string): boolean {
     return dndIds.value.has(userId);
 }
 
-// A teammate changed their profile (avatar, custom status). Reload the
-// current page's props so every surface re-reads them, preserving scroll and
-// local state so the refresh is invisible. A teammate's timing is not the
-// viewer's, and this one reloads *every* prop, so interrupting a visit with
-// it is especially costly; see {@see backgroundVisit}. Presence deliberately
-// does not come through here — it flips far too often to pay this price.
+// A teammate changed their profile (avatar, custom status, do-not-disturb).
+// Reload the one prop that carries it, preserving scroll and local state so the
+// refresh is invisible. A teammate's timing is not the viewer's, so interrupting
+// a visit with it is especially costly; see {@see backgroundVisit}. Presence
+// deliberately does not come through here — it flips far too often to pay this
+// price, and rides `UserPresenceChanged` instead.
 function scheduleProfileReload(): void {
     clearTimeout(profileReloadTimer);
     profileReloadTimer = setTimeout(() => {
-        router.reload({ ...backgroundVisit });
+        router.reload({ ...backgroundVisit, only: TEAM_MEMBER_PROPS });
     }, PROFILE_RELOAD_DEBOUNCE_MS);
 }
 

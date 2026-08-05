@@ -86,6 +86,19 @@ final readonly class WorkspaceShell
     }
 
     /**
+     * The workspace these read-models describe, as a once key's discriminator.
+     *
+     * The client stores a once prop by key but restores it by prop *path*, so a
+     * prop whose answer is one team's has to carry which team that was: without
+     * it, moving between two workspaces would find the key already declared and
+     * restore the roster of the one the viewer just left.
+     */
+    public function teamKey(): string
+    {
+        return (string) $this->team->getKey();
+    }
+
+    /**
      * The viewer's channels for the sidebar, with `$activeChannel` — the channel
      * they are currently looking at, if any — always listed.
      *
