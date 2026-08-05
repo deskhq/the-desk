@@ -21,9 +21,12 @@ test('the workspace ships the team members for the DM entry points', function ()
 test('the team members prop is absent off the channel workspace', function (): void {
     ['owner' => $owner] = teamWithChannel();
 
+    // Absent rather than `[]` since #1253 once'd it, for the reason every
+    // workspace-keyed once prop is: an empty roster shipped from a settings page
+    // would be the answer a later workspace visit restored.
     $this->actingAs($owner)
         ->get(route('profile.edit'))
         ->assertInertia(fn (Assert $page): Assert => $page
-            ->where('teamMembers', [])
+            ->missing('teamMembers')
         );
 });

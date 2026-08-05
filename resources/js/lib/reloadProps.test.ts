@@ -78,12 +78,16 @@ describe('reloadProps', () => {
         // A locale the reader has already used this session is one the client
         // believes it holds, so moving back to it restores the copy of the
         // language they just left unless these are asked for by name (#1251).
+        // The workspace list is here for `roleLabel`, which the server
+        // translates like any other piece of copy (#1253).
         expect(LOCALE_PROPS).toEqual([
             'locale',
             'translations',
             'slashCommands',
             'sidebarPositions',
             'invitableRoles',
+            'teams',
+            'currentTeam',
         ]);
     });
 
@@ -128,7 +132,7 @@ describe('reloadProps', () => {
         [
             'LOCALE_PROPS',
             arrayLiteralOf(
-                /'locale',\s*'translations',\s*'slashCommands',\s*'sidebarPositions',\s*'invitableRoles',?/,
+                /'locale',\s*'translations',\s*'slashCommands',\s*'sidebarPositions',\s*'invitableRoles',\s*'teams',\s*'currentTeam',?/,
             ),
         ],
         ['PIN_PROPS', arrayLiteralOf(/'pins',\s*'pinCount'/)],
