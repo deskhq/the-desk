@@ -45,6 +45,14 @@ use Illuminate\Support\Facades\DB;
  *    a revoked emoji or a departed member would otherwise be invisible; the
  *    count is what sees them leave.
  *
+ * What second resolution still leaves is one row written *twice* inside a single
+ * second, with a navigation between the two: the column reads the same both
+ * times, so the digest does. Closing that would mean a monotonic revision column
+ * on `users`, `custom_emojis` and `user_groups` and a write path that advances
+ * it — a schema change for a window in which the same row is edited twice a
+ * second, and in which anything else moving in the roster corrects it anyway.
+ * Deliberately not taken.
+ *
  * The last property is that each aggregate reaches wherever its prop reads:
  * `userGroups` carries a membership count that lives on a pivot the group's own
  * row knows nothing about, and the workspace list carries a member count for
