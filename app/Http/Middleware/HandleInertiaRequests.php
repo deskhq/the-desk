@@ -313,9 +313,11 @@ class HandleInertiaRequests extends Middleware
             //
             // Keyed on whether anyone is signed in, because the two answers are
             // different props: without the split, a guest's null would be the
-            // cached value a sign-in from that same tab never replaced.
+            // cached value a sign-in from that same tab never replaced. It
+            // carries the instance key too, since `current` *is* the running
+            // version and an in-place upgrade is what settles the comparison.
             'update' => Inertia::once(fn (): ?UpdateStatusData => $user ? app(UpdateChecker::class)->status() : null)
-                ->as('update:'.($user ? 'viewer' : 'guest'))
+                ->as($instance.':update:'.($user ? 'viewer' : 'guest'))
                 ->until(now()->addHours(max((int) config('updates.cache_ttl_hours', 12), 1))),
             'locale' => Inertia::once(fn (): string => app()->getLocale())->as('locale:'.$locale),
             // The active locale's catalog rides the initial document as a "once"
@@ -348,8 +350,13 @@ class HandleInertiaRequests extends Middleware
             // settings visit answering `[]` would be the value a later workspace
             // visit restored. It is a global registry, so there is one honest
             // answer, and it is paid for once.
+            //
+            // Carries the instance key as well as the locale, because which
+            // commands exist is instance config too: `/poll` and `/gif` are
+            // registered only where their feature is configured, so an operator
+            // switching one off has to take it out of autocomplete with it.
             'slashCommands' => Inertia::once(fn (): array => app(SlashCommandRegistry::class)->manifest())
-                ->as("slashCommands:{$locale}:".config('app.version')),
+                ->as("{$instance}:slashCommands:{$locale}"),
             // A readable name for the device this request came from, so a surface
             // that has to name it (the post-registration passkey prompt prefills
             // its name field with it) does not re-derive the parse client-side.

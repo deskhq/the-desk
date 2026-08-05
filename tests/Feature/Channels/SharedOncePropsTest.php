@@ -111,11 +111,13 @@ test('changing a config value reships the whole instance group on the next visit
     $first = visitWorkspaceAs($viewer, $team)->assertOk();
 
     // Whichever value moves, the fingerprint moves with it, so the group comes
-    // back together rather than one prop at a time.
+    // back together rather than one prop at a time. `slashCommands` rides along
+    // for a reason of its own: `/poll` is registered only where polls are on, so
+    // switching them off has to take the command out of autocomplete with it.
     config(['polls.enabled' => ! config('polls.enabled')]);
 
     expect(array_keys((array) revisit($first, workspaceUrl($team))->assertOk()->json('props')))
-        ->toContain('pollsEnabled', 'name', 'branding', 'presence');
+        ->toContain('pollsEnabled', 'name', 'branding', 'presence', 'slashCommands', 'update');
 });
 
 test('leaving the config alone keeps the instance group off the next visit', function (): void {
@@ -124,7 +126,7 @@ test('leaving the config alone keeps the instance group off the next visit', fun
     $first = visitWorkspaceAs($viewer, $team)->assertOk();
 
     expect(array_keys((array) revisit($first, workspaceUrl($team))->assertOk()->json('props')))
-        ->not->toContain('pollsEnabled', 'name', 'branding', 'presence');
+        ->not->toContain('pollsEnabled', 'name', 'branding', 'presence', 'slashCommands', 'update');
 });
 
 test('a second visit no longer stats the branding directory', function (): void {
