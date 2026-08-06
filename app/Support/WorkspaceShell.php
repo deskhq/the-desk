@@ -111,6 +111,34 @@ final readonly class WorkspaceShell
     }
 
     /**
+     * The member roster's state, as a once key's discriminator.
+     *
+     * The first of three rosters a *third party* moves, and so the first with
+     * no write of the viewer's to hang an invalidation on. Each is keyed on an
+     * aggregate over the rows its prop is built from, so a teammate joining, an
+     * emoji being revoked or a group being renamed is a different key and the
+     * next navigation ships the roster again — with Reverb switched off.
+     * {@see RosterFingerprint} has what each digest is taken over, and why the
+     * count sits beside the timestamp.
+     */
+    public function teamMembersFingerprint(): string
+    {
+        return RosterFingerprint::forTeamMembers($this->team);
+    }
+
+    /** The custom-emoji vocabulary's state, on the same terms. */
+    public function customEmojisFingerprint(): string
+    {
+        return RosterFingerprint::forCustomEmojis($this->team);
+    }
+
+    /** The mentionable groups' state, memberships included, on the same terms. */
+    public function userGroupsFingerprint(): string
+    {
+        return RosterFingerprint::forUserGroups($this->team);
+    }
+
+    /**
      * The team's members, feeding the DM entry points (the sidebar people picker
      * and the command palette's "People" group). Ordered by name and including the
      * viewer themselves — a self-DM renders as "You".

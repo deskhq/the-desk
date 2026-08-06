@@ -47,6 +47,8 @@ describe('useLocale', () => {
                     'slashCommands',
                     'sidebarPositions',
                     'invitableRoles',
+                    'teams',
+                    'currentTeam',
                 ],
             }),
         );
