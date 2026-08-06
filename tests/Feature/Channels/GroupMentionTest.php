@@ -227,13 +227,17 @@ test('the workspace groups ride along on every in-workspace request', function (
         );
 });
 
-test('the shared groups payload is empty off the workspace', function (): void {
+test('the shared groups payload is absent off the workspace', function (): void {
     ['owner' => $owner, 'team' => $team] = teamWithChannel();
     userGroupWith($team, 'dev-team');
 
+    // Absent rather than `[]` since #1253 once'd it: a once prop has one value
+    // per prop path for the life of the page, so an empty list shipped from a
+    // settings page would be the answer a later workspace visit restored. Every
+    // consumer already defaults it.
     $this->actingAs($owner)
         ->get(route('teams.edit', $team))
-        ->assertInertia(fn (Assert $page): Assert => $page->where('userGroups', []));
+        ->assertInertia(fn (Assert $page): Assert => $page->missing('userGroups'));
 });
 
 test('a group mention is unwrapped to its handle for search indexing', function (): void {

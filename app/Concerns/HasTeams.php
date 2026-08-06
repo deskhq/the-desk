@@ -151,11 +151,16 @@ trait HasTeams
     /**
      * Get the user's teams as a collection of UserTeam objects.
      *
+     * The member counts are batched onto the list query rather than counted per
+     * row: every tile carries its workspace's size, and a `count()` per team is
+     * an N+1 that only shows itself on an account with several of them.
+     *
      * @return Collection<int, UserTeam>
      */
     public function toUserTeams(bool $includeCurrent = false): Collection
     {
         return $this->teams()
+            ->withCount('members')
             ->get()
             ->reject(fn (Team $team): bool => ! $includeCurrent && $this->isCurrentTeam($team))
             ->map(fn (Team $team): UserTeam => $this->toUserTeam($team))
@@ -164,6 +169,9 @@ trait HasTeams
 
     /**
      * Get the user's team as a UserTeam object.
+     *
+     * The size is taken off the row when {@see toUserTeams()} has already
+     * batched it there, and counted only for a team handed over on its own.
      */
     public function toUserTeam(Team $team): UserTeam
     {
@@ -176,7 +184,7 @@ trait HasTeams
             isPersonal: $team->is_personal,
             role: $role?->value,
             roleLabel: $role?->label(),
-            membersCount: $team->members()->count(),
+            membersCount: $team->members_count ?? $team->members()->count(),
             isCurrent: $this->isCurrentTeam($team),
         );
     }

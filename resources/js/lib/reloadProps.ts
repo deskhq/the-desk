@@ -122,6 +122,10 @@ export const SCHEDULED_MESSAGE_PROPS: string[] = ['scheduledMessages'];
  * on partial requests. Hence the one write that changes the reader's language
  * asks for these by name; the visit that persists the preference cannot do it
  * on its own, since it is an ordinary visit and subject to the exclusion.
+ *
+ * The workspace list is here for one field of it: `roleLabel` is translated
+ * server-side, so "Owner" and "Propriétaire" are the same prop in two languages
+ * and the round trip above applies to it unchanged (#1253).
  */
 export const LOCALE_PROPS: string[] = [
     'locale',
@@ -129,6 +133,8 @@ export const LOCALE_PROPS: string[] = [
     'slashCommands',
     'sidebarPositions',
     'invitableRoles',
+    'teams',
+    'currentTeam',
 ];
 
 /**
