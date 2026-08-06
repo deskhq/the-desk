@@ -84,10 +84,11 @@ test('a second visit still carries what an ordinary navigation owes', function (
 
     $first = visitWorkspaceAs($viewer, $team)->assertOk();
 
-    // What is left is the genuinely volatile half: what the viewer has not
-    // read, and the roster whose presence dots move without any write of theirs.
+    // What is left is the genuinely volatile half: what the viewer has not read.
+    // `teamMembers` was here until #1253 keyed it on a digest of the roster
+    // itself, which is the last group to leave this list.
     expect(array_keys((array) revisit($first, workspaceUrl($team))->assertOk()->json('props')))
-        ->toContain('errors', 'unread', 'teamMembers');
+        ->toContain('errors', 'unread');
 });
 
 test('a partial reload naming a set receives it', function (string $prop): void {

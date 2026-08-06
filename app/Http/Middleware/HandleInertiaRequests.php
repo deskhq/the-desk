@@ -18,9 +18,11 @@ use App\Support\InstanceFingerprint;
 use App\Support\MessageSearchPanel;
 use App\Support\PendingInvitations;
 use App\Support\ReverbConfig;
+use App\Support\RosterFingerprint;
 use App\Support\TranslationCatalog;
 use App\Support\UpdateChecker;
 use App\Support\UserAgentParser;
+use App\Support\UserWorkspaces;
 use App\Support\WebPushConfig;
 use App\Support\WorkspacePermissions;
 use App\Support\WorkspaceShell;
@@ -71,14 +73,15 @@ class HandleInertiaRequests extends Middleware
      *
      * What is *not* here is the instance's own description — its name, branding,
      * connection details and feature toggles — along with the session facts that
-     * settle at sign-in, and the rosters that move only when the viewer writes.
-     * None of those can change between two clicks on their own, so they are
-     * declared next door in {@see self::shareOnce()} and reach the client once.
+     * settle at sign-in, and every roster: the ones that move when the viewer
+     * writes, and the ones a third party moves behind their back. All of those
+     * have an honest trigger for when they change, so they are declared next
+     * door in {@see self::shareOnce()} and reach the client once per trigger.
      *
      * What is left is the residue that genuinely moves under the viewer while
-     * they read: `unread`, and the member roster whose presence dots follow
-     * other people. Those are recomputed on every navigation, and are the reason
-     * this list is not simply {@see self::shareOnce()}.
+     * they read: `unread`, the affordance flags, and the dock panels' payloads.
+     * Those are recomputed on every navigation, and are the reason this list is
+     * not simply {@see self::shareOnce()}.
      *
      * @see https://inertiajs.com/shared-data
      *
@@ -95,8 +98,6 @@ class HandleInertiaRequests extends Middleware
         return [
             ...parent::share($request),
             'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',
-            'currentTeam' => fn () => $user?->currentTeam ? $user->toUserTeam($user->currentTeam) : null,
-            'teams' => fn () => $user?->toUserTeams(includeCurrent: true) ?? [],
             // The dock header's "invite" affordance reuses the member-invite modal,
             // so the current team's invite permission and the assignable roles ride
             // along with every workspace request.
@@ -131,18 +132,6 @@ class HandleInertiaRequests extends Middleware
             // to badge, but the rail still draws its cross-workspace dots, so
             // the per-workspace half is answered there too.
             'unread' => fn (): UnreadDigestData => $shell?->unreadDigest() ?? WorkspaceUnread::digest($user),
-            // The current team's members feed the DM entry points (the sidebar
-            // people picker and the ⌘K "People" group); empty off the workspace.
-            'teamMembers' => fn (): array => $shell?->teamMembers() ?? [],
-            // The current team's custom emoji as a flat name->url map, so message
-            // bodies and reaction pills can resolve `:name:` shortcodes to images.
-            // A revoked emoji is simply absent, so its token falls back to text.
-            'customEmojis' => fn (): array => $shell?->customEmojis() ?? [],
-            // The current team's mentionable user groups, feeding the composer's
-            // `@` menu and the anti-spoof check that decides whether a
-            // `group:<id>` token renders as a pill or as plain text. A deleted
-            // group is simply absent, so its token falls back to text.
-            'userGroups' => fn (): array => $shell?->userGroups() ?? [],
             // The Threads panel's inbox and its "Unread" tally, present only while
             // the dock actually has that destination pinned.
             ...$shell?->threadsPanelProps($pinned, ThreadInboxFilter::fromQuery($request->query('filter'))) ?? [],
@@ -165,7 +154,7 @@ class HandleInertiaRequests extends Middleware
      * on an ordinary navigation; that is why the two that read the filesystem
      * and parse a user agent are closures rather than eager values.
      *
-     * Five groups, distinguished only by what their key is made of:
+     * Six groups, distinguished only by what their key is made of:
      *
      * 1. **Instance config**, behind one shared {@see InstanceFingerprint}. The
      *    key is the same digest for all of them because they change together.
@@ -176,9 +165,14 @@ class HandleInertiaRequests extends Middleware
      *    prompt their registration queued.
      * 4. **Viewer-keyed** — `auth`, `collapsedChannelSections` and
      *    `frequentEmojis`, which change when the viewer themselves writes.
-     * 5. **Workspace-keyed** — the four rosters whose answer is one team's.
-     *    Absent off a workspace route rather than empty, for the reason given
-     *    on the group itself.
+     * 5. **Workspace-keyed** — the rosters whose answer is one team's. Absent
+     *    off a workspace route rather than empty, for the reason given on the
+     *    group itself.
+     * 6. **Fingerprinted** — the rosters a *third party* moves: the workspace
+     *    list here, and `teamMembers` / `customEmojis` / `userGroups` in group
+     *    5. Their key carries an aggregate over their own source rows, so the
+     *    trigger is the change itself rather than anyone remembering to name
+     *    them (#1253); see {@see RosterFingerprint}.
      *
      * Groups 4 and 5 are the ones with no key-shaped trigger at all: nothing
      * about a clock, a config value or a session says when a channel was
@@ -186,6 +180,8 @@ class HandleInertiaRequests extends Middleware
      * after that write, since the exclusion below is bypassed on partial
      * requests — the sets in `resources/js/lib/reloadProps.ts` are the
      * invalidation, and adding a prop here means checking it has one (#1252).
+     * Group 6 is what is left once that runs out: a roster nobody in this
+     * browser wrote, so nothing in this browser reloads it.
      *
      * Every key carries its own discriminator because the **client stores once
      * props by key and restores them by prop path**: two props sharing one key
@@ -195,8 +191,11 @@ class HandleInertiaRequests extends Middleware
      *
      * That same property is why a key may never come back round to a value the
      * prop path no longer holds — it would restore the other one. Which is what
-     * the viewer and workspace discriminators are for, and why the four rosters
-     * are absent off a workspace route rather than shipped empty.
+     * the viewer and workspace discriminators are for, and why the workspace
+     * rosters are absent off a workspace route rather than shipped empty. A
+     * fingerprinted key is the one exception, and safely so: it is a digest of
+     * the answer, so coming back round to it is coming back round to the value
+     * the client is holding under it.
      *
      * @see https://inertiajs.com/shared-data
      *
@@ -214,6 +213,12 @@ class HandleInertiaRequests extends Middleware
         $activeChannel = $boundChannel instanceof Channel ? $boundChannel : null;
         $viewer = $this->viewerFingerprint($request);
         $sessionless = ! $request->hasSession();
+        $workspaces = UserWorkspaces::forRequest($request);
+        // One digest for the pair: they are two readings of one list, so a
+        // change to it has to move both keys or the rail and the sheet would
+        // disagree about the same workspace. The locale rides along because
+        // `roleLabel` is translated server-side, exactly as `invitableRoles` is.
+        $workspaceList = $viewer.':workspaces:'.$locale.':'.$workspaces->fingerprint();
 
         return [
             'name' => Inertia::once(fn (): string => (string) config('app.name'))->as($instance.':name'),
@@ -423,6 +428,22 @@ class HandleInertiaRequests extends Middleware
             'frequentEmojis' => Inertia::once(fn (): array => FrequentEmoji::forUser($user))
                 ->as($viewer.':frequentEmojis:'.($user?->currentTeam?->getKey() ?? 'none'))
                 ->fresh($sessionless),
+            // Every workspace the viewer belongs to, and which of them they are
+            // standing in — the rail's tiles, the workspace sheet's rows, and
+            // the workspace named on every settings page. Shared everywhere
+            // rather than only inside the workspace for that last reason: there
+            // is one honest answer, so there is one value per prop path.
+            //
+            // The first pair keyed on something nobody in this browser did. A
+            // teammate joining moves a member count the viewer is looking at,
+            // and no write of theirs fires to say so — so the key is a digest
+            // of the list itself, over one indexed aggregate rather than the
+            // list it stands for. Both halves come off one derivation, which is
+            // also what stops the current workspace being counted twice.
+            'teams' => Inertia::once($workspaces->all(...))->as($workspaceList.':teams')->fresh($sessionless),
+            'currentTeam' => Inertia::once($workspaces->current(...))
+                ->as($workspaceList.':currentTeam')
+                ->fresh($sessionless),
             // The workspace's own rosters. Absent off a workspace route rather
             // than empty: a once prop has one value per prop path for the life
             // of the page, so an empty roster shipped from a settings page would
@@ -454,6 +475,18 @@ class HandleInertiaRequests extends Middleware
      * rather than the next click, which is the one thing this child knowingly
      * gives up; closing it needs broadcasts the server does not send yet.
      *
+     * The last three are the ones a third party moves outright, and they are
+     * keyed on a digest of their own source rows instead (#1253) — including
+     * `teamMembers`, the largest shared prop there is: a 300-member workspace
+     * used to re-serialise tens of kilobytes of roster on every click for an
+     * answer that had not changed. What that key deliberately does not reach is
+     * a *clock*: a
+     * teammate's quiet hours opening writes no row, so the do-not-disturb badge
+     * now follows `BroadcastDndScheduleEdges`' announcement rather than the
+     * next navigation, and lands on the next hard load without one. Everything
+     * else about a member — a lapsed status, a cleared pause, an avatar — is a
+     * write, and a write moves the digest.
+     *
      * @return array<string, mixed>
      */
     protected function workspaceProps(WorkspaceShell $shell, string $viewer, ?Channel $activeChannel): array
@@ -480,6 +513,24 @@ class HandleInertiaRequests extends Middleware
             // lands, which is a partial request and so reaches the client.
             'firedReminders' => Inertia::once(fn (): array => $shell->reminders(MessageReminderStatus::Fired))
                 ->as($workspace.':firedReminders'),
+            // The workspace's members, feeding the DM entry points (the sidebar
+            // people picker and the ⌘K "People" group) and the presence dots.
+            // The expensive one, and the reason this group exists at all.
+            'teamMembers' => Inertia::once($shell->teamMembers(...))
+                ->as($workspace.':teamMembers:'.$shell->teamMembersFingerprint()),
+            // The workspace's custom emoji as a flat name->url map, so message
+            // bodies and reaction pills can resolve `:name:` shortcodes to
+            // images. A revoked emoji is simply absent, so its token falls back
+            // to text — which is why the count is in the key: a revocation moves
+            // no timestamp forward.
+            'customEmojis' => Inertia::once($shell->customEmojis(...))
+                ->as($workspace.':customEmojis:'.$shell->customEmojisFingerprint()),
+            // The workspace's mentionable user groups, feeding the composer's
+            // `@` menu and the anti-spoof check that decides whether a
+            // `group:<id>` token renders as a pill or as plain text. A deleted
+            // group is simply absent, so its token falls back to text.
+            'userGroups' => Inertia::once($shell->userGroups(...))
+                ->as($workspace.':userGroups:'.$shell->userGroupsFingerprint()),
         ];
     }
 

@@ -31,6 +31,7 @@ use Illuminate\Support\Carbon;
  * @property-read Collection<int, TeamInvitation> $invitations
  * @property-read Collection<int, Membership> $memberships
  * @property-read Collection<int, User> $members
+ * @property-read int|null $members_count
  * @property-read Collection<int, Channel> $channels
  * @property-read Collection<int, CustomEmoji> $customEmojis
  * @property-read Collection<int, UserGroup> $userGroups
