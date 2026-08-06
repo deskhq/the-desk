@@ -218,7 +218,7 @@ export function mountShow(
         team: { id: 't1', name: 'Acme', slug: 'acme' },
         channel: channel(),
         messages: messagePage(),
-        members: [],
+        botMembers: [],
         canArchive: true,
         canManagePreferences: true,
         canLeave: true,

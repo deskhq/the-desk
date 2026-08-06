@@ -7,6 +7,17 @@ use App\Models\Channel;
 use App\Models\User;
 use Inertia\Testing\AssertableInertia as Assert;
 
+/*
+|--------------------------------------------------------------------------
+| Who the composer may offer for `@`, as the visit delivers them
+|--------------------------------------------------------------------------
+|
+| The list itself is composed on the client (`lib/channelRoster.ts`) rather than
+| shipped, so what a visit owes is the *inputs*: the workspace roster for a
+| standard channel, the conversation's own participants for a direct message.
+|
+*/
+
 test('a standard channel ships the whole team for mention autocomplete', function (): void {
     $owner = User::factory()->create(['name' => 'Zoe Owner']);
     $team = app(CreateTeam::class)->handle($owner, 'Acme');
@@ -16,9 +27,9 @@ test('a standard channel ships the whole team for mention autocomplete', functio
     $this->actingAs($owner)
         ->get(route('channels.show', ['team' => $team->slug, 'channel' => Channel::GENERAL_SLUG]))
         ->assertInertia(fn (Assert $page): Assert => $page
-            ->has('members', 2)
-            ->where('members.0.name', 'Amy Member')
-            ->where('members.1.name', 'Zoe Owner')
+            ->has('teamMembers', 2)
+            ->where('teamMembers.0.name', 'Amy Member')
+            ->where('teamMembers.1.name', 'Zoe Owner')
         );
 });
 
@@ -36,9 +47,10 @@ test('a direct message scopes mention autocomplete to its participants', functio
     $this->actingAs($owner)
         ->get(route('channels.show', ['team' => $team->slug, 'channel' => $dm->slug]))
         ->assertInertia(fn (Assert $page): Assert => $page
-            ->has('members', 2)
-            // Only the two DM participants, ordered by name; the bystander is excluded.
-            ->where('members.0.name', 'Amy Member')
-            ->where('members.1.name', 'Zoe Owner')
+            // Only the viewer's counterpart — the client adds the viewer
+            // themselves; the bystander is not in the conversation and so is not
+            // mentionable in it, whatever the workspace roster holds.
+            ->has('channel.dmParticipants', 1)
+            ->where('channel.dmParticipants.0.name', 'Amy Member')
         );
 });

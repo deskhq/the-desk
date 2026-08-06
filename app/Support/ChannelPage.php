@@ -15,14 +15,14 @@ use App\Models\Channel;
 use App\Models\ChannelMember;
 use App\Models\Message;
 use App\Models\MessagePin;
-use App\Models\Team;
 use App\Models\User;
 use Illuminate\Support\Facades\Gate;
 
 /**
  * Everything a channel page renders that is not its timeline: the channel
  * itself, the viewer's standing in it, the controls they may reach for, the
- * pins, the roster, the read receipts and the composer's pending schedules.
+ * pins, the channel's own bots, the read receipts and the composer's pending
+ * schedules.
  *
  * It is the other half of ADR-0004. That decision moved the *window* — where a
  * channel's initial page of messages opens — out of {@see ChannelController::show()}
@@ -32,8 +32,8 @@ use Illuminate\Support\Facades\Gate;
  *
  * Two properties, the same two {@see WorkspaceShell} has:
  *
- * 1. **No request.** The constructor takes a channel, a viewer and a team, so
- *    every reading below is reachable from a test without an HTTP round-trip.
+ * 1. **No request.** The constructor takes a channel and a viewer, so every
+ *    reading below is reachable from a test without an HTTP round-trip.
  *    The window is *not* built here and is not a collaborator of this: it reads
  *    `?message=` and `?thread=`, and a read-model that knows about query strings
  *    is the friction this shape exists to avoid. The controller holds both.
@@ -55,7 +55,6 @@ final class ChannelPage
     public function __construct(
         private readonly Channel $channel,
         private readonly User $viewer,
-        private readonly Team $team,
     ) {}
 
     /**
@@ -183,30 +182,36 @@ final class ChannelPage
     }
 
     /**
-     * The people the page may name: the masthead's member facepile and the
-     * composer's `@mention` autocomplete.
+     * The only people the page adds to the ones the visit already carries: the
+     * channel's own bots.
      *
-     * A standard channel is team-scoped — you may mention anyone on the team —
-     * plus the channel's own bots, which appear in the roster (badged) but are
-     * filtered out of mention autocomplete client side (a bot has no inbox to
-     * reach). A direct message is scoped to its own participants, since
-     * mentioning someone who isn't in the conversation would never reach them
-     * (this generalizes to group DMs).
+     * The roster behind the masthead facepile and the composer's `@mention`
+     * autocomplete used to ship whole from here, which made it byte-identical to
+     * the shell's `teamMembers` on every standard channel — the same team
+     * serialised twice in one response (#1254). So the page ships the delta and
+     * the client composes: a standard channel is team-scoped (you may mention
+     * anyone on the team) plus these bots, which are channel members rather than
+     * team members and so appear in no other prop; a direct message is scoped to
+     * its own participants, which already ride `channel.dmParticipants`, and so
+     * adds nothing at all.
+     *
+     * Bots appear in the roster (badged) but are filtered out of mention
+     * autocomplete client side, a bot having no inbox to reach.
      *
      * @return array<int, UserData>
      */
-    public function roster(): array
+    public function botMembers(): array
     {
-        $roster = $this->channel->isDirectMessage()
-            ? $this->channel->members()->orderBy('name')->get()
-            : $this->team->members()->orderBy('name')->get()->concat(
-                $this->channel->members()
-                    ->where('users.type', UserType::Bot->value)
-                    ->orderBy('name')
-                    ->get()
-            );
+        if ($this->channel->isDirectMessage()) {
+            return [];
+        }
 
-        return UserData::collect($roster, 'array');
+        $bots = $this->channel->members()
+            ->where('users.type', UserType::Bot->value)
+            ->orderBy('name')
+            ->get();
+
+        return UserData::collect($bots, 'array');
     }
 
     /**

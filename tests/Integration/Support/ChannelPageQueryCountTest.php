@@ -4,7 +4,6 @@ use App\Models\Channel;
 use App\Models\Message;
 use App\Models\MessagePin;
 use App\Models\ScheduledMessage;
-use App\Models\Team;
 use App\Models\User;
 use App\Support\ChannelPage;
 use Database\Factories\ChannelMemberFactory;
@@ -16,7 +15,7 @@ use Illuminate\Support\Facades\DB;
 |--------------------------------------------------------------------------
 |
 | Every reading on `ChannelPage` is a fixed number of queries by construction —
-| the pins, the roster, the receipts and the schedules each cost their own query
+| the pins, the bots, the receipts and the schedules each cost their own query
 | plus their eager loads, whatever they hold. Nothing enforces that but a test
 | that counts, so this is the channel page's equivalent of
 | `SidebarChannelsQueryCountTest` for the sidebar, and of `MessageLoadSetScopeTest`
@@ -30,19 +29,22 @@ use Illuminate\Support\Facades\DB;
 
 /**
  * Everything a channel render asks the database, with nothing on the page:
- * the membership, the capability gates, the member count, the pins, the roster,
- * the receipts, the schedules, and each reading's eager loads.
+ * the membership, the capability gates, the member count, the pins, the
+ * channel's bots, the receipts, the schedules, and each reading's eager loads.
+ *
+ * One lower since #1254: the page no longer reads the team's roster, which the
+ * shell already ships, so the visit both serialises and queries it once.
  */
-const CHANNEL_PAGE_QUERY_BUDGET = 28;
+const CHANNEL_PAGE_QUERY_BUDGET = 27;
 
 /**
  * Draw every prop group the channel page ships and report the queries it took.
  *
  * @return array{queries: int, page: array<string, mixed>}
  */
-function channelPageRender(Channel $channel, User $viewer, Team $team): array
+function channelPageRender(Channel $channel, User $viewer): array
 {
-    $page = new ChannelPage($channel, $viewer, $team);
+    $page = new ChannelPage($channel, $viewer);
 
     DB::connection()->flushQueryLog();
     DB::connection()->enableQueryLog();
@@ -54,7 +56,7 @@ function channelPageRender(Channel $channel, User $viewer, Team $team): array
         'lastReadMessageId' => $page->lastReadMessageId(),
         'memberCount' => $page->memberCount(),
         'pins' => $page->pins(),
-        'roster' => $page->roster(),
+        'botMembers' => $page->botMembers(),
         'readers' => $page->readers(),
         'scheduledMessages' => $page->scheduledMessages(),
     ];
@@ -89,15 +91,15 @@ function fillChannelPage(Channel $channel, User $author, int $times): void
 }
 
 it('renders the channel payload in a constant number of queries however much the page holds', function (): void {
-    ['owner' => $viewer, 'team' => $team, 'channel' => $general] = teamWithChannel();
+    ['owner' => $viewer, 'channel' => $general] = teamWithChannel();
 
     fillChannelPage($general, $viewer, 2);
 
-    $small = channelPageRender($general, $viewer, $team);
+    $small = channelPageRender($general, $viewer);
 
     fillChannelPage($general, $viewer, 4);
 
-    $large = channelPageRender($general, $viewer, $team);
+    $large = channelPageRender($general, $viewer);
 
     expect($small['queries'])->toBe(CHANNEL_PAGE_QUERY_BUDGET)
         ->and($large['queries'])->toBe(CHANNEL_PAGE_QUERY_BUDGET);

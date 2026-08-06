@@ -103,7 +103,7 @@ class ChannelController extends Controller
     {
         Gate::authorize('view', $channel);
 
-        $page = new ChannelPage($channel, $request->user(), $team);
+        $page = new ChannelPage($channel, $request->user());
 
         $window = new ChannelTimelineWindow(
             channel: $channel,
@@ -155,9 +155,12 @@ class ChannelController extends Controller
             // The viewer's own pending scheduled messages, feeding the composer's
             // "Scheduled" affordance.
             'scheduledMessages' => $page->scheduledMessages(),
-            // Feeds both the masthead member facepile and the composer's @mention
-            // autocomplete.
-            'members' => $page->roster(),
+            // The one part of the channel's roster no other prop in this response
+            // carries. The masthead facepile and the composer's @mention
+            // autocomplete read the whole roster, which the client composes from
+            // the shell's `teamMembers` (or, for a DM, `channel.dmParticipants`)
+            // and these.
+            'botMembers' => $page->botMembers(),
             // Read pointers of the channel's other members who share read receipts,
             // seeding the "Seen by" affordance at open; later advances arrive via the
             // MessageRead broadcast.

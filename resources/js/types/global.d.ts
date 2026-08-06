@@ -5,10 +5,10 @@ import type {
     MessageReminder,
     MessageSearchCriteria,
     MessageSearchResult,
+    RosterMember,
     SearchWorkspaceChannel,
     ThreadInboxPage,
 } from '@/types/messages';
-import type { PersonRef } from '@/types/people';
 import type { SidebarPositionOption } from '@/types/sidebar';
 import type {
     DashboardInvitation,
@@ -82,7 +82,13 @@ declare module '@inertiajs/core' {
             channelRestoreWindowDays: number;
             invitableRoles: RoleOption[];
             channels?: Channel[];
-            teamMembers?: PersonRef[];
+            /**
+             * The workspace roster: full user records, which is what lets the
+             * open channel compose its own roster from this rather than be
+             * shipped a second copy of it. The DM pickers narrow it to a
+             * `PersonRef` themselves.
+             */
+            teamMembers?: RosterMember[];
             channelSections?: ChannelSection[];
             customEmojis?: Record<string, string>;
             frequentEmojis?: string[];

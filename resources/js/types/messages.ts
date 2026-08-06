@@ -40,8 +40,10 @@ export type MessageType = App.Enums.MessageType;
 export type Mention = App.Data.MentionData;
 
 /**
- * A member of a channel's roster, as the channel page and the composer's
- * `@mention` autocomplete receive them.
+ * A member of a channel's roster, as the masthead facepile and the composer's
+ * `@mention` autocomplete read them. Composed on the client from the workspace
+ * roster and the channel's own bots rather than shipped whole — see
+ * `lib/channelRoster.ts`.
  *
  * The full user payload rather than a {@link Mention}: the facepile badges bots
  * and the autocomplete drops them, neither of which a mention payload can answer.
