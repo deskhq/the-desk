@@ -1,38 +1,36 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+// @vitest-environment jsdom
+import { beforeEach, describe, expect, it } from 'vitest';
 
-import { HOVER_MEDIA_QUERY } from '@/composables/useCanHover';
+import { HOVER_MEDIA_QUERY, useCanHover } from '@/composables/useCanHover';
 
 /**
- * Stand in for the browser's media-query engine with one that answers the
- * `hover` feature the way a real device would, so the query below is asserted
- * against pointer semantics rather than against a hand-fed boolean.
+ * Answer the `hover` feature the way a real device would. jsdom ships a
+ * `matchMedia` that reports every query as unmatched, so a composable that
+ * genuinely reads the media-query engine needs one that evaluates the feature
+ * rather than a hand-fed boolean.
  */
 function deviceThatHovers(canHover: boolean): void {
-    vi.stubGlobal('window', {
-        matchMedia: (query: string) => ({
-            media: query,
-            matches: /\(\s*hover:\s*hover\s*\)/.test(query) && canHover,
-            addEventListener: () => {},
-            removeEventListener: () => {},
-        }),
-    });
+    window.matchMedia = ((query: string) => ({
+        media: query,
+        matches: /\(\s*hover:\s*hover\s*\)/.test(query) && canHover,
+        addEventListener: () => {},
+        removeEventListener: () => {},
+    })) as unknown as typeof window.matchMedia;
 }
 
 beforeEach(() => {
-    vi.unstubAllGlobals();
+    deviceThatHovers(true);
 });
 
-describe('the hover-capability query', () => {
-    it('matches a device whose primary pointer can hover', () => {
-        deviceThatHovers(true);
-
-        expect(window.matchMedia(HOVER_MEDIA_QUERY).matches).toBe(true);
+describe('the hover capability', () => {
+    it('is true on a device whose primary pointer can hover', () => {
+        expect(useCanHover().value).toBe(true);
     });
 
-    it('does not match a touch device, where nothing hovers before a tap', () => {
+    it('is false on a touch device, where nothing hovers before a tap', () => {
         deviceThatHovers(false);
 
-        expect(window.matchMedia(HOVER_MEDIA_QUERY).matches).toBe(false);
+        expect(useCanHover().value).toBe(false);
     });
 
     /**
