@@ -150,13 +150,6 @@ const groupOrder = computed<RankedGroup[]>(() => {
         .map((scored) => scored.group);
 });
 
-// Reset everything on dismiss so the palette always reopens blank.
-watch(open, (isOpen) => {
-    if (!isOpen) {
-        clear();
-    }
-});
-
 /**
  * Fetch a channel once the arrowing has stopped on it, so the pick that
  * follows paints without a round trip.
@@ -173,6 +166,17 @@ const predict = useDebouncedPost<Channel>(
         ),
     { delay: predictionDelay() },
 );
+
+// Reset everything on dismiss so the palette always reopens blank — the queued
+// prediction included, since a viewer who has closed the palette is not going
+// where it was pointing. Picking a row closes it too, and cancelling there is
+// right for the same reason: the visit is already on its way to the server.
+watch(open, (isOpen) => {
+    if (!isOpen) {
+        clear();
+        predict.cancel();
+    }
+});
 
 /**
  * Answer reka-ui's report of which row the keyboard has landed on.

@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { nextTick } from 'vue';
 
 /**
  * What the palette fetches before the viewer has picked anything (#1257).
@@ -171,6 +172,22 @@ describe('the palette predicting where Enter would go', () => {
         settle();
 
         expect(fetched()).toEqual(['/t/acme/c/design']);
+    });
+
+    /**
+     * Dismissing the palette answers the prediction: the viewer is not going
+     * anywhere, so a request still queued behind them would buy nothing and
+     * still cost a framework boot.
+     */
+    it('drops a pending prediction when the palette is dismissed', async () => {
+        const { open } = mount();
+
+        highlight('channel:c-design');
+        open.value = false;
+        await nextTick();
+        settle();
+
+        expect(router.prefetch).not.toHaveBeenCalled();
     });
 
     /**
