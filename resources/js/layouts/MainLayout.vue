@@ -28,6 +28,7 @@ import {
 } from '@/components/ui/sidebar';
 import { Toaster } from '@/components/ui/sonner';
 import UpdateIndicator from '@/components/UpdateIndicator.vue';
+import { useAdjacentChannelPrefetch } from '@/composables/useAdjacentChannelPrefetch';
 import { useChannelSections } from '@/composables/useChannelSections';
 import { useChannelUploadToasts } from '@/composables/useChannelUploadToasts';
 import { useChimeNotifications } from '@/composables/useChimeNotifications';
@@ -77,6 +78,11 @@ const { demoMode } = useDemoMode();
 // Keep the sidebar unread/mention badges live as messages arrive in channels the
 // user is a member of but not currently viewing.
 useSidebarBadges();
+
+// Fetch the two channels the ⌘↑ / ⌘↓ walk can reach from the open one. The
+// same fleet subscribed above is what flushes those entries when a message
+// lands in one of them.
+useAdjacentChannelPrefetch();
 
 // Surface a brand-new direct message in the sidebar the moment someone messages
 // the viewer for the first time, without a manual reload.

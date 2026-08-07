@@ -140,9 +140,38 @@ const commandList = defineComponent({
             ),
 });
 
+/** How reka-ui names the row the keyboard has landed on. */
+type HighlightPayload = { value: unknown } | undefined;
+
+/**
+ * The listbox root's announcement of which row is highlighted, held where a
+ * suite can fire it.
+ *
+ * Unlike the inert stubs this one has to be reachable: the highlight is not a
+ * gesture a viewer makes on an element, it is reka-ui reporting where the
+ * arrow keys have arrived, and it is the whole trigger for the palette's
+ * prefetch. A suite settles a selection by calling this rather than by
+ * simulating a keyboard the stubs do not have.
+ */
+export const highlighter = {
+    settle: null as ((payload: HighlightPayload) => void) | null,
+};
+
+const commandRoot = defineComponent({
+    name: 'CommandStub',
+    inheritAttrs: false,
+    setup(_props, { attrs, slots }) {
+        highlighter.settle = attrs.onHighlight as (
+            payload: HighlightPayload,
+        ) => void;
+
+        return () => h('div', attrs, slots.default?.());
+    },
+});
+
 export function commandDouble(): Record<string, Component> {
     return {
-        Command: passthrough('div'),
+        Command: commandRoot,
         CommandGroup: commandGroup,
         CommandItem: commandItem,
         CommandList: commandList,
