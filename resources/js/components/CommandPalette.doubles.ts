@@ -59,8 +59,8 @@ export function teamPresenceDouble(): Record<string, unknown> {
     };
 }
 
-/** Where a picked row sends the viewer. */
-export const router = { visit: vi.fn() };
+/** Where a picked row sends the viewer, and what it fetches ahead of the pick. */
+export const router = { visit: vi.fn(), prefetch: vi.fn() };
 
 /**
  * The page, read through getters rather than rebuilt per call: the command
@@ -91,8 +91,19 @@ const page = {
     },
 };
 
+/**
+ * The hover delay the prediction debounce reads, stood in for so these suites
+ * need no real Inertia. That it is genuinely Inertia's own number, rather than
+ * one typed twice, is pinned against the real config in `lib/prefetch.test.ts`.
+ */
+const PREFETCH_CONFIG: Record<string, number> = { 'prefetch.hoverDelay': 75 };
+
 export function inertiaDouble(): Record<string, unknown> {
-    return { router, usePage: () => page };
+    return {
+        router,
+        usePage: () => page,
+        config: { get: (key: string) => PREFETCH_CONFIG[key] },
+    };
 }
 
 /**
@@ -190,6 +201,7 @@ export function resetDoubles(): void {
     presence.presenceFor = () => 'active';
     presence.isDndFor = () => false;
     router.visit.mockClear();
+    router.prefetch.mockClear();
     messageSearch.results.value = [];
     messageSearch.isSearching.value = false;
     messageSearch.search.mockClear();

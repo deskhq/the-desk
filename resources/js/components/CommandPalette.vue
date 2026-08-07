@@ -23,9 +23,11 @@ import {
     scoreChannelName,
 } from '@/composables/quickSwitcher';
 import { useCommandPaletteSearch } from '@/composables/useCommandPaletteSearch';
+import { useDebouncedPost } from '@/composables/useDebouncedPost';
 import { useIsMobile } from '@/composables/useIsMobile';
 import { useOpenDirectMessage } from '@/composables/useOpenDirectMessage';
 import { rankPeople } from '@/lib/peopleDirectory';
+import { predictionDelay, prefetchChannel } from '@/lib/prefetch';
 import type { MessageSearchResult } from '@/types';
 import type { Channel } from '@/types/channels';
 import type { PersonRef } from '@/types/people';
@@ -155,6 +157,46 @@ watch(open, (isOpen) => {
     }
 });
 
+/**
+ * Fetch a channel once the arrowing has stopped on it, so the pick that
+ * follows paints without a round trip.
+ *
+ * Debounced because the list re-highlights on every keystroke: walking ten
+ * rows would otherwise be ten speculative requests, each paying a full
+ * framework boot. The window is the one Inertia's own hover links wait out.
+ */
+const predict = useDebouncedPost<Channel>(
+    (channel) =>
+        prefetchChannel(
+            show({ team: props.teamSlug, channel: channel.slug }).url,
+            channel.id,
+        ),
+    { delay: predictionDelay() },
+);
+
+/**
+ * Answer reka-ui's report of which row the keyboard has landed on.
+ *
+ * Only channels are predicted, and matching on the row's own `channel:` value
+ * is what keeps that true by construction rather than by an exclusion list
+ * that would rot: a person opens through a POST, a command has no URL, and a
+ * message result carries no channel id to tag its entry with — so an entry for
+ * one could never be flushed when the channel moves on.
+ *
+ * Anything else cancels, because arrowing off a channel and pressing Enter
+ * must not leave that channel's request in flight behind it.
+ */
+function predictHighlight(payload?: { value: unknown }): void {
+    const id = String(payload?.value ?? '').match(/^channel:(.+)$/)?.[1];
+    const channel = props.channels.find((candidate) => candidate.id === id);
+
+    if (channel) {
+        predict.schedule(channel);
+    } else {
+        predict.cancel();
+    }
+}
+
 function selectChannel(channel: Channel): void {
     open.value = false;
     router.visit(show({ team: props.teamSlug, channel: channel.slug }).url);
@@ -199,7 +241,7 @@ function runCommand(command: PaletteCommand): void {
                     $t('Search channels, people and messages, or run a command')
                 }}</DialogDescription>
             </DialogHeader>
-            <Command>
+            <Command @highlight="predictHighlight">
                 <SwitcherField
                     v-model="query"
                     :is-mobile="isMobile"
