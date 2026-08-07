@@ -113,11 +113,15 @@ dataset('workspace shapes', [
 /**
  * A workspace of a given shape, and the two channels a navigation runs between.
  *
- * Seeded in one statement per table, from one factory-made template row each:
- * the factories still own which columns exist, and a 200 / 300 workspace still
- * costs four inserts rather than a thousand. Which matters more than it looks
- * like it should, because a test slow enough to be annoying is a test someone
- * deletes, and deleting this one takes the contract with it.
+ * Seeded in one statement per table, from one factory-made template row each,
+ * which is the one place in this suite that is deliberate rather than lazy.
+ * The factories still own which columns exist — every row here is a `make()`
+ * of theirs — but they are not `create()`d, for two reasons. A 200 / 300
+ * workspace costs four inserts instead of a thousand, and a test slow enough
+ * to be annoying is a test someone deletes, which here would delete the
+ * contract with it. And `UserFactory::configure()` gives every created user a
+ * personal team: three hundred of them would be three hundred workspaces
+ * nobody in this story belongs to, seeded to describe a roster.
  *
  * @return array{viewer: User, from: Channel, to: Channel}
  */
