@@ -41,7 +41,12 @@ const props = defineProps<{
     team: { id: string; name: string; slug: string };
     channel: Channel;
     messages: MessagePage;
-    members: RosterMember[];
+    /**
+     * The channel's own bots, the one part of its roster no other prop in the
+     * visit carries. Everyone else is composed from the shared `teamMembers`, or
+     * — in a DM — from the participants on `channel`.
+     */
+    botMembers: RosterMember[];
     canArchive: boolean;
     /** Whether the viewer may delete it (a team Admin+, not #general or a DM). */
     canDelete: boolean;
@@ -115,11 +120,12 @@ const {
     canAddPeople,
     composerPlaceholder,
     canModerate,
+    members,
     mentionableMembers,
     channelHasBots,
 } = useChannelIdentity({
     channel: () => props.channel,
-    members: () => props.members,
+    botMembers: () => props.botMembers,
     isMember: () => props.isMember,
 });
 
@@ -419,7 +425,7 @@ provideMessageActions(
                 ref="header"
                 :team="props.team"
                 :channel="props.channel"
-                :members="props.members"
+                :members="members"
                 :title="mastheadTitle"
                 :can-manage-preferences="props.canManagePreferences"
                 :can-archive="props.canArchive"

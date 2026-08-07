@@ -29,17 +29,17 @@ use Database\Factories\ChannelMemberFactory;
 |
 */
 
-test('the page is constructible from a channel, a viewer and a team alone', function (): void {
+test('the page is constructible from a channel and a viewer alone', function (): void {
     ['owner' => $viewer, 'team' => $team, 'channel' => $general] = teamWithChannel();
 
-    $page = new ChannelPage($general, $viewer, $team);
+    $page = new ChannelPage($general, $viewer);
 
     expect($page->channel()->slug)->toBe($general->slug)
         ->and($page->isMember())->toBeTrue()
         ->and($page->lastReadMessageId())->toBeNull()
         ->and($page->memberCount())->toBe(1)
         ->and($page->pins())->toBe(['pins' => [], 'pinCount' => 0])
-        ->and(array_column($page->roster(), 'id'))->toBe([$viewer->id])
+        ->and($page->botMembers())->toBe([])
         ->and($page->readers())->toBe([])
         ->and($page->scheduledMessages())->toBe([]);
 });
@@ -58,7 +58,7 @@ test('the channel DTO carries the viewer own membership state without it being w
 
     $channel = Channel::query()->findOrFail($general->id);
 
-    expect(new ChannelPage($channel, $viewer, $team)->channel())
+    expect(new ChannelPage($channel, $viewer)->channel())
         ->muted->toBeTrue()
         ->notificationLevel->toBe(NotificationLevel::Mentions)
         ->draft->toBe('half a thought')
@@ -80,7 +80,7 @@ test('a non-member reading a public channel is not a member and gets the DTO def
     $stranger = User::factory()->create();
     $team->memberships()->create(['user_id' => $stranger->id, 'role' => TeamRole::Member]);
 
-    $page = new ChannelPage($public, $stranger, $team);
+    $page = new ChannelPage($public, $stranger);
 
     expect($page->isMember())->toBeFalse()
         ->and($page->lastReadMessageId())->toBeNull()
@@ -101,7 +101,7 @@ test('the read pointer is the viewer own, as a string the client can compare ids
         fn (ChannelMemberFactory $factory): ChannelMemberFactory => $factory->state(['last_read_message_id' => $message->id]),
     );
 
-    expect(new ChannelPage($general, $viewer, $team)->lastReadMessageId())->toBe($message->id);
+    expect(new ChannelPage($general, $viewer)->lastReadMessageId())->toBe($message->id);
 });
 
 test('the capabilities are the seven gates the page draws its controls from', function (): void {
@@ -114,7 +114,7 @@ test('the capabilities are the seven gates the page draws its controls from', fu
     $channel = Channel::factory()->for($team)->create(['created_by' => $owner->id]);
     $channel->members()->attach([$owner->id, $member->id]);
 
-    expect(new ChannelPage($channel, $owner, $team)->capabilities())->toBe([
+    expect(new ChannelPage($channel, $owner)->capabilities())->toBe([
         'canArchive' => true,
         'canManagePreferences' => true,
         'canEditChannel' => true,
@@ -126,7 +126,7 @@ test('the capabilities are the seven gates the page draws its controls from', fu
 
     // #general is the protected channel: it cannot be archived, renamed, deleted
     // or left, however senior the viewer is.
-    expect(new ChannelPage($general, $owner, $team)->capabilities())->toBe([
+    expect(new ChannelPage($general, $owner)->capabilities())->toBe([
         'canArchive' => false,
         'canManagePreferences' => true,
         'canEditChannel' => true,
@@ -147,10 +147,10 @@ test('the member count is the humans in the channel, never its bots', function (
     $bot = User::factory()->bot($team)->create(['name' => 'Deploy Bot']);
     channelMembership($general, $bot);
 
-    $page = new ChannelPage($general, $viewer, $team);
+    $page = new ChannelPage($general, $viewer);
 
     expect($page->memberCount())->toBe(2)
-        ->and(array_column($page->roster(), 'name'))->toContain('Deploy Bot');
+        ->and(array_column($page->botMembers(), 'name'))->toContain('Deploy Bot');
 });
 
 test('the pins and their count are one reading, most-recently-pinned first', function (): void {
@@ -162,7 +162,7 @@ test('the pins and their count are one reading, most-recently-pinned first', fun
     MessagePin::factory()->for($older)->for($general)->for($viewer, 'pinnedBy')->create(['created_at' => now()->subMinute()]);
     MessagePin::factory()->for($newer)->for($general)->for($viewer, 'pinnedBy')->create(['created_at' => now()]);
 
-    $pins = new ChannelPage($general, $viewer, $team)->pins();
+    $pins = new ChannelPage($general, $viewer)->pins();
 
     expect($pins['pinCount'])->toBe(2)
         ->and(array_column($pins['pins'], 'id'))->toBe([$newer->id, $older->id])
@@ -183,7 +183,7 @@ test('two pins landing in the same second still list newest first', function ():
     MessagePin::factory()->for($first)->for($general)->for($viewer, 'pinnedBy')->create(['created_at' => $pinnedAt]);
     MessagePin::factory()->for($second)->for($general)->for($viewer, 'pinnedBy')->create(['created_at' => $pinnedAt]);
 
-    expect(array_column(new ChannelPage($general, $viewer, $team)->pins()['pins'], 'id'))
+    expect(array_column(new ChannelPage($general, $viewer)->pins()['pins'], 'id'))
         ->toBe([$second->id, $first->id]);
 });
 
@@ -201,7 +201,7 @@ test('a pin whose message has been deleted leaves the panel and the badge togeth
     // panel, which is the disagreement one reading makes impossible.
     $deleted->delete();
 
-    $pins = new ChannelPage($general, $viewer, $team)->pins();
+    $pins = new ChannelPage($general, $viewer)->pins();
 
     expect($pins['pinCount'])->toBe(1)
         ->and(array_column($pins['pins'], 'id'))->toBe([$live->id]);
@@ -214,18 +214,19 @@ test('a pinned message carries its attribution, so the panel renders it like the
     $message = Message::factory()->for($general)->for($viewer)->create(['body' => 'the pinned one']);
     MessagePin::factory()->for($message)->for($general)->for($pinner, 'pinnedBy')->create();
 
-    $pins = new ChannelPage($general, $viewer, $team)->pins();
+    $pins = new ChannelPage($general, $viewer)->pins();
 
     expect($pins['pins'][0]->body)->toBe('the pinned one')
         ->and($pins['pins'][0]->pin?->pinnedBy->name)->toBe('Ada Lovelace');
 });
 
-test('the roster of a standard channel is the whole team plus the channel own bots', function (): void {
+test('a standard channel adds its own bots and nobody else the visit already carries', function (): void {
     ['owner' => $viewer, 'team' => $team, 'channel' => $general] = teamWithChannel();
     $viewer->update(['name' => 'Marie Curie']);
 
-    // On the team but not in this channel: still mentionable, so still listed.
-    $elsewhere = teamMemberInChannel($general, ['name' => 'Ada Lovelace']);
+    // A team member, in this channel: mentionable, and already on the workspace
+    // roster the shell ships, so the page does not name them a second time.
+    teamMemberInChannel($general, ['name' => 'Ada Lovelace']);
     $channel = Channel::factory()->for($team)->create(['created_by' => $viewer->id]);
     $channel->members()->attach($viewer->id);
 
@@ -236,12 +237,11 @@ test('the roster of a standard channel is the whole team plus the channel own bo
     $otherBot = User::factory()->bot($team)->create(['name' => 'Other Bot']);
     channelMembership($general, $otherBot);
 
-    expect(array_column(new ChannelPage($channel, $viewer, $team)->roster(), 'name'))
-        ->toBe(['Ada Lovelace', 'Marie Curie', 'Deploy Bot'])
-        ->and($elsewhere->name)->toBe('Ada Lovelace');
+    expect(array_column(new ChannelPage($channel, $viewer)->botMembers(), 'name'))
+        ->toBe(['Deploy Bot']);
 });
 
-test('the roster of a direct message is its own participants and nobody else', function (): void {
+test('a direct message adds nobody, its participants riding the channel itself', function (): void {
     ['owner' => $viewer, 'team' => $team, 'channel' => $general] = teamWithChannel();
     $viewer->update(['name' => 'Marie Curie']);
 
@@ -249,9 +249,13 @@ test('the roster of a direct message is its own participants and nobody else', f
     teamMemberInChannel($general, ['name' => 'Not In The Conversation']);
 
     $dm = app(OpenDirectMessage::class)->handle($team, $viewer, $other);
+    $page = new ChannelPage($dm, $viewer);
 
-    expect(array_column(new ChannelPage($dm, $viewer, $team)->roster(), 'name'))
-        ->toBe(['Ada Lovelace', 'Marie Curie']);
+    expect($page->botMembers())->toBe([])
+        // The counterpart the client composes the conversation's roster from,
+        // and nobody else.
+        ->and(array_column($page->channel()->dmParticipants ?? [], 'name'))
+        ->toBe(['Ada Lovelace']);
 });
 
 test('the readers are the other members who share read receipts', function (): void {
@@ -275,7 +279,7 @@ test('the readers are the other members who share read receipts', function (): v
         fn (ChannelMemberFactory $factory): ChannelMemberFactory => $factory->state(['last_read_message_id' => $message->id]),
     );
 
-    $readers = new ChannelPage($general, $viewer, $team)->readers();
+    $readers = new ChannelPage($general, $viewer)->readers();
 
     expect($readers)->toHaveCount(1)
         ->and($readers[0]->user->name)->toBe('Ada Lovelace')
@@ -303,7 +307,7 @@ test('the scheduled messages are the viewer own pending ones, soonest first, quo
     ScheduledMessage::factory()->for($general)->for(teamMemberInChannel($general))->create();
     ScheduledMessage::factory()->for($general)->for($viewer)->sent()->create();
 
-    $scheduled = new ChannelPage($general, $viewer, $team)->scheduledMessages();
+    $scheduled = new ChannelPage($general, $viewer)->scheduledMessages();
 
     expect(array_column($scheduled, 'id'))->toBe([$sooner->id, $later->id])
         ->and($scheduled[0]->replyTo?->body)->toBe('the parent')

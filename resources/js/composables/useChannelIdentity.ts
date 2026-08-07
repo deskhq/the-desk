@@ -2,13 +2,17 @@ import { usePage } from '@inertiajs/vue3';
 import { computed } from 'vue';
 import type { ComputedRef } from 'vue';
 import { useTranslations } from '@/composables/useTranslations';
+import { channelRoster } from '@/lib/channelRoster';
 import { groupDmMastheadName } from '@/lib/groupDm';
 import type { Channel, Mention, RosterMember } from '@/types';
 
 export interface ChannelIdentityOptions {
     channel: () => Channel;
-    /** The channel's members, as the roster and the mention menu see them. */
-    members: () => RosterMember[];
+    /**
+     * The channel's own bots — the only part of its roster the page ships, the
+     * rest being composed from props the visit already carries.
+     */
+    botMembers: () => RosterMember[];
     /** Whether the viewer belongs to the channel. */
     isMember: () => boolean;
 }
@@ -30,6 +34,8 @@ export interface ChannelIdentity {
     composerPlaceholder: ComputedRef<string | undefined>;
     /** Whether the viewer may delete anyone's message here (a team Admin+). */
     canModerate: ComputedRef<boolean>;
+    /** Everyone in the channel, as the masthead facepile draws them. */
+    members: ComputedRef<RosterMember[]>;
     /** The members the composer offers for `@`. */
     mentionableMembers: ComputedRef<RosterMember[]>;
     /** Whether the channel has a bot member. */
@@ -38,7 +44,10 @@ export interface ChannelIdentity {
 
 /**
  * How the open channel reads to this viewer: its name, its composer
- * placeholder, who they may mention, and what they are allowed to do in it.
+ * placeholder, who is in it, who they may mention, and what they are allowed to
+ * do in it.
+ *
+ * The roster is composed here rather than shipped: see {@link channelRoster}.
  *
  * A direct message renders viewer-relative: no "#", the other participant's
  * name (the viewer's own self-DM reads "You"), or a group's participant-joined
@@ -103,21 +112,28 @@ export function useChannelIdentity(
         ['admin', 'owner'].includes(page.props.currentTeam?.role ?? ''),
     );
 
+    const members = computed(() =>
+        channelRoster({
+            channel: options.channel(),
+            teamMembers: page.props.teamMembers ?? [],
+            botMembers: options.botMembers(),
+            viewerId: currentUser.value.id,
+        }),
+    );
+
     // You can't @mention yourself, and bots have no inbox to reach, so drop the
     // current user and any bots from the composer list — the roster facepile still
     // shows the bots.
     const mentionableMembers = computed(() =>
-        options
-            .members()
-            .filter(
-                (member) => member.id !== currentUser.value.id && !member.isBot,
-            ),
+        members.value.filter(
+            (member) => member.id !== currentUser.value.id && !member.isBot,
+        ),
     );
 
     // Whether this channel has a bot member, so the composer's mention menu can
     // note once, quietly, why bots aren't mentionable.
     const channelHasBots = computed(() =>
-        options.members().some((member) => member.isBot),
+        members.value.some((member) => member.isBot),
     );
 
     return {
@@ -128,6 +144,7 @@ export function useChannelIdentity(
         canAddPeople,
         composerPlaceholder,
         canModerate,
+        members,
         mentionableMembers,
         channelHasBots,
     };

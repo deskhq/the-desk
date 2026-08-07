@@ -24,19 +24,20 @@ function botInGeneral(): array
     return [$owner, $team, $bot];
 }
 
-test('a bot appears in the channel member roster, badged, after the humans', function (): void {
+test('a bot is shipped to the channel roster, badged', function (): void {
     [$owner, $team] = botInGeneral();
 
     $this->actingAs($owner)
         ->get(route('channels.show', ['team' => $team->slug, 'channel' => Channel::GENERAL_SLUG]))
+        // A bot is a channel member and not a team member, so it is the one part
+        // of the roster the visit ships rather than the client composing it from
+        // the workspace roster (#1254). That it lands after the humans, badged
+        // and squared, is the composition's claim — see
+        // `resources/js/lib/channelRoster.test.ts`.
         ->assertInertia(fn (Assert $page): Assert => $page
-            ->has('members', 2)
-            // Humans first (by name), the channel's bot appended and flagged so
-            // the roster can render its badge and squared avatar.
-            ->where('members.0.name', 'Zoe Owner')
-            ->where('members.0.isBot', false)
-            ->where('members.1.name', 'Deploy Bot')
-            ->where('members.1.isBot', true)
+            ->has('botMembers', 1)
+            ->where('botMembers.0.name', 'Deploy Bot')
+            ->where('botMembers.0.isBot', true)
         );
 });
 

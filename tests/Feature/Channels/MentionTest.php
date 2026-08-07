@@ -169,9 +169,11 @@ test('the channel page exposes team members for the composer autocomplete', func
 
     $this->actingAs($owner)
         ->get(route('channels.show', ['team' => $team->slug, 'channel' => $general->slug]))
+        // The composer's list is composed on the client from the workspace
+        // roster the shell ships, so that is where the visit carries them.
         ->assertInertia(fn (Assert $page): Assert => $page
-            ->has('members', 2)
-            ->where('members', fn ($members): bool => collect($members)->pluck('name')->contains('Bea Member')
+            ->has('teamMembers', 2)
+            ->where('teamMembers', fn ($members): bool => collect($members)->pluck('name')->contains('Bea Member')
                 && collect($members)->pluck('name')->contains($owner->name))
         );
 });
