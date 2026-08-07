@@ -15,12 +15,14 @@ import {
     TooltipTrigger,
 } from '@/components/ui/tooltip';
 import UserStatusEmoji from '@/components/UserStatusEmoji.vue';
+import { useCanHover } from '@/composables/useCanHover';
 import { useInitials } from '@/composables/useInitials';
 import { useToast } from '@/composables/useToast';
 import { useTranslations } from '@/composables/useTranslations';
 import { useUnreadDigest } from '@/composables/useUnreadDigest';
 import { groupDmSidebarName } from '@/lib/groupDm';
 import { notificationIndicator } from '@/lib/notificationIndicator';
+import { channelCacheTag, prefetchTrigger } from '@/lib/prefetch';
 import { presenceLabelKey } from '@/lib/presence';
 import type { RenderedPresence } from '@/lib/presence';
 import { CHANNEL_LIST_PROPS } from '@/lib/reloadProps';
@@ -91,6 +93,15 @@ const indicator = computed(() =>
     notificationIndicator(props.channel.muted, props.channel.notificationLevel),
 );
 
+// Fetch the conversation before the click asks for it: on hover where a pointer
+// can hover, on mousedown where nothing can.
+const canHover = useCanHover();
+const prefetch = computed(() => prefetchTrigger(canHover.value));
+
+// The cached entry is filed under the conversation it holds, so a realtime
+// arrival can flush exactly that one ({@see useSidebarBadges}).
+const cacheTags = computed(() => [channelCacheTag(props.channel.id)]);
+
 /**
  * Close (hide) this DM from the sidebar. Closing a DM the user isn't viewing just
  * reloads the shared `channels` prop so the row leaves in place; closing the DM
@@ -129,8 +140,16 @@ function hide(): void {
             :data-muted="channel.muted"
             class="h-11 gap-2 rounded-[10px] py-0 pr-2.5 pl-2.5 text-[15px] text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground data-[active=true]:bg-sidebar-primary data-[active=true]:font-medium data-[active=true]:text-sidebar-primary-foreground data-[active=true]:shadow-[0_2px_6px_rgba(29,26,21,0.25)] data-[active=true]:hover:bg-sidebar-primary data-[active=true]:hover:text-sidebar-primary-foreground data-[muted=true]:opacity-55 data-[muted=true]:hover:opacity-100 md:h-8 md:rounded-[9px] md:text-[13.5px]"
         >
+            <!-- This link must never carry `only`: `only` is part of Inertia's
+                 prefetch cache key, so a prefetch and the click that follows
+                 only match while both leave it empty, and adding one here would
+                 silently break this row's own prefetch. It is not needed either
+                 — the shell's `once` props are excluded before they resolve on
+                 an ordinary visit. Nothing fails loudly if this is violated. -->
             <Link
                 :href="show({ team: teamSlug, channel: channel.slug }).url"
+                :prefetch="prefetch"
+                :cacheTags="cacheTags"
                 :data-test="`dm-row-${channel.slug}`"
                 :aria-current="isActive ? 'page' : undefined"
             >

@@ -19,10 +19,12 @@ import {
     TooltipContent,
     TooltipTrigger,
 } from '@/components/ui/tooltip';
+import { useCanHover } from '@/composables/useCanHover';
 import { useToast } from '@/composables/useToast';
 import { useTranslations } from '@/composables/useTranslations';
 import { useUnreadDigest } from '@/composables/useUnreadDigest';
 import { notificationIndicator } from '@/lib/notificationIndicator';
+import { channelCacheTag, prefetchTrigger } from '@/lib/prefetch';
 import { CHANNEL_LIST_PROPS } from '@/lib/reloadProps';
 import { channelUnread } from '@/lib/unreadDigest';
 import type { Channel, ChannelSection } from '@/types/channels';
@@ -65,6 +67,17 @@ const indicator = computed(() =>
     notificationIndicator(props.channel.muted, props.channel.notificationLevel),
 );
 
+// Fetch the channel before the click asks for it: on hover where a pointer can
+// hover, on mousedown where nothing can. `mount` is deliberately not an option
+// here — the sidebar is not virtualized, so it would put a 200-channel
+// workspace's worth of framework boots on the wire at once.
+const canHover = useCanHover();
+const prefetch = computed(() => prefetchTrigger(canHover.value));
+
+// The cached entry is filed under the channel it holds, so a realtime arrival
+// can flush exactly that one ({@see useSidebarBadges}).
+const cacheTags = computed(() => [channelCacheTag(props.channel.id)]);
+
 /**
  * Star or unstar the channel, reloading only the shared `channels` prop so the
  * sidebar re-partitions between the "Starred" and "Channels" sections.
@@ -96,6 +109,12 @@ function toggleStar(): void {
             :data-muted="channel.muted"
             class="h-11 gap-2 rounded-[10px] py-0 pr-2.5 pl-7 text-[15px] text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground data-[active=true]:bg-sidebar-primary data-[active=true]:font-medium data-[active=true]:text-sidebar-primary-foreground data-[active=true]:shadow-[0_2px_6px_rgba(29,26,21,0.25)] data-[active=true]:hover:bg-sidebar-primary data-[active=true]:hover:text-sidebar-primary-foreground data-[muted=true]:opacity-55 data-[muted=true]:hover:opacity-100 md:h-8 md:rounded-[9px] md:text-[13.5px]"
         >
+            <!-- This link must never carry `only`: `only` is part of Inertia's
+                 prefetch cache key, so a prefetch and the click that follows
+                 only match while both leave it empty, and adding one here would
+                 silently break this row's own prefetch. It is not needed either
+                 — the shell's `once` props are excluded before they resolve on
+                 an ordinary visit. Nothing fails loudly if this is violated. -->
             <Link
                 :href="
                     show({
@@ -103,6 +122,8 @@ function toggleStar(): void {
                         channel: channel.slug,
                     }).url
                 "
+                :prefetch="prefetch"
+                :cacheTags="cacheTags"
                 :aria-current="
                     channel.slug === activeChannelSlug ? 'page' : undefined
                 "

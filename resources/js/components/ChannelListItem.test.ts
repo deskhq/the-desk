@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createSSRApp, h } from 'vue';
 import { renderToString } from 'vue/server-renderer';
 import type { Channel } from '@/types/channels';
@@ -9,19 +9,45 @@ import type { UnreadCounts } from '@/types/unread';
  * the draft cue, the unread dot — renders in isolation. `stub(tag)` builds a
  * passthrough component; hoisted so the vi.mock factories can reach it.
  */
-const { stub } = await vi.hoisted(async () => {
+const { stub, linkAttrs, recordingLink } = await vi.hoisted(async () => {
     const { defineComponent, h: hyper } = await import('vue');
 
+    const stub = (tag: string) =>
+        defineComponent({
+            setup:
+                (_: unknown, ctx: { slots: { default?: () => unknown } }) =>
+                () =>
+                    hyper(tag, ctx.slots.default?.() as never),
+        });
+
+    /**
+     * Everything the row hands its navigation link, recorded per render. The
+     * link declaring the right prefetch contract *is* the seam here — Inertia's
+     * cache is the framework's to test, not ours.
+     */
+    const linkAttrs: Record<string, unknown>[] = [];
+
     return {
-        stub: (tag: string) =>
-            defineComponent({
-                setup:
-                    (_: unknown, ctx: { slots: { default?: () => unknown } }) =>
-                    () =>
-                        hyper(tag, ctx.slots.default?.() as never),
-            }),
+        stub,
+        linkAttrs,
+        recordingLink: defineComponent({
+            setup(
+                _: unknown,
+                ctx: {
+                    attrs: Record<string, unknown>;
+                    slots: { default?: () => unknown };
+                },
+            ) {
+                linkAttrs.push(ctx.attrs);
+
+                return () => hyper('a', ctx.slots.default?.() as never);
+            },
+        }),
     };
 });
+
+/** Whether the rendered device hovers before it clicks. */
+const device = await vi.hoisted(async () => ({ canHover: { value: true } }));
 
 /**
  * The shared props the row reads its badge from. The `channel` prop carries no
@@ -34,9 +60,12 @@ const page = await vi.hoisted(async () => ({
 }));
 
 vi.mock('@inertiajs/vue3', () => ({
-    Link: stub('a'),
+    Link: recordingLink,
     router: { patch: vi.fn() },
     usePage: () => page,
+}));
+vi.mock('@/composables/useCanHover', () => ({
+    useCanHover: () => device.canHover,
 }));
 vi.mock('@lucide/vue', () => ({
     GripVertical: stub('svg'),
@@ -114,6 +143,8 @@ async function render(
 ): Promise<string> {
     const row = channel(overrides);
 
+    linkAttrs.length = 0;
+
     page.props.unread = {
         channels: unread ? { [row.id]: unread } : {},
         teams: {},
@@ -189,5 +220,42 @@ describe('ChannelListItem badges', () => {
 
         expect(html).not.toContain('data-test="mention-badge"');
         expect(html).not.toContain('data-test="unread-dot"');
+    });
+});
+
+describe('ChannelListItem prefetch', () => {
+    beforeEach(() => {
+        device.canHover = { value: true };
+    });
+
+    it('prefetches on hover where a pointer can hover', async () => {
+        await render();
+
+        expect(linkAttrs[0].prefetch).toBe('hover');
+    });
+
+    it('prefetches on click where nothing hovers before the tap', async () => {
+        device.canHover = { value: false };
+
+        await render();
+
+        expect(linkAttrs[0].prefetch).toBe('click');
+    });
+
+    it('tags the entry with the channel it holds, so an arrival can flush it', async () => {
+        await render();
+
+        expect(linkAttrs[0].cacheTags).toEqual(['channel:ch-1']);
+    });
+
+    /**
+     * `only` is part of Inertia's prefetch cache key and the once-exclusion
+     * already omits the shell, so a nav link carrying one would silently miss
+     * its own prefetched entry.
+     */
+    it('carries no `only`, which would break its own prefetch', async () => {
+        await render();
+
+        expect(linkAttrs[0]).not.toHaveProperty('only');
     });
 });
