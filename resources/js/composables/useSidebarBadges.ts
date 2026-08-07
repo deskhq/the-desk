@@ -5,6 +5,7 @@ import { useChannelFleetSubscription } from '@/composables/useChannelFleetSubscr
 import { useDebouncedPost } from '@/composables/useDebouncedPost';
 import { backgroundVisit } from '@/lib/backgroundVisit';
 import { isChannelTraffic } from '@/lib/channelTraffic';
+import { channelCacheTag } from '@/lib/prefetch';
 import { CHANNEL_LIST_PROPS, UNREAD_DIGEST_PROPS } from '@/lib/reloadProps';
 import { shouldRefreshSidebar } from '@/lib/shouldRefreshSidebar';
 
@@ -30,6 +31,16 @@ const REFRESH_DEBOUNCE_MS = 500;
  * desktop showing the channel unread until its next navigation. Sharing one
  * debounced reload with the arrival side means a read and an arrival landing
  * together still cost a single request.
+ *
+ * The same arrivals also invalidate what the sidebar has *prefetched*. The rows
+ * fetch their channel ahead of the click and tag the entry with
+ * {@see channelCacheTag}; this fleet is subscribed to exactly that set, so the
+ * flush costs one call inside a callback that already runs — no second
+ * subscription, no polling, no fingerprint. Two blind spots ride along and are
+ * bounded by the 30 s cache lifetime: the fleet hears `MessageSent` only, so an
+ * edit, deletion, reaction or pin elsewhere never reaches it, and a dropped
+ * socket stops the flushing entirely (Echo is never load-bearing for
+ * correctness).
  */
 export function useSidebarBadges(): void {
     const page = usePage();
@@ -71,6 +82,14 @@ export function useSidebarBadges(): void {
     );
 
     useChannelFleetSubscription((channelId, message) => {
+        // The sidebar rows prefetch the channels this same fleet is subscribed
+        // to, so the event that makes a prefetched timeline wrong is already
+        // arriving here: drop that entry and the click after it goes back to
+        // the server rather than painting a message-old screen. It runs ahead
+        // of — and independently of — the badge decision below, which
+        // deliberately ignores arrivals a badge does not move.
+        router.flushByCacheTags(channelCacheTag(channelId));
+
         const decision = shouldRefreshSidebar({
             isOwnMessage: message.user.id === currentUserId.value,
             isChannelMessage: isChannelTraffic(message),

@@ -2,10 +2,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createRenderer, defineComponent } from 'vue';
 
 const reload = vi.fn();
+const flushByCacheTags = vi.fn();
 const page = {
     props: {
         auth: { user: { id: 'viewer-id' } },
-        channels: [],
+        channels: [] as { id: string }[],
         channel: undefined as { id?: string } | undefined,
     },
 };
@@ -17,6 +18,7 @@ const left: string[] = [];
 vi.mock('@inertiajs/vue3', () => ({
     router: {
         reload: (...args: unknown[]) => reload(...args),
+        flushByCacheTags: (...args: unknown[]) => flushByCacheTags(...args),
     },
     usePage: () => page,
 }));
@@ -79,14 +81,28 @@ function harness(): { unmount: () => void } {
 }
 
 /** Fire an event on a subscribed Echo channel, as Reverb would. */
-function emit(channel: string, event: string): void {
-    listeners.get(channel)?.get(event)?.({});
+function emit(channel: string, event: string, payload: unknown = {}): void {
+    listeners.get(channel)?.get(event)?.(payload);
+}
+
+/** A teammate's arrival, carrying only what the sidebar reads off it. */
+function arrival(): unknown {
+    return {
+        id: 'msg-1',
+        user: { id: 'someone-else' },
+        mentions: [],
+        threadRootId: null,
+        sentToChannel: false,
+    };
 }
 
 describe('useSidebarBadges cross-device read sync', () => {
     beforeEach(() => {
         vi.useFakeTimers();
         reload.mockClear();
+        flushByCacheTags.mockClear();
+        page.props.channels = [];
+        page.props.channel = undefined;
         listeners.clear();
         left.length = 0;
     });
@@ -126,6 +142,30 @@ describe('useSidebarBadges cross-device read sync', () => {
         vi.runAllTimers();
 
         expect(reload).toHaveBeenCalledTimes(1);
+    });
+
+    /**
+     * The fleet is already subscribed to every channel in the sidebar, which is
+     * exactly the set the rows prefetch — so the event that makes a prefetched
+     * timeline wrong is already arriving, and flushing its tag is what stops the
+     * click that follows from painting a message-old screen.
+     */
+    it('flushes the prefetched entry of the channel a message arrived in', () => {
+        page.props.channels = [{ id: 'ch-1' }, { id: 'ch-2' }];
+        harness();
+
+        emit('channel.ch-1', 'MessageSent', arrival());
+
+        expect(flushByCacheTags).toHaveBeenCalledWith('channel:ch-1');
+    });
+
+    it('leaves the entries of the channels nothing arrived in alone', () => {
+        page.props.channels = [{ id: 'ch-1' }, { id: 'ch-2' }];
+        harness();
+
+        emit('channel.ch-1', 'MessageSent', arrival());
+
+        expect(flushByCacheTags).not.toHaveBeenCalledWith('channel:ch-2');
     });
 
     it('leaves the private channel on teardown', () => {
