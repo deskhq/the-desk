@@ -135,7 +135,7 @@ jobs:
       # the run summary below, which is what a reviewer reads anyway.
       - name: Upload the scan to code scanning
         if: env.PUBLISH != 'true' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
-        uses: github/codeql-action/upload-sarif@f205ea1c3313d32999d8d6a48b4f6530d4437b38 # v4.37.4
+        uses: github/codeql-action/upload-sarif@5595ccaf912efad79be6eef63a5619ff05969be3 # v4.37.6
         with:
           sarif_file: trivy-results.sarif
           category: trivy-image
@@ -264,7 +264,7 @@ jobs:
       # so it survives an operator who only ever talks to GHCR.
       - name: Attest the published image
         if: env.PUBLISH == 'true'
-        uses: actions/attest-build-provenance@0f67c3f4856b2e3261c31976d6725780e5e4c373 # v4.1.1
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
         with:
           subject-name: ghcr.io/${{ github.repository }}
           subject-digest: ${{ steps.publish.outputs.digest }}
