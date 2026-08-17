@@ -9,7 +9,7 @@ use Spatie\LaravelData\Data;
 use Spatie\TypeScriptTransformer\Attributes\TypeScript;
 
 #[TypeScript]
-class ChannelContentSummaryData extends Data
+final class ChannelContentSummaryData extends Data
 {
     public function __construct(
         public int $messageCount,

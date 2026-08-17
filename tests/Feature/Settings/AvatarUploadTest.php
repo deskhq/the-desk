@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 use App\Events\UserProfileUpdated;
 use App\Models\User;
 use App\Support\Avatars\AvatarStorage;

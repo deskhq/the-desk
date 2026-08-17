@@ -9,7 +9,7 @@ use App\Models\Team;
 use App\Models\User;
 use Illuminate\Http\UploadedFile;
 
-class CreateCustomEmoji
+final class CreateCustomEmoji
 {
     /**
      * Store the uploaded image on the configured disk and register the emoji.

@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Rules;
 
 use App\Models\Team;
@@ -9,9 +11,9 @@ use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Translation\PotentiallyTranslatedString;
 
-class WithinStorageQuota implements ValidationRule
+final readonly class WithinStorageQuota implements ValidationRule
 {
-    public function __construct(private readonly Team $team, private readonly TeamStorage $storage) {}
+    public function __construct(private Team $team, private TeamStorage $storage) {}
 
     /**
      * Reject an upload that would push the workspace past its storage quota.

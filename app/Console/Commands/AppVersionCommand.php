@@ -20,7 +20,7 @@ use Illuminate\Console\Command;
  */
 #[Signature('app:version')]
 #[Description('Print the version this instance is running')]
-class AppVersionCommand extends Command
+final class AppVersionCommand extends Command
 {
     /**
      * Execute the console command.

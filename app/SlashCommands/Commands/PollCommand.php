@@ -19,7 +19,7 @@ use App\SlashCommands\SlashCommandResult;
  * (e.g. with JavaScript disabled): it returns a hint rather than posting a
  * literal `/poll`.
  */
-class PollCommand extends BaseSlashCommand
+final class PollCommand extends BaseSlashCommand
 {
     public function name(): string
     {

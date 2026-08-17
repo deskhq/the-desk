@@ -20,7 +20,7 @@ use Symfony\Component\HttpFoundation\Response;
  * regardless of how it authenticated — until a subsequent `active: true` clears
  * the flag (see App\Actions\Sso\SetSsoUserActivation).
  */
-class EnsureUserIsActive
+final class EnsureUserIsActive
 {
     /**
      * Handle an incoming request.

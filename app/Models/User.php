@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Models;
 
 use App\Concerns\HasTeams;
@@ -120,7 +122,7 @@ use NotificationChannels\WebPush\PushSubscription;
 #[Fillable(['name', 'email', 'avatar_url', 'pronouns', 'title', 'phone', 'timezone', 'locale', 'time_format', 'password', 'current_team_id', 'chime_sound', 'share_read_receipts', 'sidebar_position', 'presence_state', 'onboarding_completed_at', 'collapsed_channel_sections', 'is_tombstone'])]
 #[Hidden(['password', 'two_factor_secret', 'two_factor_recovery_codes', 'remember_token', 'avatar_url', 'avatar_path', 'status_emoji', 'status_text', 'status_expires_at', 'dnd_until', 'dnd_schedule_enabled', 'dnd_starts_at', 'dnd_ends_at', 'dnd_schedule_snoozed_until'])]
 #[ObservedBy(UserObserver::class)]
-class User extends Authenticatable implements HasLocalePreference, MustVerifyEmail, PasskeyUser
+final class User extends Authenticatable implements HasLocalePreference, MustVerifyEmail, PasskeyUser
 {
     /** @use HasFactory<UserFactory> */
     use HasApiTokens, HasFactory, HasPushSubscriptions, HasTeams, HasUuids, Notifiable, PasskeyAuthenticatable, TwoFactorAuthenticatable;
@@ -352,7 +354,7 @@ class User extends Authenticatable implements HasLocalePreference, MustVerifyEma
      */
     public static function tombstone(): self
     {
-        return static::firstOrCreate(
+        return self::firstOrCreate(
             ['is_tombstone' => true],
             [
                 'name' => 'Deleted User',

@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Models;
 
 use App\Enums\MessageReminderStatus;
@@ -25,7 +27,7 @@ use Illuminate\Support\Carbon;
  * @property-read Message $message
  */
 #[Fillable(['user_id', 'message_id', 'remind_at', 'status', 'fired_at'])]
-class MessageReminder extends Model
+final class MessageReminder extends Model
 {
     /** @use HasFactory<MessageReminderFactory> */
     use HasFactory, HasUuids;

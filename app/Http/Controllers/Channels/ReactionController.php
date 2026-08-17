@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Controllers\Channels;
 
 use App\Actions\Channels\ToggleReaction;
@@ -10,7 +12,7 @@ use App\Models\Message;
 use App\Models\Team;
 use Illuminate\Http\RedirectResponse;
 
-class ReactionController extends Controller
+final class ReactionController extends Controller
 {
     /**
      * Toggle the current user's emoji reaction on a message.
@@ -22,7 +24,7 @@ class ReactionController extends Controller
      */
     public function store(ReactionRequest $request, Team $team, Channel $channel, Message $message, ToggleReaction $toggleReaction): RedirectResponse
     {
-        $toggleReaction->handle($channel, $message, $request->user(), $request->validated('emoji'));
+        $toggleReaction->handle($channel, $message, $this->viewer($request), $request->validated('emoji'));
 
         return back();
     }

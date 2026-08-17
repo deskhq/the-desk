@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Controllers\Teams;
 
 use App\Enums\AnalyticsRange;
@@ -11,7 +13,7 @@ use App\Support\WorkspaceAnalytics;
 use Inertia\Inertia;
 use Inertia\Response;
 
-class AnalyticsController extends Controller
+final class AnalyticsController extends Controller
 {
     public function __construct(private readonly WorkspaceAnalytics $analytics, private readonly TeamStorage $storage) {}
 

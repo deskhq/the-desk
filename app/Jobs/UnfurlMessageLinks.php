@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Jobs;
 
 use App\Data\MessageData;
@@ -10,7 +12,7 @@ use App\Support\FetchLinkPreview;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 
-class UnfurlMessageLinks implements ShouldQueue
+final class UnfurlMessageLinks implements ShouldQueue
 {
     use Queueable;
 

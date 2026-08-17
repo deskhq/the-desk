@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Data;
 
 use App\Models\MessageReminder;
@@ -7,7 +9,7 @@ use Spatie\LaravelData\Data;
 use Spatie\TypeScriptTransformer\Attributes\TypeScript;
 
 #[TypeScript]
-class MessageReminderData extends Data
+final class MessageReminderData extends Data
 {
     public function __construct(
         public string $id,

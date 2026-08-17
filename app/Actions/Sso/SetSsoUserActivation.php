@@ -16,9 +16,9 @@ use App\Support\SessionRegistry;
  * `active: true`. Enforcement of the revoked state on future requests lives in
  * App\Http\Middleware\EnsureUserIsActive.
  */
-class SetSsoUserActivation
+final readonly class SetSsoUserActivation
 {
-    public function __construct(private readonly SessionRegistry $sessions) {}
+    public function __construct(private SessionRegistry $sessions) {}
 
     /**
      * Deactivate the account and terminate its sessions.

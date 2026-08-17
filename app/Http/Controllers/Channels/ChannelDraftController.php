@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Controllers\Channels;
 
 use App\Http\Controllers\Controller;
@@ -9,7 +11,7 @@ use App\Models\Team;
 use App\Support\ChannelMembership;
 use Illuminate\Http\RedirectResponse;
 
-class ChannelDraftController extends Controller
+final class ChannelDraftController extends Controller
 {
     /**
      * Save (or clear) the current user's unsent composer text for the channel.
@@ -19,7 +21,7 @@ class ChannelDraftController extends Controller
      */
     public function update(SaveChannelDraftRequest $request, Team $team, Channel $channel): RedirectResponse
     {
-        new ChannelMembership($channel, $request->user())->saveDraft($request->validated('body'));
+        new ChannelMembership($channel, $this->viewer($request))->saveDraft($request->validated('body'));
 
         return back();
     }

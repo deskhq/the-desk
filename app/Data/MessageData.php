@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Data;
 
 use App\Enums\LinkPreviewStatus;
@@ -8,11 +10,12 @@ use App\Models\Attachment;
 use App\Models\Message;
 use App\Models\MessageLinkPreview;
 use App\Models\User;
+use App\Support\PersistedTimestamp;
 use Spatie\LaravelData\Data;
 use Spatie\TypeScriptTransformer\Attributes\TypeScript;
 
 #[TypeScript]
-class MessageData extends Data
+final class MessageData extends Data
 {
     /**
      * @param  array<int, MentionData>  $mentions
@@ -130,7 +133,7 @@ class MessageData extends Data
             // that produced it, since withdrawing the body is the very moment an
             // admin wants to know which credential to revoke.
             postedVia: $withCredentialSource ? MessageCredentialData::forMessage($message) : null,
-            createdAt: $message->created_at->toIso8601String(),
+            createdAt: PersistedTimestamp::of($message->created_at)->toIso8601String(),
             editedAt: $message->edited_at?->toIso8601String(),
             isDeleted: $isDeleted,
             mentions: $isDeleted ? [] : $message->mentionedUsers->map(fn (User $user): MentionData => MentionData::fromUser($user))->all(),

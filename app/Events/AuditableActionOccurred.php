@@ -22,7 +22,7 @@ use Illuminate\Foundation\Events\Dispatchable;
  * the REST API resolves both from the token subject (which may be a bot), and a
  * queued directory sync has no request at all.
  */
-class AuditableActionOccurred
+final readonly class AuditableActionOccurred
 {
     use Dispatchable;
 
@@ -34,10 +34,10 @@ class AuditableActionOccurred
      *                                         human sentence (names, old->new role).
      */
     public function __construct(
-        public readonly Team $team,
-        public readonly ?User $actor,
-        public readonly AuditAction $action,
-        public readonly ?Model $target = null,
-        public readonly array $context = [],
+        public Team $team,
+        public ?User $actor,
+        public AuditAction $action,
+        public ?Model $target = null,
+        public array $context = [],
     ) {}
 }

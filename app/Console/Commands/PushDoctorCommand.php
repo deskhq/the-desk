@@ -34,7 +34,7 @@ use Throwable;
  */
 #[Signature('push:doctor')]
 #[Description('Diagnose web push: VAPID configuration, runtime prerequisites, subscribed devices, and past delivery failures')]
-class PushDoctorCommand extends Command
+final class PushDoctorCommand extends Command
 {
     /**
      * Nothing is wrong with this component.

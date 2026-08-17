@@ -12,9 +12,9 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Throwable;
 
-class UploadAttachment
+final readonly class UploadAttachment
 {
-    public function __construct(private readonly ProcessAttachmentImage $processImage) {}
+    public function __construct(private ProcessAttachmentImage $processImage) {}
 
     /**
      * Store an uploaded file and register it as a pending attachment.

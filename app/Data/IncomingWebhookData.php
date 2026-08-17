@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Data;
 
 use App\Models\IncomingWebhook;
@@ -14,7 +16,7 @@ use Spatie\TypeScriptTransformer\Attributes\TypeScript;
  * stored and it can never be re-displayed).
  */
 #[TypeScript]
-class IncomingWebhookData extends Data
+final class IncomingWebhookData extends Data
 {
     public function __construct(
         public string $id,

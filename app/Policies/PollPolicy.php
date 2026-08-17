@@ -1,12 +1,14 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Policies;
 
 use App\Enums\TeamRole;
 use App\Models\Poll;
 use App\Models\User;
 
-class PollPolicy
+final class PollPolicy
 {
     /**
      * Determine whether the user can close the poll.

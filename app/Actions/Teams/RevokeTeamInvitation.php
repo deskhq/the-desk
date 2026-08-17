@@ -15,7 +15,7 @@ use App\Models\User;
  * The audit entry is raised before the row goes, since it is recorded against
  * the invitation as its subject.
  */
-class RevokeTeamInvitation
+final class RevokeTeamInvitation
 {
     public function handle(TeamInvitation $invitation, User $actor): void
     {

@@ -18,7 +18,7 @@ use Illuminate\Support\Facades\DB;
  * The person accepting is the actor: this is the one workspace fact its own
  * subject causes.
  */
-class AcceptTeamInvitation
+final class AcceptTeamInvitation
 {
     public function handle(TeamInvitation $invitation, User $user): void
     {

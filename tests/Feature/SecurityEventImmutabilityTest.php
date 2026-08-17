@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 use App\Enums\SecurityEventType;
 use App\Exceptions\SecurityEventImmutableException;
 use App\Models\SecurityEvent;

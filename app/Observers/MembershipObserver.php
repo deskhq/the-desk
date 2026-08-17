@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Observers;
 
 use App\Actions\Channels\CreateChannel;
@@ -8,11 +10,11 @@ use App\Enums\ChannelVisibility;
 use App\Models\Channel;
 use App\Models\Membership;
 
-class MembershipObserver
+final readonly class MembershipObserver
 {
     public function __construct(
-        private readonly CreateChannel $createChannel,
-        private readonly JoinChannel $joinChannel,
+        private CreateChannel $createChannel,
+        private JoinChannel $joinChannel,
     ) {}
 
     /**

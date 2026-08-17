@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 use App\Actions\Teams\PurgeExpiredAuditExports;
 use App\Enums\AuditExportStatus;
 use App\Models\AuditExport;

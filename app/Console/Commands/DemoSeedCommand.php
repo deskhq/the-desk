@@ -21,7 +21,7 @@ use Illuminate\Support\Carbon;
  */
 #[Signature('demo:seed {--at= : Pin the clock to this instant while seeding, so the fixture is byte-reproducible}')]
 #[Description('Seed (or reset) the public demo workspace')]
-class DemoSeedCommand extends Command
+final class DemoSeedCommand extends Command
 {
     /**
      * Run the demo seeder, wiring the console so its summary output surfaces.

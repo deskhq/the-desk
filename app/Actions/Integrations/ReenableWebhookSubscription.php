@@ -16,7 +16,7 @@ use App\Models\WebhookSubscription;
  * signing secret is untouched (rotate it separately). A no-op flag lets the
  * caller keep the response idempotent for an already-active subscription.
  */
-class ReenableWebhookSubscription
+final class ReenableWebhookSubscription
 {
     public function handle(User $actor, WebhookSubscription $subscription): void
     {

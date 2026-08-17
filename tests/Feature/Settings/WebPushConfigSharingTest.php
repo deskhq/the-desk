@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 use Inertia\Testing\AssertableInertia as Assert;
 
 test('the vapid public key is shared to the frontend when push is configured', function (): void {

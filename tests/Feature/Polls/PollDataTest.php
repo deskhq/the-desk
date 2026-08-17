@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 use App\Data\MessageData;
 use App\Models\Message;
 use App\Models\Poll;

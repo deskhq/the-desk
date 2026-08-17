@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Requests\Api\V1;
 
 use App\Enums\ChannelVisibility;
@@ -12,7 +14,7 @@ use Illuminate\Support\Facades\Gate;
  * Validates a subject adding a team member to a private channel via the public
  * API.
  */
-class AddMemberRequest extends ApiRequest
+final class AddMemberRequest extends ApiRequest
 {
     /**
      * A bot manages membership only on a private channel it belongs to (the human

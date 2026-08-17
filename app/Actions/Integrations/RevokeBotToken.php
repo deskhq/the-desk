@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Actions\Integrations;
 
 use App\Enums\AuditAction;
@@ -12,7 +14,7 @@ use Laravel\Sanctum\PersonalAccessToken;
  * log. Deleting the row immediately invalidates the token for every in-flight
  * and future request.
  */
-class RevokeBotToken
+final class RevokeBotToken
 {
     public function handle(User $actor, PersonalAccessToken $token): void
     {

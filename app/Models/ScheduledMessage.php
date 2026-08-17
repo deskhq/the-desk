@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Models;
 
 use App\Data\MessageReplyData;
@@ -34,7 +36,7 @@ use Illuminate\Support\Carbon;
  * @property-read Message|null $replyTo
  */
 #[Fillable(['channel_id', 'user_id', 'client_uuid', 'body', 'reply_to_id', 'send_at', 'status', 'sent_at', 'cancelled_at', 'failed_at', 'failure_reason'])]
-class ScheduledMessage extends Model
+final class ScheduledMessage extends Model
 {
     /** @use HasFactory<ScheduledMessageFactory> */
     use HasFactory, HasUuids;

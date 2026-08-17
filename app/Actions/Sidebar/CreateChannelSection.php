@@ -1,12 +1,14 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Actions\Sidebar;
 
 use App\Models\ChannelSection;
 use App\Models\Team;
 use App\Models\User;
 
-class CreateChannelSection
+final class CreateChannelSection
 {
     /**
      * Create a custom sidebar section for the user in the team.

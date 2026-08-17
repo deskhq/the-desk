@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 use App\Actions\Channels\CreateChannel;
 use App\Actions\Channels\JoinChannel;
 use App\Actions\Teams\CreateTeam;

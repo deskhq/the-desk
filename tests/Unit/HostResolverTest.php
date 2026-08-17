@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 use App\Support\HostResolver;
 
 test('a literal IP resolves to itself', function (): void {

@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Actions\Integrations;
 
 use App\Enums\AuditAction;
@@ -15,7 +17,7 @@ use Laravel\Sanctum\NewAccessToken;
  * token is returned once (Sanctum stores only its hash) for the caller to hand
  * to the operator — its value is never logged.
  */
-class MintBotToken
+final class MintBotToken
 {
     /**
      * @param  list<string>  $abilities  The granted scopes (least-privilege).

@@ -34,7 +34,7 @@ use Symfony\Component\HttpFoundation\Response;
  * The controller is bound over the package's ResourceController in
  * App\Providers\SsoServiceProvider so the package routes resolve to it.
  */
-class ScimUserController extends ResourceController
+final class ScimUserController extends ResourceController
 {
     public function __construct(
         private readonly ProvisionSsoUser $provisionSsoUser,
@@ -53,7 +53,7 @@ class ScimUserController extends ResourceController
      * @param  bool  $isMe
      */
     #[\Override]
-    public function createObject(Request $request, PolicyDecisionPoint $pdp, ResourceType $resourceType, $isMe = false): Model
+    public function createObject(Request $request, PolicyDecisionPoint $pdp, ResourceType $resourceType, $isMe = false): User
     {
         $email = $this->email($request);
 

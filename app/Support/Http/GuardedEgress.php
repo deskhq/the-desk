@@ -38,7 +38,7 @@ use Throwable;
  * member-controlled ones, and routing them through a guard they would each need
  * to switch off is how a security module stops being one. ADR-0015 records that.
  */
-class GuardedEgress
+final readonly class GuardedEgress
 {
     /**
      * How many redirect hops {@see self::fetch()} follows before giving up. Each
@@ -52,7 +52,7 @@ class GuardedEgress
      */
     private const int TIMEOUT_SECONDS = 5;
 
-    public function __construct(private readonly OutboundUrlGuard $guard) {}
+    public function __construct(private OutboundUrlGuard $guard) {}
 
     /**
      * Read the bytes at a URL, following redirects the guard clears, or null when

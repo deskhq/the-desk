@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Actions\Channels;
 
 use App\Enums\AuditAction;
@@ -8,7 +10,7 @@ use App\Models\Channel;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
 
-class ArchiveChannel
+final class ArchiveChannel
 {
     /**
      * Archive a channel, marking it read-only and hidden from the active sidebar.

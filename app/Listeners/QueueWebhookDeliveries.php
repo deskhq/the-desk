@@ -20,7 +20,7 @@ use Illuminate\Support\Str;
  * no subscription can even be created, but disabling it after the fact also
  * stops delivery immediately.
  */
-class QueueWebhookDeliveries
+final class QueueWebhookDeliveries
 {
     /**
      * Handle the event.

@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Controllers\Teams;
 
 use App\Actions\Teams\CreateCustomEmoji;
@@ -15,7 +17,7 @@ use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
 use Inertia\Response;
 
-class CustomEmojiController extends Controller
+final class CustomEmojiController extends Controller
 {
     /**
      * Show the workspace's custom emoji registry.
@@ -32,7 +34,7 @@ class CustomEmojiController extends Controller
             ],
             'emojis' => CustomEmojiData::forTeam($team),
             'permissions' => [
-                'canManageEmojis' => $request->user()->toTeamPermissions($team)->canManageEmojis,
+                'canManageEmojis' => $this->viewer($request)->toTeamPermissions($team)->canManageEmojis,
             ],
         ]);
     }
@@ -44,7 +46,7 @@ class CustomEmojiController extends Controller
     {
         $createCustomEmoji->handle(
             $team,
-            $request->user(),
+            $this->viewer($request),
             $request->validated('name'),
             $request->file('image'),
         );
@@ -61,7 +63,7 @@ class CustomEmojiController extends Controller
     {
         Gate::authorize('delete', $customEmoji);
 
-        $revokeCustomEmoji->handle($team, $request->user(), $customEmoji);
+        $revokeCustomEmoji->handle($team, $this->viewer($request), $customEmoji);
 
         Inertia::flash('toast', ['type' => 'success', 'message' => __('Emoji removed')]);
 

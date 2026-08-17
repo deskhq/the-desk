@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Responses;
 
 use App\Http\Responses\Concerns\RedirectsToCurrentTeam;
@@ -8,7 +10,7 @@ use Illuminate\Http\Request;
 use Laravel\Fortify\Contracts\PasswordConfirmedResponse as PasswordConfirmedResponseContract;
 use Symfony\Component\HttpFoundation\Response;
 
-class PasswordConfirmedResponse implements PasswordConfirmedResponseContract
+final class PasswordConfirmedResponse implements PasswordConfirmedResponseContract
 {
     use RedirectsToCurrentTeam;
 

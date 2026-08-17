@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Controllers\Channels;
 
 use App\Actions\Channels\UploadAttachment;
@@ -16,7 +18,7 @@ use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Storage;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
-class AttachmentController extends Controller
+final class AttachmentController extends Controller
 {
     /**
      * Pre-upload a file to the channel, returning the pending attachment.
@@ -28,7 +30,7 @@ class AttachmentController extends Controller
      */
     public function store(StoreAttachmentRequest $request, Team $team, Channel $channel, UploadAttachment $uploadAttachment): JsonResponse
     {
-        $attachment = $uploadAttachment->handle($channel, $request->user(), $request->file('file'));
+        $attachment = $uploadAttachment->handle($channel, $this->viewer($request), $request->file('file'));
 
         return response()->json(AttachmentData::fromAttachment($attachment), 201);
     }
@@ -50,10 +52,10 @@ class AttachmentController extends Controller
 
         $disk = Storage::disk($attachment->disk);
 
-        abort_unless($disk->exists($attachment->path), 404);
+        abort_unless($disk->exists($attachment->blobPath()), 404);
 
         return $disk->response(
-            $attachment->path,
+            $attachment->blobPath(),
             $attachment->original_filename,
             [
                 'Content-Type' => $attachment->mime_type,

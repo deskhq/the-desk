@@ -1,12 +1,14 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Requests\Teams;
 
 use App\Rules\ValidTeamInvitation;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 
-class RespondToTeamInvitationRequest extends FormRequest
+final class RespondToTeamInvitationRequest extends FormRequest
 {
     /**
      * Get the validation rules that apply to the request.

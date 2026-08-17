@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Data;
 
 use App\Enums\AttachmentSource;
@@ -8,7 +10,7 @@ use Spatie\LaravelData\Data;
 use Spatie\TypeScriptTransformer\Attributes\TypeScript;
 
 #[TypeScript]
-class AttachmentData extends Data
+final class AttachmentData extends Data
 {
     public function __construct(
         public string $id,

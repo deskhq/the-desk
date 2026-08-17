@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Controllers\Settings;
 
 use App\Actions\Users\ClearUserStatus;
@@ -10,7 +12,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
-class StatusController extends Controller
+final class StatusController extends Controller
 {
     /**
      * Set the current user's custom status, replacing any previous one.
@@ -20,7 +22,7 @@ class StatusController extends Controller
         $validated = $request->validated();
 
         $status->handle(
-            $request->user(),
+            $this->viewer($request),
             $validated['emoji'],
             $validated['text'] ?? null,
             $validated['expires_at'] ?? null,
@@ -36,7 +38,7 @@ class StatusController extends Controller
      */
     public function destroy(Request $request, ClearUserStatus $status): RedirectResponse
     {
-        $status->handle($request->user());
+        $status->handle($this->viewer($request));
 
         Inertia::flash('toast', ['type' => 'success', 'message' => __('Status cleared')]);
 

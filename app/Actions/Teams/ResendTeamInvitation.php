@@ -18,7 +18,7 @@ use Illuminate\Support\Facades\Notification;
  * expiry is part of resending rather than a separate step the caller has to
  * remember. Throttling belongs to the surface, not here.
  */
-class ResendTeamInvitation
+final class ResendTeamInvitation
 {
     public function handle(TeamInvitation $invitation, User $actor): void
     {

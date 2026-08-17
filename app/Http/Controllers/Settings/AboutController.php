@@ -8,7 +8,7 @@ use App\Http\Controllers\Controller;
 use Inertia\Inertia;
 use Inertia\Response;
 
-class AboutController extends Controller
+final class AboutController extends Controller
 {
     /**
      * Show the "About this instance" settings page.

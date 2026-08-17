@@ -20,7 +20,7 @@ use Illuminate\Queue\SerializesModels;
  * `channels` prop, whose counts are recomputed server-side (so the unread badge
  * is correct even if the reload lands after the message itself).
  */
-class DirectMessageStarted implements ShouldBroadcast
+final class DirectMessageStarted implements ShouldBroadcast
 {
     use Dispatchable, InteractsWithSockets, SerializesModels;
 

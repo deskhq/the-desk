@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Data;
 
 use App\Models\PersonalAccessToken;
@@ -13,7 +15,7 @@ use Spatie\TypeScriptTransformer\Attributes\TypeScript;
  * once at mint time and only its hash is stored).
  */
 #[TypeScript]
-class BotTokenData extends Data
+final class BotTokenData extends Data
 {
     public function __construct(
         public string $id,

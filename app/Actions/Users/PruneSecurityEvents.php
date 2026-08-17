@@ -6,7 +6,7 @@ namespace App\Actions\Users;
 
 use App\Models\SecurityEvent;
 
-class PruneSecurityEvents
+final class PruneSecurityEvents
 {
     /**
      * Delete security events that have outlived the configured retention window.

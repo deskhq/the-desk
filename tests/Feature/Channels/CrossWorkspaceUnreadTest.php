@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 use App\Enums\MessageType;
 use App\Enums\NotificationLevel;
 use App\Enums\TeamRole;

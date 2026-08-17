@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Middleware;
 
 use App\Data\UnreadDigestData;
@@ -33,7 +35,7 @@ use Inertia\Middleware;
 use Inertia\OnceProp;
 use Laravel\Fortify\Features;
 
-class HandleInertiaRequests extends Middleware
+final class HandleInertiaRequests extends Middleware
 {
     /**
      * The root template that's loaded on the first page visit.

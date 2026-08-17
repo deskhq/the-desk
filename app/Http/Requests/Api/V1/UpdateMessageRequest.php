@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Requests\Api\V1;
 
 use App\Support\Integrations\ApiChannelAccess;
@@ -9,7 +11,7 @@ use Illuminate\Support\Facades\Gate;
 /**
  * Validates a bot editing one of its own messages via the public API.
  */
-class UpdateMessageRequest extends ApiRequest
+final class UpdateMessageRequest extends ApiRequest
 {
     /**
      * The bot must be a member of the channel, the message must belong to it, and

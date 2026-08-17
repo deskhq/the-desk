@@ -18,14 +18,14 @@ use Illuminate\Support\Facades\DB;
  * deleter is left alone, since the caller decides where they land. Destroying a
  * workspace is a security-relevant account action, so it is recorded here.
  */
-class DeleteTeam
+final class DeleteTeam
 {
     public function handle(Team $team, User $actor): void
     {
         DB::transaction(function () use ($team, $actor): void {
             User::where('current_team_id', $team->id)
                 ->where('id', '!=', $actor->id)
-                ->each(fn (User $affectedUser): bool => $affectedUser->switchTeam($affectedUser->personalTeam()));
+                ->each(fn (User $affectedUser): bool => $affectedUser->switchTeam($affectedUser->personalTeamOrFail()));
 
             $team->invitations()->delete();
             $team->memberships()->delete();

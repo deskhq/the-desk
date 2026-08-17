@@ -22,7 +22,7 @@ use Illuminate\Support\Facades\DB;
  * update slipping between them would leave an audit entry naming a value that
  * was never replaced.
  */
-class UpdateTeam
+final class UpdateTeam
 {
     /**
      * @param  array<string, mixed>  $attributes  The validated subset to apply.

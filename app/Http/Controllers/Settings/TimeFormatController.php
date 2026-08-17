@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Controllers\Settings;
 
 use App\Http\Controllers\Controller;
@@ -7,7 +9,7 @@ use App\Http\Requests\Settings\TimeFormatPreferencesRequest;
 use Illuminate\Http\RedirectResponse;
 use Inertia\Inertia;
 
-class TimeFormatController extends Controller
+final class TimeFormatController extends Controller
 {
     /**
      * Choose whether times of day render on a 12- or 24-hour clock.
@@ -18,7 +20,7 @@ class TimeFormatController extends Controller
      */
     public function update(TimeFormatPreferencesRequest $request): RedirectResponse
     {
-        $request->user()->update($request->validated());
+        $this->viewer($request)->update($request->validated());
 
         Inertia::flash('toast', ['type' => 'success', 'message' => __('Clock style updated')]);
 

@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 use App\Enums\TimeFormat;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;

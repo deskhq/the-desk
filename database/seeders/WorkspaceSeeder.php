@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Database\Seeders;
 
 use App\Actions\Channels\CreateChannel;
@@ -34,6 +36,7 @@ use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use RuntimeException;
 
 /**
  * Stands up a rich, log-in-ready local workspace that exercises every model and
@@ -699,7 +702,7 @@ class WorkspaceSeeder extends Seeder
         $options = $poll->options;
 
         foreach ($votes as [$user, $optionIndex]) {
-            PollVote::factory()->for($options[$optionIndex], 'option')->for($user)->create();
+            PollVote::factory()->for($options->get($optionIndex) ?? throw new RuntimeException("Poll option {$optionIndex} is missing."), 'option')->for($user)->create();
         }
     }
 

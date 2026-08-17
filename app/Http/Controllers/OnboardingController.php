@@ -1,12 +1,14 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Controllers;
 
 use App\Actions\Onboarding\CompleteOnboarding;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 
-class OnboardingController extends Controller
+final class OnboardingController extends Controller
 {
     /**
      * Mark the current user's first-run onboarding tour as complete.
@@ -18,7 +20,7 @@ class OnboardingController extends Controller
      */
     public function update(Request $request, CompleteOnboarding $completeOnboarding): RedirectResponse
     {
-        $completeOnboarding->handle($request->user());
+        $completeOnboarding->handle($this->viewer($request));
 
         return back();
     }

@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Rules;
 
 use Closure;
@@ -7,7 +9,7 @@ use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Translation\PotentiallyTranslatedString;
 
-class NotAnimatedImage implements ValidationRule
+final class NotAnimatedImage implements ValidationRule
 {
     /**
      * Reject animated raster images (multi-frame GIF, APNG, animated WebP).

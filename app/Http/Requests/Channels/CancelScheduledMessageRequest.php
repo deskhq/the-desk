@@ -1,12 +1,14 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Requests\Channels;
 
 use App\Http\Requests\RouteBoundRequest;
 use App\Models\ScheduledMessage;
 use Illuminate\Support\Facades\Gate;
 
-class CancelScheduledMessageRequest extends RouteBoundRequest
+final class CancelScheduledMessageRequest extends RouteBoundRequest
 {
     /**
      * Determine if the user is authorized to make this request.

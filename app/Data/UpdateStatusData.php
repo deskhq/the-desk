@@ -16,7 +16,7 @@ use Spatie\TypeScriptTransformer\Attributes\TypeScript;
  * check is disabled), so a null `latest` means "unknown", not "up to date".
  */
 #[TypeScript]
-class UpdateStatusData extends Data
+final class UpdateStatusData extends Data
 {
     public function __construct(
         public string $current,

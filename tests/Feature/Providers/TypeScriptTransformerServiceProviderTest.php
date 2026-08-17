@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 use App\Providers\TypeScriptTransformerServiceProvider;
 use Illuminate\Support\Facades\File;
 use Spatie\TypeScriptTransformer\TypeScriptTransformerConfig;

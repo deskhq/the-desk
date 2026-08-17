@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Controllers\Settings;
 
 use App\Enums\AppLocale;
@@ -10,7 +12,7 @@ use Illuminate\Http\RedirectResponse;
 use Inertia\Inertia;
 use Inertia\Response;
 
-class LocaleController extends Controller
+final class LocaleController extends Controller
 {
     /**
      * Show the user's localization settings page.
@@ -28,7 +30,7 @@ class LocaleController extends Controller
      */
     public function update(LocalePreferencesRequest $request): RedirectResponse
     {
-        $request->user()->update($request->validated());
+        $this->viewer($request)->update($request->validated());
 
         Inertia::flash('toast', ['type' => 'success', 'message' => __('Language updated')]);
 

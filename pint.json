@@ -2,5 +2,8 @@
     "preset": "laravel",
     "exclude": [
         "docs"
-    ]
+    ],
+    "rules": {
+        "declare_strict_types": true
+    }
 }

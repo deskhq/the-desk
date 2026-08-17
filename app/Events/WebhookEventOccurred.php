@@ -16,7 +16,7 @@ use Illuminate\Foundation\Events\Dispatchable;
  * fans it out to every matching subscription. It never broadcasts and carries no
  * viewer context — it is purely the producer side of the webhook pipeline.
  */
-class WebhookEventOccurred
+final readonly class WebhookEventOccurred
 {
     use Dispatchable;
 
@@ -25,8 +25,8 @@ class WebhookEventOccurred
      *                                         for this event (the envelope `data`).
      */
     public function __construct(
-        public readonly WebhookEvent $event,
-        public readonly Channel $channel,
-        public readonly array $payload,
+        public WebhookEvent $event,
+        public Channel $channel,
+        public array $payload,
     ) {}
 }

@@ -15,7 +15,7 @@ use App\Models\User;
  * The broadcast lets teammates' open clients pick the new emoji up without a
  * reload.
  */
-class SetUserStatus
+final class SetUserStatus
 {
     public function handle(User $user, string $emoji, ?string $text = null, ?string $expiresAt = null): void
     {

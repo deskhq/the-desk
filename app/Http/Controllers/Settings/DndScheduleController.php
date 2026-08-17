@@ -9,7 +9,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Settings\UpdateDndScheduleRequest;
 use Illuminate\Http\RedirectResponse;
 
-class DndScheduleController extends Controller
+final class DndScheduleController extends Controller
 {
     /**
      * Set the current user's recurring quiet-hours window.
@@ -19,7 +19,7 @@ class DndScheduleController extends Controller
         $validated = $request->validated();
 
         $schedule->handle(
-            $request->user(),
+            $this->viewer($request),
             (bool) $validated['enabled'],
             $validated['starts_at'] ?? null,
             $validated['ends_at'] ?? null,

@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Controllers\Channels;
 
 use App\Actions\Channels\JoinChannel;
@@ -13,7 +15,7 @@ use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Inertia\Inertia;
 
-class ChannelMemberController extends Controller
+final class ChannelMemberController extends Controller
 {
     /**
      * Add a team member to a private channel.

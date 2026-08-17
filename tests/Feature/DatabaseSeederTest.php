@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 use App\Enums\AuditExportLogType;
 use App\Enums\AuditExportStatus;
 use App\Enums\ChannelType;

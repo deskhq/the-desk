@@ -13,7 +13,7 @@ use App\Models\PollVote;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
 
-class CastVote
+final class CastVote
 {
     /**
      * Toggle a user's vote for a poll option and broadcast the fresh tally.

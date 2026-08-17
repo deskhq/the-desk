@@ -7,7 +7,7 @@ namespace App\Actions\Channels;
 use App\Models\ScheduledMessage;
 use Illuminate\Support\Carbon;
 
-class UpdateScheduledMessage
+final class UpdateScheduledMessage
 {
     /**
      * Revise a pending scheduled message's body and send time.

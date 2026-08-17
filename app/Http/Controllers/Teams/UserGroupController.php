@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Controllers\Teams;
 
 use App\Data\UserData;
@@ -17,7 +19,7 @@ use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
 use Inertia\Response;
 
-class UserGroupController extends Controller
+final class UserGroupController extends Controller
 {
     /**
      * Show the workspace's mentionable user groups.
@@ -37,7 +39,7 @@ class UserGroupController extends Controller
             // autocomplete endpoint is needed at this scale.
             'members' => UserData::collect($team->members()->orderBy('name')->get()),
             'permissions' => [
-                'canManageUserGroups' => $request->user()->toTeamPermissions($team)->canManageUserGroups,
+                'canManageUserGroups' => $this->viewer($request)->toTeamPermissions($team)->canManageUserGroups,
             ],
         ]);
     }

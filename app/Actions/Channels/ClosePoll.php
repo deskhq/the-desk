@@ -9,7 +9,7 @@ use App\Events\PollVoteChanged;
 use App\Models\Channel;
 use App\Models\Poll;
 
-class ClosePoll
+final class ClosePoll
 {
     /**
      * Close a poll, freezing its tally, and broadcast the frozen state.

@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Data;
 
 use App\Enums\LinkPreviewStatus;
@@ -16,7 +18,7 @@ use Spatie\TypeScriptTransformer\Attributes\TypeScript;
  * ready — and for any tag the linked page omits.
  */
 #[TypeScript]
-class LinkPreviewData extends Data
+final class LinkPreviewData extends Data
 {
     public function __construct(
         public string $url,

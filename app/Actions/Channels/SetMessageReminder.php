@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Actions\Channels;
 
 use App\Enums\MessageReminderStatus;
@@ -8,7 +10,7 @@ use App\Models\MessageReminder;
 use App\Models\User;
 use Illuminate\Support\Carbon;
 
-class SetMessageReminder
+final class SetMessageReminder
 {
     /**
      * Arm a personal reminder for a user on a message, due at `$remindAt`.

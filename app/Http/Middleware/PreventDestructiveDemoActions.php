@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Middleware;
 
 use Closure;
@@ -7,7 +9,7 @@ use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Symfony\Component\HttpFoundation\Response;
 
-class PreventDestructiveDemoActions
+final class PreventDestructiveDemoActions
 {
     /**
      * Owner-level destructive routes blocked while DEMO_MODE is on.

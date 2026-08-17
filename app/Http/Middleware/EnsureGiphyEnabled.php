@@ -14,9 +14,9 @@ use Symfony\Component\HttpFoundation\Response;
  * picker is fully hidden client-side; this makes the server match — the search
  * and attach endpoints 404, so nothing leaks on an unconfigured deployment.
  */
-class EnsureGiphyEnabled
+final readonly class EnsureGiphyEnabled
 {
-    public function __construct(private readonly GiphyClient $giphy) {}
+    public function __construct(private GiphyClient $giphy) {}
 
     public function handle(Request $request, Closure $next): Response
     {

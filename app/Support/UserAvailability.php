@@ -37,12 +37,12 @@ use Illuminate\Support\Facades\Date;
  * to what counts as do-not-disturb made on one side of the wire turns the other
  * side's suite red.
  */
-class UserAvailability
+final readonly class UserAvailability
 {
     public function __construct(
-        private readonly User $user,
-        private readonly CarbonInterface $at,
-        private readonly PresenceRegistry $connections,
+        private User $user,
+        private CarbonInterface $at,
+        private PresenceRegistry $connections,
     ) {}
 
     /**
@@ -125,8 +125,16 @@ class UserAvailability
             return false;
         }
 
-        $wallClock = $this->wallClock()->format('H:i');
+        return $this->windowCovers($this->wallClock()->format('H:i'), $startsAt, $endsAt);
+    }
 
+    /**
+     * Whether a wall-clock `HH:MM` falls inside the window the two bounds
+     * describe: start inclusive, end exclusive, and wrapping across midnight
+     * when the end precedes the start.
+     */
+    private function windowCovers(string $wallClock, string $startsAt, string $endsAt): bool
+    {
         if ($startsAt <= $endsAt) {
             return $wallClock >= $startsAt && $wallClock < $endsAt;
         }

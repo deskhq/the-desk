@@ -37,7 +37,7 @@ use Throwable;
  *
  * @template TExport of Model
  */
-class ExportLifecycle
+final readonly class ExportLifecycle
 {
     /**
      * The private disk every export file is written to.
@@ -57,11 +57,11 @@ class ExportLifecycle
      * @param  array<int, string>  $fileAttributes  the columns describing the written file, nulled again on failure
      */
     public function __construct(
-        private readonly Builder $query,
-        private readonly string $exportId,
-        private readonly BackedEnum $readyStatus,
-        private readonly BackedEnum $failedStatus,
-        private readonly array $fileAttributes = ['path'],
+        private Builder $query,
+        private string $exportId,
+        private BackedEnum $readyStatus,
+        private BackedEnum $failedStatus,
+        private array $fileAttributes = ['path'],
     ) {}
 
     /**

@@ -11,7 +11,7 @@ use App\SlashCommands\SlashCommandResult;
 /**
  * `/shrug [message]` — post the leading text with a shrug appended.
  */
-class ShrugCommand extends BaseSlashCommand
+final class ShrugCommand extends BaseSlashCommand
 {
     public function name(): string
     {
@@ -23,7 +23,7 @@ class ShrugCommand extends BaseSlashCommand
         return __('Append a shrug to your message');
     }
 
-    public function argumentHint(): ?string
+    public function argumentHint(): string
     {
         return __('[message]');
     }

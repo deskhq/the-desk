@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 use App\SlashCommands\Commands\ShrugCommand;
 use App\SlashCommands\SlashCommandParser;
 use App\SlashCommands\SlashCommandRegistry;

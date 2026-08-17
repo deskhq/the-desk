@@ -92,6 +92,23 @@ final class MessageSnippet
      */
     private static function windowStart(string $body, array $terms): int
     {
+        $earliest = self::earliestMatch($body, $terms);
+
+        if ($earliest === null || $earliest <= self::LEAD) {
+            return 0;
+        }
+
+        return $earliest - self::LEAD;
+    }
+
+    /**
+     * The offset of the leftmost occurrence of any term, or null when none of
+     * them appears in the body.
+     *
+     * @param  list<string>  $terms
+     */
+    private static function earliestMatch(string $body, array $terms): ?int
+    {
         $earliest = null;
 
         foreach ($terms as $term) {
@@ -102,11 +119,7 @@ final class MessageSnippet
             }
         }
 
-        if ($earliest === null || $earliest <= self::LEAD) {
-            return 0;
-        }
-
-        return $earliest - self::LEAD;
+        return $earliest;
     }
 
     /**

@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Actions\Channels;
 
 use App\Models\Channel;
@@ -8,7 +10,7 @@ use App\Models\User;
 use App\Support\ChannelMembership;
 use Illuminate\Support\Carbon;
 
-class ScheduleMessage
+final class ScheduleMessage
 {
     /**
      * Schedule a message for future delivery to a channel on behalf of a user.

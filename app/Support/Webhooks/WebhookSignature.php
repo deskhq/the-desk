@@ -13,7 +13,7 @@ namespace App\Support\Webhooks;
  * reject a stale timestamp to defend against replay. The header carries both the
  * timestamp and the digest: `t=<unix ts>,v1=<hex hmac>`.
  */
-class WebhookSignature
+final class WebhookSignature
 {
     /**
      * Build the signature header value for a payload signed at a given time.

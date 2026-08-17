@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Middleware;
 
 use App\Support\PasskeyAvailability;
@@ -7,7 +9,7 @@ use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
 
-class EnsurePasskeysEnabled
+final class EnsurePasskeysEnabled
 {
     /**
      * Handle an incoming request.

@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Responses;
 
 use App\Enums\PostRegistrationPrompt;
@@ -9,7 +11,7 @@ use Illuminate\Http\Request;
 use Laravel\Fortify\Contracts\RegisterResponse as RegisterResponseContract;
 use Symfony\Component\HttpFoundation\Response;
 
-class RegisterResponse implements RegisterResponseContract
+final class RegisterResponse implements RegisterResponseContract
 {
     use RedirectsToCurrentTeam;
 

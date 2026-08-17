@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Support;
 
-class PasskeyAvailability
+final class PasskeyAvailability
 {
     /**
      * Whether app-native passkeys are on offer on this instance.

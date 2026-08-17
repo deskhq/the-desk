@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Requests\Channels;
 
 use App\Http\Requests\RouteBoundRequest;
@@ -9,7 +11,7 @@ use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\Rule;
 
-class UpdateChannelRequest extends RouteBoundRequest
+final class UpdateChannelRequest extends RouteBoundRequest
 {
     /**
      * The longest a channel description may be — room for a few paragraphs of

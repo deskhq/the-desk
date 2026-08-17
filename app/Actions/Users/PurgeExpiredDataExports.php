@@ -8,7 +8,7 @@ use App\Models\DataExport;
 use App\Support\ExpirySweep;
 use App\Support\ExportLifecycle;
 
-class PurgeExpiredDataExports
+final class PurgeExpiredDataExports
 {
     /**
      * Delete personal-data archives whose download window has closed, removing

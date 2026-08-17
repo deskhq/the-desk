@@ -11,7 +11,7 @@ use Spatie\TypeScriptTransformer\Attributes\TypeScript;
  * The message count for a single calendar day in the messages-per-day series.
  */
 #[TypeScript]
-class DailyMessageCountData extends Data
+final class DailyMessageCountData extends Data
 {
     public function __construct(
         public string $date,

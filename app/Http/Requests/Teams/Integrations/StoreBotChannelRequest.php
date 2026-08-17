@@ -16,7 +16,7 @@ use Illuminate\Validation\Rule;
  * surface. The bot may join any standard channel in its own team (public or
  * private) — direct messages are never a valid target.
  */
-class StoreBotChannelRequest extends RouteBoundRequest
+final class StoreBotChannelRequest extends RouteBoundRequest
 {
     /**
      * @return array<string, ValidationRule|array<mixed>|string>

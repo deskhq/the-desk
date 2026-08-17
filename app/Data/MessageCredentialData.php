@@ -26,7 +26,7 @@ use Spatie\TypeScriptTransformer\Attributes\TypeScript;
  * every viewer-free broadcast, sees null. See {@see MessageData::fromMessage()}.
  */
 #[TypeScript]
-class MessageCredentialData extends Data
+final class MessageCredentialData extends Data
 {
     public function __construct(
         public MessageCredentialKind $kind,

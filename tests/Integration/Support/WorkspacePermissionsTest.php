@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 use App\Enums\ChannelCreationPolicy;
 use App\Enums\ChannelVisibility;
 use App\Enums\TeamRole;

@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Listeners;
 
 use App\Enums\SecurityEventType;
@@ -29,12 +31,12 @@ use Laravel\Passkeys\Events\PasskeyRegistered;
  * queued directory sync record the same facts (ADR-0005). Off a request — a
  * job, a console command — there is simply no device context to stamp.
  */
-class RecordSecurityEvents
+final readonly class RecordSecurityEvents
 {
     public function __construct(
-        private readonly SecurityEventRecorder $recorder,
-        private readonly SessionRegistry $registry,
-        private readonly Request $request,
+        private SecurityEventRecorder $recorder,
+        private SessionRegistry $registry,
+        private Request $request,
     ) {}
 
     /**

@@ -20,7 +20,7 @@ use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
 
-class WebhookSubscriptionController extends Controller
+final class WebhookSubscriptionController extends Controller
 {
     /**
      * Register an outgoing subscription and reveal its signing secret once.
@@ -29,7 +29,7 @@ class WebhookSubscriptionController extends Controller
     {
         $subscription = $create->handle(
             $team,
-            $request->user(),
+            $this->viewer($request),
             $request->validated('name'),
             $request->validated('url'),
             array_values($request->validated('events')),
@@ -65,7 +65,7 @@ class WebhookSubscriptionController extends Controller
      */
     public function destroy(Request $request, Team $team, WebhookSubscription $webhookSubscription, RevokeWebhookSubscription $revoke): RedirectResponse
     {
-        $revoke->handle($request->user(), $webhookSubscription);
+        $revoke->handle($this->viewer($request), $webhookSubscription);
 
         Inertia::flash('toast', ['type' => 'success', 'message' => __('Subscription revoked')]);
 
@@ -77,7 +77,7 @@ class WebhookSubscriptionController extends Controller
      */
     public function reenable(Request $request, Team $team, WebhookSubscription $webhookSubscription, ReenableWebhookSubscription $reenable): RedirectResponse
     {
-        $reenable->handle($request->user(), $webhookSubscription);
+        $reenable->handle($this->viewer($request), $webhookSubscription);
 
         Inertia::flash('toast', ['type' => 'success', 'message' => __('Subscription re-enabled')]);
 
@@ -95,7 +95,7 @@ class WebhookSubscriptionController extends Controller
     {
         abort_unless($delivery->isReplayable(), 422, __('This delivery was logged before payloads were retained, so it cannot be replayed.'));
 
-        $replay->handle($request->user(), $delivery);
+        $replay->handle($this->viewer($request), $delivery);
 
         Inertia::flash('toast', ['type' => 'success', 'message' => __('Delivery queued for replay')]);
 
@@ -107,7 +107,7 @@ class WebhookSubscriptionController extends Controller
      */
     public function rotateSecret(Request $request, Team $team, WebhookSubscription $webhookSubscription, RotateWebhookSecret $rotate): RedirectResponse
     {
-        $secret = $rotate->handle($request->user(), $webhookSubscription);
+        $secret = $rotate->handle($this->viewer($request), $webhookSubscription);
 
         Inertia::flash('revealed', [
             'kind' => 'webhook_secret',

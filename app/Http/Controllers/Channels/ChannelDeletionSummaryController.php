@@ -10,7 +10,7 @@ use App\Models\Channel;
 use App\Models\Team;
 use Illuminate\Support\Facades\Gate;
 
-class ChannelDeletionSummaryController extends Controller
+final class ChannelDeletionSummaryController extends Controller
 {
     /**
      * Report what deleting the channel would destroy.

@@ -1,16 +1,20 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Requests\Settings;
 
 use App\Concerns\PasswordValidationRules;
+use App\Concerns\ResolvesViewer;
 use App\Models\Team;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Foundation\Http\FormRequest;
 
-class ProfileDeleteRequest extends FormRequest
+final class ProfileDeleteRequest extends FormRequest
 {
     use PasswordValidationRules;
+    use ResolvesViewer;
 
     /**
      * Get the validation rules that apply to the request.
@@ -37,7 +41,7 @@ class ProfileDeleteRequest extends FormRequest
     {
         return [
             function (Validator $validator): void {
-                $teams = $this->user()->soleOwnedSharedTeams();
+                $teams = $this->viewer()->soleOwnedSharedTeams();
 
                 if ($teams->isEmpty()) {
                     return;

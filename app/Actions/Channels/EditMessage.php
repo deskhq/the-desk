@@ -11,11 +11,11 @@ use App\Events\WebhookEventOccurred;
 use App\Models\Channel;
 use App\Models\Message;
 
-class EditMessage
+final readonly class EditMessage
 {
     public function __construct(
-        private readonly SyncMentions $syncMentions,
-        private readonly SyncLinkPreviews $syncLinkPreviews,
+        private SyncMentions $syncMentions,
+        private SyncLinkPreviews $syncLinkPreviews,
     ) {}
 
     /**

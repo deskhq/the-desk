@@ -1,8 +1,11 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Data;
 
 use App\Models\SecurityEvent;
+use App\Support\PersistedTimestamp;
 use App\Support\UserAgentParser;
 use Spatie\LaravelData\Data;
 use Spatie\TypeScriptTransformer\Attributes\TypeScript;
@@ -14,7 +17,7 @@ use Spatie\TypeScriptTransformer\Attributes\TypeScript;
  * guarantees the member exists, so `actorName` is always present.
  */
 #[TypeScript]
-class TeamSecurityEventData extends Data
+final class TeamSecurityEventData extends Data
 {
     public function __construct(
         public string $id,
@@ -44,7 +47,7 @@ class TeamSecurityEventData extends Data
             browser: $agent['browser'],
             platform: $agent['platform'],
             isNewDevice: $event->is_new_device,
-            occurredAt: $event->created_at->toIso8601String(),
+            occurredAt: PersistedTimestamp::of($event->created_at)->toIso8601String(),
         );
     }
 }

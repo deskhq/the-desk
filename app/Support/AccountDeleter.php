@@ -11,7 +11,7 @@ use App\Models\Team;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
 
-class AccountDeleter
+final class AccountDeleter
 {
     /**
      * Permanently delete a user's account, enforcing the content and ownership

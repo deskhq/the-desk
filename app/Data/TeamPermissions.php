@@ -11,7 +11,7 @@ use Spatie\TypeScriptTransformer\Attributes\TypeScript;
  * team settings page, which reads it as `App.Data.TeamPermissions`.
  */
 #[TypeScript]
-readonly class TeamPermissions
+final readonly class TeamPermissions
 {
     public function __construct(
         public bool $canUpdateTeam,

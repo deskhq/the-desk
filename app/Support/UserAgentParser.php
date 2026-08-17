@@ -1,8 +1,10 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Support;
 
-class UserAgentParser
+final class UserAgentParser
 {
     /**
      * Browser display names keyed by the pattern that identifies them.

@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Models;
 
 use App\Enums\TeamRole;
@@ -23,7 +25,7 @@ use Illuminate\Support\Carbon;
  */
 #[Fillable(['team_id', 'user_id', 'role'])]
 #[ObservedBy(MembershipObserver::class)]
-class Membership extends Pivot
+final class Membership extends Pivot
 {
     use HasUuids;
 

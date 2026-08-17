@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Controllers\Teams;
 
 use App\Actions\Teams\RemoveTeamMember;
@@ -19,7 +21,7 @@ use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
 use Inertia\Response;
 
-class TeamMemberController extends Controller
+final class TeamMemberController extends Controller
 {
     /**
      * Show the profile page for a member of the team.
@@ -36,7 +38,7 @@ class TeamMemberController extends Controller
                 'name' => $team->name,
                 'slug' => $team->slug,
             ],
-            'profile' => UserProfileData::forMember($member, $this->membership($member), $request->user()),
+            'profile' => UserProfileData::forMember($member, $this->membership($member), $this->viewer($request)),
         ]);
     }
 
@@ -48,7 +50,7 @@ class TeamMemberController extends Controller
      */
     public function card(Request $request, Team $team, User $member): UserProfileData
     {
-        return UserProfileData::forMember($member, $this->membership($member), $request->user());
+        return UserProfileData::forMember($member, $this->membership($member), $this->viewer($request));
     }
 
     /**
@@ -73,7 +75,7 @@ class TeamMemberController extends Controller
     {
         Gate::authorize('updateMember', $team);
 
-        $updateRole->handle($team, $member, TeamRole::from($request->validated('role')), $request->user());
+        $updateRole->handle($team, $member, TeamRole::from($request->validated('role')), $this->viewer($request));
 
         Inertia::flash('toast', ['type' => 'success', 'message' => __('Member role updated')]);
 
@@ -91,9 +93,9 @@ class TeamMemberController extends Controller
     {
         Gate::authorize('transferOwnership', $team);
 
-        abort_if($request->user()->is($member), 403, __('You cannot transfer ownership to yourself.'));
+        abort_if($this->viewer($request)->is($member), 403, __('You cannot transfer ownership to yourself.'));
 
-        $transferOwnership->handle($team, $request->user(), $member);
+        $transferOwnership->handle($team, $this->viewer($request), $member);
 
         Inertia::flash('toast', ['type' => 'success', 'message' => __('Team ownership transferred')]);
 
@@ -107,9 +109,9 @@ class TeamMemberController extends Controller
     {
         Gate::authorize('removeMember', $team);
 
-        abort_if($team->owner()?->is($member), 403, __('The team owner cannot be removed.'));
+        abort_if($team->owner()?->is($member) === true, 403, __('The team owner cannot be removed.'));
 
-        $removeMember->handle($team, $member, $request->user());
+        $removeMember->handle($team, $member, $this->viewer($request));
 
         Inertia::flash('toast', ['type' => 'success', 'message' => __('Member removed')]);
 

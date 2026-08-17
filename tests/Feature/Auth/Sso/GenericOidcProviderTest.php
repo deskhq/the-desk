@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 use App\Exceptions\Sso\InvalidIdTokenException;
 use App\Services\Sso\GenericOidcProvider;
 use Firebase\JWT\SignatureInvalidException;

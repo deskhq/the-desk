@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Controllers\Channels;
 
 use App\Actions\Channels\OpenDirectMessage;
@@ -9,7 +11,7 @@ use App\Models\Team;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 
-class DirectMessageController extends Controller
+final class DirectMessageController extends Controller
 {
     /**
      * Open (find-or-create) the 1:1 direct message with the target user and
@@ -20,7 +22,7 @@ class DirectMessageController extends Controller
     {
         $target = User::whereKey($request->validated('user_id'))->firstOrFail();
 
-        $channel = $openDirectMessage->handle($team, $request->user(), $target);
+        $channel = $openDirectMessage->handle($team, $this->viewer($request), $target);
 
         return to_route('channels.show', ['team' => $team->slug, 'channel' => $channel->slug]);
     }

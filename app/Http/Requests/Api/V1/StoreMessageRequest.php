@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Requests\Api\V1;
 
 use App\Rules\MessageTarget;
@@ -10,7 +12,7 @@ use Illuminate\Support\Facades\Gate;
 /**
  * Validates a bot posting a message to one of its channels via the public API.
  */
-class StoreMessageRequest extends ApiRequest
+final class StoreMessageRequest extends ApiRequest
 {
     /**
      * The bot must be a member of the channel (404 otherwise) and the channel

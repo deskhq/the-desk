@@ -1,12 +1,14 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Requests\Channels;
 
 use App\Http\Requests\RouteBoundRequest;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Validation\Rule;
 
-class OpenDirectMessageRequest extends RouteBoundRequest
+final class OpenDirectMessageRequest extends RouteBoundRequest
 {
     /**
      * Determine if the user is authorized to make this request.

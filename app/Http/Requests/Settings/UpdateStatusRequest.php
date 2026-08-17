@@ -7,7 +7,7 @@ namespace App\Http\Requests\Settings;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 
-class UpdateStatusRequest extends FormRequest
+final class UpdateStatusRequest extends FormRequest
 {
     /**
      * Collapse an all-whitespace status text to null, so a status typed and then

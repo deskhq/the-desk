@@ -16,7 +16,7 @@ use Spatie\TypeScriptTransformer\Attributes\TypeScript;
  * badge it is given rather than re-deciding whether it is allowed to.
  */
 #[TypeScript]
-class UnreadCountsData extends Data
+final class UnreadCountsData extends Data
 {
     public function __construct(
         /** Ordinary unread messages, thread-only replies excluded. */

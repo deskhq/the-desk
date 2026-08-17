@@ -15,9 +15,9 @@ namespace App\SlashCommands;
  * intercepted. A body that has already been trimmed by the request layer means
  * a leading space (the literal-message escape) never reaches here as a command.
  */
-class SlashCommandParser
+final readonly class SlashCommandParser
 {
-    public function __construct(private readonly SlashCommandRegistry $registry) {}
+    public function __construct(private SlashCommandRegistry $registry) {}
 
     /**
      * Resolve `$body` to a command invocation, or null when it is not a

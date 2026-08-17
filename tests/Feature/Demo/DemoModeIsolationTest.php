@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 /*
  * Regression guard for the DEMO_MODE cross-suite leak (#549): the two tests
  * below are an intentionally ordered pair. The first overrides DEMO_MODE via

@@ -11,7 +11,7 @@ use Spatie\TypeScriptTransformer\Transformers\EnumTransformer;
 use Spatie\TypeScriptTransformer\TypeScriptTransformerConfigFactory;
 use Spatie\TypeScriptTransformer\Writers\GlobalNamespaceWriter;
 
-class TypeScriptTransformerServiceProvider extends BaseTypeScriptTransformerServiceProvider
+final class TypeScriptTransformerServiceProvider extends BaseTypeScriptTransformerServiceProvider
 {
     protected function configure(TypeScriptTransformerConfigFactory $config): void
     {

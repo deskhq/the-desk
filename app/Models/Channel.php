@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Models;
 
 use App\Enums\ChannelType;
@@ -23,7 +25,7 @@ use Illuminate\Support\Carbon;
 /**
  * @property string $id
  * @property string $team_id
- * @property string|null $name
+ * @property string $name
  * @property string $slug
  * @property ChannelVisibility $visibility
  * @property bool $is_default
@@ -45,7 +47,7 @@ use Illuminate\Support\Carbon;
  * @property-read Collection<int, Message> $messages
  */
 #[Fillable(['team_id', 'name', 'slug', 'visibility', 'is_default', 'type', 'dm_key', 'topic', 'description', 'created_by', 'archived_at'])]
-class Channel extends Model
+final class Channel extends Model
 {
     /**
      * Soft deletes are the grace window an admin's "Delete channel" opens: the
@@ -93,7 +95,7 @@ class Channel extends Model
     {
         parent::boot();
 
-        static::saving(function (Channel $channel): void {
+        self::saving(function (Channel $channel): void {
             if (blank($channel->slug)) {
                 $channel->slug = NameSlug::distinct((string) $channel->name, self::FALLBACK_SLUG);
             }

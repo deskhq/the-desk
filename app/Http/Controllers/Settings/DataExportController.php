@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Controllers\Settings;
 
 use App\Actions\Users\RequestDataExport;
@@ -16,14 +18,14 @@ use Inertia\Inertia;
 use Inertia\Response;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
-class DataExportController extends Controller
+final class DataExportController extends Controller
 {
     /**
      * Show the data & privacy settings page, carrying the user's latest export.
      */
     public function edit(Request $request): Response
     {
-        $latestExport = $request->user()->dataExports()->first();
+        $latestExport = $this->viewer($request)->dataExports()->first();
 
         return Inertia::render('settings/DataPrivacy', [
             'dataExport' => $latestExport === null ? null : DataExportData::fromExport($latestExport),
@@ -35,7 +37,7 @@ class DataExportController extends Controller
      */
     public function store(Request $request, RequestDataExport $requestDataExport): RedirectResponse
     {
-        $requestDataExport->handle($request->user());
+        $requestDataExport->handle($this->viewer($request));
 
         Inertia::flash('toast', ['type' => 'success', 'message' => __("Preparing your data export. We'll email you when it's ready.")]);
 
@@ -53,12 +55,12 @@ class DataExportController extends Controller
      */
     public function download(Request $request, DataExport $dataExport): StreamedResponse
     {
-        abort_unless($dataExport->user_id === $request->user()->id, 403);
+        abort_unless($dataExport->user_id === $this->viewer($request)->id, 403);
         abort_unless($dataExport->isReady() && ! $dataExport->isExpired(), 404);
 
-        $response = Storage::disk(ExportLifecycle::DISK)->download($dataExport->path, 'data-export.zip');
+        $response = Storage::disk(ExportLifecycle::DISK)->download($dataExport->archivePath(), 'data-export.zip');
 
-        event(new SecurityEventOccurred($request->user(), SecurityEventType::DataExportDownloaded));
+        event(new SecurityEventOccurred($this->viewer($request), SecurityEventType::DataExportDownloaded));
 
         return $response;
     }

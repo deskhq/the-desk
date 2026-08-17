@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Requests\Teams;
 
 use App\Enums\AnalyticsRange;
@@ -8,7 +10,7 @@ use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\Rule;
 
-class ViewAnalyticsRequest extends RouteBoundRequest
+final class ViewAnalyticsRequest extends RouteBoundRequest
 {
     /**
      * Determine if the user is authorized to view the workspace analytics.

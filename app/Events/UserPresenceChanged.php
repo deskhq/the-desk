@@ -28,7 +28,7 @@ use Illuminate\Queue\SerializesModels;
  * The presence still rides `UserProfileUpdated` (via {@see UserData})
  * so a client that reloads for any other reason lands on the right state.
  */
-class UserPresenceChanged implements ShouldBroadcast
+final class UserPresenceChanged implements ShouldBroadcast
 {
     use Dispatchable, InteractsWithSockets, SerializesModels;
 

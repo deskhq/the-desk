@@ -10,9 +10,9 @@ use App\Models\Channel;
 use App\Models\Message;
 use App\Models\User;
 
-class CreatePoll
+final readonly class CreatePoll
 {
-    public function __construct(private readonly PostMessage $postMessage) {}
+    public function __construct(private PostMessage $postMessage) {}
 
     /**
      * Post a poll to a channel on behalf of a user.

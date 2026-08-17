@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Data;
 
 use App\Models\Team;
@@ -13,7 +15,7 @@ use Spatie\TypeScriptTransformer\Attributes\TypeScript;
  * counts, who created it, and when it last posted (null if it never has).
  */
 #[TypeScript]
-class BotData extends Data
+final class BotData extends Data
 {
     public function __construct(
         public string $id,

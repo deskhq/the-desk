@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Models;
 
 use App\Support\NameSlug;
@@ -25,7 +27,7 @@ use Illuminate\Support\Carbon;
  * @property-read int|null $members_count
  */
 #[Fillable(['team_id', 'name', 'slug'])]
-class UserGroup extends Model
+final class UserGroup extends Model
 {
     /** @use HasFactory<UserGroupFactory> */
     use HasFactory, HasUuids;
@@ -47,7 +49,7 @@ class UserGroup extends Model
     {
         parent::boot();
 
-        static::saving(function (UserGroup $group): void {
+        self::saving(function (UserGroup $group): void {
             if (blank($group->slug)) {
                 $group->slug = NameSlug::distinct($group->name, self::FALLBACK_SLUG);
             }

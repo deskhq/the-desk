@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Controllers\Api\V1;
 
 use App\Actions\Integrations\CreateWebhookSubscription;
@@ -13,7 +15,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 
-class WebhookSubscriptionController extends Controller
+final class WebhookSubscriptionController extends Controller
 {
     /**
      * List the bot's team's webhook subscriptions, newest first.

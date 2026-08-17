@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 use App\Actions\Sso\SetSsoUserActivation;
 use App\Enums\SecurityEventType;
 use App\Models\SecurityEvent;

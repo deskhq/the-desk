@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Models;
 
 use Database\Factories\CustomEmojiFactory;
@@ -25,7 +27,7 @@ use Illuminate\Support\Facades\Storage;
  * @property-read User|null $creator
  */
 #[Fillable(['team_id', 'created_by', 'name', 'path'])]
-class CustomEmoji extends Model
+final class CustomEmoji extends Model
 {
     /** @use HasFactory<CustomEmojiFactory> */
     use HasFactory, HasUuids;

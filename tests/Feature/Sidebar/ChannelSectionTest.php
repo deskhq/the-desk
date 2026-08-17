@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 use App\Actions\Teams\CreateTeam;
 use App\Models\ChannelMember;
 use App\Models\ChannelSection;

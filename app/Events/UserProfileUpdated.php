@@ -22,7 +22,7 @@ use Illuminate\Queue\SerializesModels;
  * (custom status, away/idle, do-not-disturb) add fields to its payload rather
  * than inventing their own event.
  */
-class UserProfileUpdated implements ShouldBroadcast
+final class UserProfileUpdated implements ShouldBroadcast
 {
     use Dispatchable, InteractsWithSockets, SerializesModels;
 

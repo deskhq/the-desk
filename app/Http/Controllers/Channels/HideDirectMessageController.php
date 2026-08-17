@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Controllers\Channels;
 
 use App\Http\Controllers\Controller;
@@ -9,7 +11,7 @@ use App\Models\Team;
 use App\Support\ChannelMembership;
 use Illuminate\Http\RedirectResponse;
 
-class HideDirectMessageController extends Controller
+final class HideDirectMessageController extends Controller
 {
     /**
      * Close (hide) the direct message from the current user's sidebar.
@@ -21,7 +23,7 @@ class HideDirectMessageController extends Controller
      */
     public function store(HideDirectMessageRequest $request, Team $team, Channel $channel): RedirectResponse
     {
-        new ChannelMembership($channel, $request->user())->hide();
+        new ChannelMembership($channel, $this->viewer($request))->hide();
 
         if ($request->boolean('leaving')) {
             return to_route('channels.index', ['team' => $team->slug]);

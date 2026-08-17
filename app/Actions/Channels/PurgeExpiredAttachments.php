@@ -8,7 +8,7 @@ use App\Enums\AttachmentStatus;
 use App\Models\Attachment;
 use Illuminate\Support\Facades\DB;
 
-class PurgeExpiredAttachments
+final class PurgeExpiredAttachments
 {
     /**
      * Reclaim pending uploads that were never claimed by a message.

@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Models;
 
 use Database\Factories\PollOptionFactory;
@@ -23,7 +25,7 @@ use Illuminate\Support\Carbon;
  * @property-read Collection<int, PollVote> $votes
  */
 #[Fillable(['poll_id', 'label', 'position'])]
-class PollOption extends Model
+final class PollOption extends Model
 {
     /** @use HasFactory<PollOptionFactory> */
     use HasFactory, HasUuids;

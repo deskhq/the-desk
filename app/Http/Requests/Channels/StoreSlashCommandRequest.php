@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Requests\Channels;
 
 use App\Http\Requests\RouteBoundRequest;
@@ -15,7 +17,7 @@ use Illuminate\Support\Facades\Gate;
  * reuses the channel's `postMessage` policy, since dispatching a command may
  * post a message on the sender's behalf.
  */
-class StoreSlashCommandRequest extends RouteBoundRequest
+final class StoreSlashCommandRequest extends RouteBoundRequest
 {
     /**
      * Determine if the user is authorized to make this request.

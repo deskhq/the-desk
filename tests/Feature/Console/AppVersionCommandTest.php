@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 use Illuminate\Support\Facades\Artisan;
 
 it('prints the running version and nothing else', function (): void {

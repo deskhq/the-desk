@@ -16,7 +16,7 @@ use Illuminate\Support\Facades\DB;
  * returned once for the integrator to copy, exactly like the create flow. The
  * old secret stops verifying immediately, so deliveries in flight must re-sign.
  */
-class RotateWebhookSecret
+final class RotateWebhookSecret
 {
     /**
      * @return string The new plaintext signing secret, shown to the caller once.

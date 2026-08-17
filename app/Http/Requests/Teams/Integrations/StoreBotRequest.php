@@ -10,7 +10,7 @@ use Illuminate\Foundation\Http\FormRequest;
 /**
  * Validates creating a bot identity from the integrations settings surface.
  */
-class StoreBotRequest extends FormRequest
+final class StoreBotRequest extends FormRequest
 {
     /**
      * @return array<string, ValidationRule|array<mixed>|string>

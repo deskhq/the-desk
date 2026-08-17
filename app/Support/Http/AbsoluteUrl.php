@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Support\Http;
 
-class AbsoluteUrl
+final class AbsoluteUrl
 {
     /**
      * Resolve a possibly-relative URL against a base: absolute URLs pass through,

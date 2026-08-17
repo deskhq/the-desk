@@ -1,12 +1,14 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Controllers\Settings;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 
-class TimezoneController extends Controller
+final class TimezoneController extends Controller
 {
     /**
      * Store the current user's timezone.
@@ -21,7 +23,7 @@ class TimezoneController extends Controller
             'timezone' => ['required', 'timezone:all'],
         ]);
 
-        $request->user()->update($validated);
+        $this->viewer($request)->update($validated);
 
         return back();
     }

@@ -10,7 +10,7 @@ use Intervention\Image\Drivers\Imagick\Driver as ImagickDriver;
 use Intervention\Image\ImageManager;
 use Intervention\Image\Interfaces\ImageInterface;
 
-class ImageProcessor
+final class ImageProcessor
 {
     /**
      * Decode raw image bytes into an editable image on the configured driver.

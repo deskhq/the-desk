@@ -1,12 +1,14 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Requests\Channels;
 
 use App\Http\Requests\RouteBoundRequest;
 use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Support\Facades\Gate;
 
-class PinMessageRequest extends RouteBoundRequest
+final class PinMessageRequest extends RouteBoundRequest
 {
     /**
      * The hard cap on how many messages a single channel may pin at once.

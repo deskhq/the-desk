@@ -21,7 +21,7 @@ use App\Models\WebhookDelivery;
  * no auto-disable, no retries), which is what makes it safe to offer on an
  * auto-disabled subscription as a way to verify a fixed endpoint.
  */
-class ReplayWebhookDelivery
+final class ReplayWebhookDelivery
 {
     /**
      * Queue the replay and record it in the workspace audit log. The caller is

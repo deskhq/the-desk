@@ -12,7 +12,7 @@ use Illuminate\Validation\Rule;
 /**
  * Validates minting a scoped API token for a bot from the settings surface.
  */
-class StoreBotTokenRequest extends FormRequest
+final class StoreBotTokenRequest extends FormRequest
 {
     /**
      * @return array<string, ValidationRule|array<mixed>|string>

@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Controllers\Settings;
 
 use App\Http\Controllers\Controller;
@@ -7,7 +9,7 @@ use App\Http\Requests\Settings\NotificationPreferencesRequest;
 use Illuminate\Http\RedirectResponse;
 use Inertia\Inertia;
 
-class NotificationController extends Controller
+final class NotificationController extends Controller
 {
     /**
      * Update the user's notification preferences.
@@ -17,7 +19,7 @@ class NotificationController extends Controller
      */
     public function update(NotificationPreferencesRequest $request): RedirectResponse
     {
-        $request->user()->update($request->validated());
+        $this->viewer($request)->update($request->validated());
 
         Inertia::flash('toast', ['type' => 'success', 'message' => __('Notification settings updated')]);
 

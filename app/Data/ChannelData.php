@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Data;
 
 use App\Enums\NotificationLevel;
@@ -13,7 +15,7 @@ use Spatie\LaravelData\Data;
 use Spatie\TypeScriptTransformer\Attributes\TypeScript;
 
 #[TypeScript]
-class ChannelData extends Data
+final class ChannelData extends Data
 {
     public function __construct(
         public string $id,

@@ -12,7 +12,7 @@ use App\Models\Message;
 use App\Models\User;
 use Illuminate\Support\Str;
 
-class PostSystemMessage
+final class PostSystemMessage
 {
     /**
      * Post a system notice (member joined / left) to a channel and broadcast it.

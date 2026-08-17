@@ -1,11 +1,13 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Requests\Sidebar;
 
 use App\Http\Requests\RouteBoundRequest;
 use Illuminate\Contracts\Validation\ValidationRule;
 
-class StoreChannelSectionRequest extends RouteBoundRequest
+final class StoreChannelSectionRequest extends RouteBoundRequest
 {
     /**
      * Determine if the user is authorized to make this request.

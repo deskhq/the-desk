@@ -8,7 +8,7 @@ use App\Support\Branding\BrandingAssets;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
-class BrandingAssetController extends Controller
+final class BrandingAssetController extends Controller
 {
     public function __construct(private readonly BrandingAssets $assets) {}
 

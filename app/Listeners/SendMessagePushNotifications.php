@@ -29,7 +29,7 @@ use Illuminate\Database\Eloquent\Collection;
  * the client's `shouldChime`, so a push and a chime never disagree about whether
  * a message was worth interrupting someone for.
  */
-class SendMessagePushNotifications implements ShouldQueue
+final class SendMessagePushNotifications implements ShouldQueue
 {
     /**
      * Handle the event.

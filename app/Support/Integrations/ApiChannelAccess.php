@@ -29,7 +29,7 @@ use Illuminate\Support\Facades\Gate;
  * channel outside the subject's team, or one it cannot see, is refused as if it
  * does not exist (404), never leaking its existence.
  */
-class ApiChannelAccess
+final class ApiChannelAccess
 {
     /**
      * The team the subject is acting within: a bot's owner team, or the team a

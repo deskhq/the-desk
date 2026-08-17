@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Controllers\Channels;
 
 use App\Actions\Channels\OpenDirectMessage;
@@ -13,7 +15,7 @@ use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Inertia\Inertia;
 
-class ForwardMessageController extends Controller
+final class ForwardMessageController extends Controller
 {
     /**
      * Forward a message into another channel or a direct message.
@@ -38,7 +40,7 @@ class ForwardMessageController extends Controller
 
         $forwarded = $postMessage->handle(
             channel: $target,
-            author: $request->user(),
+            author: $this->viewer($request),
             body: (string) $request->validated('body'),
             clientUuid: $request->validated('client_uuid'),
             forwardedFromId: $message->id,
@@ -63,7 +65,7 @@ class ForwardMessageController extends Controller
         if ($targetUserId !== null) {
             $targetUser = User::whereKey($targetUserId)->firstOrFail();
 
-            return $openDirectMessage->handle($team, $request->user(), $targetUser);
+            return $openDirectMessage->handle($team, $this->viewer($request), $targetUser);
         }
 
         return Channel::query()->whereKey($request->validated('target_channel_id'))->firstOrFail();

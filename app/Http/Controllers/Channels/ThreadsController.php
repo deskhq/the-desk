@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Controllers\Channels;
 
 use App\Actions\Channels\MarkAllThreadsRead;
@@ -9,7 +11,7 @@ use App\Models\Team;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 
-class ThreadsController extends Controller
+final class ThreadsController extends Controller
 {
     /**
      * Send the legacy full-width Threads inbox onto the pinned destination.
@@ -36,7 +38,7 @@ class ThreadsController extends Controller
      */
     public function markAllRead(Request $request, Team $team, MarkAllThreadsRead $markAllThreadsRead): RedirectResponse
     {
-        $markAllThreadsRead->handle($request->user(), $team);
+        $markAllThreadsRead->handle($this->viewer($request), $team);
 
         return back();
     }

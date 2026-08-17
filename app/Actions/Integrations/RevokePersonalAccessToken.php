@@ -15,7 +15,7 @@ use App\Models\User;
  * bound team's audit log. Deleting the row immediately invalidates the token
  * for every in-flight and future request.
  */
-class RevokePersonalAccessToken
+final class RevokePersonalAccessToken
 {
     public function handle(User $user, PersonalAccessToken $token): void
     {

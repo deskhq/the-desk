@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 use Inertia\Testing\AssertableInertia as Assert;
 
 test('the browser-facing reverb config is shared to the frontend at runtime', function (): void {

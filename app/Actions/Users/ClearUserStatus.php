@@ -14,7 +14,7 @@ use App\Models\User;
  * when an expiry passes, so both null the same three columns and announce it
  * the same way.
  */
-class ClearUserStatus
+final class ClearUserStatus
 {
     public function handle(User $user): void
     {

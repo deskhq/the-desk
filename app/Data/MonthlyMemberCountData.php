@@ -12,7 +12,7 @@ use Spatie\TypeScriptTransformer\Attributes\TypeScript;
  * `month` is the first day of the month as an ISO date, for the chart's x-axis.
  */
 #[TypeScript]
-class MonthlyMemberCountData extends Data
+final class MonthlyMemberCountData extends Data
 {
     public function __construct(
         public string $month,

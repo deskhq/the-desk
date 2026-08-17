@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 use App\Support\GiphyClient;
 use App\Support\Images\ImageProxy;
 use Illuminate\Http\Client\ConnectionException;

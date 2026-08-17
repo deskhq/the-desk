@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Models;
 
 use Database\Factories\ChannelSectionFactory;
@@ -26,7 +28,7 @@ use Illuminate\Support\Carbon;
  * @property-read Collection<int, ChannelMember> $channelMembers
  */
 #[Fillable(['user_id', 'team_id', 'name', 'position', 'collapsed'])]
-class ChannelSection extends Model
+final class ChannelSection extends Model
 {
     /** @use HasFactory<ChannelSectionFactory> */
     use HasFactory, HasUuids;

@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Models;
 
 use App\Support\Webhooks\WebhookSignature;
@@ -35,7 +37,7 @@ use Illuminate\Support\Carbon;
  * @property-read User $bot
  */
 #[Fillable(['team_id', 'channel_id', 'bot_id', 'created_by', 'name', 'token_hash', 'signing_secret', 'requires_signed_timestamp'])]
-class IncomingWebhook extends Model
+final class IncomingWebhook extends Model
 {
     /** @use HasFactory<IncomingWebhookFactory> */
     use HasFactory, HasUuids;

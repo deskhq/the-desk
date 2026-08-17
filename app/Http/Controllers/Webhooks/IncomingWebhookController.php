@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Controllers\Webhooks;
 
 use App\Actions\Channels\PostMessage;
@@ -28,7 +30,7 @@ use Illuminate\Support\Str;
  * text as that bot, and the indelible badge makes the impersonating version
  * impossible.
  */
-class IncomingWebhookController extends Controller
+final class IncomingWebhookController extends Controller
 {
     /**
      * The request header carrying the optional hex HMAC-SHA256 signature of the

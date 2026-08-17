@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Data;
 
 use App\Models\Channel;
@@ -14,7 +16,7 @@ use Spatie\TypeScriptTransformer\Attributes\TypeScript;
  * log — feeding the health/detail page.
  */
 #[TypeScript]
-class WebhookSubscriptionDetailData extends Data
+final class WebhookSubscriptionDetailData extends Data
 {
     public function __construct(
         public WebhookSubscriptionData $subscription,

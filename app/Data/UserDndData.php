@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Data;
 
 use App\Models\User;
@@ -17,7 +19,7 @@ use Spatie\TypeScriptTransformer\Attributes\TypeScript;
  * answer at message-arrival time, not at page-load time.
  */
 #[TypeScript]
-class UserDndData extends Data
+final class UserDndData extends Data
 {
     public function __construct(
         /** ISO-8601 instant the manual pause lapses, or null when none is running. */

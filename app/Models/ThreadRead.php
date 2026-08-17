@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Models;
 
 use Database\Factories\ThreadReadFactory;
@@ -25,7 +27,7 @@ use Illuminate\Support\Carbon;
  * @property-read User $user
  */
 #[Fillable(['thread_root_id', 'user_id', 'last_read_reply_id'])]
-class ThreadRead extends Model
+final class ThreadRead extends Model
 {
     /** @use HasFactory<ThreadReadFactory> */
     use HasFactory, HasUuids;

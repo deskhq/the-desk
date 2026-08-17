@@ -39,7 +39,7 @@ use Throwable;
  * ignores the subscription's status, so an auto-disabled subscription can be
  * used to verify a fix before being re-enabled.
  */
-class DeliverWebhook implements ShouldQueue
+final class DeliverWebhook implements ShouldQueue
 {
     use Queueable;
 

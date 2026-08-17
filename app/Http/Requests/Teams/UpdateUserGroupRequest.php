@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Requests\Teams;
 
 use App\Concerns\ResolvesUserGroupRoute;
@@ -10,7 +12,7 @@ use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\Rule;
 
-class UpdateUserGroupRequest extends FormRequest
+final class UpdateUserGroupRequest extends FormRequest
 {
     use ResolvesUserGroupRoute;
 

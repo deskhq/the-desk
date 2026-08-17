@@ -11,7 +11,7 @@ use App\SlashCommands\SlashCommandResult;
 /**
  * `/unflip [message]` — post the leading text with a restored table appended.
  */
-class UnflipCommand extends BaseSlashCommand
+final class UnflipCommand extends BaseSlashCommand
 {
     public function name(): string
     {
@@ -23,7 +23,7 @@ class UnflipCommand extends BaseSlashCommand
         return __('Put the table back');
     }
 
-    public function argumentHint(): ?string
+    public function argumentHint(): string
     {
         return __('[message]');
     }

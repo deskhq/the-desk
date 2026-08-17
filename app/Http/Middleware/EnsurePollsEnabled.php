@@ -13,7 +13,7 @@ use Symfony\Component\HttpFoundation\Response;
  * the builder is fully hidden client-side; this makes the server match — the
  * create, vote, and close endpoints 404, so nothing leaks when polls are off.
  */
-class EnsurePollsEnabled
+final class EnsurePollsEnabled
 {
     public function handle(Request $request, Closure $next): Response
     {

@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Support;
 
 use App\Data\MessageData;
@@ -26,7 +28,7 @@ use Illuminate\Support\Facades\Gate;
  * arrive raw from query params, so they are typed `mixed` and validated here —
  * a tampered non-string or a message from another channel resolves to null.
  */
-class ChannelTimelineWindow
+final class ChannelTimelineWindow
 {
     /**
      * How many messages newer than a jump target to keep loaded below it, so a

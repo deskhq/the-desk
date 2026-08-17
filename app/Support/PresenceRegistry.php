@@ -28,7 +28,7 @@ use Throwable;
  *
  * @phpstan-type ConnectionMeta array{state: string, last_seen: int}
  */
-class PresenceRegistry
+final class PresenceRegistry
 {
     /**
      * Aggregates already resolved this request, keyed by user id.

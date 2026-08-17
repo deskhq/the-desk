@@ -10,7 +10,7 @@ namespace App\Support\Integrations;
  * by which field is present. Slack Block Kit (`blocks`) and legacy `attachments`
  * are explicitly unsupported in v1 and ignored — only the plain text is read.
  */
-class IncomingWebhookPayload
+final class IncomingWebhookPayload
 {
     /**
      * Read the message body from the payload, or null when neither a native

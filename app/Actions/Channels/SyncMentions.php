@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Actions\Channels;
 
 use App\Models\Channel;
@@ -7,7 +9,7 @@ use App\Models\Message;
 use App\Models\User;
 use App\Support\InlineMarkdown;
 
-class SyncMentions
+final class SyncMentions
 {
     /**
      * The composer inserts a `@[Display Name](user-id)` token for every member it

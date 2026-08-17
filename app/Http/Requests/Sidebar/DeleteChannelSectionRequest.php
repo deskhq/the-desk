@@ -1,12 +1,14 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Requests\Sidebar;
 
 use App\Http\Requests\RouteBoundRequest;
 use App\Models\ChannelSection;
 use Illuminate\Support\Facades\Gate;
 
-class DeleteChannelSectionRequest extends RouteBoundRequest
+final class DeleteChannelSectionRequest extends RouteBoundRequest
 {
     /**
      * Determine if the user is authorized to make this request.

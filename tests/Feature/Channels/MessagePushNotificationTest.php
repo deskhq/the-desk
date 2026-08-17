@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 use App\Data\MessageData;
 use App\Enums\ChannelType;
 use App\Enums\NotificationLevel;

@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Controllers\Channels;
 
 use App\Actions\Channels\PostMessage;
@@ -14,7 +16,7 @@ use App\SlashCommands\SlashCommandParser;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Validation\ValidationException;
 
-class SlashCommandController extends Controller
+final class SlashCommandController extends Controller
 {
     /**
      * Run a slash command typed in the composer.
@@ -43,7 +45,7 @@ class SlashCommandController extends Controller
         if (! $parsed instanceof ParsedSlashCommand) {
             $postMessage->handle(
                 channel: $channel,
-                author: $request->user(),
+                author: $this->viewer($request),
                 body: $body,
                 clientUuid: $request->validated('client_uuid'),
                 threadRootId: $request->validated('thread_root_id'),
@@ -54,7 +56,7 @@ class SlashCommandController extends Controller
         }
 
         $result = $dispatcher->dispatch($parsed->command, new SlashCommandContext(
-            user: $request->user(),
+            user: $this->viewer($request),
             team: $team,
             channel: $channel,
             threadRootId: $request->validated('thread_root_id'),

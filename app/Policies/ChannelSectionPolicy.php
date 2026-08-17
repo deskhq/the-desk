@@ -7,7 +7,7 @@ namespace App\Policies;
 use App\Models\ChannelSection;
 use App\Models\User;
 
-class ChannelSectionPolicy
+final class ChannelSectionPolicy
 {
     /**
      * Determine whether the user can update (rename or collapse) the section.

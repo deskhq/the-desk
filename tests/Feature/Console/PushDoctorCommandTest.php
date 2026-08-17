@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 use App\Jobs\DeliverWebhook;
 use App\Listeners\SendMessagePushNotifications;
 use App\Models\User;

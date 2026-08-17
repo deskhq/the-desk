@@ -8,7 +8,7 @@ use App\Support\Branding\WebManifest;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
-class WebManifestController extends Controller
+final class WebManifestController extends Controller
 {
     /**
      * Serve `/manifest.webmanifest`.

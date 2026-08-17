@@ -27,7 +27,7 @@ use Illuminate\Http\Response;
  * in a follow-up. The whole surface is gated behind the `integrations`
  * middleware, so it 404s when integrations are disabled.
  */
-class PersonalAccessTokenController extends Controller
+final class PersonalAccessTokenController extends Controller
 {
     /**
      * List the acting user's own personal access tokens.

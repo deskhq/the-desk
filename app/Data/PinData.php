@@ -1,8 +1,11 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Data;
 
 use App\Models\MessagePin;
+use App\Support\PersistedTimestamp;
 use Spatie\LaravelData\Data;
 use Spatie\TypeScriptTransformer\Attributes\TypeScript;
 
@@ -12,7 +15,7 @@ use Spatie\TypeScriptTransformer\Attributes\TypeScript;
  * tombstone; patched live in place from the `MessagePinned` broadcast.
  */
 #[TypeScript]
-class PinData extends Data
+final class PinData extends Data
 {
     public function __construct(
         public MentionData $pinnedBy,
@@ -29,7 +32,7 @@ class PinData extends Data
     {
         return new self(
             pinnedBy: MentionData::fromUser($pin->pinnedBy),
-            pinnedAt: $pin->created_at->toIso8601String(),
+            pinnedAt: PersistedTimestamp::of($pin->created_at)->toIso8601String(),
         );
     }
 }

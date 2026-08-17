@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Resources\Api\V1;
 
 use App\Data\ChannelData;
@@ -14,7 +16,7 @@ use Illuminate\Http\Resources\Json\JsonResource;
  *
  * @mixin Channel
  */
-class ChannelResource extends JsonResource
+final class ChannelResource extends JsonResource
 {
     /**
      * @return array<string, mixed>

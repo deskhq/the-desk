@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 use App\Actions\Channels\MarkChannelRead;
 use App\Data\UserData;
 use App\Enums\TeamRole;

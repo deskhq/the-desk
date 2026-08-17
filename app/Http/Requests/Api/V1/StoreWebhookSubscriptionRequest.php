@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Requests\Api\V1;
 
 use App\Enums\WebhookEvent;
@@ -15,7 +17,7 @@ use Illuminate\Validation\Validator;
  * Validates a bot registering an outgoing-webhook subscription in its own team
  * via the public API.
  */
-class StoreWebhookSubscriptionRequest extends ApiRequest
+final class StoreWebhookSubscriptionRequest extends ApiRequest
 {
     /**
      * A bot may only subscribe within the team it is scoped to.

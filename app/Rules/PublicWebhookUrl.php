@@ -19,13 +19,13 @@ use Illuminate\Contracts\Validation\ValidationRule;
  * subscriptions and web push endpoints alike. Those surfaces call the URL
  * different things, so the failure message is overridable.
  */
-class PublicWebhookUrl implements ValidationRule
+final readonly class PublicWebhookUrl implements ValidationRule
 {
     /**
      * @param  string|null  $message  the failure message, when the surface calls
      *                                the destination something other than a webhook URL
      */
-    public function __construct(private readonly ?string $message = null) {}
+    public function __construct(private ?string $message = null) {}
 
     public function validate(string $attribute, mixed $value, Closure $fail): void
     {

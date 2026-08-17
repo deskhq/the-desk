@@ -15,7 +15,7 @@ use Illuminate\Support\Str;
 use NotificationChannels\WebPush\WebPushChannel;
 use NotificationChannels\WebPush\WebPushMessage;
 
-class NewMessageNotification extends Notification implements ShouldQueue
+final class NewMessageNotification extends Notification implements ShouldQueue
 {
     use Queueable;
 

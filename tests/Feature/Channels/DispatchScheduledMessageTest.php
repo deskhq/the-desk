@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 use App\Actions\Channels\DispatchDueScheduledMessages;
 use App\Data\MessageData;
 use App\Enums\ScheduledMessageStatus;

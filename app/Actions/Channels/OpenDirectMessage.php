@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Actions\Channels;
 
 use App\Enums\ChannelType;
@@ -13,7 +15,7 @@ use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
-class OpenDirectMessage
+final class OpenDirectMessage
 {
     /**
      * Find or create the 1:1 direct message between two team members.

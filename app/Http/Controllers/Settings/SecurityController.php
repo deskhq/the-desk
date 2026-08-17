@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Controllers\Settings;
 
 use App\Actions\Users\ChangePassword;
@@ -21,7 +23,7 @@ use Inertia\Response;
 use Laravel\Fortify\Features;
 use Laravel\Passkeys\Passkey;
 
-class SecurityController extends Controller
+final class SecurityController extends Controller
 {
     /**
      * The number of recent security events to surface on the settings page.
@@ -42,12 +44,12 @@ class SecurityController extends Controller
         ];
 
         if ($this->canManageTwoFactor()) {
-            $props['twoFactorEnabled'] = $request->user()->hasEnabledTwoFactorAuthentication();
+            $props['twoFactorEnabled'] = $this->viewer($request)->hasEnabledTwoFactorAuthentication();
             $props['requiresConfirmation'] = Features::optionEnabled(
                 Features::twoFactorAuthentication(),
                 'confirm',
             );
-            $props['twoFactor'] = TwoFactorStateData::fromUser($request->user());
+            $props['twoFactor'] = TwoFactorStateData::fromUser($this->viewer($request));
         }
 
         if ($this->canManagePasskeys()) {
@@ -86,7 +88,7 @@ class SecurityController extends Controller
      */
     private function registeredPasskeys(TwoFactorAuthenticationRequest $request): array
     {
-        return $request->user()
+        return $this->viewer($request)
             ->passkeys()
             ->latest()
             ->get()
@@ -101,7 +103,7 @@ class SecurityController extends Controller
      */
     private function recentSecurityEvents(TwoFactorAuthenticationRequest $request): array
     {
-        return $request->user()
+        return $this->viewer($request)
             ->securityEvents()
             ->limit(self::RECENT_ACTIVITY_LIMIT)
             ->get()
@@ -118,7 +120,7 @@ class SecurityController extends Controller
     {
         $currentSessionId = $request->session()->getId();
 
-        return collect($registry->all($request->user()->id))
+        return collect($registry->all($this->viewer($request)->id))
             ->map(fn (array $session): SessionData => SessionData::fromRegistry(
                 $session,
                 $currentSessionId,
@@ -140,7 +142,7 @@ class SecurityController extends Controller
     {
         $session = $request->session();
 
-        $revoked = $changePassword->handle($request->user(), $request->password, $session->getId());
+        $revoked = $changePassword->handle($this->viewer($request), $request->password, $session->getId());
 
         $session->regenerate(destroy: true);
 

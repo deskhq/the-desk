@@ -6,7 +6,7 @@ namespace App\Actions\Integrations;
 
 use App\Models\WebhookDelivery;
 
-class PruneWebhookDeliveries
+final class PruneWebhookDeliveries
 {
     /**
      * Delete delivery attempts that have outlived the configured retention

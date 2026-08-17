@@ -7,7 +7,7 @@ namespace App\Actions\Channels;
 use App\Enums\ScheduledMessageStatus;
 use App\Models\ScheduledMessage;
 
-class CancelScheduledMessage
+final class CancelScheduledMessage
 {
     /**
      * Cancel a pending scheduled message so the dispatcher never delivers it.

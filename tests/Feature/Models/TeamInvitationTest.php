@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 use App\Models\TeamInvitation;
 
 test('a fresh invitation is pending', function (): void {

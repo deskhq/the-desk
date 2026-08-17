@@ -1,12 +1,14 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Actions\Sidebar;
 
 use App\Models\Team;
 use App\Models\User;
 use App\Support\ManualOrder;
 
-class ReorderChannelSections
+final class ReorderChannelSections
 {
     /**
      * Persist the user's manual order of their custom sections in the team.

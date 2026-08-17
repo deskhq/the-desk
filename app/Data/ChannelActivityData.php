@@ -11,7 +11,7 @@ use Spatie\TypeScriptTransformer\Attributes\TypeScript;
  * A channel's message count for the most-active-channels ranking.
  */
 #[TypeScript]
-class ChannelActivityData extends Data
+final class ChannelActivityData extends Data
 {
     public function __construct(
         public string $id,

@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Controllers\Auth\Sso;
 
 use App\Actions\Sso\ProvisionSsoUser;
@@ -15,7 +17,7 @@ use Symfony\Component\HttpFoundation\RedirectResponse as SymfonyRedirectResponse
 use Symfony\Component\HttpFoundation\Response;
 use Throwable;
 
-class OidcController extends Controller
+final class OidcController extends Controller
 {
     /**
      * The session key the "keep me signed in" choice waits under while the user

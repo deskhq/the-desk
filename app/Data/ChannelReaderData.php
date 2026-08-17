@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Data;
 
 use App\Models\ChannelMember;
@@ -13,7 +15,7 @@ use Spatie\TypeScriptTransformer\Attributes\TypeScript;
  * them current from the `MessageRead` broadcast.
  */
 #[TypeScript]
-class ChannelReaderData extends Data
+final class ChannelReaderData extends Data
 {
     public function __construct(
         public UserData $user,

@@ -10,7 +10,7 @@ use App\Rules\UniqueTeamInvitation;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Validation\Rule;
 
-class CreateTeamInvitationRequest extends RouteBoundRequest
+final class CreateTeamInvitationRequest extends RouteBoundRequest
 {
     /**
      * Get the validation rules that apply to the request.

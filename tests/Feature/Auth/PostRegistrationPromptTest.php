@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 use App\Enums\PostRegistrationPrompt;
 use App\Models\User;
 use Inertia\Testing\AssertableInertia as Assert;

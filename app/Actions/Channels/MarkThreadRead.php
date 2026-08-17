@@ -1,12 +1,14 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Actions\Channels;
 
 use App\Models\Message;
 use App\Models\ThreadRead;
 use App\Models\User;
 
-class MarkThreadRead
+final class MarkThreadRead
 {
     /**
      * Advance the user's read pointer to the thread's most recent reply.

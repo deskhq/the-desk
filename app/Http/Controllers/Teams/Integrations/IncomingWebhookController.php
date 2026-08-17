@@ -16,7 +16,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
-class IncomingWebhookController extends Controller
+final class IncomingWebhookController extends Controller
 {
     /**
      * Create an incoming webhook and reveal its opaque URL once.
@@ -31,7 +31,7 @@ class IncomingWebhookController extends Controller
         $webhook = $create->handle(
             $bot,
             $channel,
-            $request->user(),
+            $this->viewer($request),
             $request->validated('name'),
             (bool) $request->validated('with_signing_secret', false),
         );
@@ -51,7 +51,7 @@ class IncomingWebhookController extends Controller
      */
     public function destroy(Request $request, Team $team, IncomingWebhook $incomingWebhook, RevokeIncomingWebhook $revoke): RedirectResponse
     {
-        $revoke->handle($request->user(), $incomingWebhook);
+        $revoke->handle($this->viewer($request), $incomingWebhook);
 
         Inertia::flash('toast', ['type' => 'success', 'message' => __('Incoming webhook revoked')]);
 

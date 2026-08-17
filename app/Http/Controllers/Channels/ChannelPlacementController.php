@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Controllers\Channels;
 
 use App\Http\Controllers\Controller;
@@ -9,7 +11,7 @@ use App\Models\Team;
 use App\Support\ChannelMembership;
 use Illuminate\Http\RedirectResponse;
 
-class ChannelPlacementController extends Controller
+final class ChannelPlacementController extends Controller
 {
     /**
      * Place the channel within the sidebar for the current user: file it under a
@@ -20,7 +22,7 @@ class ChannelPlacementController extends Controller
      */
     public function update(UpdateChannelPlacementRequest $request, Team $team, Channel $channel): RedirectResponse
     {
-        new ChannelMembership($channel, $request->user())->place(
+        new ChannelMembership($channel, $this->viewer($request))->place(
             orderedIds: $request->orderedIds(),
             moveSection: $request->movesSection(),
             sectionId: $request->input('section_id'),

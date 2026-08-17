@@ -20,7 +20,7 @@ use Carbon\CarbonInterface;
  * expiry: the two writes to `dnd_until` that are not this one's undo both live
  * beside it now rather than in HTTP glue.
  */
-class PauseNotifications
+final class PauseNotifications
 {
     public function handle(User $user, CarbonInterface $until): void
     {

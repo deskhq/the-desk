@@ -20,9 +20,9 @@ use Illuminate\Translation\PotentiallyTranslatedString;
  * though a bot must become a `ChannelMember` to post. This rule accepts both
  * kinds while still refusing anyone outside the team.
  */
-class AddableChannelMember implements ValidationRule
+final readonly class AddableChannelMember implements ValidationRule
 {
-    public function __construct(private readonly string $teamId) {}
+    public function __construct(private string $teamId) {}
 
     /**
      * @param  Closure(string, ?string=): PotentiallyTranslatedString  $fail

@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Models;
 
 use App\Data\MessageData;
@@ -56,7 +58,7 @@ use Laravel\Scout\Searchable;
  * @property-read Collection<int, Attachment> $attachments
  */
 #[Fillable(['channel_id', 'user_id', 'incoming_webhook_id', 'token_id', 'client_uuid', 'reply_to_id', 'forwarded_from_id', 'thread_root_id', 'sent_to_channel', 'body', 'author_override_name', 'author_override_avatar_url', 'type', 'edited_at'])]
-class Message extends Model
+final class Message extends Model
 {
     /** @use HasFactory<MessageFactory> */
     use HasFactory, HasUuids, Searchable, SoftDeletes;
@@ -589,7 +591,7 @@ class Message extends Model
             // search matches — and Meilisearch highlights — the name, not the raw
             // `@[Name](id)` token. A poll folds its question in here (its body is
             // empty), so a poll is found by its question, not its option labels.
-            'body' => trim(MessagePlainText::from($this->body).' '.($this->type === MessageType::Poll ? $this->poll->question : '')),
+            'body' => trim(MessagePlainText::from($this->body).' '.($this->type === MessageType::Poll ? ($this->poll->question ?? '') : '')),
             'channel_id' => $this->channel_id,
             'user_id' => $this->user_id,
             'team_id' => $this->channel->team_id,

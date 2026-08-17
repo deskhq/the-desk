@@ -7,7 +7,7 @@ namespace App\Actions\Images;
 use App\Support\Images\FetchRemoteImage;
 use Illuminate\Support\Facades\Storage;
 
-class PurgeCachedProxyImages
+final class PurgeCachedProxyImages
 {
     /**
      * Delete proxied image bytes that have outlived their cache TTL.

@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Support;
 
 use App\Enums\SecurityEventType;
@@ -14,7 +16,7 @@ use Illuminate\Contracts\Auth\Authenticatable;
  * context is {@see RecordSecurityEvents}' job, since only it knows whether an
  * HTTP request is behind the event.
  */
-class SecurityEventRecorder
+final class SecurityEventRecorder
 {
     /**
      * Record a security event for the given user against the given device.

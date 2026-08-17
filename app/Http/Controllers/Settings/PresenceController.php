@@ -9,14 +9,14 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Settings\UpdatePresenceRequest;
 use Illuminate\Http\RedirectResponse;
 
-class PresenceController extends Controller
+final class PresenceController extends Controller
 {
     /**
      * Set — or clear — the current user's manual away override.
      */
     public function update(UpdatePresenceRequest $request, SetPresenceOverride $presence): RedirectResponse
     {
-        $presence->handle($request->user(), $request->state());
+        $presence->handle($this->viewer($request), $request->state());
 
         return back();
     }

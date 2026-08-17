@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Models;
 
 use App\Enums\DataExportStatus;
@@ -28,7 +30,7 @@ use Illuminate\Support\Carbon;
  * @property-read User $user
  */
 #[Fillable(['user_id', 'status', 'path', 'size_bytes', 'expires_at'])]
-class DataExport extends Model
+final class DataExport extends Model
 {
     /** @use HasFactory<DataExportFactory> */
     use HasFactory, HasUuids;
@@ -49,6 +51,21 @@ class DataExport extends Model
     public function isReady(): bool
     {
         return $this->status === DataExportStatus::Ready && $this->path !== null;
+    }
+
+    /**
+     * The archive's path on the export disk.
+     *
+     * The column is null for as long as the archive is being built, which is the
+     * half of {@see isReady()} a caller cannot carry with it: the download route
+     * checks readiness and then hands the path on, so this restates the same
+     * 404 for a row that has none.
+     */
+    public function archivePath(): string
+    {
+        abort_if($this->path === null, 404);
+
+        return $this->path;
     }
 
     /**

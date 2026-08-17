@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Rules;
 
 use App\Models\TeamInvitation;
@@ -15,9 +17,9 @@ use Illuminate\Translation\PotentiallyTranslatedString;
  * no-longer-pending code is ignored rather than rejected: the person can still
  * create an account, they simply do not join the team on the strength of it.
  */
-class MatchesTeamInvitation implements ValidationRule
+final readonly class MatchesTeamInvitation implements ValidationRule
 {
-    public function __construct(private readonly ?string $invitationCode) {}
+    public function __construct(private ?string $invitationCode) {}
 
     /**
      * Run the validation rule.

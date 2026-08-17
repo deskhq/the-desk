@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 use App\Actions\Sso\ProvisionSsoUser;
 use App\Enums\SecurityEventType;
 use App\Enums\TeamRole;

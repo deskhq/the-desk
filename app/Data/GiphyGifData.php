@@ -8,7 +8,7 @@ use Spatie\LaravelData\Data;
 use Spatie\TypeScriptTransformer\Attributes\TypeScript;
 
 #[TypeScript]
-class GiphyGifData extends Data
+final class GiphyGifData extends Data
 {
     public function __construct(
         // The opaque Giphy id. The only thing the client sends back to claim a

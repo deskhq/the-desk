@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Controllers\Channels;
 
 use App\Actions\Channels\PinMessage;
@@ -11,7 +13,7 @@ use App\Models\Message;
 use App\Models\Team;
 use Illuminate\Http\RedirectResponse;
 
-class PinController extends Controller
+final class PinController extends Controller
 {
     /**
      * Pin a message to its channel.
@@ -23,7 +25,7 @@ class PinController extends Controller
      */
     public function store(PinMessageRequest $request, Team $team, Channel $channel, Message $message, PinMessage $pinMessage): RedirectResponse
     {
-        $pinMessage->handle($channel, $message, $request->user());
+        $pinMessage->handle($channel, $message, $this->viewer($request));
 
         return back();
     }

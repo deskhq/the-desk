@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Resources\Api\V1;
 
 use App\Models\WebhookSubscription;
@@ -13,7 +15,7 @@ use Illuminate\Http\Resources\Json\JsonResource;
  *
  * @mixin WebhookSubscription
  */
-class WebhookSubscriptionResource extends JsonResource
+final class WebhookSubscriptionResource extends JsonResource
 {
     /**
      * @return array<string, mixed>

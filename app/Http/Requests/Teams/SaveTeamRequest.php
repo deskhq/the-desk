@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Requests\Teams;
 
 use App\Enums\ChannelCreationPolicy;
@@ -8,7 +10,7 @@ use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
-class SaveTeamRequest extends FormRequest
+final class SaveTeamRequest extends FormRequest
 {
     /**
      * Get the validation rules that apply to the request.

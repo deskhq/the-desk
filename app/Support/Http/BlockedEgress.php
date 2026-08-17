@@ -16,7 +16,7 @@ use RuntimeException;
  * so they name the reason and never the URL: the row already knows its own
  * destination, and the error column is trimmed to 255 characters.
  */
-class BlockedEgress extends RuntimeException
+final class BlockedEgress extends RuntimeException
 {
     /**
      * The URL failed the pre-flight check: a non-http(s) scheme, a literal

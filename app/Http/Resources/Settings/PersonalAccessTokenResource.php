@@ -15,7 +15,7 @@ use Illuminate\Http\Resources\Json\JsonResource;
  *
  * @mixin PersonalAccessToken
  */
-class PersonalAccessTokenResource extends JsonResource
+final class PersonalAccessTokenResource extends JsonResource
 {
     /**
      * @return array<string, mixed>

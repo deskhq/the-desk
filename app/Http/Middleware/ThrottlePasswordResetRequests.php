@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Middleware;
 
 use Closure;
@@ -7,7 +9,7 @@ use Illuminate\Http\Request;
 use Illuminate\Routing\Middleware\ThrottleRequests;
 use Symfony\Component\HttpFoundation\Response;
 
-class ThrottlePasswordResetRequests extends ThrottleRequests
+final class ThrottlePasswordResetRequests extends ThrottleRequests
 {
     /**
      * Apply the `password-reset` rate limiter to the password-reset POSTs.

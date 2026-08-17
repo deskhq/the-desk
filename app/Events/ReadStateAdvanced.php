@@ -26,7 +26,7 @@ use Illuminate\Queue\SerializesModels;
  * `share_read_receipts` preference — that toggle governs revealing read state
  * to *others*, not syncing a user's own devices.
  */
-class ReadStateAdvanced implements ShouldBroadcast
+final class ReadStateAdvanced implements ShouldBroadcast
 {
     use Dispatchable, InteractsWithSockets, SerializesModels;
 

@@ -21,7 +21,7 @@ use App\Actions\Channels\SyncMentions;
  * exactly N backticks; with no such closer the backticks are literal. Ship 2's
  * fenced code blocks will extend this same carve-out.
  */
-class InlineMarkdown
+final class InlineMarkdown
 {
     /**
      * Replace the contents of every inline-code span (fences included) with

@@ -21,14 +21,14 @@ use Symfony\Component\HttpFoundation\Response;
  * and bounced to the login screen, so a revoked session can no longer make
  * authenticated requests regardless of the configured session driver.
  */
-class TrackActiveSession
+final readonly class TrackActiveSession
 {
     /**
      * The session key recording the id this session was last indexed under.
      */
     private const string MARKER = 'active_session_id';
 
-    public function __construct(private readonly SessionRegistry $registry) {}
+    public function __construct(private SessionRegistry $registry) {}
 
     /**
      * Handle an incoming request.

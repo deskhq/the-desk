@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Models;
 
 use Database\Factories\MessagePinFactory;
@@ -21,7 +23,7 @@ use Illuminate\Support\Carbon;
  * @property-read User $pinnedBy
  */
 #[Fillable(['message_id', 'channel_id', 'pinned_by'])]
-class MessagePin extends Model
+final class MessagePin extends Model
 {
     /** @use HasFactory<MessagePinFactory> */
     use HasFactory, HasUuids;

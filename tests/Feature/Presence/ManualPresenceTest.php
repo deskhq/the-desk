@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 use App\Enums\PresenceState;
 use App\Events\UserPresenceChanged;
 use App\Models\User;

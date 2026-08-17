@@ -11,7 +11,7 @@ use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
-class RestoreChannel
+final class RestoreChannel
 {
     /**
      * Bring a deleted channel back, with everything it still holds.

@@ -1,7 +1,10 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Requests\Channels;
 
+use App\Concerns\ResolvesViewer;
 use App\Http\Requests\RouteBoundRequest;
 use App\Models\Channel;
 use App\Policies\MessagePolicy;
@@ -10,8 +13,10 @@ use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\Rule;
 
-class ForwardMessageRequest extends RouteBoundRequest
+final class ForwardMessageRequest extends RouteBoundRequest
 {
+    use ResolvesViewer;
+
     /**
      * Determine if the user is authorized to make this request.
      *
@@ -53,7 +58,7 @@ class ForwardMessageRequest extends RouteBoundRequest
             'target_channel_id' => [
                 'required_without:target_user_id',
                 'uuid',
-                new ForwardDestination($this->sourceChannel(), $this->user()),
+                new ForwardDestination($this->sourceChannel(), $this->viewer()),
             ],
             // A person must be a member of the source's team; the DM they map to is
             // resolved (or created) in the controller.

@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Controllers\Channels;
 
 use App\Enums\NotificationLevel;
@@ -10,7 +12,7 @@ use App\Models\Team;
 use App\Support\ChannelMembership;
 use Illuminate\Http\RedirectResponse;
 
-class ChannelPreferenceController extends Controller
+final class ChannelPreferenceController extends Controller
 {
     /**
      * Update the current user's notification preferences for the channel.
@@ -20,7 +22,7 @@ class ChannelPreferenceController extends Controller
      */
     public function update(UpdateChannelPreferenceRequest $request, Team $team, Channel $channel): RedirectResponse
     {
-        new ChannelMembership($channel, $request->user())->setNotificationPreference(
+        new ChannelMembership($channel, $this->viewer($request))->setNotificationPreference(
             muted: $request->boolean('muted'),
             notificationLevel: NotificationLevel::from($request->validated('notification_level')),
         );

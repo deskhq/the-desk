@@ -12,7 +12,7 @@ namespace App\Support;
  * register screen and the validator read that single verdict from here, so the
  * checkbox and the rule enforcing it can never disagree.
  */
-class LegalConsent
+final class LegalConsent
 {
     /**
      * The terms-of-service URL, or null when the pair is not fully configured.

@@ -7,7 +7,7 @@ namespace App\Policies;
 use App\Models\MessageReminder;
 use App\Models\User;
 
-class MessageReminderPolicy
+final class MessageReminderPolicy
 {
     /**
      * Determine whether the user can clear the reminder.

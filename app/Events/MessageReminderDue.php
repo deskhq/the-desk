@@ -20,7 +20,7 @@ use Illuminate\Queue\SerializesModels;
  * pending `reminders` list), which the server recomputes, so the nudge is
  * correct even if the user has the workspace open on a different page.
  */
-class MessageReminderDue implements ShouldBroadcast
+final class MessageReminderDue implements ShouldBroadcast
 {
     use Dispatchable, InteractsWithSockets, SerializesModels;
 

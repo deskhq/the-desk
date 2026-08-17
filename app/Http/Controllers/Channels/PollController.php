@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Controllers\Channels;
 
 use App\Actions\Channels\CastVote;
@@ -15,7 +17,7 @@ use App\Models\Team;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Gate;
 
-class PollController extends Controller
+final class PollController extends Controller
 {
     /**
      * Post a poll composed in the builder to the channel.
@@ -28,7 +30,7 @@ class PollController extends Controller
     {
         $createPoll->handle(
             channel: $channel,
-            author: $request->user(),
+            author: $this->viewer($request),
             question: $request->validated('question'),
             optionLabels: $request->validated('options'),
             allowMultiple: $request->boolean('allow_multiple'),
@@ -56,7 +58,7 @@ class PollController extends Controller
             ->where('id', $request->validated('option_id'))
             ->firstOrFail();
 
-        $castVote->handle($channel, $poll, $option, $request->user());
+        $castVote->handle($channel, $poll, $option, $this->viewer($request));
 
         return back();
     }

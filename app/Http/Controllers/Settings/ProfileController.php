@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Controllers\Settings;
 
 use App\Http\Controllers\Controller;
@@ -12,7 +14,7 @@ use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
 use Inertia\Response;
 
-class ProfileController extends Controller
+final class ProfileController extends Controller
 {
     /**
      * Show the user's profile settings page.
@@ -23,7 +25,7 @@ class ProfileController extends Controller
             'status' => $request->session()->get('status'),
             // Whether the avatar is an uploaded blob (so "Remove photo" applies)
             // rather than a derived Gravatar/initials fallback.
-            'hasCustomAvatar' => $request->user()->avatar_url !== null,
+            'hasCustomAvatar' => $this->viewer($request)->avatar_url !== null,
         ]);
     }
 
@@ -32,13 +34,13 @@ class ProfileController extends Controller
      */
     public function update(ProfileUpdateRequest $request): RedirectResponse
     {
-        $request->user()->fill($request->validated());
+        $this->viewer($request)->fill($request->validated());
 
-        if ($request->user()->isDirty('email')) {
-            $request->user()->email_verified_at = null;
+        if ($this->viewer($request)->isDirty('email')) {
+            $this->viewer($request)->email_verified_at = null;
         }
 
-        $request->user()->save();
+        $this->viewer($request)->save();
 
         Inertia::flash('toast', ['type' => 'success', 'message' => __('Profile updated')]);
 
@@ -50,7 +52,7 @@ class ProfileController extends Controller
      */
     public function destroy(ProfileDeleteRequest $request, AccountDeleter $deleter): RedirectResponse
     {
-        $user = $request->user();
+        $user = $this->viewer($request);
 
         Auth::logout();
 

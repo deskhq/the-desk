@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Services\Sso;
 
 use App\Exceptions\Sso\InvalidIdTokenException;
@@ -27,7 +29,7 @@ use Laravel\Socialite\Two\User;
  * at all, in which case UserInfo-over-TLS with a confidential client remains the
  * trust anchor.
  */
-class GenericOidcProvider extends AbstractProvider implements ProviderInterface
+final class GenericOidcProvider extends AbstractProvider implements ProviderInterface
 {
     /**
      * OIDC separates scopes with spaces, not the OAuth2 default comma.

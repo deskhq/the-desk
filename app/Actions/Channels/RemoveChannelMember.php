@@ -11,7 +11,7 @@ use App\Models\User;
 use App\Support\ChannelMembership;
 use Illuminate\Support\Facades\DB;
 
-class RemoveChannelMember
+final class RemoveChannelMember
 {
     /**
      * Remove the user's membership from the channel.

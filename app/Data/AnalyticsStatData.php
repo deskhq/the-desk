@@ -13,7 +13,7 @@ use Spatie\TypeScriptTransformer\Attributes\TypeScript;
  * percentage change, or a secondary figure — each tile fills only what it uses.
  */
 #[TypeScript]
-class AnalyticsStatData extends Data
+final class AnalyticsStatData extends Data
 {
     public function __construct(
         public int $value,

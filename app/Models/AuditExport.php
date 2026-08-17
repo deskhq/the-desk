@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Models;
 
 use App\Enums\AuditExportFormat;
@@ -36,7 +38,7 @@ use Illuminate\Support\Carbon;
  * @property-read User|null $requester
  */
 #[Fillable(['team_id', 'requested_by', 'log_type', 'format', 'range_start', 'range_end', 'status', 'path', 'expires_at'])]
-class AuditExport extends Model
+final class AuditExport extends Model
 {
     /** @use HasFactory<AuditExportFactory> */
     use HasFactory, HasUuids;
@@ -67,6 +69,21 @@ class AuditExport extends Model
     public function isReady(): bool
     {
         return $this->status === AuditExportStatus::Ready && $this->path !== null;
+    }
+
+    /**
+     * The export file's path on the export disk.
+     *
+     * The column is null for as long as the file is being built, which is the
+     * half of {@see isReady()} a caller cannot carry with it: the download route
+     * checks readiness and then hands the path on, so this restates the same
+     * 404 for a row that has none.
+     */
+    public function archivePath(): string
+    {
+        abort_if($this->path === null, 404);
+
+        return $this->path;
     }
 
     /**

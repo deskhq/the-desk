@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Support;
 
 use App\Enums\ThreadInboxFilter;
@@ -22,7 +24,7 @@ use Illuminate\Database\Eloquent\Builder;
  * rail's dot and the bulk "mark all read" can never disagree about what the
  * viewer follows.
  */
-class ThreadInbox
+final readonly class ThreadInbox
 {
     /**
      * How many cards a page loads. The panel pages older threads in on scroll
@@ -31,8 +33,8 @@ class ThreadInbox
     private const int PAGE_SIZE = 30;
 
     public function __construct(
-        private readonly User $viewer,
-        private readonly Team $team,
+        private User $viewer,
+        private Team $team,
     ) {}
 
     /**

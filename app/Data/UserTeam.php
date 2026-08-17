@@ -12,7 +12,7 @@ namespace App\Data;
  * {@see UnreadDigestData}: this is a roster, and a roster changes when a
  * workspace is renamed or someone joins it, not on every message anyone sends.
  */
-readonly class UserTeam
+final readonly class UserTeam
 {
     public function __construct(
         public string $id,

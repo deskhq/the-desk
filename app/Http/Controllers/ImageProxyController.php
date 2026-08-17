@@ -9,7 +9,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
-class ImageProxyController extends Controller
+final class ImageProxyController extends Controller
 {
     /**
      * Serve a remote image from the app's own origin.

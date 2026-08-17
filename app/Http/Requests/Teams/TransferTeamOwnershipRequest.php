@@ -8,7 +8,7 @@ use App\Concerns\PasswordValidationRules;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 
-class TransferTeamOwnershipRequest extends FormRequest
+final class TransferTeamOwnershipRequest extends FormRequest
 {
     use PasswordValidationRules;
 
