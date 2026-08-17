@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 use App\Models\User;
 
 test('a deactivated user is logged out and bounced to login', function (): void {

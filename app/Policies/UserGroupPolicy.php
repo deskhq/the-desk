@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Policies;
 
 use App\Enums\TeamPermission;
@@ -12,7 +14,7 @@ use App\Models\UserGroup;
  * curate them. The single `user-group:manage` permission backs create, rename,
  * delete, and membership edits alike — there is no finer-grained split.
  */
-class UserGroupPolicy
+final class UserGroupPolicy
 {
     /**
      * Determine whether the user can see the workspace's groups registry.

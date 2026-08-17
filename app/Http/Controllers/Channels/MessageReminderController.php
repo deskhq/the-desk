@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Controllers\Channels;
 
 use App\Actions\Channels\ClearMessageReminder;
@@ -14,7 +16,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 
-class MessageReminderController extends Controller
+final class MessageReminderController extends Controller
 {
     /**
      * Set (or re-arm) a personal reminder on a message.
@@ -22,8 +24,10 @@ class MessageReminderController extends Controller
     public function store(SetMessageReminderRequest $request, Team $team, SetMessageReminder $setMessageReminder): RedirectResponse
     {
         $setMessageReminder->handle(
-            user: $request->user(),
-            message: $request->reminderMessage(),
+            user: $this->viewer($request),
+            // authorize() resolved and vetted this message, so the only way it is
+            // missing here is a request that never should have been authorized.
+            message: $request->reminderMessage() ?? abort(404),
             remindAt: Carbon::parse($request->validated('remind_at')),
         );
 
@@ -49,7 +53,7 @@ class MessageReminderController extends Controller
     public function destroyAll(Request $request, Team $team): RedirectResponse
     {
         MessageReminder::query()
-            ->where('user_id', $request->user()->id)
+            ->where('user_id', $this->viewer($request)->id)
             ->pending()
             ->whereHas('message.channel', fn (Builder $query) => $query->where('team_id', $team->id))
             ->delete();

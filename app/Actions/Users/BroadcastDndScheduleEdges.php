@@ -7,7 +7,7 @@ namespace App\Actions\Users;
 use App\Events\UserProfileUpdated;
 use App\Models\User;
 
-class BroadcastDndScheduleEdges
+final class BroadcastDndScheduleEdges
 {
     /**
      * Broadcast a profile update for every user whose quiet-hours window opens

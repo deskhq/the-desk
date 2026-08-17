@@ -6,11 +6,12 @@ namespace App\Data;
 
 use App\Models\Channel;
 use App\Models\Team;
+use App\Support\PersistedTimestamp;
 use Spatie\LaravelData\Data;
 use Spatie\TypeScriptTransformer\Attributes\TypeScript;
 
 #[TypeScript]
-class DeletedChannelData extends Data
+final class DeletedChannelData extends Data
 {
     public function __construct(
         public string $id,
@@ -27,12 +28,14 @@ class DeletedChannelData extends Data
      */
     public static function fromChannel(Channel $channel): self
     {
+        $deletedAt = PersistedTimestamp::of($channel->deleted_at);
+
         return new self(
             id: $channel->id,
             name: (string) $channel->name,
             slug: $channel->slug,
-            deletedAt: $channel->deleted_at->toISOString(),
-            purgeAt: $channel->deleted_at->addDays(Channel::RESTORE_WINDOW_DAYS)->toISOString(),
+            deletedAt: PersistedTimestamp::iso($deletedAt),
+            purgeAt: PersistedTimestamp::iso($deletedAt->addDays(Channel::RESTORE_WINDOW_DAYS)),
             summary: ChannelContentSummaryData::forChannel($channel),
         );
     }

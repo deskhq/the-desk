@@ -20,7 +20,7 @@ use Symfony\Component\HttpFoundation\Response;
  * routes are only mounted when a token is configured (see SsoServiceProvider), so
  * a missing secret means the endpoint does not exist rather than being open.
  */
-class EnsureScimBearerToken
+final class EnsureScimBearerToken
 {
     /**
      * Handle an incoming request.

@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Jobs;
 
 use App\Enums\DataExportStatus;
@@ -17,7 +19,7 @@ use Illuminate\Foundation\Queue\Queueable;
 use Throwable;
 use ZipArchive;
 
-class ExportUserData implements ShouldQueue
+final class ExportUserData implements ShouldQueue
 {
     use Queueable;
 

@@ -26,7 +26,7 @@ use ArieTimmerman\Laravel\SCIMServer\SCIMConfig as BaseScimConfig;
  * Creation and the activation side effects are handled by ScimUserController so
  * every SCIM user flows through the shared App\Actions\Sso\ProvisionSsoUser layer.
  */
-class ScimConfig extends BaseScimConfig
+final class ScimConfig extends BaseScimConfig
 {
     /**
      * @return array<string, mixed>

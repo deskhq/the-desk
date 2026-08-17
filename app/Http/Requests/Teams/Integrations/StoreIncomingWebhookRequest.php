@@ -13,7 +13,7 @@ use Illuminate\Validation\Rule;
  * channel as a bot) from the settings surface. The channel and bot must both
  * belong to the team; the action re-checks that the bot can post to the channel.
  */
-class StoreIncomingWebhookRequest extends RouteBoundRequest
+final class StoreIncomingWebhookRequest extends RouteBoundRequest
 {
     /**
      * @return array<string, ValidationRule|array<mixed>|string>

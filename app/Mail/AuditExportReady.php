@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Mail;
 
 use App\Models\AuditExport;
@@ -10,7 +12,7 @@ use Illuminate\Mail\Mailables\Content;
 use Illuminate\Mail\Mailables\Envelope;
 use Illuminate\Queue\SerializesModels;
 
-class AuditExportReady extends Mailable
+final class AuditExportReady extends Mailable
 {
     use Queueable, SerializesModels;
 

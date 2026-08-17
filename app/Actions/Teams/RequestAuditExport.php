@@ -23,7 +23,7 @@ use Throwable;
  * who did what out of the app — so the entry is recorded here, alongside the
  * request that caused it.
  */
-class RequestAuditExport
+final class RequestAuditExport
 {
     /**
      * @throws Throwable when the export could not be queued; the row is marked

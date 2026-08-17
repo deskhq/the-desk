@@ -15,7 +15,7 @@ use Illuminate\Support\Facades\DB;
  * Deleting the row (and its delivery-log children) stops all future delivery
  * immediately.
  */
-class RevokeWebhookSubscription
+final class RevokeWebhookSubscription
 {
     public function handle(User $actor, WebhookSubscription $subscription): void
     {

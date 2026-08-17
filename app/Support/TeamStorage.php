@@ -20,7 +20,7 @@ use App\Models\Team;
  * has no row (its blob is gone), while a soft-deleted one keeps its row (its blob
  * is retained), so reading trashed rows too counts exactly what is on disk.
  */
-class TeamStorage
+final class TeamStorage
 {
     /**
      * Bytes in a megabyte, the unit the quota is configured in.

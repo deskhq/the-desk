@@ -8,14 +8,14 @@ use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
-class UpdateSidebarSectionsRequest extends FormRequest
+final class UpdateSidebarSectionsRequest extends FormRequest
 {
     /**
      * The built-in sidebar sections whose collapsed state may be persisted.
      *
      * @var list<string>
      */
-    public const SECTIONS = ['starred', 'channels', 'direct'];
+    public const array SECTIONS = ['starred', 'channels', 'direct'];
 
     /**
      * Determine if the user is authorized to make this request.

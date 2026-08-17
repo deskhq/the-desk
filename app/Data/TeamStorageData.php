@@ -14,7 +14,7 @@ use Spatie\TypeScriptTransformer\Attributes\TypeScript;
  * existing usage reports the real overshoot rather than a flat 100%.
  */
 #[TypeScript]
-class TeamStorageData extends Data
+final class TeamStorageData extends Data
 {
     public function __construct(
         public int $usedBytes,

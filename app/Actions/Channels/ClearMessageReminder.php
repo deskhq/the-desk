@@ -6,7 +6,7 @@ namespace App\Actions\Channels;
 
 use App\Models\MessageReminder;
 
-class ClearMessageReminder
+final class ClearMessageReminder
 {
     /**
      * Clear a reminder outright.

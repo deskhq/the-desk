@@ -8,11 +8,11 @@ use App\Enums\MessageType;
 use App\Models\Channel;
 use App\Models\User;
 
-class LeaveChannel
+final readonly class LeaveChannel
 {
     public function __construct(
-        private readonly RemoveChannelMember $removeChannelMember,
-        private readonly PostSystemMessage $postSystemMessage,
+        private RemoveChannelMember $removeChannelMember,
+        private PostSystemMessage $postSystemMessage,
     ) {}
 
     /**

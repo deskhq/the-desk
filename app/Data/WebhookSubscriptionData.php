@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Data;
 
 use App\Models\Team;
@@ -13,7 +15,7 @@ use Spatie\TypeScriptTransformer\Attributes\TypeScript;
  * signing secret is never included; the detail page exposes rotate/re-enable.
  */
 #[TypeScript]
-class WebhookSubscriptionData extends Data
+final class WebhookSubscriptionData extends Data
 {
     public function __construct(
         public string $id,

@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Controllers\Api\V1;
 
 use App\Actions\Channels\JoinChannel;
@@ -17,7 +19,7 @@ use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Support\Facades\Gate;
 
-class MemberController extends Controller
+final class MemberController extends Controller
 {
     /**
      * List the members of a channel the subject may view.

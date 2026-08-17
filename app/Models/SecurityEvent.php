@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Models;
 
 use App\Enums\SecurityEventType;
@@ -35,7 +37,7 @@ use Illuminate\Support\Carbon;
  * @property-read User $user
  */
 #[Fillable(['user_id', 'type', 'ip_address', 'user_agent', 'is_new_device'])]
-class SecurityEvent extends Model
+final class SecurityEvent extends Model
 {
     /** @use HasFactory<SecurityEventFactory> */
     use HasFactory, HasUuids;
@@ -46,11 +48,11 @@ class SecurityEvent extends Model
     #[\Override]
     protected static function booted(): void
     {
-        static::updating(function (): never {
+        self::updating(function (): never {
             throw new SecurityEventImmutableException('Security events cannot be updated.');
         });
 
-        static::deleting(function (): never {
+        self::deleting(function (): never {
             throw new SecurityEventImmutableException('Security events cannot be deleted.');
         });
     }

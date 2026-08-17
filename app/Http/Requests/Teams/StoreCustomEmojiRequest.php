@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Requests\Teams;
 
 use App\Http\Requests\RouteBoundRequest;
@@ -8,7 +10,7 @@ use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\Rule;
 
-class StoreCustomEmojiRequest extends RouteBoundRequest
+final class StoreCustomEmojiRequest extends RouteBoundRequest
 {
     /**
      * Determine if the user is authorized to make this request.

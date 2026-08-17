@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 use App\Actions\Channels\OpenDirectMessage;
 use App\Models\Channel;
 use Inertia\Testing\AssertableInertia as Assert;

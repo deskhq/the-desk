@@ -15,7 +15,7 @@ use ArieTimmerman\Laravel\SCIMServer\SCIM\Schema;
  * (unmapped) extension urn. Since the value is server-defined anyway, the replace
  * is accepted as a no-op so a full replace never fails on this housekeeping field.
  */
-class ScimSchemasAttribute extends Constant
+final class ScimSchemasAttribute extends Constant
 {
     public function __construct()
     {

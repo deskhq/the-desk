@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Providers;
 
 use App\Models\PersonalAccessToken;
@@ -20,7 +22,7 @@ use Illuminate\Validation\Rules\Password;
 use Laravel\Sanctum\Sanctum;
 use Meilisearch\Client;
 
-class AppServiceProvider extends ServiceProvider
+final class AppServiceProvider extends ServiceProvider
 {
     /**
      * Register any application services.

@@ -1,10 +1,12 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Support;
 
 use Illuminate\Support\Facades\File;
 
-class TranslationCatalog
+final class TranslationCatalog
 {
     /**
      * The message catalog for a locale (source string → translation).

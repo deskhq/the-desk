@@ -16,7 +16,7 @@ use Spatie\TypeScriptTransformer\Attributes\TypeScript;
  * it in autocomplete with no frontend change.
  */
 #[TypeScript]
-class SlashCommandData extends Data
+final class SlashCommandData extends Data
 {
     public function __construct(
         public string $name,

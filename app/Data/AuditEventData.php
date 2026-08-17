@@ -1,10 +1,13 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Data;
 
 use App\Enums\AuditAction;
 use App\Models\AuditActivity;
 use App\Models\User;
+use App\Support\PersistedTimestamp;
 use Spatie\LaravelData\Data;
 use Spatie\TypeScriptTransformer\Attributes\TypeScript;
 
@@ -16,7 +19,7 @@ use Spatie\TypeScriptTransformer\Attributes\TypeScript;
  * fill — the context an action was recorded with never leaves the server.
  */
 #[TypeScript]
-class AuditEventData extends Data
+final class AuditEventData extends Data
 {
     public function __construct(
         public string $id,
@@ -46,7 +49,7 @@ class AuditEventData extends Data
             label: $action->label(),
             actorName: $actor?->name,
             description: $action->describe($context),
-            occurredAt: $activity->created_at->toIso8601String(),
+            occurredAt: PersistedTimestamp::of($activity->created_at)->toIso8601String(),
         );
     }
 }

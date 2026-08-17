@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Requests\Api\V1;
 
 use App\Support\Integrations\ApiChannelAccess;
@@ -10,7 +12,7 @@ use Illuminate\Support\Facades\Gate;
  * Validates a bot adding a reaction to a message via the public API. The emoji
  * is a route segment, so it is merged into the input for validation.
  */
-class AddReactionRequest extends ApiRequest
+final class AddReactionRequest extends ApiRequest
 {
     /**
      * The bot must be a member of the channel, the message must belong to it and

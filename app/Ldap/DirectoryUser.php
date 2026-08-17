@@ -18,7 +18,7 @@ use LdapRecord\Models\Model;
  * holding the stable identity) is configurable so an operator can point it at
  * `objectguid` (AD) or `entryuuid` (OpenLDAP).
  */
-class DirectoryUser extends Model
+final class DirectoryUser extends Model
 {
     /**
      * The object classes of the LDAP model.

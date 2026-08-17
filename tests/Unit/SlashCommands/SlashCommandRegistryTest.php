@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 use App\Data\SlashCommandData;
 use App\SlashCommands\Commands\ShrugCommand;
 use App\SlashCommands\Commands\TableflipCommand;

@@ -6,7 +6,7 @@ namespace App\Actions\Sidebar;
 
 use App\Models\ChannelSection;
 
-class UpdateChannelSection
+final class UpdateChannelSection
 {
     /**
      * Rename and/or collapse a custom sidebar section.

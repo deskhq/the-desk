@@ -15,7 +15,7 @@ use App\Models\User;
  * broadcast lets teammates' open clients repaint the DND badge — a window that
  * covers this very moment flips the flag right now.
  */
-class SetDndSchedule
+final class SetDndSchedule
 {
     public function handle(User $user, bool $enabled, ?string $startsAt = null, ?string $endsAt = null): void
     {

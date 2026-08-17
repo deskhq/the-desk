@@ -1,12 +1,14 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Requests\Channels;
 
 use App\Http\Requests\RouteBoundRequest;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Support\Facades\Gate;
 
-class GifSearchRequest extends RouteBoundRequest
+final class GifSearchRequest extends RouteBoundRequest
 {
     /**
      * Searching the picker reuses the post-message policy: if the user could not

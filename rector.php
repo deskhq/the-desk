@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use Rector\CodeQuality\Rector\Class_\InlineConstructorDefaultToPropertyRector;
 use Rector\Config\RectorConfig;
+use Rector\DeadCode\Rector\ClassMethod\RemoveUnusedPublicMethodParameterRector;
 use Rector\TypeDeclaration\Rector\ClassMethod\ReturnTypeFromStrictTypedCallRector;
 use RectorLaravel\Rector\ArrayDimFetch\EnvVariableToEnvHelperRector;
 use RectorLaravel\Rector\FuncCall\AppToResolveRector;
@@ -50,6 +51,13 @@ return RectorConfig::configure()
         __DIR__.'/tests/Browser/Support/LaravelHttpServer.php',
         // Keep explicit constructor bodies readable; do not inline defaults.
         InlineConstructorDefaultToPropertyRector::class,
+        // A policy method's `$user` parameter is load-bearing even when the body
+        // ignores it: the gate reflects on it to decide whether the ability may
+        // be resolved for a guest, so dropping it from `viewAny()`/`create()`
+        // turns "denied before we ask" into "asked, and it said yes".
+        RemoveUnusedPublicMethodParameterRector::class => [
+            __DIR__.'/app/Policies',
+        ],
         // `app()` and `resolve()` are equivalent; don't churn the codebase over
         // a purely stylistic preference.
         AppToResolveRector::class,

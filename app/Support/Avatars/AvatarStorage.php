@@ -10,7 +10,7 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Intervention\Image\Encoders\AutoEncoder;
 
-class AvatarStorage
+final readonly class AvatarStorage
 {
     /**
      * The longest edge (px) the stored avatar is scaled down to fit. Only ever
@@ -30,7 +30,7 @@ class AvatarStorage
      */
     public const string DISK = 'public';
 
-    public function __construct(private readonly ImageProcessor $images) {}
+    public function __construct(private ImageProcessor $images) {}
 
     /**
      * Strip metadata, downscale, and store an uploaded avatar plus its thumbnail

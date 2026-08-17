@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Controllers\Settings;
 
 use App\Actions\Users\RemoveUserAvatar;
@@ -10,14 +12,14 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
-class AvatarController extends Controller
+final class AvatarController extends Controller
 {
     /**
      * Store a newly uploaded avatar.
      */
     public function store(StoreAvatarRequest $request, StoreUserAvatar $avatar): RedirectResponse
     {
-        $avatar->handle($request->user(), $request->file('photo'));
+        $avatar->handle($this->viewer($request), $request->file('photo'));
 
         Inertia::flash('toast', ['type' => 'success', 'message' => __('Photo updated everywhere')]);
 
@@ -30,7 +32,7 @@ class AvatarController extends Controller
      */
     public function destroy(Request $request, RemoveUserAvatar $avatar): RedirectResponse
     {
-        $avatar->handle($request->user());
+        $avatar->handle($this->viewer($request));
 
         Inertia::flash('toast', ['type' => 'success', 'message' => __('Photo removed')]);
 

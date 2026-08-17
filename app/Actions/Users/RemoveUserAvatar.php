@@ -12,9 +12,9 @@ use App\Support\Avatars\AvatarStorage;
  * Remove a user's uploaded avatar, reverting to the Gravatar → initials
  * fallback, and clean up its stored blob.
  */
-class RemoveUserAvatar
+final readonly class RemoveUserAvatar
 {
-    public function __construct(private readonly AvatarStorage $storage) {}
+    public function __construct(private AvatarStorage $storage) {}
 
     public function handle(User $user): void
     {

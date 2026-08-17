@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 use App\Services\Sso\GenericOidcProvider;
 use GuzzleHttp\Handler\MockHandler;
 use Laravel\Socialite\Facades\Socialite;

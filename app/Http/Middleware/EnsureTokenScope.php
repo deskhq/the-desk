@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Middleware;
 
 use App\Enums\IntegrationScope;
@@ -13,7 +15,7 @@ use Symfony\Component\HttpFoundation\Response;
  * token acts strictly within the abilities it was minted with — least-privilege
  * by default — and a request whose token lacks the scope is refused with a 403.
  */
-class EnsureTokenScope
+final class EnsureTokenScope
 {
     /**
      * @param  Closure(Request): (Response)  $next

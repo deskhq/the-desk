@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Requests\Api\V1;
 
 use App\Enums\ChannelVisibility;
@@ -13,7 +15,7 @@ use Illuminate\Validation\Rule;
 /**
  * Validates a subject creating a channel in its acting team via the public API.
  */
-class StoreChannelRequest extends ApiRequest
+final class StoreChannelRequest extends ApiRequest
 {
     /**
      * A bot may create channels in the team it is scoped to; a human PAT defers

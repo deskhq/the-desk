@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 use App\Data\AttachmentData;
 use App\Enums\AttachmentSource;
 use App\Models\Attachment;

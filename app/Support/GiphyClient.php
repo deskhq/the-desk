@@ -20,7 +20,7 @@ use Illuminate\Support\Facades\Http;
  * small {@see GiphyGifData} shape the picker needs — the client never sees a raw
  * Giphy payload and never chooses which rendition is stored.
  */
-class GiphyClient
+final class GiphyClient
 {
     /**
      * Giphy's own per-request page-size ceiling (an API constraint, not an

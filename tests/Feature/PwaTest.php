@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 /**
  * The manifest as the browser receives it. It is rendered per request by
  * App\Http\Controllers\WebManifestController rather than emitted at build time,

@@ -7,7 +7,7 @@ namespace App\Actions\Users;
 use App\Models\User;
 use App\Support\ExpirySweep;
 
-class ClearLapsedDndPauses
+final class ClearLapsedDndPauses
 {
     /**
      * Null out every manual do-not-disturb pause whose instant has passed, and

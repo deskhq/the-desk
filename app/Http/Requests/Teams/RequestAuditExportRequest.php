@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Requests\Teams;
 
 use App\Enums\AuditExportFormat;
@@ -9,7 +11,7 @@ use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\Rule;
 
-class RequestAuditExportRequest extends RouteBoundRequest
+final class RequestAuditExportRequest extends RouteBoundRequest
 {
     /**
      * Determine if the user may export the requested log for this workspace.

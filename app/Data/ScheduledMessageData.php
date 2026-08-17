@@ -1,13 +1,16 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Data;
 
 use App\Models\ScheduledMessage;
+use App\Support\PersistedTimestamp;
 use Spatie\LaravelData\Data;
 use Spatie\TypeScriptTransformer\Attributes\TypeScript;
 
 #[TypeScript]
-class ScheduledMessageData extends Data
+final class ScheduledMessageData extends Data
 {
     public function __construct(
         public string $id,
@@ -38,7 +41,7 @@ class ScheduledMessageData extends Data
             clientUuid: $scheduled->client_uuid,
             body: $scheduled->body,
             sendAt: $scheduled->send_at->toIso8601String(),
-            createdAt: $scheduled->created_at->toIso8601String(),
+            createdAt: PersistedTimestamp::of($scheduled->created_at)->toIso8601String(),
             replyTo: $scheduled->replyTo !== null
                 ? MessageReplyData::fromMessage($scheduled->replyTo)
                 : null,

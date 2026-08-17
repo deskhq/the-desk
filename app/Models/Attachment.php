@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Models;
 
 use App\Enums\AttachmentSource;
@@ -43,7 +45,7 @@ use Illuminate\Support\Facades\Storage;
  * @property-read Channel $channel
  */
 #[Fillable(['message_id', 'user_id', 'channel_id', 'source', 'disk', 'path', 'original_filename', 'mime_type', 'size_bytes', 'width', 'height', 'remote_url', 'description', 'thumb_path', 'status'])]
-class Attachment extends Model
+final class Attachment extends Model
 {
     /** @use HasFactory<AttachmentFactory> */
     use HasFactory, HasUuids, SoftDeletes;
@@ -78,7 +80,7 @@ class Attachment extends Model
     #[\Override]
     protected static function booted(): void
     {
-        static::forceDeleted(function (Attachment $attachment): void {
+        self::forceDeleted(function (Attachment $attachment): void {
             // A remote attachment (Giphy) has no blob on disk — nothing to reclaim.
             if ($attachment->path === null) {
                 return;
@@ -145,6 +147,23 @@ class Attachment extends Model
     {
         return str_starts_with($this->mime_type, 'image/')
             && ! in_array($this->mime_type, self::NON_INLINE_IMAGE_MIMES, true);
+    }
+
+    /**
+     * The stored blob's path on {@see $disk}.
+     *
+     * The blob columns are nullable because a remote attachment (Giphy) is
+     * hotlink metadata rather than a file we hold, so there is nothing to read,
+     * rewrite or serve for one. Every caller here is on the upload side of that
+     * split, and a remote row reaching one means the route matched something it
+     * cannot serve — a 404, the same answer the serve route gives for a file the
+     * reader may not see.
+     */
+    public function blobPath(): string
+    {
+        abort_if($this->path === null, 404);
+
+        return $this->path;
     }
 
     /**

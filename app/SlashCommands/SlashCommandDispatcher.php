@@ -14,9 +14,9 @@ use App\Actions\Channels\PostMessage;
  * client_uuid dedup exactly like an ordinary send. `notice` and `error` results
  * carry no side effect; the caller renders them as toasts.
  */
-class SlashCommandDispatcher
+final readonly class SlashCommandDispatcher
 {
-    public function __construct(private readonly PostMessage $postMessage) {}
+    public function __construct(private PostMessage $postMessage) {}
 
     public function dispatch(SlashCommand $command, SlashCommandContext $ctx): SlashCommandResult
     {

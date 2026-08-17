@@ -14,7 +14,7 @@ namespace App\Support\Branding;
  * whatever description it was installed with — so it stays out of the
  * translation catalogs.
  */
-class WebManifest
+final class WebManifest
 {
     /**
      * Brand ink — the plate the icon mark sits on, reused for the installed

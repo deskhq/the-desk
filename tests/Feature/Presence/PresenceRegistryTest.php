@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 use App\Enums\PresenceState;
 use App\Support\PresenceRegistry;
 use Illuminate\Contracts\Cache\Repository;

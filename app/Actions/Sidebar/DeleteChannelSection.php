@@ -6,7 +6,7 @@ namespace App\Actions\Sidebar;
 
 use App\Models\ChannelSection;
 
-class DeleteChannelSection
+final class DeleteChannelSection
 {
     /**
      * Delete a custom sidebar section.

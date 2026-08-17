@@ -8,7 +8,7 @@ use App\Events\MessagePinned;
 use App\Models\Channel;
 use App\Models\Message;
 
-class UnpinMessage
+final class UnpinMessage
 {
     /**
      * Unpin a message from its channel, then broadcast the fresh patch.

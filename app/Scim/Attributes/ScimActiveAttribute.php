@@ -20,7 +20,7 @@ use Illuminate\Database\Eloquent\Model;
  * that must accompany a deactivation is applied by App\Http\Controllers\Scim\
  * ScimUserController, which owns the request lifecycle.
  */
-class ScimActiveAttribute extends Eloquent
+final class ScimActiveAttribute extends Eloquent
 {
     public function __construct()
     {

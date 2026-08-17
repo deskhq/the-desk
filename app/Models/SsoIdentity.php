@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Models;
 
 use Database\Factories\SsoIdentityFactory;
@@ -26,7 +28,7 @@ use Illuminate\Support\Carbon;
  * @property-read User $user
  */
 #[Fillable(['user_id', 'provider', 'provider_id'])]
-class SsoIdentity extends Model
+final class SsoIdentity extends Model
 {
     /** @use HasFactory<SsoIdentityFactory> */
     use HasFactory, HasUuids;

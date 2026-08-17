@@ -1,12 +1,14 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Controllers\Settings;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 
-class ReadReceiptsController extends Controller
+final class ReadReceiptsController extends Controller
 {
     /**
      * Toggle whether the current user shares their read position with peers.
@@ -21,7 +23,7 @@ class ReadReceiptsController extends Controller
             'share_read_receipts' => ['required', 'boolean'],
         ]);
 
-        $request->user()->update($validated);
+        $this->viewer($request)->update($validated);
 
         return back();
     }

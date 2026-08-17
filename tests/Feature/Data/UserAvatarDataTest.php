@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 use App\Data\MentionData;
 use App\Data\UserData;
 use App\Data\UserProfileData;

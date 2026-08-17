@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 test('honors the proxy X-Forwarded-Proto so absolute URLs are https', function (): void {
     // A guest hitting an auth-guarded route is redirected to an absolute login
     // URL, so the redirect scheme reflects how the app perceives the request.

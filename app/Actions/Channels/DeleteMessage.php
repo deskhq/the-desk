@@ -14,9 +14,9 @@ use App\Models\Channel;
 use App\Models\Message;
 use App\Models\User;
 
-class DeleteMessage
+final readonly class DeleteMessage
 {
-    public function __construct(private readonly UnpinMessage $unpinMessage) {}
+    public function __construct(private UnpinMessage $unpinMessage) {}
 
     /**
      * Soft-delete a message and broadcast the tombstone.

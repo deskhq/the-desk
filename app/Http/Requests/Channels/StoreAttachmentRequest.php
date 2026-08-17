@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Requests\Channels;
 
 use App\Http\Requests\RouteBoundRequest;
@@ -9,7 +11,7 @@ use App\Support\TeamStorage;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Support\Facades\Gate;
 
-class StoreAttachmentRequest extends RouteBoundRequest
+final class StoreAttachmentRequest extends RouteBoundRequest
 {
     /**
      * Determine if the user is authorized to make this request.

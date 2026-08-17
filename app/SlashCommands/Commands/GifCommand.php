@@ -18,7 +18,7 @@ use App\SlashCommands\SlashCommandResult;
  * therefore a fallback for a client that submits `/gif` as raw text (e.g. with
  * JavaScript disabled): it returns a hint rather than posting a literal `/gif`.
  */
-class GifCommand extends BaseSlashCommand
+final class GifCommand extends BaseSlashCommand
 {
     public function name(): string
     {
@@ -30,7 +30,7 @@ class GifCommand extends BaseSlashCommand
         return __('Search Giphy for a GIF to send');
     }
 
-    public function argumentHint(): ?string
+    public function argumentHint(): string
     {
         return __('[search]');
     }

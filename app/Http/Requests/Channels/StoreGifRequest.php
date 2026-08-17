@@ -1,12 +1,14 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Requests\Channels;
 
 use App\Http\Requests\RouteBoundRequest;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Support\Facades\Gate;
 
-class StoreGifRequest extends RouteBoundRequest
+final class StoreGifRequest extends RouteBoundRequest
 {
     /**
      * Attaching a GIF reuses the post-message policy, exactly like uploading a

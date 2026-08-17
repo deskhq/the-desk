@@ -13,7 +13,7 @@ use App\Models\Channel;
 use App\Models\Message;
 use App\Models\User;
 
-class ToggleReaction
+final class ToggleReaction
 {
     /**
      * Toggle a user's emoji reaction on a message, then broadcast the new summary.

@@ -1,12 +1,14 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Requests\Channels;
 
 use App\Http\Requests\RouteBoundRequest;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Support\Facades\Gate;
 
-class EditMessageRequest extends RouteBoundRequest
+final class EditMessageRequest extends RouteBoundRequest
 {
     /**
      * Determine if the user is authorized to make this request.

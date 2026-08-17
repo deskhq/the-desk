@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Controllers\Api\V1;
 
 use App\Actions\Channels\DeleteMessage;
@@ -20,7 +22,7 @@ use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Str;
 
-class MessageController extends Controller
+final class MessageController extends Controller
 {
     /**
      * List a channel's messages, newest first, paginated.

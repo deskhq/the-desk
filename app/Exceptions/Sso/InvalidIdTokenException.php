@@ -11,7 +11,7 @@ use RuntimeException;
  * audience, or a subject that disagrees with the UserInfo response. Signals a
  * misbehaving or compromised token exchange, so the sign-in is rejected.
  */
-class InvalidIdTokenException extends RuntimeException
+final class InvalidIdTokenException extends RuntimeException
 {
     //
 }

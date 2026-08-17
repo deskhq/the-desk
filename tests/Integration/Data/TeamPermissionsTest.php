@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 use App\Data\TeamPermissions;
 use App\Enums\TeamRole;
 use App\Models\Team;

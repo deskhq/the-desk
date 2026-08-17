@@ -8,7 +8,7 @@ use App\Enums\PostRegistrationPrompt;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 
-class PostRegistrationPromptController extends Controller
+final class PostRegistrationPromptController extends Controller
 {
     /**
      * Answer the one-time post-registration prompt, whichever way it was answered.

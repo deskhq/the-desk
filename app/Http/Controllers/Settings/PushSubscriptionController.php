@@ -20,7 +20,7 @@ use Illuminate\Http\Response;
  * browser's own `pushManager.getSubscription()`, so there is no server state to
  * hand back.
  */
-class PushSubscriptionController extends Controller
+final class PushSubscriptionController extends Controller
 {
     /**
      * Register (or refresh) this browser's push subscription.
@@ -33,7 +33,7 @@ class PushSubscriptionController extends Controller
      */
     public function store(StorePushSubscriptionRequest $request): Response
     {
-        $request->user()->updatePushSubscription(
+        $this->viewer($request)->updatePushSubscription(
             $request->endpoint(),
             $request->publicKey(),
             $request->authToken(),
@@ -52,7 +52,7 @@ class PushSubscriptionController extends Controller
      */
     public function destroy(DeletePushSubscriptionRequest $request): Response
     {
-        $request->user()->deletePushSubscription($request->endpoint());
+        $this->viewer($request)->deletePushSubscription($request->endpoint());
 
         return response()->noContent();
     }

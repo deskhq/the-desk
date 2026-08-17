@@ -1,12 +1,14 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Controllers;
 
 use App\Enums\AppLocale;
 use App\Support\TranslationCatalog;
 use Illuminate\Http\JsonResponse;
 
-class LocaleCatalogController extends Controller
+final class LocaleCatalogController extends Controller
 {
     public function __construct(protected TranslationCatalog $catalog) {}
 

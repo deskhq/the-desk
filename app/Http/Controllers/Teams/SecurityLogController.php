@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Controllers\Teams;
 
 use App\Enums\SecurityEventType;
@@ -10,7 +12,7 @@ use App\Support\SecurityLog;
 use Inertia\Inertia;
 use Inertia\Response;
 
-class SecurityLogController extends Controller
+final class SecurityLogController extends Controller
 {
     /**
      * Show the workspace's security log, newest first, filterable by type and

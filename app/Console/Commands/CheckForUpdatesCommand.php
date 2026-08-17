@@ -16,7 +16,7 @@ use Illuminate\Console\Command;
  */
 #[Signature('updates:check')]
 #[Description('Check GitHub for a newer stable release and cache the result')]
-class CheckForUpdatesCommand extends Command
+final class CheckForUpdatesCommand extends Command
 {
     /**
      * Execute the console command.

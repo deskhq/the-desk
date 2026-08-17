@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Data;
 
 use App\Models\PollOption;
@@ -8,7 +10,7 @@ use Spatie\LaravelData\Data;
 use Spatie\TypeScriptTransformer\Attributes\TypeScript;
 
 #[TypeScript]
-class PollOptionData extends Data
+final class PollOptionData extends Data
 {
     /**
      * @param  array<int, MentionData>|null  $voters

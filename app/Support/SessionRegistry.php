@@ -23,9 +23,9 @@ use Illuminate\Contracts\Cache\Repository as Cache;
  *
  * @phpstan-type SessionMeta array{ip_address: ?string, user_agent: ?string, last_activity: int}
  */
-class SessionRegistry
+final readonly class SessionRegistry
 {
-    public function __construct(private readonly Cache $cache) {}
+    public function __construct(private Cache $cache) {}
 
     /**
      * Record — or refresh the activity of — a session for the given user.

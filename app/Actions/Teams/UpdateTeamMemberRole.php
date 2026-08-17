@@ -16,7 +16,7 @@ use App\Models\User;
  * Re-submitting the role someone already holds is a no-op that records nothing:
  * a role change is only auditable when the role actually moved.
  */
-class UpdateTeamMemberRole
+final class UpdateTeamMemberRole
 {
     public function handle(Team $team, User $member, TeamRole $role, User $actor): void
     {

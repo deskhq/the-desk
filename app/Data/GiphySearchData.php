@@ -8,7 +8,7 @@ use Spatie\LaravelData\Data;
 use Spatie\TypeScriptTransformer\Attributes\TypeScript;
 
 #[TypeScript]
-class GiphySearchData extends Data
+final class GiphySearchData extends Data
 {
     /**
      * @param  array<int, GiphyGifData>  $results

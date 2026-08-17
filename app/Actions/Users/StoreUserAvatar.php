@@ -17,9 +17,9 @@ use Illuminate\Http\UploadedFile;
  * leaves no orphan and never strands the row on a file that is already gone.
  * The broadcast lets every other open client swap the image live.
  */
-class StoreUserAvatar
+final readonly class StoreUserAvatar
 {
-    public function __construct(private readonly AvatarStorage $storage) {}
+    public function __construct(private AvatarStorage $storage) {}
 
     public function handle(User $user, UploadedFile $photo): void
     {

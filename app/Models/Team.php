@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Models;
 
 use App\Concerns\GeneratesUniqueTeamSlugs;
@@ -38,7 +40,7 @@ use Illuminate\Support\Carbon;
  * @property-read Collection<int, WebhookSubscription> $webhookSubscriptions
  */
 #[Fillable(['name', 'slug', 'is_personal', 'public_channel_creation_policy', 'private_channel_creation_policy'])]
-class Team extends Model
+final class Team extends Model
 {
     /** @use HasFactory<TeamFactory> */
     use GeneratesUniqueTeamSlugs, HasFactory, HasUuids, SoftDeletes;
@@ -74,9 +76,9 @@ class Team extends Model
          * three ways a blank slug could otherwise be persisted: a create with
          * no slug, a rename, and a slug explicitly blanked without a rename.
          */
-        static::saving(function (Team $team): void {
+        self::saving(function (Team $team): void {
             if (blank($team->slug) || ($team->exists && $team->isDirty('name'))) {
-                $team->slug = static::generateUniqueTeamSlug(
+                $team->slug = self::generateUniqueTeamSlug(
                     (string) $team->name,
                     $team->exists ? $team->id : null,
                 );

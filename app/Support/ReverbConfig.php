@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Support;
 
-class ReverbConfig
+final class ReverbConfig
 {
     /**
      * The browser-facing Reverb connection details, served to the SPA at runtime

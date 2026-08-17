@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 use App\Enums\MessageReminderStatus;
 use App\Models\Channel;
 use App\Models\Message;

@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 use Inertia\Testing\AssertableInertia as Assert;
 
 test('registration routes respond when registration is enabled', function (): void {

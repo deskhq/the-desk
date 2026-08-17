@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 use App\Data\DataExportData;
 use App\Enums\DataExportStatus;
 use App\Enums\SecurityEventType;

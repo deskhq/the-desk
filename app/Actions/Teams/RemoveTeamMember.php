@@ -17,7 +17,7 @@ use App\Models\User;
  * workspace is moved to their personal team so they never land on one they no
  * longer belong to.
  */
-class RemoveTeamMember
+final class RemoveTeamMember
 {
     public function handle(Team $team, User $member, User $actor): void
     {
@@ -28,7 +28,7 @@ class RemoveTeamMember
         $member->leaveUserGroups($team);
 
         if ($member->isCurrentTeam($team)) {
-            $member->switchTeam($member->personalTeam());
+            $member->switchTeam($member->personalTeamOrFail());
         }
 
         event(new AuditableActionOccurred($team, $actor, AuditAction::MemberRemoved, $member, [

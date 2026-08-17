@@ -1,13 +1,16 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Data;
 
 use App\Models\AuditExport;
+use App\Support\PersistedTimestamp;
 use Spatie\LaravelData\Data;
 use Spatie\TypeScriptTransformer\Attributes\TypeScript;
 
 #[TypeScript]
-class AuditExportData extends Data
+final class AuditExportData extends Data
 {
     public function __construct(
         public string $id,
@@ -44,7 +47,7 @@ class AuditExportData extends Data
             rangeStart: $export->range_start?->toDateString(),
             rangeEnd: $export->range_end?->toDateString(),
             requestedByName: $export->requester?->name,
-            requestedAt: $export->created_at->toIso8601String(),
+            requestedAt: PersistedTimestamp::of($export->created_at)->toIso8601String(),
             expiresAt: $export->expires_at?->toIso8601String(),
         );
     }

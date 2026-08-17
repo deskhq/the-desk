@@ -8,7 +8,7 @@ use App\Enums\SecurityEventType;
 use App\Events\SecurityEventOccurred;
 use App\Models\User;
 
-class UserObserver
+final class UserObserver
 {
     /**
      * Handle the User "updated" event, auditing directory (de)activation.

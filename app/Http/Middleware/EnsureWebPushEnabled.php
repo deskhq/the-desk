@@ -15,7 +15,7 @@ use Symfony\Component\HttpFoundation\Response;
  * delivered to — the endpoints 404 and the settings toggle stays hidden, which
  * keeps the two sides of the feature in agreement.
  */
-class EnsureWebPushEnabled
+final class EnsureWebPushEnabled
 {
     /**
      * @param  Closure(Request): (Response)  $next

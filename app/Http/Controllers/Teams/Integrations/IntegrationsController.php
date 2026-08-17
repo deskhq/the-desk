@@ -16,7 +16,7 @@ use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
 
-class IntegrationsController extends Controller
+final class IntegrationsController extends Controller
 {
     /**
      * Show the team's integrations home — its bots, incoming webhooks, and

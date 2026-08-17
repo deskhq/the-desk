@@ -9,9 +9,10 @@ use App\Events\AuditableActionOccurred;
 use App\Jobs\PurgeDeletedChannel;
 use App\Models\Channel;
 use App\Models\User;
+use App\Support\PersistedTimestamp;
 use Illuminate\Support\Facades\DB;
 
-class DeleteChannel
+final class DeleteChannel
 {
     /**
      * Delete a channel, hiding it everywhere and starting its grace window.
@@ -45,7 +46,7 @@ class DeleteChannel
 
                 event(new AuditableActionOccurred($locked->team, $actor, AuditAction::ChannelDeleted, $locked, [
                     'channel_name' => $locked->name,
-                    'purge_at' => $locked->deleted_at->addDays(Channel::RESTORE_WINDOW_DAYS)->toDateString(),
+                    'purge_at' => PersistedTimestamp::of($locked->deleted_at)->addDays(Channel::RESTORE_WINDOW_DAYS)->toDateString(),
                 ]));
             }
 

@@ -20,7 +20,7 @@ use MaxMind\Db\Reader\InvalidDatabaseException;
  * unreadable database) resolves to null, so callers can simply omit the
  * location when none is available.
  */
-class IpGeolocator
+final class IpGeolocator
 {
     /**
      * The lazily-opened database reader, memoised after the first successful open.

@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Actions\Channels;
 
 use App\Data\UserData;
@@ -10,7 +12,7 @@ use App\Models\ChannelMember;
 use App\Models\User;
 use App\Support\ChannelMembership;
 
-class MarkChannelRead
+final class MarkChannelRead
 {
     /**
      * Advance the user's read pointer to the channel's most recent message.

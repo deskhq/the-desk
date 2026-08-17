@@ -26,7 +26,7 @@ use Illuminate\Support\Facades\Storage;
  * thumbnail) instead of hanging or 500ing, and the negative result is cached
  * briefly so a dead host is not re-dialled on every page render.
  */
-class FetchRemoteImage
+final readonly class FetchRemoteImage
 {
     /**
      * The disk cached image bytes live on. Private, since the proxy route — not
@@ -73,7 +73,7 @@ class FetchRemoteImage
      */
     private const string FAILED = '__failed__';
 
-    public function __construct(private readonly GuardedEgress $egress) {}
+    public function __construct(private GuardedEgress $egress) {}
 
     /**
      * Resolve a remote image URL to its cached bytes, fetching it on first use.

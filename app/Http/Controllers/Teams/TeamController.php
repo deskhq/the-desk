@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Controllers\Teams;
 
 use App\Actions\Teams\CreateTeam;
@@ -18,6 +20,7 @@ use App\Models\Membership;
 use App\Models\Team;
 use App\Models\TeamInvitation;
 use App\Models\User;
+use App\Support\PersistedTimestamp;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -25,14 +28,14 @@ use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
 use Inertia\Response;
 
-class TeamController extends Controller
+final class TeamController extends Controller
 {
     /**
      * Display a listing of the user's teams.
      */
     public function index(Request $request): Response
     {
-        $user = $request->user();
+        $user = $this->viewer($request);
 
         return Inertia::render('teams/Index', [
             'teams' => $user->toUserTeams(includeCurrent: true),
@@ -44,7 +47,7 @@ class TeamController extends Controller
      */
     public function store(SaveTeamRequest $request, CreateTeam $createTeam): RedirectResponse
     {
-        $team = $createTeam->handle($request->user(), $request->validated('name'));
+        $team = $createTeam->handle($this->viewer($request), $request->validated('name'));
 
         Inertia::flash('toast', ['type' => 'success', 'message' => __('Team created')]);
 
@@ -63,7 +66,7 @@ class TeamController extends Controller
     {
         Gate::authorize('view', $team);
 
-        $user = $request->user();
+        $user = $this->viewer($request);
         $canViewRoster = Gate::allows('inviteMember', $team);
         $canAdminister = Gate::allows('update', $team);
 
@@ -98,7 +101,7 @@ class TeamController extends Controller
                         'email' => $invitation->email,
                         'role' => $invitation->role->value,
                         'role_label' => $invitation->role->label(),
-                        'created_at' => $invitation->created_at->toISOString(),
+                        'created_at' => PersistedTimestamp::iso($invitation->created_at),
                     ])
                 : collect(),
             'permissions' => $user->toTeamPermissions($team),
@@ -147,7 +150,7 @@ class TeamController extends Controller
     {
         Gate::authorize('update', $team);
 
-        $team = $updateTeam->handle($team, $request->user(), $request->validated());
+        $team = $updateTeam->handle($team, $this->viewer($request), $request->validated());
 
         Inertia::flash('toast', ['type' => 'success', 'message' => __('Team updated')]);
 
@@ -159,9 +162,9 @@ class TeamController extends Controller
      */
     public function switch(Request $request, Team $team): RedirectResponse
     {
-        abort_unless($request->user()->belongsToTeam($team), 403);
+        abort_unless($this->viewer($request)->belongsToTeam($team), 403);
 
-        $request->user()->switchTeam($team);
+        $this->viewer($request)->switchTeam($team);
 
         return back();
     }
@@ -173,7 +176,7 @@ class TeamController extends Controller
     {
         Gate::authorize('leave', $team);
 
-        $user = $request->user();
+        $user = $this->viewer($request);
 
         $fallbackTeam = $user->isCurrentTeam($team) ? $user->fallbackTeam($team) : null;
 
@@ -197,7 +200,7 @@ class TeamController extends Controller
      */
     public function destroy(DeleteTeamRequest $request, Team $team, DeleteTeam $deleteTeam): RedirectResponse
     {
-        $user = $request->user();
+        $user = $this->viewer($request);
         $fallbackTeam = $user->isCurrentTeam($team) ? $user->fallbackTeam($team) : null;
 
         $deleteTeam->handle($team, $user);

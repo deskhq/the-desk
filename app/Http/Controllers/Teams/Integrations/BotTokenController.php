@@ -14,14 +14,14 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
-class BotTokenController extends Controller
+final class BotTokenController extends Controller
 {
     /**
      * Mint a scoped API token for a bot and reveal its plaintext value once.
      */
     public function store(StoreBotTokenRequest $request, Team $team, User $bot, MintBotToken $mint): RedirectResponse
     {
-        $token = $mint->handle($bot, $request->user(), $request->validated('name'), $request->abilities());
+        $token = $mint->handle($bot, $this->viewer($request), $request->validated('name'), $request->abilities());
 
         Inertia::flash('revealed', [
             'kind' => 'bot_token',
@@ -39,7 +39,7 @@ class BotTokenController extends Controller
     {
         $accessToken = $bot->tokens()->whereKey($token)->firstOrFail();
 
-        $revoke->handle($request->user(), $accessToken);
+        $revoke->handle($this->viewer($request), $accessToken);
 
         Inertia::flash('toast', ['type' => 'success', 'message' => __('Token revoked')]);
 

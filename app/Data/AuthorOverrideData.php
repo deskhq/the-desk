@@ -24,7 +24,7 @@ use Spatie\TypeScriptTransformer\Attributes\TypeScript;
  * only the name — so a caller falls back to the author's own value per field.
  */
 #[TypeScript]
-class AuthorOverrideData extends Data
+final class AuthorOverrideData extends Data
 {
     public function __construct(
         public ?string $name,

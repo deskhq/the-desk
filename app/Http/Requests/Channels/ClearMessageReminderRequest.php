@@ -1,12 +1,14 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Requests\Channels;
 
 use App\Http\Requests\RouteBoundRequest;
 use App\Models\MessageReminder;
 use Illuminate\Support\Facades\Gate;
 
-class ClearMessageReminderRequest extends RouteBoundRequest
+final class ClearMessageReminderRequest extends RouteBoundRequest
 {
     /**
      * Determine if the user is authorized to make this request.

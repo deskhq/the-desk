@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Controllers\Channels;
 
 use App\Actions\Channels\OpenDirectMessage;
@@ -10,7 +12,7 @@ use App\Models\Team;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 
-class DirectMessagePeopleController extends Controller
+final class DirectMessagePeopleController extends Controller
 {
     /**
      * Add people to a direct message, opening (or creating) the conversation for
@@ -29,7 +31,7 @@ class DirectMessagePeopleController extends Controller
 
         $participants = $channel->members->merge($added)->unique('id');
 
-        $conversation = $openDirectMessage->openForUsers($team, $request->user(), $participants);
+        $conversation = $openDirectMessage->openForUsers($team, $this->viewer($request), $participants);
 
         return to_route('channels.show', ['team' => $team->slug, 'channel' => $conversation->slug]);
     }

@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Data;
 
 use App\Support\SessionRegistry;
@@ -14,7 +16,7 @@ use Spatie\TypeScriptTransformer\Attributes\TypeScript;
  * session that cannot be revoked from here.
  */
 #[TypeScript]
-class SessionData extends Data
+final class SessionData extends Data
 {
     public function __construct(
         public string $id,

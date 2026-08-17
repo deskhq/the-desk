@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Models;
 
 use Database\Factories\WebhookDeliveryFactory;
@@ -32,7 +34,7 @@ use Illuminate\Support\Carbon;
  * @property-read WebhookSubscription $subscription
  */
 #[Fillable(['webhook_subscription_id', 'event_type', 'event_id', 'succeeded', 'response_status', 'duration_ms', 'attempt', 'error', 'envelope', 'is_replay'])]
-class WebhookDelivery extends Model
+final class WebhookDelivery extends Model
 {
     /** @use HasFactory<WebhookDeliveryFactory> */
     use HasFactory, HasUuids;

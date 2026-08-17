@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Controllers\Channels;
 
 use App\Actions\Channels\CancelScheduledMessage;
@@ -15,7 +17,7 @@ use App\Models\Team;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Carbon;
 
-class ScheduledMessageController extends Controller
+final class ScheduledMessageController extends Controller
 {
     /**
      * Schedule a message for future delivery to the channel.
@@ -24,7 +26,7 @@ class ScheduledMessageController extends Controller
     {
         $scheduleMessage->handle(
             channel: $channel,
-            author: $request->user(),
+            author: $this->viewer($request),
             body: $request->validated('body'),
             clientUuid: $request->validated('client_uuid'),
             sendAt: Carbon::parse($request->validated('send_at')),

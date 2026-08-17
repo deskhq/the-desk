@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 test('every page emits open graph and twitter card meta tags', function (): void {
     $html = $this->get('/login')->assertOk()->getContent();
 

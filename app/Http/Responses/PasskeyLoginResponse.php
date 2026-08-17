@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Responses;
 
 use App\Http\Responses\Concerns\RedirectsToCurrentTeam;
@@ -8,7 +10,7 @@ use Illuminate\Http\Request;
 use Laravel\Passkeys\Contracts\PasskeyLoginResponse as PasskeyLoginResponseContract;
 use Symfony\Component\HttpFoundation\Response;
 
-class PasskeyLoginResponse implements PasskeyLoginResponseContract
+final class PasskeyLoginResponse implements PasskeyLoginResponseContract
 {
     use RedirectsToCurrentTeam;
 

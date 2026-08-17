@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 use App\Models\User;
 
 test('an authenticated visit to the login page lands on the current team workspace', function (): void {

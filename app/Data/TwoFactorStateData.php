@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Data;
 
 use App\Models\User;
@@ -8,7 +10,7 @@ use Spatie\LaravelData\Data;
 use Spatie\TypeScriptTransformer\Attributes\TypeScript;
 
 #[TypeScript]
-class TwoFactorStateData extends Data
+final class TwoFactorStateData extends Data
 {
     /**
      * @param  array<int, string>  $recoveryCodes

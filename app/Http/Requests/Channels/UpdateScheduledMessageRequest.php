@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Requests\Channels;
 
 use App\Http\Requests\RouteBoundRequest;
@@ -7,7 +9,7 @@ use App\Models\ScheduledMessage;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Support\Facades\Gate;
 
-class UpdateScheduledMessageRequest extends RouteBoundRequest
+final class UpdateScheduledMessageRequest extends RouteBoundRequest
 {
     /**
      * Determine if the user is authorized to make this request.

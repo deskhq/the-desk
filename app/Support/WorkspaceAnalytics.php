@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Support;
 
 use App\Data\AnalyticsStatData;
@@ -23,7 +25,7 @@ use Illuminate\Support\Facades\DB;
  * non-deleted messages. Results are cached per team and range so the dashboard
  * never runs its handful of grouped queries on every request.
  */
-class WorkspaceAnalytics
+final class WorkspaceAnalytics
 {
     /**
      * How long a computed snapshot stays warm in the cache, in minutes.

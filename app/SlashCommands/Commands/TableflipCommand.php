@@ -11,7 +11,7 @@ use App\SlashCommands\SlashCommandResult;
 /**
  * `/tableflip [message]` — post the leading text with a flipped table appended.
  */
-class TableflipCommand extends BaseSlashCommand
+final class TableflipCommand extends BaseSlashCommand
 {
     public function name(): string
     {
@@ -23,7 +23,7 @@ class TableflipCommand extends BaseSlashCommand
         return __('Flip the table');
     }
 
-    public function argumentHint(): ?string
+    public function argumentHint(): string
     {
         return __('[message]');
     }

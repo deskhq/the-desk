@@ -1,11 +1,13 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Controllers;
 
 use App\Http\Requests\UpdateSidebarSectionsRequest;
 use Illuminate\Http\RedirectResponse;
 
-class SidebarSectionController extends Controller
+final class SidebarSectionController extends Controller
 {
     /**
      * Persist which sidebar sections the current user has collapsed.
@@ -18,7 +20,7 @@ class SidebarSectionController extends Controller
     {
         $collapsed = array_values(array_unique($request->validated('collapsed')));
 
-        $request->user()->update(['collapsed_channel_sections' => $collapsed]);
+        $this->viewer($request)->update(['collapsed_channel_sections' => $collapsed]);
 
         return back();
     }

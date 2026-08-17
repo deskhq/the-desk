@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Actions\Channels;
 
 use App\Events\ReadStateAdvanced;
@@ -10,7 +12,7 @@ use App\Models\User;
 use App\Support\ThreadInbox;
 use Illuminate\Support\Collection;
 
-class MarkAllThreadsRead
+final class MarkAllThreadsRead
 {
     /**
      * Clear the viewer's Threads inbox across one team in a single write.

@@ -8,7 +8,7 @@ use App\Enums\ScheduledMessageStatus;
 use App\Models\ScheduledMessage;
 use App\Models\User;
 
-class ScheduledMessagePolicy
+final class ScheduledMessagePolicy
 {
     /**
      * Determine whether the user can edit the scheduled message.

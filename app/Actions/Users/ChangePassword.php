@@ -24,9 +24,9 @@ use App\Support\SessionRegistry;
  * device making the change is spared; the rest are bounced to the login screen
  * on their next request by App\Http\Middleware\TrackActiveSession.
  */
-class ChangePassword
+final readonly class ChangePassword
 {
-    public function __construct(private readonly SessionRegistry $sessions) {}
+    public function __construct(private SessionRegistry $sessions) {}
 
     /**
      * Change the password, returning how many other sessions were revoked.

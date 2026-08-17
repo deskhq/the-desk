@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Policies;
 
 use App\Enums\ChannelVisibility;
@@ -8,7 +10,7 @@ use App\Models\Channel;
 use App\Models\Team;
 use App\Models\User;
 
-class ChannelPolicy
+final class ChannelPolicy
 {
     /**
      * Determine whether the user can create a channel in the team.

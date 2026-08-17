@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Models;
 
 use App\Enums\LinkPreviewStatus;
@@ -26,7 +28,7 @@ use Illuminate\Support\Carbon;
  * @property-read Message $message
  */
 #[Fillable(['message_id', 'url', 'status', 'title', 'description', 'image_url', 'site_name', 'position'])]
-class MessageLinkPreview extends Model
+final class MessageLinkPreview extends Model
 {
     /** @use HasFactory<MessageLinkPreviewFactory> */
     use HasFactory, HasUuids;

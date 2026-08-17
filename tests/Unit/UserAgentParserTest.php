@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 use App\Support\UserAgentParser;
 
 test('it detects the browser', function (string $userAgent, string $browser): void {

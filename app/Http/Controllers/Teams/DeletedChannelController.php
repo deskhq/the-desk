@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Controllers\Teams;
 
 use App\Actions\Channels\RestoreChannel;
@@ -13,7 +15,7 @@ use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
 use Inertia\Response;
 
-class DeletedChannelController extends Controller
+final class DeletedChannelController extends Controller
 {
     /**
      * Show the workspace's recently-deleted channels — the only way back from a

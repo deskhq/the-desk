@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 use App\Data\WorkspaceAnalyticsData;
 use App\Enums\AnalyticsRange;
 use App\Enums\TeamRole;

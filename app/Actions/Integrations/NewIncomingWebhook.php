@@ -12,12 +12,12 @@ use App\Models\IncomingWebhook;
  * hashed and is shown to the operator exactly once, here — it can never be
  * recovered afterwards.
  */
-class NewIncomingWebhook
+final readonly class NewIncomingWebhook
 {
     public function __construct(
-        public readonly IncomingWebhook $webhook,
-        public readonly string $token,
-        public readonly ?string $signingSecret = null,
+        public IncomingWebhook $webhook,
+        public string $token,
+        public ?string $signingSecret = null,
     ) {}
 
     /**

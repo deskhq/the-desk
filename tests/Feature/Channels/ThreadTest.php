@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 use App\Events\MessageSent;
 use App\Events\MessageUpdated;
 use App\Models\Channel;

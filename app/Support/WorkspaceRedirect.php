@@ -15,7 +15,7 @@ use Illuminate\Support\Facades\URL;
  * quietly fall back to Fortify's `/` default and drop someone on the public
  * marketing page instead of their workspace.
  */
-class WorkspaceRedirect
+final class WorkspaceRedirect
 {
     /**
      * The path of the user's channels workspace, or null when they have no team

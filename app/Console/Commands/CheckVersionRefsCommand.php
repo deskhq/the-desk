@@ -22,7 +22,7 @@ use Illuminate\Support\Facades\File;
  */
 #[Signature('release:check-version-refs {--root= : Repository root to check; defaults to the project root}')]
 #[Description('Check that every release-please extra-file is annotated and no operator-facing file names an unstamped version')]
-class CheckVersionRefsCommand extends Command
+final class CheckVersionRefsCommand extends Command
 {
     /**
      * Operator-facing paths scanned for hardcoded versions, relative to the

@@ -11,7 +11,7 @@ use App\Models\Team;
 use App\Models\User;
 use Illuminate\Support\Facades\Storage;
 
-class RevokeCustomEmoji
+final class RevokeCustomEmoji
 {
     /**
      * Remove a custom emoji and its image.

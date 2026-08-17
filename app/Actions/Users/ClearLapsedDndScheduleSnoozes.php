@@ -7,7 +7,7 @@ namespace App\Actions\Users;
 use App\Models\User;
 use App\Support\ExpirySweep;
 
-class ClearLapsedDndScheduleSnoozes
+final class ClearLapsedDndScheduleSnoozes
 {
     /**
      * Null out every quiet-hours snooze whose instant has passed, and

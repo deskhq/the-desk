@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 use App\Support\WorkspaceShell;
 use Inertia\Testing\AssertableInertia as Assert;
 

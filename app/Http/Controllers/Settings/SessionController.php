@@ -18,7 +18,7 @@ use Inertia\Inertia;
  * these two dispatch it themselves. Both facts also depend on the request's own
  * session, which only a controller has.
  */
-class SessionController extends Controller
+final class SessionController extends Controller
 {
     public function __construct(private readonly SessionRegistry $registry) {}
 
@@ -31,8 +31,8 @@ class SessionController extends Controller
     public function destroy(SessionRevokeRequest $request, string $session): RedirectResponse
     {
         if ($session !== $request->session()->getId()
-            && $this->registry->forget($request->user()->id, $session)) {
-            event(new SecurityEventOccurred($request->user(), SecurityEventType::SessionRevoked));
+            && $this->registry->forget($this->viewer($request)->id, $session)) {
+            event(new SecurityEventOccurred($this->viewer($request), SecurityEventType::SessionRevoked));
 
             Inertia::flash('toast', ['type' => 'success', 'message' => __('Session revoked')]);
         }
@@ -47,10 +47,10 @@ class SessionController extends Controller
      */
     public function destroyOthers(SessionRevokeRequest $request): RedirectResponse
     {
-        $revoked = $this->registry->forgetOthers($request->user()->id, $request->session()->getId());
+        $revoked = $this->registry->forgetOthers($this->viewer($request)->id, $request->session()->getId());
 
         if ($revoked > 0) {
-            event(new SecurityEventOccurred($request->user(), SecurityEventType::OtherSessionsRevoked));
+            event(new SecurityEventOccurred($this->viewer($request), SecurityEventType::OtherSessionsRevoked));
 
             Inertia::flash('toast', ['type' => 'success', 'message' => __('Logged out of your other devices')]);
         }

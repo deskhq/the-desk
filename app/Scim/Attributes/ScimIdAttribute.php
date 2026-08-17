@@ -15,7 +15,7 @@ use Illuminate\Database\Eloquent\Model;
  * not wipe it, so removal is a deliberate no-op (a full replace runs the parent
  * "remove attributes not present in the payload" pass over every root attribute).
  */
-class ScimIdAttribute extends Constant
+final class ScimIdAttribute extends Constant
 {
     public function __construct()
     {

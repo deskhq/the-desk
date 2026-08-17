@@ -1,13 +1,16 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Jobs;
 
 use App\Models\Attachment;
 use App\Models\Channel;
+use App\Support\PersistedTimestamp;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 
-class PurgeDeletedChannel implements ShouldQueue
+final class PurgeDeletedChannel implements ShouldQueue
 {
     use Queueable;
 
@@ -39,7 +42,7 @@ class PurgeDeletedChannel implements ShouldQueue
             return;
         }
 
-        if ($channel->deleted_at->isAfter(now()->subDays(Channel::RESTORE_WINDOW_DAYS))) {
+        if (PersistedTimestamp::of($channel->deleted_at)->isAfter(now()->subDays(Channel::RESTORE_WINDOW_DAYS))) {
             return;
         }
 

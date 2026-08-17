@@ -22,7 +22,7 @@ use Illuminate\Support\Facades\DB;
  * tokens through {@see App\Observers\UserObserver::deleting()}, which sweeps the
  * polymorphic `personal_access_tokens` rows no cascade reaches.
  */
-class DeleteBot
+final class DeleteBot
 {
     public function handle(User $actor, User $bot): void
     {

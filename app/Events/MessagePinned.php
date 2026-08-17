@@ -12,7 +12,7 @@ use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
 
-class MessagePinned implements ShouldBroadcast
+final class MessagePinned implements ShouldBroadcast
 {
     use Dispatchable, InteractsWithSockets, SerializesModels;
 

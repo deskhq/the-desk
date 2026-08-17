@@ -26,7 +26,7 @@ use Spatie\TypeScriptTransformer\Attributes\TypeScript;
  * the per-workspace dot and the per-channel badges inside it cannot disagree.
  */
 #[TypeScript]
-class UnreadDigestData extends Data
+final class UnreadDigestData extends Data
 {
     public function __construct(
         /**

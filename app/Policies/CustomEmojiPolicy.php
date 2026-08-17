@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Policies;
 
 use App\Models\CustomEmoji;
@@ -7,7 +9,7 @@ use App\Models\Team;
 use App\Models\User;
 use Illuminate\Support\Facades\Gate;
 
-class CustomEmojiPolicy
+final class CustomEmojiPolicy
 {
     /**
      * Determine whether the user can add a custom emoji to the workspace.

@@ -1,12 +1,14 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Requests\Sidebar;
 
 use App\Http\Requests\RouteBoundRequest;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Validation\Rule;
 
-class ReorderChannelSectionsRequest extends RouteBoundRequest
+final class ReorderChannelSectionsRequest extends RouteBoundRequest
 {
     /**
      * Determine if the user is authorized to make this request.

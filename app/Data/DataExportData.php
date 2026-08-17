@@ -1,8 +1,11 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Data;
 
 use App\Models\DataExport;
+use App\Support\PersistedTimestamp;
 use Spatie\LaravelData\Data;
 use Spatie\TypeScriptTransformer\Attributes\TypeScript;
 
@@ -15,7 +18,7 @@ use Spatie\TypeScriptTransformer\Attributes\TypeScript;
  * null until the build captures it (an older or unbuilt export has none).
  */
 #[TypeScript]
-class DataExportData extends Data
+final class DataExportData extends Data
 {
     public function __construct(
         public string $id,
@@ -37,7 +40,7 @@ class DataExportData extends Data
             status: $export->status->value,
             statusLabel: $export->status->label(),
             isReady: $export->isReady() && ! $export->isExpired(),
-            requestedAt: $export->created_at->toIso8601String(),
+            requestedAt: PersistedTimestamp::of($export->created_at)->toIso8601String(),
             expiresAt: $export->expires_at?->toIso8601String(),
             sizeBytes: $export->size_bytes,
         );

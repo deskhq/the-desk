@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Controllers\Channels;
 
 use App\Actions\Sidebar\CreateChannelSection;
@@ -15,7 +17,7 @@ use App\Models\ChannelSection;
 use App\Models\Team;
 use Illuminate\Http\RedirectResponse;
 
-class ChannelSectionController extends Controller
+final class ChannelSectionController extends Controller
 {
     /**
      * Create a custom sidebar section for the current user in the team.
@@ -25,7 +27,7 @@ class ChannelSectionController extends Controller
      */
     public function store(StoreChannelSectionRequest $request, Team $team, CreateChannelSection $createChannelSection): RedirectResponse
     {
-        $createChannelSection->handle($request->user(), $team, $request->validated('name'));
+        $createChannelSection->handle($this->viewer($request), $team, $request->validated('name'));
 
         return back();
     }
@@ -55,7 +57,7 @@ class ChannelSectionController extends Controller
      */
     public function reorder(ReorderChannelSectionsRequest $request, Team $team, ReorderChannelSections $reorderChannelSections): RedirectResponse
     {
-        $reorderChannelSections->handle($request->user(), $team, $request->validated('sections'));
+        $reorderChannelSections->handle($this->viewer($request), $team, $request->validated('sections'));
 
         return back();
     }

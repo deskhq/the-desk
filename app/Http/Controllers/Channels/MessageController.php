@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Controllers\Channels;
 
 use App\Actions\Channels\DeleteMessage;
@@ -14,7 +16,7 @@ use App\Models\Message;
 use App\Models\Team;
 use Illuminate\Http\RedirectResponse;
 
-class MessageController extends Controller
+final class MessageController extends Controller
 {
     /**
      * Post a message to the channel.
@@ -23,7 +25,7 @@ class MessageController extends Controller
     {
         $postMessage->handle(
             channel: $channel,
-            author: $request->user(),
+            author: $this->viewer($request),
             body: $request->validated('body'),
             clientUuid: $request->validated('client_uuid'),
             replyToId: $request->validated('reply_to_id'),

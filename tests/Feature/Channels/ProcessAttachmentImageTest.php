@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 use App\Actions\Channels\ProcessAttachmentImage;
 use App\Models\Attachment;
 use App\Models\Channel;

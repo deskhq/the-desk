@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Providers;
 
 use App\Http\Controllers\Scim\ScimUserController;
@@ -12,7 +14,7 @@ use ArieTimmerman\Laravel\SCIMServer\SCIMConfig as PackageScimConfig;
 use Illuminate\Support\ServiceProvider;
 use Laravel\Socialite\Facades\Socialite;
 
-class SsoServiceProvider extends ServiceProvider
+final class SsoServiceProvider extends ServiceProvider
 {
     /**
      * Register services.

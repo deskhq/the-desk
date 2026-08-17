@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 use App\Data\MessageSearchCriteria;
 use App\Enums\MessageReminderStatus;
 use App\Enums\NavDestination;

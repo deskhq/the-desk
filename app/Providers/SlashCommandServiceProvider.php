@@ -20,7 +20,7 @@ use Illuminate\Support\ServiceProvider;
  * it explicitly. A new command is added by appending it to the list here — there
  * is no auto-discovery.
  */
-class SlashCommandServiceProvider extends ServiceProvider
+final class SlashCommandServiceProvider extends ServiceProvider
 {
     /**
      * The commands registered at boot.

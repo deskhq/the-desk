@@ -17,7 +17,7 @@ use Illuminate\Support\Facades\DB;
  * audit log. A fresh signing secret is minted here; the caller surfaces its
  * plaintext to the integrator once (the model stores it encrypted).
  */
-class CreateWebhookSubscription
+final class CreateWebhookSubscription
 {
     /**
      * @param  list<string>  $events  The subscribed event values (see App\Enums\WebhookEvent).

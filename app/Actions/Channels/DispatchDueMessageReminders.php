@@ -1,12 +1,14 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Actions\Channels;
 
 use App\Enums\MessageReminderStatus;
 use App\Events\MessageReminderDue;
 use App\Models\MessageReminder;
 
-class DispatchDueMessageReminders
+final class DispatchDueMessageReminders
 {
     /**
      * Fire every reminder whose due time has arrived.

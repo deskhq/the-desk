@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Console\Commands;
 
 use App\Models\Message;
@@ -22,7 +24,7 @@ use Meilisearch\Exceptions\ApiException;
  */
 #[Signature('search:sync')]
 #[Description('Import searchable models into Meilisearch when the index is empty (e.g. after a volume reset)')]
-class SearchIndexSyncCommand extends Command
+final class SearchIndexSyncCommand extends Command
 {
     /**
      * Searchable models to keep in sync with the search index.

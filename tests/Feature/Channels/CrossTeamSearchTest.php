@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 use App\Enums\NavDestination;
 use App\Models\Channel;
 use App\Models\Message;

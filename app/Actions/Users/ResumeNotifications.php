@@ -14,7 +14,7 @@ use App\Models\User;
  * preference and survives — resuming during quiet hours therefore leaves the
  * user in DND until the window ends, which is what the schedule asked for.
  */
-class ResumeNotifications
+final class ResumeNotifications
 {
     public function handle(User $user): void
     {

@@ -8,7 +8,7 @@ use App\Models\AuditExport;
 use App\Support\ExpirySweep;
 use App\Support\ExportLifecycle;
 
-class PurgeExpiredAuditExports
+final class PurgeExpiredAuditExports
 {
     /**
      * Delete audit exports whose download window has closed, removing both the

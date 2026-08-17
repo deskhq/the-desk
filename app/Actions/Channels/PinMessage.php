@@ -10,7 +10,7 @@ use App\Models\Channel;
 use App\Models\Message;
 use App\Models\User;
 
-class PinMessage
+final class PinMessage
 {
     /**
      * Pin a message to its channel, then broadcast the fresh patch.

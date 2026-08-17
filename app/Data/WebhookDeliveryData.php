@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Data;
 
 use App\Models\WebhookDelivery;
@@ -12,7 +14,7 @@ use Spatie\TypeScriptTransformer\Attributes\TypeScript;
  * error summary, and whether it was (or can be) replayed by hand.
  */
 #[TypeScript]
-class WebhookDeliveryData extends Data
+final class WebhookDeliveryData extends Data
 {
     public function __construct(
         public string $id,

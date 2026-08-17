@@ -7,7 +7,7 @@ namespace App\Actions\Users;
 use App\Models\User;
 use App\Support\ExpirySweep;
 
-class ClearExpiredUserStatuses
+final class ClearExpiredUserStatuses
 {
     /**
      * Null out every custom status whose expiry has passed, and broadcast each

@@ -23,7 +23,7 @@ use Illuminate\Support\Facades\URL;
  * Rotating `APP_KEY` invalidates every one of them, which is the intended
  * revocation path.
  */
-class ImageProxy
+final class ImageProxy
 {
     /**
      * Sign a remote image URL for the proxy route, or null when there is nothing

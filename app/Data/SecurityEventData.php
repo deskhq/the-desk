@@ -1,8 +1,11 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Data;
 
 use App\Models\SecurityEvent;
+use App\Support\PersistedTimestamp;
 use App\Support\UserAgentParser;
 use Spatie\LaravelData\Data;
 use Spatie\TypeScriptTransformer\Attributes\TypeScript;
@@ -13,7 +16,7 @@ use Spatie\TypeScriptTransformer\Attributes\TypeScript;
  * seen on a prior sign-in, which is what the page draws attention to.
  */
 #[TypeScript]
-class SecurityEventData extends Data
+final class SecurityEventData extends Data
 {
     public function __construct(
         public string $id,
@@ -41,7 +44,7 @@ class SecurityEventData extends Data
             browser: $agent['browser'],
             platform: $agent['platform'],
             isNewDevice: $event->is_new_device,
-            occurredAt: $event->created_at->toIso8601String(),
+            occurredAt: PersistedTimestamp::of($event->created_at)->toIso8601String(),
         );
     }
 }

@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Actions\Integrations;
 
 use App\Enums\AuditAction;
@@ -12,7 +14,7 @@ use App\Models\User;
  * log. Stamping `revoked_at` immediately stops the webhook resolving for every
  * in-flight and future post while keeping the row for the audit trail.
  */
-class RevokeIncomingWebhook
+final class RevokeIncomingWebhook
 {
     public function handle(User $actor, IncomingWebhook $webhook): void
     {
@@ -25,7 +27,7 @@ class RevokeIncomingWebhook
         event(new AuditableActionOccurred($webhook->team, $actor, AuditAction::IncomingWebhookRevoked, $webhook, [
             'webhook_name' => $webhook->name,
             'bot_name' => $webhook->bot->name,
-            'channel_name' => $webhook->channel->name,
+            'channel_name' => $webhook->channel?->name,
         ]));
     }
 }

@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 test('the catalog endpoint returns the locale messages as cacheable json', function (): void {
     $response = $this->get('/locales/fr.json');
 

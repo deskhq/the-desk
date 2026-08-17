@@ -12,14 +12,14 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 
-class DndController extends Controller
+final class DndController extends Controller
 {
     /**
      * Pause the current user's notifications until an instant.
      */
     public function update(UpdateDndPauseRequest $request, PauseNotifications $pause): RedirectResponse
     {
-        $pause->handle($request->user(), Carbon::parse((string) $request->validated('until')));
+        $pause->handle($this->viewer($request), Carbon::parse((string) $request->validated('until')));
 
         return back();
     }
@@ -29,7 +29,7 @@ class DndController extends Controller
      */
     public function destroy(Request $request, ResumeNotifications $resume): RedirectResponse
     {
-        $resume->handle($request->user());
+        $resume->handle($this->viewer($request));
 
         return back();
     }

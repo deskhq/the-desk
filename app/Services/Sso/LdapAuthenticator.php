@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Services\Sso;
 
 use App\Actions\Sso\ProvisionSsoUser;
@@ -15,9 +17,9 @@ use LdapRecord\LdapRecordException;
  * hands the verified identity (stable GUID, mail, name) to the shared
  * provisioning layer so directory logins match/JIT exactly like OIDC.
  */
-class LdapAuthenticator
+final readonly class LdapAuthenticator
 {
-    public function __construct(private readonly ProvisionSsoUser $provisionSsoUser) {}
+    public function __construct(private ProvisionSsoUser $provisionSsoUser) {}
 
     /**
      * Bind the given credentials against the directory and resolve the app user.

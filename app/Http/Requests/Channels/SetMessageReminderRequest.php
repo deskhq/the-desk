@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Requests\Channels;
 
 use App\Http\Requests\RouteBoundRequest;
@@ -8,7 +10,7 @@ use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\Rule;
 
-class SetMessageReminderRequest extends RouteBoundRequest
+final class SetMessageReminderRequest extends RouteBoundRequest
 {
     /**
      * The resolved target message, memoised so authorization and the controller

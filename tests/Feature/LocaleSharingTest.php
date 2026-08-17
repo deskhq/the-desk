@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 use App\Enums\AppLocale;
 use App\Http\Middleware\HandleInertiaRequests;
 use App\Models\User;

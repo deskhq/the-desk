@@ -1,7 +1,11 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Concerns;
 
+use App\Actions\Fortify\CreateNewUser;
+use App\Actions\Sso\ProvisionSsoUser;
 use App\Data\TeamPermissions;
 use App\Data\UserTeam;
 use App\Enums\TeamPermission;
@@ -17,6 +21,7 @@ use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\URL;
+use RuntimeException;
 
 trait HasTeams
 {
@@ -90,6 +95,21 @@ trait HasTeams
         return $this->teams()
             ->where('is_personal', true)
             ->first();
+    }
+
+    /**
+     * The user's personal team, which every account is created with.
+     *
+     * Both account-creation paths open one ({@see CreateNewUser},
+     * {@see ProvisionSsoUser}) and no path deletes it while the
+     * account lives — leaving and deleting are both refused for a personal team.
+     * So the workspace somebody is moved back to when they lose another one is
+     * always there, and an account without one is a broken account rather than a
+     * case to route around.
+     */
+    public function personalTeamOrFail(): Team
+    {
+        return $this->personalTeam() ?? throw new RuntimeException("User {$this->id} has no personal team to fall back to.");
     }
 
     /**
@@ -261,7 +281,7 @@ trait HasTeams
     public function fallbackTeam(?Team $excluding = null): ?Team
     {
         return $this->teams()
-            ->when($excluding, fn ($query) => $query->where('teams.id', '!=', $excluding->id))
+            ->when($excluding, fn ($query, Team $excluded) => $query->where('teams.id', '!=', $excluded->id))
             ->orderByRaw('LOWER(teams.name)')
             ->first();
     }

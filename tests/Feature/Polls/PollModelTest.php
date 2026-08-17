@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 use App\Enums\MessageType;
 use App\Models\Poll;
 use App\Models\PollOption;

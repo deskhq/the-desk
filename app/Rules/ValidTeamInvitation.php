@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Rules;
 
 use App\Models\TeamInvitation;
@@ -8,7 +10,7 @@ use Closure;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Translation\PotentiallyTranslatedString;
 
-class ValidTeamInvitation implements ValidationRule
+final class ValidTeamInvitation implements ValidationRule
 {
     public function __construct(protected ?User $user)
     {

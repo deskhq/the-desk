@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 use App\Enums\TeamRole;
 use App\Events\UserTyping;
 use App\Models\Channel;

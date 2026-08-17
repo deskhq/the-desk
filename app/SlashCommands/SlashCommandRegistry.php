@@ -14,7 +14,7 @@ use App\Providers\SlashCommandServiceProvider;
  * register into the same instance at runtime. Keyed by name, so registering a
  * second command under an existing name replaces it.
  */
-class SlashCommandRegistry
+final class SlashCommandRegistry
 {
     /** @var array<string, SlashCommand> */
     private array $commands = [];

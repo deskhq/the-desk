@@ -11,7 +11,7 @@ use App\Models\Team;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
 
-class TransferTeamOwnership
+final class TransferTeamOwnership
 {
     /**
      * Transfer ownership of the team from the current owner to a new owner.

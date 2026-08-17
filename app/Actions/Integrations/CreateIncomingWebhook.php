@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Actions\Integrations;
 
 use App\Enums\AuditAction;
@@ -18,7 +20,7 @@ use Illuminate\Validation\ValidationException;
  * the operator to copy; its value is never logged. An optional HMAC signing
  * secret can be requested for senders that can sign their requests.
  */
-class CreateIncomingWebhook
+final class CreateIncomingWebhook
 {
     /**
      * @param  bool  $withSigningSecret  Whether to mint an HMAC shared secret too.

@@ -10,9 +10,9 @@ use App\Models\Channel;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
 
-class UpdateChannel
+final readonly class UpdateChannel
 {
-    public function __construct(private readonly PostSystemMessage $postSystemMessage) {}
+    public function __construct(private PostSystemMessage $postSystemMessage) {}
 
     /**
      * Apply an edit to a channel's own details and announce it.

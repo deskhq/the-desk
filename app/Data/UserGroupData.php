@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Data;
 
 use App\Models\Team;
@@ -9,7 +11,7 @@ use Spatie\LaravelData\Data;
 use Spatie\TypeScriptTransformer\Attributes\TypeScript;
 
 #[TypeScript]
-class UserGroupData extends Data
+final class UserGroupData extends Data
 {
     /**
      * @param  array<int, MentionData>  $members

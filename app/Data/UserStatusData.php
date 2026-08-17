@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Data;
 
 use App\Models\User;
@@ -15,7 +17,7 @@ use Spatie\TypeScriptTransformer\Attributes\TypeScript;
  * than waiting for the scheduled sweep to null the columns.
  */
 #[TypeScript]
-class UserStatusData extends Data
+final class UserStatusData extends Data
 {
     public function __construct(
         /** The picker value: a native emoji glyph, or a `:name:` custom-emoji shortcode. */

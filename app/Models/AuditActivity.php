@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Models;
 
 use App\Exceptions\AuditLogImmutableException;
@@ -20,7 +22,7 @@ use Spatie\Activitylog\Models\Activity;
  * @property string $team_id
  * @property-read Team $team
  */
-class AuditActivity extends Activity
+final class AuditActivity extends Activity
 {
     /** @use HasFactory<AuditActivityFactory> */
     use HasFactory, HasUuids;
@@ -31,11 +33,11 @@ class AuditActivity extends Activity
     #[\Override]
     protected static function booted(): void
     {
-        static::updating(function (): never {
+        self::updating(function (): never {
             throw new AuditLogImmutableException('Audit log entries cannot be updated.');
         });
 
-        static::deleting(function (): never {
+        self::deleting(function (): never {
             throw new AuditLogImmutableException('Audit log entries cannot be deleted.');
         });
     }

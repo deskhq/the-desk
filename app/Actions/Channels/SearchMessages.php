@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Actions\Channels;
 
 use App\Data\MessageSearchCriteria;
@@ -15,7 +17,7 @@ use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
 
-class SearchMessages
+final class SearchMessages
 {
     /**
      * The maximum number of message matches returned for a single search.

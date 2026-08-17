@@ -20,7 +20,7 @@ use Carbon\CarbonInterface;
  *
  * @return bool whether a window was actually running to be snoozed
  */
-class SnoozeDndSchedule
+final class SnoozeDndSchedule
 {
     public function handle(User $user): bool
     {

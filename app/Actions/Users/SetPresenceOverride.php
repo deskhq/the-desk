@@ -20,7 +20,7 @@ use App\Models\User;
  *
  * @return PresenceState what teammates now see, which is not always what was written
  */
-class SetPresenceOverride
+final class SetPresenceOverride
 {
     public function handle(User $user, PresenceState $state): PresenceState
     {

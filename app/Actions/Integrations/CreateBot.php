@@ -20,7 +20,7 @@ use Illuminate\Support\Str;
  * or receive mail). It is not attached to any channel here — posting stays
  * membership-gated, so an operator adds the bot to channels separately.
  */
-class CreateBot
+final class CreateBot
 {
     public function handle(Team $team, User $actor, string $name): User
     {

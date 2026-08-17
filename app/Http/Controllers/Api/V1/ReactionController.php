@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Controllers\Api\V1;
 
 use App\Actions\Channels\ToggleReaction;
@@ -13,7 +15,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 
-class ReactionController extends Controller
+final class ReactionController extends Controller
 {
     /**
      * Add the bot's reaction to a message (idempotent — re-adding is a no-op).

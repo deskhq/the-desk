@@ -21,7 +21,7 @@ use Illuminate\Http\Response;
  * user's teammates see actually moves. A second device going idle while the
  * first is still in use changes nothing, and so costs nothing.
  */
-class PresenceConnectionController extends Controller
+final class PresenceConnectionController extends Controller
 {
     public function __construct(private readonly PresenceRegistry $registry) {}
 
@@ -33,7 +33,7 @@ class PresenceConnectionController extends Controller
      */
     public function store(ReportPresenceRequest $request): Response
     {
-        $user = $request->user();
+        $user = $this->viewer($request);
 
         $this->broadcastIfChanged($user, function () use ($user, $request): void {
             $this->registry->record($user->id, $request->connection(), $request->state());
@@ -51,7 +51,7 @@ class PresenceConnectionController extends Controller
      */
     public function destroy(ReleasePresenceRequest $request): Response
     {
-        $user = $request->user();
+        $user = $this->viewer($request);
 
         $this->broadcastIfChanged($user, function () use ($user, $request): void {
             $this->registry->forget($user->id, $request->connection());

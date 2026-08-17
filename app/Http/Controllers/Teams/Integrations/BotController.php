@@ -20,14 +20,14 @@ use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
 
-class BotController extends Controller
+final class BotController extends Controller
 {
     /**
      * Create a bot and land the operator on its detail page to mint a token.
      */
     public function store(StoreBotRequest $request, Team $team, CreateBot $createBot): RedirectResponse
     {
-        $bot = $createBot->handle($team, $request->user(), $request->validated('name'));
+        $bot = $createBot->handle($team, $this->viewer($request), $request->validated('name'));
 
         Inertia::flash('toast', ['type' => 'success', 'message' => __('Bot created')]);
 
@@ -62,7 +62,7 @@ class BotController extends Controller
      */
     public function destroy(Request $request, Team $team, User $bot, DeleteBot $deleteBot): RedirectResponse
     {
-        $deleteBot->handle($request->user(), $bot);
+        $deleteBot->handle($this->viewer($request), $bot);
 
         Inertia::flash('toast', ['type' => 'success', 'message' => __('Bot deleted')]);
 

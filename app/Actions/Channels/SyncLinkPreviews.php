@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Actions\Channels;
 
 use App\Enums\LinkPreviewStatus;
@@ -8,7 +10,7 @@ use App\Models\Message;
 use App\Support\InlineMarkdown;
 use Illuminate\Support\Facades\DB;
 
-class SyncLinkPreviews
+final class SyncLinkPreviews
 {
     /**
      * How many URLs in a single message we unfurl. Keeps a link-heavy message

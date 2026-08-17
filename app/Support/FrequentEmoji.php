@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Support;
 
 use App\Data\CustomEmojiData;
@@ -12,7 +14,7 @@ use App\Models\User;
  * than tracked on a write path — a toggled-off reaction deletes its row, so the
  * ranking un-counts it for free.
  */
-class FrequentEmoji
+final class FrequentEmoji
 {
     /**
      * How many entries the ranking always carries: the channel hover bar shows

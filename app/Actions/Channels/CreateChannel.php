@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Actions\Channels;
 
 use App\Enums\AuditAction;
@@ -11,9 +13,9 @@ use App\Models\User;
 use App\Support\NameSlug;
 use Illuminate\Support\Facades\DB;
 
-class CreateChannel
+final readonly class CreateChannel
 {
-    public function __construct(private readonly JoinChannel $joinChannel) {}
+    public function __construct(private JoinChannel $joinChannel) {}
 
     /**
      * Create a channel in the team and add its creator as a member.

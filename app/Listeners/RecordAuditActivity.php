@@ -15,9 +15,9 @@ use App\Support\AuditRecorder;
  * This is the audit counterpart of {@see RecordSecurityEvents}: the one place
  * that turns a domain event into a recorded row.
  */
-class RecordAuditActivity
+final readonly class RecordAuditActivity
 {
-    public function __construct(private readonly AuditRecorder $recorder) {}
+    public function __construct(private AuditRecorder $recorder) {}
 
     /**
      * Handle the event.

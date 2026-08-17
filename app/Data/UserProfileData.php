@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Data;
 
 use App\Enums\TeamRole;
@@ -9,7 +11,7 @@ use Spatie\LaravelData\Data;
 use Spatie\TypeScriptTransformer\Attributes\TypeScript;
 
 #[TypeScript]
-class UserProfileData extends Data
+final class UserProfileData extends Data
 {
     public function __construct(
         public string $id,

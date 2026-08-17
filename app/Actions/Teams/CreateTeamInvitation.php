@@ -20,7 +20,7 @@ use Illuminate\Support\Facades\Notification;
  * they live together: a surface that invites someone can never send the mail
  * without recording who opened the door.
  */
-class CreateTeamInvitation
+final class CreateTeamInvitation
 {
     /**
      * The window an invitation stays valid for.

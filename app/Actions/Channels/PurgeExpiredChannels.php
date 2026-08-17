@@ -7,7 +7,7 @@ namespace App\Actions\Channels;
 use App\Jobs\PurgeDeletedChannel;
 use App\Models\Channel;
 
-class PurgeExpiredChannels
+final class PurgeExpiredChannels
 {
     /**
      * Queue the permanent purge of every deleted channel whose grace window has

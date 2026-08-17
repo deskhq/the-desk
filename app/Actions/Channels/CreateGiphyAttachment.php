@@ -11,7 +11,7 @@ use App\Models\Attachment;
 use App\Models\Channel;
 use App\Models\User;
 
-class CreateGiphyAttachment
+final class CreateGiphyAttachment
 {
     /**
      * Register a re-resolved Giphy GIF as a pending remote attachment.

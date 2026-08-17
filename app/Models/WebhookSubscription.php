@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Models;
 
 use App\Enums\WebhookEvent;
@@ -43,7 +45,7 @@ use Illuminate\Support\Str;
  */
 #[Fillable(['team_id', 'created_by', 'name', 'url', 'secret', 'events', 'channel_ids', 'status', 'consecutive_failures', 'last_success_at', 'disabled_at'])]
 #[Hidden(['secret'])]
-class WebhookSubscription extends Model
+final class WebhookSubscription extends Model
 {
     /** @use HasFactory<WebhookSubscriptionFactory> */
     use HasFactory, HasUuids;

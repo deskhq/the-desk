@@ -1,7 +1,10 @@
 <?php
 
+declare(strict_types=1);
+
 use App\Actions\Channels\PostMessage;
 use App\Models\Channel;
+use App\Models\Message;
 use App\Models\Team;
 use App\Models\User;
 use App\SlashCommands\BaseSlashCommand;
@@ -59,7 +62,11 @@ test('a postMessage result is routed through the message post action', function 
     $postMessage = Mockery::mock(PostMessage::class);
     $postMessage->shouldReceive('handle')
         ->once()
-        ->withArgs(fn ($channel, $author, $body, $clientUuid, ...$rest): bool => $body === 'hi ¯\_(ツ)_/¯' && $clientUuid === 'uuid-1');
+        ->withArgs(fn ($channel, $author, $body, $clientUuid, ...$rest): bool => $body === 'hi ¯\_(ツ)_/¯' && $clientUuid === 'uuid-1')
+        // `handle()` is typed to return a Message, and without this Mockery
+        // stubs one by subclassing it. Hand it a real (unsaved) model instead:
+        // the dispatcher only passes it back, and Message is final.
+        ->andReturn(new Message);
 
     $result = (new SlashCommandDispatcher($postMessage))
         ->dispatch(fakeCommand(SlashCommandResult::postMessage('hi ¯\_(ツ)_/¯')), $ctx);

@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Middleware;
 
 use Closure;
@@ -12,7 +14,7 @@ use Symfony\Component\HttpFoundation\Response;
  * the routes behave as if they do not exist — so a disabled instance exposes no
  * integration endpoints at all.
  */
-class EnsureIntegrationsEnabled
+final class EnsureIntegrationsEnabled
 {
     /**
      * @param  Closure(Request): (Response)  $next

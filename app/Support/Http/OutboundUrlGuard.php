@@ -31,9 +31,9 @@ use App\Support\HostResolver;
  * is non-public, returning the vetted IP so the delivery can pin its connection
  * to it (closing the DNS-rebinding window between validation and connect).
  */
-class OutboundUrlGuard
+final readonly class OutboundUrlGuard
 {
-    public function __construct(private readonly HostResolver $resolver) {}
+    public function __construct(private HostResolver $resolver) {}
 
     /**
      * Host names that always resolve to the local machine, rejected by name.

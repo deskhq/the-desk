@@ -8,7 +8,7 @@ use App\Rules\PublicWebhookUrl;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 
-class StorePushSubscriptionRequest extends FormRequest
+final class StorePushSubscriptionRequest extends FormRequest
 {
     /**
      * Get the validation rules that apply to the request.

@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 use App\Http\Controllers\Auth\DemoLoginController;
 use App\Http\Controllers\Auth\Sso\OidcController;
 use App\Http\Controllers\BrandingAssetController;

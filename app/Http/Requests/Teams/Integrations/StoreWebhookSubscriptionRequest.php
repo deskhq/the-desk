@@ -18,7 +18,7 @@ use Illuminate\Validation\Validator;
  * surface. An optional channel allow-list narrows delivery; every listed channel
  * must belong to the team (omit the list to receive events from every channel).
  */
-class StoreWebhookSubscriptionRequest extends RouteBoundRequest
+final class StoreWebhookSubscriptionRequest extends RouteBoundRequest
 {
     /**
      * @return array<string, ValidationRule|array<mixed>|string>

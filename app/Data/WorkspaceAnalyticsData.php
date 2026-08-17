@@ -13,7 +13,7 @@ use Spatie\TypeScriptTransformer\Attributes\TypeScript;
  * four headline tiles plus the four charts/rankings the dashboard renders.
  */
 #[TypeScript]
-class WorkspaceAnalyticsData extends Data
+final class WorkspaceAnalyticsData extends Data
 {
     /**
      * @param  array<int, DailyMessageCountData>  $messagesByDay

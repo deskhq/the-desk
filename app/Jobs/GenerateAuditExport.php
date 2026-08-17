@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Jobs;
 
 use App\Enums\AuditAction;
@@ -22,7 +24,7 @@ use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Carbon;
 use Throwable;
 
-class GenerateAuditExport implements ShouldQueue
+final class GenerateAuditExport implements ShouldQueue
 {
     use Queueable;
 

@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Controllers\Settings;
 
 use App\Http\Controllers\Controller;
@@ -8,7 +10,7 @@ use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
 
-class SettingsIndexController extends Controller
+final class SettingsIndexController extends Controller
 {
     /**
      * Show the settings index — the list every settings surface is reached
@@ -18,7 +20,7 @@ class SettingsIndexController extends Controller
     public function index(Request $request, SessionRegistry $registry): Response
     {
         return Inertia::render('settings/Index', [
-            'sessionsCount' => count($registry->all($request->user()->id)),
+            'sessionsCount' => count($registry->all($this->viewer($request)->id)),
         ]);
     }
 }

@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Models;
 
 use App\Enums\NotificationLevel;
@@ -30,7 +32,7 @@ use Illuminate\Support\Carbon;
  * @property-read ChannelSection|null $section
  */
 #[Fillable(['channel_id', 'user_id', ...ChannelMember::PIVOT_COLUMNS])]
-class ChannelMember extends Model
+final class ChannelMember extends Model
 {
     /**
      * The membership's own state: every column that is neither the row's

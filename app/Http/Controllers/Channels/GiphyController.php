@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Controllers\Channels;
 
 use App\Actions\Channels\CreateGiphyAttachment;
@@ -15,7 +17,7 @@ use App\Models\Team;
 use App\Support\GiphyClient;
 use Illuminate\Http\JsonResponse;
 
-class GiphyController extends Controller
+final class GiphyController extends Controller
 {
     /**
      * Proxy a Giphy trending/search page for the composer picker.
@@ -31,7 +33,7 @@ class GiphyController extends Controller
             query: $request->validated('q'),
             offset: (int) $request->validated('offset', 0),
             limit: (int) config('services.giphy.page_size'),
-            lang: $request->user()->locale->value,
+            lang: $this->viewer($request)->locale->value,
         );
 
         return response()->json(GiphySearchData::from($page));
@@ -52,7 +54,7 @@ class GiphyController extends Controller
 
         abort_if(! $gif instanceof GiphyGifData, 422, __('That GIF is no longer available.'));
 
-        $attachment = $createGiphyAttachment->handle($channel, $request->user(), $gif);
+        $attachment = $createGiphyAttachment->handle($channel, $this->viewer($request), $gif);
 
         return response()->json(AttachmentData::fromAttachment($attachment), 201);
     }

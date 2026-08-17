@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Policies;
 
 use App\Enums\AttachmentStatus;
@@ -7,7 +9,7 @@ use App\Models\Attachment;
 use App\Models\User;
 use Illuminate\Support\Facades\Gate;
 
-class AttachmentPolicy
+final class AttachmentPolicy
 {
     /**
      * Determine whether the user can download (view) the attachment.

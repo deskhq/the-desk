@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Models;
 
 use Database\Factories\MessageReactionFactory;
@@ -21,7 +23,7 @@ use Illuminate\Support\Carbon;
  * @property-read User $user
  */
 #[Fillable(['message_id', 'user_id', 'emoji'])]
-class MessageReaction extends Model
+final class MessageReaction extends Model
 {
     /** @use HasFactory<MessageReactionFactory> */
     use HasFactory, HasUuids;

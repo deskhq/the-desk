@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Requests\Channels;
 
 use App\Http\Requests\RouteBoundRequest;
@@ -8,7 +10,7 @@ use App\Rules\MessageTarget;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Support\Facades\Gate;
 
-class StorePollRequest extends RouteBoundRequest
+final class StorePollRequest extends RouteBoundRequest
 {
     /**
      * Determine if the user is authorized to make this request.

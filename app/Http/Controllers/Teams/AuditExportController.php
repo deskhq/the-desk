@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Controllers\Teams;
 
 use App\Actions\Teams\RequestAuditExport;
@@ -21,7 +23,7 @@ use Inertia\Response;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 use Throwable;
 
-class AuditExportController extends Controller
+final class AuditExportController extends Controller
 {
     /**
      * Show the workspace's audit exports: the request form and recent exports,
@@ -75,7 +77,7 @@ class AuditExportController extends Controller
         try {
             $requestExport->handle(
                 $team,
-                $request->user(),
+                $this->viewer($request),
                 AuditExportLogType::from((string) $request->validated('log_type')),
                 AuditExportFormat::from((string) $request->validated('format')),
                 $request->validated('range_start'),
@@ -113,6 +115,6 @@ class AuditExportController extends Controller
 
         $filename = $auditExport->log_type->value.'-export.'.$auditExport->format->extension();
 
-        return Storage::disk(ExportLifecycle::DISK)->download($auditExport->path, $filename);
+        return Storage::disk(ExportLifecycle::DISK)->download($auditExport->archivePath(), $filename);
     }
 }

@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Responses;
 
 use Illuminate\Http\JsonResponse;
@@ -8,7 +10,7 @@ use Inertia\Inertia;
 use Laravel\Fortify\Contracts\LogoutResponse as LogoutResponseContract;
 use Symfony\Component\HttpFoundation\Response;
 
-class LogoutResponse implements LogoutResponseContract
+final class LogoutResponse implements LogoutResponseContract
 {
     /**
      * Send the client to the login page with a full-page navigation rather than

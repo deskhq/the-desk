@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Responses;
 
 use App\Http\Responses\Concerns\RedirectsToCurrentTeam;
@@ -7,7 +9,7 @@ use Illuminate\Http\JsonResponse;
 use Laravel\Fortify\Contracts\LoginResponse as LoginResponseContract;
 use Symfony\Component\HttpFoundation\Response;
 
-class LoginResponse implements LoginResponseContract
+final class LoginResponse implements LoginResponseContract
 {
     use RedirectsToCurrentTeam;
 

@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Controllers\Channels;
 
 use App\Actions\Channels\SearchMessages;
@@ -17,7 +19,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
 
-class SearchController extends Controller
+final class SearchController extends Controller
 {
     /**
      * The number of message matches surfaced inline in the command palette, kept
@@ -67,7 +69,7 @@ class SearchController extends Controller
             hasAttachments: $request->validated('has') === MessageSearchPanel::HAS_FILE,
         );
 
-        $user = $request->user();
+        $user = $this->viewer($request);
 
         return response()->json([
             'results' => $searchMessages->handle($user, $team, $criteria, self::SUGGEST_LIMIT)

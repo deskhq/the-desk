@@ -14,7 +14,7 @@ use Illuminate\Validation\Rule;
  * name, the one team the token is bound to (which must be a team they belong
  * to), and a least-privilege set of {@see IntegrationScope} abilities.
  */
-class StorePersonalAccessTokenRequest extends FormRequest
+final class StorePersonalAccessTokenRequest extends FormRequest
 {
     /**
      * @return array<string, ValidationRule|array<mixed>|string>

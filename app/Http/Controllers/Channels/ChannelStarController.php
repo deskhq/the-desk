@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Controllers\Channels;
 
 use App\Http\Controllers\Controller;
@@ -9,7 +11,7 @@ use App\Models\Team;
 use App\Support\ChannelMembership;
 use Illuminate\Http\RedirectResponse;
 
-class ChannelStarController extends Controller
+final class ChannelStarController extends Controller
 {
     /**
      * Star or unstar the channel for the current user.
@@ -19,7 +21,7 @@ class ChannelStarController extends Controller
      */
     public function update(UpdateChannelStarRequest $request, Team $team, Channel $channel): RedirectResponse
     {
-        new ChannelMembership($channel, $request->user())->star($request->boolean('starred'));
+        new ChannelMembership($channel, $this->viewer($request))->star($request->boolean('starred'));
 
         return back();
     }

@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Controllers\Channels;
 
 use App\Actions\Channels\ArchiveChannel;
@@ -32,7 +34,7 @@ use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
 use Inertia\Response;
 
-class ChannelController extends Controller
+final class ChannelController extends Controller
 {
     /**
      * Redirect a bare team URL to the team's #general channel.
@@ -60,7 +62,7 @@ class ChannelController extends Controller
             team: $team,
             name: $request->validated('name'),
             visibility: ChannelVisibility::from($request->validated('visibility')),
-            creator: $request->user(),
+            creator: $this->viewer($request),
             topic: $request->validated('topic'),
         );
 
@@ -80,7 +82,7 @@ class ChannelController extends Controller
      */
     public function update(UpdateChannelRequest $request, Team $team, Channel $channel, UpdateChannel $updateChannel): RedirectResponse
     {
-        $updateChannel->handle($channel, $request->user(), $request->validated());
+        $updateChannel->handle($channel, $this->viewer($request), $request->validated());
 
         Inertia::flash('toast', ['type' => 'success', 'message' => __('Channel updated')]);
 
@@ -103,11 +105,11 @@ class ChannelController extends Controller
     {
         Gate::authorize('view', $channel);
 
-        $page = new ChannelPage($channel, $request->user());
+        $page = new ChannelPage($channel, $this->viewer($request));
 
         $window = new ChannelTimelineWindow(
             channel: $channel,
-            viewer: $request->user(),
+            viewer: $this->viewer($request),
             requestedJumpId: $request->query('message'),
             lastReadMessageId: $page->lastReadMessageId(),
             requestedThreadRootId: $request->query('thread'),
@@ -181,7 +183,7 @@ class ChannelController extends Controller
         $channels = $team->channels()
             ->where('visibility', ChannelVisibility::Public)
             ->whereNull('archived_at')
-            ->whereDoesntHave('channelMembers', fn ($query) => $query->where('user_id', $request->user()->id))
+            ->whereDoesntHave('channelMembers', fn ($query) => $query->where('user_id', $this->viewer($request)->id))
             ->orderBy('name')
             ->get();
 
@@ -191,7 +193,7 @@ class ChannelController extends Controller
                 'name' => $team->name,
                 'slug' => $team->slug,
             ],
-            'joinableChannels' => $channels->map(fn (Channel $channel): ChannelData => ChannelData::fromChannel($channel, $request->user()))->all(),
+            'joinableChannels' => $channels->map(fn (Channel $channel): ChannelData => ChannelData::fromChannel($channel, $this->viewer($request)))->all(),
         ]);
     }
 
@@ -202,7 +204,7 @@ class ChannelController extends Controller
     {
         Gate::authorize('join', $channel);
 
-        $joinChannel->handle($channel, $request->user());
+        $joinChannel->handle($channel, $this->viewer($request));
 
         Inertia::flash('toast', ['type' => 'success', 'message' => __('Joined #:channel', ['channel' => $channel->name])]);
 
@@ -222,7 +224,7 @@ class ChannelController extends Controller
     {
         Gate::authorize('leave', $channel);
 
-        $leaveChannel->handle($channel, $request->user());
+        $leaveChannel->handle($channel, $this->viewer($request));
 
         // A group direct message has no name, so it gets a conversation-worded
         // confirmation; a standard channel names itself.
@@ -245,7 +247,7 @@ class ChannelController extends Controller
     {
         Gate::authorize('view', $channel);
 
-        $markChannelRead->handle($channel, $request->user());
+        $markChannelRead->handle($channel, $this->viewer($request));
 
         return back();
     }
@@ -262,7 +264,7 @@ class ChannelController extends Controller
     {
         Gate::authorize('postMessage', $channel);
 
-        broadcast(new UserTyping($channel, UserData::fromUser($request->user())))->toOthers();
+        broadcast(new UserTyping($channel, UserData::fromUser($this->viewer($request))))->toOthers();
 
         return response()->noContent();
     }
@@ -279,7 +281,7 @@ class ChannelController extends Controller
     {
         Gate::authorize('view', $channel);
 
-        $markThreadRead->handle($message, $request->user());
+        $markThreadRead->handle($message, $this->viewer($request));
 
         return back();
     }

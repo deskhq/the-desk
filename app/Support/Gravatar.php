@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Support;
 
-class Gravatar
+final class Gravatar
 {
     /**
      * Derive the Gravatar avatar URL for an email address.

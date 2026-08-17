@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Models;
 
 use App\Enums\TeamRole;
@@ -27,7 +29,7 @@ use Illuminate\Support\Str;
  * @property-read User $inviter
  */
 #[Fillable(['team_id', 'email', 'role', 'invited_by', 'expires_at', 'accepted_at'])]
-class TeamInvitation extends Model
+final class TeamInvitation extends Model
 {
     /** @use HasFactory<TeamInvitationFactory> */
     use HasFactory, HasUuids;
@@ -40,7 +42,7 @@ class TeamInvitation extends Model
     {
         parent::boot();
 
-        static::creating(function (TeamInvitation $invitation): void {
+        self::creating(function (TeamInvitation $invitation): void {
             if (empty($invitation->code)) {
                 $invitation->code = Str::random(64);
             }

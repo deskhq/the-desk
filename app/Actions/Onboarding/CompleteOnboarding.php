@@ -6,7 +6,7 @@ namespace App\Actions\Onboarding;
 
 use App\Models\User;
 
-class CompleteOnboarding
+final class CompleteOnboarding
 {
     /**
      * Mark the user's first-run onboarding tour as complete.

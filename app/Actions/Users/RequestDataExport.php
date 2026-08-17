@@ -18,7 +18,7 @@ use App\Models\User;
  * {@see ExportUserData}; requesting one is a security-relevant account action,
  * so it is recorded here rather than by whichever surface asked for it.
  */
-class RequestDataExport
+final class RequestDataExport
 {
     public function handle(User $user): DataExport
     {

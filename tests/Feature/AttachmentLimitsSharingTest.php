@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 use Inertia\Testing\AssertableInertia as Assert;
 
 test('the attachment limits are shared to the frontend so the composer can pre-check size and count', function (): void {

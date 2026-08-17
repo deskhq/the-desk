@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Controllers\Api\V1;
 
 use App\Actions\Channels\ArchiveChannel;
@@ -16,7 +18,7 @@ use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Support\Facades\Gate;
 
-class ChannelController extends Controller
+final class ChannelController extends Controller
 {
     /**
      * List the channels the token subject may view within its acting team.

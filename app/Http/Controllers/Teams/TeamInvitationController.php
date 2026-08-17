@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Controllers\Teams;
 
 use App\Actions\Teams\AcceptTeamInvitation;
@@ -12,13 +14,14 @@ use App\Http\Requests\Teams\CreateTeamInvitationRequest;
 use App\Http\Requests\Teams\RespondToTeamInvitationRequest;
 use App\Models\Team;
 use App\Models\TeamInvitation;
+use App\Support\WorkspaceRedirect;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\RateLimiter;
 use Inertia\Inertia;
 
-class TeamInvitationController extends Controller
+final class TeamInvitationController extends Controller
 {
     /**
      * Store a newly created invitation.
@@ -29,7 +32,7 @@ class TeamInvitationController extends Controller
 
         $createInvitation->handle(
             $team,
-            $request->user(),
+            $this->viewer($request),
             (string) $request->validated('email'),
             TeamRole::from($request->validated('role')),
         );
@@ -46,7 +49,7 @@ class TeamInvitationController extends Controller
     {
         Gate::authorize('cancelInvitation', $team);
 
-        $revokeInvitation->handle($invitation, $request->user());
+        $revokeInvitation->handle($invitation, $this->viewer($request));
 
         Inertia::flash('toast', ['type' => 'success', 'message' => __('Invitation cancelled')]);
 
@@ -75,7 +78,7 @@ class TeamInvitationController extends Controller
 
         RateLimiter::hit($throttleKey, 60);
 
-        $resendInvitation->handle($invitation, $request->user());
+        $resendInvitation->handle($invitation, $this->viewer($request));
 
         Inertia::flash('toast', ['type' => 'success', 'message' => __('Invitation resent')]);
 
@@ -87,7 +90,7 @@ class TeamInvitationController extends Controller
      */
     public function accept(RespondToTeamInvitationRequest $request, TeamInvitation $invitation, AcceptTeamInvitation $acceptInvitation): RedirectResponse
     {
-        $acceptInvitation->handle($invitation, $request->user());
+        $acceptInvitation->handle($invitation, $this->viewer($request));
 
         Inertia::flash('toast', ['type' => 'success', 'message' => __('Invitation accepted')]);
 
@@ -103,6 +106,8 @@ class TeamInvitationController extends Controller
 
         Inertia::flash('toast', ['type' => 'success', 'message' => __('Invitation declined')]);
 
-        return to_route('channels.index', ['team' => $request->user()->currentTeam->slug]);
+        // Back to whichever workspace they were standing in, or the workspace
+        // list when the declined invitation was their only way into one.
+        return redirect()->to(WorkspaceRedirect::pathFor($this->viewer($request)) ?? route('teams.index'));
     }
 }

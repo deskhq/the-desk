@@ -9,7 +9,7 @@ use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rules\Enum;
 
-class UpdatePresenceRequest extends FormRequest
+final class UpdatePresenceRequest extends FormRequest
 {
     /**
      * Get the validation rules that apply to the request.

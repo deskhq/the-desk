@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Actions\Channels;
 
 use App\Data\UserData;
@@ -13,9 +15,9 @@ use App\Models\ChannelMember;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
 
-class JoinChannel
+final readonly class JoinChannel
 {
-    public function __construct(private readonly PostSystemMessage $postSystemMessage) {}
+    public function __construct(private PostSystemMessage $postSystemMessage) {}
 
     /**
      * Add the user to the channel, returning the (existing or new) membership.

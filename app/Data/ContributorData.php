@@ -11,7 +11,7 @@ use Spatie\TypeScriptTransformer\Attributes\TypeScript;
  * A member's message count for the top-contributors ranking.
  */
 #[TypeScript]
-class ContributorData extends Data
+final class ContributorData extends Data
 {
     public function __construct(
         public string $id,

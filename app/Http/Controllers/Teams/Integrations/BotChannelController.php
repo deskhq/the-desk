@@ -26,7 +26,7 @@ use Inertia\Inertia;
  * without operator intent — this surface, gated on `manageIntegrations`, is that
  * intent.
  */
-class BotChannelController extends Controller
+final class BotChannelController extends Controller
 {
     /**
      * Add the bot to one of the team's channels.

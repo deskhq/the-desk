@@ -29,7 +29,7 @@ use Illuminate\Support\Facades\Storage;
  *   value replaced in that window is left alone, neither counted nor broadcast,
  *   rather than being wiped moments after the user set it.
  */
-class ExpirySweep
+final class ExpirySweep
 {
     /**
      * Walk the lapsed rows one at a time, counting the passes that reported

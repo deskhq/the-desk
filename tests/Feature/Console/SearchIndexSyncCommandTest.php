@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 use App\Models\Message;
 use GuzzleHttp\Psr7\Response;
 use Illuminate\Support\Facades\Queue;

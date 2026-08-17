@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 use App\Models\AuditActivity;
 use App\Models\DataExport;
 use App\Models\SecurityEvent;

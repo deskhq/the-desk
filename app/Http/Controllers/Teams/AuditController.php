@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Controllers\Teams;
 
 use App\Enums\AuditAction;
@@ -10,7 +12,7 @@ use App\Support\AuditLog;
 use Inertia\Inertia;
 use Inertia\Response;
 
-class AuditController extends Controller
+final class AuditController extends Controller
 {
     /**
      * Show the workspace's audit log, newest first, filterable by action and actor.

@@ -19,7 +19,7 @@ use Laravel\Sanctum\NewAccessToken;
  * within the one team it is bound to. The plain-text token is returned once
  * (Sanctum stores only its hash); its value is never logged.
  */
-class MintPersonalAccessToken
+final class MintPersonalAccessToken
 {
     /**
      * @param  list<string>  $abilities  The granted scopes (least-privilege).

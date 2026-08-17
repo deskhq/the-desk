@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 use App\Data\UserGroupData;
 use App\Models\UserGroup;
 

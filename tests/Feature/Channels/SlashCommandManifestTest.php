@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 use App\Models\Channel;
 use App\SlashCommands\SlashCommandRegistry;
 use Inertia\Testing\AssertableInertia as Assert;

@@ -9,7 +9,7 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 
-class DndScheduleSnoozeController extends Controller
+final class DndScheduleSnoozeController extends Controller
 {
     /**
      * Snooze the quiet-hours schedule until the running window next closes.
@@ -21,7 +21,7 @@ class DndScheduleSnoozeController extends Controller
      */
     public function update(Request $request, SnoozeDndSchedule $snooze): RedirectResponse
     {
-        $snooze->handle($request->user());
+        $snooze->handle($this->viewer($request));
 
         return back();
     }

@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 use App\Actions\Channels\DispatchDueMessageReminders;
 use App\Enums\MessageReminderStatus;
 use App\Events\MessageReminderDue;

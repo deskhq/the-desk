@@ -1,11 +1,13 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Requests\Channels;
 
 use App\Http\Requests\RouteBoundRequest;
 use Illuminate\Support\Facades\Gate;
 
-class DeleteMessageRequest extends RouteBoundRequest
+final class DeleteMessageRequest extends RouteBoundRequest
 {
     /**
      * Determine if the user is authorized to make this request.

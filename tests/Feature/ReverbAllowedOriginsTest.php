@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 test('reverb allowed origins default to any origin when the env var is absent', function (): void {
     $this->reloadWithEnv(['REVERB_ALLOWED_ORIGINS' => '']);
 

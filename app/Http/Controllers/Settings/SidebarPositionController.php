@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Controllers\Settings;
 
 use App\Enums\SidebarPosition;
@@ -8,7 +10,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 
-class SidebarPositionController extends Controller
+final class SidebarPositionController extends Controller
 {
     /**
      * Choose which edge of the workspace the navigation sidebar sits on.
@@ -23,7 +25,7 @@ class SidebarPositionController extends Controller
             'sidebar_position' => ['required', Rule::enum(SidebarPosition::class)],
         ]);
 
-        $request->user()->update($validated);
+        $this->viewer($request)->update($validated);
 
         return back();
     }

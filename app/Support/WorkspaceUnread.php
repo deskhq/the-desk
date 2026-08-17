@@ -36,7 +36,7 @@ use stdClass;
  * the workspace's size, and its cost is one query however many channels the
  * viewer belongs to.
  */
-class WorkspaceUnread
+final class WorkspaceUnread
 {
     /**
      * The viewer's whole unread standing, ready to ship.

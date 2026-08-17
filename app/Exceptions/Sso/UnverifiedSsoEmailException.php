@@ -13,7 +13,7 @@ use RuntimeException;
  * can self-assert an address at the IdP take over the matching local account,
  * so the sign-in is rejected outright.
  */
-class UnverifiedSsoEmailException extends RuntimeException
+final class UnverifiedSsoEmailException extends RuntimeException
 {
     //
 }
