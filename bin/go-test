@@ -1,0 +1,87 @@
+#!/usr/bin/env bash
+#
+# bin/go-test — run the Go unfurler's suite, in a container.
+#
+# Go is not a dependency of working on this repository: the binary is built
+# inside the production image (Dockerfile, stage 3) and `go run` in the Sail
+# stack, so nobody has to install a toolchain to change a Vue component. This
+# script keeps that true for the tests as well.
+#
+# Note the image. The *build* stage uses golang:N-alpine with CGO_ENABLED=0,
+# because a fully static binary needs no C toolchain. The tests cannot: `-race`
+# is implemented in cgo, and the Alpine image ships no C compiler, so a run there
+# dies with "requires cgo". Debian here, Alpine there, and neither is an
+# oversight.
+#
+# Usage:
+#   bin/go-test               # vet, test with the race detector, enforce the floor
+#   bin/go-test -run TestFoo  # anything extra is passed through to `go test`
+
+set -euo pipefail
+
+# The coverage floor. Deliberately not the 100% the PHP suite is gated at: that
+# number is reachable in Laravel because the framework gives you a seam for
+# everything, and it is not reachable here without contorted interfaces around
+# io and net error branches nothing can trigger. tests/Unit/GoQualityGateTest.php
+# pins this same number into the CI workflow.
+readonly FLOOR=90.0
+
+readonly GO_IMAGE="golang:1.25"
+readonly MODULE_CACHE="the-desk-gomod"
+
+repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+
+if ! docker info >/dev/null 2>&1; then
+    echo "bin/go-test: Docker is not running. Start it (or Sail) and try again." >&2
+    exit 1
+fi
+
+echo "==> go vet"
+docker run --rm \
+    -v "${repo_root}":/repo \
+    -v "${MODULE_CACHE}":/go/pkg/mod \
+    -w /repo/services/unfurler \
+    "${GO_IMAGE}" \
+    go vet ./...
+
+echo "==> gofmt"
+unformatted="$(docker run --rm \
+    -v "${repo_root}":/repo \
+    -v "${MODULE_CACHE}":/go/pkg/mod \
+    -w /repo/services/unfurler \
+    "${GO_IMAGE}" \
+    gofmt -l .)"
+
+if [ -n "${unformatted}" ]; then
+    echo "bin/go-test: these files are not gofmt-clean:" >&2
+    echo "${unformatted}" >&2
+    echo "Run: docker run --rm -v \"\$PWD\":/repo -w /repo/services/unfurler ${GO_IMAGE} gofmt -w ." >&2
+    exit 1
+fi
+
+echo "==> go test -race"
+# -coverpkg over the whole internal tree, so a helper exercised from a sibling
+# package's test counts as covered. Without it the vocabulary package reads 0%
+# while every test in the service uses it, and the total understates by enough to
+# make the floor meaningless.
+docker run --rm \
+    -v "${repo_root}":/repo \
+    -v "${MODULE_CACHE}":/go/pkg/mod \
+    -w /repo/services/unfurler \
+    "${GO_IMAGE}" \
+    sh -c "go test ./... -race -covermode=atomic -coverpkg=./internal/... -coverprofile=coverage.out $* && \
+        go tool cover -func=coverage.out | tail -1 | awk '{print \$3}' > coverage.total"
+
+total="$(tr -d '%' < "${repo_root}/services/unfurler/coverage.total")"
+rm -f "${repo_root}/services/unfurler/coverage.total"
+
+echo "==> coverage: ${total}% (floor ${FLOOR}%)"
+
+# awk rather than bash arithmetic: these are decimals.
+if ! awk -v total="${total}" -v floor="${FLOOR}" 'BEGIN { exit (total >= floor) ? 0 : 1 }'; then
+    echo "bin/go-test: coverage ${total}% is below the ${FLOOR}% floor." >&2
+    echo "Inspect it with: go tool cover -html=services/unfurler/coverage.out" >&2
+    exit 1
+fi
+
+echo "Go suite green."

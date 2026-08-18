@@ -36,3 +36,5 @@ services:
     <<: *build
   scheduler:
     <<: *build
+  unfurler:
+    <<: *build

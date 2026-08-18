@@ -18,6 +18,53 @@ function guardResolving(array $ips): OutboundUrlGuard
     return new OutboundUrlGuard(StubHostResolver::returning(default: $ips));
 }
 
+/**
+ * The shared case table, decoded.
+ *
+ * `tests/Fixtures/egress-verdict-cases.json` is the specification for the
+ * pre-flight verdict — *would this server open a connection to this URL at all?*
+ * — and it is read by `services/unfurler/internal/guard/verdicts_test.go` too.
+ * Neither language owns it, so a case added on one side of the wire has to
+ * satisfy the other, and `tests/Unit/SsrfVerdictParityTest.php` fails if either
+ * consumer stops reading it. See ADR-0016, and ADR-0010 for the device.
+ *
+ * Only the `both`-scoped rows are asserted here. A `go`-scoped row is one the Go
+ * guard refuses and this one does not — carrier-grade NAT, the TEST-NETs, the
+ * IPv6 documentation range — which is a real gap on the webhook and image-proxy
+ * paths rather than a disagreement about the rule. ADR-0016 records them as owed
+ * an issue; asserting them here would fail against today's guard and asserting
+ * their *current* verdict would pin the gap open.
+ *
+ * @return array<string, array{0: string, 1: bool}>
+ *
+ * @throws JsonException
+ */
+function sharedEgressVerdicts(): array
+{
+    /** @var array<int, array{name: string, url: string, blocked: bool, scope: string}> $cases */
+    $cases = json_decode(
+        (string) file_get_contents(dirname(__DIR__, 2).'/Fixtures/egress-verdict-cases.json'),
+        associative: true,
+        flags: JSON_THROW_ON_ERROR,
+    );
+
+    $sets = [];
+
+    foreach ($cases as $case) {
+        if ($case['scope'] !== 'both') {
+            continue;
+        }
+
+        $sets[$case['name']] = [$case['url'], $case['blocked']];
+    }
+
+    return $sets;
+}
+
+it('answers the shared case table the way the unfurler\'s guard does', function (string $url, bool $blocked): void {
+    expect(OutboundUrlGuard::isPublic($url))->toBe(! $blocked);
+})->with(sharedEgressVerdicts(...));
+
 it('accepts a public https URL', function (): void {
     expect(OutboundUrlGuard::isPublic('https://example.test/hooks'))->toBeTrue();
     expect(OutboundUrlGuard::isPublic('http://example.test/hooks'))->toBeTrue();

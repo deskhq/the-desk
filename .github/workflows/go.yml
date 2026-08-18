@@ -1,0 +1,98 @@
+name: go
+
+# The link unfurler (services/unfurler) is the one part of this application
+# written in Go, and the PHP gate cannot see it: `php artisan test --coverage`
+# measures `app/`, and the unfurl logic no longer lives there. This workflow is
+# the gate for it.
+#
+# Its floor is 90%, not the 100% the PHP suite is held to. That is a deliberate
+# difference rather than a lower standard applied by accident: 100% is reachable
+# in Laravel because the framework gives you a seam for everything, and it is not
+# reachable here without contorted interfaces around `io` and `net` error
+# branches nothing can trigger. tests/Unit/GoQualityGateTest.php pins the number
+# so it cannot drift downwards quietly.
+
+on:
+  push:
+    branches:
+      - develop
+      - master
+    paths:
+      - 'services/**'
+      - 'tests/Fixtures/egress-verdict-cases.json'
+      - '.github/workflows/go.yml'
+  pull_request:
+    branches:
+      - develop
+      - master
+    paths:
+      - 'services/**'
+      # The shared SSRF case table is read by the Go suite as well as the PHP
+      # one. A row added on the PHP side has to satisfy this guard too, which is
+      # the whole point of there being one table (ADR-0016).
+      - 'tests/Fixtures/egress-verdict-cases.json'
+      - '.github/workflows/go.yml'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  go:
+    name: Unfurler
+    runs-on: ${{ vars.CI_RUNNER || 'ubuntu-latest' }}
+
+    defaults:
+      run:
+        working-directory: services/unfurler
+
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v5
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          # Kept in step with the GO_VERSION arg in the Dockerfile and the image
+          # bin/go-test runs. A drift between them means the tested binary is not
+          # the shipped one.
+          go-version-file: services/unfurler/go.mod
+          cache-dependency-path: services/unfurler/go.sum
+
+      - name: Check formatting
+        run: |
+          unformatted="$(gofmt -l .)"
+          if [ -n "$unformatted" ]; then
+            echo "These files are not gofmt-clean:"
+            echo "$unformatted"
+            exit 1
+          fi
+
+      - name: Vet
+        run: go vet ./...
+
+      - name: Test
+        # -race because the service fans a batch out across goroutines and shares
+        # a results slice between them; a data race there is exactly the class of
+        # bug that passes every functional test.
+        #
+        # -coverpkg over the whole internal tree, so a helper exercised from a
+        # sibling package's test counts. Without it the shared vocabulary package
+        # reads 0% while every test uses it, and the total understates by enough
+        # to make the floor meaningless.
+        run: go test ./... -race -covermode=atomic -coverpkg=./internal/... -coverprofile=coverage.out
+
+      - name: Enforce the coverage floor
+        run: |
+          total="$(go tool cover -func=coverage.out | tail -1 | awk '{print $3}' | tr -d '%')"
+          echo "total coverage: ${total}%"
+          awk -v total="$total" 'BEGIN { exit (total >= 90.0) ? 0 : 1 }'
+
+      - name: Build the binary the image ships
+        # The production image builds this statically with CGO disabled. Proving
+        # it here means a change that only compiles with cgo fails on the PR
+        # rather than in the Docker workflow.
+        run: CGO_ENABLED=0 go build -trimpath -ldflags='-s -w -buildid=' -o /tmp/unfurler ./cmd/unfurler

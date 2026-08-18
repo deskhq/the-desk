@@ -216,8 +216,68 @@ A release can also add a **service** to the stack. If you run the shipped
 it automatically — pulling the new file is all it takes. If you maintain your own
 copy, compare it against the release's file and copy any new service across.
 
-The current example is `queue-broadcasts`, a second queue worker that carries
-real-time updates so they never queue behind a slow job such as a link preview:
+`docker/upgrade.sh` names any it cannot find in your file as it runs, so you do
+not have to diff for them yourself.
+
+#### `unfurler`
+
+The newest one. Link previews are fetched and parsed by their own small service
+rather than by the app, because the page being fetched is at whatever address a
+member typed into a message — see
+[Security](/reference/security/#link-previews-run-in-their-own-service). It runs
+the same image you already pull, so there is nothing extra to download:
+
+```yaml
+  unfurler:
+    image: ${APP_IMAGE:-ghcr.io/deskhq/the-desk:${APP_VERSION}}
+    entrypoint: ['/usr/local/bin/unfurler']
+    restart: unless-stopped
+    environment:
+      UNFURLER_LISTEN: ':8080'
+      UNFURLER_TOKEN: ${UNFURLER_TOKEN:-}
+      UNFURLER_LOG_LEVEL: ${UNFURLER_LOG_LEVEL:-info}
+      UNFURLER_MAX_CONCURRENCY: ${UNFURLER_MAX_CONCURRENCY:-16}
+      WEBHOOKS_BLOCK_PRIVATE_URLS: ${WEBHOOKS_BLOCK_PRIVATE_URLS:-true}
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test: ['CMD', 'curl', '-fsS', 'http://localhost:8080/healthz']
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+```
+
+Note that this one deliberately does **not** use the `*app` anchor the workers
+below use. That anchor mounts your `.env` and the shared storage volume, and the
+whole point of this service is that it holds neither. Paste it as it stands.
+
+It also needs two settings in `.env`, which `docker/upgrade.sh` offers to add for
+you along with any other new keys:
+
+```dotenv
+UNFURLER_URL=http://unfurler:8080
+UNFURLER_TOKEN=
+```
+
+`UNFURLER_TOKEN` is a shared secret; generate one with
+`openssl rand -hex 32`, or re-run `./docker/gen-secrets.sh`, which fills it in
+and leaves everything already set alone. The service will not start with it
+empty — it restart-loops, and `docker compose ps` shows it — rather than serving
+unauthenticated on your compose network.
+
+**Missing it is not fatal.** Link previews stop resolving: cards settle as failed
+and links render as plain links. Messages still post, edit, broadcast and search
+exactly as before, and adding the service later fixes it with no migration.
+
+#### `queue-broadcasts`
+
+A second queue worker that carries real-time updates so they never queue behind
+a slow job such as a webhook delivery:
 
 ```yaml
   queue-broadcasts:

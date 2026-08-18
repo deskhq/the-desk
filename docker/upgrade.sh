@@ -373,6 +373,35 @@ if [ "$SYNC_ENV" != "never" ]; then
     fi
 fi
 
+# Warn about services the operator's compose file is missing.
+#
+# env-sync.sh above notices a new *setting*. Nothing noticed a new *service*, and
+# that gap is why `queue-broadcasts` was absent from stacks for five months
+# (#1040): the file an operator has is the file they downloaded on the day they
+# installed, and an upgrade only ever bumped APP_VERSION. A missing service does
+# not error — the stack comes up fine and quietly does less.
+#
+# This only reports. Editing the operator's compose file for them is not this
+# script's business, and a bad automatic edit is worse than a clear message.
+if [ -f "docker-compose.prod.yml" ]; then
+    for service in unfurler queue-broadcasts; do
+        if ! grep -Eq "^[[:space:]]{2}${service}:" docker-compose.prod.yml; then
+            echo
+            echo "  note: your docker-compose.prod.yml has no '${service}' service."
+            case "$service" in
+                unfurler)
+                    echo "        Link previews will not resolve without it: they settle as failed"
+                    echo "        and no card renders. Everything else is unaffected."
+                    ;;
+                queue-broadcasts)
+                    echo "        Real-time updates still work but queue behind slow jobs."
+                    ;;
+            esac
+            echo "        See https://docs.the-desk.app/self-hosting/upgrading/ for the block to add."
+        fi
+    done
+fi
+
 # Migrations run automatically on start, via the app service's entrypoint.
 if [ "$BUILD_FROM_SOURCE" = "true" ]; then
     docker compose up -d --build </dev/null || fail_with_restore "the stack failed to build and start."

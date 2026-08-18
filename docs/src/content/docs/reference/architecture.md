@@ -10,8 +10,11 @@ commands run against a container (maintenance, seeding the public demo) resolve
 configuration exactly like a standard on-disk install. The app image is served
 with [FrankenPHP](https://frankenphp.dev/). By default the five app-role services
 (`app`, `reverb`, `queue`, `queue-broadcasts`, `scheduler`) share one **prebuilt
-image** pulled from the registry; the optional `docker-compose.build.yml` overlay
-replaces that pull with a local build from source (see
+image** pulled from the registry. `unfurler` runs that same image and so needs no
+second pull, but it is not an app-role container: it runs a Go binary rather than
+the application, and holds none of the application's environment, storage or
+branding (see [Link previews](#link-previews) below). The optional
+`docker-compose.build.yml` overlay the optional `docker-compose.build.yml` replaces that pull with a local build from source (see
 [Installation](/self-hosting/installation/#build-from-source)).
 
 ## Services
@@ -25,6 +28,7 @@ replaces that pull with a local build from source (see
 | `scheduler`   | Scheduled tasks (`schedule:work`) — due scheduled messages, invitation pruning |
 | `pgsql`       | PostgreSQL database (named volume `pgsql-data`)             |
 | `meilisearch` | Full-text search index (version-scoped named volume)       |
+| `unfurler`    | Link-preview service (fetches and parses linked pages)       |
 | `redis`       | Cache, session, and queue backend (named volume `redis-data`)|
 
 Every app process (`app`, `reverb`, `queue`, `queue-broadcasts`, `scheduler`)
@@ -33,17 +37,50 @@ waits for `pgsql`, `redis`, and `meilisearch` to report healthy before it starts
 ### Why broadcasts get their own worker
 
 Every real-time update — a new message, an edit, a reaction, a typing indicator,
-presence, read state — is a queued job. So is a link unfurl, which spends up to
-five seconds on outbound HTTP, and so are webhook deliveries, exports, and mail.
-On a single worker one unfurl holds every message behind it, and no amount of
-queue prioritisation helps: priority picks the *next* job, it cannot interrupt
-the one already running.
+presence, read state — is a queued job. So are webhook deliveries, exports, and
+mail, and each of those can spend seconds waiting on somebody else's server. On a
+single worker one slow job holds every message behind it, and no amount of queue
+prioritisation helps: priority picks the *next* job, it cannot interrupt the one
+already running.
+
+A link unfurl used to be the worst of them, spending up to five seconds on
+outbound HTTP; it is now a single call to the `unfurler` service, which fetches
+every link in a message at once. That removed the original reason for this split
+but not the split itself, because webhook delivery and audit exports are still
+sat on the shared queue and still block it.
 
 So broadcasts are routed to their own `broadcasts` queue and drained by
 `queue-broadcasts`, which runs nothing else. The shared `queue` worker still
 lists `broadcasts` ahead of `default`, as a safety net: if you run a customised
 compose file and never add the new service, broadcasts are still delivered — they
 just queue behind slow jobs again, rather than stopping.
+
+## Link previews
+
+Posting a URL queues a background unfurl: something has to fetch that page and
+read its Open Graph tags. That fetch is the only request the server makes on a
+member's say-so — the address is whatever somebody typed into a message — so it
+does not happen inside the application.
+
+`unfurler` is a small Go service that does it instead. It ships inside the same
+image (nothing extra to pull, scan or pin: one `APP_VERSION` still describes the
+whole stack) but runs as its own container holding nothing:
+
+- no `.env`, so it never sees `APP_KEY`, the database password, or any other
+  secret
+- no `storage-app`, no branding mount, and a read-only filesystem
+- no published host port, so it is reachable only as `unfurler:8080` from inside
+  the compose network, and `UNFURLER_TOKEN` authenticates every request so
+  another container on that network cannot use it as an open fetcher
+
+It checks each destination address immediately before connecting, on every
+redirect hop, and reads at most 2 MB of any page. See
+[Security](/reference/security/#link-previews-run-in-their-own-service).
+
+**If you do not run it**, link previews simply do not resolve: cards settle as
+failed and links render plainly. Messages still post, edit, broadcast and search
+exactly as before. Leaving `UNFURLER_URL` unset turns unfurling off deliberately,
+for an instance that wants no outbound fetching at all.
 
 ## Health checks
 
@@ -57,6 +94,7 @@ each app-role service by what it actually serves:
 | `queue`            | `Up` (no health column)       | none (no HTTP surface)      |
 | `queue-broadcasts` | `Up` (no health column)       | none (no HTTP surface)      |
 | `scheduler`        | `Up` (no health column)       | none (no HTTP surface)      |
+| `unfurler`         | `healthy` / `unhealthy`       | `GET /healthz` (HTTP, port 8080) |
 
 The workers (`queue:work` / `schedule:work`) have nothing to curl, so they carry
 no health check by design and show a plain `Up`. That confirms the container is
@@ -71,7 +109,7 @@ a genuine outage flips them to `unhealthy`.
 - **Real-time** updates are queued on `broadcasts`, picked up by
   `queue-broadcasts`, and pushed over WebSockets by `reverb`; the browser
   connects to it through your TLS proxy.
-- **Background work** (email, link previews, webhook delivery, scheduled message
+- **Background work** (email, link previews via `unfurler`, webhook delivery, scheduled message
   delivery) runs on `queue` and `scheduler`.
 - **Search** queries go to `meilisearch`; the index is derived from Postgres and
   rebuilt with `php artisan search:sync` when needed.
@@ -123,7 +161,8 @@ cache, so it works under the default Redis session driver with no need to switch
 | `storage-app`                 | Uploaded files                     |
 
 `storage-app` is mounted by all five app-role services (`app`, `queue`,
-`queue-broadcasts`, `reverb`, `scheduler`). On a fresh volume Docker seeds it
+`queue-broadcasts`, `reverb`, `scheduler`) and deliberately **not** by
+`unfurler`, which holds no application state at all. On a fresh volume Docker seeds it
 from the image, so the workers wait for `app` to start (`depends_on: app`) and
 exactly one container performs that seeding — starting them together makes the
 daemon race itself and one container fails with `mkdir …/_data/private: file

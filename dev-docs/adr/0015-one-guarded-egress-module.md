@@ -1,8 +1,30 @@
 # ADR-0015: One guarded-egress module owns every connection to a member-controlled URL
 
-- Status: Accepted
+- Status: Accepted — amended by [ADR-0016](0016-unfurler-is-a-separate-service.md) (2026-08-17)
 - Date: 2026-08-03
 - Relates to: epic architecture-hardening V (#1195), child #1196
+
+> **Amendment note (2026-08-17).** The unfurl is no longer a PHP `fetch()` caller.
+> [ADR-0016](0016-unfurler-is-a-separate-service.md) moves it to a separate Go
+> service, for the two things this module cannot do from PHP: bound the response
+> *while reading it* rather than after Guzzle has buffered it (#1202, deferred
+> below), and check the destination address on the `connect(2)` path rather than
+> asking curl to honour a pin. Three consequences land back here.
+>
+> - **`fetch()` has one caller left**, `FetchRemoteImage`. So `FetchPolicy`
+>   collapses to `refusingOver()`: the `truncatingAt()` reading, the
+>   `truncatesOversizeBody` flag and the truncation branch in `read()` were the
+>   unfurl's and left with it. The "two size-cap readings are now stated rather
+>   than implied" consequence below is history, and it was true when written.
+> - **#1202 is closed on the unfurl path and still open on the image path.** The
+>   scope note below deferred it as pre-existing and identical in both copies;
+>   only one of those copies is left.
+> - **The allowlist in `GuardedEgressHomeTest` gains a fifth entry**,
+>   `App\Support\Unfurl\HttpUnfurler`, on the criterion `GiphyClient` and
+>   `UpdateChecker` already established: it dials an operator-configured host.
+>   The claim in the Decision below is unchanged and still literally true — PHP
+>   opens no connection to a member-controlled URL for an unfurl, because it
+>   opens none at all.
 
 ## Context
 

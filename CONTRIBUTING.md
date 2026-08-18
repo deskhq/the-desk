@@ -60,6 +60,31 @@ below the PHP coverage gate. It needs no database and runs in seconds.
 
 Auto-fix with `./vendor/bin/sail npm run lint` and `./vendor/bin/sail npm run format`.
 
+**The unfurler** — the one part of this application written in Go
+(`services/unfurler`, see [ADR-0016](dev-docs/adr/0016-unfurler-is-a-separate-service.md)).
+The PHP coverage gate cannot see it, so it has its own:
+
+```bash
+bin/go-test
+```
+
+**You do not need Go installed.** The script runs the toolchain in a container,
+the same way everything else here runs in one, so changing a Vue component never
+costs you a second language. It vets, checks formatting, runs the suite with the
+race detector, and enforces a 90% coverage floor. Format with
+`docker run --rm -v "$PWD":/repo -w /repo/services/unfurler golang:1.25 gofmt -w .`.
+
+The floor is 90 rather than the 100 the PHP suite is held to. That is a different
+number for a different language, not a lower standard: Laravel gives you a seam
+for everything, and Go does not without contorting interfaces around `io` and
+`net` error branches nothing can trigger.
+
+**Everything at once**, which is what CI runs:
+
+```bash
+./vendor/bin/sail composer ci:check
+```
+
 ### Where a new test goes
 
 There are four directories under `tests/`, three of which the coverage gate runs.

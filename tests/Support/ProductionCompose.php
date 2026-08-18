@@ -61,9 +61,13 @@ final class ProductionCompose
     /**
      * The services that run the shared application image.
      *
+     * Every one of these needs a local `build:` in the build-from-source
+     * overlay, or it is pulled from the registry while its siblings are built
+     * (#1040). That is the only thing this set means.
+     *
      * @return list<string>
      */
-    public static function appRoleServices(): array
+    public static function sharedImageServices(): array
     {
         $services = array_values(array_keys(array_filter(
             self::services(),
@@ -77,22 +81,55 @@ final class ProductionCompose
         throw_unless(
             in_array('app', $services, true) && count($services) > 1,
             RuntimeException::class,
-            'No app-role services derived from docker-compose.prod.yml — does it still run ['.self::APP_IMAGE.']?',
+            'No shared-image services derived from docker-compose.prod.yml — does it still run ['.self::APP_IMAGE.']?',
         );
 
         return $services;
     }
 
     /**
-     * The app-role services other than `app` itself — the workers that wait for
+     * The shared-image services that run the Laravel application itself.
+     *
+     * These two sets used to be one, and came apart when the unfurler arrived
+     * (ADR-0016): it ships in the same image but runs a Go binary against it, so
+     * it needs the build overlay like its siblings while mounting no application
+     * storage, taking no branding and reading no `.env`. Giving that container
+     * the application's environment is most of what isolating it was for.
+     *
+     * The distinction is drawn on `entrypoint:`, which is what a service
+     * overrides precisely when it is not running the application.
+     *
+     * @return list<string>
+     */
+    public static function laravelServices(): array
+    {
+        $services = array_values(array_filter(
+            self::sharedImageServices(),
+            static fn (string $name): bool => ! isset(self::services()[$name]['entrypoint']),
+        ));
+
+        // Fail closed again, and for a second reason: if `entrypoint:` ever
+        // became the norm rather than the exception this would quietly empty out
+        // and every storage, branding and dependency guard would pass on nothing.
+        throw_unless(
+            in_array('app', $services, true) && count($services) > 1,
+            RuntimeException::class,
+            'No Laravel services derived from docker-compose.prod.yml — has the entrypoint convention changed?',
+        );
+
+        return $services;
+    }
+
+    /**
+     * The Laravel services other than `app` itself — the workers that wait for
      * it before they start.
      *
      * @return list<string>
      */
-    public static function appRoleWorkers(): array
+    public static function laravelWorkers(): array
     {
         return array_values(array_filter(
-            self::appRoleServices(),
+            self::laravelServices(),
             static fn (string $service): bool => $service !== 'app',
         ));
     }

@@ -214,27 +214,47 @@ egress simply degrades — avatars fall back to initials and link previews rende
 without a thumbnail — rather than hanging or erroring. Setting
 `GRAVATAR_ENABLED=false` stops the avatar fetch being attempted at all.
 
-### Link previews are fetched through the same guard
+### Link previews run in their own service
 
-Posting a URL queues a background unfurl that fetches the page and reads its
-Open Graph tags. Whatever the guard's setting, that fetch is bounded: a 5-second
-timeout, a 2 MB cap, an HTML-only content-type check, and at most three
-redirects, followed one hop at a time rather than handed to curl.
+Posting a URL queues a background unfurl that fetches the page and reads its Open
+Graph tags. That address is whatever a member typed into a message, which makes
+it the only request this server makes on somebody else's say-so — so it is made
+by a separate process, `unfurler`, rather than by the application.
+
+That process is built to hold nothing. It gets no `.env` (so it never sees
+`APP_KEY`, your database password, or any other secret), no uploaded files, no
+branding, a read-only filesystem, no added capabilities, and no published host
+port. It is reachable only as `unfurler:8080` from inside the compose network,
+and `UNFURLER_TOKEN` authenticates every request, so another container on that
+network cannot use it as an open fetcher either. If a linked page ever did manage
+something nasty to the parser reading it, what it would land in is a container
+with nothing in it.
+
+The fetch itself is bounded whatever the guard's setting: a 5-second budget per
+hop, at most three redirects, an HTML-only content-type check, and at most 2 MB
+read from any page. That last number is a limit on what is **read**, not on what
+is kept afterwards, so a page that streams without declaring its size cannot make
+the server hold more of it than that.
 
 Where the URL may point is governed by
 [`WEBHOOKS_BLOCK_PRIVATE_URLS`](/reference/feature-toggles/#outgoing-webhooks),
-the same guard the image proxy and outgoing webhooks use. While it is on
-(the default), every hop must be a public `http`/`https` host, resolves its
-hostname exactly once, and pins the connection to the address that resolution
-vetted — so a domain whose authoritative DNS answers the check with a public
-address and the connection with an internal one cannot retarget the fetch.
-Without that pin an unfurl could be steered at cloud instance metadata, and the
-scraped `<title>` would carry the response back onto a preview card.
+the same setting the image proxy and outgoing webhooks use — it keeps its
+webhook-era name so an instance that deliberately turned it off keeps it off
+everywhere. While it is on (the default), every hop must be a public `http`/`https`
+address, and **the address is checked immediately before the connection is
+opened**, on every hop. A domain whose authoritative DNS answers the check with a
+public address and the connection with an internal one therefore has nowhere to
+put the second answer: there is no gap between the check and the connect for it
+to land in.
 
-Turning the toggle off removes both the host check and the pin from link
-previews as well as from webhooks, which lets any member trigger a server-side
-fetch of an internal address by pasting its URL into a message. Only do it on an
-instance that deliberately targets internal endpoints.
+Turning the toggle off removes that check from link previews as well as from
+webhooks, which lets any member trigger a server-side fetch of an internal
+address by pasting its URL into a message. Only do it on an instance that
+deliberately targets internal endpoints.
+
+If you do not run the `unfurler` service, or you leave `UNFURLER_URL` unset, no
+unfurl is attempted at all: preview cards settle as failed and links render
+plainly. Nothing else changes.
 
 ### Running behind Cloudflare or a script-injecting proxy
 

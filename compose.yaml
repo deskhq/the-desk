@@ -66,6 +66,7 @@ services:
             - pgsql
             - redis
             - reverb
+            - unfurler
     cron:
         image: 'sail-8.5/app'
         extra_hosts:
@@ -82,6 +83,29 @@ services:
             - pgsql
             - redis
             - reverb
+    # The Go link unfurler (services/unfurler). Sail's app image is built from
+    # the Sail runtime, not this repository's Dockerfile, so the binary the
+    # production image carries does not exist here. `go run` against the
+    # bind-mounted source instead, which makes `sail restart unfurler` the same
+    # edit-and-restart loop the PHP containers already have. Follows the
+    # ldap/oidc precedent: a stock upstream image plus configuration, never a
+    # bespoke dev Dockerfile.
+    unfurler:
+        image: 'golang:1.25-alpine'
+        working_dir: /src
+        command: ['go', 'run', './cmd/unfurler']
+        environment:
+            UNFURLER_LISTEN: ':8080'
+            UNFURLER_TOKEN: '${UNFURLER_TOKEN:-local-dev-token}'
+            UNFURLER_LOG_LEVEL: '${UNFURLER_LOG_LEVEL:-debug}'
+            WEBHOOKS_BLOCK_PRIVATE_URLS: '${WEBHOOKS_BLOCK_PRIVATE_URLS:-true}'
+        volumes:
+            - './services/unfurler:/src'
+            # Named, so a `sail down` does not throw away the module cache and
+            # make the next `up` re-download the dependency tree.
+            - 'sail-go-mod:/go/pkg/mod'
+        networks:
+            - sail
     pgsql:
         image: 'postgres:18-alpine'
         ports:
@@ -267,6 +291,8 @@ volumes:
     sail-redis:
         driver: local
     sail-meilisearch:
+        driver: local
+    sail-go-mod:
         driver: local
     sail-ldap:
         driver: local

@@ -90,7 +90,7 @@ test('the pre-flight check is still asked from outside the module', function () 
 });
 
 /**
- * The four sites that hold the HTTP client, and why each one is allowed to.
+ * The five sites that hold the HTTP client, and why each one is allowed to.
  *
  * `GuardedEgress` is the module. `DeliverWebhook` *composes* a signed request
  * and hands it to `GuardedEgress::send()` — it never dispatches one itself.
@@ -99,15 +99,26 @@ test('the pre-flight check is still asked from outside the module', function () 
  * through a guard each would need to switch off is how a security module stops
  * being one).
  *
- * A fifth entry means a new egress site. Route it through `GuardedEgress` and
+ * `HttpUnfurler` is the fifth, added by ADR-0016, and it earns its place on
+ * exactly the criterion the two above established: it dials
+ * `config('unfurl.url')`, a service on the container network that the operator
+ * configured. The member-controlled URL travels in the *body* of that request,
+ * and what opens a connection to it is the guard inside `services/unfurler` —
+ * which is why the claim this file protects is still true rather than merely
+ * still asserted. Sending it through `GuardedEgress::send()` instead would need
+ * the guard switched off for a private container address, which is the move
+ * ADR-0015 rules out.
+ *
+ * A sixth entry means a new egress site. Route it through `GuardedEgress` and
  * this test stays quiet; if it genuinely belongs beside Giphy, say so here and
  * in the ADR.
  */
-test('the sites holding the HTTP client are the four that are meant to', function () use ($sourceRoot): void {
+test('the sites holding the HTTP client are the five that are meant to', function () use ($sourceRoot): void {
     expect(appFilesMatching($sourceRoot, outboundClientPattern()))->toBe([
         'app/Jobs/DeliverWebhook.php',
         'app/Support/GiphyClient.php',
         'app/Support/Http/GuardedEgress.php',
+        'app/Support/Unfurl/HttpUnfurler.php',
         'app/Support/UpdateChecker.php',
     ]);
 });

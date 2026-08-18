@@ -18,6 +18,10 @@ on:
     paths:
       - 'Dockerfile'
       - 'docker/**'
+      # The unfurler binary is built into the image (Dockerfile stage 3), so a
+      # Go-only change is an image change. Without this it would merge on the
+      # strength of the diff alone, never having been built or scanned.
+      - 'services/**'
       - 'docker-compose*.yml'
       - 'composer.json'
       - 'composer.lock'

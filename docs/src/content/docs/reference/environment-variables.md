@@ -389,6 +389,26 @@ required) and mount the `.mmdb` file at `GEOIP_DATABASE_PATH`. The database is n
 bundled: MaxMind's licence does not allow redistribution, and it is refreshed
 regularly, so you keep it up to date yourself.
 
+## Link previews
+
+Posting a URL queues a background unfurl, which is handled by the `unfurler`
+service rather than by the app itself. See
+[Architecture](/reference/architecture/#link-previews) for why, and
+[Security](/reference/security/#link-previews-run-in-their-own-service) for what
+it does and does not have access to.
+
+| Variable                   | Default | Purpose |
+| -------------------------- | ------- | ------- |
+| `UNFURLER_URL`             | unset   | Where the unfurl service listens, on the internal container network. The shipped stack sets `http://unfurler:8080`. **Leave it unset to turn link previews off entirely**: nothing is fetched, preview cards settle as failed, and links render plainly. That is also what an instance running a compose file older than the service gets. |
+| `UNFURLER_TOKEN`           | unset   | Shared secret the service checks on every request, generated per instance by `./docker/gen-secrets.sh`. It is its own secret rather than something derived from `APP_KEY`, because a derivation would have to be computable inside the unfurler container — and that container exists precisely so it holds no secrets. The service refuses to start without it, and restart-loops visibly rather than serving unauthenticated. |
+| `UNFURLER_TIMEOUT`         | `15`    | Seconds the app waits for the service to answer a whole batch. Deliberately above the service's own budget, so the *service* is what decides a slow page has taken too long; this only trips on a container that has stopped answering at all. |
+| `UNFURLER_LOG_LEVEL`       | `info`  | `debug`, `info`, `warn` or `error`. At `debug` the service logs why each link produced no preview. It logs hosts, never full URLs. |
+| `UNFURLER_MAX_CONCURRENCY` | `16`    | How many pages the service will fetch at once across every request it is handling. One message contributes at most three. |
+
+Note that `WEBHOOKS_BLOCK_PRIVATE_URLS` governs the unfurl service's SSRF guard
+too, under its webhook-era name, so an instance that deliberately turned it off
+has it off everywhere.
+
 ## Presence
 
 Every member sees a small dot beside their teammates' avatars: **filled** when

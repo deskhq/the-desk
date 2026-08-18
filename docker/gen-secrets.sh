@@ -86,6 +86,11 @@ echo "Generating missing secrets in $ENV_FILE:"
 set_if_empty "APP_KEY"         "base64:$(openssl rand -base64 32)"
 set_if_empty "DB_PASSWORD"     "$(openssl rand -hex 24)"
 set_if_empty "MEILISEARCH_KEY" "$(openssl rand -hex 32)"
+# The unfurl service checks this on every request. It is deliberately its own
+# secret rather than something derived from APP_KEY: a derivation would have to
+# be computable inside the unfurler container, which means handing it the key
+# that signs every session — and that container exists precisely to hold nothing.
+set_if_empty "UNFURLER_TOKEN" "$(openssl rand -hex 32)"
 set_if_empty "REVERB_APP_ID"   "$(openssl rand 4 | od -An -tu4 | tr -d ' ')"
 
 # The browser and server share the one REVERB_APP_KEY (the frontend receives it

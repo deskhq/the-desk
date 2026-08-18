@@ -18,6 +18,7 @@
 # =============================================================================
 
 ARG PHP_VERSION=8.5
+ARG GO_VERSION=1.25
 
 # -----------------------------------------------------------------------------
 # Stage 1 — Composer: production PHP dependencies only, optimized autoloader.
@@ -79,7 +80,44 @@ COPY . .
 RUN npm run build
 
 # -----------------------------------------------------------------------------
-# Stage 3 — Runtime: slim FrankenPHP image with only what production needs.
+# Stage 3 — Unfurler: the Go link-preview service.
+#
+# It ships inside this image rather than as a second published one, so there is
+# one artifact to scan, one provenance attestation, one tag, and one APP_VERSION
+# for an operator to pin. docker-compose.prod.yml runs it as its own container by
+# overriding the entrypoint, with none of the application's environment, storage
+# or branding mounted — see dev-docs/adr/0016.
+#
+# Alpine and CGO_ENABLED=0, so the binary is fully static and depends on nothing
+# in the runtime stage it is copied into. Note that bin/go-test deliberately uses
+# the *Debian* image instead: `-race` is implemented in cgo and needs a C
+# toolchain this one does not ship. Neither choice is an oversight.
+#
+# The Go source also lands in the final image via the runtime stage's `COPY . .`,
+# and cannot be .dockerignore'd away: .dockerignore applies to the whole build
+# context, and this stage needs the sources from it. A few hundred kilobytes of
+# text, and it means Trivy sees go.mod in the image, which is a feature.
+# -----------------------------------------------------------------------------
+FROM golang:${GO_VERSION}-alpine AS unfurler
+
+WORKDIR /src
+
+# Cache the module layer on the manifests alone.
+COPY services/unfurler/go.mod services/unfurler/go.sum ./
+RUN go mod download
+
+COPY services/unfurler .
+
+# -trimpath and an empty -buildid so the binary is reproducible: the same source
+# builds byte-for-byte the same output, which is what makes the provenance
+# attestation worth attesting.
+RUN CGO_ENABLED=0 GOOS=linux go build \
+        -trimpath \
+        -ldflags='-s -w -buildid=' \
+        -o /out/unfurler ./cmd/unfurler
+
+# -----------------------------------------------------------------------------
+# Stage 4 — Runtime: slim FrankenPHP image with only what production needs.
 # -----------------------------------------------------------------------------
 FROM dunglas/frankenphp:1-php${PHP_VERSION}-alpine AS runtime
 
@@ -183,6 +221,11 @@ COPY --from=assets /app/public/build ./public/build
 # controls paths below its own, so serving it from the bundle directory would
 # scope it to `/build` and the app would stop being installable.
 COPY --from=assets /app/public/service-worker.js ./public/service-worker.js
+
+# The link unfurler (stage 3). Not run by this image's CMD: docker-compose.prod.yml
+# gives it its own container with `entrypoint: ['/usr/local/bin/unfurler']`, so
+# the Go process never pays for docker/entrypoint.sh's artisan cache warm-up.
+COPY --from=unfurler /out/unfurler /usr/local/bin/unfurler
 
 # Non-root runtime user. FrankenPHP listens on 8080 (>1024), so no extra
 # capabilities are required to bind the port.

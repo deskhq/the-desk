@@ -1,0 +1,284 @@
+[
+    {
+        "name": "an ordinary public https host is allowed",
+        "url": "https://example.test/page",
+        "blocked": false,
+        "scope": "both"
+    },
+    {
+        "name": "an ordinary public http host is allowed",
+        "url": "http://example.test/page",
+        "blocked": false,
+        "scope": "both"
+    },
+    {
+        "name": "a literal public IPv4 address is allowed",
+        "url": "https://8.8.8.8/page",
+        "blocked": false,
+        "scope": "both"
+    },
+    {
+        "name": "a literal public IPv6 address is allowed",
+        "url": "https://[2606:4700:4700::1111]/page",
+        "blocked": false,
+        "scope": "both"
+    },
+    {
+        "name": "a non-http scheme is refused",
+        "url": "ftp://example.test/x",
+        "blocked": true,
+        "scope": "both"
+    },
+    {
+        "name": "the file scheme is refused",
+        "url": "file:///etc/passwd",
+        "blocked": true,
+        "scope": "both"
+    },
+    {
+        "name": "a URL with no host is refused",
+        "url": "http://:80",
+        "blocked": true,
+        "scope": "both"
+    },
+    {
+        "name": "an unparseable URL is refused",
+        "url": "not a url",
+        "blocked": true,
+        "scope": "both"
+    },
+    {
+        "name": "IPv4 loopback is refused",
+        "url": "http://127.0.0.1/x",
+        "blocked": true,
+        "scope": "both"
+    },
+    {
+        "name": "the 10/8 private range is refused",
+        "url": "http://10.0.0.5/x",
+        "blocked": true,
+        "scope": "both"
+    },
+    {
+        "name": "the 172.16/12 private range is refused",
+        "url": "http://172.16.0.1/x",
+        "blocked": true,
+        "scope": "both"
+    },
+    {
+        "name": "the 192.168/16 private range is refused",
+        "url": "https://192.168.1.1/x",
+        "blocked": true,
+        "scope": "both"
+    },
+    {
+        "name": "cloud instance metadata is refused",
+        "url": "http://169.254.169.254/latest/meta-data",
+        "blocked": true,
+        "scope": "both"
+    },
+    {
+        "name": "the 0/8 this-network range is refused",
+        "url": "http://0.1.2.3/x",
+        "blocked": true,
+        "scope": "both"
+    },
+    {
+        "name": "the unspecified IPv4 address is refused",
+        "url": "http://0.0.0.0/x",
+        "blocked": true,
+        "scope": "both"
+    },
+    {
+        "name": "the 240/4 reserved range is refused",
+        "url": "http://240.0.0.1/x",
+        "blocked": true,
+        "scope": "both"
+    },
+    {
+        "name": "the IPv4 broadcast address is refused",
+        "url": "http://255.255.255.255/x",
+        "blocked": true,
+        "scope": "both"
+    },
+    {
+        "name": "the unspecified IPv6 address is refused",
+        "url": "http://[::]/x",
+        "blocked": true,
+        "scope": "both"
+    },
+    {
+        "name": "IPv6 loopback is refused",
+        "url": "http://[::1]/x",
+        "blocked": true,
+        "scope": "both"
+    },
+    {
+        "name": "loopback wearing an IPv4-mapped IPv6 address is refused",
+        "url": "http://[::ffff:127.0.0.1]/x",
+        "blocked": true,
+        "scope": "both"
+    },
+    {
+        "name": "metadata wearing an IPv4-mapped IPv6 address is refused",
+        "url": "http://[::ffff:169.254.169.254]/x",
+        "blocked": true,
+        "scope": "both"
+    },
+    {
+        "name": "the bottom of the IPv6 unique-local range is refused",
+        "url": "http://[fc00::]/x",
+        "blocked": true,
+        "scope": "both"
+    },
+    {
+        "name": "the top of the IPv6 unique-local range is refused",
+        "url": "http://[fdff:ffff:ffff:ffff:ffff:ffff:ffff:ffff]/x",
+        "blocked": true,
+        "scope": "both"
+    },
+    {
+        "name": "the bottom of the IPv6 link-local range is refused",
+        "url": "http://[fe80::]/x",
+        "blocked": true,
+        "scope": "both"
+    },
+    {
+        "name": "the top of the IPv6 link-local range is refused",
+        "url": "http://[febf:ffff:ffff:ffff:ffff:ffff:ffff:ffff]/x",
+        "blocked": true,
+        "scope": "both"
+    },
+    {
+        "name": "the bottom of the deprecated IPv6 site-local range is refused",
+        "url": "http://[fec0::]/x",
+        "blocked": true,
+        "scope": "both"
+    },
+    {
+        "name": "the top of the deprecated IPv6 site-local range is refused",
+        "url": "http://[feff:ffff:ffff:ffff:ffff:ffff:ffff:ffff]/x",
+        "blocked": true,
+        "scope": "both"
+    },
+    {
+        "name": "the bottom of the IPv6 multicast range is refused",
+        "url": "http://[ff00::]/x",
+        "blocked": true,
+        "scope": "both"
+    },
+    {
+        "name": "the IPv6 all-nodes multicast address is refused",
+        "url": "http://[ff02::1]/x",
+        "blocked": true,
+        "scope": "both"
+    },
+    {
+        "name": "the top of the IPv6 multicast range is refused",
+        "url": "http://[ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff]/x",
+        "blocked": true,
+        "scope": "both"
+    },
+    {
+        "name": "a percent-encoded zone index is refused",
+        "url": "http://[fe80::1%25eth0]/x",
+        "blocked": true,
+        "scope": "both"
+    },
+    {
+        "name": "a raw zone index is refused",
+        "url": "http://[fe80::1%eth0]/x",
+        "blocked": true,
+        "scope": "both"
+    },
+    {
+        "name": "an unbracketed zone index is refused",
+        "url": "http://fe80::1%25eth0/x",
+        "blocked": true,
+        "scope": "both"
+    },
+    {
+        "name": "the localhost name is refused without a lookup",
+        "url": "http://localhost/x",
+        "blocked": true,
+        "scope": "both"
+    },
+    {
+        "name": "a trailing dot does not smuggle localhost through",
+        "url": "http://localhost./x",
+        "blocked": true,
+        "scope": "both"
+    },
+    {
+        "name": "the .localhost suffix is refused",
+        "url": "http://api.localhost/x",
+        "blocked": true,
+        "scope": "both"
+    },
+    {
+        "name": "the .local suffix is refused",
+        "url": "http://printer.local/x",
+        "blocked": true,
+        "scope": "both"
+    },
+    {
+        "name": "the .internal suffix is refused",
+        "url": "https://db.internal/x",
+        "blocked": true,
+        "scope": "both"
+    },
+    {
+        "name": "carrier-grade NAT space is refused",
+        "url": "http://100.64.0.1/x",
+        "blocked": true,
+        "scope": "go"
+    },
+    {
+        "name": "the IETF protocol assignments range is refused",
+        "url": "http://192.0.0.1/x",
+        "blocked": true,
+        "scope": "go"
+    },
+    {
+        "name": "TEST-NET-1 is refused",
+        "url": "http://192.0.2.1/x",
+        "blocked": true,
+        "scope": "go"
+    },
+    {
+        "name": "the benchmarking range is refused",
+        "url": "http://198.18.0.1/x",
+        "blocked": true,
+        "scope": "go"
+    },
+    {
+        "name": "TEST-NET-2 is refused",
+        "url": "http://198.51.100.1/x",
+        "blocked": true,
+        "scope": "go"
+    },
+    {
+        "name": "TEST-NET-3 is refused",
+        "url": "http://203.0.113.1/x",
+        "blocked": true,
+        "scope": "go"
+    },
+    {
+        "name": "the NAT64 well-known prefix is refused",
+        "url": "http://[64:ff9b::1]/x",
+        "blocked": true,
+        "scope": "go"
+    },
+    {
+        "name": "the IPv6 discard-only range is refused",
+        "url": "http://[100::1]/x",
+        "blocked": true,
+        "scope": "go"
+    },
+    {
+        "name": "the IPv6 documentation range is refused",
+        "url": "http://[2001:db8::1]/x",
+        "blocked": true,
+        "scope": "go"
+    }
+]

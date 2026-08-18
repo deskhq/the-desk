@@ -11,7 +11,8 @@ use App\Jobs\UnfurlMessageLinks;
 use App\Models\Channel;
 use App\Models\Message;
 use App\Models\User;
-use App\Support\FetchLinkPreview;
+use App\Support\Unfurl\UnfurledPreview;
+use App\Support\Unfurl\Unfurler;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Str;
@@ -46,24 +47,33 @@ function postBody(User $owner, $team, Channel $general, string $body): Message
 }
 
 /**
- * A FetchLinkPreview stub that returns a fixed result for every URL.
+ * An Unfurler that gives every URL the same answer.
  *
- * @param  array{title: string, description: string|null, image: string|null, siteName: string|null}|null  $result
+ * Implements the interface rather than extending the real thing. A subclass is a
+ * seam nobody chose — it is the only reason FetchLinkPreview was left open, which
+ * tests/Unit/FinalByDefaultTest.php calls out by name — and it would have to be
+ * kept in step with a class whose whole body is now an HTTP conversation.
  */
-function fakeFetcher(?array $result): FetchLinkPreview
+function fakeUnfurler(?UnfurledPreview $result): Unfurler
 {
-    return new class($result) extends FetchLinkPreview
+    return new readonly class($result) implements Unfurler
     {
-        /**
-         * @param  array{title: string, description: string|null, image: string|null, siteName: string|null}|null  $result
-         */
-        public function __construct(private readonly ?array $result) {}
+        public function __construct(private ?UnfurledPreview $result) {}
 
-        public function handle(string $url): ?array
+        #[Override]
+        public function unfurl(array $urls): array
         {
-            return $this->result;
+            return array_fill_keys($urls, $this->result);
         }
     };
+}
+
+/**
+ * The preview those tests that only care that *something* resolved can use.
+ */
+function anyPreview(string $title = 'Example'): UnfurledPreview
+{
+    return new UnfurledPreview($title, null, null, null);
 }
 
 test('posting a message with URLs creates ordered pending previews and queues the unfurl', function (): void {
@@ -155,12 +165,12 @@ test('the unfurl job resolves pending previews and broadcasts the enriched messa
     $message = Message::factory()->for($general)->for($owner)->create();
     $message->linkPreviews()->create(['url' => 'https://example.com', 'position' => 0]);
 
-    (new UnfurlMessageLinks($message->id))->handle(fakeFetcher([
-        'title' => 'Example',
-        'description' => 'A description',
-        'image' => 'https://example.com/i.png',
-        'siteName' => 'Example',
-    ]));
+    (new UnfurlMessageLinks($message->id))->handle(fakeUnfurler(new UnfurledPreview(
+        title: 'Example',
+        description: 'A description',
+        image: 'https://example.com/i.png',
+        siteName: 'Example',
+    )));
 
     $preview = $message->linkPreviews()->firstOrFail();
 
@@ -186,7 +196,7 @@ test('the unfurl job marks a preview failed when it cannot be fetched', function
     $message = Message::factory()->for($general)->for($owner)->create();
     $message->linkPreviews()->create(['url' => 'https://blocked.internal', 'position' => 0]);
 
-    (new UnfurlMessageLinks($message->id))->handle(fakeFetcher(null));
+    (new UnfurlMessageLinks($message->id))->handle(fakeUnfurler(null));
 
     expect($message->linkPreviews()->value('status'))->toBe(LinkPreviewStatus::Failed);
 
@@ -209,7 +219,7 @@ test('the unfurl job bails quietly when the message is gone or deleted', functio
         $id = (string) Str::uuid7();
     }
 
-    (new UnfurlMessageLinks($id))->handle(fakeFetcher(['title' => 'x', 'description' => null, 'image' => null, 'siteName' => null]));
+    (new UnfurlMessageLinks($id))->handle(fakeUnfurler(anyPreview('x')));
 
     expect($message->linkPreviews()->value('status'))->toBe(LinkPreviewStatus::Pending);
 
@@ -223,7 +233,7 @@ test('the unfurl job does nothing when no previews are pending', function (): vo
     $message = Message::factory()->for($general)->for($owner)->create();
     $message->linkPreviews()->create(['url' => 'https://example.com', 'position' => 0, 'status' => LinkPreviewStatus::Ready]);
 
-    (new UnfurlMessageLinks($message->id))->handle(fakeFetcher(null));
+    (new UnfurlMessageLinks($message->id))->handle(fakeUnfurler(null));
 
     Event::assertNotDispatched(MessageUpdated::class);
 });
