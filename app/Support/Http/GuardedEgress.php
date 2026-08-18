@@ -123,6 +123,12 @@ final readonly class GuardedEgress
      * response that declares itself is refused without being read at all; the
      * measured length is checked after, because a chunked response declares
      * nothing.
+     *
+     * Both checks still bound what this keeps rather than what it reads — Guzzle
+     * has buffered the response by the time `body()` is called — which is #1202.
+     * The unfurl path no longer runs through here at all (ADR-0016 moved it to a
+     * service that reads through an `io.LimitReader`); the image proxy is the one
+     * caller left, and the one the issue is still open for.
      */
     private function read(Response $response, string $url, FetchPolicy $policy): ?FetchedBody
     {
@@ -146,10 +152,10 @@ final readonly class GuardedEgress
             return null;
         }
 
-        if (strlen($body) > $policy->maxBytes && ! $policy->truncatesOversizeBody) {
+        if (strlen($body) > $policy->maxBytes) {
             return null;
         }
 
-        return new FetchedBody($url, $contentType, substr($body, 0, $policy->maxBytes));
+        return new FetchedBody($url, $contentType, $body);
     }
 }

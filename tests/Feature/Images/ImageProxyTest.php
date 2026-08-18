@@ -8,6 +8,7 @@ use App\Enums\LinkPreviewStatus;
 use App\Models\MessageLinkPreview;
 use App\Models\User;
 use App\Support\HostResolver;
+use App\Support\Http\AbsoluteUrl;
 use App\Support\Images\FetchRemoteImage;
 use App\Support\Images\ImageProxy;
 use GuzzleHttp\Promise\PromiseInterface;
@@ -297,4 +298,27 @@ it('leaves a link preview without a thumbnail alone', function (): void {
     ]);
 
     expect(LinkPreviewData::fromModel($preview)->imageUrl)->toBeNull();
+});
+
+/**
+ * A protocol-relative `Location` inherits the scheme it was redirected from.
+ *
+ * This branch of {@see AbsoluteUrl} used to be covered by the
+ * unfurl's `og:image` resolution, which moved to `services/unfurler` in
+ * ADR-0016. The redirect walk here is the caller it has left, and a
+ * protocol-relative redirect is ordinary on real CDNs — so it is covered where
+ * it is actually reachable rather than left to the gate to notice.
+ */
+it('follows a protocol-relative redirect on the scheme it arrived with', function (): void {
+    Http::fake([
+        'https://example.test/i.png' => Http::response('', 302, ['Location' => '//cdn.example.test/i.png']),
+        'https://cdn.example.test/i.png' => Http::response('bytes', 200, ['Content-Type' => 'image/png']),
+    ]);
+
+    $this->swap(HostResolver::class, StubHostResolver::returning());
+
+    expect(app(FetchRemoteImage::class)->handle('https://example.test/i.png'))
+        ->toMatchArray(['mime' => 'image/png']);
+
+    Http::assertSent(fn ($request): bool => $request->url() === 'https://cdn.example.test/i.png');
 });

@@ -7,9 +7,13 @@ namespace App\Providers;
 use App\Models\PersonalAccessToken;
 use App\Support\IpGeolocator;
 use App\Support\PresenceRegistry;
+use App\Support\Unfurl\CachingUnfurler;
+use App\Support\Unfurl\HttpUnfurler;
+use App\Support\Unfurl\Unfurler;
 use Carbon\CarbonImmutable;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
+use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Http\Request;
 use Illuminate\Queue\Events\JobFailed;
 use Illuminate\Support\Facades\Date;
@@ -42,6 +46,14 @@ final class AppServiceProvider extends ServiceProvider
         // One instance per request, so the presence aggregate a page needs for
         // dozens of rendered users costs one cache read per distinct user.
         $this->app->singleton(PresenceRegistry::class);
+
+        // The unfurler is a pair: the client that talks to the service, wrapped
+        // in the cache that means the same link shared across many messages is
+        // only fetched once. Assembled here so no caller can take the inner half
+        // by accident and re-dial a dead host per message.
+        $this->app->bind(Unfurler::class, fn (Application $app): Unfurler => new CachingUnfurler(
+            $app->make(HttpUnfurler::class),
+        ));
     }
 
     /**

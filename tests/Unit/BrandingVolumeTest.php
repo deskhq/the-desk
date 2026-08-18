@@ -14,7 +14,7 @@ use Tests\Support\ProductionCompose;
 test('every app-role service mounts the operator branding directory read-only', function (string $service): void {
     expect(ProductionCompose::services()[$service]['volumes'])
         ->toContain('./branding:/app/storage/branding:ro');
-})->with(fn (): array => ProductionCompose::appRoleServices());
+})->with(fn (): array => ProductionCompose::laravelServices());
 
 test('the branding mount lands where the app resolves overrides from', function (): void {
     // The image installs the application at /app, so the mount target has to

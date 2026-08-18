@@ -31,3 +31,28 @@ updates:
       github-actions:
         patterns:
           - "*"
+
+  # The Go link unfurler (services/unfurler). Its whole dependency tree is
+  # golang.org/x/net and the golang.org/x/text it pulls in, but it is a second
+  # ecosystem all the same, and a security-adjacent service is the last place to
+  # let one go stale. Same target branch and commit prefix as above, for the same
+  # reasons.
+  #
+  # The `golang:` base image the Dockerfile and bin/go-test pin is deliberately
+  # NOT tracked here: turning on the docker ecosystem would start bumping
+  # frankenphp, postgres, redis and meilisearch too, which is a bigger change of
+  # posture than one Go service justifies. extension-pins.yml is where a pinned
+  # image belongs.
+  - package-ecosystem: "gomod"
+    directory: "/services/unfurler"
+    target-branch: "develop"
+    schedule:
+      interval: "weekly"
+    commit-message:
+      prefix: "deps"
+    cooldown:
+      default-days: 5
+    groups:
+      gomod:
+        patterns:
+          - "*"

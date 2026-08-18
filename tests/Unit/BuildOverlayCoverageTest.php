@@ -33,7 +33,12 @@ test('the app-role services are derived from the stack rather than assumed', fun
     // would otherwise pass every guard below vacuously. What it cannot know is
     // that the workers belong in the set too — the whole defect here was one of
     // them being treated as if it did not (#1040).
-    expect(ProductionCompose::appRoleServices())->toContain('queue-broadcasts');
+    expect(ProductionCompose::sharedImageServices())
+        ->toContain('queue-broadcasts')
+        // And the unfurler, which is the case the derivation had to be split to
+        // keep straight: it runs the shared image (so it belongs here) but not
+        // the application (so it is absent from every other guard below).
+        ->toContain('unfurler');
 });
 
 test('the build overlay restores a local build for every service on the shared app image', function (string $service): void {
@@ -42,7 +47,7 @@ test('the build overlay restores a local build for every service on the shared a
     expect($overlaid)->not->toBeNull()
         ->and($overlaid['build']['context'])->toBe('.')
         ->and($overlaid['image'])->toBe('the-desk:latest');
-})->with(fn (): array => ProductionCompose::appRoleServices());
+})->with(fn (): array => ProductionCompose::sharedImageServices());
 
 test('no service is pulled from the registry once the overlay is layered on', function (string $service) use ($overlaid): void {
     expect(ProductionCompose::imageOf($overlaid()[$service]))

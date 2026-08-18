@@ -32,8 +32,7 @@
         "spatie/laravel-activitylog": "^5.0",
         "spatie/laravel-csp": "^3.26",
         "spatie/laravel-data": "^4.23",
-        "spatie/laravel-typescript-transformer": "^3.3",
-        "symfony/dom-crawler": "^8.1"
+        "spatie/laravel-typescript-transformer": "^3.3"
     },
     "require-dev": {
         "deskhq/laravel-worktree": "^0.4.0",
@@ -94,6 +93,7 @@
             "npm run format:check",
             "npm run types:check",
             "npm run test:js",
+            "@test:go",
             "@test"
         ],
         "types:check": [
@@ -105,6 +105,10 @@
             "@types:check",
             "@refactor:check",
             "@php artisan test --parallel --stop-on-defect --coverage --min=100"
+        ],
+        "test:go": [
+            "Composer\\Config::disableProcessTimeout",
+            "bin/go-test"
         ],
         "test:browser": [
             "Composer\\Config::disableProcessTimeout",

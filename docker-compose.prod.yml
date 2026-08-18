@@ -184,6 +184,63 @@ services:
     command: ['php', 'artisan', 'schedule:work']
     depends_on: *worker-depends-on
 
+  # Link unfurling. A URL a member typed into a message is the one thing this
+  # application fetches on somebody else's say-so, and the process that parses
+  # what comes back is the one process that should hold nothing.
+  #
+  # It ships in the same image as the app — one artifact, one scan, one
+  # attestation, one APP_VERSION to pin — but it deliberately does NOT use the
+  # `*app` anchor, and that is the point rather than an omission. The anchor
+  # carries `env_file: .env`, a bind of the physical .env, the shared storage
+  # volume and the branding mount; handing all of that to the HTML parser is most
+  # of what isolating it was for. `entrypoint:` overrides the image's own, so the
+  # Go process also never pays for docker/entrypoint.sh's artisan cache warm-up.
+  # tests/Unit/ProductionComposeStorageVolumeTest.php fails if this drifts back.
+  #
+  # No `ports:`, so it is reachable only as `unfurler:8080` on this network, and
+  # UNFURLER_TOKEN is what stops another container on that same network using it
+  # as an unauthenticated fetcher. Set both it and UNFURLER_URL in .env; a fresh
+  # install gets them from ./docker/gen-secrets.sh and an upgrade is told about
+  # them by docker/env-sync.sh.
+  #
+  # No `depends_on` either: it needs neither the database, the cache nor the
+  # search index, and an edge from `queue` to here would let a wedged unfurler
+  # stop the queue worker from ever starting. Degrading gracefully is the design.
+  #
+  # An operator running a customised compose file who never adds this service
+  # loses link previews and nothing else: previews resolve to Failed, no card
+  # renders, and every message still posts, edits, broadcasts and searches. See
+  # docs/self-hosting/upgrading.
+  unfurler:
+    image: ${APP_IMAGE:-ghcr.io/deskhq/the-desk:${APP_VERSION:?APP_VERSION is required — set it in .env (see .env.prod.example) or override APP_IMAGE}}
+    entrypoint: ['/usr/local/bin/unfurler']
+    restart: unless-stopped
+    environment:
+      UNFURLER_LISTEN: ':8080'
+      # No `:?` guard. A missing token must fail this one service loudly — it
+      # refuses to boot and restart-loops, which `docker compose ps` shows —
+      # rather than failing the whole `docker compose up` for an operator who
+      # upgraded without syncing .env.
+      UNFURLER_TOKEN: ${UNFURLER_TOKEN:-}
+      UNFURLER_LOG_LEVEL: ${UNFURLER_LOG_LEVEL:-info}
+      UNFURLER_MAX_CONCURRENCY: ${UNFURLER_MAX_CONCURRENCY:-16}
+      # The SSRF guard keeps its webhook-era name across the whole application,
+      # so an operator who deliberately turned it off has it off here too. See
+      # config/integrations.php.
+      WEBHOOKS_BLOCK_PRIVATE_URLS: ${WEBHOOKS_BLOCK_PRIVATE_URLS:-true}
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test: ['CMD', 'curl', '-fsS', 'http://localhost:8080/healthz']
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
   pgsql:
     image: postgres:18-alpine
     environment:
