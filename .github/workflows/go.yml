@@ -51,10 +51,10 @@ jobs:
 
     steps:
       - name: Check out the repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
 
       - name: Set up Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v7
         with:
           # Kept in step with the GO_VERSION arg in the Dockerfile and the image
           # bin/go-test runs. A drift between them means the tested binary is not
