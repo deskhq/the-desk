@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.19.1](https://github.com/deskhq/the-desk/compare/v1.19.0...v1.19.1) (2026-10-21)
+
+
+### Bug Fixes
+
+* update PHP to 8.5.12 for critical security fixes ([#1302](https://github.com/deskhq/the-desk/issues/1302)) ([9653b9c](https://github.com/deskhq/the-desk/commit/9653b9c3a6cc0c20e2f399a23236d2c553056be4))
+
 ## [1.19.0](https://github.com/deskhq/the-desk/compare/v1.18.0...v1.19.0) (2026-08-02)
 
 
