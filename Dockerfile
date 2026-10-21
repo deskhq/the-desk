@@ -17,7 +17,9 @@
 # Laravel Octane).
 # =============================================================================
 
-ARG PHP_VERSION=8.5
+# PHP 8.5.12 fixes CVE-2026-109618 and CVE-2026-109619. Pin the patch
+# release so a cached floating 8.5 base cannot ship the vulnerable runtime.
+ARG PHP_VERSION=8.5.12
 
 # -----------------------------------------------------------------------------
 # Stage 1 — Composer: production PHP dependencies only, optimized autoloader.
