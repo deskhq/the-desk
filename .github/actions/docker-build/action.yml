@@ -87,7 +87,7 @@ runs:
     # GitHub path asks for explicitly below comes for free here.
     - name: Set up the Blacksmith builder
       if: startsWith(inputs.runner, 'blacksmith')
-      uses: useblacksmith/setup-docker-builder@19215110ab936351210feebdfa5b440b4493e184 # v2.2.0
+      uses: useblacksmith/setup-docker-builder@06dd9c83a5d541274d2e3ac67625560979275267 # v2.3.0
 
     - name: Build with the Blacksmith builder
       if: startsWith(inputs.runner, 'blacksmith')
